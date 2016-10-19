@@ -95,33 +95,45 @@ private
         procedure, non_overridable, public :: get_subcells_iterator           => output_handler_patch_get_subcells_iterator
     end type
 
+
+    type :: patch_subcell_accessor_t
+    private
+        type(output_handler_patch_t), pointer :: patch => NULL()
+        integer(ip)                           :: current_subcell = 0
+    contains
+        procedure, non_overridable, public :: create                      => patch_subcell_accessor_create
+        procedure, non_overridable, public :: free                        => patch_subcell_accessor_free
+        procedure, non_overridable, public :: get_cell_type               => patch_subcell_accessor_get_cell_type
+        procedure, non_overridable, public :: get_number_dimensions       => patch_subcell_accessor_get_number_dimensions
+        procedure, non_overridable, public :: get_number_vertices         => patch_subcell_accessor_get_number_vertices
+        procedure, non_overridable, public :: get_coordinates             => patch_subcell_accessor_get_coordinates
+        procedure, non_overridable, public :: get_connectivity            => patch_subcell_accessor_get_connectivity
+        procedure, non_overridable, public :: get_number_fields           => patch_subcell_accessor_get_number_fields
+        procedure, non_overridable, public :: get_number_field_components => patch_subcell_accessor_get_number_field_components
+        procedure, non_overridable         ::                                patch_subcell_accessor_get_field_1D
+        procedure, non_overridable         ::                                patch_subcell_accessor_get_field_2D
+        generic,                    public :: get_field                   => patch_subcell_accessor_get_field_1D, &
+                                                                             patch_subcell_accessor_get_field_2D
+    end type
+
     type :: patch_subcell_iterator_t
     private
         type(output_handler_patch_t), pointer :: patch => NULL()
         integer(ip)                           :: current_subcell = 0
         integer(ip)                           :: number_subcells = 0
     contains
-        procedure, non_overridable, public :: create                      => patch_subcell_iterator_create
+        procedure, non_overridable         :: create                      => patch_subcell_iterator_create
         procedure, non_overridable, public :: begin                       => patch_subcell_iterator_begin
         procedure, non_overridable, public :: next                        => patch_subcell_iterator_next
         procedure, non_overridable, public :: has_finished                => patch_subcell_iterator_has_finished
+        procedure, non_overridable, public :: get_accessor                => patch_subcell_iterator_get_accessor
         procedure, non_overridable, public :: free                        => patch_subcell_iterator_free
-        procedure, non_overridable, public :: get_cell_type               => patch_subcell_iterator_get_cell_type
-        procedure, non_overridable, public :: get_number_dimensions       => patch_subcell_iterator_get_number_dimensions
-        procedure, non_overridable, public :: get_number_vertices         => patch_subcell_iterator_get_number_vertices
-        procedure, non_overridable, public :: get_coordinates             => patch_subcell_iterator_get_coordinates
-        procedure, non_overridable, public :: get_connectivity            => patch_subcell_iterator_get_connectivity
-        procedure, non_overridable, public :: get_number_fields           => patch_subcell_iterator_get_number_fields
-        procedure, non_overridable, public :: get_number_field_components => patch_subcell_iterator_get_number_field_components
-        procedure, non_overridable         ::                                patch_subcell_iterator_get_field_1D
-        procedure, non_overridable         ::                                patch_subcell_iterator_get_field_2D
-        generic,                    public :: get_field                   => patch_subcell_iterator_get_field_1D, &
-                                                                             patch_subcell_iterator_get_field_2D
     end type
 
 public :: output_handler_patch_t
 public :: output_handler_patch_field_t
 public :: patch_subcell_iterator_t
+public :: patch_subcell_accessor_t
 
 contains
 
@@ -527,44 +539,87 @@ contains
     end function patch_subcell_iterator_has_finished
 
 
-    function patch_subcell_iterator_get_cell_type(this) result(cell_type)
+    function patch_subcell_iterator_get_accessor(this) result(accessor)
+    !-----------------------------------------------------------------
+    !< Rewind patch subcell iterator
+    !-----------------------------------------------------------------
+        class(patch_subcell_iterator_t), intent(inout) :: this
+        type(patch_subcell_accessor_t)                 :: accessor
+    !-----------------------------------------------------------------
+        assert(associated(this%patch) .and. this%current_subcell>0 .and. this%current_subcell<=this%number_subcells)
+        call accessor%create(this%patch, this%current_subcell)
+    end function patch_subcell_iterator_get_accessor
+
+
+!---------------------------------------------------------------------
+!< patch_subcell_accessor_t PROCEDURES
+!---------------------------------------------------------------------
+
+
+    subroutine patch_subcell_accessor_free(this, patch, current_subcell)
+    !-----------------------------------------------------------------
+    !< Create a patch subcell accessor
+    !-----------------------------------------------------------------
+        class(patch_subcell_accessor_t),      intent(inout) :: this
+        type(output_handler_patch_t), target, intent(in)    :: patch
+        integer(ip),                          intent(in)    :: current_subcell
+    !-----------------------------------------------------------------
+        nullify(this%patch)
+        this%current_subcell = 0
+    end subroutine patch_subcell_accessor_free
+
+
+    subroutine patch_subcell_accessor_create(this, patch, current_subcell)
+    !-----------------------------------------------------------------
+    !< Create a patch subcell accessor
+    !-----------------------------------------------------------------
+        class(patch_subcell_accessor_t),      intent(inout) :: this
+        type(output_handler_patch_t), target, intent(in)    :: patch
+        integer(ip),                          intent(in)    :: current_subcell
+    !-----------------------------------------------------------------
+        this%patch => patch
+        this%current_subcell = current_subcell
+    end subroutine patch_subcell_accessor_create
+
+
+    function patch_subcell_accessor_get_cell_type(this) result(cell_type)
     !-----------------------------------------------------------------
     !< Return subcell topology type
     !-----------------------------------------------------------------
-        class(patch_subcell_iterator_t), intent(in) :: this
+        class(patch_subcell_accessor_t), intent(in) :: this
         character(len=:), allocatable               :: cell_type
     !-----------------------------------------------------------------
         cell_type = this%patch%get_cell_type()
-    end function patch_subcell_iterator_get_cell_type
+    end function patch_subcell_accessor_get_cell_type
 
 
-    pure function patch_subcell_iterator_get_number_dimensions(this) result(number_dimensions)
+    pure function patch_subcell_accessor_get_number_dimensions(this) result(number_dimensions)
     !-----------------------------------------------------------------
     !< Return subcell number of vertices
     !-----------------------------------------------------------------
-        class(patch_subcell_iterator_t), intent(in) :: this
+        class(patch_subcell_accessor_t), intent(in) :: this
         integer(ip)                                 :: number_dimensions
     !-----------------------------------------------------------------
         number_dimensions = this%patch%get_number_dimensions()
-    end function patch_subcell_iterator_get_number_dimensions
+    end function patch_subcell_accessor_get_number_dimensions
 
 
-    pure function patch_subcell_iterator_get_number_vertices(this) result(number_vertices)
+    pure function patch_subcell_accessor_get_number_vertices(this) result(number_vertices)
     !-----------------------------------------------------------------
     !< Return subcell number of vertices
     !-----------------------------------------------------------------
-        class(patch_subcell_iterator_t), intent(in)    :: this
+        class(patch_subcell_accessor_t), intent(in)    :: this
         integer(ip)                                    :: number_vertices
     !-----------------------------------------------------------------
         number_vertices = this%patch%get_number_vertices_per_subcell()
-    end function patch_subcell_iterator_get_number_vertices
+    end function patch_subcell_accessor_get_number_vertices
 
 
-    subroutine patch_subcell_iterator_get_coordinates(this, X, Y, Z)
+    subroutine patch_subcell_accessor_get_coordinates(this, X, Y, Z)
     !-----------------------------------------------------------------
     !< Return subcell coordinates
     !-----------------------------------------------------------------
-        class(patch_subcell_iterator_t),        intent(in)    :: this
+        class(patch_subcell_accessor_t),        intent(in)    :: this
         real(rp),                               intent(inout) :: X(this%patch%get_number_vertices_per_subcell())
         real(rp),                               intent(inout) :: Y(this%patch%get_number_vertices_per_subcell())
         real(rp),                               intent(inout) :: Z(this%patch%get_number_vertices_per_subcell())
@@ -583,14 +638,14 @@ contains
             if(number_dimensions>=2) Y(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(2)
             if(number_dimensions>=3) Z(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(3)
         end do
-    end subroutine patch_subcell_iterator_get_coordinates
+    end subroutine patch_subcell_accessor_get_coordinates
 
 
-    subroutine patch_subcell_iterator_get_connectivity(this, connectivity)
+    subroutine patch_subcell_accessor_get_connectivity(this, connectivity)
     !-----------------------------------------------------------------
     !< Return subcell connectivity
     !-----------------------------------------------------------------
-        class(patch_subcell_iterator_t),        intent(in)    :: this
+        class(patch_subcell_accessor_t),        intent(in)    :: this
         integer(ip),                            intent(inout) :: connectivity(this%patch%get_number_vertices_per_subcell())
         type(allocatable_array_ip2_t), pointer                :: subcells_connectivity
         integer(ip)                                           :: number_vertices
@@ -598,39 +653,39 @@ contains
         number_vertices       =  this%patch%get_number_vertices_per_subcell()
         subcells_connectivity => this%patch%get_subcells_connectivity()
         connectivity(1:number_vertices) = subcells_connectivity%a(1:number_vertices, this%current_subcell)
-    end subroutine patch_subcell_iterator_get_connectivity
+    end subroutine patch_subcell_accessor_get_connectivity
 
 
-    function patch_subcell_iterator_get_number_fields(this) result(number_fields)
+    function patch_subcell_accessor_get_number_fields(this) result(number_fields)
     !-----------------------------------------------------------------
     !< Return subcell number of fields
     !-----------------------------------------------------------------
-        class(patch_subcell_iterator_t), intent(in) :: this
+        class(patch_subcell_accessor_t), intent(in) :: this
         integer(ip)                                 :: number_fields
     !-----------------------------------------------------------------
         number_fields = this%patch%get_number_fields()
-    end function patch_subcell_iterator_get_number_fields
+    end function patch_subcell_accessor_get_number_fields
 
 
-    function patch_subcell_iterator_get_number_field_components(this, field_id) result(number_components)
+    function patch_subcell_accessor_get_number_field_components(this, field_id) result(number_components)
     !-----------------------------------------------------------------
     !< Return subcell number of fields
     !-----------------------------------------------------------------
-        class(patch_subcell_iterator_t),             intent(in) :: this
+        class(patch_subcell_accessor_t),             intent(in) :: this
         integer(ip),                                 intent(in) :: field_id
         type(output_handler_patch_field_t), pointer             :: patch_field
         integer(ip)                                             :: number_components
     !-----------------------------------------------------------------
         patch_field       => this%patch%get_field(field_id)
         number_components =  patch_field%get_number_components()
-    end function patch_subcell_iterator_get_number_field_components
+    end function patch_subcell_accessor_get_number_field_components
 
 
-    subroutine patch_subcell_iterator_get_field_1D(this, field_id, field)
+    subroutine patch_subcell_accessor_get_field_1D(this, field_id, field)
     !-----------------------------------------------------------------
     !< Return subcell field corresponding to the field_id as a vector
     !-----------------------------------------------------------------
-        class(patch_subcell_iterator_t),             intent(in)    :: this
+        class(patch_subcell_accessor_t),             intent(in)    :: this
         integer(ip),                                 intent(in)    :: field_id
         real(rp),                                    intent(inout) :: field(:)
         type(output_handler_patch_field_t),     pointer            :: patch_field
@@ -682,14 +737,14 @@ contains
             case DEFAULT
                 check(.false.)
         end select
-    end subroutine patch_subcell_iterator_get_field_1D
+    end subroutine patch_subcell_accessor_get_field_1D
 
 
-    subroutine patch_subcell_iterator_get_field_2D(this, field_id, LDA, field)
+    subroutine patch_subcell_accessor_get_field_2D(this, field_id, LDA, field)
     !-----------------------------------------------------------------
     !< Return subcell field corresponding to the field_id as a 2D matrix
     !-----------------------------------------------------------------
-        class(patch_subcell_iterator_t),             intent(in)    :: this
+        class(patch_subcell_accessor_t),             intent(in)    :: this
         integer(ip),                                 intent(in)    :: field_id
         integer(ip),                                 intent(in)    :: LDA
         real(rp),                                    intent(inout) :: field(LDA,this%patch%get_number_vertices_per_subcell())
@@ -737,6 +792,6 @@ contains
             case DEFAULT
                 check(.false.)
         end select
-    end subroutine patch_subcell_iterator_get_field_2D
+    end subroutine patch_subcell_accessor_get_field_2D
 
 end module output_handler_patch_names

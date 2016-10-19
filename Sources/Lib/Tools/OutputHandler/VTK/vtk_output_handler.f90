@@ -38,7 +38,7 @@ USE output_handler_base_names
 USE output_handler_fe_field_names
 USE vtk_parameters_names
 USE fe_space_names,             only: serial_fe_space_t
-USE output_handler_patch_names, only: patch_subcell_iterator_t
+USE output_handler_patch_names, only: patch_subcell_accessor_t
 USE IR_Precision,               only: I1P, str
 
 
@@ -162,7 +162,7 @@ contains
         real(rp), allocatable                      :: temp_times(:)
     !-----------------------------------------------------------------
         if(.not. allocated(this%Times)) then
-            allocate(this%times(100))
+            call memalloc(100, this%times, __FILE__, __LINE__)
         elseif(number_steps > size(this%Times)) then
             current_size = size(this%Times)
             allocate(temp_times(current_size))
@@ -234,12 +234,12 @@ contains
     end subroutine vtk_output_handler_allocate_cell_and_nodal_arrays
 
 
-    subroutine vtk_output_handler_append_cell(this, subcell_iterator)
+    subroutine vtk_output_handler_append_cell(this, subcell_accessor)
     !-----------------------------------------------------------------
     !< Append cell data to global arrays
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
-        type(patch_subcell_iterator_t), intent(in) :: subcell_iterator
+        type(patch_subcell_accessor_t), intent(in) :: subcell_accessor
         real(rp),    allocatable                   :: Coordinates(:,:)
         integer(ip), allocatable                   :: Connectivity(:)
         real(rp),                        pointer   :: Value(:,:)
@@ -249,11 +249,11 @@ contains
         integer(ip)                                :: number_components
         integer(ip)                                :: i
     !-----------------------------------------------------------------
-        number_vertices   = subcell_iterator%get_number_vertices()
-        number_dimensions = subcell_iterator%get_number_dimensions()
+        number_vertices   = subcell_accessor%get_number_vertices()
+        number_dimensions = subcell_accessor%get_number_dimensions()
         number_fields     = this%get_number_fields()
 
-        call subcell_iterator%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
+        call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
                                               this%Y(this%node_offset+1:this%node_offset+number_vertices), &
                                               this%Z(this%node_offset+1:this%node_offset+number_vertices))
 
@@ -261,16 +261,16 @@ contains
                             (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
 
         do i=1, number_fields
-            number_components = subcell_iterator%get_number_field_components(i)
+            number_components = subcell_accessor%get_number_field_components(i)
             if(.not. this%FieldValues(i)%value_is_allocated()) call this%FieldValues(i)%allocate_value(number_components, this%get_number_nodes())
             Value => this%FieldValues(i)%get_value()
-            call subcell_iterator%get_field(i, number_components, Value(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
+            call subcell_accessor%get_field(i, number_components, Value(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
         enddo
         this%node_offset = this%node_offset + number_vertices
         this%cell_offset = this%cell_offset + 1
 
         this%Offset(this%cell_offset) = this%node_offset
-        this%CellTypes(this%cell_offset) = topology_to_vtk_celltype(subcell_iterator%get_cell_type(), number_dimensions)
+        this%CellTypes(this%cell_offset) = topology_to_vtk_celltype(subcell_accessor%get_cell_type(), number_dimensions)
 
     end subroutine vtk_output_handler_append_cell
 

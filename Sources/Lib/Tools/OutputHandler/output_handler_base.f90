@@ -95,11 +95,11 @@ private
             class(output_handler_base_t), intent(inout) :: this
         end subroutine
 
-        subroutine output_handler_base_append_cell(this, subcell_iterator)
+        subroutine output_handler_base_append_cell(this, subcell_accessor)
             import output_handler_base_t
-            import patch_subcell_iterator_t
+            import patch_subcell_accessor_t
             class(output_handler_base_t),   intent(inout) :: this
-            type(patch_subcell_iterator_t), intent(in) :: subcell_iterator
+            type(patch_subcell_accessor_t), intent(in)    :: subcell_accessor
         end subroutine
 
         subroutine output_handler_base_close(this)
@@ -276,7 +276,7 @@ contains
                 subcell_iterator = patch%get_subcells_iterator()
 !               ! Fill data
                 do while(.not. subcell_iterator%has_finished())
-                    call this%append_cell(subcell_iterator)
+                    call this%append_cell(subcell_iterator%get_accessor())
                     call subcell_iterator%next()
                 enddo
             endif
