@@ -85,10 +85,8 @@ module output_handler_cell_fe_function_names
     procedure, non_overridable :: get_values_tensor               => ohcff_get_values_tensor
     procedure, non_overridable :: get_gradients_scalar            => ohcff_get_gradients_scalar
     procedure, non_overridable :: get_gradients_vector            => ohcff_get_gradients_vector
-    procedure, non_overridable :: get_curl_values_vector          => ohcff_get_curl_values_vector 
     generic                    :: get_values                      => get_values_scalar, get_values_vector, get_values_tensor
     generic                    :: get_gradients                   => get_gradients_scalar, get_gradients_vector
-    generic                    :: get_curl_values                 => get_curl_values_vector 
     
     procedure, non_overridable, private :: generate_vol_integ_pos_key      => ohcff_generate_vol_integ_pos_key
     procedure, non_overridable, private :: get_number_reference_fes        => ohcff_get_number_reference_fes
@@ -381,35 +379,6 @@ contains
     gradients => this%vector_function_gradients(reference_fe_id)%get_array()
     gradients => gradients(1:quadrature%get_number_quadrature_points())
   end subroutine ohcff_get_gradients_vector
-  
-    subroutine ohcff_get_curl_values_vector ( this, field_id, curl_values )
-    implicit none
-    class(output_handler_cell_fe_function_t), intent(in)    :: this
-    integer(ip)                             , intent(in)    :: field_id
-    type(vector_field_t), allocatable       , intent(inout) :: curl_values(:) 
-    ! Locals 
-    type(tensor_field_t), pointer   :: gradients(:) 
-    integer(ip)                     :: reference_fe_id 
-    type(quadrature_t), pointer     :: quadrature
-    integer(ip)                     :: qpoin, istat 
-    
-    assert ( associated(this%current_fe) )
-    quadrature => this%get_quadrature()
-    reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
-    gradients => this%vector_function_gradients(reference_fe_id)%get_array()
-    gradients => gradients(1:quadrature%get_number_quadrature_points())
-    
-    if (.not. allocated(curl_values)) then 
-    allocate ( curl_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0);
-    end if 
-    ! Extract gradients information to build curl values 
-    do qpoin=1,quadrature%get_number_quadrature_points()
-    call curl_values(qpoin)%set(1, gradients(qpoin)%get(2,3) - gradients(qpoin)%get(3,2) )
-    call curl_values(qpoin)%set(2, gradients(qpoin)%get(3,1) - gradients(qpoin)%get(1,3) )
-    call curl_values(qpoin)%set(3, gradients(qpoin)%get(1,2) - gradients(qpoin)%get(2,1) )
-    end do
-    
-  end subroutine ohcff_get_curl_values_vector
 
   subroutine ohcff_free ( this )
     implicit none
