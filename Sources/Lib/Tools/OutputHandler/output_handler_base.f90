@@ -65,6 +65,11 @@ private
     end type
 
     abstract interface
+        subroutine output_handler_base_open(this)
+            import output_handler_base_t
+            class(output_handler_base_t), intent(inout) :: this
+        end subroutine
+
         subroutine output_handler_base_write(this)
             import output_handler_base_t
             class(output_handler_base_t), intent(inout) :: this
@@ -80,6 +85,11 @@ private
             import patch_subcell_iterator_t
             class(output_handler_base_t),                  intent(inout) :: this
             type(patch_subcell_iterator_t), intent(in) :: subcell_iterator
+        end subroutine
+
+        subroutine output_handler_base_close(this)
+            import output_handler_base_t
+            class(output_handler_base_t), intent(inout) :: this
         end subroutine
     end interface
 
@@ -105,6 +115,8 @@ contains
             deallocate(this%fields)
         endif
         this%number_fields = 0
+        this%number_nodes  = 0
+        this%number_cells  = 0
         nullify(this%fe_space)
     end subroutine output_handler_base_free
 

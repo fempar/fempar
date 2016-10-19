@@ -89,6 +89,8 @@ contains
             enddo
             deallocate(this%FieldValues)
         endif
+        this%node_offset = 0
+        this%cell_offset = 0
     end subroutine vtk_output_handler_free
 
 

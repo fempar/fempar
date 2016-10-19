@@ -31,6 +31,7 @@ module xh5_output_handler_names
 USE types_names
 USE memor_names
 USE xh5for
+USE xh5_utils_names
 USE environment_names
 USE output_handler_base_names
 USE output_handler_fe_field_names
@@ -52,6 +53,7 @@ private
         integer(ip),                              allocatable :: Connectivities(:)
         type(output_handler_fe_field_1D_value_t), allocatable :: FieldValues(:)
         integer(ip)                                           :: node_offset = 0
+        integer(ip)                                           :: cell_offset = 0
     contains
         procedure,                 public :: write                          => xh5_output_handler_write
         procedure,                 public :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
@@ -82,6 +84,8 @@ contains
             enddo
             deallocate(this%FieldValues)
         endif
+        this%node_offset = 0
+        this%cell_offset = 0
     end subroutine xh5_output_handler_free
 
 
@@ -99,10 +103,10 @@ contains
         assert(.not. allocated(this%Connectivities))
         number_nodes = this%get_number_nodes()
         number_cells = this%get_number_cells()
-        call memalloc(number_nodes, this%X,              __FILE__, __LINE__)
-        call memalloc(number_nodes, this%Y,              __FILE__, __LINE__)
-        call memalloc(number_nodes, this%Z,              __FILE__, __LINE__)
-        call memalloc(number_nodes, this%Connectivities, __FILE__, __LINE__)
+        call memalloc(number_nodes,              this%X,              __FILE__, __LINE__)
+        call memalloc(number_nodes,              this%Y,              __FILE__, __LINE__)
+        call memalloc(number_nodes,              this%Z,              __FILE__, __LINE__)
+        call memalloc(number_nodes+number_cells, this%Connectivities, __FILE__, __LINE__)
         this%Z = 0_rp
     end subroutine xh5_output_handler_allocate_cell_and_nodal_arrays
 
@@ -120,6 +124,7 @@ contains
         integer(ip)                                :: number_dimensions
         integer(ip)                                :: number_fields
         integer(ip)                                :: number_components
+        integer(ip)                                :: node_and_cell_offset
         integer(ip)                                :: i
     !-----------------------------------------------------------------
         number_vertices   = subcell_iterator%get_number_vertices()
@@ -130,18 +135,24 @@ contains
                                               this%Y(this%node_offset+1:this%node_offset+number_vertices), &
                                               this%Z(this%node_offset+1:this%node_offset+number_vertices))
 
+        node_and_cell_offset = this%node_offset+this%cell_offset
+        this%Connectivities(node_and_cell_offset+1) = topology_to_xh5_celltype(subcell_iterator%get_cell_type(), number_dimensions)
+        node_and_cell_offset = node_and_cell_offset+1
+
         select case (subcell_iterator%get_cell_type())
             case (topology_hex) 
                 select case (number_dimensions)
                     case (2)
-                        this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = (/0,1,3,2/)+this%node_offset
+                        this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
+                                (/0,1,3,2/)+this%node_offset
                     case (3)
-                        this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = (/0,1,3,2,4,5,7,6/)+this%node_offset
+                        this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
+                                (/0,1,3,2,4,5,7,6/)+this%node_offset
                     case DEFAULT
                         check(.false.)
                 end select
             case (topology_tet) 
-                this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
+                this%Connectivities(node_and_cell_offset+1:this%node_offset+number_vertices) = (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
             case DEFAULT
                 check(.false.)    
         end select
@@ -153,6 +164,7 @@ contains
             call subcell_iterator%get_field(i, Value((number_components*this%node_offset)+1:number_components*(this%node_offset+number_vertices)))
         enddo
         this%node_offset = this%node_offset + number_vertices
+        this%cell_offset = this%cell_offset + 1
 
     end subroutine xh5_output_handler_append_cell
 
@@ -189,7 +201,7 @@ contains
                       Action     = XDMF_ACTION_WRITE)
         call this%xh5%SetGrid(NumberOfNodes=this%get_number_nodes(), &
                               NumberOfElements=this%get_number_cells(), &
-                              TopologyType=XDMF_TOPOLOGY_TYPE_QUADRILATERAL, &
+                              TopologyType=XDMF_TOPOLOGY_TYPE_MIXED, &
                               GeometryType=XDMF_GEOMETRY_TYPE_X_Y_Z)
         call this%xh5%WriteTopology(Connectivities=this%Connectivities)
         call this%xh5%WriteGeometry(X=this%X, Y=this%Y, Z=this%Z)
