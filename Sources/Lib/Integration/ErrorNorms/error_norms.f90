@@ -108,7 +108,6 @@ module error_norms_names
      ! is required provided the current interface of tensor-valued function_t data types
      type(vector_field_t)    , allocatable :: work_array_values(:,:)
      type(tensor_field_t)    , allocatable :: work_array_gradients(:,:)
-     type(vector_field_t)    , allocatable :: work_array_curl_values(:,:)
    contains
      procedure, non_overridable          :: create                    => error_norms_vector_create
      procedure, non_overridable          :: free                      => error_norms_vector_free
