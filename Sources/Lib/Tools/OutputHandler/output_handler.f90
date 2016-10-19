@@ -53,6 +53,7 @@ private
         procedure, non_overridable, public :: attach_fe_space            => output_handler_attach_fe_space
         procedure, non_overridable, public :: add_fe_function            => output_handler_add_fe_function
         procedure, non_overridable, public :: open                       => output_handler_open
+        procedure, non_overridable, public :: append_time_step           => output_handler_append_time_step
         procedure, non_overridable, public :: write                      => output_handler_write
         procedure, non_overridable, public :: close                      => output_handler_close
         procedure, non_overridable, public :: free                       => output_handler_free
@@ -170,6 +171,18 @@ contains
         assert(associated(this%state))
         call this%state%open(dir_path, prefix, parameter_list)
     end subroutine output_handler_open
+
+
+    subroutine output_handler_append_time_step(this, value)
+    !-----------------------------------------------------------------
+    !< Open procedure
+    !-----------------------------------------------------------------
+        class(output_handler_t), intent(inout) :: this
+        real(rp),                intent(in)    :: value
+    !-----------------------------------------------------------------
+        assert(associated(this%state))    
+        call this%state%append_time_step(value)
+    end  subroutine output_handler_append_time_step
 
 
     subroutine output_handler_write(this)

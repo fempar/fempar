@@ -67,6 +67,7 @@ private
         integer(ip)                                           :: cell_offset = 0
     contains
         procedure,                 public :: open                           => xh5_output_handler_open
+        procedure,                 public :: append_time_step               => xh5_output_handler_append_time_step
         procedure,                 public :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
         procedure,                 public :: append_cell                    => xh5_output_handler_append_cell
         procedure,                 public :: write                          => xh5_output_handler_write
@@ -87,6 +88,8 @@ contains
         integer(ip)                                :: i
     !-----------------------------------------------------------------
         call this%xh5%free()
+        if(allocated(this%Path))           deallocate(this%Path)
+        if(allocated(this%FilePrefix))     deallocate(this%FilePrefix)
         if(allocated(this%X))              call memfree(this%X,              __FILE__, __LINE__)
         if(allocated(this%Y))              call memfree(this%Y,              __FILE__, __LINE__)
         if(allocated(this%Z))              call memfree(this%Z,              __FILE__, __LINE__)
@@ -226,6 +229,19 @@ contains
     end subroutine xh5_output_handler_open
 
 
+    subroutine xh5_output_handler_append_time_step(this, value)
+    !-----------------------------------------------------------------
+    !< Append a new time step
+    !-----------------------------------------------------------------
+        class(xh5_output_handler_t), intent(inout) :: this
+        real(rp),                    intent(in)    :: value
+    !-----------------------------------------------------------------
+        call this%xh5%AppendStep(Value)
+        this%node_offset = 0
+        this%cell_offset = 0
+    end subroutine xh5_output_handler_append_time_step
+
+
     subroutine xh5_output_handler_allocate_cell_and_nodal_arrays(this)
     !-----------------------------------------------------------------
     !< Allocate cell and nodal arrays
@@ -234,17 +250,29 @@ contains
         integer(ip)                                :: number_nodes
         integer(ip)                                :: number_cells
     !-----------------------------------------------------------------
-        assert(.not. allocated(this%X))
-        assert(.not. allocated(this%Y))
-        assert(.not. allocated(this%Z))
-        assert(.not. allocated(this%Connectivities))
         number_nodes = this%get_number_nodes()
         number_cells = this%get_number_cells()
-        call memalloc(number_nodes,              this%X,              __FILE__, __LINE__)
-        call memalloc(number_nodes,              this%Y,              __FILE__, __LINE__)
-        call memalloc(number_nodes,              this%Z,              __FILE__, __LINE__)
-        call memalloc(number_nodes+number_cells, this%Connectivities, __FILE__, __LINE__)
-        this%Z = 0_rp
+        if(allocated(this%X)) then
+            call memrealloc(number_nodes,              this%X,              __FILE__, __LINE__)
+        else
+            call memalloc(  number_nodes,              this%X,              __FILE__, __LINE__)
+        endif
+        if(allocated(this%Y)) then
+            call memrealloc(number_nodes,              this%Y,              __FILE__, __LINE__)
+        else
+            call memalloc(  number_nodes,              this%Y,              __FILE__, __LINE__)
+        endif
+        if(allocated(this%Z)) then
+            call memrealloc(number_nodes,              this%Z,              __FILE__, __LINE__)
+        else
+            call memalloc(  number_nodes,              this%Z,              __FILE__, __LINE__)
+            this%Z = 0_rp
+        endif
+        if(allocated(this%Connectivities)) then
+            call memrealloc(number_nodes+number_cells, this%Connectivities, __FILE__, __LINE__)
+        else
+            call memalloc(  number_nodes+number_cells, this%Connectivities, __FILE__, __LINE__)
+        endif
     end subroutine xh5_output_handler_allocate_cell_and_nodal_arrays
 
 
@@ -320,7 +348,7 @@ contains
         integer(ip)                                :: E_IO, i
         integer(ip)                                :: me, np
     !-----------------------------------------------------------------
-        allocate(this%FieldValues(this%get_number_fields()))
+        if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
 
         call this%fill_data()
 

@@ -61,6 +61,7 @@ private
         procedure, non_overridable, public :: add_fe_function            => output_handler_base_add_fe_function
         procedure, non_overridable, public :: fill_data                  => output_handler_base_fill_data
         procedure(output_handler_base_open),                           public, deferred :: open
+        procedure(output_handler_base_append_time_step),               public, deferred :: append_time_step
         procedure(output_handler_base_allocate_cell_and_nodal_arrays), public, deferred :: allocate_cell_and_nodal_arrays
         procedure(output_handler_base_append_cell),                    public, deferred :: append_cell
         procedure(output_handler_base_write),                          public, deferred :: write
@@ -77,6 +78,13 @@ private
             type(ParameterList_t), optional, intent(in)    :: parameter_list
         end subroutine
 
+        subroutine output_handler_base_append_time_step(this, value)
+            import output_handler_base_t
+            import rp
+            class(output_handler_base_t), intent(inout) :: this
+            real(rp),                     intent(in)    :: value
+        end subroutine
+
         subroutine output_handler_base_write(this)
             import output_handler_base_t
             class(output_handler_base_t), intent(inout) :: this
@@ -90,7 +98,7 @@ private
         subroutine output_handler_base_append_cell(this, subcell_iterator)
             import output_handler_base_t
             import patch_subcell_iterator_t
-            class(output_handler_base_t),                  intent(inout) :: this
+            class(output_handler_base_t),   intent(inout) :: this
             type(patch_subcell_iterator_t), intent(in) :: subcell_iterator
         end subroutine
 

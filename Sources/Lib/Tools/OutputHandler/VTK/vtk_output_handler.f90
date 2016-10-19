@@ -63,10 +63,12 @@ private
         integer(ip)                                           :: node_offset  = 0
         integer(ip)                                           :: cell_offset  = 0
     contains
+        procedure, non_overridable        :: resize_times_if_needed         => vtk_output_handler_resize_times_if_needed
         procedure, non_overridable        :: write_vtu                      => vtk_output_handler_write_vtu
         procedure, non_overridable        :: write_pvtu                     => vtk_output_handler_write_pvtu
         procedure, non_overridable        :: write_pvd                      => vtk_output_handler_write_pvd
         procedure,                 public :: open                           => vtk_output_handler_open
+        procedure,                 public :: append_time_step               => vtk_output_handler_append_time_step
         procedure,                 public :: write                          => vtk_output_handler_write
         procedure,                 public :: allocate_cell_and_nodal_arrays => vtk_output_handler_allocate_cell_and_nodal_arrays
         procedure,                 public :: append_cell                    => vtk_output_handler_append_cell
@@ -86,20 +88,25 @@ contains
         class(vtk_output_handler_t), intent(inout) :: this
         integer(ip)                                :: i
     !-----------------------------------------------------------------
+        if(allocated(this%Path))           deallocate(this%Path)
+        if(allocated(this%FilePrefix))     deallocate(this%FilePrefix)
+        if(allocated(this%vtk_format))     deallocate(this%vtk_format)
         if(allocated(this%X))              call memfree(this%X,              __FILE__, __LINE__)
         if(allocated(this%Y))              call memfree(this%Y,              __FILE__, __LINE__)
         if(allocated(this%Z))              call memfree(this%Z,              __FILE__, __LINE__)
         if(allocated(this%Offset))         call memfree(this%Offset,         __FILE__, __LINE__)
         if(allocated(this%CellTypes))      call memfree(this%CellTypes,      __FILE__, __LINE__)
         if(allocated(this%Connectivities)) call memfree(this%Connectivities, __FILE__, __LINE__)
+        if(allocated(this%Times))          call memfree(this%Times,          __FILE__, __LINE__)
         if(allocated(this%FieldValues)) then
             do i=1, size(this%Fieldvalues)
                 call this%FieldValues(i)%Free()
             enddo
             deallocate(this%FieldValues)
         endif
-        this%node_offset = 0
-        this%cell_offset = 0
+        this%node_offset  = 0
+        this%cell_offset  = 0
+        this%number_steps = 0
     end subroutine vtk_output_handler_free
 
 
@@ -145,6 +152,44 @@ contains
     end subroutine vtk_output_handler_open
 
 
+    subroutine vtk_output_handler_resize_times_if_needed(this, number_steps)
+    !-----------------------------------------------------------------
+    !< Resize Times steps array if needed for the new number_steps
+    !-----------------------------------------------------------------
+        class(vtk_output_handler_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: number_steps
+        integer(ip)                                :: current_size
+        real(rp), allocatable                      :: temp_times(:)
+    !-----------------------------------------------------------------
+        if(.not. allocated(this%Times)) then
+            allocate(this%times(100))
+        elseif(number_steps > size(this%Times)) then
+            current_size = size(this%Times)
+            allocate(temp_times(current_size))
+            temp_times(1:current_size) = this%Times(1:current_size)
+            deallocate(this%Times)
+            allocate(this%Times(int(1.5*current_size)))
+            this%Times(1:current_size) = temp_times(1:current_size)
+            deallocate(temp_times)
+        endif
+    end subroutine vtk_output_handler_resize_times_if_needed
+
+
+    subroutine vtk_output_handler_append_time_step(this, value)
+    !-----------------------------------------------------------------
+    !< Append a new time step
+    !-----------------------------------------------------------------
+        class(vtk_output_handler_t), intent(inout) :: this
+        real(rp),                    intent(in)    :: value
+    !-----------------------------------------------------------------
+        this%number_steps = this%number_steps + 1
+        call this%resize_times_if_needed(this%number_steps)
+        this%Times(this%number_steps) = value
+        this%node_offset = 0
+        this%cell_offset = 0
+    end subroutine vtk_output_handler_append_time_step
+
+
     subroutine vtk_output_handler_allocate_cell_and_nodal_arrays(this)
     !-----------------------------------------------------------------
     !< Allocate cell and nodal arrays
@@ -153,21 +198,39 @@ contains
         integer(ip)                                :: number_nodes
         integer(ip)                                :: number_cells
     !-----------------------------------------------------------------
-        assert(.not. allocated(this%X))
-        assert(.not. allocated(this%Y))
-        assert(.not. allocated(this%Z))
-        assert(.not. allocated(this%Offset))
-        assert(.not. allocated(this%CellTypes))
-        assert(.not. allocated(this%Connectivities))
         number_nodes = this%get_number_nodes()
         number_cells = this%get_number_cells()
-        call memalloc(number_nodes, this%X,              __FILE__, __LINE__)
-        call memalloc(number_nodes, this%Y,              __FILE__, __LINE__)
-        call memalloc(number_nodes, this%Z,              __FILE__, __LINE__)
-        call memalloc(number_cells, this%Offset,         __FILE__, __LINE__)
-        call memalloc(number_cells, this%CellTypes,      __FILE__, __LINE__)
-        call memalloc(number_nodes, this%Connectivities, __FILE__, __LINE__)
-        this%Z = 0_rp
+        if(allocated(this%X)) then
+            call memrealloc(number_nodes, this%X,              __FILE__, __LINE__)
+        else
+            call memalloc(  number_nodes, this%X,              __FILE__, __LINE__)
+        endif
+        if(allocated(this%Y)) then
+            call memrealloc(number_nodes, this%Y,              __FILE__, __LINE__)
+        else
+            call memalloc(  number_nodes, this%Y,              __FILE__, __LINE__)
+        endif
+        if(allocated(this%Z)) then
+            call memrealloc(number_nodes, this%Z,              __FILE__, __LINE__)
+        else
+            call memalloc(  number_nodes, this%Z,              __FILE__, __LINE__)
+            this%Z = 0_rp
+        endif
+        if(allocated(this%Offset)) then
+            call memrealloc(number_cells, this%Offset,         __FILE__, __LINE__)
+        else
+            call memalloc(  number_cells, this%Offset,         __FILE__, __LINE__)
+        endif
+        if(allocated(this%CellTypes)) then
+            call memrealloc(number_cells, this%CellTypes,      __FILE__, __LINE__)
+        else
+            call memalloc(  number_cells, this%CellTypes,      __FILE__, __LINE__)
+        endif
+        if(allocated(this%Connectivities)) then
+            call memrealloc(number_nodes, this%Connectivities, __FILE__, __LINE__)
+        else
+            call memalloc(  number_nodes, this%Connectivities, __FILE__, __LINE__)
+        endif
     end subroutine vtk_output_handler_allocate_cell_and_nodal_arrays
 
 
@@ -224,7 +287,7 @@ contains
         integer(ip)                                :: me, np
     !-----------------------------------------------------------------
         assert(allocated(this%Path) .and. allocated(this%FilePrefix))
-        allocate(this%FieldValues(this%get_number_fields()))
+        if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
 
         call this%fill_data()
 
