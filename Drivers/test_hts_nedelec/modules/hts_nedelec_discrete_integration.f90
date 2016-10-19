@@ -44,7 +44,6 @@ module hts_nedelec_discrete_integration_names
      real(rp)                          :: critical_current
      real(rp)                          :: nonlinear_exponent 
      character(len=:), allocatable     :: integration_type  
-     integer(ip)                       :: material 
      
      ! Solution to integrate nonlinear, time dependent 
      type(theta_method_t)    , pointer :: theta_method 
@@ -54,9 +53,7 @@ module hts_nedelec_discrete_integration_names
    contains
      procedure :: create                => hts_nedelec_discrete_integration_create
      procedure :: integrate             => hts_nedelec_discrete_integration_integrate 
-     procedure :: assign_solutions      => hts_nedelec_discrete_integration_assign_solutions
      procedure :: set_integration_type 
-     procedure :: get_material_type
      procedure :: compute_resistivity
      procedure :: compute_tangent_resistivity 
   end type hts_nedelec_discrete_integration_t
@@ -65,7 +62,7 @@ module hts_nedelec_discrete_integration_names
   
 contains
    
-  subroutine hts_nedelec_discrete_integration_create(this, theta_method, H_previous, H_current, hts_nedelec_params, source_term) 
+  subroutine hts_nedelec_discrete_integration_create(this, theta_method, H_current, H_previous, hts_nedelec_params, source_term) 
   implicit none 
   class(hts_nedelec_discrete_integration_t), intent(inout) :: this
   type(theta_method_t)    ,target          , intent(in)    :: theta_method
@@ -88,17 +85,7 @@ contains
   this%H_current     => H_current
   this%source_term   => source_term 
   end subroutine hts_nedelec_discrete_integration_create
-  
-    subroutine hts_nedelec_discrete_integration_assign_solutions(this, H_current, H_previous ) 
-  implicit none 
-  class(hts_nedelec_discrete_integration_t), intent(inout) :: this
-  type(fe_function_t)     , target    , intent(in)    :: H_current 
-  type(fe_function_t)     , target    , intent(in)    :: H_previous       
-    nullify(this%H_current) 
-  this%H_current     => H_current
-  this%H_previous    => H_previous 
-  end subroutine hts_nedelec_discrete_integration_assign_solutions
-  
+    
   subroutine hts_nedelec_discrete_integration_integrate ( this, fe_space, matrix_array_assembler )
     implicit none
     class(hts_nedelec_discrete_integration_t)   , intent(in)    :: this
@@ -118,8 +105,9 @@ contains
     type(volume_integrator_t), pointer :: vol_int_H
     type(vector_field_t)               :: H_shape_trial, H_shape_test
     type(vector_field_t)               :: curl_H_shape_trial, curl_H_shape_test
-    type(vector_field_t)               :: H_value_current, H_value_previous 
-    type(vector_field_t)               :: curl_H_value_current 
+    real(rp)                           :: div_H_shape_trial, div_H_shape_test
+    type(vector_field_t)               :: H_value_current, H_value_previous
+    type(vector_field_t) , allocatable :: H_current_curl_values(:)  
     type(cell_fe_function_vector_t)    :: cell_fe_function_previous, cell_fe_function_current 
     
     ! Nonlinear parameters computed in the integrate 
@@ -142,7 +130,7 @@ contains
     logical    , pointer :: field_coupling(:,:)
 
     type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:) , material
+    integer(ip), allocatable :: num_dofs_per_field(:)
     
     assert ( associated(this%source_term) )
     assert ( associated(this%H_current) )
@@ -171,6 +159,7 @@ contains
     
     time_factor = this%theta_method%get_theta() * this%theta_method%get_time_step() 
     allocate (source_term_values(num_quad_points,1), stat=istat); check(istat==0)
+    allocate (H_current_curl_values(num_quad_points), stat=istat); check(istat==0) 
     allocate (current_time(1), stat=istat); check(istat==0) 
     current_time = this%theta_method%get_current_time() 
     
@@ -189,11 +178,11 @@ contains
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => fe_map%get_quadrature_coordinates()
        
-       ! Determine which element kind belongs to from quad_coords 
-       material = this%get_material_type(quad_coords)
-       
        ! Evaluate pressure source term at quadrature points
        call this%source_term%get_values_set( quad_coords, current_time, source_term_values)
+       
+       ! Evaluate current curl values  
+       call cell_fe_function_current%get_quadrature_points_curl_values(H_current_curl_values)
        
        ! Compute element matrix and vector
        elmat = 0.0_rp
@@ -202,26 +191,26 @@ contains
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! Compute nonlinear resistivity 
-          call cell_fe_function_current%get_curl( qpoint, curl_H_value_current) 
+          resistivity  = this%compute_resistivity(H_current_curl_values(qpoint), fe%get_set_id() )
+          
+          ! Previous solution to integrate RHS contribution 
           call cell_fe_function_previous%get_value( qpoint, H_value_previous )
-          if (material==1) then 
-          resistivity  = this%compute_resistivity(curl_H_value_current) 
-          else 
-          resistivity = this%air_resistivity 
-          end if 
+          
           permeability = this%air_permeability
           do idof=1, num_dofs_per_field(1)
             call vol_int_H%get_value(idof, qpoint, H_shape_test)
             call vol_int_H%get_curl(idof, qpoint, curl_H_shape_test)
+            call vol_int_H%get_divergence(idof, qpoint, div_H_shape_test)
             do jdof=1, num_dofs_per_field(1)
               call vol_int_H%get_value(jdof, qpoint, H_shape_trial)
-              call vol_int_H%get_curl(jdof, qpoint, curl_H_shape_trial)            
+              call vol_int_H%get_curl(jdof, qpoint, curl_H_shape_trial)     
+              call vol_int_H%get_divergence(jdof, qpoint, div_H_shape_trial) 
               elmat(idof,jdof) = elmat(idof,jdof) + &
               (permeability/time_factor*H_shape_trial*H_shape_test + resistivity*curl_H_shape_trial*curl_H_shape_test)*factor   
                   
-                  if ( this%integration_type=='add_tangent_terms' .and. material==1 ) then 
-                   tangent_resistivity = this%compute_tangent_resistivity(curl_H_value_current, curl_H_shape_trial) 
-                   elmat(idof,jdof) = elmat(idof,jdof) + tangent_resistivity*curl_H_shape_test*curl_H_value_current*factor                    
+                  if ( this%integration_type=='add_tangent_terms' .and. fe%get_set_id()==1 ) then 
+                   tangent_resistivity = this%compute_tangent_resistivity(H_current_curl_values(qpoint), curl_H_shape_trial) 
+                   elmat(idof,jdof) = elmat(idof,jdof) + tangent_resistivity*curl_H_shape_test*H_current_curl_values(qpoint)*factor                    
                   end if       
                   
             end do            
@@ -235,50 +224,20 @@ contains
        call fe_iterator%next()
     end do
 
-    deallocate (source_term_values, stat=istat); check(istat==0);
-    deallocate (elem2dof, stat=istat); check(istat==0);
+    deallocate (source_term_values, stat=istat); check(istat==0)
+    deallocate (H_current_curl_values, stat=istat); check(istat==0)
+    deallocate (elem2dof, stat=istat); check(istat==0)
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine hts_nedelec_discrete_integration_integrate
-  
-    ! -----------------------------------------------------------------------------------------------
-  function get_material_type(this, quad_coords) result(material)
-  implicit none 
-  class(hts_nedelec_discrete_integration_t), intent(in)    :: this
-  type(point_t)                            , intent(in)       :: quad_coords(:) 
-  integer(ip)  :: material            
-  ! Locals 
-  integer(ip) :: qpoin, num_qpoints 
-  real(rp)    :: cx, cy
-  
-  num_qpoints= size(quad_coords) 
-  num_qpoints = size(quad_coords) 
-    ! Compute center of the element 
-  cx = 0.0_rp 
-  cy = 0.0_rp 
-  do qpoin = 1,num_qpoints
-  cx = cx + quad_coords(qpoin)%get(1) 
-  cy = cy + quad_coords(qpoin)%get(2) 
-  end do 
-  cx = cx/real(num_qpoints, rp)
-  cy = cy/real(num_qpoints, rp) 
-  
-  ! Select material case 
-  !if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then 
-  if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (21e-3_rp<cy) .and. (cy<27e-3_rp) ) ) then 
-  material = 1
-  else 
-  material = 2
-  end if
-  
-  end function get_material_type 
-  
+   
   ! -----------------------------------------------------------------------------------------------
-  function compute_resistivity(this, curl_H) result(resistivity)
+  function compute_resistivity(this, curl_H, material) result(resistivity)
   implicit none 
   class(hts_nedelec_discrete_integration_t)   , intent(in)       :: this
   type(vector_field_t)                        , intent(inout)    :: curl_H 
+  integer                                     , intent(in)       :: material
   real(rp)                                                       :: resistivity 
   ! Locals
   real(rp) :: Ec, Jc, n 
@@ -287,12 +246,18 @@ contains
   Jc = this%critical_current 
   n  = this%nonlinear_exponent 
   
-  ! Nonlinear resistivity = Ec/Jc*|| curl(H) / Jc ||**n
-  if (this%nonlinear_exponent .ge. 1 ) then 
-      resistivity = Ec/Jc*(curl_H%nrm2()/Jc)**n + 1e-16_rp
-  else
-      resistivity = this%hts_resistivity
-  end if 
+  
+  if ( material == 1) then ! HTS DOMAIN: Nonlinear resistivity = Ec/Jc*|| curl(H) / Jc ||**n 
+     if (this%nonlinear_exponent .ge. 1 ) then 
+        resistivity = Ec/Jc*(curl_H%nrm2()/Jc)**n + 1e-16_rp
+     else
+        resistivity = this%hts_resistivity
+     end if
+  else if ( material == 2) then ! Air domain 
+     resistivity = this%air_resistivity 
+  else 
+     assert(.false.) 
+  end if
   
   end function compute_resistivity
   

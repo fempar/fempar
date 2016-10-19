@@ -39,6 +39,8 @@ module hts_theta_method_names
      real(rp)    :: current_time
      real(rp)    :: final_time     
      real(rp)    :: time_step
+     real(rp)    :: max_time_step 
+     real(rp)    :: min_time_step 
      integer(ip) :: current_step      
      integer(ip) :: number_of_steps
    contains
@@ -59,13 +61,15 @@ module hts_theta_method_names
 
 contains
   !===============================================================================================
-  subroutine theta_method_create(this, theta, initial_time, final_time, number_time_steps)
+  subroutine theta_method_create(this, theta, initial_time, final_time, number_time_steps, max_time_step, min_time_step )
     implicit none
     class(theta_method_t), intent(inout) :: this
     real(rp)             , intent(in)    :: theta
     real(rp)             , intent(in)    :: initial_time
     real(rp)             , intent(in)    :: final_time
     integer(ip)          , intent(in)    :: number_time_steps
+    real(rp)             , intent(in)    :: max_time_step 
+    real(rp)             , intent(in)    :: min_time_step 
     
     this%theta           = theta
     this%initial_time    = initial_time
@@ -74,6 +78,8 @@ contains
     this%time_step       = ( this%final_time - this%initial_time ) / real(this%number_of_steps,rp)
     this%current_time    = this%time_step
     this%current_step    = 1
+    this%max_time_step   = max_time_step 
+    this%min_time_step   = min_time_step 
     
   end subroutine theta_method_create
 
@@ -101,12 +107,16 @@ contains
   end subroutine theta_method_update_solutions
  
   !===============================================================================================
-  subroutine theta_method_move_time_forward(this)
+  subroutine theta_method_move_time_forward(this, num_iterations, ideal_num_iterations )
     implicit none
     class(theta_method_t), intent(inout) :: this
+    integer(ip)          , intent(in)    :: num_iterations
+    integer(ip)          , intent(in)    :: ideal_num_iterations 
     
     ! Update time step with nonlinear convergence history 
-    this%time_step = this%time_step 
+    this%time_step = real(ideal_num_iterations,rp)/real(num_iterations,rp)*this%time_step
+    this%time_step = max(this%time_step, this%min_time_step) 
+    this%time_step = min(this%time_step, this%max_time_step) 
     
     ! Update theta-method scheme 
     this%current_time = this%current_time + this%time_step
@@ -114,12 +124,16 @@ contains
   end subroutine theta_method_move_time_forward
   
     !===============================================================================================
-  subroutine theta_method_move_time_backwards(this)
+  subroutine theta_method_move_time_backwards(this, current_solution, previous_solution)
     implicit none
     class(theta_method_t), intent(inout) :: this
+    type(fe_function_t)  , intent(inout) :: current_solution 
+    type(fe_function_t)  , intent(inout) :: previous_solution
     real(rp)                             :: updated_time_step 
-    
-    write(*,*) 'Nonlinear Convergence Did not succeed, reducing time step and cycling'
+    class(vector_t), pointer :: dof_values_current_solution
+    class(vector_t), pointer :: dof_values_previous_solution
+   
+    write(*,*) 'Nonlinear Convergence Did not succeed or aborted (large Residual), reducing time step and cycling'
     
     ! Update time step with nonlinear convergence history 
     updated_time_step = this%time_step/2.0_rp 
@@ -129,6 +143,12 @@ contains
     
     ! Assign current time step size the updated one 
     this%time_step = updated_time_step
+    
+    ! Back to the previous converged solution  
+    dof_values_previous_solution => previous_solution%get_dof_values()
+    dof_values_current_solution =>  current_solution%get_dof_values()
+    dof_values_current_solution = dof_values_previous_solution 
+    
   end subroutine theta_method_move_time_backwards
   
   !===============================================================================================
@@ -185,7 +205,7 @@ contains
     implicit none
     class(theta_method_t), intent(in) :: this
     logical                           :: theta_method_finished
-    theta_method_finished = (this%current_step > this%number_of_steps)
+    theta_method_finished = (this%current_time > this%final_time)
   end function theta_method_finished
   
 end module hts_theta_method_names

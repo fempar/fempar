@@ -106,7 +106,50 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
+    ! Locals 
+    integer(ip)                 , allocatable :: cells_set(:) 
+    type(cell_iterator_t)                     :: cell_iterator
+    type(cell_accessor_t)                     :: cell
+    type(point_t), allocatable                :: cell_coordinates(:)
+    integer(ip)                               :: inode
+    integer(ip)       :: icell, icoord 
+    real(rp)          :: cx, cy
+    integer(ip)       :: istat 
+
+    istat = 0
     call this%triangulation%create(this%parameter_list)
+
+    ! Assign subset_id to different cells for the created structured mesh 
+    allocate(cells_set(this%triangulation%get_num_cells() ), stat=istat); check(istat==0)
+    cell_iterator = this%triangulation%create_cell_iterator()
+    call cell_iterator%current(cell)
+    allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0) 
+    
+    do while ( .not. cell_iterator%has_finished() )
+       call cell_iterator%current(cell)
+       call cell%get_coordinates(cell_coordinates)
+       ! Compute center of the element coordinates 
+       cx = 0.0_rp
+       cy = 0.0_rp 
+       do inode=1,cell%get_num_nodes()  
+          cx = cx + cell_coordinates(inode)%get(1)
+          cy = cy + cell_coordinates(inode)%get(2)
+       end do
+       cx = cx/real(cell%get_num_nodes(),rp)
+       cy = cy/real(cell%get_num_nodes(),rp)
+       ! Select material case 
+       !if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then 
+       if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (21e-3_rp<cy) .and. (cy<27e-3_rp) ) ) then 
+          cells_set( cell%get_lid() ) = 1 ! HTS material 
+       else 
+          cells_set( cell%get_lid() ) = 2 ! Air material 
+       end if
+       call cell_iterator%next() 
+    end do
+
+    call this%triangulation%fill_cells_set(cells_set)  
+    deallocate(cells_set, stat=istat); check(istat==0) 
+    deallocate(cell_coordinates, stat=istat); check(istat==0) 
   end subroutine setup_triangulation
 
   ! -----------------------------------------------------------------------------------------------
@@ -149,23 +192,23 @@ contains
 
     call this%hts_nedelec_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%fe_space%create( triangulation       = this%triangulation,      &
-                               conditions          = this%hts_nedelec_conditions, &
-                               reference_fes       = this%reference_fes)
+         conditions          = this%hts_nedelec_conditions, &
+         reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration() 
-	call this%hts_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
-	call this%hts_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
-	if ( this%triangulation%get_num_dimensions() == 3) then 
-	call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
-	end if 
+    call this%hts_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
+    call this%hts_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
+    if ( this%triangulation%get_num_dimensions() == 3) then 
+       call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
+    end if
     ! Create H_previous with initial time (t0) boundary conditions 
     call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_initial_time() )
     call this%H_previous%create(this%fe_space) 
     ! Update fe_space to the current time (t1) boundary conditions, create H_current 
     call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_current_time() )
     call this%H_current%create(this%fe_space)
-    
+
     !call this%fe_space%print()
   end subroutine setup_fe_space
 
@@ -204,6 +247,7 @@ contains
     call this%nonlinear_solver%create( abs_tol = this%test_params%get_absolute_nonlinear_tolerance(),  &
                                        rel_tol = this%test_params%get_relative_nonlinear_tolerance(),  &
                                        max_iters = this%test_params%get_max_nonlinear_iterations(),    &
+                                       ideal_iters = this%test_params%get_stepping_parameter(),        &
                                        fe_affine_operator = this%fe_affine_operator,                   &
                                        current_dof_values = this%H_current%get_dof_values()            )
     
@@ -217,7 +261,9 @@ contains
     call this%theta_method%create( this%test_params%get_theta_value(),          &               
                                    this%test_params%get_initial_time(),         &
                                    this%test_params%get_final_time(),           & 
-                                   this%test_params%get_number_time_steps() )
+                                   this%test_params%get_number_time_steps(),    &
+                                   this%test_params%get_max_time_step(),        & 
+                                   this%test_params%get_min_time_step()         )
   
   
   end subroutine setup_theta_method 
@@ -252,15 +298,15 @@ contains
      if (this%nonlinear_solver%converged() ) then  ! Theta method goes forward 
         call this%theta_method%update_solutions(this%H_current, this%H_previous)
         call this%write_time_step_solution() 
-        call this%theta_method%move_time_forward() 
-     elseif (.not. this%nonlinear_solver%converged()) then ! Theta method goes backwards  
-        call this%theta_method%move_time_backwards()
+        call this%theta_method%move_time_forward( this%nonlinear_solver%get_current_iteration(), &
+                                                  this%nonlinear_solver%get_ideal_num_iterations() ) 
+     elseif (.not. this%nonlinear_solver%converged()) then ! Theta method goes backwards and restarts   
+        call this%theta_method%move_time_backwards(this%H_current, this%H_previous)
      end if
 
      if (.not. this%theta_method%finished() ) then 
         call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_current_time() )
         call this%H_current%update_strong_dirichlet_values(this%fe_space) 
-        call this%hts_nedelec_integration%assign_solutions(this%H_current, this%H_previous)
         call this%assemble_system() 
      end if
 
@@ -272,6 +318,7 @@ contains
    subroutine solve_nonlinear_system(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
+    class(matrix_t) , pointer :: A
   
     call this%nonlinear_solver%initialize() 
     nonlinear: do while ( .not. this%nonlinear_solver%finished() )
@@ -283,11 +330,17 @@ contains
     ! 2 - Integrate Jacobian
     call this%nonlinear_solver%compute_jacobian(this%hts_nedelec_integration, this%fe_affine_operator)
     ! 3 - Solve tangent system 
+    !A => this%fe_affine_operator%get_matrix() 
+    !  select type(A)
+    !   class is (sparse_matrix_t)  
+    !   call A%print_matrix_market(6) 
+    !   class DEFAULT
+    !   assert(.false.) 
+    !end select  
     call this%nonlinear_solver%solve_tangent_system(this%fe_affine_operator) 
     ! 4 - Update solution 
     call this%nonlinear_solver%update_solution(this%H_current) 
     ! 5 - New picard iterate with updated solution 
-    call this%hts_nedelec_integration%assign_solutions(this%H_current, this%H_previous) ! TO WORK-ON! REGULAR SCHEME DOES NOT UPDATE CURRENT VALUES IN DISCRETE INTEGRATION!!!
     call this%assemble_system() 
     ! 6 - Evaluate new residual 
     call this%nonlinear_solver%compute_residual(this%fe_affine_operator, this%H_current%get_dof_values() )
@@ -341,6 +394,7 @@ contains
        err = this%vtk_handler%open_vtu(time_step=this%theta_method%get_current_time() ,format='ascii'); check(err==0)
        err = this%vtk_handler%write_vtu_mesh(this%H_current); check(err==0)
        err = this%vtk_handler%write_vtu_node_field(this%H_current, 1, 'H'); check(err==0)
+       err = this%vtk_handler%write_vtu_node_field(this%H_current, 1, 'J'); check(err==0)
        err = this%vtk_handler%close_vtu(); check(err==0)
        err = this%vtk_handler%write_pvtu(time_step=this%theta_method%get_current_time() ); check(err==0)
        err = this%vtk_handler%write_pvd(); check(err==0)
@@ -368,13 +422,12 @@ contains
     call this%setup_theta_method() 
     call this%setup_fe_space()
     call this%setup_system()
-    call this%hts_nedelec_integration%assign_solutions(this%H_current, this%H_previous) ! TO-WORK
     call this%assemble_system()   
     call this%setup_nonlinear_solver()
     call this%initialize_output() 
     call this%solve_system()
     call this%finalize_output()
-    !call this%check_solution() 
+    call this%check_solution() 
     call this%free()
   end subroutine run_simulation
 

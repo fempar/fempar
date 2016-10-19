@@ -118,7 +118,7 @@ contains
     real(rp)  :: x, y, z, n  
     x = point%get(1)
     y = point%get(2) 
-    n = 0.0_rp 
+    !n = 3.0_rp 
     
     !assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     !call result%set(1, 0.0_rp) 
@@ -164,7 +164,7 @@ contains
     real(rp)  :: x, y, z
     x = point%get(1)
     y = point%get(2) 
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    !assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     !call result%set(1, 0.0_rp) 
     !call result%set(2,  x*x*x  ) 
     !call result%set(3, 0.0_rp) 
@@ -182,7 +182,7 @@ contains
     real(rp)  :: x, y, z
     x = point%get(1)
     y = point%get(2) 
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    !assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     !call result%set(1, 0.0_rp) 
     !call result%set(2,  time*x*x*x  ) 
     !call result%set(3, 0.0_rp) 
@@ -280,8 +280,8 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3)
-   ! result = x*x*x 
-    result = 0.0_rp 
+    !result = x*x*x 
+     result = 0.0_rp 
 
   end subroutine boundary_function_Hy_get_value_space
   
@@ -298,7 +298,7 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3)
-  !  result = time*x*x*x 
+    !result = time*x*x*x 
     result = 1e6_rp*sin(100.0_rp*pi*time) 
     
   end subroutine boundary_function_Hy_get_value_space_time

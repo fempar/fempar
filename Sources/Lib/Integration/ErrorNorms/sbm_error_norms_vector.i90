@@ -165,8 +165,10 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   
   type(vector_field_t), pointer :: fe_function_values(:)
   type(tensor_field_t), pointer :: fe_function_gradients(:)
-  type(vector_field_t), pointer :: fe_function_curl_values(:)
+  type(vector_field_t), allocatable :: fe_function_curl_values(:)
 
+  integer(ip) :: istat 
+  
   if ( present(time) ) time_ = time
 
   norm_requires_values      = error_norm_requires_values(norm_type)
@@ -220,10 +222,12 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
         call exact_solution%get_curl_set_space(coordinates, &
                                                this%work_array_curl_values(1:n_q_points,1))
      end if
-     fe_function_curl_values => this%cell_fe_function%get_quadrature_points_curl_values()
+     allocate(fe_function_curl_values(n_q_points), stat=istat); check(istat==0)
+     call this%cell_fe_function%get_quadrature_points_curl_values(fe_function_curl_values)
      do q_point=1, n_q_points
         this%work_array_curl_values(q_point,1) = this%work_array_curl_values(q_point,1) - fe_function_curl_values(q_point) 
      end do
+     deallocate(fe_function_curl_values, stat=istat); check(istat==0) 
   end if
   
   values_cell_contribution = 0.0_rp 

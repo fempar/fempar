@@ -73,7 +73,6 @@ module cell_fe_function_names
    real(rp)            , allocatable :: nodal_values(:)  
    type(vector_field_t), allocatable :: quadrature_points_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_gradients(:)
-   type(vector_field_t), allocatable :: quadrature_points_curl_values(:)
   contains
      procedure, non_overridable :: create                                => cell_fe_function_vector_create
      procedure, non_overridable :: update                                => cell_fe_function_vector_update
@@ -85,10 +84,9 @@ module cell_fe_function_names
      procedure, non_overridable :: get_nodal_values                      => cell_fe_function_vector_get_nodal_values      
      procedure, non_overridable :: get_quadrature_points_values          => cell_fe_function_vector_get_quadrature_points_values
      procedure, non_overridable :: get_quadrature_points_gradients       => cell_fe_function_vector_get_quadrature_points_gradients
-     procedure, non_overridable :: get_quadrature_points_curl_values     => cell_fe_function_vector_get_quadrature_points_curl_values 
+     procedure, non_overridable :: get_quadrature_points_curl_values     => cell_fe_function_vector_get_quadrature_points_curl_values
      procedure, non_overridable :: get_value                             => cell_fe_function_vector_get_value
-     procedure, non_overridable :: get_gradient                          => cell_fe_function_vector_get_gradient
-     procedure, non_overridable :: get_curl                              => cell_fe_function_vector_get_curl
+     procedure, non_overridable :: get_gradient                          => cell_fe_function_vector_get_gradient 
      procedure, non_overridable :: set_current_number_nodes              => cell_fe_function_vector_set_current_number_nodes
      procedure, non_overridable :: set_current_number_quadrature_points  => cell_fe_function_vector_set_current_number_quadrature_points
      procedure, non_overridable :: free                                  => cell_fe_function_vector_free

@@ -35,6 +35,7 @@ module hts_nonlinear_solver_names
   type :: hts_nonlinear_solver_t
      private
      integer(ip)                     :: current_iteration 
+     integer(ip)                     :: ideal_num_iterations 
      integer(ip)                     :: max_number_iterations
 	    real(rp)                        :: absolute_tolerance
      real(rp)                        :: relative_tolerance
@@ -53,6 +54,8 @@ module hts_nonlinear_solver_names
      procedure :: update_solution                 => hts_nonlinear_solver_update_solution
      procedure :: converged                       => hts_nonlinear_solver_converged 
      procedure :: finished                        => hts_nonlinear_solver_finished 
+     procedure :: get_current_iteration           => hts_nonlinear_solver_get_current_iteration 
+     procedure :: get_ideal_num_iterations        => hts_nonlinear_solver_get_ideal_num_iterations 
      procedure :: print_current_iteration_output  => hts_nonlinear_solver_print_current_iteration_output
      procedure :: print_final_output              => hts_nonlinear_solver_print_final_output 
      procedure :: free                            => hts_nonlinear_solver_free 
@@ -62,12 +65,13 @@ module hts_nonlinear_solver_names
   
 contains
 
-subroutine hts_nonlinear_solver_create(this, abs_tol, rel_tol, max_iters, fe_affine_operator, current_dof_values)
+subroutine hts_nonlinear_solver_create(this, abs_tol, rel_tol, max_iters, ideal_iters, fe_affine_operator, current_dof_values)
 implicit none 
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 real(rp)                              , intent(in)     :: abs_tol
 real(rp)                              , intent(in)     :: rel_tol 
 integer(ip)                           , intent(in)     :: max_iters 
+integer(ip)                           , intent(in)     :: ideal_iters 
 type(fe_affine_operator_t)            , intent(in)     :: fe_affine_operator 
 class(vector_t)            , target   , intent(in)     :: current_dof_values 
 integer                      :: FPLError
@@ -80,6 +84,7 @@ this%current_iteration     = 0
 this%absolute_tolerance    = abs_tol
 this%relative_tolerance    = rel_tol
 this%max_number_iterations = max_iters 
+this%ideal_num_iterations  = ideal_iters 
 this%step_length           = 1.0_rp 
 
 ! Point current dof values 
@@ -207,10 +212,30 @@ implicit none
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 logical                                                :: hts_nonlinear_solver_finished
 
-hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_number_iterations) )  &
+hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_number_iterations) .or. (this%residual%nrm2()>1e12_rp) )  &
                                    .and. this%current_iteration .gt. 0 )
 
 end function hts_nonlinear_solver_finished
+
+! ---------------------------------------------------------------------------------------
+function hts_nonlinear_solver_get_current_iteration(this) 
+implicit none 
+class(hts_nonlinear_solver_t)         , intent(in)     :: this 
+integer(ip)                                            :: hts_nonlinear_solver_get_current_iteration 
+
+hts_nonlinear_solver_get_current_iteration = this%current_iteration 
+
+end function hts_nonlinear_solver_get_current_iteration 
+
+! ---------------------------------------------------------------------------------------
+function hts_nonlinear_solver_get_ideal_num_iterations(this) 
+implicit none 
+class(hts_nonlinear_solver_t)         , intent(in)     :: this 
+integer(ip)                                            :: hts_nonlinear_solver_get_ideal_num_iterations
+
+hts_nonlinear_solver_get_ideal_num_iterations = this%ideal_num_iterations
+
+end function hts_nonlinear_solver_get_ideal_num_iterations 
 
 ! ---------------------------------------------------------------------------------------
 subroutine hts_nonlinear_solver_print_current_iteration_output(this) 
