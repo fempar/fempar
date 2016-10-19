@@ -30,6 +30,7 @@
 module xh5_parameters_names
 
 USE types_names
+USE xh5for, only: XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB, XDMF_GRID_TYPE_UNSTRUCTURED, XDMF_ACTION_WRITE
 
 implicit none
 private
@@ -75,10 +76,22 @@ private
     integer(ip), parameter, public :: XDMF_HEXAHEDRON_SPECTRAL_1331 = 72  ! p(new XdmfTopologyType(1331, 6, faces, 12, "Hexahedron_Spectral_1331", Decic, 0x48));
     integer(ip), parameter, public :: XDMF_MIXED                    = 112 ! p(new XdmfTopologyType(0, 0, faces, 0, "Mixed", Arbitrary, 0x70));
 
+    ! PARAMETERS IDENTIFIERS
+    character(*), parameter, public :: xh5_StaticGrid = 'xh5_StaticGrid'
+    character(*), parameter, public :: xh5_Strategy   = 'xh5_Strategy'
+    character(*), parameter, public :: xh5_GridType   = 'xh5_GridType'
+    character(*), parameter, public :: xh5_Action     = 'xh5_Action'
+    character(*), parameter, public :: xh5_Comm       = 'xh5_Comm'
+    character(*), parameter, public :: xh5_Root       = 'xh5_Root'
+    character(*), parameter, public :: xh5_Info       = 'xh5_Info'
+
     ! DEFAULT PARAMETERS
-    integer(ip),      parameter, public :: default_root_task             = 0
-    integer(ip),      parameter, public :: default_number_of_tasks       = 1
-    integer(ip),      parameter, public :: default_guess_number_of_steps = 100
-    real(rp),         parameter, public :: default_step_value            = 0.0_rp
+    logical,     parameter, public :: xh5_default_StaticGrid = .false.
+    integer(ip), parameter, public :: xh5_default_Strategy   = XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB
+    integer(ip), parameter, public :: xh5_default_GridType   = XDMF_GRID_TYPE_UNSTRUCTURED
+    integer(ip), parameter, public :: xh5_default_Action     = XDMF_ACTION_WRITE
+    integer(ip), parameter, public :: xh5_default_Comm       = 0
+    integer(ip), parameter, public :: xh5_default_Root       = 0
+    integer(ip), parameter, public :: xh5_default_Info       = 0
 
 end module xh5_parameters_names
