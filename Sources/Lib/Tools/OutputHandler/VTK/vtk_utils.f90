@@ -53,17 +53,18 @@ private
     character(len=4), parameter :: pvd_ext     = '.pvd'
     character(len=5), parameter :: pvtu_ext    = '.pvtu'
 
-public :: if_iam_root_create_directory
+public :: create_directory
 public :: topology_to_vtk_celltype
-public :: get_vtk_output_directory
-public :: get_pvd_output_directory
+public :: get_vtk_output_directory_name
+public :: get_vtk_output_path
+public :: get_pvd_output_path
 public :: get_vtk_filename
 public :: get_pvtu_filename
 public :: get_pvd_filename
 
 contains
 
-    function if_iam_root_create_directory(path, task_id) result(error)
+    function create_directory(path, task_id) result(error)
     !-----------------------------------------------------------------
     !< The root process create a hierarchy of directories
     !-----------------------------------------------------------------
@@ -73,11 +74,9 @@ contains
     !-----------------------------------------------------------------
         error = 0
 
-        if(task_id == default_root_task) then
-            error = mkdir_recursive(path//C_NULL_CHAR)
-            check ( error == 0 ) 
-        end if
-    end function if_iam_root_create_directory
+        error = mkdir_recursive(path//C_NULL_CHAR)
+        check ( error == 0 ) 
+    end function create_directory
 
 
     function topology_to_vtk_celltype(topology, dimension) result(cell_type)
@@ -107,21 +106,31 @@ contains
     end function topology_to_vtk_celltype
 
 
-    function get_vtk_output_directory(dir_path, time_step) result(path)
+    function get_vtk_output_directory_name(time_step) result(path)
+    !-----------------------------------------------------------------
+    !< Build time output dir name for the vtk files in each timestep
+    !-----------------------------------------------------------------
+        real(rp),          intent(in)    :: time_step
+        character(len=:), allocatable    :: path
+    !-----------------------------------------------------------------
+        path = time_prefix//trim(adjustl(str(no_sign=.true., n=time_step)))
+    end function get_vtk_output_directory_name
+
+
+    function get_vtk_output_path(dir_path, time_step) result(path)
     !-----------------------------------------------------------------
     !< Build time output dir path for the vtk files in each timestep
     !-----------------------------------------------------------------
         character(len=*),  intent(in)    :: dir_path
         real(rp),          intent(in)    :: time_step
         character(len=:), allocatable    :: path
-        character(len=:), allocatable    :: fp
     !-----------------------------------------------------------------
         assert(len_trim(dir_path)>0)
-        path = trim(adjustl(dir_path))//'/'//time_prefix//trim(adjustl(str(no_sign=.true., n=time_step)))//'/'
-    end function get_vtk_output_directory
+        path = trim(adjustl(dir_path))//'/'//get_vtk_output_directory_name(time_step)
+    end function get_vtk_output_path
 
 
-    function get_pvd_output_directory(dir_path, time_step) result(path)
+    function get_pvd_output_path(dir_path, time_step) result(path)
     !-----------------------------------------------------------------
     !< Build output dir path for the PVD files
     !-----------------------------------------------------------------
@@ -130,8 +139,8 @@ contains
         character(len=:), allocatable   :: path
     !-----------------------------------------------------------------
         assert(len_trim(dir_path)>0)
-        path = time_prefix//trim(adjustl(str(no_sign=.true., n=time_step)))//'/'
-    end function get_pvd_output_directory
+        path = time_prefix//trim(adjustl(str(no_sign=.true., n=time_step)))
+    end function get_pvd_output_path
 
 
     function get_vtk_filename(prefix, part) result(filename)

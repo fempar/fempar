@@ -50,6 +50,7 @@ private
     private 
         type(xh5for_t)                                        :: xh5
         character(:), allocatable                             :: FilePrefix
+        character(:), allocatable                             :: Path
         logical                                               :: StaticGrid
         integer(ip)                                           :: GridType
         integer(ip)                                           :: Strategy
@@ -66,9 +67,10 @@ private
         integer(ip)                                           :: cell_offset = 0
     contains
         procedure,                 public :: open                           => xh5_output_handler_open
-        procedure,                 public :: write                          => xh5_output_handler_write
         procedure,                 public :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
         procedure,                 public :: append_cell                    => xh5_output_handler_append_cell
+        procedure,                 public :: write                          => xh5_output_handler_write
+        procedure,                 public :: close                          => xh5_output_handler_close
         procedure,                 public :: free                           => xh5_output_handler_free
     end type
 
@@ -100,17 +102,22 @@ contains
     end subroutine xh5_output_handler_free
 
 
-    subroutine xh5_output_handler_open(this, parameter_list)
+    subroutine xh5_output_handler_open(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
     !< Open xh5for_t derive dtype. Set parameters from parameter list
     !-----------------------------------------------------------------
-        class(xh5_output_handler_t),    intent(inout) :: this
-        type(ParameterList_t), optinal, intent(in)    :: parameter_list
-        logical                                       :: is_present
-        logical                                       :: same_data_type
-        integer(ip), allocatable                      :: shape(:)
-        integer(ip)                                   :: FPLError
+        class(xh5_output_handler_t),     intent(inout) :: this
+        character(len=*),                intent(in)    :: dir_path
+        character(len=*),                intent(in)    :: prefix
+        type(ParameterList_t), optional, intent(in)    :: parameter_list
+        logical                                        :: is_present
+        logical                                        :: same_data_type
+        integer(ip), allocatable                       :: shape(:)
+        integer(ip)                                    :: FPLError
     !-----------------------------------------------------------------
+        this%Path       = dir_path
+        this%FilePrefix = prefix
+
         ! Set defaults
         this%StaticGrid = xh5_default_StaticGrid
         this%Strategy   = xh5_default_Strategy

@@ -28,6 +28,7 @@
 
 module output_handler_base_names
 
+USE FPL
 USE types_names
 USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t, fe_accessor_t
 USE fe_function_names,           only: fe_function_t
@@ -59,15 +60,21 @@ private
         procedure, non_overridable         :: resize_fields_if_needed    => output_handler_base_resize_fields_if_needed
         procedure, non_overridable, public :: add_fe_function            => output_handler_base_add_fe_function
         procedure, non_overridable, public :: fill_data                  => output_handler_base_fill_data
-        procedure(output_handler_base_write),                          public, deferred :: write
+        procedure(output_handler_base_open),                           public, deferred :: open
         procedure(output_handler_base_allocate_cell_and_nodal_arrays), public, deferred :: allocate_cell_and_nodal_arrays
         procedure(output_handler_base_append_cell),                    public, deferred :: append_cell
+        procedure(output_handler_base_write),                          public, deferred :: write
+        procedure(output_handler_base_close),                          public, deferred :: close
     end type
 
     abstract interface
-        subroutine output_handler_base_open(this)
+        subroutine output_handler_base_open(this, dir_path, prefix, parameter_list)
             import output_handler_base_t
-            class(output_handler_base_t), intent(inout) :: this
+            import ParameterList_t
+            class(output_handler_base_t),    intent(inout) :: this
+            character(len=*),                intent(in)    :: dir_path
+            character(len=*),                intent(in)    :: prefix
+            type(ParameterList_t), optional, intent(in)    :: parameter_list
         end subroutine
 
         subroutine output_handler_base_write(this)
