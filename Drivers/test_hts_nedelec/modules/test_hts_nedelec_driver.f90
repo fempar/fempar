@@ -83,6 +83,7 @@ module test_hts_nedelec_driver_names
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: solve_nonlinear_system 
+     procedure        , private :: compute_hysteresis_data 
      procedure        , private :: check_solution
      procedure        , private :: initialize_output  
      procedure        , private :: write_time_step_solution
@@ -296,6 +297,7 @@ contains
      call this%solve_nonlinear_system()
 
      if (this%nonlinear_solver%converged() ) then  ! Theta method goes forward 
+        call this%compute_hysteresis_data(this%H_current) 
         call this%theta_method%update_solutions(this%H_current, this%H_previous)
         call this%write_time_step_solution() 
         call this%theta_method%move_time_forward( this%nonlinear_solver%get_current_iteration(), &
@@ -349,7 +351,90 @@ contains
     
     end do nonlinear 
     
+    call this%nonlinear_solver%print_final_output() 
+    
   end subroutine solve_nonlinear_system
+  
+  ! -----------------------------------------------------------------------------------------------
+  subroutine compute_hysteresis_data(this, H_current)
+    implicit none 
+    class(test_hts_nedelec_driver_t)   , intent(inout) :: this
+    type(fe_function_t)                , intent(in)    :: H_current 
+    class(vector_t),      pointer                      :: dof_values_current_solution     
+    ! FE space traversal-related data types
+    type(fe_iterator_t) :: fe_iterator
+    type(fe_accessor_t) :: fe
+    ! Integration loop 
+    integer(ip) :: ielem, fe_num_dofs, num_dofs_per_field  
+    type(quadrature_t)       , pointer     :: quad
+    type(fe_map_t)           , pointer     :: fe_map
+    type(i1p_t)              , allocatable :: elem2dof(:)
+    type(cell_fe_function_vector_t)        :: cell_fe_function_current
+    integer(ip)                            :: qpoin, num_quad_points, idof 
+    type(point_t)            , pointer     :: quad_coords(:)
+    integer(ip)                            :: inode, number_nodes 
+    real(rp)                               :: factor 
+    type(vector_field_t)                   :: H_value, H_curl 
+    ! Hysteresis variables for final computations 
+    real(rp)                               :: Hy_average, J_average, hts_area
+    real(rp)                               :: w, A, x_coord, Happ
+    real(rp)                 , pointer     :: external_magnetic_field_amplitude(:) 
+    real(rp)                 , pointer     :: hts_domain_length(:)
+    integer(ip) :: istat 
+
+    ! Integrate structures needed 
+    fe_iterator = this%fe_space%create_fe_iterator()
+    call cell_fe_function_current%create(this%fe_space,  1)
+    call this%fe_space%initialize_fe_integration()
+    call fe_iterator%current(fe)
+    quad             => fe%get_quadrature()
+    num_quad_points  = quad%get_number_quadrature_points()
+    fe_map           => fe%get_fe_map()
+    fe_num_dofs      =  fe%get_number_dofs()
+
+    ! Loop over elements
+    Hy_average = 0
+    J_average  = 0
+    do while ( .not. fe_iterator%has_finished() )
+       ! Get current FE
+       call fe_iterator%current(fe)
+
+       if ( fe%get_set_id() == 1 ) then  ! Integrate only in HTS device DOMAIN
+
+          ! Update FE-integration related data structures
+          call fe%update_integration()
+          call cell_fe_function_current%update(fe, this%H_current)
+          
+          ! Get quadrature coordinates to evaluate boundary value
+          quad_coords => fe_map%get_quadrature_coordinates()
+
+          ! Compute contribution to Hy average 
+          do qpoin=1, num_quad_points
+             factor = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						         
+                call cell_fe_function_current%get_value(qpoin, H_value)
+                call cell_fe_function_current%compute_curl(qpoin, H_curl)
+                x_coord = quad_coords(qpoin)%get(1) 
+                Hy_average = Hy_average + factor*H_value%get(2)          ! Hy value
+                J_average  = J_average  + factor*x_coord*H_curl%get(3)   ! Jz value 
+          end do
+
+       end if
+       call fe_iterator%next()
+    end do
+    
+    ! Compute Hy, Happ values and screen print them 
+    hts_domain_length                 => this%test_params%get_hts_domain_length() 
+    external_magnetic_field_amplitude => this%test_params%get_external_magnetic_field() 
+    hts_area   = hts_domain_length(1)*hts_domain_length(2) 
+    A          = external_magnetic_field_amplitude(2)
+    w          = this%test_params%get_external_magnetic_field_frequency()
+    Happ       = A*sin(2.0_rp*pi*w*this%theta_method%get_current_time() )   
+    write(*,*) 'Hysteresis Data -----------------------------------------'
+    write(*,*) '(Hy-Happ)', (Hy_average/hts_area-Happ), 'Happ', Happ 
+    write(*,*) 'xJ', J_average/hts_area
+    write(*,*) ' --------------------------------------------------------' 
+
+  end subroutine compute_hysteresis_data
   
   ! -----------------------------------------------------------------------------------------------
   subroutine check_solution(this)
