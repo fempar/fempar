@@ -315,6 +315,7 @@ contains
         class(environment_t),            pointer   :: mpi_environment
         type(output_handler_fe_field_t), pointer   :: field
         real(rp), pointer                          :: Value(:)
+        integer(ip)                                :: attribute_type
         integer(ip)                                :: number_fields
         integer(ip)                                :: E_IO, i
         integer(ip)                                :: me, np
@@ -343,13 +344,12 @@ contains
         do i=1, this%get_number_fields()
             field => this%get_field(i)
             Value => this%FieldValues(i)%get_value()
-            call this%xh5%WriteAttribute(Name=field%get_name(), &
-                                         Type=XDMF_ATTRIBUTE_TYPE_SCALAR, &
-                                         Center=XDMF_ATTRIBUTE_CENTER_NODE , &
-                                         Values=Value)
+            attribute_type = number_components_to_xh5_AttributeType(this%FieldValues(i)%get_number_components())
+            call this%xh5%WriteAttribute(Name   = field%get_name(),             &
+                                         Type   = attribute_type,               &
+                                         Center = XDMF_ATTRIBUTE_CENTER_NODE ,  &
+                                         Values = Value)
         enddo
-
-        call this%xh5%Free()
 
     end subroutine xh5_output_handler_write
 

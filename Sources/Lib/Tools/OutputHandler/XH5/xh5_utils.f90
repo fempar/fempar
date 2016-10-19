@@ -30,6 +30,8 @@ module xh5_utils_names
 
 USE types_names
 USE xh5_parameters_names
+USE xh5for,             only: XDMF_ATTRIBUTE_TYPE_SCALAR, XDMF_ATTRIBUTE_TYPE_VECTOR, &
+                              XDMF_ATTRIBUTE_TYPE_TENSOR, XDMF_ATTRIBUTE_TYPE_TENSOR6
 USE reference_fe_names, only: topology_hex, topology_tet
 USE iso_fortran_env,    only: error_unit
 
@@ -41,11 +43,12 @@ private
 
 
 public :: topology_to_xh5_celltype
+public :: number_components_to_xh5_AttributeType
 
 contains
 
 
-    function topology_to_xh5_celltype(topology, dimension) result(cell_type)
+    function topology_to_xh5_CellType(topology, dimension) result(cell_type)
     !-----------------------------------------------------------------
     !< Translate the topology type of the reference_fe_geo into XH5 cell type
     !-----------------------------------------------------------------
@@ -69,7 +72,30 @@ contains
             write(error_unit,*) 'Topology_to_xh5_CellType: Topology not supported ('//trim(adjustl(topology))//')'
             check(.false.)    
         endif
-    end function topology_to_xh5_celltype
+    end function topology_to_xh5_CellType
+
+
+    function number_components_to_xh5_AttributeType(number_components) result(attribute_type)
+    !-----------------------------------------------------------------
+    !< Translate the number of components into XH5 attribute type
+    !-----------------------------------------------------------------
+        integer(ip), intent(in)    :: number_components
+        integer(ip)                :: attribute_type
+    !-----------------------------------------------------------------
+        select case (number_components)
+            case (1)
+                attribute_type = XDMF_ATTRIBUTE_TYPE_SCALAR
+            case (2,3)
+                attribute_type = XDMF_ATTRIBUTE_TYPE_VECTOR
+            case (6)
+                attribute_type = XDMF_ATTRIBUTE_TYPE_TENSOR6
+            case (9)
+                attribute_type = XDMF_ATTRIBUTE_TYPE_TENSOR
+            case DEFAULT
+                write(error_unit,*) 'number_components_to_xh5_AttributeType: number_componets not supported ', number_components
+                check(.false.)    
+        end select
+    end function number_components_to_xh5_AttributeType
 
 end module xh5_utils_names
 

@@ -221,7 +221,7 @@ contains
 
     subroutine output_handler_base_add_fe_function(this, fe_function, field_id, name)
     !-----------------------------------------------------------------
-    !< Attach a fe_space to the output_handler_base_t derived type
+    !< Add a fe_function to the output_handler_base_t derived type
     !-----------------------------------------------------------------
         class(output_handler_base_t),       intent(inout) :: this
         type(fe_function_t),                intent(in)    :: fe_function
