@@ -113,6 +113,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_lid                 => cell_accessor_get_lid
     procedure, non_overridable           :: get_gid                 => cell_accessor_get_gid
     procedure, non_overridable           :: get_mypart              => cell_accessor_get_mypart
+    procedure, non_overridable           :: get_set_id              => cell_accessor_get_set_id
     procedure, non_overridable           :: get_num_vefs            => cell_accessor_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_accessor_get_num_nodes
     procedure, non_overridable           :: get_node_lid            => cell_accessor_get_node_lid
@@ -341,6 +342,7 @@ module base_static_triangulation_names
      integer(ip)                           :: max_vefs_per_cell = 0
      integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: cells_set(:)               ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: ptr_vefs_per_cell(:)       ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable             :: lst_vefs_lids(:)
 
@@ -432,10 +434,13 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: fill_local_cells_gid                => bst_fill_local_cells_gid
      procedure, non_overridable, private :: allocate_cells_mypart               => bst_allocate_cells_mypart
      procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
+     procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
+     procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_per_cell              => bst_free_ptr_vefs_per_cell
      procedure, non_overridable, private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
      procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
+     procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set
 
      ! Private methods to perform nearest neighbor exchange
      procedure, non_overridable, private :: fetch_ghost_cells_data              => bst_fetch_ghost_cells_data
