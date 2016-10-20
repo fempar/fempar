@@ -55,35 +55,31 @@ module par_context_names
 
   type, abstract :: par_context_t
      private 
-     integer :: num_tasks
-     integer :: current_task
+     integer :: num_tasks    = -1
+     integer :: current_task = -1
    contains
-     procedure (par_context_create)             , deferred :: create
-     !procedure, private :: assign => par_context_assign
-     procedure (par_context_assign)             , deferred, private :: assign
-     generic :: assignment(=) => assign
-     procedure (par_context_split_by_condition) , deferred :: split_by_condition
-     procedure (par_context_split_by_color    ) , deferred :: split_by_color
-     procedure (par_context_free              ) , deferred :: free
-     procedure (par_context_nullify           ) , deferred :: nullify
-
-     !procedure (par_context_get_current_task ) , deferred :: get_current_task  
-     !procedure (par_context_get_num_tasks    ) , deferred :: get_num_tasks     
      procedure, non_overridable  :: get_num_tasks => par_context_get_num_tasks
      procedure, non_overridable  :: set_num_tasks => par_context_set_num_tasks
      procedure, non_overridable  :: get_current_task => par_context_get_current_task
      procedure, non_overridable  :: set_current_task => par_context_set_current_task
 
-     procedure (par_context_am_i_member      ) , deferred :: am_i_member       
-     procedure (par_context_barrier          ) , deferred :: barrier           
-     procedure (par_context_sum_scalar_rp    ) , deferred :: sum_scalar_rp     
-     procedure (par_context_sum_vector_rp    ) , deferred :: sum_vector_rp     
-     procedure (par_context_max_scalar_rp    ) , deferred :: max_scalar_rp     
-     procedure (par_context_max_vector_rp    ) , deferred :: max_vector_rp     
-     procedure (par_context_scatter_scalar_ip) , deferred :: scatter           
-     procedure (par_context_gather_scalar_ip ) , deferred :: gather            
-     procedure (par_context_bcast_scalar_ip  ) , deferred :: bcast             
-     procedure (par_context_bcast_subcontext ) , deferred :: bcast_subcontext  
+     procedure (par_context_create)             , deferred :: create
+     procedure (par_context_assign)             , deferred :: assign
+     generic :: assignment(=) => assign
+     procedure (par_context_split_by_condition) , deferred :: split_by_condition
+     procedure (par_context_split_by_color    ) , deferred :: split_by_color
+     procedure (par_context_free              ) , deferred :: free
+     procedure (par_context_nullify           ) , deferred :: nullify
+     procedure (par_context_am_i_member       ) , deferred :: am_i_member       
+     procedure (par_context_barrier           ) , deferred :: barrier           
+     procedure (par_context_sum_scalar_rp     ) , deferred :: sum_scalar_rp     
+     procedure (par_context_sum_vector_rp     ) , deferred :: sum_vector_rp     
+     procedure (par_context_max_scalar_rp     ) , deferred :: max_scalar_rp     
+     procedure (par_context_max_vector_rp     ) , deferred :: max_vector_rp     
+     procedure (par_context_scatter_scalar_ip ) , deferred :: scatter           
+     procedure (par_context_gather_scalar_ip  ) , deferred :: gather            
+     procedure (par_context_bcast_scalar_ip   ) , deferred :: bcast             
+     procedure (par_context_bcast_subcontext  ) , deferred :: bcast_subcontext  
 
      procedure (par_context_neighbours_exchange_rp                 ), deferred, private    :: neighbours_exchange_rp                 
      procedure (par_context_neighbours_exchange_ip                 ), deferred, private    :: neighbours_exchange_ip                 
@@ -492,7 +488,7 @@ contains
     implicit none
     class(par_context_t), intent(inout) :: this
     integer             , intent(in)    :: num_tasks
-    assert(num_tasks>0)
+    assert(num_tasks>=-1)
     this%num_tasks = num_tasks
   end subroutine par_context_set_num_tasks
 
@@ -507,7 +503,7 @@ contains
     implicit none
     class(par_context_t), intent(inout) :: this
     integer             , intent(in)    :: current_task
-    assert(current_task>0)
+    assert(current_task>=-1)
     this%current_task = current_task
   end subroutine par_context_set_current_task
 

@@ -25,11 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine par_triangulation_create ( this, par_environment, parameters)
+subroutine par_triangulation_create ( this, parameters, par_environment)
   implicit none
-  class(par_triangulation_t)    , intent(inout) :: this
-  type(par_environment_t),target, intent(in)    :: par_environment
-  type(ParameterList_t)         , intent(in)    :: parameters
+  class(par_triangulation_t), target, intent(inout) :: this
+  type(ParameterList_t)             , intent(inout) :: parameters
+  type(environment_t), optional, target, intent(in) :: par_environment
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
@@ -92,8 +92,24 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
   end if
 
   call this%free()
-  this%p_env => par_environment
 
+  ! Create or point the environment
+  if(present(par_environment)) then
+     this%p_env => par_environment
+  else
+     if(triangulation_generate==triangulation_generate_from_mesh) then
+        istat = parameters%set(key = environment_type_key, value = unstructured) ; check(istat==0)
+     else if(triangulation_generate==triangulation_generate_structured) then
+        istat = parameters%set(key = environment_type_key, value = structured) ; check(istat==0)
+     end if
+     if( .not. parameters%isPresent(key = execution_context_key) ) then
+        istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
+     end if
+     call this%par_environment%create (parameters)
+     this%p_env => this%par_environment
+  end if
+
+  ! Now generate triangulation
   if(triangulation_generate==triangulation_generate_from_mesh) then
 
      if(this%p_env%am_i_l1_task()) then
@@ -103,7 +119,7 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
         ! Read mesh
         call mesh%compose_name ( prefix, name )
         if(this%p_env%get_l1_size()>1) &
-          &  call par_filename( this%p_env%get_l1_rank(), this%p_env%get_l1_size(), name )
+          &  call par_filename( this%p_env%get_l1_rank()+1, this%p_env%get_l1_size(), name )
         lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
         call mesh%read (lunio) 
         call io_close(lunio)
@@ -117,7 +133,7 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
         ! Read mesh distribution 
         if(this%p_env%get_l1_size()>1) then
            call mesh_distribution_compose_name ( prefix, name )
-           call par_filename( this%p_env%get_l1_rank(), this%p_env%get_l1_size(), name )
+           call par_filename( this%p_env%get_l1_rank()+1, this%p_env%get_l1_size(), name )
            lunio = io_open (trim(dir_path) // '/' // trim(name))
            call mesh_distribution%read_file(lunio)
            call io_close(lunio)

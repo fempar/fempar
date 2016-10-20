@@ -32,7 +32,7 @@
 function bst_get_par_environment ( this )
   implicit none
   class(base_static_triangulation_t), target, intent(in) :: this
-  type(par_environment_t), pointer                           :: bst_get_par_environment
+  type(environment_t), pointer                           :: bst_get_par_environment
   assert ( associated(this%p_env) )
   bst_get_par_environment => this%p_env
 end function bst_get_par_environment
@@ -1671,7 +1671,7 @@ subroutine bst_print ( this )
 
   recursive subroutine bst_free ( this )
     implicit none
-    class(base_static_triangulation_t), intent(inout) :: this
+    class(base_static_triangulation_t), target, intent(inout) :: this
     integer(ip)                                       :: icell, ivef, istat
     logical :: i_am_l1_task
     
@@ -1728,8 +1728,11 @@ subroutine bst_print ( this )
            nullify(this%reference_fe_geo_list(icell)%p)
          endif
       enddo
-      
-      call this%par_environment%free()
+
+      if(associated(this%p_env,this%par_environment)) then
+         ! The environment has been created by the triangulation
+         call this%par_environment%free()
+      end if
       nullify(this%p_env)
 
    end subroutine bst_free

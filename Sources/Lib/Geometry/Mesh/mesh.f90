@@ -38,7 +38,7 @@ module mesh_names
   use postpro_names
   use FPL
 
-  use par_environment_names
+  use environment_names
 
   implicit none
 # include "debug.i90"
@@ -868,7 +868,7 @@ contains
     class(mesh_t)             , intent(inout)      :: femesh
     type(ParameterList_t)     , intent(in)         :: parameters
     type(mesh_distribution_t) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
-    type(par_environment_t)   , allocatable, intent(out) :: env(:) ! Environments
+    type(environment_t)   , allocatable, intent(out) :: env(:) ! Environments
     type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables

@@ -37,46 +37,70 @@ module serial_context_names
   type, extends(par_context_t) :: serial_context_t
      private 
    contains
-     procedure, non_overridable          :: create => serial_context_create
-     procedure, non_overridable, private :: assign => serial_context_assign
+     ! These functions should be non_overridable but there is a bug in gfotran
+     procedure :: create             => serial_context_create
+     procedure :: assign             => serial_context_assign
+     procedure :: split_by_condition => serial_context_split_by_condition
+     procedure :: split_by_color     => serial_context_split_by_color
+     procedure :: free               => serial_context_free
+     procedure :: nullify            => serial_context_nullify
+     procedure :: am_i_member        => serial_context_am_i_member
+     procedure :: barrier            => serial_context_barrier
+     procedure :: sum_scalar_rp      => serial_context_sum_scalar_rp
+     procedure :: sum_vector_rp      => serial_context_sum_vector_rp
+     procedure :: max_scalar_rp      => serial_context_max_scalar_rp
+     procedure :: max_vector_rp      => serial_context_max_vector_rp
+     procedure :: scatter            => serial_context_scatter_scalar_ip
+     procedure :: gather             => serial_context_gather_scalar_ip
+     procedure :: bcast              => serial_context_bcast_scalar_ip
+     procedure :: bcast_subcontext   => serial_context_bcast_subcontext
+     procedure, private :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp                 
+     procedure, private :: neighbours_exchange_ip                  =>  serial_context_neighbours_exchange_ip                 
+     procedure, private :: neighbours_exchange_igp                 =>  serial_context_neighbours_exchange_igp                
+     procedure, private :: neighbours_exchange_single_ip           =>  serial_context_neighbours_exchange_single_ip          
+     procedure, private :: neighbours_exchange_wo_pack_unpack_ieep =>  serial_context_neighbours_exchange_wo_pack_unpack_ieep
+     procedure, private :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
+     procedure, private :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
+     procedure, private :: gather_to_master_ip              => serial_context_gather_to_master_ip           
+     procedure, private :: gather_to_master_igp             => serial_context_gather_to_master_igp          
+     procedure, private :: gather_to_master_ip_1D_array     => serial_context_gather_to_master_ip_1D_array  
+     procedure, private :: gather_to_masterv_ip_1D_array    => serial_context_gather_to_masterv_ip_1D_array 
+     procedure, private :: gather_to_masterv_igp_1D_array   => serial_context_gather_to_masterv_igp_1D_array
+     procedure, private :: gather_to_masterv_rp_1D_array    => serial_context_gather_to_masterv_rp_1D_array 
+     procedure, private :: gather_to_masterv_rp_2D_array    => serial_context_gather_to_masterv_rp_2D_array  
+     procedure, private :: scatter_from_masterv_rp_1D_array => serial_context_scatter_from_masterv_rp_1D_array
 
-     procedure, non_overridable :: split_by_condition => serial_context_split_by_condition
-     procedure, non_overridable :: split_by_color     => serial_context_split_by_color
-     procedure, non_overridable :: free               => serial_context_free
-     procedure, non_overridable :: nullify            => serial_context_nullify
-
-     !procedure, non_overridable :: get_current_task   => serial_context_get_current_task
-     !procedure, non_overridable :: get_num_tasks      => serial_context_get_num_tasks
-     procedure, non_overridable :: am_i_member        => serial_context_am_i_member
-
-     procedure, non_overridable :: barrier           => serial_context_barrier
-     procedure, non_overridable :: sum_scalar_rp     => serial_context_sum_scalar_rp
-     procedure, non_overridable :: sum_vector_rp     => serial_context_sum_vector_rp
-     procedure, non_overridable :: max_scalar_rp     => serial_context_max_scalar_rp
-     procedure, non_overridable :: max_vector_rp     => serial_context_max_vector_rp
-     procedure, non_overridable :: scatter           => serial_context_scatter_scalar_ip
-     procedure, non_overridable :: gather            => serial_context_gather_scalar_ip
-     procedure, non_overridable :: bcast             => serial_context_bcast_scalar_ip
-     procedure, non_overridable :: bcast_subcontext  => serial_context_bcast_subcontext
-
-     procedure, non_overridable, private :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp                 
-     procedure, non_overridable, private :: neighbours_exchange_ip                  =>  serial_context_neighbours_exchange_ip                 
-     procedure, non_overridable, private :: neighbours_exchange_igp                 =>  serial_context_neighbours_exchange_igp                
-     procedure, non_overridable, private :: neighbours_exchange_single_ip           =>  serial_context_neighbours_exchange_single_ip          
-     procedure, non_overridable, private :: neighbours_exchange_wo_pack_unpack_ieep =>  serial_context_neighbours_exchange_wo_pack_unpack_ieep
-
-     procedure, non_overridable, private :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
-     procedure, non_overridable, private :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
-
-     procedure, non_overridable, private :: gather_to_master_ip             => serial_context_gather_to_master_ip           
-     procedure, non_overridable, private :: gather_to_master_igp            => serial_context_gather_to_master_igp          
-     procedure, non_overridable, private :: gather_to_master_ip_1D_array    => serial_context_gather_to_master_ip_1D_array  
-     procedure, non_overridable, private :: gather_to_masterv_ip_1D_array   => serial_context_gather_to_masterv_ip_1D_array 
-     procedure, non_overridable, private :: gather_to_masterv_igp_1D_array  => serial_context_gather_to_masterv_igp_1D_array
-     procedure, non_overridable, private :: gather_to_masterv_rp_1D_array   => serial_context_gather_to_masterv_rp_1D_array 
-     procedure, non_overridable, private :: gather_to_masterv_rp_2D_array   => serial_context_gather_to_masterv_rp_2D_array  
-
-     procedure, non_overridable, private :: scatter_from_masterv_rp_1D_array => serial_context_scatter_from_masterv_rp_1D_array
+     ! procedure, non_overridable :: create             => serial_context_create
+     ! procedure, non_overridable :: assign             => serial_context_assign
+     ! procedure, non_overridable :: split_by_condition => serial_context_split_by_condition
+     ! procedure, non_overridable :: split_by_color     => serial_context_split_by_color
+     ! procedure, non_overridable :: free               => serial_context_free
+     ! procedure, non_overridable :: nullify            => serial_context_nullify
+     ! procedure, non_overridable :: am_i_member        => serial_context_am_i_member
+     ! procedure, non_overridable :: barrier            => serial_context_barrier
+     ! procedure, non_overridable :: sum_scalar_rp      => serial_context_sum_scalar_rp
+     ! procedure, non_overridable :: sum_vector_rp      => serial_context_sum_vector_rp
+     ! procedure, non_overridable :: max_scalar_rp      => serial_context_max_scalar_rp
+     ! procedure, non_overridable :: max_vector_rp      => serial_context_max_vector_rp
+     ! procedure, non_overridable :: scatter            => serial_context_scatter_scalar_ip
+     ! procedure, non_overridable :: gather             => serial_context_gather_scalar_ip
+     ! procedure, non_overridable :: bcast              => serial_context_bcast_scalar_ip
+     ! procedure, non_overridable :: bcast_subcontext   => serial_context_bcast_subcontext
+     ! procedure, non_overridable, private :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp                 
+     ! procedure, non_overridable, private :: neighbours_exchange_ip                  =>  serial_context_neighbours_exchange_ip                 
+     ! procedure, non_overridable, private :: neighbours_exchange_igp                 =>  serial_context_neighbours_exchange_igp                
+     ! procedure, non_overridable, private :: neighbours_exchange_single_ip           =>  serial_context_neighbours_exchange_single_ip          
+     ! procedure, non_overridable, private :: neighbours_exchange_wo_pack_unpack_ieep =>  serial_context_neighbours_exchange_wo_pack_unpack_ieep
+     ! procedure, non_overridable, private :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
+     ! procedure, non_overridable, private :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
+     ! procedure, non_overridable, private :: gather_to_master_ip              => serial_context_gather_to_master_ip           
+     ! procedure, non_overridable, private :: gather_to_master_igp             => serial_context_gather_to_master_igp          
+     ! procedure, non_overridable, private :: gather_to_master_ip_1D_array     => serial_context_gather_to_master_ip_1D_array  
+     ! procedure, non_overridable, private :: gather_to_masterv_ip_1D_array    => serial_context_gather_to_masterv_ip_1D_array 
+     ! procedure, non_overridable, private :: gather_to_masterv_igp_1D_array   => serial_context_gather_to_masterv_igp_1D_array
+     ! procedure, non_overridable, private :: gather_to_masterv_rp_1D_array    => serial_context_gather_to_masterv_rp_1D_array 
+     ! procedure, non_overridable, private :: gather_to_masterv_rp_2D_array    => serial_context_gather_to_masterv_rp_2D_array  
+     ! procedure, non_overridable, private :: scatter_from_masterv_rp_1D_array => serial_context_scatter_from_masterv_rp_1D_array
   end type serial_context_t
 
   ! Types
@@ -89,12 +113,23 @@ contains
     implicit none 
     class(serial_context_t), intent(inout) :: this
     class(par_context_t)   , intent(in)    :: that
+    select type(that)
+    type is(serial_context_t)
+       assert(that%get_current_task()==0)
+       assert(that%get_num_tasks()==1)
+       call this%set_current_task(0)
+       call this%set_num_tasks(1)
+    class default
+       check(.false.)
+    end select
   end subroutine serial_context_assign
 
   !=============================================================================
   subroutine serial_context_create ( this )
     implicit none 
     class(serial_context_t), intent(inout) :: this
+    call this%set_current_task(0)
+    call this%set_num_tasks(1)
   end subroutine serial_context_create
 
   !=============================================================================
@@ -115,13 +150,12 @@ contains
   end subroutine serial_context_split_by_condition
 
   !=============================================================================
-  ! Frees the memory related to the communication object underlying "this"
-  ! and finalizes the underlying message-passing library (i.e., MPI) if 
-  ! finalize == .true. 
   subroutine serial_context_free ( p_context, finalize  )
     implicit none 
     class(serial_context_t), intent(inout) :: p_context
     logical                , intent(in)    :: finalize
+    call p_context%set_current_task(-1)
+    call p_context%set_num_tasks(-1)
   end subroutine serial_context_free
 
   !=============================================================================

@@ -52,8 +52,9 @@ contains
     error = list%set(key = number_of_parts_per_dir_key       , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
     error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
     error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
-    error = list%set(key = write_solution_key                , value =  .true.)             ; check(error==0)
+    error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
     error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
+    error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                ; check(error==0)
@@ -66,6 +67,7 @@ contains
     error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-order'    )  ; check(error==0)
     error = switches%set(key = write_solution_key            , value = '--write-solution'        )  ; check(error==0)
     error = switches%set(key = triangulation_generate_key    , value = '--trinagulation-type'    )  ; check(error==0)
+    error = switches%set(key = execution_context_key         , value = '--execution_context'    )   ; check(error==0)
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -77,6 +79,7 @@ contains
     error = switches_ab%set(key = reference_fe_order_key     , value = '-order')    ; check(error==0)
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
     error = switches_ab%set(key = triangulation_generate_key , value = '-tt')       ; check(error==0)
+    error = switches_ab%set(key = execution_context_key      , value = '-exe')       ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -91,7 +94,13 @@ contains
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
     error = helpers%set(key = triangulation_generate_key     , value = msg)  ; check(error==0)
+    
+    msg = 'serial (*) or mpi (*) context?'
+    write(msg(13:13),'(i1)') serial_context
+    write(msg(33:33),'(i1)') mpi_context
+    error = helpers%set(key = execution_context_key     , value = msg)  ; check(error==0)
 
+    
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
     error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
@@ -102,6 +111,7 @@ contains
     error = required%set(key = reference_fe_order_key        , value = .false.) ; check(error==0)
     error = required%set(key = write_solution_key            , value = .false.) ; check(error==0)
     error = required%set(key = triangulation_generate_key    , value = .false.) ; check(error==0)
+    error = required%set(key = execution_context_key         , value = .false.) ; check(error==0)
 
   end subroutine par_test_poisson_params_set_default
 

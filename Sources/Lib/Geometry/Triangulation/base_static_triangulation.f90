@@ -48,7 +48,7 @@ module base_static_triangulation_names
   use geometry_names
 
   ! Par modules
-  use par_environment_names
+  use environment_names
   !use par_context_names
 
   implicit none
@@ -329,8 +329,8 @@ module base_static_triangulation_names
 
      ! Parallel environment describing MPI tasks among which the triangulation is distributed
      ! (NULL for serial_triangulation_t)
-     type(par_environment_t), pointer      :: p_env => NULL()
-     type(par_environment_t)               :: par_environment
+     type(environment_t), pointer      :: p_env => NULL()
+     type(environment_t)               :: par_environment
     
      ! Sizes
      integer(ip)                           :: num_dimensions  = 0

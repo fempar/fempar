@@ -7,7 +7,7 @@ use base_sparse_matrix_names
 use sparse_matrix_names
 USE vector_space_names
 use dof_import_names
-use par_environment_names
+use environment_names
 use serial_scalar_array_names
 USE par_scalar_array_names
 
@@ -20,7 +20,7 @@ private
     type, extends(matrix_t) :: par_sparse_matrix_t
       private
       type(sparse_matrix_t)            :: sparse_matrix
-      type(par_environment_t), pointer :: p_env             => NULL()
+      type(environment_t), pointer :: p_env             => NULL()
       type(dof_import_t)     , pointer :: dof_import_domain => NULL()
       type(dof_import_t)     , pointer :: dof_import_range  => NULL()
     contains
@@ -245,7 +245,7 @@ contains
     !< Set the properties and size of a square matrix
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t)     , intent(inout) :: this
-        type(par_environment_t), target, intent(in)    :: p_env
+        type(environment_t), target, intent(in)    :: p_env
         type(dof_import_t)     , target, intent(in)    :: dof_import
         logical                        , intent(in)    :: symmetric_storage
         logical                        , intent(in)    :: is_symmetric
@@ -267,7 +267,7 @@ contains
     !< Set the properties and size of a rectangular matrix
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t)     , intent(inout) :: this
-        type(par_environment_t), target, intent(in)    :: p_env
+        type(environment_t), target, intent(in)    :: p_env
         type(dof_import_t)     , target, intent(in)    :: dof_import_range
         type(dof_import_t)     , target, intent(in)    :: dof_import_domain
         integer(ip)          , optional,  intent(in)   :: nz

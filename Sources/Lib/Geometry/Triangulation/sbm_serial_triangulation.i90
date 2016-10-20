@@ -66,7 +66,6 @@
        check(execution_context==serial_context)
     else
        istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
-       !istat = parameters%set(key = execution_context_key, value = 1) ; check(istat==0)
     end if
     call this%par_environment%create (parameters)
     this%p_env => this%par_environment

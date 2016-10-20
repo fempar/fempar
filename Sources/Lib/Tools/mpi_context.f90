@@ -56,49 +56,71 @@ module mpi_context_names
      ! integer: the kind parameter must NOT be specified. This requirement is 
      ! imposed by the underlying message-passing library, i.e., MPI. 
      integer :: icontxt = mpi_comm_null
-     !integer :: current_rank   = -1
-     !integer :: num_mpi_ranks  = -1
    contains
-     procedure, non_overridable          :: create    => mpi_context_create
-     procedure, non_overridable, private :: assign    => mpi_context_assign
-     procedure, non_overridable :: split_by_condition => mpi_context_split_by_condition
-     procedure, non_overridable :: split_by_color     => mpi_context_split_by_color
-     procedure, non_overridable :: free               => mpi_context_free
-     procedure, non_overridable :: nullify            => mpi_context_nullify
+     ! These functions should be non_overridable but there is a bug in gfotran
+     procedure :: create             => mpi_context_create
+     procedure :: assign             => mpi_context_assign
+     procedure :: split_by_condition => mpi_context_split_by_condition
+     procedure :: split_by_color     => mpi_context_split_by_color
+     procedure :: free               => mpi_context_free
+     procedure :: nullify            => mpi_context_nullify
+     procedure :: am_i_member        => mpi_context_am_i_member
+     procedure :: barrier            => mpi_context_barrier
+     procedure :: sum_scalar_rp      => mpi_context_sum_scalar_rp
+     procedure :: sum_vector_rp      => mpi_context_sum_vector_rp
+     procedure :: max_scalar_rp      => mpi_context_max_scalar_rp
+     procedure :: max_vector_rp      => mpi_context_max_vector_rp
+     procedure :: scatter            => mpi_context_scatter_scalar_ip
+     procedure :: gather             => mpi_context_gather_scalar_ip
+     procedure :: bcast              => mpi_context_bcast_scalar_ip
+     procedure :: bcast_subcontext   => mpi_context_bcast_subcontext
+     procedure, private :: neighbours_exchange_rp                   => mpi_context_neighbours_exchange_rp                 
+     procedure, private :: neighbours_exchange_ip                   => mpi_context_neighbours_exchange_ip                 
+     procedure, private :: neighbours_exchange_igp                  => mpi_context_neighbours_exchange_igp                
+     procedure, private :: neighbours_exchange_single_ip            => mpi_context_neighbours_exchange_single_ip          
+     procedure, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_context_neighbours_exchange_wo_pack_unpack_ieep
+     procedure, private :: root_send_master_rcv_ip          => mpi_context_root_send_master_rcv_ip
+     procedure, private :: root_send_master_rcv_ip_1D_array => mpi_context_root_send_master_rcv_ip_1D_array
+     procedure, private :: gather_to_master_ip              => mpi_context_gather_to_master_ip            
+     procedure, private :: gather_to_master_igp             => mpi_context_gather_to_master_igp           
+     procedure, private :: gather_to_master_ip_1D_array     => mpi_context_gather_to_master_ip_1D_array   
+     procedure, private :: gather_to_masterv_ip_1D_array    => mpi_context_gather_to_masterv_ip_1D_array  
+     procedure, private :: gather_to_masterv_igp_1D_array   => mpi_context_gather_to_masterv_igp_1D_array 
+     procedure, private :: gather_to_masterv_rp_1D_array    => mpi_context_gather_to_masterv_rp_1D_array  
+     procedure, private :: gather_to_masterv_rp_2D_array    => mpi_context_gather_to_masterv_rp_2D_array  
+     procedure, private :: scatter_from_masterv_rp_1D_array => mpi_context_scatter_from_masterv_rp_1D_array
 
-     !procedure, non_overridable :: get_current_task   => mpi_context_get_current_task
-     !procedure, non_overridable :: get_num_tasks      => mpi_context_get_num_tasks
-     procedure, non_overridable :: am_i_member        => mpi_context_am_i_member
-
-     procedure, non_overridable :: barrier           => mpi_context_barrier
-     procedure, non_overridable :: sum_scalar_rp     => mpi_context_sum_scalar_rp
-     procedure, non_overridable :: sum_vector_rp     => mpi_context_sum_vector_rp
-     procedure, non_overridable :: max_scalar_rp     => mpi_context_max_scalar_rp
-     procedure, non_overridable :: max_vector_rp     => mpi_context_max_vector_rp
-     procedure, non_overridable :: scatter           => mpi_context_scatter_scalar_ip
-     procedure, non_overridable :: gather            => mpi_context_gather_scalar_ip
-     procedure, non_overridable :: bcast             => mpi_context_bcast_scalar_ip
-     procedure, non_overridable :: bcast_subcontext  => mpi_context_bcast_subcontext
-
-     procedure, non_overridable, private :: neighbours_exchange_rp                   => mpi_context_neighbours_exchange_rp                 
-     procedure, non_overridable, private :: neighbours_exchange_ip                   => mpi_context_neighbours_exchange_ip                 
-     procedure, non_overridable, private :: neighbours_exchange_igp                  => mpi_context_neighbours_exchange_igp                
-     procedure, non_overridable, private :: neighbours_exchange_single_ip            => mpi_context_neighbours_exchange_single_ip          
-     procedure, non_overridable, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_context_neighbours_exchange_wo_pack_unpack_ieep
-
-     procedure, non_overridable, private :: root_send_master_rcv_ip          => mpi_context_root_send_master_rcv_ip
-     procedure, non_overridable, private :: root_send_master_rcv_ip_1D_array => mpi_context_root_send_master_rcv_ip_1D_array
-
-     procedure, non_overridable, private :: gather_to_master_ip             => mpi_context_gather_to_master_ip            
-     procedure, non_overridable, private :: gather_to_master_igp            => mpi_context_gather_to_master_igp           
-     procedure, non_overridable, private :: gather_to_master_ip_1D_array    => mpi_context_gather_to_master_ip_1D_array   
-     procedure, non_overridable, private :: gather_to_masterv_ip_1D_array   => mpi_context_gather_to_masterv_ip_1D_array  
-     procedure, non_overridable, private :: gather_to_masterv_igp_1D_array  => mpi_context_gather_to_masterv_igp_1D_array 
-     procedure, non_overridable, private :: gather_to_masterv_rp_1D_array   => mpi_context_gather_to_masterv_rp_1D_array  
-     procedure, non_overridable, private :: gather_to_masterv_rp_2D_array   => mpi_context_gather_to_masterv_rp_2D_array  
-
-     procedure, non_overridable, private :: scatter_from_masterv_rp_1D_array => mpi_context_scatter_from_masterv_rp_1D_array
-
+     ! procedure, non_overridable :: create             => mpi_context_create
+     ! procedure, non_overridable :: assign             => mpi_context_assign
+     ! procedure, non_overridable :: split_by_condition => mpi_context_split_by_condition
+     ! procedure, non_overridable :: split_by_color     => mpi_context_split_by_color
+     ! procedure, non_overridable :: free               => mpi_context_free
+     ! procedure, non_overridable :: nullify            => mpi_context_nullify
+     ! procedure, non_overridable :: am_i_member        => mpi_context_am_i_member
+     ! procedure, non_overridable :: barrier            => mpi_context_barrier
+     ! procedure, non_overridable :: sum_scalar_rp      => mpi_context_sum_scalar_rp
+     ! procedure, non_overridable :: sum_vector_rp      => mpi_context_sum_vector_rp
+     ! procedure, non_overridable :: max_scalar_rp      => mpi_context_max_scalar_rp
+     ! procedure, non_overridable :: max_vector_rp      => mpi_context_max_vector_rp
+     ! procedure, non_overridable :: scatter            => mpi_context_scatter_scalar_ip
+     ! procedure, non_overridable :: gather             => mpi_context_gather_scalar_ip
+     ! procedure, non_overridable :: bcast              => mpi_context_bcast_scalar_ip
+     ! procedure, non_overridable :: bcast_subcontext   => mpi_context_bcast_subcontext
+     ! procedure, non_overridable, private :: neighbours_exchange_rp                   => mpi_context_neighbours_exchange_rp                 
+     ! procedure, non_overridable, private :: neighbours_exchange_ip                   => mpi_context_neighbours_exchange_ip                 
+     ! procedure, non_overridable, private :: neighbours_exchange_igp                  => mpi_context_neighbours_exchange_igp                
+     ! procedure, non_overridable, private :: neighbours_exchange_single_ip            => mpi_context_neighbours_exchange_single_ip          
+     ! procedure, non_overridable, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_context_neighbours_exchange_wo_pack_unpack_ieep
+     ! procedure, non_overridable, private :: root_send_master_rcv_ip          => mpi_context_root_send_master_rcv_ip
+     ! procedure, non_overridable, private :: root_send_master_rcv_ip_1D_array => mpi_context_root_send_master_rcv_ip_1D_array
+     ! procedure, non_overridable, private :: gather_to_master_ip              => mpi_context_gather_to_master_ip            
+     ! procedure, non_overridable, private :: gather_to_master_igp             => mpi_context_gather_to_master_igp           
+     ! procedure, non_overridable, private :: gather_to_master_ip_1D_array     => mpi_context_gather_to_master_ip_1D_array   
+     ! procedure, non_overridable, private :: gather_to_masterv_ip_1D_array    => mpi_context_gather_to_masterv_ip_1D_array  
+     ! procedure, non_overridable, private :: gather_to_masterv_igp_1D_array   => mpi_context_gather_to_masterv_igp_1D_array 
+     ! procedure, non_overridable, private :: gather_to_masterv_rp_1D_array    => mpi_context_gather_to_masterv_rp_1D_array  
+     ! procedure, non_overridable, private :: gather_to_masterv_rp_2D_array    => mpi_context_gather_to_masterv_rp_2D_array  
+     ! procedure, non_overridable, private :: scatter_from_masterv_rp_1D_array => mpi_context_scatter_from_masterv_rp_1D_array
   end type mpi_context_t
 
   ! Types
@@ -111,14 +133,22 @@ contains
     implicit none 
     class(mpi_context_t), intent(inout) :: this
     class(par_context_t), intent(in)    :: that
+    integer  :: current_task,num_tasks
     call this%free(finalize=.false.)
     select type(that)
     type is(mpi_context_t)
-       this%icontxt = that%icontxt
-       call this%set_current_task(that%get_current_task())
-       call this%set_num_tasks   (that%get_num_tasks())
-       !this%current_rank = that%current_rank
-       !this%num_mpi_ranks = that%num_mpi_ranks
+       call psb_init ( this%icontxt, basectxt=that%icontxt)
+       call psb_info ( this%icontxt, current_task, num_tasks)
+       assert(current_task==that%get_current_task())
+       assert(num_tasks==that%get_num_tasks())
+       call this%set_current_task(current_task)
+       call this%set_num_tasks(num_tasks)
+           ! The following lines just make a copy of the identifier,
+       ! not of the communicator itself, which is a problem when
+       ! calling free
+       !this%icontxt = that%icontxt
+       !call this%set_current_task(that%get_current_task())
+       !call this%set_num_tasks   (that%get_num_tasks())
     class default
        check(.false.)
     end select

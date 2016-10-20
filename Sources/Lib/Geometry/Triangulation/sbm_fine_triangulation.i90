@@ -972,7 +972,7 @@ end subroutine fine_triangulation_free_coordinates
 
 subroutine fine_triangulation_free ( this )
   implicit none
-  class(fine_triangulation_t), intent(inout) :: this
+  class(fine_triangulation_t), target, intent(inout) :: this
   call this%free_geometry_and_set()
   call this%free_nodes()
   call this%free_coordinates()

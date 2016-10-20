@@ -112,7 +112,7 @@ program partitioner
   type(ParameterList_t)    , pointer     :: parameters
   type(mesh_t)                           :: gmesh
   type(mesh_distribution_t), allocatable :: distr(:)
-  type(par_environment_t)  , allocatable :: env(:)
+  type(environment_t)  , allocatable :: env(:)
   type(mesh_t)             , allocatable :: lmesh(:)
   integer(ip) :: ipart, ienv
 

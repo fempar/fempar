@@ -61,7 +61,7 @@ module mlbddc_names
 #endif
   
  ! Parallel communication-related data structures
- use par_environment_names
+ use environment_names
  
  implicit none
 # include "debug.i90"
@@ -486,7 +486,7 @@ contains
   subroutine mlbddc_symbolic_setup ( this )
     implicit none
     class(mlbddc_t), intent(inout) :: this
-    type(par_environment_t), pointer :: par_environment  
+    type(environment_t), pointer :: par_environment  
     par_environment => this%get_par_environment()
     
     if( par_environment%am_i_l1_task() ) then
@@ -514,7 +514,7 @@ contains
   subroutine mlbddc_setup_dofs_objects_and_constraint_matrix (this)
     implicit none
     class(mlbddc_t)                   , intent(inout) :: this
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     type(par_fe_space_t)   , pointer :: fe_space
     integer(ip)                      :: i 
     
@@ -549,7 +549,7 @@ contains
   integer(igp), allocatable            :: lst_dofs_gids(:)
   integer(igp), allocatable            :: lst_vefs_gids_dofs_objects(:)
   
-  type(par_environment_t)  , pointer     :: par_environment
+  type(environment_t)  , pointer     :: par_environment
   type(par_fe_space_t)     , pointer     :: fe_space
   type(par_triangulation_t), pointer     :: triangulation
   
@@ -607,7 +607,7 @@ subroutine mlbddc_transfer_number_fields ( this, number_fields )
   class(mlbddc_t)   , intent(in)             :: this
   integer(ip)       , intent(out)            :: number_fields
   integer(ip)                                :: dummy_integer_ip
-  type(par_environment_t), pointer           :: par_environment
+  type(environment_t), pointer           :: par_environment
   type(par_fe_space_t), pointer              :: fe_space
 
   par_environment => this%get_par_environment()
@@ -630,7 +630,7 @@ subroutine mlbddc_transfer_fe_space_type ( this, number_fields, fe_space_type_pe
   integer(ip)             , intent(in)    :: number_fields
   integer(ip), allocatable, intent(inout) :: fe_space_type_per_field(:)
   integer(ip)                             :: dummy_integer_array_ip(0)
-  type(par_environment_t)  , pointer      :: par_environment
+  type(environment_t)  , pointer      :: par_environment
   type(par_fe_space_t)     , pointer      :: fe_space
   
   par_environment => this%get_par_environment()
@@ -655,7 +655,7 @@ subroutine mlbddc_gather_ptr_dofs_per_fe_and_field( this, number_fields, ptr_dof
   integer(ip), allocatable, intent(inout) :: ptr_dofs_per_fe_and_field(:)
   integer(ip)                             :: i, num_local_cells
   integer(ip)                             :: dummy_integer_array(0)
-  type(par_environment_t)     , pointer   :: par_environment
+  type(environment_t)     , pointer   :: par_environment
   type(par_fe_space_t)        , pointer   :: fe_space
   type(par_triangulation_t)   , pointer   :: triangulation
   type(coarse_triangulation_t), pointer   :: coarse_triangulation
@@ -692,7 +692,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: i
     integer(ip)                               :: l1_to_l2_size
     integer(ip)                               :: dummy_integer_array(0)
-    type(par_environment_t)  , pointer        :: par_environment
+    type(environment_t)  , pointer        :: par_environment
     
     par_environment => this%get_par_environment()
     assert ( par_environment%am_i_l1_to_l2_task() )
@@ -725,7 +725,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: dummy_integer_array_ip(0)
     integer(ip)                               :: i, spos, epos
     integer(igp), allocatable                 :: buffer(:)
-    type(par_environment_t)  , pointer        :: par_environment
+    type(environment_t)  , pointer        :: par_environment
     type(par_fe_space_t)     , pointer        :: fe_space
     
     par_environment => this%get_par_environment()
@@ -771,7 +771,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: dummy_integer_array_ip(0)
     integer(ip)                               :: i, j, spos, epos
     integer(igp), allocatable                 :: buffer(:)
-    type(par_environment_t)  , pointer        :: par_environment
+    type(environment_t)  , pointer        :: par_environment
     type(par_fe_space_t)     , pointer    :: fe_space
     type(par_triangulation_t), pointer    :: triangulation 
     
@@ -853,7 +853,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_symbolic_setup_constrained_neumann_problem(this)
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: par_environment
+    type(environment_t)   , pointer       :: par_environment
     type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
     type(sparse_matrix_t)     , pointer       :: A
     
@@ -881,8 +881,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_symbolic_setup_coarse_grid_matrix ( this )
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     integer(ip)                               :: istat
     
     L1_environment => this%get_par_environment()
@@ -910,8 +910,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
     type(i1p_t), allocatable :: elem2dof(:)
@@ -959,7 +959,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_symbolic_setup_mlbddc_coarse(this)
     implicit none
     class(mlbddc_t), intent(inout)     :: this
-    type(par_environment_t)  , pointer :: par_environment
+    type(environment_t)  , pointer :: par_environment
     integer(ip)                        :: istat
     
     par_environment => this%get_par_environment()
@@ -979,7 +979,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_symbolic_setup_coarse_solver(this)
     implicit none
     class(mlbddc_t), intent(inout)     :: this
-    type(par_environment_t)  , pointer :: par_environment
+    type(environment_t)  , pointer :: par_environment
     type(par_sparse_matrix_t), pointer :: par_sparse_matrix
     par_environment => this%get_par_environment()
     assert ( par_environment%get_l1_size() == 1 )
@@ -993,7 +993,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_numerical_setup ( this )
     implicit none
     class(mlbddc_t)        , intent(inout)   :: this
-    type(par_environment_t), pointer         :: par_environment
+    type(environment_t), pointer         :: par_environment
     
     par_environment => this%get_par_environment()
     if ( par_environment%am_i_l1_task() ) then
@@ -1206,7 +1206,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)           , intent(inout) :: this
     integer(ip), allocatable  , intent(inout) :: counts(:)
     integer(ip), allocatable  , intent(inout) :: displs(:)
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     integer(ip) :: i, l1_to_l2_size
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
@@ -1242,7 +1242,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
      implicit none
      class(mlbddc_t)      , intent(inout) :: this
      real(rp), allocatable, intent(inout) :: subdomain_elmat_gathered(:)
-     type(par_environment_t), pointer :: par_environment
+     type(environment_t), pointer :: par_environment
      integer(ip), allocatable :: counts(:)
      integer(ip), allocatable :: displs(:)
      real(rp), allocatable :: subdomain_elmat(:,:)
@@ -1284,8 +1284,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_numerical_setup_coarse_grid_matrix ( this )
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     integer(ip)                               :: istat
     real(rp), allocatable                     :: subdomain_elmat_gathered(:)
     L1_environment => this%get_par_environment()
@@ -1307,8 +1307,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)           , intent(inout) :: this
     real(rp)                  , intent(in)    :: subdomain_elmat_gathered(*)
     
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
     type(i1p_t), allocatable :: elem2dof(:)
@@ -1354,7 +1354,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_numerical_setup_mlbddc_coarse ( this )
    implicit none
    class(mlbddc_t)           , intent(inout) :: this
-   type(par_environment_t)  , pointer :: par_environment
+   type(environment_t)  , pointer :: par_environment
     
     par_environment => this%get_par_environment()
     if ( par_environment%am_i_lgt1_task() ) then
@@ -1365,7 +1365,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_numerical_setup_coarse_solver(this)
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)  , pointer :: par_environment
+    type(environment_t)  , pointer :: par_environment
     par_environment => this%get_par_environment()
     assert ( par_environment%get_l1_size() == 1 )
     assert ( par_environment%am_i_l1_task() )
@@ -1408,7 +1408,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     type(par_scalar_array_t) :: coarse_correction, &
                                 coarse_correction_I, &
                                 coarse_correction_G
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
 
     par_environment => this%get_par_environment()
     if ( par_environment%get_l1_size() == 1 ) then
@@ -1500,7 +1500,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)            , intent(in)    :: this
     type(par_scalar_array_t)   , intent(in)    :: x
     type(par_scalar_array_t)   , intent(inout) :: y
-    type(par_environment_t)    , pointer       :: par_environment
+    type(environment_t)    , pointer       :: par_environment
     type(serial_scalar_array_t), pointer       :: serial_y 
 
     par_environment => this%get_par_environment()
@@ -1520,8 +1520,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     
     type(par_scalar_array_t) :: coarse_residual
     type(par_scalar_array_t) :: coarse_coarse_correction
-    type(par_environment_t), pointer :: L1_environment
-    type(par_environment_t), pointer :: L2_environment
+    type(environment_t), pointer :: L1_environment
+    type(environment_t), pointer :: L2_environment
     
     L1_environment => this%get_par_environment()
     if ( L1_environment%am_i_lgt1_task() ) then
@@ -1551,8 +1551,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)         , intent(in)    :: this
     type(par_scalar_array_t), intent(in)    :: vector
     type(par_scalar_array_t), intent(inout) :: coarse_grid_vector
-    type(par_environment_t), pointer        :: L1_environment
-    type(par_environment_t), pointer        :: L2_environment
+    type(environment_t), pointer        :: L1_environment
+    type(environment_t), pointer        :: L2_environment
     real(rp), allocatable                   :: coarse_dofs_values_gathered(:)
     
     L1_environment => this%get_par_environment()
@@ -1618,7 +1618,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)           , intent(in)    :: this
     integer(ip), allocatable  , intent(inout) :: counts(:)
     integer(ip), allocatable  , intent(inout) :: displs(:)
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     integer(ip) :: i, l1_to_l2_size
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
@@ -1654,7 +1654,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
      class(mlbddc_t)         , intent(in)    :: this
      type(par_scalar_array_t), intent(in)    :: vector
      real(rp)   , allocatable, intent(inout) :: coarse_dofs_values_gathered(:)
-     type(par_environment_t), pointer :: par_environment
+     type(environment_t), pointer :: par_environment
      integer(ip), allocatable :: counts(:)
      integer(ip), allocatable :: displs(:)
      real(rp), allocatable :: coarse_dofs_values(:)
@@ -1701,8 +1701,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     real(rp)                , intent(in)    :: coarse_dofs_values_gathered(*)
     type(par_scalar_array_t), intent(inout) :: coarse_grid_vector
      
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     type(coarse_fe_iterator_t)                :: iterator
     type(coarse_fe_accessor_t)                :: coarse_fe
     
@@ -1742,7 +1742,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)           , intent(in)    :: this
     type(par_scalar_array_t)  , intent(in)    :: coarse_grid_vector
     type(par_scalar_array_t)  , intent(inout) :: vector
-    type(par_environment_t)   , pointer :: L1_environment
+    type(environment_t)   , pointer :: L1_environment
     real(rp), allocatable :: coarse_dofs_values(:)
     
     L1_environment => this%get_par_environment()
@@ -1766,7 +1766,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     integer(ip) :: l1_to_l2_size
     real(rp), allocatable :: coarse_dofs_values_scattered(:)
     integer(ip), allocatable :: counts(:), displs(:)
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     real(rp) :: dummy_real_array_rp(0)
     integer(ip) :: dummy_integer_array_ip(0)
     
@@ -1815,7 +1815,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)          , intent(in)     :: this
     type(par_scalar_array_t) , intent(in)     :: coarse_grid_vector
     real(rp)                 , intent(inout)  :: coarse_dofs_values_scattered(*)
-    type(par_environment_t), pointer    :: par_environment
+    type(environment_t), pointer    :: par_environment
     type(i1p_t)           , allocatable :: elem2dof(:)
     type(coarse_fe_iterator_t)          :: iterator
     type(coarse_fe_accessor_t)          :: coarse_fe
@@ -1853,7 +1853,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)            , intent(in)    :: this
     real(rp)                   , intent(in)    :: coarse_dofs_values(*)
     type(par_scalar_array_t)   , intent(inout) :: vector
-    type(par_environment_t)    , pointer       :: L1_environment
+    type(environment_t)    , pointer       :: L1_environment
     type(serial_scalar_array_t), pointer       :: serial_scalar_array 
     real(rp)                   , pointer       :: serial_scalar_array_entries(:)
     
@@ -2057,7 +2057,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_free_symbolic_setup(this)
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: par_environment
+    type(environment_t)   , pointer       :: par_environment
     integer(ip)                               :: istat
     
     ! This will be replaced by an apropriate check on the state diagram
@@ -2174,7 +2174,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_free_numerical_setup(this)
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: par_environment
+    type(environment_t)   , pointer       :: par_environment
     ! This will be replaced by an apropriate check on the state diagram
     if ( associated(this%fe_affine_operator) ) then 
       par_environment => this%get_par_environment()
@@ -2238,7 +2238,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_free_numerical_setup_coarse_solver ( this )
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)  , pointer :: par_environment
+    type(environment_t)  , pointer :: par_environment
     par_environment => this%get_par_environment()
     assert ( par_environment%get_l1_size() == 1 )
     assert ( par_environment%am_i_l1_task() )
@@ -2336,7 +2336,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   function mlbddc_get_par_environment(this)
     implicit none
     class(mlbddc_t)          , intent(in) :: this
-    type(par_environment_t)  , pointer    :: mlbddc_get_par_environment
+    type(environment_t)  , pointer    :: mlbddc_get_par_environment
     type(par_fe_space_t)     , pointer    :: coarse_fe_space
     coarse_fe_space => this%get_fe_space()
     mlbddc_get_par_environment => coarse_fe_space%get_par_environment()
@@ -2346,7 +2346,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     implicit none
     class(mlbddc_t)          , intent(in) :: this
     logical                               :: mlbddc_am_i_l1_task
-    type(par_environment_t)   , pointer   :: par_environment
+    type(environment_t)   , pointer   :: par_environment
     par_environment => this%get_par_environment()
     mlbddc_am_i_l1_task = par_environment%am_i_l1_task()
   end function mlbddc_am_i_l1_task
@@ -2371,7 +2371,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_symbolic_setup ( this )
     implicit none
     class(mlbddc_coarse_t), intent(inout) :: this
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     integer(ip)                               :: istat
     par_environment => this%get_par_environment()
     
@@ -2400,7 +2400,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_setup_dofs_objects_and_constraint_matrix (this)
     implicit none
     class(mlbddc_coarse_t), intent(inout) :: this
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     type(coarse_fe_space_t)   , pointer :: fe_space
     integer(ip)                      :: i 
     
@@ -2434,7 +2434,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   integer(ip), allocatable              :: coarse_dofs_gids_displs(:)
   integer(igp), allocatable             :: lst_dofs_gids(:)
   integer(igp), allocatable             :: lst_vefs_gids_dofs_objects(:)
-  type(par_environment_t), pointer      :: par_environment
+  type(environment_t), pointer      :: par_environment
   type(coarse_fe_space_t), pointer      :: fe_space
   type(coarse_triangulation_t), pointer :: coarse_triangulation
   
@@ -2495,7 +2495,7 @@ subroutine mlbddc_coarse_transfer_number_fields ( this, number_fields )
   class(mlbddc_coarse_t)   , intent(in)      :: this
   integer(ip)              , intent(out)     :: number_fields
   integer(ip)                                :: dummy_integer_ip
-  type(par_environment_t), pointer           :: par_environment
+  type(environment_t), pointer           :: par_environment
   type(coarse_fe_space_t), pointer           :: fe_space
 
   par_environment => this%get_par_environment()
@@ -2517,7 +2517,7 @@ subroutine mlbddc_coarse_transfer_fe_space_type ( this, number_fields, fe_space_
   integer(ip)             , intent(in)       :: number_fields
   integer(ip), allocatable, intent(inout)    :: fe_space_type_per_field(:)
   integer(ip)                                :: dummy_integer_array_ip(0)
-  type(par_environment_t), pointer           :: par_environment
+  type(environment_t), pointer           :: par_environment
   type(coarse_fe_space_t), pointer           :: fe_space
 
   par_environment => this%get_par_environment()
@@ -2541,7 +2541,7 @@ subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field( this, number_fields, 
   integer(ip), allocatable, intent(inout)    :: ptr_dofs_per_fe_and_field(:)
   integer(ip)                                :: i, num_local_cells
   integer(ip)                                :: dummy_integer_array(0)
-  type(par_environment_t), pointer           :: par_environment
+  type(environment_t), pointer           :: par_environment
   type(coarse_fe_space_t), pointer           :: fe_space
   type(coarse_triangulation_t), pointer      :: triangulation
   type(coarse_triangulation_t), pointer      :: coarse_triangulation
@@ -2577,7 +2577,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: i
     integer(ip)                               :: l1_to_l2_size
     integer(ip)                               :: dummy_integer_array(0)
-    type(par_environment_t), pointer          :: par_environment
+    type(environment_t), pointer          :: par_environment
     type(coarse_fe_space_t), pointer          :: fe_space
 
     par_environment => this%get_par_environment()
@@ -2610,7 +2610,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: l1_to_l2_size
     integer(igp)                              :: dummy_integer_array_igp(0)
     integer(ip)                               :: dummy_integer_array_ip(0)
-    type(par_environment_t), pointer          :: par_environment
+    type(environment_t), pointer          :: par_environment
     type(coarse_fe_space_t), pointer          :: fe_space
     integer(ip)                               :: i, spos, epos
     integer(igp), allocatable                 :: buffer(:)
@@ -2655,7 +2655,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: l1_to_l2_size
     integer(igp)                              :: dummy_integer_array_igp(0)
     integer(ip)                               :: dummy_integer_array_ip(0)
-    type(par_environment_t), pointer          :: par_environment
+    type(environment_t), pointer          :: par_environment
     type(coarse_fe_space_t), pointer          :: fe_space
     integer(ip)                               :: i, j, spos, epos
     integer(igp), allocatable                 :: buffer(:)
@@ -2702,7 +2702,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_symbolic_setup_dirichlet_problem ( this) 
     implicit none
     class(mlbddc_coarse_t)    , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: par_environment
+    type(environment_t)   , pointer       :: par_environment
     type(coarse_fe_space_t)   , pointer       :: fe_space
     type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
     type(sparse_matrix_t)     , pointer       :: A
@@ -2739,7 +2739,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_symbolic_setup_constrained_neumann_problem(this)
     implicit none
     class(mlbddc_coarse_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: par_environment
+    type(environment_t)   , pointer       :: par_environment
     type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
     type(sparse_matrix_t)     , pointer       :: A
     
@@ -2767,8 +2767,8 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_symbolic_setup_coarse_grid_matrix ( this )
     implicit none
     class(mlbddc_coarse_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     integer(ip)                               :: istat
     
     L1_environment => this%get_par_environment()
@@ -2796,8 +2796,8 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_coarse_grid_matrix_symbolic_assembly ( this )
     implicit none
     class(mlbddc_coarse_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
     type(i1p_t), allocatable :: elem2dof(:)
@@ -2844,7 +2844,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_symbolic_setup_mlbddc_coarse(this)
     implicit none
     class(mlbddc_coarse_t), intent(inout)     :: this
-    type(par_environment_t)  , pointer :: par_environment
+    type(environment_t)  , pointer :: par_environment
     integer(ip)                        :: istat
     
     par_environment => this%get_par_environment()
@@ -2864,7 +2864,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_symbolic_setup_coarse_solver(this)
     implicit none
     class(mlbddc_coarse_t), intent(inout) :: this
-    type(par_environment_t)  , pointer    :: par_environment
+    type(environment_t)  , pointer    :: par_environment
     type(par_sparse_matrix_t), pointer :: par_sparse_matrix
     par_environment => this%get_par_environment()
     assert ( par_environment%get_l1_size() == 1 )
@@ -2879,7 +2879,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_numerical_setup ( this )
     implicit none
     class(mlbddc_coarse_t)        , intent(inout)   :: this
-    type(par_environment_t), pointer         :: par_environment
+    type(environment_t), pointer         :: par_environment
     type(par_scalar_array_t) :: dum
     
     par_environment => this%get_par_environment()
@@ -3094,7 +3094,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)           , intent(inout) :: this
     integer(ip), allocatable  , intent(inout) :: counts(:)
     integer(ip), allocatable  , intent(inout) :: displs(:)
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     integer(ip) :: i, l1_to_l2_size
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
@@ -3130,7 +3130,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
      implicit none
      class(mlbddc_coarse_t)      , intent(inout) :: this
      real(rp), allocatable, intent(inout) :: subdomain_elmat_gathered(:)
-     type(par_environment_t), pointer :: par_environment
+     type(environment_t), pointer :: par_environment
      integer(ip), allocatable :: counts(:)
      integer(ip), allocatable :: displs(:)
      real(rp), allocatable :: subdomain_elmat(:,:)
@@ -3172,8 +3172,8 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_numerical_setup_coarse_grid_matrix ( this )
     implicit none
     class(mlbddc_coarse_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     integer(ip)                               :: istat
     real(rp), allocatable                     :: subdomain_elmat_gathered(:)
     L1_environment => this%get_par_environment()
@@ -3195,8 +3195,8 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)           , intent(inout) :: this
     real(rp)                  , intent(in)    :: subdomain_elmat_gathered(*)
     
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
     type(i1p_t), allocatable :: elem2dof(:)
@@ -3242,7 +3242,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_numerical_setup_mlbddc_coarse ( this )
    implicit none
    class(mlbddc_coarse_t)           , intent(inout) :: this
-   type(par_environment_t)  , pointer :: par_environment
+   type(environment_t)  , pointer :: par_environment
     
     par_environment => this%get_par_environment()
     if ( par_environment%am_i_lgt1_task() ) then
@@ -3253,7 +3253,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_numerical_setup_coarse_solver(this)
     implicit none
     class(mlbddc_coarse_t)   , intent(inout) :: this
-    type(par_environment_t)  , pointer :: par_environment
+    type(environment_t)  , pointer :: par_environment
     par_environment => this%get_par_environment()
     assert ( par_environment%get_l1_size() == 1 )
     assert ( par_environment%am_i_l1_task() )
@@ -3296,7 +3296,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     type(par_scalar_array_t) :: coarse_correction, &
                                 coarse_correction_I, &
                                 coarse_correction_G
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
 
     par_environment => this%get_par_environment()
     if ( par_environment%get_l1_size() == 1 ) then
@@ -3388,7 +3388,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)            , intent(in)    :: this
     type(par_scalar_array_t)   , intent(in)    :: x
     type(par_scalar_array_t)   , intent(inout) :: y
-    type(par_environment_t)    , pointer       :: par_environment
+    type(environment_t)    , pointer       :: par_environment
     type(serial_scalar_array_t), pointer       :: serial_y 
 
     par_environment => this%get_par_environment()
@@ -3408,8 +3408,8 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     
     type(par_scalar_array_t) :: coarse_residual
     type(par_scalar_array_t) :: coarse_coarse_correction
-    type(par_environment_t), pointer :: L1_environment
-    type(par_environment_t), pointer :: L2_environment
+    type(environment_t), pointer :: L1_environment
+    type(environment_t), pointer :: L2_environment
     
     L1_environment => this%get_par_environment()
     if ( L1_environment%am_i_lgt1_task() ) then
@@ -3440,8 +3440,8 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)         , intent(in)    :: this
     type(par_scalar_array_t), intent(in)    :: vector
     type(par_scalar_array_t), intent(inout) :: coarse_grid_vector
-    type(par_environment_t), pointer        :: L1_environment
-    type(par_environment_t), pointer        :: L2_environment
+    type(environment_t), pointer        :: L1_environment
+    type(environment_t), pointer        :: L2_environment
     real(rp), allocatable                   :: coarse_dofs_values_gathered(:)
     
     L1_environment => this%get_par_environment()
@@ -3507,7 +3507,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)           , intent(in)    :: this
     integer(ip), allocatable  , intent(inout) :: counts(:)
     integer(ip), allocatable  , intent(inout) :: displs(:)
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     integer(ip) :: i, l1_to_l2_size
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
@@ -3543,7 +3543,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
      class(mlbddc_coarse_t)         , intent(in)    :: this
      type(par_scalar_array_t), intent(in)    :: vector
      real(rp)   , allocatable, intent(inout) :: coarse_dofs_values_gathered(:)
-     type(par_environment_t), pointer :: par_environment
+     type(environment_t), pointer :: par_environment
      integer(ip), allocatable :: counts(:)
      integer(ip), allocatable :: displs(:)
      real(rp), allocatable :: coarse_dofs_values(:)
@@ -3590,8 +3590,8 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     real(rp)                , intent(in)    :: coarse_dofs_values_gathered(*)
     type(par_scalar_array_t), intent(inout) :: coarse_grid_vector
      
-    type(par_environment_t)   , pointer       :: L1_environment
-    type(par_environment_t)   , pointer       :: L2_environment
+    type(environment_t)   , pointer       :: L1_environment
+    type(environment_t)   , pointer       :: L2_environment
     type(coarse_fe_iterator_t)                :: iterator
     type(coarse_fe_accessor_t)                :: coarse_fe
     
@@ -3631,7 +3631,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)           , intent(in)    :: this
     type(par_scalar_array_t)  , intent(in)    :: coarse_grid_vector
     type(par_scalar_array_t)  , intent(inout) :: vector
-    type(par_environment_t)   , pointer :: L1_environment
+    type(environment_t)   , pointer :: L1_environment
     real(rp), allocatable :: coarse_dofs_values(:)
     
     L1_environment => this%get_par_environment()
@@ -3655,7 +3655,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     integer(ip) :: l1_to_l2_size
     real(rp), allocatable :: coarse_dofs_values_scattered(:)
     integer(ip), allocatable :: counts(:), displs(:)
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     real(rp) :: dummy_real_array_rp(0)
     integer(ip) :: dummy_integer_array_ip(0)
     
@@ -3704,7 +3704,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)          , intent(in)     :: this
     type(par_scalar_array_t) , intent(in)     :: coarse_grid_vector
     real(rp)                 , intent(inout)  :: coarse_dofs_values_scattered(*)
-    type(par_environment_t), pointer    :: par_environment
+    type(environment_t), pointer    :: par_environment
     type(i1p_t)           , allocatable :: elem2dof(:)
     type(coarse_fe_iterator_t)          :: iterator
     type(coarse_fe_accessor_t)          :: coarse_fe
@@ -3742,7 +3742,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)            , intent(in)    :: this
     real(rp)                   , intent(in)    :: coarse_dofs_values(*)
     type(par_scalar_array_t)   , intent(inout) :: vector
-    type(par_environment_t)    , pointer       :: L1_environment
+    type(environment_t)    , pointer       :: L1_environment
     type(serial_scalar_array_t), pointer       :: serial_scalar_array 
     real(rp)                   , pointer       :: serial_scalar_array_entries(:)
     
@@ -3946,7 +3946,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_free_symbolic_setup(this)
     implicit none
     class(mlbddc_coarse_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: par_environment
+    type(environment_t)   , pointer       :: par_environment
     integer(ip)                               :: istat
     
     ! This will be replaced by an apropriate check on the state diagram
@@ -4064,7 +4064,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_free_numerical_setup(this)
     implicit none
     class(mlbddc_coarse_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: par_environment
+    type(environment_t)   , pointer       :: par_environment
     ! This will be replaced by an apropriate check on the state diagram
     
     if ( associated(this%fe_space) ) then 
@@ -4129,7 +4129,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_free_numerical_setup_coarse_solver ( this )
     implicit none
     class(mlbddc_coarse_t), intent(inout) :: this
-    type(par_environment_t), pointer :: par_environment
+    type(environment_t), pointer :: par_environment
     par_environment => this%get_par_environment()
     assert ( par_environment%get_l1_size() == 1 )
     assert ( par_environment%am_i_l1_task() )
@@ -4209,7 +4209,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   function mlbddc_coarse_get_par_environment(this)
     implicit none
     class(mlbddc_coarse_t)   , intent(in) :: this
-    type(par_environment_t)  , pointer    :: mlbddc_coarse_get_par_environment
+    type(environment_t)  , pointer    :: mlbddc_coarse_get_par_environment
     type(coarse_fe_space_t)  , pointer    :: fe_space
     fe_space => this%get_fe_space()
     mlbddc_coarse_get_par_environment => fe_space%get_par_environment()
@@ -4219,7 +4219,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     implicit none
     class(mlbddc_coarse_t)   , intent(in) :: this
     logical                               :: mlbddc_coarse_am_i_l1_task
-    type(par_environment_t)   , pointer   :: par_environment
+    type(environment_t)   , pointer   :: par_environment
     par_environment => this%get_par_environment()
     mlbddc_coarse_am_i_l1_task = par_environment%am_i_l1_task()
   end function mlbddc_coarse_am_i_l1_task
