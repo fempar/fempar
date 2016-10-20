@@ -124,12 +124,19 @@ subroutine tet_lagrangian_reference_fe_get_subcells_connectivity(this, num_refin
   integer(ip) :: local_coord(this%number_dimensions)
   integer(ip) :: global_coord(this%number_dimensions)
   integer(ip) :: ones_dim(this%number_dimensions)
+
+  if(num_refinements > 0) then
+      ! this subroutine is not implemented for tet_lagrangrian
+      ! but magically wors for order 1 tets
+      check(.false.) !Not working
+  endif
   ones_dim = 1
   num_subelems = this%get_number_subcells(num_refinements=num_refinements)
   geo_nnodes = this%get_number_vertices()
   assert(size(connectivity,1) == geo_nnodes)
   assert(size(connectivity,2) == num_subelems)
   order_vector = num_refinements+1
+
 
   do subelem = 1, num_subelems
      !call this%get_node_local_coordinates(first_coord,subelem, & 
@@ -148,13 +155,34 @@ subroutine tet_lagrangian_reference_fe_get_subcells_connectivity(this, num_refin
   end do
 end subroutine tet_lagrangian_reference_fe_get_subcells_connectivity
 
+!==================================================================================================
 subroutine tet_lagrangian_create_data_out_quadrature ( this, num_refinements, quadrature )
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: num_refinements
   type(quadrature_t)                  , intent(inout) :: quadrature
-  ! Not implemented yet
-  check(.false.)
+  integer(ip)                                         :: order_vector(SPACE_DIM)
+  type(node_array_t)                                  :: node_array 
+  integer(ip)                                         :: i
+
+  if(num_refinements > 0) then
+      ! this subroutine is not tested yet for tet_lagrangrian
+      check(.false.) !Not working
+  endif
+  
+  assert ( num_refinements >= 0 )
+
+  call quadrature%free()
+  
+  order_vector = num_refinements+1
+  call node_array%create( this%polytope, order_vector ) 
+  call quadrature%create( this%number_dimensions, node_array%number_nodes )
+
+  do i=1,this%number_dimensions
+     quadrature%coordinates(i,:) = node_array%coordinates(i,:)*(1.0_rp/order_vector(i))
+  end do
+  quadrature%weight = 1.0_rp
+  call node_array%free()
 end subroutine tet_lagrangian_create_data_out_quadrature
 
 !==================================================================================================

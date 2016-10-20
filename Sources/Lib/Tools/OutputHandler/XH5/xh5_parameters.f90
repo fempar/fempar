@@ -89,5 +89,6 @@ private
     integer(ip), parameter, public :: xh5_default_GridType   = XDMF_GRID_TYPE_UNSTRUCTURED
     integer(ip), parameter, public :: xh5_default_Action     = XDMF_ACTION_WRITE
     integer(ip), parameter, public :: xh5_default_Info       = 0
+    integer(ip), parameter, public :: xh5_default_Comm       = 0
 
 end module xh5_parameters_names

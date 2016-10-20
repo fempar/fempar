@@ -62,6 +62,7 @@ private
         real(rp),                                 allocatable :: Z(:)
         integer(ip),                              allocatable :: Connectivities(:)
         type(output_handler_fe_field_1D_value_t), allocatable :: FieldValues(:)
+        integer(ip)                                           :: number_steps = 0
         integer(ip)                                           :: node_offset = 0
         integer(ip)                                           :: cell_offset = 0
     contains
@@ -99,8 +100,9 @@ contains
             enddo
             deallocate(this%FieldValues)
         endif
-        this%node_offset = 0
-        this%cell_offset = 0
+        this%number_steps = 0
+        this%node_offset  = 0
+        this%cell_offset  = 0
     end subroutine xh5_output_handler_free
 
 
@@ -116,6 +118,7 @@ contains
         class(environment_t),            pointer       :: mpi_environment
         class(par_context_t),            pointer       :: par_cntxt
         integer(ip)                                    :: mpi_info
+        integer(ip)                                    :: mpi_comm
         logical                                        :: is_present
         logical                                        :: same_data_type
         integer(ip), allocatable                       :: shape(:)
@@ -137,6 +140,13 @@ contains
             this%GridType   = xh5_default_GridType
             this%Action     = xh5_default_Action
             mpi_info        = xh5_default_Info
+            mpi_comm        = xh5_default_Comm
+
+            select type (mpi_environment)
+                type is (par_environment_t)
+                    par_cntxt => mpi_environment%get_l1_context()
+                    mpi_comm  =  par_cntxt%get_icontxt()
+            end select
 
             if(present(parameter_list)) then
                 ! Get StaticGrid value from parameter_list
@@ -191,26 +201,14 @@ contains
                 endif
             endif
 
-            select type (mpi_environment)
-                type is (par_environment_t)
-                    par_cntxt => mpi_environment%get_l1_context()
-                    
-                    call this%xh5%Open(FilePrefix = this%FilePrefix,         &
-                                       GridType   = this%GridType,           &
-                                       StaticGrid = this%StaticGrid,         &
-                                       Strategy   = this%Strategy,           &
-                                       Action     = this%Action,             &
-                                       Comm       = par_cntxt%get_icontxt(), &
-                                       Info       = mpi_info)
-                class DEFAULT
-                    call this%xh5%Open(FilePrefix = this%FilePrefix,          &
-                                       GridType   = this%GridType,            &
-                                       StaticGrid = this%StaticGrid,          &
-                                       Strategy   = this%Strategy,            &
-                                       Action     = this%Action,              &
-                                       Info       = mpi_info)
-
-            end select
+            call this%xh5%Open(FilePrefix = this%FilePrefix, &
+                               Path       = this%Path,       &
+                               GridType   = this%GridType,   &
+                               StaticGrid = this%StaticGrid, &
+                               Strategy   = this%Strategy,   &
+                               Action     = this%Action,     &
+                               Comm       = mpi_comm,        &
+                               Info       = mpi_info)
         endif
 
     end subroutine xh5_output_handler_open
@@ -231,8 +229,9 @@ contains
         assert(associated(mpi_environment))
 
         if( mpi_environment%am_i_l1_task()) call this%xh5%AppendStep(Value)
-        this%node_offset = 0
-        this%cell_offset = 0
+        this%number_steps = this%number_steps + 1
+        this%node_offset  = 0
+        this%cell_offset  = 0
     end subroutine xh5_output_handler_append_time_step
 
 
@@ -291,8 +290,9 @@ contains
         number_fields     = this%get_number_fields()
 
         call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
-                                              this%Y(this%node_offset+1:this%node_offset+number_vertices), &
-                                              this%Z(this%node_offset+1:this%node_offset+number_vertices))
+                                                  this%Y(this%node_offset+1:this%node_offset+number_vertices), &
+                                                  this%Z(this%node_offset+1:this%node_offset+number_vertices))
+
 
         node_and_cell_offset = this%node_offset+this%cell_offset
         this%Connectivities(node_and_cell_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), number_dimensions)
@@ -311,7 +311,8 @@ contains
                         check(.false.)
                 end select
             case (topology_tet) 
-                this%Connectivities(node_and_cell_offset+1:this%node_offset+number_vertices) = (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
+                this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
+                                (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
             case DEFAULT
                 check(.false.)    
         end select
@@ -359,11 +360,11 @@ contains
                                   TopologyType         = XDMF_TOPOLOGY_TYPE_MIXED, &
                                   GeometryType         = XDMF_GEOMETRY_TYPE_X_Y_Z)
 
-            call this%xh5%WriteTopology(Connectivities = this%Connectivities)
-
             call this%xh5%WriteGeometry(X              = this%X, &
                                         Y              = this%Y, &
                                         Z              = this%Z)
+
+            call this%xh5%WriteTopology(Connectivities = this%Connectivities)
 
             do i=1, this%get_number_fields()
                 field => this%get_field(i)
