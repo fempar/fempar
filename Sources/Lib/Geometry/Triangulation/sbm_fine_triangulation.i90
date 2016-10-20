@@ -973,8 +973,15 @@ end subroutine fine_triangulation_free_coordinates
 subroutine fine_triangulation_free ( this )
   implicit none
   class(fine_triangulation_t), target, intent(inout) :: this
+  integer(ip) :: icell
   call this%free_geometry_and_set()
   call this%free_nodes()
   call this%free_coordinates()
+  do icell=1, max_num_reference_fes_geo
+     if(associated(this%reference_fe_geo_list(icell)%p)) then
+        call this%reference_fe_geo_list(icell)%p%free()
+        nullify(this%reference_fe_geo_list(icell)%p)
+     endif
+  enddo
   call this%base_static_triangulation_t%free()  
 end subroutine fine_triangulation_free

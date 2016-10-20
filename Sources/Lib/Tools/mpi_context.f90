@@ -31,7 +31,7 @@ module mpi_context_names
   use memor_names
 
   ! Parallel modules
-  use par_context_names
+  use execution_context_names
   use psb_const_mod_names
   use psb_penv_mod_names
 #ifdef MPI_MOD
@@ -46,7 +46,7 @@ module mpi_context_names
   private
   
   ! Parallel context
-  type, extends(par_context_t) :: mpi_context_t
+  type, extends(execution_context_t) :: mpi_context_t
      private 
      ! The following member is an integer which identifies an initialized 
      ! parallel context which is created and manipulated using 
@@ -132,7 +132,7 @@ contains
   subroutine mpi_context_assign(this, that)
     implicit none 
     class(mpi_context_t), intent(inout) :: this
-    class(par_context_t), intent(in)    :: that
+    class(execution_context_t), intent(in)    :: that
     integer  :: current_task,num_tasks
     call this%free(finalize=.false.)
     select type(that)
@@ -165,7 +165,7 @@ contains
     implicit none 
     class(mpi_context_t), intent(in)    :: this
     integer             , intent(in)    :: color
-    class(par_context_t), allocatable , intent(inout) :: new_subcontext
+    class(execution_context_t), allocatable , intent(inout) :: new_subcontext
     integer             , parameter     :: key=0
     integer  :: istat,my_color
     integer  :: current_task,num_tasks
@@ -201,8 +201,8 @@ contains
     implicit none 
     class(mpi_context_t)            , intent(in)    :: this
     logical                         , intent(in)    :: in_subcontext1
-    class(par_context_t), allocatable, intent(inout) :: subcontext1
-    class(par_context_t), allocatable, intent(inout) :: subcontext2
+    class(execution_context_t), allocatable, intent(inout) :: subcontext1
+    class(execution_context_t), allocatable, intent(inout) :: subcontext2
     integer                :: istat,current_task,num_tasks
     integer, parameter     :: key=0
 
@@ -329,10 +329,11 @@ contains
   end subroutine mpi_context_max_vector_rp
 
   !=============================================================================
-  subroutine mpi_context_bcast_subcontext(this,subcontxt,condition)
+  subroutine mpi_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
     implicit none
     class(mpi_context_t) , intent(in)    :: this
-    class(par_context_t) , intent(in)    :: subcontxt
+    class(execution_context_t) , intent(in)    :: subcontxt1
+    class(execution_context_t) , intent(in)    :: subcontxt2
     logical              , intent(inout) :: condition
 
     integer(ip) :: recv_rank
@@ -340,18 +341,22 @@ contains
     integer :: mpi_comm, info
 
     send_rank = psb_root_
-    recv_rank = this%get_num_tasks()
+    if(subcontxt1%am_i_member()) then
+       recv_rank = subcontxt1%get_num_tasks()
+    else if(subcontxt2%am_i_member()) then
+       recv_rank = this%get_num_tasks() - subcontxt2%get_num_tasks()
+    end if
 
-    if(this%icontxt==send_rank) then
+    if(this%get_current_task()==send_rank) then
        call psb_snd(this%icontxt, condition, recv_rank)
-    else if(this%icontxt==recv_rank) then
+    else if(this%get_current_task()==recv_rank) then
        call psb_rcv(this%icontxt, condition, send_rank)
     end if
 
-    select type(subcontxt)
+    select type(subcontxt2)
     type is(mpi_context_t)
-       if(subcontxt%am_i_member()) then
-          call psb_get_mpicomm (subcontxt%icontxt, mpi_comm)
+       if(subcontxt2%am_i_member()) then
+          call psb_get_mpicomm (subcontxt2%icontxt, mpi_comm)
           call mpi_bcast(condition,1,MPI_LOGICAL,psb_root_,mpi_comm,info)
           check( info == mpi_success )
        end if

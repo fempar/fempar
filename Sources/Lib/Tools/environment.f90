@@ -33,7 +33,7 @@ module environment_names
   use par_io_names
   use uniform_hex_mesh_generator_names
   ! Parallel modules
-  use par_context_names
+  use execution_context_names
   use mpi_context_names
   use serial_context_names
   implicit none
@@ -64,119 +64,119 @@ module environment_names
   ! part assigned to this task and the parts of coarser levels it belongs to. 
   ! Different levels in the hierarchy are managed recursively.
   type ::  environment_t
-     !private 
+     private 
      integer(ip)                       :: state = not_created
      integer(ip)                       :: num_levels = 0         ! =0 when parts are not assigned to tasks
      integer(ip)         , allocatable :: num_parts_per_level(:)
      integer(ip)         , allocatable :: parts_mapping(:)
-     class(par_context_t), allocatable :: world_context          ! All tasks context (=l1+lgt1 tasks)
-     class(par_context_t), allocatable :: l1_context             ! 1st lev tasks context
-     class(par_context_t), allocatable :: lgt1_context           ! > 1st lev tasks context
-     class(par_context_t), allocatable :: l1_to_l2_context       ! Mixed l1 and l2 tasks context 
+     class(execution_context_t), allocatable :: world_context          ! All tasks context (=l1+lgt1 tasks)
+     class(execution_context_t), allocatable :: l1_context             ! 1st lev tasks context
+     class(execution_context_t), allocatable :: lgt1_context           ! > 1st lev tasks context
+     class(execution_context_t), allocatable :: l1_to_l2_context       ! Mixed l1 and l2 tasks context 
      ! to exchange data between levels
      type(environment_t), pointer :: next_level 
    contains
-     procedure :: read                           => par_environment_read_file
-     procedure :: write                          => par_environment_write_file
+     procedure :: read                           => environment_read_file
+     procedure :: write                          => environment_write_file
 
-     procedure          :: create                => par_environment_create
-     procedure          :: assign_parts_to_tasks => par_environment_assign_parts_to_tasks
-     procedure, private :: fill_contexts         => par_environment_fill_contexts
+     procedure          :: create                => environment_create
+     procedure          :: assign_parts_to_tasks => environment_assign_parts_to_tasks
+     procedure, private :: fill_contexts         => environment_fill_contexts
 
-     procedure :: free                           => par_environment_free
-     procedure :: print                          => par_environment_print
-     procedure :: created                        => par_environment_created
+     procedure :: free                           => environment_free
+     procedure :: print                          => environment_print
+     procedure :: created                        => environment_created
      ! Getters
-     procedure :: get_num_tasks                  => par_environment_get_num_tasks
-     procedure :: get_next_level                 => par_environment_get_next_level
-     procedure :: get_l1_rank                    => par_environment_get_l1_rank
-     procedure :: get_l1_size                    => par_environment_get_l1_size
-     procedure :: get_l1_to_l2_rank              => par_environment_get_l1_to_l2_rank
-     procedure :: get_l1_to_l2_size              => par_environment_get_l1_to_l2_size
-     procedure :: get_lgt1_rank                  => par_environment_get_lgt1_rank
+     procedure :: get_num_tasks                  => environment_get_num_tasks
+     procedure :: get_next_level                 => environment_get_next_level
+     procedure :: get_l1_rank                    => environment_get_l1_rank
+     procedure :: get_l1_size                    => environment_get_l1_size
+     procedure :: get_l1_to_l2_rank              => environment_get_l1_to_l2_rank
+     procedure :: get_l1_to_l2_size              => environment_get_l1_to_l2_size
+     procedure :: get_lgt1_rank                  => environment_get_lgt1_rank
      ! Who am I?
-     procedure :: am_i_lgt1_task                 => par_environment_am_i_lgt1_task
-     procedure :: am_i_l1_to_l2_task             => par_environment_am_i_l1_to_l2_task
-     procedure :: am_i_l1_to_l2_root             => par_environment_am_i_l1_to_l2_root
-     procedure :: am_i_l1_root                   => par_environment_am_i_l1_root
+     procedure :: am_i_lgt1_task                 => environment_am_i_lgt1_task
+     procedure :: am_i_l1_to_l2_task             => environment_am_i_l1_to_l2_task
+     procedure :: am_i_l1_to_l2_root             => environment_am_i_l1_to_l2_root
+     procedure :: am_i_l1_root                   => environment_am_i_l1_root
 
-     procedure :: get_l2_part_id_l1_task_is_mapped_to => par_environment_get_l2_part_id_l1_task_is_mapped_to
-
-
-     procedure, private :: par_environment_l1_neighbours_exchange_rp
-     procedure, private :: par_environment_l1_neighbours_exchange_ip
-     procedure, private :: par_environment_l1_neighbours_exchange_igp
-     procedure, private :: par_environment_l1_neighbours_exchange_single_ip
-     procedure, private :: par_environment_l1_neighbours_exchange_wo_pack_unpack_ieep
-     generic   :: l1_neighbours_exchange      => par_environment_l1_neighbours_exchange_rp, &
-          par_environment_l1_neighbours_exchange_ip,&
-          par_environment_l1_neighbours_exchange_igp,&
-          par_environment_l1_neighbours_exchange_single_ip, &
-          par_environment_l1_neighbours_exchange_wo_pack_unpack_ieep
-
-     procedure, private :: par_environment_l1_scatter_scalar_ip
-     generic   :: l1_scatter => par_environment_l1_scatter_scalar_ip                                                 
-
-     procedure, private :: par_environment_l1_gather_scalar_ip
-     generic   :: l1_gather => par_environment_l1_gather_scalar_ip 
-
-     procedure, private :: par_environment_l1_bcast_scalar_ip
-     generic   :: l1_bcast => par_environment_l1_bcast_scalar_ip 
-
-     procedure, private :: par_environment_l2_from_l1_gather_ip
-     procedure, private :: par_environment_l2_from_l1_gather_igp
-     procedure, private :: par_environment_l2_from_l1_gather_ip_1D_array
-     procedure, private :: par_environment_l2_from_l1_gatherv_ip_1D_array
-     procedure, private :: par_environment_l2_from_l1_gatherv_igp_1D_array
-     procedure, private :: par_environment_l2_from_l1_gatherv_rp_1D_array
-     procedure, private :: par_environment_l2_from_l1_gatherv_rp_2D_array
-     generic   :: l2_from_l1_gather => par_environment_l2_from_l1_gather_ip, &
-          par_environment_l2_from_l1_gather_igp, &
-          par_environment_l2_from_l1_gather_ip_1D_array, &
-          par_environment_l2_from_l1_gatherv_ip_1D_array, &
-          par_environment_l2_from_l1_gatherv_igp_1D_array, &
-          par_environment_l2_from_l1_gatherv_rp_1D_array, &
-          par_environment_l2_from_l1_gatherv_rp_2D_array
-
-     procedure, private :: par_environment_l2_to_l1_scatterv_rp_1D_array                                  
-     generic   :: l2_to_l1_scatter => par_environment_l2_to_l1_scatterv_rp_1D_array
+     procedure :: get_l2_part_id_l1_task_is_mapped_to => environment_get_l2_part_id_l1_task_is_mapped_to
 
 
-     procedure, private :: par_environment_l1_to_l2_transfer_ip
-     procedure, private :: par_environment_l1_to_l2_transfer_ip_1D_array
-     generic  :: l1_to_l2_transfer => par_environment_l1_to_l2_transfer_ip, &
-          par_environment_l1_to_l2_transfer_ip_1D_array             
+     procedure, private :: environment_l1_neighbours_exchange_rp
+     procedure, private :: environment_l1_neighbours_exchange_ip
+     procedure, private :: environment_l1_neighbours_exchange_igp
+     procedure, private :: environment_l1_neighbours_exchange_single_ip
+     procedure, private :: environment_l1_neighbours_exchange_wo_pack_unpack_ieep
+     generic   :: l1_neighbours_exchange      => environment_l1_neighbours_exchange_rp, &
+          environment_l1_neighbours_exchange_ip,&
+          environment_l1_neighbours_exchange_igp,&
+          environment_l1_neighbours_exchange_single_ip, &
+          environment_l1_neighbours_exchange_wo_pack_unpack_ieep
+
+     procedure, private :: environment_l1_scatter_scalar_ip
+     generic   :: l1_scatter => environment_l1_scatter_scalar_ip                                                 
+
+     procedure, private :: environment_l1_gather_scalar_ip
+     generic   :: l1_gather => environment_l1_gather_scalar_ip 
+
+     procedure, private :: environment_l1_bcast_scalar_ip
+     generic   :: l1_bcast => environment_l1_bcast_scalar_ip 
+
+     procedure, private :: environment_l2_from_l1_gather_ip
+     procedure, private :: environment_l2_from_l1_gather_igp
+     procedure, private :: environment_l2_from_l1_gather_ip_1D_array
+     procedure, private :: environment_l2_from_l1_gatherv_ip_1D_array
+     procedure, private :: environment_l2_from_l1_gatherv_igp_1D_array
+     procedure, private :: environment_l2_from_l1_gatherv_rp_1D_array
+     procedure, private :: environment_l2_from_l1_gatherv_rp_2D_array
+     generic   :: l2_from_l1_gather => environment_l2_from_l1_gather_ip, &
+          environment_l2_from_l1_gather_igp, &
+          environment_l2_from_l1_gather_ip_1D_array, &
+          environment_l2_from_l1_gatherv_ip_1D_array, &
+          environment_l2_from_l1_gatherv_igp_1D_array, &
+          environment_l2_from_l1_gatherv_rp_1D_array, &
+          environment_l2_from_l1_gatherv_rp_2D_array
+
+     procedure, private :: environment_l2_to_l1_scatterv_rp_1D_array                                  
+     generic   :: l2_to_l1_scatter => environment_l2_to_l1_scatterv_rp_1D_array
+
+
+     procedure, private :: environment_l1_to_l2_transfer_ip
+     procedure, private :: environment_l1_to_l2_transfer_ip_1D_array
+     generic  :: l1_to_l2_transfer => environment_l1_to_l2_transfer_ip, &
+          environment_l1_to_l2_transfer_ip_1D_array             
 
 
      ! Deferred TBPs inherited from class(environment_t)
-     procedure :: info                        => par_environment_info
-     procedure :: am_i_l1_task                => par_environment_am_i_l1_task
-     procedure :: l1_lgt1_bcast               => par_environment_l1_lgt1_bcast
-     procedure :: l1_barrier                  => par_environment_l1_barrier
-     procedure :: l1_sum_scalar_rp            => par_environment_l1_sum_scalar_rp
-     procedure :: l1_sum_vector_rp            => par_environment_l1_sum_vector_rp
-     procedure :: l1_max_scalar_rp            => par_environment_l1_max_scalar_rp
-     procedure :: l1_max_vector_rp            => par_environment_l1_max_vector_rp
+     procedure :: info                        => environment_info
+     procedure :: am_i_l1_task                => environment_am_i_l1_task
+     procedure :: l1_lgt1_bcast               => environment_l1_lgt1_bcast
+     procedure :: l1_barrier                  => environment_l1_barrier
+     procedure :: l1_sum_scalar_rp            => environment_l1_sum_scalar_rp
+     procedure :: l1_sum_vector_rp            => environment_l1_sum_vector_rp
+     procedure :: l1_max_scalar_rp            => environment_l1_max_scalar_rp
+     procedure :: l1_max_vector_rp            => environment_l1_max_vector_rp
      generic  :: l1_sum                       => l1_sum_scalar_rp, l1_sum_vector_rp
      generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp
 
   end type environment_t
 
   ! Types
-  public :: environment_t, par_environment_compose_name, par_environment_write_files
+  public :: environment_t, environment_compose_name, environment_write_files
 
 contains
 
   !=============================================================================
-  subroutine par_environment_compose_name ( prefix, name ) 
+  subroutine environment_compose_name ( prefix, name ) 
     implicit none
     character (len=*), intent(in)    :: prefix 
     character (len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.env'
-  end subroutine par_environment_compose_name
+  end subroutine environment_compose_name
 
   !=============================================================================
-  subroutine par_environment_write_files ( parameter_list, envs )
+  subroutine environment_write_files ( parameter_list, envs )
     implicit none
     ! Parameters
     type(ParameterList_t)  , intent(in) :: parameter_list
@@ -205,7 +205,7 @@ contains
     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
     check(istat==0)
 
-    call par_environment_compose_name ( prefix, name )
+    call environment_compose_name ( prefix, name )
 
     do i=1,nenvs
        rename=name
@@ -217,10 +217,10 @@ contains
 
     ! name, and rename should be automatically deallocated by the compiler when they
     ! go out of scope. Should we deallocate them explicitly for safety reasons?
-  end subroutine  par_environment_write_files
+  end subroutine  environment_write_files
 
   !=============================================================================
-  subroutine par_environment_read_file ( this,lunio)
+  subroutine environment_read_file ( this,lunio)
     implicit none 
     class(environment_t), intent(inout) :: this
     integer(ip)             , intent(in)    :: lunio
@@ -230,10 +230,10 @@ contains
     call memalloc ( this%num_levels, this%parts_mapping,__FILE__,__LINE__  )
     read ( lunio, '(10i10)' ) this%num_parts_per_level
     read ( lunio, '(10i10)' ) this%parts_mapping
-  end subroutine par_environment_read_file
+  end subroutine environment_read_file
 
   !=============================================================================
-  subroutine par_environment_write_file ( this,lunio)
+  subroutine environment_write_file ( this,lunio)
     implicit none 
     class(environment_t), intent(in) :: this
     integer(ip)             , intent(in) :: lunio
@@ -241,14 +241,14 @@ contains
     write ( lunio, '(10i10)' ) this%num_levels
     write ( lunio, '(10i10)' ) this%num_parts_per_level
     write ( lunio, '(10i10)' ) this%parts_mapping    
-  end subroutine par_environment_write_file
+  end subroutine environment_write_file
 
   !=============================================================================
-  subroutine par_environment_create ( this, parameters)
+  subroutine environment_create ( this, parameters)
     implicit none 
     class(environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
-    class(par_context_t)    , allocatable   :: world_context
+    class(execution_context_t)    , allocatable   :: world_context
 
     ! Some refactoring is needed here separating number_of_parts_per_level (and dir)
     ! from the rest of the mesh information.
@@ -299,7 +299,7 @@ contains
           istat = parameters%get(key = dir_path_key, value = dir_path); check(istat==0)
           istat = parameters%get(key = prefix_key  , value = prefix)  ; check(istat==0)
 
-          call par_environment_compose_name(prefix, name )  
+          call environment_compose_name(prefix, name )  
           call par_filename( world_context%get_current_task()+1, world_context%get_num_tasks() , name )
           lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
 
@@ -341,10 +341,10 @@ contains
     end if
     this%state = created_from_scratch
 
-  end subroutine par_environment_create
+  end subroutine environment_create
 
   !=============================================================================
-  recursive subroutine par_environment_fill_contexts (this)
+  recursive subroutine environment_fill_contexts (this)
     implicit none 
     ! Parameters
     class(environment_t), intent(inout) :: this
@@ -384,10 +384,10 @@ contains
     end if
     this%state = created
 
-  end subroutine par_environment_fill_contexts
+  end subroutine environment_fill_contexts
 
   !=============================================================================
-  subroutine par_environment_assign_parts_to_tasks ( this, num_levels, num_parts_per_level, parts_mapping)
+  subroutine environment_assign_parts_to_tasks ( this, num_levels, num_parts_per_level, parts_mapping)
     implicit none 
     ! Parameters
     class(environment_t), intent(inout) :: this
@@ -404,10 +404,10 @@ contains
     this%parts_mapping = parts_mapping
     this%num_parts_per_level = num_parts_per_level
 
-  end subroutine par_environment_assign_parts_to_tasks
+  end subroutine environment_assign_parts_to_tasks
 
   !=============================================================================
-  recursive subroutine par_environment_free ( this )
+  recursive subroutine environment_free ( this )
     implicit none 
     ! Parameters
     class(environment_t), intent(inout) :: this
@@ -430,10 +430,10 @@ contains
        call memfree(this%num_parts_per_level, __FILE__, __LINE__ )
     end if
 
-  end subroutine par_environment_free
+  end subroutine environment_free
 
   !=============================================================================
-  recursive subroutine par_environment_print ( this )
+  recursive subroutine environment_print ( this )
     implicit none 
     ! Parameters
     class(environment_t), intent(in) :: this
@@ -448,233 +448,198 @@ contains
           call this%next_level%print()
        end if
     end if
-  end subroutine par_environment_print
+  end subroutine environment_print
 
   !=============================================================================
-  function par_environment_created ( this )
+  function environment_created ( this )
     implicit none 
     class(environment_t), intent(in) :: this
-    logical                              :: par_environment_created
-    par_environment_created =  (this%state>=created)
-  end function par_environment_created
+    logical                              :: environment_created
+    environment_created =  (this%state>=created)
+  end function environment_created
 
   !=============================================================================
 
-  function par_environment_get_num_tasks (this)
+  function environment_get_num_tasks (this)
     implicit none 
     class(environment_t), intent(in) :: this
-    integer(ip) :: ilevel, par_environment_get_num_tasks
+    integer(ip) :: ilevel, environment_get_num_tasks
     assert(this%num_levels>0)
-    par_environment_get_num_tasks = 0
+    environment_get_num_tasks = 0
     do ilevel=1,this%num_levels
-       par_environment_get_num_tasks = par_environment_get_num_tasks + this%num_parts_per_level(ilevel)
+       environment_get_num_tasks = environment_get_num_tasks + this%num_parts_per_level(ilevel)
     end do
-  end function par_environment_get_num_tasks
+  end function environment_get_num_tasks
 
   !=============================================================================
-  function par_environment_get_next_level( this )
+  function environment_get_next_level( this )
     implicit none 
     ! Parameters
     class(environment_t), target, intent(in) :: this
-    type(environment_t)         , pointer    :: par_environment_get_next_level
+    type(environment_t)         , pointer    :: environment_get_next_level
 
-    par_environment_get_next_level => this%next_level
-  end function par_environment_get_next_level
+    environment_get_next_level => this%next_level
+  end function environment_get_next_level
 
   !=============================================================================
-  function par_environment_get_l1_rank ( this )
+  function environment_get_l1_rank ( this )
     implicit none 
     ! Parameters
     class(environment_t), intent(in) :: this
-    integer                              :: par_environment_get_l1_rank
-    par_environment_get_l1_rank = this%l1_context%get_current_task()
-  end function par_environment_get_l1_rank
+    integer                              :: environment_get_l1_rank
+    environment_get_l1_rank = this%l1_context%get_current_task()
+  end function environment_get_l1_rank
 
   !=============================================================================
-  function par_environment_get_l1_size ( this )
+  function environment_get_l1_size ( this )
     implicit none 
     ! Parameters
     class(environment_t), intent(in) :: this
-    integer                              :: par_environment_get_l1_size
-    par_environment_get_l1_size = this%l1_context%get_num_tasks()
-  end function par_environment_get_l1_size
+    integer                              :: environment_get_l1_size
+    environment_get_l1_size = this%l1_context%get_num_tasks()
+  end function environment_get_l1_size
 
   !=============================================================================
-  function par_environment_get_l1_to_l2_rank ( this )
+  function environment_get_l1_to_l2_rank ( this )
     implicit none 
     ! Parameters
     class(environment_t), intent(in) :: this
-    integer                              :: par_environment_get_l1_to_l2_rank
-    par_environment_get_l1_to_l2_rank = this%l1_to_l2_context%get_current_task()
-  end function par_environment_get_l1_to_l2_rank
+    integer                              :: environment_get_l1_to_l2_rank
+    environment_get_l1_to_l2_rank = this%l1_to_l2_context%get_current_task()
+  end function environment_get_l1_to_l2_rank
 
   !=============================================================================
-  pure function par_environment_get_l1_to_l2_size ( this )
+  pure function environment_get_l1_to_l2_size ( this )
     implicit none 
     ! Parameters
     class(environment_t), intent(in) :: this
-    integer                              :: par_environment_get_l1_to_l2_size
-    par_environment_get_l1_to_l2_size = this%l1_to_l2_context%get_num_tasks()
-  end function par_environment_get_l1_to_l2_size
+    integer                              :: environment_get_l1_to_l2_size
+    environment_get_l1_to_l2_size = this%l1_to_l2_context%get_num_tasks()
+  end function environment_get_l1_to_l2_size
 
   !=============================================================================
-  function par_environment_get_lgt1_rank ( this )
+  function environment_get_lgt1_rank ( this )
     implicit none 
     ! Parameters
     class(environment_t), intent(in) :: this
-    integer                              :: par_environment_get_lgt1_rank
-    par_environment_get_lgt1_rank = this%lgt1_context%get_current_task()
-  end function par_environment_get_lgt1_rank
+    integer                              :: environment_get_lgt1_rank
+    environment_get_lgt1_rank = this%lgt1_context%get_current_task()
+  end function environment_get_lgt1_rank
 
   !=============================================================================
-  function par_environment_am_i_lgt1_task(this) 
+  function environment_am_i_lgt1_task(this) 
     implicit none
     class(environment_t) ,intent(in)  :: this
-    logical                               :: par_environment_am_i_lgt1_task
-    par_environment_am_i_lgt1_task = (this%lgt1_context%get_current_task() >= 0)
-  end function par_environment_am_i_lgt1_task
+    logical                               :: environment_am_i_lgt1_task
+    environment_am_i_lgt1_task = (this%lgt1_context%get_current_task() >= 0)
+  end function environment_am_i_lgt1_task
 
   !=============================================================================
-  function par_environment_am_i_l1_to_l2_task(this)
+  function environment_am_i_l1_to_l2_task(this)
     implicit none
     class(environment_t), intent(in) :: this
-    logical                              :: par_environment_am_i_l1_to_l2_task 
-    par_environment_am_i_l1_to_l2_task = (this%l1_to_l2_context%get_current_task() >= 0)
-  end function par_environment_am_i_l1_to_l2_task
+    logical                              :: environment_am_i_l1_to_l2_task 
+    environment_am_i_l1_to_l2_task = (this%l1_to_l2_context%get_current_task() >= 0)
+  end function environment_am_i_l1_to_l2_task
 
   !=============================================================================
-  function par_environment_am_i_l1_to_l2_root(this)
+  function environment_am_i_l1_to_l2_root(this)
     implicit none
     class(environment_t), intent(in) :: this
-    logical                              :: par_environment_am_i_l1_to_l2_root
-    par_environment_am_i_l1_to_l2_root = (this%l1_to_l2_context%get_current_task() == this%l1_to_l2_context%get_num_tasks()-1)
-  end function par_environment_am_i_l1_to_l2_root
+    logical                              :: environment_am_i_l1_to_l2_root
+    environment_am_i_l1_to_l2_root = (this%l1_to_l2_context%get_current_task() == this%l1_to_l2_context%get_num_tasks()-1)
+  end function environment_am_i_l1_to_l2_root
 
   !=============================================================================
-  function par_environment_am_i_l1_root(this)
+  function environment_am_i_l1_root(this)
     implicit none
     class(environment_t), intent(in) :: this
-    logical                              :: par_environment_am_i_l1_root
-    par_environment_am_i_l1_root = (this%l1_context%get_current_task() == 0)
-  end function par_environment_am_i_l1_root
+    logical                              :: environment_am_i_l1_root
+    environment_am_i_l1_root = (this%l1_context%get_current_task() == 0)
+  end function environment_am_i_l1_root
 
   !=============================================================================
-  function par_environment_get_l2_part_id_l1_task_is_mapped_to (this)
+  function environment_get_l2_part_id_l1_task_is_mapped_to (this)
     implicit none
     class(environment_t), intent(in) :: this
-    integer(ip) :: par_environment_get_l2_part_id_l1_task_is_mapped_to 
-    par_environment_get_l2_part_id_l1_task_is_mapped_to = this%parts_mapping(2) 
-  end function par_environment_get_l2_part_id_l1_task_is_mapped_to
+    integer(ip) :: environment_get_l2_part_id_l1_task_is_mapped_to 
+    environment_get_l2_part_id_l1_task_is_mapped_to = this%parts_mapping(2) 
+  end function environment_get_l2_part_id_l1_task_is_mapped_to
 
   !=============================================================================
-  subroutine par_environment_l1_barrier(this) 
+  subroutine environment_l1_barrier(this) 
     implicit none
     class(environment_t),intent(in)  :: this
-    ! integer :: mpi_comm_p, ierr
-    ! assert ( this%am_i_l1_task() )
-    ! call psb_get_mpicomm (this%l1_context%get_icontxt(), mpi_comm_p)
-    ! call mpi_barrier ( mpi_comm_p, ierr)
-    ! check ( ierr == mpi_success )
     call this%l1_context%barrier()
-  end subroutine par_environment_l1_barrier
+  end subroutine environment_l1_barrier
 
   !=============================================================================
-  subroutine par_environment_info(this,me,np) 
+  subroutine environment_info(this,me,np) 
     implicit none
     class(environment_t),intent(in)  :: this
     integer(ip)           ,intent(out) :: me
     integer(ip)           ,intent(out) :: np
     me = this%l1_context%get_current_task()
     np = this%l1_context%get_num_tasks()
-  end subroutine par_environment_info
+  end subroutine environment_info
 
   !=============================================================================
-  function par_environment_am_i_l1_task(this) 
+  function environment_am_i_l1_task(this) 
     implicit none
     class(environment_t) ,intent(in)  :: this
-    logical                             :: par_environment_am_i_l1_task 
-    par_environment_am_i_l1_task = (this%l1_context%get_current_task() >= 0)
-  end function par_environment_am_i_l1_task
+    logical                             :: environment_am_i_l1_task 
+    environment_am_i_l1_task = (this%l1_context%get_current_task() >= 0)
+  end function environment_am_i_l1_task
 
   !=============================================================================
-  subroutine par_environment_l1_lgt1_bcast(this,condition)
+  subroutine environment_l1_lgt1_bcast(this,condition)
     implicit none 
     ! Parameters
     class(environment_t), intent(in)    :: this
     logical                 , intent(inout) :: condition
-    ! Locals
-    !integer :: mpi_comm_b, info
-
     assert ( this%created() )
-
-    call this%world_context%bcast_subcontext(this%lgt1_context,condition)
-
-    ! if ( this%num_levels > 1 ) then
-    !    ! b_context is an intercomm among p_context & q_context
-    !    ! Therefore the semantics of the mpi_bcast subroutine slightly changes
-    !    ! P_0 in p_context is responsible for bcasting condition to all the processes
-    !    ! in q_context
-
-    !    ! Get MPI communicator associated to icontxt_b (in
-    !    ! the current implementation of our wrappers
-    !    ! to the MPI library icontxt and mpi_comm are actually 
-    !    ! the same)
-    !    call psb_get_mpicomm (this%l1_lgt1_context%get_icontxt(), mpi_comm_b)
-
-    !    if (this%l1_context%get_rank() >=0) then
-    !       if ( this%l1_context%get_rank() == psb_root_ ) then
-    !          call mpi_bcast(condition,1,MPI_LOGICAL,MPI_ROOT,mpi_comm_b,info)
-    !          check( info == mpi_success )
-    !       else
-    !          call mpi_bcast(condition,1,MPI_LOGICAL,MPI_PROC_NULL,mpi_comm_b,info)
-    !          check( info == mpi_success )
-    !       end if
-    !    else if (this%lgt1_context%get_rank() >=0) then
-    !       call mpi_bcast(condition,1,MPI_LOGICAL,psb_root_,mpi_comm_b,info)
-    !       check( info == mpi_success )
-    !    end if
-    ! end if
-  end subroutine par_environment_l1_lgt1_bcast
+    call this%world_context%bcast_subcontext(this%l1_context,this%lgt1_context,condition)
+  end subroutine environment_l1_lgt1_bcast
 
   !=============================================================================
-  subroutine par_environment_l1_sum_scalar_rp (this,alpha)
+  subroutine environment_l1_sum_scalar_rp (this,alpha)
     implicit none
     class(environment_t) , intent(in)    :: this
     real(rp)                 , intent(inout) :: alpha
     assert ( this%am_i_l1_task() )
     call this%l1_context%sum_scalar_rp(alpha)
-  end subroutine par_environment_l1_sum_scalar_rp
+  end subroutine environment_l1_sum_scalar_rp
 
   !=============================================================================
-  subroutine par_environment_l1_sum_vector_rp(this,alpha)
+  subroutine environment_l1_sum_vector_rp(this,alpha)
     implicit none
     class(environment_t) , intent(in)    :: this
     real(rp)                 , intent(inout) :: alpha(:) 
     assert (this%am_i_l1_task())
     call this%l1_context%sum_vector_rp(alpha)
-  end subroutine par_environment_l1_sum_vector_rp
+  end subroutine environment_l1_sum_vector_rp
 
   !=============================================================================
-  subroutine par_environment_l1_max_scalar_rp (this,alpha)
+  subroutine environment_l1_max_scalar_rp (this,alpha)
     implicit none
     class(environment_t) , intent(in)    :: this
     real(rp)                 , intent(inout) :: alpha
     assert ( this%am_i_l1_task() )
     call this%l1_context%max_scalar_rp(alpha)
-  end subroutine par_environment_l1_max_scalar_rp
+  end subroutine environment_l1_max_scalar_rp
 
   !=============================================================================
-  subroutine par_environment_l1_max_vector_rp(this,alpha)
+  subroutine environment_l1_max_vector_rp(this,alpha)
     implicit none
     class(environment_t) , intent(in)    :: this
     real(rp)                 , intent(inout) :: alpha(:) 
     assert (this%am_i_l1_task())
     call this%l1_context%max_vector_rp(alpha)
-  end subroutine par_environment_l1_max_vector_rp
+  end subroutine environment_l1_max_vector_rp
 
   !=============================================================================
   !=============================================================================
-  subroutine par_environment_l1_neighbours_exchange_rp ( this, & 
+  subroutine environment_l1_neighbours_exchange_rp ( this, & 
        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        num_snd, list_snd, snd_ptrs, pack_idx,   &
        alpha, beta, x)
@@ -698,9 +663,9 @@ contains
          &                                      num_snd, list_snd, snd_ptrs, pack_idx,   &
          &                                      alpha, beta, x)
 
-  end subroutine par_environment_l1_neighbours_exchange_rp
+  end subroutine environment_l1_neighbours_exchange_rp
   !=============================================================================
-  subroutine par_environment_l1_neighbours_exchange_ip ( this, & 
+  subroutine environment_l1_neighbours_exchange_ip ( this, & 
        &                                                 num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        &                                                 num_snd, list_snd, snd_ptrs, pack_idx,   &
        &                                                 x, chunk_size)
@@ -721,10 +686,10 @@ contains
          &                                     num_snd, list_snd, snd_ptrs, pack_idx,   &
          &                                     x,chunk_size)
 
-  end subroutine par_environment_l1_neighbours_exchange_ip
+  end subroutine environment_l1_neighbours_exchange_ip
 
   !=============================================================================
-  subroutine par_environment_l1_neighbours_exchange_igp ( this, & 
+  subroutine environment_l1_neighbours_exchange_igp ( this, & 
        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        num_snd, list_snd, snd_ptrs, pack_idx,   &
        x, chunk_size)
@@ -748,10 +713,10 @@ contains
          &                                     num_snd, list_snd, snd_ptrs, pack_idx,   &
          &                                     x, chunk_size)
 
-  end subroutine par_environment_l1_neighbours_exchange_igp
+  end subroutine environment_l1_neighbours_exchange_igp
 
   !=============================================================================
-  subroutine par_environment_l1_neighbours_exchange_single_ip ( this, & 
+  subroutine environment_l1_neighbours_exchange_single_ip ( this, & 
        num_neighbours, &
        list_neighbours, &
        input_data,&
@@ -770,10 +735,10 @@ contains
          &                                     input_data,&
          &                                     output_data)
 
-  end subroutine par_environment_l1_neighbours_exchange_single_ip
+  end subroutine environment_l1_neighbours_exchange_single_ip
 
   !=============================================================================
-  subroutine par_environment_l1_neighbours_exchange_wo_pack_unpack_ieep ( this, &
+  subroutine environment_l1_neighbours_exchange_wo_pack_unpack_ieep ( this, &
        &                                                                  number_neighbours, &
        &                                                                  neighbour_ids, &
        &                                                                  snd_ptrs, &
@@ -797,79 +762,79 @@ contains
          &                                     rcv_ptrs, &
          &                                     rcv_buf )
 
-  end subroutine par_environment_l1_neighbours_exchange_wo_pack_unpack_ieep
+  end subroutine environment_l1_neighbours_exchange_wo_pack_unpack_ieep
 
   !=============================================================================
-  subroutine par_environment_l1_gather_scalar_ip ( this, input_data, output_data )
+  subroutine environment_l1_gather_scalar_ip ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     integer(ip)             , intent(in)   :: input_data
     integer(ip)             , intent(out)  :: output_data(:) ! ( this%l1_context%get_num_tasks())
     assert ( this%am_i_l1_task() )
     call this%l1_context%gather ( input_data, output_data )
-  end subroutine par_environment_l1_gather_scalar_ip
+  end subroutine environment_l1_gather_scalar_ip
 
-  subroutine par_environment_l1_scatter_scalar_ip ( this, input_data, output_data )
+  subroutine environment_l1_scatter_scalar_ip ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     integer(ip)             , intent(in)   :: input_data(:) ! ( this%l1_context%get_num_tasks())
     integer(ip)             , intent(out)  :: output_data
     assert( this%am_i_l1_task() )
     call this%l1_context%scatter ( input_data, output_data )
-  end subroutine par_environment_l1_scatter_scalar_ip
+  end subroutine environment_l1_scatter_scalar_ip
 
-  subroutine par_environment_l1_bcast_scalar_ip ( this, data )
+  subroutine environment_l1_bcast_scalar_ip ( this, data )
     implicit none
     class(environment_t), intent(in)    :: this
     integer(ip)             , intent(inout) :: data
     integer(ip) :: icontxt
     assert ( this%am_i_l1_task() )
     call this%l1_context%bcast ( data )
-  end subroutine par_environment_l1_bcast_scalar_ip
+  end subroutine environment_l1_bcast_scalar_ip
 
   !=============================================================================
   !=============================================================================
-  subroutine par_environment_l1_to_l2_transfer_ip ( this, input_data, output_data )
+  subroutine environment_l1_to_l2_transfer_ip ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)      :: this
     integer(ip)             , intent(in)      :: input_data
     integer(ip)             , intent(inout)   :: output_data
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
-  end subroutine par_environment_l1_to_l2_transfer_ip
+  end subroutine environment_l1_to_l2_transfer_ip
 
   !=============================================================================
-  subroutine par_environment_l1_to_l2_transfer_ip_1D_array ( this, input_data, output_data )
+  subroutine environment_l1_to_l2_transfer_ip_1D_array ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)      :: this
     integer(ip)             , intent(in)      :: input_data(:)
     integer(ip)             , intent(inout)   :: output_data(:)
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
-  end subroutine par_environment_l1_to_l2_transfer_ip_1D_array
+  end subroutine environment_l1_to_l2_transfer_ip_1D_array
 
   !=============================================================================
-  subroutine par_environment_l2_from_l1_gather_ip ( this, input_data, output_data )
+  subroutine environment_l2_from_l1_gather_ip ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     integer(ip)             , intent(in)   :: input_data
     integer(ip)             , intent(out)  :: output_data(:) ! ( this%l1_to_l2_context%get_num_tasks())
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%gather_to_master(input_data,output_data )
-  end subroutine par_environment_l2_from_l1_gather_ip
+  end subroutine environment_l2_from_l1_gather_ip
 
   !=============================================================================
-  subroutine par_environment_l2_from_l1_gather_igp ( this, input_data, output_data )
+  subroutine environment_l2_from_l1_gather_igp ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     integer(igp)            , intent(in)   :: input_data
     integer(igp)            , intent(out)  :: output_data(:) ! ( this%l1_to_l2_context%get_num_tasks())
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%gather_to_master(input_data,output_data )
-  end subroutine par_environment_l2_from_l1_gather_igp
+  end subroutine environment_l2_from_l1_gather_igp
 
   !=============================================================================
-  subroutine par_environment_l2_from_l1_gather_ip_1D_array ( this, input_data_size, input_data, output_data )
+  subroutine environment_l2_from_l1_gather_ip_1D_array ( this, input_data_size, input_data, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     integer(ip)             , intent(in)   :: input_data_size
@@ -877,10 +842,10 @@ contains
     integer(ip)             , intent(out)  :: output_data(:)
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%gather_to_master(input_data_size, input_data,output_data )
-  end subroutine par_environment_l2_from_l1_gather_ip_1D_array
+  end subroutine environment_l2_from_l1_gather_ip_1D_array
 
   !=============================================================================
-  subroutine par_environment_l2_from_l1_gatherv_ip_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
+  subroutine environment_l2_from_l1_gatherv_ip_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     integer(ip)             , intent(in)   :: input_data_size
@@ -890,10 +855,10 @@ contains
     integer(ip)             , intent(out)  :: output_data(:)
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%gather_to_master(input_data_size, input_data, recv_counts, displs, output_data )
-  end subroutine par_environment_l2_from_l1_gatherv_ip_1D_array
+  end subroutine environment_l2_from_l1_gatherv_ip_1D_array
 
   !=============================================================================
-  subroutine par_environment_l2_from_l1_gatherv_igp_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
+  subroutine environment_l2_from_l1_gatherv_igp_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     integer(ip)             , intent(in)   :: input_data_size
@@ -903,10 +868,10 @@ contains
     integer(igp)            , intent(out)  :: output_data(:)
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%gather_to_master(input_data_size, input_data, recv_counts, displs, output_data )
-  end subroutine par_environment_l2_from_l1_gatherv_igp_1D_array
+  end subroutine environment_l2_from_l1_gatherv_igp_1D_array
 
   !=============================================================================
-  subroutine par_environment_l2_from_l1_gatherv_rp_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
+  subroutine environment_l2_from_l1_gatherv_rp_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     integer(ip)             , intent(in)   :: input_data_size
@@ -916,10 +881,10 @@ contains
     real(rp)                , intent(out)  :: output_data(:)
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%gather_to_master(input_data_size, input_data, recv_counts, displs, output_data )
-  end subroutine par_environment_l2_from_l1_gatherv_rp_1D_array
+  end subroutine environment_l2_from_l1_gatherv_rp_1D_array
 
   !=============================================================================
-  subroutine par_environment_l2_from_l1_gatherv_rp_2D_array ( this, input_data, recv_counts, displs, output_data )
+  subroutine environment_l2_from_l1_gatherv_rp_2D_array ( this, input_data, recv_counts, displs, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     real(rp)                , intent(in)   :: input_data(:,:)
@@ -928,10 +893,10 @@ contains
     real(rp)                , intent(out)  :: output_data(:)
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%gather_to_master(input_data, recv_counts, displs, output_data )
-  end subroutine par_environment_l2_from_l1_gatherv_rp_2D_array
+  end subroutine environment_l2_from_l1_gatherv_rp_2D_array
 
   !=============================================================================
-  subroutine par_environment_l2_to_l1_scatterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
+  subroutine environment_l2_to_l1_scatterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
     real(rp)                , intent(in)   :: input_data(:)
@@ -941,6 +906,6 @@ contains
     real(rp)                , intent(out)  :: output_data(output_data_size)
     assert( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%scatter_from_master (input_data, send_counts, displs, output_data_size, output_data )
-  end subroutine par_environment_l2_to_l1_scatterv_rp_1D_array
+  end subroutine environment_l2_to_l1_scatterv_rp_1D_array
 
 end module environment_names

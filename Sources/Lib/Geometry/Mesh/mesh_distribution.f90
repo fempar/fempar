@@ -178,7 +178,6 @@ contains
     end if
     if( parameter_list%isPresent(key = num_levels_key) ) then
        istat = parameter_list%get(key = num_levels_key  , value = this%num_levels); check(istat==0)
-       !if(this%num_levels>1) then
        is_present =  parameter_list%isPresent(key = num_parts_per_level_key )
        assert(is_present)
        assert( parameter_list%GetDimensions(key = num_parts_per_level_key) == 1)
@@ -193,7 +192,6 @@ contains
        call memfree(param,__FILE__,__LINE__)
 
        this%nparts = this%num_parts_per_level(1)
-       !end if
     else
        this%num_levels=1
        call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__)
@@ -322,15 +320,6 @@ contains
 
        write(lu_out,'(a)') '*** begin mesh_distribution data structure ***'
 
-       ! write(lu_out,'(a,i10)') 'Number of levels:', &
-       !    &  msh_dist%num_levels
-
-       ! write(lu_out,'(a,i10)') 'Number of parts per level:', &
-       !    &  msh_dist%num_parts_per_level
-
-       ! write(lu_out,'(a,i10)') 'Parts mapping:', &
-       !    &  msh_dist%parts_mapping
-
        write(lu_out,'(a,i10)') 'Number of parts:', &
            &  msh_dist%nparts
 
@@ -371,9 +360,6 @@ contains
     !-----------------------------------------------------------------------
 
     write ( lunio, '(10i10)' ) f_msh_dist%ipart, f_msh_dist%nparts
-    ! write ( lunio, '(10i10)' ) f_msh_dist%num_levels
-    ! write ( lunio, '(10i10)' ) f_msh_dist%num_parts_pert_level
-    ! write ( lunio, '(10i10)' ) f_msh_dist%parts_mapping
 
     write ( lunio, '(10i10)' ) f_msh_dist%nebou
     write ( lunio, '(10i10)' ) f_msh_dist%lebou

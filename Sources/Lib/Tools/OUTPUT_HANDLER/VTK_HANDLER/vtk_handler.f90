@@ -161,19 +161,13 @@ contains
         logical, optional,    intent(IN)    :: issue_final_barrier
         logical                             :: ifb
         integer(kind=c_int)                 :: res
-        !integer(ip)                         :: me, np
     !-----------------------------------------------------------------
-        !me = default_root_task
-        !np = default_number_of_tasks
         ifb = .False.
         if(present(issue_final_barrier)) ifb = issue_final_barrier
         assert(associated(this%env))
-        !call this%env%info(me,np) 
-        !assert(this%root_task <= np-1)
 
         res=0
 
-        !if(me == this%root_task) then
         if(this%env%am_i_l1_root()) then
             res = mkdir_recursive(path//C_NULL_CHAR)
             check ( res == 0 ) 

@@ -31,7 +31,7 @@ module partitioner_input_names
   implicit none
   private
 
-  type, extends(input_t) ::  partitioner_input_t 
+  type, extends(parameter_generator_t) ::  partitioner_input_t 
      private 
    contains
      procedure :: set_default    => partitioner_input_set_default
@@ -126,7 +126,7 @@ program partitioner
   call gmesh%create_distribution (parameters, distr, env, lmesh)
 
   ! Write environments
-  call par_environment_write_files             ( parameters, env )
+  call environment_write_files             ( parameters, env )
 
   ! Write partition info
   call mesh_distribution_write_files           ( parameters, distr )

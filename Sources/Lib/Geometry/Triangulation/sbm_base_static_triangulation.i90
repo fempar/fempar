@@ -219,27 +219,6 @@ subroutine bst_fill_cells_set (this, cells_set)
                                              this%cell_import%get_snd_ptrs(),          &
                                              this%cell_import%get_snd_leids(),         &
                                              this%cells_set )
-
-  !if ( associated(this%p_env)) then
-  !  ! Distributed-memory triangulation
-  !  assert ( this%p_env%am_i_l1_task() )   
-  !  assert ( size(cells_set) == this%num_local_cells )
-  !  this%cells_set(1:this%num_local_cells) = cells_set
-  !  call this%p_env%l1_neighbours_exchange ( this%cell_import%get_number_neighbours(), &
-  !                                           this%cell_import%get_neighbours_ids(),    &
-  !                                           this%cell_import%get_rcv_ptrs(),          &
-  !                                           this%cell_import%get_rcv_leids(),         &
-  !                                           this%cell_import%get_number_neighbours(), &
-  !                                           this%cell_import%get_neighbours_ids(),    &
-  !                                           this%cell_import%get_snd_ptrs(),          &
-  !                                           this%cell_import%get_snd_leids(),         &
-  !                                           this%cells_set )
-  !else
-  !  ! Serial(centralized) triangulation
-  !  assert ( size(cells_set) == this%num_local_cells )
-  !  this%cells_set = cells_set
-  !end if
-  
 end subroutine bst_fill_cells_set
 
 subroutine bst_free_ptr_vefs_per_cell (this)
@@ -1726,17 +1705,9 @@ subroutine bst_print ( this )
     implicit none
     class(base_static_triangulation_t), target, intent(inout) :: this
     integer(ip)                                       :: icell, ivef, istat
-    logical :: i_am_l1_task
     
-    ! Managing this using the environment would be far cleaner.
-    i_am_l1_task = .true.
-    if(associated(this%p_env) ) then
-       if (.not.this%p_env%am_i_l1_task()) then ! This is a higher level task
-         i_am_l1_task = .false.
-       end if
-    end if
-    
-    if ( i_am_l1_task ) then
+    if ( associated(this%p_env) ) then
+    if ( this%p_env%am_i_l1_task() ) then
         this%num_dimensions = -1 
       
         ! Free cell-related data
@@ -1768,26 +1739,17 @@ subroutine bst_print ( this )
         this%number_global_objects = -1
 
       else ! I am lgt1_task
-
-         !call this%coarse_triangulation%print()
          call this%coarse_triangulation%free()
          deallocate ( this%coarse_triangulation, stat=istat)
          check(istat == 0)
-
       end if
-      
-      do icell=1, max_num_reference_fes_geo
-         if(associated(this%reference_fe_geo_list(icell)%p)) then
-           call this%reference_fe_geo_list(icell)%p%free()
-           nullify(this%reference_fe_geo_list(icell)%p)
-         endif
-      enddo
 
       if(associated(this%p_env,this%par_environment)) then
          ! The environment has been created by the triangulation
          call this%par_environment%free()
       end if
       nullify(this%p_env)
+      end if
 
    end subroutine bst_free
 

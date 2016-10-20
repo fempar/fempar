@@ -9,7 +9,7 @@ module par_test_poisson_params_names
   character(len=*), parameter :: write_solution_key         = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
 
-  type, extends(input_t) :: par_test_poisson_params_t
+  type, extends(parameter_generator_t) :: par_test_poisson_params_t
      private
      contains
        procedure :: set_default  => par_test_poisson_params_set_default

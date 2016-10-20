@@ -28,13 +28,13 @@
 module serial_context_names
   use types_names
   use memor_names
-  use par_context_names
+  use execution_context_names
   implicit none 
 #include "debug.i90"
   private
 
   
-  type, extends(par_context_t) :: serial_context_t
+  type, extends(execution_context_t) :: serial_context_t
      private 
    contains
      ! These functions should be non_overridable but there is a bug in gfotran
@@ -112,7 +112,7 @@ contains
   subroutine serial_context_assign(this, that)
     implicit none 
     class(serial_context_t), intent(inout) :: this
-    class(par_context_t)   , intent(in)    :: that
+    class(execution_context_t)   , intent(in)    :: that
     select type(that)
     type is(serial_context_t)
        assert(that%get_current_task()==0)
@@ -137,7 +137,7 @@ contains
     implicit none 
     class(serial_context_t), intent(in)    :: this
     integer                , intent(in)    :: color
-    class(par_context_t), allocatable , intent(inout) :: new_subcontext
+    class(execution_context_t), allocatable , intent(inout) :: new_subcontext
   end subroutine serial_context_split_by_color
 
   !=============================================================================
@@ -145,8 +145,8 @@ contains
     implicit none 
     class(serial_context_t), intent(in)    :: this
     logical                , intent(in)    :: in_subcontext1
-    class(par_context_t), allocatable , intent(inout) :: subcontext1
-    class(par_context_t), allocatable , intent(inout) :: subcontext2
+    class(execution_context_t), allocatable , intent(inout) :: subcontext1
+    class(execution_context_t), allocatable , intent(inout) :: subcontext2
   end subroutine serial_context_split_by_condition
 
   !=============================================================================
@@ -207,10 +207,11 @@ contains
   end subroutine serial_context_max_vector_rp
 
   !=============================================================================
-  subroutine serial_context_bcast_subcontext(this,subcontxt,condition)
+  subroutine serial_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
     implicit none
     class(serial_context_t) , intent(in)    :: this
-    class(par_context_t) , intent(in)    :: subcontxt
+    class(execution_context_t) , intent(in)    :: subcontxt1
+    class(execution_context_t) , intent(in)    :: subcontxt2
     logical              , intent(inout) :: condition
   end subroutine serial_context_bcast_subcontext
 

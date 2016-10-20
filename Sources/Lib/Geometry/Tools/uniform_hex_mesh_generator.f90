@@ -29,7 +29,6 @@ module uniform_hex_mesh_generator_names
   ! Serial modules
   use types_names
   use memor_names
-  !use hex_boundary_set_ids_descriptor_names
   use reference_fe_names
   use FPL
   implicit none
@@ -164,7 +163,6 @@ contains
        end do
        num_parts_per_level(ilevel) = num_parts
        num_tasks = num_tasks + num_parts
-       !part_id = mod(task_id,num_parts)
     end do
     assert(task_id<num_tasks)
 

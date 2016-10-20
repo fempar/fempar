@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine serial_triangulation_create ( this, parameters) ! dir_path, prefix, geometry_interpolation_order)
+subroutine serial_triangulation_create ( this, parameters)
   implicit none
   class(serial_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)        , intent(inout)    :: parameters

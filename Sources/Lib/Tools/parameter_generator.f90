@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module input_names
+module parameter_generator_names
   use types_names
   use flap, only : Command_Line_Interface
   use FPL
@@ -38,7 +38,7 @@ module input_names
   ! parameters required by the user have to be registered with a default value
   ! and for those that could be read from the command line register the switches,
   ! abbreviated_switches, helpers and whether they are mandatory or not.
-  type input_t 
+  type parameter_generator_t 
      private 
      type(Command_Line_Interface)  :: cli 
      type(ParameterList_t)         :: list
@@ -47,25 +47,25 @@ module input_names
      type(ParameterList_t)         :: helpers
      type(ParameterList_t)         :: required
    contains
-     procedure, non_overridable    :: create          => input_create
-     procedure                     :: set_default     => input_set_default
-     procedure, non_overridable    :: add_to_cli      => input_add_to_cli
-     procedure, non_overridable    :: parse           => input_parse
-     procedure, non_overridable    :: free            => input_free
-     procedure, non_overridable    :: get_parameters  => input_get_parameters 
-     procedure, non_overridable    :: get_switches    => input_get_switches   
-     procedure, non_overridable    :: get_switches_ab => input_get_switches_ab
-     procedure, non_overridable    :: get_helpers     => input_get_helpers    
-     procedure, non_overridable    :: get_required    => input_get_required   
-  end type input_t
+     procedure, non_overridable    :: create          => parameter_generator_create
+     procedure                     :: set_default     => parameter_generator_set_default
+     procedure, non_overridable    :: add_to_cli      => parameter_generator_add_to_cli
+     procedure, non_overridable    :: parse           => parameter_generator_parse
+     procedure, non_overridable    :: free            => parameter_generator_free
+     procedure, non_overridable    :: get_parameters  => parameter_generator_get_parameters 
+     procedure, non_overridable    :: get_switches    => parameter_generator_get_switches   
+     procedure, non_overridable    :: get_switches_ab => parameter_generator_get_switches_ab
+     procedure, non_overridable    :: get_helpers     => parameter_generator_get_helpers    
+     procedure, non_overridable    :: get_required    => parameter_generator_get_required   
+  end type parameter_generator_t
 
-  public :: input_t
+  public :: parameter_generator_t
 
 contains
 
-  subroutine input_create(this)
+  subroutine parameter_generator_create(this)
     implicit none
-    class(input_t), intent(inout) :: this
+    class(parameter_generator_t), intent(inout) :: this
     call this%free()
      ! Initialize Command Line Interface
     call this%cli%init(progname    = 'part',                                                     &
@@ -84,12 +84,12 @@ contains
     call this%set_default()
     call this%add_to_cli()
     call this%parse()
-  end subroutine input_create
+  end subroutine parameter_generator_create
 
   !==================================================================================================
-  subroutine input_set_default(this)
+  subroutine parameter_generator_set_default(this)
     implicit none
-    class(input_t), intent(inout) :: this
+    class(parameter_generator_t), intent(inout) :: this
     integer(ip) :: error
     ! This is necessary in derived classes implemted in the user space (here we could access
     ! member variables directly.
@@ -116,60 +116,60 @@ contains
 
     error = required%set(key = dir_path_key   , value = .false.); check(error==0);
     error = required%set(key = prefix_key     , value = .false.); check(error==0);
-  end subroutine input_set_default
+  end subroutine parameter_generator_set_default
 
   !==================================================================================================
-  function input_get_parameters(this)
+  function parameter_generator_get_parameters(this)
     implicit none
-    class(input_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: input_get_parameters
-    input_get_parameters => this%list
-  end function input_get_parameters
+    class(parameter_generator_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_generator_get_parameters
+    parameter_generator_get_parameters => this%list
+  end function parameter_generator_get_parameters
 
   !==================================================================================================
-  function input_get_switches(this)
+  function parameter_generator_get_switches(this)
     implicit none
-    class(input_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: input_get_switches
-    input_get_switches => this%switches
-  end function input_get_switches
+    class(parameter_generator_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_generator_get_switches
+    parameter_generator_get_switches => this%switches
+  end function parameter_generator_get_switches
   !==================================================================================================
-  function input_get_switches_ab(this)
+  function parameter_generator_get_switches_ab(this)
     implicit none
-    class(input_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: input_get_switches_ab
-    input_get_switches_ab => this%switches_ab
-  end function input_get_switches_ab
+    class(parameter_generator_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_generator_get_switches_ab
+    parameter_generator_get_switches_ab => this%switches_ab
+  end function parameter_generator_get_switches_ab
   !==================================================================================================
-  function input_get_helpers(this)
+  function parameter_generator_get_helpers(this)
     implicit none
-    class(input_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: input_get_helpers
-    input_get_helpers => this%helpers
-  end function input_get_helpers
+    class(parameter_generator_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_generator_get_helpers
+    parameter_generator_get_helpers => this%helpers
+  end function parameter_generator_get_helpers
 
   !==================================================================================================
-  function input_get_required(this)
+  function parameter_generator_get_required(this)
     implicit none
-    class(input_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: input_get_required
-    input_get_required => this%required
-  end function input_get_required
+    class(parameter_generator_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_generator_get_required
+    parameter_generator_get_required => this%required
+  end function parameter_generator_get_required
 
   !==================================================================================================
-  subroutine input_free(this)
+  subroutine parameter_generator_free(this)
     implicit none
-    class(input_t), intent(inout) :: this
+    class(parameter_generator_t), intent(inout) :: this
     call this%list%free()
     call this%switches%free()
     call this%switches_ab%free()
     call this%required%free()
     call this%cli%free()
-   end subroutine input_free
+   end subroutine parameter_generator_free
   !==================================================================================================
-  subroutine input_add_to_cli(this)
+  subroutine parameter_generator_add_to_cli(this)
     implicit none
-    class(input_t) , intent(inout) :: this
+    class(parameter_generator_t) , intent(inout) :: this
     integer(ip)        :: error
     character(len=512) :: switch, switch_ab, help ! , cvalue
     logical            :: required
@@ -201,12 +201,12 @@ contains
        call Iterator%Next()
     enddo
 
-  end subroutine input_add_to_cli
+  end subroutine parameter_generator_add_to_cli
 
   !==================================================================================================
-  subroutine input_parse(this)
+  subroutine parameter_generator_parse(this)
     implicit none
-    class(input_t), intent(inout) :: this
+    class(parameter_generator_t), intent(inout) :: this
     integer(ip)    :: istat, error
     character(512) :: switch ! , cvalue
     integer(ip)    :: ivalue
@@ -236,6 +236,6 @@ contains
        call Iterator%Next()
     enddo
 
-  end subroutine input_parse  
+  end subroutine parameter_generator_parse  
 
-end module input_names 
+end module parameter_generator_names 
