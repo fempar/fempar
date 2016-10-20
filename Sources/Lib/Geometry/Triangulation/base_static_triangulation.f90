@@ -376,6 +376,7 @@ module base_static_triangulation_names
      integer(ip) , allocatable               :: objects_dimension(:)
      type(list_t)                            :: vefs_object
      type(list_t)                            :: parts_object
+     type(list_t)                            :: subparts_object
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
@@ -462,6 +463,12 @@ module base_static_triangulation_names
 
      ! Private methods to compute objects
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => bst_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_vefs_and_parts_object_body             => bst_compute_vefs_and_parts_object_body
+     procedure, non_overridable, private :: compute_parts_itfc_vefs                        => bst_compute_parts_itfc_vefs
+     procedure, non_overridable, private :: compute_subparts_itfc_vefs                     => bst_compute_subparts_itfc_vefs
+     procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => bst_compute_parts_object_from_subparts_object
+     procedure, non_overridable, private :: compute_subpart_gid                            => bst_compute_subpart_gid
+     procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => bst_compute_part_id_from_subpart_gid
      procedure, non_overridable, private :: compute_objects_dimension                      => bst_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
      procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids

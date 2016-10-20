@@ -61,6 +61,7 @@ module cell_import_names
      procedure, private, non_overridable :: compute_snd_rcv_leids         => cell_import_compute_snd_rcv_leids
      procedure, non_overridable :: free                                   => cell_import_free
      procedure, non_overridable :: print                                  => cell_import_print
+     procedure, non_overridable :: get_number_parts                       => cell_import_get_number_parts
      procedure, non_overridable :: get_number_ghost_elements              => cell_import_get_number_ghost_elements
      procedure, non_overridable :: get_number_neighbours                  => cell_import_get_number_neighbours
      procedure, non_overridable :: get_neighbours_ids                     => cell_import_get_neighbours_ids
@@ -404,6 +405,13 @@ contains
     end if
   end subroutine cell_import_print
 
+  function cell_import_get_number_parts ( this )
+    implicit  none
+    class(cell_import_t), intent(in) :: this
+    integer(ip) :: cell_import_get_number_parts
+    cell_import_get_number_parts = this%number_parts
+  end function cell_import_get_number_parts
+  
   pure function cell_import_get_number_ghost_elements ( this )
     implicit none
     class(cell_import_t), intent(in) :: this

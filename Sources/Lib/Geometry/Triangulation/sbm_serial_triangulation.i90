@@ -99,9 +99,9 @@
             &                                                  this%vefs_set,          &
             &                                                  coordinates)
        
-       ! Allocate and fill to default values cells_set==1 local variable
+       ! Allocate and fill to default values cells_set==0 local variable
        call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
-       cells_set = 1
+       cells_set = 0
        
        call this%reference_fe_geo_index%init(1)
        if(this%num_dimensions==2) then

@@ -818,27 +818,247 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
-    
-    !do ivef_itfc=1,this%num_itfc_vefs
-    !  write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
-    !end do
   end subroutine bst_compute_parts_itfc_vefs
+  
+  subroutine bst_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, perm_itfc_vefs )
+    implicit none
+    class(base_static_triangulation_t), intent(in)    :: this
+    integer(ip), allocatable          , intent(inout) :: subparts_itfc_vefs(:,:)
+    integer(ip), allocatable          , intent(inout) :: perm_itfc_vefs(:)
+    
+    integer(ip)                               :: num_neighbours
+    logical, allocatable                      :: touched_subparts(:)
+    integer(ip)                               :: nsubparts_around
+    integer(ip)                               :: ivef_itfc, icell, vef_lid
+    type(cell_accessor_t)                     :: cell 
+    integer(ip)                               :: num_rows_subparts_itfc_vefs
+    integer(ip), allocatable                  :: work1(:), work2(:)
+    type(itfc_vef_iterator_t)                 :: itfc_vef_iterator
+    type(vef_accessor_t)                      :: current_itfc_vef
+    
+    integer(ip)                               :: num_subparts
+    integer(ip)                               :: cur_subpart_lid
+    integer(ip)                               :: subpart_lid, subpart_gid
+    type(hash_table_ip_ip_t)                  :: g2l_subparts
+    integer(ip)                               :: istat
+    
+    
+    assert ( this%p_env%am_i_l1_task() )
+    
+    if (allocated(subparts_itfc_vefs)) call memfree(subparts_itfc_vefs,__FILE__,__LINE__)
+    if (allocated(perm_itfc_vefs)) call memfree(perm_itfc_vefs,__FILE__,__LINE__)
+    
+    cur_subpart_lid = 1
+    call g2l_subparts%init()
+    itfc_vef_iterator = this%create_itfc_vef_iterator()
+    do while ( .not. itfc_vef_iterator%has_finished() )
+      call itfc_vef_iterator%current(current_itfc_vef)
+      do icell=1, current_itfc_vef%get_num_cells_around()
+        call current_itfc_vef%get_cell_around(icell,cell)
+        subpart_gid = this%compute_subpart_gid(cell%get_mypart(), cell%get_set_id())
+        call g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
+        if (istat == now_stored) then
+          cur_subpart_lid = cur_subpart_lid + 1
+        end if
+      end do
+      call itfc_vef_iterator%next()
+    end do
+    
+    num_subparts = cur_subpart_lid-1
+   
+    call memalloc ( num_subparts, touched_subparts, __FILE__, __LINE__ )
+    
+    num_rows_subparts_itfc_vefs = num_subparts + 1
+    call memalloc ( num_rows_subparts_itfc_vefs, this%num_itfc_vefs, subparts_itfc_vefs, __FILE__, __LINE__ )
+    subparts_itfc_vefs = 0
+    
+    
+    itfc_vef_iterator = this%create_itfc_vef_iterator()
+    ivef_itfc = 1
+    do while ( .not. itfc_vef_iterator%has_finished() )
+      call itfc_vef_iterator%current(current_itfc_vef)
+      touched_subparts = .false.
+      
+      nsubparts_around = 0
+      do icell=1, current_itfc_vef%get_num_cells_around()
+        call current_itfc_vef%get_cell_around(icell,cell)
+        subpart_gid = this%compute_subpart_gid(cell%get_mypart(), cell%get_set_id())
+        call g2l_subparts%get(key=subpart_gid, val=subpart_lid, stat=istat)
+        assert ( istat == key_found )
+        if (.not. touched_subparts (subpart_lid)) then
+           touched_subparts (subpart_lid) = .true.
+           nsubparts_around = nsubparts_around + 1 
+           subparts_itfc_vefs(nsubparts_around+1,ivef_itfc) = subpart_gid
+        end if
+      end do
+      subparts_itfc_vefs(1,ivef_itfc) = nsubparts_around
+      ! Sort list of parts in increasing order by part identifiers
+      ! This is required by the call to icomp subroutine below 
+      call sort ( nsubparts_around, subparts_itfc_vefs(2:nsubparts_around+1, ivef_itfc) )
+      call itfc_vef_iterator%next()
+      ivef_itfc = ivef_itfc + 1
+    end do
+    call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
+    do ivef_itfc = 1, this%num_itfc_vefs
+      perm_itfc_vefs(ivef_itfc) = ivef_itfc 
+    end do
+    
+    ! Re-number vefs in increasing order by the number of parts that share them, 
+    ! and among vefs sharing the same list of parts, in increasing order by the list 
+    ! of parts shared by the vef 
+    call memalloc ( num_rows_subparts_itfc_vefs, work1, __FILE__,__LINE__ )
+    call memalloc ( num_rows_subparts_itfc_vefs, work2, __FILE__,__LINE__ )
+    call sort_array_cols_by_row_section( num_rows_subparts_itfc_vefs, & 
+       &                                 num_rows_subparts_itfc_vefs, & 
+       &                                 this%num_itfc_vefs, & 
+       &                                 subparts_itfc_vefs, & 
+       &                                 perm_itfc_vefs, &
+       &                                 work1, &
+       &                                 work2 ) 
+    call memfree ( work2, __FILE__,__LINE__ )
+    call memfree ( work1, __FILE__,__LINE__ )
+    call memfree ( touched_subparts, __FILE__, __LINE__ )
+    call g2l_subparts%free()
+
+  end subroutine bst_compute_subparts_itfc_vefs
+  
+  
+  subroutine bst_compute_parts_object_from_subparts_object ( this ) 
+    implicit none
+    class(base_static_triangulation_t), intent(inout) :: this
+    integer(ip)           :: num_neighbours
+    logical, allocatable  :: touched_neighbours(:)
+    integer(ip), allocatable :: parts_around(:)
+    type(list_iterator_t) :: parts_iterator, subparts_iterator
+    integer(ip) :: ipart, iobj, num_parts
+    integer(ip) :: subpart_gid, part_lid, part_gid, mypart_id
+    
+    mypart_id = this%p_env%get_l1_rank() + 1
+    
+    call this%parts_object%create(this%number_objects)
+    
+    num_neighbours = this%cell_import%get_number_neighbours()    
+    call memalloc ( num_neighbours, touched_neighbours, __FILE__, __LINE__ )
+    
+    ! Count how many parts are around each object
+    do iobj =1, this%number_objects
+      touched_neighbours = .false.
+      num_parts = 1 
+      subparts_iterator = this%subparts_object%create_iterator(iobj)
+      do while ( .not. subparts_iterator%is_upper_bound() )
+         subpart_gid = subparts_iterator%get_current()
+         part_gid    = this%compute_part_id_from_subpart_gid(subpart_gid)
+         if ( part_gid /= mypart_id ) then         
+           part_lid    = this%cell_import%get_local_neighbour_id(part_gid)
+           if ( .not. touched_neighbours(part_lid) ) then
+             touched_neighbours(part_lid) = .true.
+             num_parts = num_parts + 1
+           end if
+         end if 
+         call subparts_iterator%next() 
+      end do
+      call this%parts_object%sum_to_pointer_index(iobj,num_parts)
+    end do
+    call this%parts_object%calculate_header()
+    call this%parts_object%allocate_list_from_pointer()
+    
+    call memalloc ( num_neighbours+1, parts_around, __FILE__, __LINE__ )
+    
+    ! List parts which are around each object
+    do iobj =1, this%number_objects
+      touched_neighbours = .false.
+      num_parts = 1
+      parts_around(1) = mypart_id
+      subparts_iterator = this%subparts_object%create_iterator(iobj)
+      do while ( .not. subparts_iterator%is_upper_bound() )
+         subpart_gid = subparts_iterator%get_current()
+         part_gid    = this%compute_part_id_from_subpart_gid(subpart_gid)
+         if ( part_gid /= mypart_id ) then         
+           part_lid    = this%cell_import%get_local_neighbour_id(part_gid)
+           if ( .not. touched_neighbours(part_lid) ) then
+             touched_neighbours(part_lid) = .true.
+             num_parts = num_parts + 1
+             parts_around(num_parts) = part_gid
+           end if
+         end if
+         call subparts_iterator%next() 
+      end do
+      call sort ( num_parts, parts_around )
+      parts_iterator = this%parts_object%create_iterator(iobj)
+      do ipart=1, num_parts
+        call parts_iterator%set_current(parts_around(ipart))
+        call parts_iterator%next()
+      end do
+    end do
+    call memfree ( parts_around, __FILE__, __LINE__ )
+    call memfree ( touched_neighbours, __FILE__, __LINE__ )
+    
+  end subroutine bst_compute_parts_object_from_subparts_object 
+  
+  function bst_compute_subpart_gid ( this, part_id, cell_set_id )
+    implicit none
+    class(base_static_triangulation_t), intent(in) :: this
+    integer(ip)                       , intent(in) :: part_id
+    integer(ip)                       , intent(in) :: cell_set_id
+    integer(ip) :: bst_compute_subpart_gid
+    assert ( this%p_env%am_i_l1_task() )
+    assert ( part_id >= 1 .and. part_id <= this%cell_import%get_number_parts() )
+    assert ( cell_set_id >= 0 )
+    bst_compute_subpart_gid = (cell_set_id)*this%cell_import%get_number_parts() + part_id
+  end function bst_compute_subpart_gid 
+  
+  function bst_compute_part_id_from_subpart_gid ( this, subpart_gid )
+    implicit none
+    class(base_static_triangulation_t), intent(in) :: this
+    integer(ip)                       , intent(in) :: subpart_gid
+    integer(ip) :: bst_compute_part_id_from_subpart_gid
+    assert ( this%p_env%am_i_l1_task() )
+    assert ( subpart_gid >= 1 )
+    bst_compute_part_id_from_subpart_gid = mod(subpart_gid-1, this%cell_import%get_number_parts())+1
+  end function bst_compute_part_id_from_subpart_gid
   
   subroutine bst_compute_vefs_and_parts_object(this)
     implicit none
     class(base_static_triangulation_t), intent(inout) :: this
-    integer(ip)                               :: nparts_around
-    integer(ip)                               :: ivef_itfc, init_vef, end_vef
-    integer(ip)                               :: iobj, ipart
-    integer(ip)                               :: num_rows_parts_itfc_vefs
-    integer(ip), allocatable                  :: parts_itfc_vefs (:,:)
-    integer(ip), allocatable                  :: perm_itfc_vefs(:)
-    type(list_iterator_t)                     :: vefs_object_iterator, parts_object_iterator
+   
+    integer(ip), allocatable :: parts_itfc_vefs (:,:)
+    integer(ip), allocatable :: perm_itfc_vefs(:)
 
     assert ( this%p_env%am_i_l1_task() )
     
+    ! Subparts itinerary
+    call this%compute_subparts_itfc_vefs(parts_itfc_vefs,perm_itfc_vefs)
+    call this%compute_vefs_and_parts_object_body(parts_itfc_vefs,perm_itfc_vefs,this%subparts_object,this%vefs_object)
+    call this%compute_parts_object_from_subparts_object()
+    
+    ! Parts itinerary (standard one)
     !call this%compute_parts_itfc_vefs(parts_itfc_vefs,perm_itfc_vefs)
-    call bst_compute_parts_itfc_vefs(this,parts_itfc_vefs,perm_itfc_vefs)
+    !call this%compute_vefs_and_parts_object_body(parts_itfc_vefs,perm_itfc_vefs,this%parts_object,this%vefs_object)
+    
+    call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
+    call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
+  end subroutine bst_compute_vefs_and_parts_object
+  
+  
+  subroutine bst_compute_vefs_and_parts_object_body(this, parts_itfc_vefs, perm_itfc_vefs, parts_object, vefs_object)
+    implicit none
+    class(base_static_triangulation_t), intent(inout) :: this
+    integer(ip)                       , intent(in)    :: parts_itfc_vefs (:,:)
+    integer(ip)                       , intent(in)    :: perm_itfc_vefs(:)
+    type(list_t)                      , intent(inout) :: parts_object
+    type(list_t)                      , intent(inout) :: vefs_object
+    integer(ip) :: nparts_around
+    integer(ip) :: ivef_itfc, init_vef, end_vef
+    integer(ip) :: iobj, ipart
+    integer(ip) :: num_rows_parts_itfc_vefs
+    
+    type(list_iterator_t) :: vefs_object_iterator, parts_object_iterator
+
+    assert ( this%p_env%am_i_l1_task() )
+    
+    call parts_object%free()
+    call vefs_object%free()
+    
     num_rows_parts_itfc_vefs = size(parts_itfc_vefs,1)
     
     ! Count number_objects
@@ -856,8 +1076,8 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end do
         
     ! Count number_vefs_per_object and number_parts_per_object
-    call this%vefs_object%create(n=this%number_objects)
-    call this%parts_object%create(n=this%number_objects)
+    call vefs_object%create(n=this%number_objects)
+    call parts_object%create(n=this%number_objects)
     ivef_itfc = 1
     this%number_objects = 0
     do while ( ivef_itfc <= this%num_itfc_vefs ) 
@@ -871,21 +1091,21 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       end_vef = ivef_itfc
       nparts_around = parts_itfc_vefs(1,end_vef)
       this%number_objects = this%number_objects + 1
-      call this%parts_object%sum_to_pointer_index(this%number_objects, nparts_around)
-      call this%vefs_object%sum_to_pointer_index(this%number_objects, end_vef-init_vef+1 )
+      call parts_object%sum_to_pointer_index(this%number_objects, nparts_around)
+      call vefs_object%sum_to_pointer_index(this%number_objects, end_vef-init_vef+1 )
       ivef_itfc = ivef_itfc + 1
     end do
     
-    call this%vefs_object%calculate_header()
-    call this%parts_object%calculate_header()
-    call this%vefs_object%allocate_list_from_pointer()
-    call this%parts_object%allocate_list_from_pointer()
+    call vefs_object%calculate_header()
+    call parts_object%calculate_header()
+    call vefs_object%allocate_list_from_pointer()
+    call parts_object%allocate_list_from_pointer()
     
     ! List number_vefs_per_object and number_parts_per_object
     ivef_itfc=1
-    do iobj=1, this%vefs_object%get_num_pointers()
-       vefs_object_iterator = this%vefs_object%create_iterator(iobj)
-       parts_object_iterator = this%parts_object%create_iterator(iobj)
+    do iobj=1, vefs_object%get_num_pointers()
+       vefs_object_iterator = vefs_object%create_iterator(iobj)
+       parts_object_iterator = parts_object%create_iterator(iobj)
        
        nparts_around = parts_itfc_vefs(1,ivef_itfc)
        do ipart=1, nparts_around
@@ -899,13 +1119,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
         ivef_itfc = ivef_itfc + 1
        end do
     end do
-    
-    !call this%vefs_object%print(6)
-    !call this%parts_object%print(6)
-    
-    call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
-    call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
-  end subroutine bst_compute_vefs_and_parts_object
+  end subroutine bst_compute_vefs_and_parts_object_body
   
   subroutine bst_compute_objects_dimension(this)
     implicit none
@@ -1753,6 +1967,7 @@ subroutine bst_print ( this )
         call this%free_objects_gids_and_dim()
         call this%vefs_object%free()
         call this%parts_object%free()
+        call this%subparts_object%free()
         this%number_objects = -1
         this%number_global_objects = -1
         

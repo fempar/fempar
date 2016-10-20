@@ -206,9 +206,9 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
              &                                                  lst_ext_neighs_part_ids,      &
              &                                                  this%p_env%get_l1_rank()+1)
 
-        ! Allocate and fill to default values cells_set==1 local variable
+        ! Allocate and fill to default values cells_set==0 local variable
         call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
-        cells_set = 1
+        cells_set = 0
         
         ! Generate import
         call this%cell_import%create  ( this%p_env%get_l1_rank()+1, &
