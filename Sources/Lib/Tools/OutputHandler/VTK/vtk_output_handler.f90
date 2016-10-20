@@ -181,10 +181,19 @@ contains
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
         real(rp),                    intent(in)    :: value
+        class(serial_fe_space_t),        pointer   :: fe_space
+        class(environment_t),            pointer   :: mpi_environment
     !-----------------------------------------------------------------
-        this%number_steps = this%number_steps + 1
-        call this%resize_times_if_needed(this%number_steps)
-        this%Times(this%number_steps) = value
+        fe_space          => this%get_fe_space()
+        assert(associated(fe_space))
+        mpi_environment   => fe_space%get_environment()
+        assert(associated(mpi_environment))
+
+        if( mpi_environment%am_i_l1_task()) then
+            this%number_steps = this%number_steps + 1
+            call this%resize_times_if_needed(this%number_steps)
+            this%Times(this%number_steps) = value
+        endif
         this%node_offset = 0
         this%cell_offset = 0
     end subroutine vtk_output_handler_append_time_step
@@ -286,36 +295,42 @@ contains
         integer(ip)                                :: E_IO, i
         integer(ip)                                :: me, np
     !-----------------------------------------------------------------
-        assert(allocated(this%Path) .and. allocated(this%FilePrefix))
-        if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
-
-        call this%fill_data()
-
         fe_space          => this%get_fe_space()
         assert(associated(fe_space))
         mpi_environment   => fe_space%get_environment()
         assert(associated(mpi_environment))
         call mpi_environment%info(me, np)
 
-        if(this%number_steps > 0) then
-            path     = get_vtk_output_path(trim(adjustl(this%Path)), this%Times(this%number_steps))
-        else
-            path     = get_vtk_output_path(trim(adjustl(this%Path)), vtk_default_step_value)
-        endif
-        if( mpi_environment%am_i_l1_task() .and. me == vtk_default_root_task) then
-            E_IO     = create_directory(path, me)
-            check(E_IO == 0)
-        endif
-        call mpi_environment%l1_barrier()
+        if( mpi_environment%am_i_l1_task()) then
 
-        ! Write VTU
-        call this%write_vtu(path, this%FilePrefix, me)
+            assert(allocated(this%Path) .and. allocated(this%FilePrefix))
+            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
 
-        ! Write PVTU only in root task
-        if( mpi_environment%am_i_l1_task() .and. me == vtk_default_root_task) then
-            call this%write_pvtu(path, this%FilePrefix, np)
+            call this%fill_data()
+
+            if(this%number_steps > 0) then
+                path     = get_vtk_output_path(trim(adjustl(this%Path)), this%Times(this%number_steps))
+            else
+                path     = get_vtk_output_path(trim(adjustl(this%Path)), vtk_default_step_value)
+            endif
+
+            if( me == vtk_default_root_task) then
+                E_IO     = create_directory(path, me)
+                check(E_IO == 0)
+            endif
+
+            call mpi_environment%l1_barrier()
+
+            ! Write VTU
+            call this%write_vtu(path, this%FilePrefix, me)
+    
+            ! Write PVTU and PVD only in root task
+            if( me == vtk_default_root_task) then
+                call this%write_pvtu(path, this%FilePrefix, np)
+                call this%write_pvd(this%Path, this%FilePrefix)
+            endif
+
         endif
-
     end subroutine vtk_output_handler_write
 
 
@@ -467,23 +482,10 @@ contains
 
     subroutine vtk_output_handler_close(this)
     !-----------------------------------------------------------------
-    !< Close procedure. Writes pvd file
+    !< Close procedure
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
-        class(serial_fe_space_t),        pointer   :: fe_space
-        class(environment_t),            pointer   :: mpi_environment
-        integer(ip)                                :: E_IO
-        integer(ip)                                :: me, np
     !-----------------------------------------------------------------
-        fe_space          => this%get_fe_space()
-        assert(associated(fe_space))
-        mpi_environment   => fe_space%get_environment()
-        assert(associated(mpi_environment))
-        call mpi_environment%info(me, np)
-
-        if( mpi_environment%am_i_l1_task() .and. me == vtk_default_root_task) then
-            call this%write_pvd(this%Path, this%FilePrefix)
-        endif
 
     end subroutine vtk_output_handler_close
 

@@ -81,8 +81,6 @@ private
     character(*), parameter, public :: xh5_Strategy   = 'xh5_Strategy'
     character(*), parameter, public :: xh5_GridType   = 'xh5_GridType'
     character(*), parameter, public :: xh5_Action     = 'xh5_Action'
-    character(*), parameter, public :: xh5_Comm       = 'xh5_Comm'
-    character(*), parameter, public :: xh5_Root       = 'xh5_Root'
     character(*), parameter, public :: xh5_Info       = 'xh5_Info'
 
     ! DEFAULT PARAMETERS
@@ -90,8 +88,6 @@ private
     integer(ip), parameter, public :: xh5_default_Strategy   = XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB
     integer(ip), parameter, public :: xh5_default_GridType   = XDMF_GRID_TYPE_UNSTRUCTURED
     integer(ip), parameter, public :: xh5_default_Action     = XDMF_ACTION_WRITE
-    integer(ip), parameter, public :: xh5_default_Comm       = 0
-    integer(ip), parameter, public :: xh5_default_Root       = 0
     integer(ip), parameter, public :: xh5_default_Info       = 0
 
 end module xh5_parameters_names

@@ -35,6 +35,8 @@ USE FPL
 USE xh5_utils_names
 USE xh5_parameters_names
 USE environment_names
+USE par_environment_names
+USE par_context_names
 USE output_handler_base_names
 USE output_handler_fe_field_names
 USE fe_space_names,             only: serial_fe_space_t
@@ -55,9 +57,6 @@ private
         integer(ip)                                           :: GridType
         integer(ip)                                           :: Strategy
         integer(ip)                                           :: Action
-        integer(ip)                                           :: Comm
-        integer(ip)                                           :: Info
-        integer(ip)                                           :: Root
         real(rp),                                 allocatable :: X(:)
         real(rp),                                 allocatable :: Y(:)
         real(rp),                                 allocatable :: Z(:)
@@ -113,118 +112,106 @@ contains
         character(len=*),                intent(in)    :: dir_path
         character(len=*),                intent(in)    :: prefix
         type(ParameterList_t), optional, intent(in)    :: parameter_list
+        class(serial_fe_space_t),        pointer       :: fe_space
+        class(environment_t),            pointer       :: mpi_environment
+        class(par_context_t),            pointer       :: par_cntxt
+        integer(ip)                                    :: mpi_info
         logical                                        :: is_present
         logical                                        :: same_data_type
         integer(ip), allocatable                       :: shape(:)
         integer(ip)                                    :: FPLError
     !-----------------------------------------------------------------
-        this%Path       = dir_path
-        this%FilePrefix = prefix
+        fe_space          => this%get_fe_space()
+        assert(associated(fe_space))
+        mpi_environment   => fe_space%get_environment()
+        assert(associated(mpi_environment))
 
-        ! Set defaults
-        this%StaticGrid = xh5_default_StaticGrid
-        this%Strategy   = xh5_default_Strategy
-        this%GridType   = xh5_default_GridType
-        this%Action     = xh5_default_Action
-        this%Comm       = xh5_default_Comm
-        this%Root       = xh5_default_Root
-        this%Info       = xh5_default_Info
+        if( mpi_environment%am_i_l1_task()) then
 
-        if(present(parameter_list)) then
-            ! Get StaticGrid value from parameter_list
-            is_present         = parameter_list%isPresent(Key=xh5_StaticGrid)
-            if(is_present) then
+            this%Path       = dir_path
+            this%FilePrefix = prefix
+
+            ! Set defaults
+            this%StaticGrid = xh5_default_StaticGrid
+            this%Strategy   = xh5_default_Strategy
+            this%GridType   = xh5_default_GridType
+            this%Action     = xh5_default_Action
+            mpi_info        = xh5_default_Info
+
+            if(present(parameter_list)) then
+                ! Get StaticGrid value from parameter_list
+                is_present         = parameter_list%isPresent(Key=xh5_StaticGrid)
+                if(is_present) then
 #ifdef DEBUG
-                same_data_type = parameter_list%isOfDataType(Key=xh5_StaticGrid, mold=this%StaticGrid)
-                FPLError       = parameter_list%getshape(Key=xh5_StaticGrid, shape=shape)
-                if(same_data_type .and. size(shape) == 0) then
+                    same_data_type = parameter_list%isOfDataType(Key=xh5_StaticGrid, mold=this%StaticGrid)
+                    FPLError       = parameter_list%getshape(Key=xh5_StaticGrid, shape=shape)
+                    if(same_data_type .and. size(shape) == 0) then
 #endif
-                    FPLError   = parameter_list%Get(Key=xh5_StaticGrid, Value=this%StaticGrid)
-                    assert(FPLError == 0)
+                        FPLError   = parameter_list%Get(Key=xh5_StaticGrid, Value=this%StaticGrid)
+                        assert(FPLError == 0)
 #ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! xh5_StaticGrid ignored. Wrong data type or shape. '
+                    else
+                        write(*,'(a)') ' Warning! xh5_StaticGrid ignored. Wrong data type or shape. '
+                    endif
+#endif
                 endif
+
+                ! Get Strategy value from parameter_list
+                is_present         = parameter_list%isPresent(Key=xh5_Strategy)
+                if(is_present) then
+#ifdef DEBUG
+                    same_data_type = parameter_list%isOfDataType(Key=xh5_Strategy, mold=this%Strategy)
+                    FPLError       = parameter_list%getshape(Key=xh5_Strategy, shape=shape)
+                    if(same_data_type .and. size(shape) == 0) then
 #endif
+                        FPLError   = parameter_list%Get(Key=xh5_Strategy, Value=this%Strategy)
+                        assert(FPLError == 0)
+#ifdef DEBUG
+                    else
+                        write(*,'(a)') ' Warning! xh5_Strategy ignored. Wrong data type or shape. '
+                    endif
+#endif
+                endif
+
+                ! Get Info value from parameter_list
+                is_present         = parameter_list%isPresent(Key=xh5_Info)
+                if(is_present) then
+#ifdef DEBUG
+                    same_data_type = parameter_list%isOfDataType(Key=xh5_Info, mold=mpi_info)
+                    FPLError       = parameter_list%getshape(Key=xh5_Info, shape=shape)
+                    if(same_data_type .and. size(shape) == 0) then
+#endif
+                        FPLError   = parameter_list%Get(Key=xh5_Info, Value=mpi_info)
+                        assert(FPLError == 0)
+#ifdef DEBUG
+                    else
+                        write(*,'(a)') ' Warning! xh5_Info ignored. Wrong data type or shape. '
+                    endif
+#endif
+                endif
             endif
 
-            ! Get Strategy value from parameter_list
-            is_present         = parameter_list%isPresent(Key=xh5_Strategy)
-            if(is_present) then
-#ifdef DEBUG
-                same_data_type = parameter_list%isOfDataType(Key=xh5_Strategy, mold=this%Strategy)
-                FPLError       = parameter_list%getshape(Key=xh5_Strategy, shape=shape)
-                if(same_data_type .and. size(shape) == 0) then
-#endif
-                    FPLError   = parameter_list%Get(Key=xh5_Strategy, Value=this%Strategy)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! xh5_Strategy ignored. Wrong data type or shape. '
-                endif
-#endif
-            endif
+            select type (mpi_environment)
+                type is (par_environment_t)
+                    par_cntxt => mpi_environment%get_l1_context()
+                    
+                    call this%xh5%Open(FilePrefix = this%FilePrefix,         &
+                                       GridType   = this%GridType,           &
+                                       StaticGrid = this%StaticGrid,         &
+                                       Strategy   = this%Strategy,           &
+                                       Action     = this%Action,             &
+                                       Comm       = par_cntxt%get_icontxt(), &
+                                       Info       = mpi_info)
+                class DEFAULT
+                    call this%xh5%Open(FilePrefix = this%FilePrefix,          &
+                                       GridType   = this%GridType,            &
+                                       StaticGrid = this%StaticGrid,          &
+                                       Strategy   = this%Strategy,            &
+                                       Action     = this%Action,              &
+                                       Info       = mpi_info)
 
-            ! Get Comm value from parameter_list
-            is_present         = parameter_list%isPresent(Key=xh5_Comm)
-            if(is_present) then
-#ifdef DEBUG
-                same_data_type = parameter_list%isOfDataType(Key=xh5_Comm, mold=this%Comm)
-                FPLError       = parameter_list%getshape(Key=xh5_Comm, shape=shape)
-                if(same_data_type .and. size(shape) == 0) then
-#endif
-                    FPLError   = parameter_list%Get(Key=xh5_Comm, Value=this%Comm)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! xh5_Comm ignored. Wrong data type or shape. '
-                endif
-#endif
-            endif
-
-            ! Get Root value from parameter_list
-            is_present         = parameter_list%isPresent(Key=xh5_Root)
-            if(is_present) then
-#ifdef DEBUG
-                same_data_type = parameter_list%isOfDataType(Key=xh5_Root, mold=this%Root)
-                FPLError       = parameter_list%getshape(Key=xh5_Comm, shape=shape)
-                if(same_data_type .and. size(shape) == 0) then
-#endif
-                    FPLError   = parameter_list%Get(Key=xh5_Root, Value=this%Root)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! xh5_Comm ignored. Wrong data type or shape. '
-                endif
-#endif
-            endif
-
-            ! Get Info value from parameter_list
-            is_present         = parameter_list%isPresent(Key=xh5_Info)
-            if(is_present) then
-#ifdef DEBUG
-                same_data_type = parameter_list%isOfDataType(Key=xh5_Info, mold=this%Info)
-                FPLError       = parameter_list%getshape(Key=xh5_Info, shape=shape)
-                if(same_data_type .and. size(shape) == 0) then
-#endif
-                    FPLError   = parameter_list%Get(Key=xh5_Info, Value=this%Info)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! xh5_Info ignored. Wrong data type or shape. '
-                endif
-#endif
-            endif
+            end select
         endif
-
-        call this%xh5%Open(FilePrefix = this%FilePrefix, &
-                           GridType   = this%GridType,   &
-                           StaticGrid = this%StaticGrid, &
-                           Strategy   = this%Strategy,   &
-                           Action     = this%Action,     &
-                           Comm       = this%Comm,       &
-                           Info       = this%Info,       &
-                           Root       = this%Root)
 
     end subroutine xh5_output_handler_open
 
@@ -235,8 +222,15 @@ contains
     !-----------------------------------------------------------------
         class(xh5_output_handler_t), intent(inout) :: this
         real(rp),                    intent(in)    :: value
+        class(serial_fe_space_t),        pointer   :: fe_space
+        class(environment_t),            pointer   :: mpi_environment
     !-----------------------------------------------------------------
-        call this%xh5%AppendStep(Value)
+        fe_space          => this%get_fe_space()
+        assert(associated(fe_space))
+        mpi_environment   => fe_space%get_environment()
+        assert(associated(mpi_environment))
+
+        if( mpi_environment%am_i_l1_task()) call this%xh5%AppendStep(Value)
         this%node_offset = 0
         this%cell_offset = 0
     end subroutine xh5_output_handler_append_time_step
@@ -348,37 +342,39 @@ contains
         integer(ip)                                :: E_IO, i
         integer(ip)                                :: me, np
     !-----------------------------------------------------------------
-        if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
-
-        call this%fill_data()
-
         fe_space          => this%get_fe_space()
         assert(associated(fe_space))
         mpi_environment   => fe_space%get_environment()
         assert(associated(mpi_environment))
-        call mpi_environment%info(me, np)
 
-        call this%xh5%SetGrid(NumberOfNodes        = this%get_number_nodes(),  &
-                              NumberOfElements     = this%get_number_cells(),  &
-                              TopologyType         = XDMF_TOPOLOGY_TYPE_MIXED, &
-                              GeometryType         = XDMF_GEOMETRY_TYPE_X_Y_Z)
+        if( mpi_environment%am_i_l1_task()) then
+            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
 
-        call this%xh5%WriteTopology(Connectivities = this%Connectivities)
+            call this%fill_data()
 
-        call this%xh5%WriteGeometry(X              = this%X, &
-                                    Y              = this%Y, &
-                                    Z              = this%Z)
+            call mpi_environment%info(me, np)
 
-        do i=1, this%get_number_fields()
-            field => this%get_field(i)
-            Value => this%FieldValues(i)%get_value()
-            attribute_type = number_components_to_xh5_AttributeType(this%FieldValues(i)%get_number_components())
-            call this%xh5%WriteAttribute(Name   = field%get_name(),             &
-                                         Type   = attribute_type,               &
-                                         Center = XDMF_ATTRIBUTE_CENTER_NODE ,  &
-                                         Values = Value)
-        enddo
+            call this%xh5%SetGrid(NumberOfNodes        = this%get_number_nodes(),  &
+                                  NumberOfElements     = this%get_number_cells(),  &
+                                  TopologyType         = XDMF_TOPOLOGY_TYPE_MIXED, &
+                                  GeometryType         = XDMF_GEOMETRY_TYPE_X_Y_Z)
 
+            call this%xh5%WriteTopology(Connectivities = this%Connectivities)
+
+            call this%xh5%WriteGeometry(X              = this%X, &
+                                        Y              = this%Y, &
+                                        Z              = this%Z)
+
+            do i=1, this%get_number_fields()
+                field => this%get_field(i)
+                Value => this%FieldValues(i)%get_value()
+                attribute_type = number_components_to_xh5_AttributeType(this%FieldValues(i)%get_number_components())
+                call this%xh5%WriteAttribute(Name   = field%get_name(),             &
+                                             Type   = attribute_type,               &
+                                             Center = XDMF_ATTRIBUTE_CENTER_NODE ,  &
+                                             Values = Value)
+            enddo
+        endif
     end subroutine xh5_output_handler_write
 
 
@@ -387,8 +383,15 @@ contains
     !< Close xh5for_t derived type
     !-----------------------------------------------------------------
         class(xh5_output_handler_t), intent(inout) :: this
+        class(serial_fe_space_t),        pointer   :: fe_space
+        class(environment_t),            pointer   :: mpi_environment
     !-----------------------------------------------------------------
-        call this%xh5%close()
+        fe_space          => this%get_fe_space()
+        assert(associated(fe_space))
+        mpi_environment   => fe_space%get_environment()
+        assert(associated(mpi_environment))
+
+        if( mpi_environment%am_i_l1_task()) call this%xh5%close()
     end subroutine
 
 end module xh5_output_handler_names
