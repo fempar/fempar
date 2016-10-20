@@ -176,22 +176,6 @@ module par_context_names
      end subroutine par_context_nullify
 
      !=============================================================================
-     ! pure function par_context_get_current_task (this)
-     !   import :: par_context_t
-     !   implicit none
-     !   class(par_context_t), intent(in) :: this
-     !   integer :: par_context_get_current_task
-     ! end function par_context_get_current_task
-
-     !=============================================================================
-     ! pure function par_context_get_num_tasks (this)
-     !   import :: par_context_t
-     !   implicit none
-     !   class(par_context_t), intent(in) :: this
-     !   integer :: par_context_get_num_tasks
-     ! end function par_context_get_num_tasks
-
-     !=============================================================================
      pure function par_context_am_i_member(this)
        import :: par_context_t
        implicit none

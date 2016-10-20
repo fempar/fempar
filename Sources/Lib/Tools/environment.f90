@@ -79,10 +79,6 @@ module environment_names
      procedure :: read                           => par_environment_read_file
      procedure :: write                          => par_environment_write_file
 
-     ! They are not used...
-     procedure, private :: create_from_interface => par_environment_create_from_interface
-     procedure, private :: create_from_unit      => par_environment_create_from_unit
-
      procedure          :: create                => par_environment_create
      procedure          :: assign_parts_to_tasks => par_environment_assign_parts_to_tasks
      procedure, private :: fill_contexts         => par_environment_fill_contexts
@@ -161,8 +157,8 @@ module environment_names
      procedure :: l1_sum_vector_rp            => par_environment_l1_sum_vector_rp
      procedure :: l1_max_scalar_rp            => par_environment_l1_max_scalar_rp
      procedure :: l1_max_vector_rp            => par_environment_l1_max_vector_rp
-     generic  :: l1_sum                                           => l1_sum_scalar_rp, l1_sum_vector_rp
-     generic  :: l1_max                                           => l1_max_scalar_rp, l1_max_vector_rp
+     generic  :: l1_sum                       => l1_sum_scalar_rp, l1_sum_vector_rp
+     generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp
 
   end type environment_t
 
@@ -382,13 +378,6 @@ contains
        allocate(this%next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
        this%next_level%world_context = this%lgt1_context
        call this%next_level%assign_parts_to_tasks(this%num_levels-1, this%num_parts_per_level(2:),this%parts_mapping(2:))
-
-       ! this%next_level%num_levels = this%num_levels-1
-       ! call memalloc(this%next_level%num_levels, this%next_level%parts_mapping,__FILE__,__LINE__ )
-       ! call memalloc(this%next_level%num_levels, this%next_level%num_parts_per_level,__FILE__,__LINE__ )
-       ! this%next_level%parts_mapping       = this%parts_mapping(2:)
-       ! this%next_level%num_parts_per_level = this%num_parts_per_level(2:)
-
        call this%next_level%fill_contexts()
     else
        nullify(this%next_level)
@@ -396,202 +385,6 @@ contains
     this%state = created
 
   end subroutine par_environment_fill_contexts
-
-  !=============================================================================
-  subroutine par_environment_create_old ( this, parameters)
-    implicit none 
-    class(environment_t), intent(inout) :: this
-    type(ParameterList_t)   , intent(in)    :: parameters
-    class(par_context_t)    , allocatable   :: world_context
-
-    ! Some refactoring is needed here separating number_of_parts_per_level (and dir)
-    ! from the rest of the mesh information.
-    type(uniform_hex_mesh_t) :: uniform_hex_mesh
-
-    integer(ip)          :: istat
-    logical              :: is_present
-    integer(ip)          :: environment_type
-    integer(ip)          :: execution_context
-    character(len=256)   :: dir_path
-    character(len=256)   :: prefix
-    character(len=:), allocatable   :: name
-    integer(ip)                     :: lunio
-    integer(ip)               :: num_levels
-    integer(ip) , allocatable :: num_parts_per_level(:)
-    integer(ip) , allocatable :: parts_mapping(:)
-
-    call this%free()
-
-    ! Optional parameters
-    if(parameters%isPresent(key = execution_context_key)) then
-       istat = parameters%get(key = execution_context_key, value = execution_context); check(istat==0)
-    else
-       execution_context = serial_context
-    end if
-    if( parameters%isPresent(key = environment_type_key) ) then
-       istat = parameters%get(key = environment_type_key, value = environment_type); check(istat==0)
-    else
-       environment_type = unstructured
-    end if
-
-    if(execution_context==serial_context) then
-       allocate(serial_context_t :: world_context,stat=istat); check(istat==0)
-    else if(execution_context==mpi_context) then
-       allocate(mpi_context_t :: world_context,stat=istat); check(istat==0)
-    end if
-    call world_context%create()
-
-    if(environment_type==unstructured) then
-
-       allocate(this%world_context,mold=world_context,stat=istat);check(istat==0)
-       this%world_context = world_context
-
-       if(world_context%get_num_tasks()>1) then
-          ! Mandatory parameters
-          is_present =  parameters%isPresent(key = dir_path_key)      ; assert(is_present)
-          is_present =  parameters%isPresent(key = prefix_key)        ; assert(is_present)
-          istat = parameters%get(key = dir_path_key, value = dir_path); check(istat==0)
-          istat = parameters%get(key = prefix_key  , value = prefix)  ; check(istat==0)
-
-          call par_environment_compose_name(prefix, name )  
-          call par_filename( world_context%get_current_task(), world_context%get_num_tasks() , name )
-          lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-
-          call this%create_from_unit(lunio)
-          ! Verify that the multilevel environment can be executed in current context (long-lasting Alberto's concern). 
-          check(this%get_num_tasks() <= world_context%get_num_tasks())
-       else
-          allocate(this%l1_context,mold=this%world_context,stat=istat);check(istat==0)
-          this%l1_context = this%world_context ! All the rest are empty
-       end if
-
-    else if(environment_type==structured) then
-
-       call uniform_hex_mesh%get_data_from_parameter_list(parameters)
-
-       call uniform_hex_mesh%generate_levels_and_parts(world_context%get_current_task(), num_levels, num_parts_per_level, parts_mapping)
-
-       ! Verify that the multilevel environment can be executed in current context (long-lasting Alberto's concern). 
-       call this%assign_parts_to_tasks(num_levels, num_parts_per_level, parts_mapping)
-       check(this%get_num_tasks() <= world_context%get_num_tasks())
-
-       ! Recursively create multilevel environment
-       call this%create_from_interface(world_context, num_levels, num_parts_per_level, parts_mapping)
-       call memfree(num_parts_per_level,__FILE__,__LINE__)
-       call memfree(parts_mapping,__FILE__,__LINE__)
-
-    end if
-    this%state = created_from_scratch
-
-
-  end subroutine par_environment_create_old
-
-  !=============================================================================
-  subroutine par_environment_create_from_unit ( this, lunio )
-    implicit none 
-    ! Parameters
-    class(environment_t)   , intent(inout) :: this
-    integer(ip), optional      , intent(in)    :: lunio
-
-    !integer(ip)                , intent(in)    :: num_levels
-    !integer(ip)                , intent(in)    :: num_parts_per_level(num_levels)
-    !integer(ip)                , intent(in)    :: parts_mapping(num_levels)
-    integer                                    :: my_color
-    integer(ip)                                :: istat
-
-    call this%free()
-    call this%read(lunio)
-    assert ( this%num_levels >= 1 )
-    assert ( this%world_context%get_current_task() >= 0 )
-
-    ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call this%world_context%split_by_condition ( this%world_context%get_current_task() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
-
-    ! Create l1_to_l2_context, where inter-level data transfers actually occur
-    if ( this%num_levels > 1 ) then
-       if(this%l1_context%get_current_task() >= 0) then
-          my_color = this%parts_mapping(2)
-       else if( this%lgt1_context%get_current_task() < this%num_parts_per_level(2)  ) then
-          my_color = this%lgt1_context%get_current_task()+1
-       else
-          my_color = undefined_color ! mpi_undefined
-       end if
-       call this%world_context%split_by_color ( my_color, this%l1_to_l2_context )
-    else
-       allocate(this%l1_to_l2_context,mold=this%world_context,stat=istat);check(istat==0)
-       call this%l1_to_l2_context%nullify()
-    end if
-
-    if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
-       allocate(this%next_level, stat=istat)
-       check(istat == 0)
-       call this%next_level%create_from_interface( this%lgt1_context, &
-            &                                      this%num_levels-1, &
-            &                                      this%num_parts_per_level(2:), &
-            &                                      this%parts_mapping(2:) )
-    else
-       nullify(this%next_level)
-    end if
-    this%state = created
-
-  end subroutine par_environment_create_from_unit
-
-  !=============================================================================
-  recursive subroutine par_environment_create_from_interface ( this, world_context, num_levels, num_parts_per_level, parts_mapping)
-    implicit none 
-    ! Parameters
-    class(environment_t)   , intent(inout) :: this
-    class(par_context_t)       , intent(in)    :: world_context
-    integer(ip)                , intent(in)    :: num_levels
-    integer(ip)                , intent(in)    :: num_parts_per_level(num_levels)
-    integer(ip)                , intent(in)    :: parts_mapping(num_levels)
-    integer                                    :: my_color
-    integer(ip)                                :: istat
-
-    assert ( num_levels >= 1 )
-    assert ( world_context%get_current_task() >= 0 )
-    allocate(this%world_context,mold=world_context,stat=istat);check(istat==0)
-    this%world_context = world_context
-
-    call this%free()
-
-    this%num_levels = num_levels
-    call memalloc(this%num_levels, this%parts_mapping,__FILE__,__LINE__ )
-    call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__ )
-    this%parts_mapping = parts_mapping
-    this%num_parts_per_level = num_parts_per_level
-
-    ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call world_context%split_by_condition ( world_context%get_current_task() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
-
-    ! Create l1_to_l2_context, where inter-level data transfers actually occur
-    if ( this%num_levels > 1 ) then
-       if(this%l1_context%get_current_task() >= 0) then
-          my_color = this%parts_mapping(2)
-       else if( this%lgt1_context%get_current_task() < this%num_parts_per_level(2)  ) then
-          my_color = this%lgt1_context%get_current_task()+1
-       else
-          my_color = undefined_color ! mpi_undefined
-       end if
-       call world_context%split_by_color ( my_color, this%l1_to_l2_context )
-    else
-       allocate(this%l1_to_l2_context,mold=world_context,stat=istat);check(istat==0)
-       call this%l1_to_l2_context%nullify()
-    end if
-
-    if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
-       allocate(this%next_level, stat=istat)
-       check(istat == 0)
-       call this%next_level%create_from_interface ( this%lgt1_context, &
-            &                                       this%num_levels-1, &
-            &                                       this%num_parts_per_level(2:), &
-            &                                       this%parts_mapping(2:) )
-    else
-       nullify(this%next_level)
-    end if
-
-    this%state = created
-  end subroutine par_environment_create_from_interface
 
   !=============================================================================
   subroutine par_environment_assign_parts_to_tasks ( this, num_levels, num_parts_per_level, parts_mapping)
@@ -623,18 +416,12 @@ contains
     if(this%state >= created) then
        if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
           call this%next_level%free()
-          deallocate ( this%next_level, stat = istat )
-          assert ( istat == 0 )
+          deallocate ( this%next_level, stat = istat ); assert ( istat == 0 )
        end if
        call this%l1_context%free(finalize=.false.)
        call this%lgt1_context%free(finalize=.false.)
        call this%l1_to_l2_context%free(finalize=.false.)
        call this%world_context%free(finalize=(this%state == created_from_scratch))
-       !if(this%state == created_from_scratch) then
-       !   call this%world_context%free(finalize=.true.)
-       !else
-       !   call this%world_context%free(finalize=.false.)
-       !end if
        this%state = not_created
     end if
     if(this%num_levels > 0) then

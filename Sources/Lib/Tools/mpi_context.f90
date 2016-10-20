@@ -143,12 +143,6 @@ contains
        assert(num_tasks==that%get_num_tasks())
        call this%set_current_task(current_task)
        call this%set_num_tasks(num_tasks)
-           ! The following lines just make a copy of the identifier,
-       ! not of the communicator itself, which is a problem when
-       ! calling free
-       !this%icontxt = that%icontxt
-       !call this%set_current_task(that%get_current_task())
-       !call this%set_num_tasks   (that%get_num_tasks())
     class default
        check(.false.)
     end select
@@ -283,22 +277,6 @@ contains
     call this%set_num_tasks(num_tasks)
 
   end subroutine mpi_context_nullify
-
-  !=============================================================================
-  ! pure function mpi_context_get_current_task (this)
-  !   implicit none
-  !   class(mpi_context_t), intent(in) :: this
-  !   integer :: mpi_context_get_current_task
-  !   mpi_context_get_current_task = this%current_rank
-  ! end function mpi_context_get_current_task
-
-  ! !=============================================================================
-  ! pure function mpi_context_get_num_tasks (this)
-  !   implicit none
-  !   class(mpi_context_t), intent(in) :: this
-  !   integer :: mpi_context_get_num_tasks
-  !   mpi_context_get_num_tasks = this%num_mpi_ranks
-  ! end function mpi_context_get_num_tasks
 
   !=============================================================================
   pure function mpi_context_am_i_member(this)

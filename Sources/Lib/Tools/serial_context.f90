@@ -165,22 +165,6 @@ contains
   end subroutine serial_context_nullify
 
   !=============================================================================
-  ! pure function serial_context_get_current_task (this)
-  !   implicit none
-  !   class(serial_context_t), intent(in) :: this
-  !   integer :: serial_context_get_current_task
-  !   serial_context_get_current_task = 0
-  ! end function serial_context_get_current_task
-
-  !=============================================================================
-  ! pure function serial_context_get_num_tasks (this)
-  !   implicit none
-  !   class(serial_context_t), intent(in) :: this
-  !   integer :: serial_context_get_num_tasks
-  !   serial_context_get_num_tasks = 1
-  ! end function serial_context_get_num_tasks
-
-  !=============================================================================
   pure function serial_context_am_i_member(this)
     implicit none
     class(serial_context_t), intent(in) :: this

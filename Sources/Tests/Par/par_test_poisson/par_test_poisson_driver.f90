@@ -75,8 +75,6 @@ module par_test_poisson_driver_names
      type(environment_t), pointer           :: par_environment
    contains
      procedure                  :: run_simulation
-     !procedure        , private :: setup_context
-     !procedure        , private :: setup_par_environment
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
@@ -102,55 +100,7 @@ contains
     !call this%test_params%parse(this%parameter_list)
     this%parameter_list => this%test_params%get_parameters()
   end subroutine parse_command_line_parameters
-  
-  !subroutine setup_context(this)
-  !  implicit none
-  !  class(par_test_poisson_fe_driver_t), intent(inout) :: this
-  !  ! Initialize MPI environment
-  !  call this%w_context%create()
-  !end subroutine setup_context
-  
-  !subroutine setup_par_environment(this)
-  !  implicit none
-  !  class(par_test_poisson_fe_driver_t), intent(inout) :: this
-  !  call this%par_environment%create (this%parameter_list)
-  !end subroutine setup_par_environment
-  
-  !subroutine setup_par_environment(this)
-  !  implicit none
-  !  class(par_test_poisson_fe_driver_t), intent(inout) :: this
-  !  
-  !  integer(ip)              :: num_levels
-  !  integer(ip), allocatable :: parts_mapping(:)
-  !  integer(ip), allocatable :: num_parts_per_level(:)
-  !  integer(ip)              :: half_num_parts
-
-  !  num_levels = 3
-  !  call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
-  !  call memalloc(num_levels, num_parts_per_level, __FILE__, __LINE__)
-  ! 
-  !  num_parts_per_level = [ this%test_params%get_nparts(), 2, 1 ]
-  !  if ( this%w_context%get_rank() < this%test_params%get_nparts() ) then
-  !    half_num_parts      = this%test_params%get_nparts()/2
-  !    parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()/half_num_parts+1, 1 ]
-  !  else if ( this%w_context%get_rank() >= this%test_params%get_nparts()) then
-  !    parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()+1-this%test_params%get_nparts(), 1 ]
-  !  end if
-  !  
-  !  call this%par_environment%create ( this%w_context,&
-  !                                     num_levels,&
-  !                                     num_parts_per_level,&
-  !                                     parts_mapping )
-  !  
-  !  call memfree(parts_mapping, __FILE__, __LINE__)
-  !  call memfree(num_parts_per_level, __FILE__, __LINE__)
-  !  
-  !  !call this%par_environment%create(this%w_context,&
-  !  !                                 2,&
-  !  !                                 [this%test_params%get_nparts(), 1],&
-  !  !                                 [this%w_context%get_rank()+1,1])
-  !end subroutine setup_par_environment
-  
+   
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
