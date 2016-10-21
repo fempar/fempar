@@ -35,8 +35,8 @@ USE FPL
 USE xh5_utils_names
 USE xh5_parameters_names
 USE environment_names
-USE par_environment_names
-USE par_context_names
+USE execution_context_names
+USE mpi_context_names
 USE output_handler_base_names
 USE output_handler_fe_field_names
 USE fe_space_names,             only: serial_fe_space_t
@@ -115,8 +115,8 @@ contains
         character(len=*),                intent(in)    :: prefix
         type(ParameterList_t), optional, intent(in)    :: parameter_list
         class(serial_fe_space_t),        pointer       :: fe_space
-        class(environment_t),            pointer       :: mpi_environment
-        class(par_context_t),            pointer       :: par_cntxt
+        type(environment_t),             pointer       :: environment
+        class(execution_context_t),      pointer       :: cntxt
         integer(ip)                                    :: mpi_info
         integer(ip)                                    :: mpi_comm
         logical                                        :: is_present
@@ -126,10 +126,10 @@ contains
     !-----------------------------------------------------------------
         fe_space          => this%get_fe_space()
         assert(associated(fe_space))
-        mpi_environment   => fe_space%get_environment()
-        assert(associated(mpi_environment))
+        environment   => fe_space%get_environment()
+        assert(associated(environment))
 
-        if( mpi_environment%am_i_l1_task()) then
+        if( environment%am_i_l1_task()) then
 
             this%Path       = dir_path
             this%FilePrefix = prefix
@@ -142,10 +142,11 @@ contains
             mpi_info        = xh5_default_Info
             mpi_comm        = xh5_default_Comm
 
-            select type (mpi_environment)
-                type is (par_environment_t)
-                    par_cntxt => mpi_environment%get_l1_context()
-                    mpi_comm  =  par_cntxt%get_icontxt()
+            cntxt => environment%get_l1_context()
+
+            select type (cntxt)
+                type is (mpi_context_t)
+                    mpi_comm  =  cntxt%get_icontxt()
             end select
 
             if(present(parameter_list)) then
@@ -221,14 +222,14 @@ contains
         class(xh5_output_handler_t), intent(inout) :: this
         real(rp),                    intent(in)    :: value
         class(serial_fe_space_t),        pointer   :: fe_space
-        class(environment_t),            pointer   :: mpi_environment
+        type(environment_t),             pointer   :: environment
     !-----------------------------------------------------------------
         fe_space          => this%get_fe_space()
         assert(associated(fe_space))
-        mpi_environment   => fe_space%get_environment()
-        assert(associated(mpi_environment))
+        environment   => fe_space%get_environment()
+        assert(associated(environment))
 
-        if( mpi_environment%am_i_l1_task()) call this%xh5%AppendStep(Value)
+        if( environment%am_i_l1_task()) call this%xh5%AppendStep(Value)
         this%number_steps = this%number_steps + 1
         this%node_offset  = 0
         this%cell_offset  = 0
@@ -335,7 +336,7 @@ contains
     !-----------------------------------------------------------------
         class(xh5_output_handler_t), intent(inout) :: this
         class(serial_fe_space_t),        pointer   :: fe_space
-        class(environment_t),            pointer   :: mpi_environment
+        type(environment_t),             pointer   :: environment
         type(output_handler_fe_field_t), pointer   :: field
         real(rp), pointer                          :: Value(:)
         integer(ip)                                :: attribute_type
@@ -345,15 +346,15 @@ contains
     !-----------------------------------------------------------------
         fe_space          => this%get_fe_space()
         assert(associated(fe_space))
-        mpi_environment   => fe_space%get_environment()
-        assert(associated(mpi_environment))
+        environment   => fe_space%get_environment()
+        assert(associated(environment))
 
-        if( mpi_environment%am_i_l1_task()) then
+        if( environment%am_i_l1_task()) then
             if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
 
             call this%fill_data()
 
-            call mpi_environment%info(me, np)
+            call environment%info(me, np)
 
             call this%xh5%SetGrid(NumberOfNodes        = this%get_number_nodes(),  &
                                   NumberOfElements     = this%get_number_cells(),  &
@@ -385,14 +386,14 @@ contains
     !-----------------------------------------------------------------
         class(xh5_output_handler_t), intent(inout) :: this
         class(serial_fe_space_t),        pointer   :: fe_space
-        class(environment_t),            pointer   :: mpi_environment
+        type(environment_t),             pointer   :: environment
     !-----------------------------------------------------------------
         fe_space          => this%get_fe_space()
         assert(associated(fe_space))
-        mpi_environment   => fe_space%get_environment()
-        assert(associated(mpi_environment))
+        environment   => fe_space%get_environment()
+        assert(associated(environment))
 
-        if( mpi_environment%am_i_l1_task()) call this%xh5%close()
+        if( environment%am_i_l1_task()) call this%xh5%close()
     end subroutine
 
 end module xh5_output_handler_names

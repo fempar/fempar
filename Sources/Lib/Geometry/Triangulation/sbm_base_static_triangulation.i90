@@ -32,7 +32,7 @@
 function bst_get_par_environment ( this )
   implicit none
   class(base_static_triangulation_t), target, intent(in) :: this
-  type(par_environment_t), pointer                           :: bst_get_par_environment
+  type(environment_t), pointer                           :: bst_get_par_environment
   assert ( associated(this%p_env) )
   bst_get_par_environment => this%p_env
 end function bst_get_par_environment
@@ -164,9 +164,15 @@ subroutine bst_fill_local_cells_gid (this, cells_gid)
   integer(ip) :: icell
   assert ( associated ( this%p_env ) )
   assert ( this%p_env%am_i_l1_task() )
-  do icell=1, this%num_local_cells
-    this%cells_gid(icell) = cells_gid(icell)
-  end do
+  if(this%p_env%get_l1_size()>1) then
+     do icell=1, this%num_local_cells
+       this%cells_gid(icell) = cells_gid(icell)
+     end do
+  else
+     do icell=1, this%num_local_cells
+       this%cells_gid(icell) = icell
+     end do  
+  end if
 end subroutine bst_fill_local_cells_gid
  
 subroutine bst_allocate_cells_mypart (this)
@@ -201,11 +207,9 @@ subroutine bst_fill_cells_set (this, cells_set)
   class(base_static_triangulation_t), intent(inout) :: this
   integer(ip)                       , intent(in)    :: cells_set(:)
   
-  if ( associated(this%p_env)) then
-    ! Distributed-memory triangulation
-    assert ( this%p_env%am_i_l1_task() )   
-    assert ( size(cells_set) == this%num_local_cells )
-    this%cells_set(1:this%num_local_cells) = cells_set
+  assert ( size(cells_set) == this%num_local_cells )
+  this%cells_set(1:this%num_local_cells) = cells_set
+  if(this%p_env%get_l1_size()>1) &
     call this%p_env%l1_neighbours_exchange ( this%cell_import%get_number_neighbours(), &
                                              this%cell_import%get_neighbours_ids(),    &
                                              this%cell_import%get_rcv_ptrs(),          &
@@ -215,13 +219,6 @@ subroutine bst_fill_cells_set (this, cells_set)
                                              this%cell_import%get_snd_ptrs(),          &
                                              this%cell_import%get_snd_leids(),         &
                                              this%cells_set )
-  else
-    ! Serial(centralized) triangulation
-    assert ( size(cells_set) == this%num_local_cells )
-    this%cells_set = cells_set
-  end if
-  
-  
 end subroutine bst_fill_cells_set
 
 subroutine bst_free_ptr_vefs_per_cell (this)
@@ -1084,14 +1081,11 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     type(list_iterator_t)     :: parts_object_iterator
     integer(ip)               :: my_part_id, number_parts
     integer(ip)               :: i, iobj
-    integer                   :: my_rank
     
-    integer       , parameter :: root_pid = 0
     integer(ip)               :: dummy_integer_array(1)
 
     assert ( this%p_env%am_i_l1_task() )
-    my_rank      = this%p_env%get_l1_rank() 
-    my_part_id   = my_rank + 1 
+    my_part_id   = this%p_env%get_l1_rank()  + 1 
     number_parts = this%p_env%get_l1_size()
     
     ! 1. Count/list how many local objects I am responsible to assign a global ID
@@ -1106,10 +1100,9 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end do
     
     ! 2. Gather + Scatter
-    if ( my_rank == root_pid ) then
+    if ( this%p_env%am_i_l1_root() ) then
       call memalloc( number_parts+1, per_rank_objects_with_gid, __FILE__,__LINE__ )
-      call this%p_env%l1_gather (root=root_pid, &
-                                 input_data=number_local_objects_with_gid, &
+      call this%p_env%l1_gather (input_data=number_local_objects_with_gid, &
                                  output_data=per_rank_objects_with_gid(2:) ) 
        ! Transform length to header
        per_rank_objects_with_gid(1)=1 
@@ -1118,21 +1111,18 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
        end do
        this%number_global_objects = per_rank_objects_with_gid(number_parts+1)-1 
     else
-      call this%p_env%l1_gather (root=root_pid, &
-                                 input_data=number_local_objects_with_gid, &
+      call this%p_env%l1_gather (input_data=number_local_objects_with_gid, &
                                  output_data=dummy_integer_array ) 
     end if
     
-    call this%p_env%l1_bcast (root=root_pid, data = this%number_global_objects )
+    call this%p_env%l1_bcast (data = this%number_global_objects )
     
-    if ( my_rank == root_pid ) then
-      call this%p_env%l1_scatter (root=root_pid, &
-                                  input_data=per_rank_objects_with_gid, &
+    if ( this%p_env%am_i_l1_root() ) then
+      call this%p_env%l1_scatter (input_data=per_rank_objects_with_gid, &
                                   output_data=start_object_gid) 
       call memfree( per_rank_objects_with_gid, __FILE__,__LINE__ )
     else
-      call this%p_env%l1_scatter (root=root_pid, &
-                                  input_data=dummy_integer_array, &
+      call this%p_env%l1_scatter (input_data=dummy_integer_array, &
                                   output_data=start_object_gid) 
     end if
     
@@ -1713,19 +1703,11 @@ subroutine bst_print ( this )
 
   recursive subroutine bst_free ( this )
     implicit none
-    class(base_static_triangulation_t), intent(inout) :: this
+    class(base_static_triangulation_t), target, intent(inout) :: this
     integer(ip)                                       :: icell, ivef, istat
-    logical :: i_am_l1_task
     
-    ! Managing this using the environment would be far cleaner.
-    i_am_l1_task = .true.
-    if(associated(this%p_env) ) then
-       if (.not.this%p_env%am_i_l1_task()) then ! This is a higher level task
-         i_am_l1_task = .false.
-       end if
-    end if
-    
-    if ( i_am_l1_task ) then
+    if ( associated(this%p_env) ) then
+    if ( this%p_env%am_i_l1_task() ) then
         this%num_dimensions = -1 
       
         ! Free cell-related data
@@ -1755,23 +1737,20 @@ subroutine bst_print ( this )
         call this%parts_object%free()
         this%number_objects = -1
         this%number_global_objects = -1
-        
+
       else ! I am lgt1_task
-       !call this%coarse_triangulation%print()
-       call this%coarse_triangulation%free()
-       deallocate ( this%coarse_triangulation, stat=istat)
-       check(istat == 0)
+         call this%coarse_triangulation%free()
+         deallocate ( this%coarse_triangulation, stat=istat)
+         check(istat == 0)
       end if
-      
-      do icell=1, max_num_reference_fes_geo
-         if(associated(this%reference_fe_geo_list(icell)%p)) then
-           call this%reference_fe_geo_list(icell)%p%free()
-           nullify(this%reference_fe_geo_list(icell)%p)
-         endif
-      enddo
-      
+
+      if(associated(this%p_env,this%par_environment)) then
+         ! The environment has been created by the triangulation
+         call this%par_environment%free()
+      end if
       nullify(this%p_env)
-     
+      end if
+
    end subroutine bst_free
 
    function bst_get_number_reference_fes_geo ( this ) 

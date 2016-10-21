@@ -182,14 +182,14 @@ contains
         class(vtk_output_handler_t), intent(inout) :: this
         real(rp),                    intent(in)    :: value
         class(serial_fe_space_t),        pointer   :: fe_space
-        class(environment_t),            pointer   :: mpi_environment
+        type(environment_t),             pointer   :: environment
     !-----------------------------------------------------------------
         fe_space          => this%get_fe_space()
         assert(associated(fe_space))
-        mpi_environment   => fe_space%get_environment()
-        assert(associated(mpi_environment))
+        environment   => fe_space%get_environment()
+        assert(associated(environment))
 
-        if( mpi_environment%am_i_l1_task()) then
+        if( environment%am_i_l1_task()) then
             this%number_steps = this%number_steps + 1
             call this%resize_times_if_needed(this%number_steps)
             this%Times(this%number_steps) = value
@@ -291,17 +291,17 @@ contains
         class(vtk_output_handler_t), intent(inout) :: this
         character(len=:), allocatable              :: path
         class(serial_fe_space_t),        pointer   :: fe_space
-        class(environment_t),            pointer   :: mpi_environment
+        type(environment_t),             pointer   :: environment
         integer(ip)                                :: E_IO, i
         integer(ip)                                :: me, np
     !-----------------------------------------------------------------
         fe_space          => this%get_fe_space()
         assert(associated(fe_space))
-        mpi_environment   => fe_space%get_environment()
-        assert(associated(mpi_environment))
-        call mpi_environment%info(me, np)
+        environment   => fe_space%get_environment()
+        assert(associated(environment))
+        call environment%info(me, np)
 
-        if( mpi_environment%am_i_l1_task()) then
+        if( environment%am_i_l1_task()) then
 
             assert(allocated(this%Path) .and. allocated(this%FilePrefix))
             if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
@@ -319,7 +319,7 @@ contains
                 check(E_IO == 0)
             endif
 
-            call mpi_environment%l1_barrier()
+            call environment%l1_barrier()
 
             ! Write VTU
             call this%write_vtu(path, this%FilePrefix, me)
@@ -403,7 +403,7 @@ contains
         character(len=:), allocatable            :: path
         character(len=:), allocatable            :: filename
         class(serial_fe_space_t),        pointer :: fe_space
-        class(environment_t),            pointer :: mpi_environment
+        type(environment_t),             pointer :: environment
         type(output_handler_fe_field_t), pointer :: field
         integer(ip)                              :: file_id
         integer(ip)                              :: E_IO

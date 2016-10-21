@@ -36,7 +36,6 @@ module fe_space_names
   use FPL
 
   use environment_names
-  use serial_environment_names  
   use base_static_triangulation_names
   use conditions_names
   
@@ -62,8 +61,8 @@ module fe_space_names
   
   
  ! Parallel modules
-  use par_environment_names
-  use par_context_names
+  use environment_names
+  !use par_context_names
   use dof_import_names
   use cell_import_names
   use par_sparse_matrix_names

@@ -43,7 +43,7 @@ module par_test_poisson_driver_names
      
      ! Place-holder for parameter-value set provided through command-line interface
      type(par_test_poisson_params_t)      :: test_params
-     type(ParameterList_t)                :: parameter_list
+     type(ParameterList_t), pointer       :: parameter_list
      
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
@@ -71,12 +71,10 @@ module par_test_poisson_driver_names
      type(fe_function_t)                   :: solution
      
      ! Environment required for fe_affine_operator + vtk_handler
-     type(par_context_t)                       :: w_context
-     type(par_environment_t)                   :: par_environment
+     !type(par_context_t)                       :: w_context
+     type(environment_t), pointer           :: par_environment
    contains
      procedure                  :: run_simulation
-     procedure        , private :: setup_context
-     procedure        , private :: setup_par_environment
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
@@ -99,64 +97,20 @@ contains
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    !call this%test_params%parse(this%parameter_list)
+    this%parameter_list => this%test_params%get_parameters()
   end subroutine parse_command_line_parameters
-  
-  subroutine setup_context(this)
-    implicit none
-    class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    ! Initialize MPI environment
-    call this%w_context%create()
-  end subroutine setup_context
-  
-  subroutine setup_par_environment(this)
-    implicit none
-    class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    
-    integer(ip)              :: num_levels
-    integer(ip), allocatable :: parts_mapping(:)
-    integer(ip), allocatable :: num_parts_per_level(:)
-    integer(ip)              :: half_num_parts
-
-    num_levels = 3
-    call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
-    call memalloc(num_levels, num_parts_per_level, __FILE__, __LINE__)
    
-    num_parts_per_level = [ this%test_params%get_nparts(), 2, 1 ]
-    if ( this%w_context%get_rank() < this%test_params%get_nparts() ) then
-      half_num_parts      = this%test_params%get_nparts()/2
-      parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()/half_num_parts+1, 1 ]
-    else if ( this%w_context%get_rank() >= this%test_params%get_nparts()) then
-      parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()+1-this%test_params%get_nparts(), 1 ]
-    end if
-    
-    call this%par_environment%create ( this%w_context,&
-                                       num_levels,&
-                                       num_parts_per_level,&
-                                       parts_mapping )
-    
-    call memfree(parts_mapping, __FILE__, __LINE__)
-    call memfree(num_parts_per_level, __FILE__, __LINE__)
-    
-    !call this%par_environment%create(this%w_context,&
-    !                                 2,&
-    !                                 [this%test_params%get_nparts(), 1],&
-    !                                 [this%w_context%get_rank()+1,1])
-  end subroutine setup_par_environment
-  
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
 
-    !call this%triangulation%create(this%par_environment, &
-    !                               this%test_params%get_dir_path(),&
-    !                               this%test_params%get_prefix(), &
-    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%par_environment, this%parameter_list)
+    call this%triangulation%create(this%parameter_list)
+    this%par_environment => this%triangulation%get_par_environment()
 
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        vef_iterator = this%triangulation%create_vef_iterator()
        do while ( .not. vef_iterator%has_finished() )
           call vef_iterator%current(vef)
@@ -249,6 +203,7 @@ contains
 #else
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
@@ -330,7 +285,7 @@ contains
     w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
     w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
-    if ( this%par_environment%get_l1_rank() == 0 ) then
+    if ( this%par_environment%am_i_l1_root() ) then
       write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
       write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
       write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
@@ -368,8 +323,8 @@ contains
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     !call this%free()
     call this%parse_command_line_parameters()
-    call this%setup_context()
-    call this%setup_par_environment()
+    !call this%setup_context()
+    !call this%setup_par_environment()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
@@ -405,7 +360,7 @@ contains
     call this%triangulation%free()
     call this%test_params%free()
     call this%par_environment%free() 
-    call this%w_context%free(.true.)
+    !call this%w_context%free(.true.)
   end subroutine free  
   
 end module par_test_poisson_driver_names
