@@ -280,7 +280,7 @@ contains
     end subroutine output_handler_base_resize_fields_if_needed
 
 
-    subroutine output_handler_base_add_fe_function(this, fe_function, field_id, name)
+    subroutine output_handler_base_add_fe_function(this, fe_function, field_id, name, diff_operator)
     !-----------------------------------------------------------------
     !< Add a fe_function to the output_handler_base_t derived type
     !-----------------------------------------------------------------
@@ -288,10 +288,11 @@ contains
         type(fe_function_t),                intent(in)    :: fe_function
         integer(ip),                        intent(in)    :: field_id
         character(len=*),                   intent(in)    :: name
+        character(len=*), optional,         intent(in)    :: diff_operator
     !-----------------------------------------------------------------
         call this%resize_fields_if_needed(this%number_fields+1)
         this%number_fields = this%number_fields + 1
-        call this%fields(this%number_fields)%set(fe_function, field_id, name)
+        call this%fields(this%number_fields)%set(fe_function, field_id, name, diff_operator)
     end subroutine output_handler_base_add_fe_function
 
 
@@ -314,7 +315,7 @@ contains
         call this%iterator%set_fe_iterator(this%fe_space%create_fe_iterator())
 
         ! Create Output Cell Handler and allocate patch fields
-        call output_handler_cell_function%create(this%fe_space, this%iterator)
+        call output_handler_cell_function%create(this%fe_space, this%iterator, this%number_fields, this%fields(1:this%number_fields))
 
         ! Allocate geometry and connectivity arrays
         this%number_nodes = output_handler_cell_function%get_number_nodes()

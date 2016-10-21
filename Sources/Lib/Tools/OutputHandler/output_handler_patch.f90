@@ -41,15 +41,8 @@ private
     private
         character(len=:), allocatable          :: field_type
         type(allocatable_array_rp1_t)          :: nodal_values
-        ! Values + gradients for scalar fields
         type(allocatable_array_rp1_t)          :: scalar_function_values
-        type(allocatable_array_vector_field_t) :: scalar_function_gradients
-        
-        ! Values + gradients for vector fields
         type(allocatable_array_vector_field_t) :: vector_function_values
-        type(allocatable_array_tensor_field_t) :: vector_function_gradients
-        
-        ! Values for tensor fields (gradients not supported yet)
         type(allocatable_array_tensor_field_t) :: tensor_function_values
     contains
         procedure, non_overridable, public :: free                          => output_handler_patch_field_free
@@ -57,9 +50,7 @@ private
         procedure, non_overridable, public :: get_field_type                => output_handler_patch_field_get_field_type
         procedure, non_overridable, public :: get_nodal_values              => output_handler_patch_field_get_nodal_values
         procedure, non_overridable, public :: get_scalar_function_values    => output_handler_patch_field_get_scalar_function_values
-        procedure, non_overridable, public :: get_scalar_function_gradients => output_handler_patch_field_get_scalar_function_gradients
         procedure, non_overridable, public :: get_vector_function_values    => output_handler_patch_field_get_vector_function_values
-        procedure, non_overridable, public :: get_vector_function_gradients => output_handler_patch_field_get_vector_function_gradients
         procedure, non_overridable, public :: get_tensor_function_values    => output_handler_patch_field_get_tensor_function_values
         procedure, non_overridable, public :: get_number_components         => output_handler_patch_field_get_number_components
     end type
@@ -151,9 +142,7 @@ contains
         if(allocated(this%field_type)) deallocate(this%field_type)
         call this%nodal_values%free()
         call this%scalar_function_values%free()
-        call this%scalar_function_gradients%free()
         call this%vector_function_values%free()
-        call this%vector_function_gradients%free()
         call this%tensor_function_values%free()
     end subroutine output_handler_patch_field_free
 
@@ -202,17 +191,6 @@ contains
     end function output_handler_patch_field_get_scalar_function_values
 
 
-    function output_handler_patch_field_get_scalar_function_gradients(this) result(scalar_function_gradients)
-    !-----------------------------------------------------------------
-    !< Return a pointer to scalar_function_gradients
-    !-----------------------------------------------------------------
-        class(output_handler_patch_field_t),    target, intent(inout) :: this
-        type(allocatable_array_vector_field_t), pointer               :: scalar_function_gradients
-    !-----------------------------------------------------------------
-        scalar_function_gradients => this%scalar_function_gradients
-    end function output_handler_patch_field_get_scalar_function_gradients
-
-
     function output_handler_patch_field_get_vector_function_values(this) result(vector_function_values)
     !-----------------------------------------------------------------
     !< Return a pointer to vector_function_values
@@ -224,20 +202,9 @@ contains
     end function output_handler_patch_field_get_vector_function_values
 
 
-    function output_handler_patch_field_get_vector_function_gradients(this) result(vector_function_gradients)
-    !-----------------------------------------------------------------
-    !< Return a pointer to vector_function_gradients
-    !-----------------------------------------------------------------
-        class(output_handler_patch_field_t),    target, intent(inout) :: this
-        type(allocatable_array_tensor_field_t), pointer               :: vector_function_gradients
-    !-----------------------------------------------------------------
-        vector_function_gradients => this%vector_function_gradients
-    end function output_handler_patch_field_get_vector_function_gradients
-
-
     function output_handler_patch_field_get_tensor_function_values(this) result(tensor_function_values)
     !-----------------------------------------------------------------
-    !< Return a pointer to vector_function_gradients
+    !< Return a pointer to vector_function_values
     !-----------------------------------------------------------------
         class(output_handler_patch_field_t),    target, intent(inout) :: this
         type(allocatable_array_tensor_field_t), pointer               :: tensor_function_values

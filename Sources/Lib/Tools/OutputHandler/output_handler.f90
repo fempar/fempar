@@ -158,17 +158,18 @@ contains
     end subroutine output_handler_attach_fe_space
 
 
-    subroutine output_handler_add_fe_function(this, fe_function, field_id, name)
+    subroutine output_handler_add_fe_function(this, fe_function, field_id, name, diff_operator)
     !-----------------------------------------------------------------
     !< Add fe function
     !-----------------------------------------------------------------
-        class(output_handler_t), intent(inout) :: this
-        type(fe_function_t),     intent(in)    :: fe_function
-        integer(ip),             intent(in)    :: field_id
-        character(len=*),        intent(in)    :: name
+        class(output_handler_t),    intent(inout) :: this
+        type(fe_function_t),        intent(in)    :: fe_function
+        integer(ip),                intent(in)    :: field_id
+        character(len=*),           intent(in)    :: name
+        character(len=*), optional, intent(in)    :: diff_operator
     !-----------------------------------------------------------------
         assert(associated(this%state))
-        call this%state%add_fe_function(fe_function, field_id, name)
+        call this%state%add_fe_function(fe_function, field_id, name, diff_operator)
     end subroutine output_handler_add_fe_function
 
 

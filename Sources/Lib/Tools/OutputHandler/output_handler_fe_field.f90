@@ -31,6 +31,7 @@ module output_handler_fe_field_names
 USE types_names
 USE memor_names
 USE fe_function_names,           only: fe_function_t
+USE output_handler_parameters_names
 
 implicit none
 #include "debug.i90"
@@ -41,10 +42,12 @@ private
         character(len=:),  allocatable :: name
         integer(ip)                    :: field_id = 0
         type(fe_function_t), pointer   :: fe_function => NULL()
+        character(len=:),  allocatable :: diff_operator
     contains
         procedure, non_overridable         ::                          output_handler_fe_field_assign
         procedure, non_overridable, public :: set                   => output_handler_fe_field_set
         procedure, non_overridable, public :: get_name              => output_handler_fe_field_get_name
+        procedure, non_overridable, public :: get_diff_operator     => output_handler_fe_field_get_diff_operator
         procedure, non_overridable, public :: get_field_id          => output_handler_fe_field_get_field_id
         procedure, non_overridable, public :: get_fe_function       => output_handler_fe_field_get_fe_function
         procedure, non_overridable, public :: free                  => output_handler_fe_field_free
@@ -116,7 +119,7 @@ contains
     end subroutine output_handler_fe_field_assign
 
 
-    subroutine output_handler_fe_field_set(this, fe_function, field_id, name)
+    subroutine output_handler_fe_field_set(this, fe_function, field_id, name, diff_operator)
     !-----------------------------------------------------------------
     !< Associate a fe_function with a field name
     !-----------------------------------------------------------------
@@ -124,11 +127,14 @@ contains
         type(fe_function_t), target,       intent(in)    :: fe_function
         integer(ip),                       intent(in)    :: field_id
         character(len=*),                  intent(in)    :: name
+        character(len=*), optional,        intent(in)    :: diff_operator
     !-----------------------------------------------------------------
         call this%free()
-        this%fe_function => fe_function
-        this%field_id    = field_id
-        this%name        = name
+        this%fe_function   => fe_function
+        this%field_id      = field_id
+        this%name          = name
+        this%diff_operator = no_diff_operator
+        if(present(diff_operator)) this%diff_operator = diff_operator
     end subroutine output_handler_fe_field_set
 
 
@@ -142,6 +148,18 @@ contains
         assert(allocated(this%name))
         name = this%name
     end function output_handler_fe_field_get_name
+
+
+    function output_handler_fe_field_get_diff_operator(this) result(diff_operator)
+    !-----------------------------------------------------------------
+    !< Return the diff_operator of a field associated with a fe_function
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_t), intent(in) :: this
+        character(len=:), allocatable                :: diff_operator
+    !-----------------------------------------------------------------
+        assert(allocated(this%diff_operator))
+        diff_operator = this%diff_operator
+    end function output_handler_fe_field_get_diff_operator
 
 
     function output_handler_fe_field_get_field_id(this) result(field_id)
