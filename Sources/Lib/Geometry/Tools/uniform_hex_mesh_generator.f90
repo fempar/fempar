@@ -533,7 +533,7 @@ contains
        call memalloc(num_itfc_cells+1,ptr_ext_neighs_per_itfc_cell,__FILE__,__LINE__)
        itfc_cells = 0
        do icell = 1, num_local_cells+num_ghost_cells_
-          if(cell_permutation(icell)>num_local_cells-num_itfc_cells.and.cell_permutation(icell)<=num_local_cells) then ! cell is interface
+          if(cell_permutation(icell)>(num_local_cells-num_itfc_cells).and.cell_permutation(icell)<=num_local_cells) then ! cell is interface
              call spatial_to_ijk_numbering(input_data%number_of_dimensions, num_total_cells_per_dir, icell, cell_ijk)
              index = 0
              do iface=1,polytope_tree%get_number_n_faces()
@@ -598,9 +598,9 @@ contains
                       end if
                    end do
                    if(count_it) then
-                      lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_cell(itfc_cells)+index)= cells_gids(1 + &
+                      lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_cell(itfc_cells)+index)= cells_gids(cell_permutation(1 + &
                            &   ijk_to_spatial_numbering( input_data%number_of_dimensions, &
-                           &                             num_total_cells_per_dir, neighbor_ijk))
+                           &                             num_total_cells_per_dir, neighbor_ijk)))
 
                       ! This should work too (test it!):
                       ! neighbor_ijk = first_cell_ijk + neighbor_ijk

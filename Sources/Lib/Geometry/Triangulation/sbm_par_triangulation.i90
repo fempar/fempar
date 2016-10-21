@@ -220,6 +220,17 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
                                         lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
                                         lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
 
+        call this%p_env%l1_neighbours_exchange ( this%cell_import%get_number_neighbours(), &
+                                                 this%cell_import%get_neighbours_ids(),    &
+                                                 this%cell_import%get_rcv_ptrs(),          &
+                                                 this%cell_import%get_rcv_leids(),         &
+                                                 this%cell_import%get_number_neighbours(), &
+                                                 this%cell_import%get_neighbours_ids(),    &
+                                                 this%cell_import%get_snd_ptrs(),          &
+                                                 this%cell_import%get_snd_leids(),         &
+                                                 this%cells_gid )                                        
+
+
         ! Generate reference fe
         call this%reference_fe_geo_index%init(1)
         if(this%num_dimensions==2) then
