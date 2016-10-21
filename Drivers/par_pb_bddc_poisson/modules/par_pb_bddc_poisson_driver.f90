@@ -78,6 +78,7 @@ module par_pb_bddc_poisson_driver_names
      procedure        , private :: setup_par_environment
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
+     procedure        , private :: setup_cell_set_ids
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
@@ -153,10 +154,6 @@ contains
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
 
-    !call this%triangulation%create(this%par_environment, &
-    !                               this%test_params%get_dir_path(),&
-    !                               this%test_params%get_prefix(), &
-    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%par_environment, this%parameter_list)
 
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
@@ -171,9 +168,77 @@ contains
           call vef_iterator%next()
        end do
     end if
+    
+    call this%setup_cell_set_ids()
 
   end subroutine setup_triangulation
+  
+  subroutine setup_cell_set_ids(this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
+    type(cell_iterator_t)                     :: cell_iterator
+    type(cell_accessor_t)                     :: cell
+    integer(ip)                               :: istat
+    integer(ip), allocatable                  :: cells_set(:)
+    type(point_t), allocatable :: cell_coords(:)
+    type(point_t) :: grav_center
+    integer(ip)   :: inode  
+
+    if ( this%par_environment%am_i_l1_task() ) then
+       call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
+       cell_iterator = this%triangulation%create_cell_iterator()
+       call cell_iterator%current(cell)
+       allocate (cell_coords(cell%get_num_nodes()),stat=istat)
+       do while( .not. cell_iterator%has_finished() )
+          call cell_iterator%current(cell)
+          if ( cell%is_local() ) then
+            call cell%get_coordinates(cell_coords)
+            call grav_center%init(0.0_rp)
+            do inode = 1, cell%get_num_nodes()
+               grav_center = grav_center + cell_coords(inode)
+            end do
+            grav_center = (1.0_rp/cell%get_num_nodes())*grav_center
+            cells_set( cell%get_lid() ) = cell_set_id( grav_center, &
+                                                       this%triangulation%get_num_dimensions() )
+          end if
+          call cell_iterator%next()
+       end do
+       call this%triangulation%fill_cells_set( cells_set )
+       call memfree( cells_set, __FILE__, __LINE__ )
+    end if
+  end subroutine setup_cell_set_ids
+
+  function cell_set_id( coord, num_dimensions )
+    implicit none
+    type(point_t), intent(in)  :: coord
+    integer(ip)  , intent(in)  :: num_dimensions
+    type(point_t) :: origin, opposite
+    integer(ip) :: cell_set_id
+    cell_set_id = 0
+    ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
+    call origin%set(1,0.0_rp)  ; call origin%set(2, 0.25_rp) ; call origin%set(3,0.25_rp);
+    call opposite%set(1,1.0_rp); call opposite%set(2,0.50_rp); call opposite%set(3,0.50_rp);
+    if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = 1
+  end function cell_set_id
+
+  function is_point_in_rectangle( origin, opposite, coord, num_dimensions )
+    implicit none
+    type(point_t), intent(in)  :: origin
+    type(point_t), intent(in)  :: opposite
+    type(point_t), intent(in)  :: coord
+    integer(ip)  , intent(in)  :: num_dimensions
+    logical :: is_point_in_rectangle
+    integer(ip) :: i
+    is_point_in_rectangle = .true.
+    do i = 1, num_dimensions
+       if ( coord%get(i) < origin%get(i) .or. coord%get(i) > opposite%get(i) ) then
+          is_point_in_rectangle = .false.
+          exit
+       end if
+    end do
+  end function is_point_in_rectangle
+  
   subroutine setup_reference_fes(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
@@ -398,79 +463,7 @@ contains
     call this%w_context%free(.true.)
   end subroutine free
 
-  subroutine set_flags(this)
-    implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t)                     :: cell
-    integer(ip)                               :: istat
-    integer(ip), allocatable                  :: cells_set(:)
-    type(point_t), allocatable :: cell_coords(:)
-    type(point_t) :: grav_center
-    integer(ip)   :: inode  
-
-
-    if ( this%par_environment%am_i_l1_task() ) then
-
-       call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
-       cell_iterator = this%triangulation%create_cell_iterator()
-       call cell_iterator%current(cell)
-       allocate (cell_coords(cell%get_num_nodes()),stat=istat)
-
-       do while( .not. cell_iterator%has_finished() )
-          call cell_iterator%current(cell)
-          call cell%get_coordinates(cell_coords)
-          grav_center = 0.0_rp
-          do inode = 1, cell%get_num_nodes()
-             grav_center = grav_center + cell_coords(inode)
-             call cell_iterator%next()
-          end do
-          grav_center = (1.0_rp/cell%get_num_nodes())*grav_center
-          cells_set( cell%get_lid() ) = flag_id( grav_center, &
-               this%triangulation%get_num_dimensions() )
-
-       end do
-
-       call this%triangulation%fill_cells_set( cells_set )
-
-       call memfree( cells_set, __FILE__, __LINE__ )
-
-    end if
-
-  end subroutine set_flags
-
-  function flag_id( coord, dime )
-    implicit none
-    type(point_t), intent(in)  :: coord
-    integer(ip)  , intent(in)  :: dime
-    real(rp)    :: origin(SPACE_DIM), opposite(SPACE_DIM)
-    integer(ip) :: flag_id
-
-
-    flag_id = 0
-    ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
-    origin(1) = 0.0_rp; origin(2) = 0.25_rp; origin(3) = 0.25_rp;
-    opposite(1) = 1.0_rp; opposite(2) = 0.50_rp; opposite(3) = 0.50_rp;
-    if ( is_point_in_rectangle( origin, opposite, coord, dime ) ) flag_id = 1
-
-  end function flag_id
-
-  function is_point_in_rectangle( origin, opposite, coord, dime )
-    implicit none
-    real(rp)     , intent(in)  :: origin(SPACE_DIM), opposite(SPACE_DIM)
-    type(point_t), intent(in)  :: coord
-    integer(ip)  , intent(in)  :: dime
-    logical :: is_point_in_rectangle
-    integer(ip) :: i
-    is_point_in_rectangle = .true.
-    do i = 1, dime
-       if ( coord%get(i) > origin(i) .and. coord%get(i) < opposite(i) ) then
-          is_point_in_rectangle = .false.
-          exit
-       end if
-    end do
-  end function is_point_in_rectangle
 
 
 

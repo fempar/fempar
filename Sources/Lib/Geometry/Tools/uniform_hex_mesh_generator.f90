@@ -507,7 +507,6 @@ contains
     end do
 
     if(present(num_ghost_cells)) then
-
        ! Cells global numbering and part
        call memalloc(num_local_cells+num_ghost_cells_,cells_gids,__FILE__,__LINE__)
        call memalloc(num_local_cells+num_ghost_cells_,cells_mypart,__FILE__,__LINE__)
@@ -575,7 +574,7 @@ contains
        call memalloc(ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1, lst_ext_neighs_part_ids ,__FILE__,__LINE__)
        itfc_cells = 1
        do icell = 1, num_local_cells+num_ghost_cells_
-          if(cell_permutation(icell)>num_local_cells-num_itfc_cells.and.cell_permutation(icell)<=num_local_cells) then ! cell is interface
+          if(cell_permutation(icell)>(num_local_cells-num_itfc_cells).and.cell_permutation(icell)<=num_local_cells) then ! cell is interface
              call spatial_to_ijk_numbering(input_data%number_of_dimensions, num_total_cells_per_dir, icell, cell_ijk)
              index = 0
              do iface=1,polytope_tree%get_number_n_faces()

@@ -140,13 +140,13 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
         ! in turn is required as a precondition for the allocate_cell_array
         ! TBP below.
         call this%cell_import%create  ( this%p_env%get_l1_rank()+1, &
-             this%p_env%get_l1_size(), &
-             this%num_local_cells, &
-             num_itfc_cells, &
-             lst_itfc_cells(1:num_itfc_cells), & ! I was forced to provide l/u bounds to let gfortran 5.3.0 compile
-             ptr_ext_neighs_per_itfc_cell(1:num_itfc_cells+1), &
-             lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
-             lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
+                                        this%p_env%get_l1_size(), &
+                                        this%num_local_cells, &
+                                        num_itfc_cells, &
+                                        lst_itfc_cells(1:num_itfc_cells), & ! I was forced to provide l/u bounds to let gfortran 5.3.0 compile
+                                        ptr_ext_neighs_per_itfc_cell(1:num_itfc_cells+1), &
+                                        lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
+                                        lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
         this%num_ghost_cells = this%cell_import%get_number_ghost_elements()
 
         ! Allocate + fill cells-related data
@@ -212,13 +212,13 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
         
         ! Generate import
         call this%cell_import%create  ( this%p_env%get_l1_rank()+1, &
-             this%p_env%get_l1_size(), &
-             this%num_local_cells, &
-             num_itfc_cells, &
-             lst_itfc_cells(1:num_itfc_cells), & ! I was forced to provide l/u bounds to let gfortran 5.3.0 compile
-             ptr_ext_neighs_per_itfc_cell(1:num_itfc_cells+1), &
-             lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
-             lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
+                                        this%p_env%get_l1_size(), &
+                                        this%num_local_cells, &
+                                        num_itfc_cells, &
+                                        lst_itfc_cells(1:num_itfc_cells), & ! I was forced to provide l/u bounds to let gfortran 5.3.0 compile
+                                        ptr_ext_neighs_per_itfc_cell(1:num_itfc_cells+1), &
+                                        lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
+                                        lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
 
         ! Generate reference fe
         call this%reference_fe_geo_index%init(1)
