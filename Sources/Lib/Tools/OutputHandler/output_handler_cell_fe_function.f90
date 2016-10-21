@@ -43,6 +43,7 @@ module output_handler_cell_fe_function_names
 
     use output_handler_fe_field_names
     use output_handler_patch_names
+    use output_handler_fe_iterator_names
   
 implicit none
 # include "debug.i90"
@@ -82,24 +83,24 @@ contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
-    subroutine output_handler_cell_fe_function_create ( this, fe_space, num_refinements )
+    subroutine output_handler_cell_fe_function_create ( this, fe_space, output_handler_fe_iterator, num_refinements )
     !-----------------------------------------------------------------
     !< Create output_handler_cell_fe_function
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(inout) :: this
-        class(serial_fe_space_t),           intent(in)    :: fe_space
-        integer(ip), optional                             :: num_refinements
-        type(fe_iterator_t)                               :: fe_iterator
-        type(fe_accessor_t)                               :: fe
-        class(reference_fe_t),            pointer         :: reference_fe
-        class(lagrangian_reference_fe_t), pointer         :: reference_fe_geo
-        class(environment_t),             pointer         :: environment
-        integer(ip)                                       :: current_quadrature_and_map
-        integer(ip)                                       :: current_volume_integrator
-        integer(ip)                                       :: max_order_within_fe, max_order_field_id
-        integer(ip)                                       :: vol_integ_pos_key
-        integer(ip)                                       :: istat, field_id, quadrature_and_map_pos
-        integer(ip)                                       :: reference_fe_id
+        class(serial_fe_space_t),                 intent(in)    :: fe_space
+        class(output_handler_fe_iterator_t),      intent(inout) :: output_handler_fe_iterator
+        integer(ip), optional                                   :: num_refinements
+        type(fe_accessor_t)                                     :: fe
+        class(reference_fe_t),            pointer               :: reference_fe
+        class(lagrangian_reference_fe_t), pointer               :: reference_fe_geo
+        class(environment_t),             pointer               :: environment
+        integer(ip)                                             :: current_quadrature_and_map
+        integer(ip)                                             :: current_volume_integrator
+        integer(ip)                                             :: max_order_within_fe, max_order_field_id
+        integer(ip)                                             :: vol_integ_pos_key
+        integer(ip)                                             :: istat, field_id, quadrature_and_map_pos
+        integer(ip)                                             :: reference_fe_id
     !-----------------------------------------------------------------
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
@@ -115,10 +116,10 @@ contains
             call this%volume_integrators_position%init()
             current_quadrature_and_map = 1
             current_volume_integrator  = 1
-            fe_iterator = fe_space%create_fe_iterator()
 
-            do while ( .not. fe_iterator%has_finished() ) 
-                call fe_iterator%current(fe)
+            call output_handler_fe_iterator%init()
+            do while ( .not. output_handler_fe_iterator%has_finished() ) 
+                call output_handler_fe_iterator%current(fe)
                 reference_fe_geo => fe%get_reference_fe_geo()
                 max_order_within_fe = fe%get_max_order()
                 call this%quadratures_and_maps_position%put(key = max_order_within_fe, &
@@ -153,7 +154,7 @@ contains
                     this%number_cells = this%number_cells+reference_fe_geo%get_number_subcells(max_order_within_fe-1)
                     this%number_nodes = this%number_nodes+(reference_fe_geo%get_number_subcells(max_order_within_fe-1)*reference_fe_geo%get_number_vertices())
                 endif
-                call fe_iterator%next()
+                call output_handler_fe_iterator%next()
             end do
         end if
     end subroutine output_handler_cell_fe_function_create

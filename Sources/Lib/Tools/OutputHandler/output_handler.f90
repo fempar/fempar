@@ -32,6 +32,7 @@ USE types_names
 USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t, fe_accessor_t
 USE fe_function_names,           only: fe_function_t
 USE output_handler_base_names
+USE output_handler_fe_iterator_names
 USE vtk_output_handler_names
 USE xh5_output_handler_names
 
@@ -46,19 +47,20 @@ private
     private
         class(output_handler_base_t), pointer :: state => NULL()
     contains
-        procedure, non_overridable         ::                               output_handler_create
-        procedure, non_overridable         ::                               output_handler_create_string
-        procedure, non_overridable         :: get_default_output_handler => output_handler_get_default_output_handler
-        procedure, non_overridable, public :: set_default_output_handler => output_handler_set_default_output_handler
-        procedure, non_overridable, public :: attach_fe_space            => output_handler_attach_fe_space
-        procedure, non_overridable, public :: add_fe_function            => output_handler_add_fe_function
-        procedure, non_overridable, public :: open                       => output_handler_open
-        procedure, non_overridable, public :: append_time_step           => output_handler_append_time_step
-        procedure, non_overridable, public :: write                      => output_handler_write
-        procedure, non_overridable, public :: close                      => output_handler_close
-        procedure, non_overridable, public :: free                       => output_handler_free
-        generic,                    public :: create                     => output_handler_create, &
-                                                                            output_handler_create_string
+        procedure, non_overridable         ::                                   output_handler_create
+        procedure, non_overridable         ::                                   output_handler_create_string
+        procedure, non_overridable         :: get_default_output_handler     => output_handler_get_default_output_handler
+        procedure, non_overridable, public :: set_default_output_handler     => output_handler_set_default_output_handler
+        procedure, non_overridable, public :: attach_fe_space                => output_handler_attach_fe_space
+        procedure, non_overridable, public :: set_iterator                   => output_handler_set_iterator
+        procedure, non_overridable, public :: add_fe_function                => output_handler_add_fe_function
+        procedure, non_overridable, public :: open                           => output_handler_open
+        procedure, non_overridable, public :: append_time_step               => output_handler_append_time_step
+        procedure, non_overridable, public :: write                          => output_handler_write
+        procedure, non_overridable, public :: close                          => output_handler_close
+        procedure, non_overridable, public :: free                           => output_handler_free
+        generic,                    public :: create                         => output_handler_create, &
+                                                                                output_handler_create_string
     end type
 
     class(output_handler_base_t), allocatable, target, save :: default_output_handler
@@ -103,7 +105,7 @@ contains
 
     subroutine output_handler_set_default_output_handler(this, output_handler)
     !-----------------------------------------------------------------
-    !< Return default output handler
+    !< Set default output handler
     !-----------------------------------------------------------------
         class(output_handler_t),      intent(in) :: this
         class(output_handler_base_t), intent(in) :: output_handler
@@ -132,6 +134,17 @@ contains
         output_handler => default_output_handler
     end function output_handler_get_default_output_handler
 
+
+    subroutine output_handler_set_iterator(this, iterator)
+    !-----------------------------------------------------------------
+    !< Set output handler fe_iterator
+    !-----------------------------------------------------------------
+        class(output_handler_t),          intent(inout) :: this
+        class(output_handler_fe_iterator_t), intent(in) :: iterator
+    !-----------------------------------------------------------------
+        assert(associated(this%state))
+        call this%state%set_iterator(iterator)
+    end subroutine output_handler_set_iterator
 
     subroutine output_handler_attach_fe_space(this, fe_space)
     !-----------------------------------------------------------------

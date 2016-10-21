@@ -35,6 +35,7 @@ USE fe_function_names,           only: fe_function_t
 USE output_handler_fe_field_names
 USE output_handler_patch_names
 USE output_handler_cell_fe_function_names
+USE output_handler_fe_iterator_names
 
 implicit none
 #include "debug.i90"
@@ -44,7 +45,8 @@ private
 
     type, abstract :: output_handler_base_t
     private
-        class(serial_fe_space_t), pointer            :: fe_space => NULL()
+        class(serial_fe_space_t),            pointer :: fe_space => NULL()
+        class(output_handler_fe_iterator_t), pointer :: iterator => NULL()
         type(output_handler_fe_field_t), allocatable :: fields(:)
         integer(ip)                                  :: number_cells  = 0
         integer(ip)                                  :: number_nodes  = 0
@@ -57,6 +59,9 @@ private
         procedure, non_overridable, public :: get_field                  => output_handler_base_get_field
         procedure, non_overridable, public :: attach_fe_space            => output_handler_base_attach_fe_space
         procedure, non_overridable, public :: get_fe_space               => output_handler_base_get_fe_space
+        procedure, non_overridable, public :: set_iterator               => output_handler_base_set_iterator
+        procedure, non_overridable, public :: set_default_iterator       => output_handler_base_set_default_iterator
+        procedure, non_overridable         :: get_default_iterator       => output_handler_base_get_default_iterator
         procedure, non_overridable         :: resize_fields_if_needed    => output_handler_base_resize_fields_if_needed
         procedure, non_overridable, public :: add_fe_function            => output_handler_base_add_fe_function
         procedure, non_overridable, public :: fill_data                  => output_handler_base_fill_data
@@ -108,6 +113,8 @@ private
         end subroutine
     end interface
 
+    class(output_handler_fe_iterator_t), allocatable, target, save :: default_output_handler_fe_iterator
+
 public :: output_handler_base_t
 
 contains
@@ -129,11 +136,57 @@ contains
             enddo
             deallocate(this%fields)
         endif
+        if(associated(this%iterator)) then
+            call this%iterator%free()
+        endif
+        nullify(this%iterator)
+        nullify(this%fe_space)
         this%number_fields = 0
         this%number_nodes  = 0
         this%number_cells  = 0
-        nullify(this%fe_space)
     end subroutine output_handler_base_free
+
+
+    subroutine output_handler_base_set_default_iterator(this, iterator)
+    !-----------------------------------------------------------------
+    !< Set default output handler
+    !-----------------------------------------------------------------
+        class(output_handler_base_t),        intent(in) :: this
+        class(output_handler_fe_iterator_t), intent(in) :: iterator
+        integer                                         :: error
+    !-----------------------------------------------------------------
+        if (allocated(default_output_handler_fe_iterator)) deallocate(default_output_handler_fe_iterator) 
+        allocate(default_output_handler_fe_iterator, mold=iterator, stat=error)
+        check(error==0)
+    end subroutine output_handler_base_set_default_iterator
+
+
+    function output_handler_base_get_default_iterator(this) result(iterator)
+    !-----------------------------------------------------------------
+    !< Return default output_handler_fe_iterator
+    !-----------------------------------------------------------------
+        class(output_handler_base_t),        intent(in) :: this
+        class(output_handler_fe_iterator_t), pointer    :: iterator
+    !-----------------------------------------------------------------
+        if (.not. allocated(default_output_handler_fe_iterator)) then 
+            allocate(output_handler_fe_iterator_t :: default_output_handler_fe_iterator)
+        end if
+        iterator => default_output_handler_fe_iterator
+    end function output_handler_base_get_default_iterator
+
+
+    subroutine output_handler_base_set_iterator(this, iterator)
+    !-----------------------------------------------------------------
+    !< Set output handler fe_iterator
+    !-----------------------------------------------------------------
+        class(output_handler_base_t),        intent(inout) :: this
+        class(output_handler_fe_iterator_t), intent(in)    :: iterator
+        integer                                            :: error
+    !-----------------------------------------------------------------
+        if (associated(this%iterator)) deallocate(this%iterator) 
+        allocate(this%iterator, mold=iterator, stat=error)
+        check(error==0)
+    end subroutine output_handler_base_set_iterator
 
 
     function output_handler_base_get_number_nodes(this) result(number_nodes)
@@ -247,7 +300,6 @@ contains
     !< Attach a fe_space to the output_handler_base_t derived type
     !-----------------------------------------------------------------
         class(output_handler_base_t),     intent(inout) :: this
-        type(fe_iterator_t)                             :: fe_iterator
         type(fe_accessor_t)                             :: fe
         type(output_handler_cell_fe_function_t)         :: output_handler_cell_function
         type(output_handler_patch_t)                    :: patch
@@ -255,11 +307,14 @@ contains
     !-----------------------------------------------------------------
         assert(associated(this%fe_space))
 
-        ! Create FE iterator 
-        fe_iterator             = this%fe_space%create_fe_iterator()
+        ! Ouput_handler_FE_iterator 
+        if(.not. associated (this%iterator)) then
+            this%iterator => this%get_default_iterator()
+        endif
+        call this%iterator%set_fe_iterator(this%fe_space%create_fe_iterator())
 
         ! Create Output Cell Handler and allocate patch fields
-        call output_handler_cell_function%create(this%fe_space)
+        call output_handler_cell_function%create(this%fe_space, this%iterator)
 
         ! Allocate geometry and connectivity arrays
         this%number_nodes = output_handler_cell_function%get_number_nodes()
@@ -268,9 +323,10 @@ contains
 
         call patch%create(this%number_fields)
         ! Translate coordinates and connectivities to VTK format for every subcell
-        do while ( .not. fe_iterator%has_finished())
+        call this%iterator%init()
+        do while ( .not. this%iterator%has_finished())
             ! Get Finite element
-            call fe_iterator%current(fe)
+            call this%iterator%current(fe)
             if ( fe%is_local() ) then
                 call output_handler_cell_function%fill_patch(fe, this%number_fields, this%fields(1:this%number_fields), patch)
                 subcell_iterator = patch%get_subcells_iterator()
@@ -280,12 +336,11 @@ contains
                     call subcell_iterator%next()
                 enddo
             endif
-            call fe_iterator%next()
+            call this%iterator%next()
         end do
 
         call patch%free()
         call output_handler_cell_function%free()
-        call fe_iterator%free()
         call fe%free()
     end subroutine output_handler_base_fill_data
 
