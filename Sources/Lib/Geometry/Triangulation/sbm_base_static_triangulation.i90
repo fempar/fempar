@@ -855,7 +855,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       call itfc_vef_iterator%current(current_itfc_vef)
       do icell=1, current_itfc_vef%get_num_cells_around()
         call current_itfc_vef%get_cell_around(icell,cell)
-        subpart_gid = this%compute_subpart_gid(cell%get_mypart(), cell%get_set_id())
+        subpart_gid = cell%get_mysubpart()
         call g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
         if (istat == now_stored) then
           cur_subpart_lid = cur_subpart_lid + 1
@@ -882,7 +882,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       nsubparts_around = 0
       do icell=1, current_itfc_vef%get_num_cells_around()
         call current_itfc_vef%get_cell_around(icell,cell)
-        subpart_gid = this%compute_subpart_gid(cell%get_mypart(), cell%get_set_id())
+        subpart_gid = cell%get_mysubpart()
         call g2l_subparts%get(key=subpart_gid, val=subpart_lid, stat=istat)
         assert ( istat == key_found )
         if (.not. touched_subparts (subpart_lid)) then
@@ -994,19 +994,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
     
   end subroutine bst_compute_parts_object_from_subparts_object 
-  
-  function bst_compute_subpart_gid ( this, part_id, cell_set_id )
-    implicit none
-    class(base_static_triangulation_t), intent(in) :: this
-    integer(ip)                       , intent(in) :: part_id
-    integer(ip)                       , intent(in) :: cell_set_id
-    integer(ip) :: bst_compute_subpart_gid
-    assert ( this%p_env%am_i_l1_task() )
-    assert ( part_id >= 1 .and. part_id <= this%cell_import%get_number_parts() )
-    assert ( cell_set_id >= 0 )
-    bst_compute_subpart_gid = (cell_set_id)*this%cell_import%get_number_parts() + part_id
-  end function bst_compute_subpart_gid 
-  
+    
   function bst_compute_part_id_from_subpart_gid ( this, subpart_gid )
     implicit none
     class(base_static_triangulation_t), intent(in) :: this
@@ -1420,6 +1408,13 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     integer(ip)                      :: num_dimensions
     integer(ip)                      :: num_local_coarse_cells
     integer(ip)                      :: num_itfc_coarse_cells
+    
+    
+    if ( this%p_env%am_i_l1_task() ) then
+      call this%compute_vefs_and_parts_object()
+      call this%compute_objects_dimension()
+      call this%compute_number_global_objects_and_their_gids()
+    end if  
     
     ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
     ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot

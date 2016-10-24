@@ -170,7 +170,7 @@ contains
     end if
     
     call this%setup_cell_set_ids()
-
+    call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
   subroutine setup_cell_set_ids(this)

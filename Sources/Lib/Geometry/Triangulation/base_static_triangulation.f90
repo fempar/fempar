@@ -112,6 +112,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_lid                 => cell_accessor_get_lid
     procedure, non_overridable           :: get_gid                 => cell_accessor_get_gid
     procedure, non_overridable           :: get_mypart              => cell_accessor_get_mypart
+    procedure, non_overridable           :: get_mysubpart           => cell_accessor_get_mysubpart
     procedure, non_overridable           :: get_set_id              => cell_accessor_get_set_id
     procedure, non_overridable           :: get_num_vefs            => cell_accessor_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_accessor_get_num_nodes
@@ -467,7 +468,6 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: compute_parts_itfc_vefs                        => bst_compute_parts_itfc_vefs
      procedure, non_overridable, private :: compute_subparts_itfc_vefs                     => bst_compute_subparts_itfc_vefs
      procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => bst_compute_parts_object_from_subparts_object
-     procedure, non_overridable, private :: compute_subpart_gid                            => bst_compute_subpart_gid
      procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => bst_compute_part_id_from_subpart_gid
      procedure, non_overridable, private :: compute_objects_dimension                      => bst_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
@@ -475,7 +475,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_objects_gids_and_dim                      => bst_free_objects_gids_and_dim
 
      ! Private methods for coarser triangulation set-up
-     procedure, non_overridable, private :: setup_coarse_triangulation                     => bst_setup_coarse_triangulation
+     procedure, non_overridable          :: setup_coarse_triangulation                     => bst_setup_coarse_triangulation
      procedure, non_overridable, private :: gather_coarse_cell_gids                        => bst_gather_coarse_cell_gids
      procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => bst_gather_coarse_vefs_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_vefs_gids                        => bst_gather_coarse_vefs_gids

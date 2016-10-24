@@ -265,10 +265,6 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
      call this%allocate_and_fill_nodes()
      call this%allocate_and_fill_coordinates(coordinates)     
      
-     call this%compute_vefs_and_parts_object()
-     call this%compute_objects_dimension()
-     call this%compute_number_global_objects_and_their_gids()
-     
      call mesh%free()
      call mesh_distribution%free()
      call memfree (lst_itfc_cells,               __FILE__, __LINE__)
@@ -281,9 +277,7 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
      call memfree(coordinates, __FILE__, __LINE__ )
      call memfree(cells_set, __FILE__, __LINE__)
   end if
-
-  call this%setup_coarse_triangulation()
-
+  
 end subroutine par_triangulation_create
 
 !subroutine par_triangulation_allocate_and_fill_lst_vefs_lids_old ( this, lst_vefs_lids, lst_vefs_gids)                                                     

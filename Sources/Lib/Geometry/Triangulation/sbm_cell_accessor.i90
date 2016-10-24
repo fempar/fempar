@@ -171,6 +171,13 @@ pure function cell_accessor_get_mypart (this)
   cell_accessor_get_mypart = this%base_static_triangulation%cells_mypart(this%lid)
 end function cell_accessor_get_mypart
 
+function cell_accessor_get_mysubpart ( this )
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(ip) :: cell_accessor_get_mysubpart
+  assert ( this%get_set_id() >= 0 )
+  cell_accessor_get_mysubpart = (this%get_set_id())*this%base_static_triangulation%cell_import%get_number_parts() + this%get_mypart()
+end function cell_accessor_get_mysubpart
 
 ! get_set_id() let's the user to get the cell set ID assigned to
 ! a cell. Note that the counterpart, set_set_id(), does not exist, as we do not let 

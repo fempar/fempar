@@ -168,7 +168,9 @@ contains
           end if
           call vef_iterator%next()
        end do
-    end if    
+    end if  
+    
+    call this%triangulation%setup_coarse_triangulation()
     
   end subroutine setup_triangulation
   
