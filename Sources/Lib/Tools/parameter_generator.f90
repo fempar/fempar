@@ -192,7 +192,7 @@ contains
             &               required=required,act='store',def=trim(cvalue),error=error)
        else if(this%list%GetDimensions(Key=Iterator%GetKey()) == 1) then 
           call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
-            &               required=required,act='store',def=trim(cvalue),error=error,nargs='5')
+            &               required=required,act='store',def=trim(cvalue),error=error,nargs='+')
        else
           write(*,*) 'Rank >1 arrays not supported by CLI'
           check(.false.)
@@ -215,24 +215,33 @@ contains
     type(ParameterListIterator_t) :: Iterator
     class(*), pointer :: val0
     class(*), pointer :: val1(:)
+    integer(ip), allocatable :: val_ip(:)
+    real(rp)   , allocatable :: val_rp(:)
     
     call this%cli%parse(error=error); check(error==0)
 
-    error = 0
     Iterator = this%switches%GetIterator()
     do while (.not. Iterator%HasFinished())
        key = Iterator%GetKey()
-       error = error + Iterator%Get(switch)
+       error = Iterator%Get(switch); check(error==0)
        if (this%cli%is_passed(switch=switch)) then
           if(this%list%GetDimensions(key = key)==0) then
-             error = error + this%list%GetPointer(key = key, value=val0)
+             error = this%list%GetPointer(key = key, value=val0); check(error==0)
              call this%cli%get(switch=switch, val=val0, error=error)
           else if(this%list%GetDimensions(key = key)==1) then
-             error = error + this%list%GetPointer(key = key, value=val1)
-             call this%cli%get(switch=switch, val=val1, error=error)
+             error = this%list%GetPointer(key = key, value=val1); check(error==0)
+             select type(val1)
+             type is(integer(ip))
+                call this%cli%get_varying(switch=switch, val=val_ip, error=error); check(error==0)
+                error = this%list%set(key = key, value = val_ip); check(error==0)
+             type is(real(rp))
+                call this%cli%get_varying(switch=switch, val=val_rp, error=error); check(error==0)
+                error = this%list%set(key = key, value = val_rp); check(error==0)
+             class default
+                check(.false.)
+             end select
           end if
        end if
-       check(error==0)
        call Iterator%Next()
     enddo
 
