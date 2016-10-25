@@ -115,6 +115,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_set_id              => cell_accessor_get_set_id
     procedure, non_overridable           :: get_num_vefs            => cell_accessor_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_accessor_get_num_nodes
+    procedure, non_overridable           :: get_num_vertices        => cell_accessor_get_num_vertices    
     procedure, non_overridable           :: get_node_lid            => cell_accessor_get_node_lid
     procedure, non_overridable           :: get_vef_lid             => cell_accessor_get_vef_lid
     procedure, non_overridable           :: get_vef_lids            => cell_accessor_get_vef_lids
@@ -125,7 +126,11 @@ module base_static_triangulation_names
     procedure, non_overridable           :: is_local                => cell_accessor_is_local
     procedure, non_overridable           :: is_ghost                => cell_accessor_is_ghost
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_accessor_get_scan_sum_number_vefs
-    procedure, non_overridable           :: fill_nodes_on_vertices  => cell_accessor_fill_nodes_on_vertices
+
+    procedure, non_overridable           :: fill_nodes_on_vertices        => cell_accessor_fill_nodes_on_vertices
+    procedure, non_overridable           :: fill_nodes_on_vef_new         => cell_accessor_fill_nodes_on_vef_new
+    procedure, non_overridable           :: fill_nodes_on_vef_from_source => cell_accessor_fill_nodes_on_vef_from_source
+    procedure, non_overridable           :: fill_internal_nodes_new       => cell_accessor_fill_internal_nodes_new
   end type cell_accessor_t
   
   type cell_iterator_t
