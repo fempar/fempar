@@ -93,6 +93,7 @@ private
                                                             output_handler_cell_fe_function_fill_patch_vector_field_curl
             procedure, non_overridable, private :: fill_patch_tensor_field_val     => &
                                                             output_handler_cell_fe_function_fill_patch_tensor_field_val
+            procedure, non_overridable, private :: fill_patch_cell_vector => output_handler_cell_fe_function_fill_patch_cell_vector
 
             procedure, non_overridable, private :: generate_vol_integ_pos_key => output_handler_cell_fe_function_generate_vol_integ_pos_key
             procedure, non_overridable, private :: get_number_reference_fes   => output_handler_cell_fe_function_get_number_reference_fes
@@ -242,7 +243,7 @@ contains
     end function output_handler_cell_fe_function_get_number_cells
 
 
-    subroutine output_handler_cell_fe_function_fill_patch(this, fe_accessor, number_fields, fe_fields, patch)
+    subroutine output_handler_cell_fe_function_fill_patch(this, fe_accessor, number_fields, fe_fields, number_cell_vectors, cell_vectors, patch)
     !-----------------------------------------------------------------
     !< Fill a patch given a fe_accessor
     !-----------------------------------------------------------------
@@ -250,9 +251,11 @@ contains
         type(fe_accessor_t),               target, intent(in)    :: fe_accessor
         integer(ip),                               intent(in)    :: number_fields
         type(output_handler_fe_field_t),           intent(in)    :: fe_fields(1:number_fields)
+        integer(ip),                               intent(in)    :: number_cell_vectors
+        type(output_handler_cell_vector_t),        intent(in)    :: cell_vectors(1:number_cell_vectors)
         type(output_handler_patch_t),              intent(inout) :: patch
         integer(ip)                                              :: reference_fe_id
-        integer(ip)                                              :: number_field
+        integer(ip)                                              :: idx
         integer(ip)                                              :: field_id
         integer(ip)                                              :: max_order_within_fe
         class(serial_fe_space_t),          pointer               :: fe_space
@@ -263,6 +266,7 @@ contains
         type(fe_map_t),                    pointer               :: fe_map
         type(quadrature_t),                pointer               :: quadrature
         type(output_handler_patch_field_t),pointer               :: patch_field
+        type(allocatable_array_rp1_t),     pointer               :: patch_cell_vector
         type(allocatable_array_ip2_t),     pointer               :: patch_subcells_connectivity
         character(len=:), allocatable                            :: field_type
         character(len=:), allocatable                            :: diff_operator
@@ -297,17 +301,24 @@ contains
             call reference_fe_geo%get_subcells_connectivity(num_refinements=max_order_within_fe-1, &
                                                             connectivity=patch_subcells_connectivity%a)
 
-            ! Fill patch field data
-            do number_field = 1, number_fields
-                field_type    = fe_space%get_field_type(fe_fields(number_field)%get_field_id())
-                diff_operator = fe_fields(number_field)%get_diff_operator()
+            ! Fill patch fe field data
+            do idx = 1, number_fields
+                field_type    = fe_space%get_field_type(fe_fields(idx)%get_field_id())
+                diff_operator = fe_fields(idx)%get_diff_operator()
 
-                fe_function  => fe_fields(number_field)%get_fe_function()
-                field_id     =  fe_fields(number_field)%get_field_id()
-                patch_field  => patch%get_field(number_field)
+                fe_function  => fe_fields(idx)%get_fe_function()
+                field_id     =  fe_fields(idx)%get_field_id()
+                patch_field  => patch%get_field(idx)
 
-                assert(associated(this%fill_patch_field(number_field)%p))
-                call this%fill_patch_field(number_field)%p(this, fe_function, field_id, patch_field)
+                assert(associated(this%fill_patch_field(idx)%p))
+                call this%fill_patch_field(idx)%p(this, fe_function, field_id, patch_field)
+            end do
+
+            ! Fill patch cell vectors data
+            do idx = 1, number_cell_vectors
+                patch_cell_vector  => patch%get_cell_vector(idx)
+
+                call this%fill_patch_cell_vector(cell_vectors(idx), patch%get_number_subcells(), patch_cell_vector)
             end do
         end if
     end subroutine output_handler_cell_fe_function_fill_patch
@@ -704,6 +715,23 @@ contains
     end subroutine output_handler_cell_fe_function_fill_patch_tensor_field_val
 
 
+    subroutine output_handler_cell_fe_function_fill_patch_cell_vector(this, cell_vector, number_subcells, patch_cell_vector)
+    !-----------------------------------------------------------------
+    !< Fill the patch with field values given a tensor fe_field
+    !-----------------------------------------------------------------
+        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        type(output_handler_cell_vector_t),       intent(in)    :: cell_vector
+        integer(ip),                              intent(in)    :: number_subcells
+        type(allocatable_array_rp1_t),            intent(inout) :: patch_cell_vector
+        real(rp), pointer                                       :: values(:)
+    !-----------------------------------------------------------------
+        ! Gather DoFs of current cell + field_id on nodal_values 
+        values => cell_vector%get_cell_vector()
+        call patch_cell_vector%create(number_subcells)
+        patch_cell_vector%a = values(this%current_fe%get_lid())
+    end subroutine output_handler_cell_fe_function_fill_patch_cell_vector
+
+
     subroutine output_handler_cell_fe_function_free ( this )
     !-----------------------------------------------------------------
     !< Free procedure
@@ -712,7 +740,6 @@ contains
         integer(ip)                                             :: istat, i
     !-----------------------------------------------------------------
         call this%quadratures_and_maps_position%free()
-        call this%volume_integrators_position%free()
 
         if(allocated(this%quadratures)) then
             do i=1, size(this%quadratures)

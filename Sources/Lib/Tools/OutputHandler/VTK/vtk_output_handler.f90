@@ -58,6 +58,7 @@ private
         integer(I1P),                             allocatable :: CellTypes(:)
         integer(ip),                              allocatable :: Connectivities(:)
         type(output_handler_fe_field_2D_value_t), allocatable :: FieldValues(:)
+        type(output_handler_fe_field_1D_value_t), allocatable :: CellValues(:)
         real(rp),                                 allocatable :: Times(:)
         integer(ip)                                           :: number_steps = 0
         integer(ip)                                           :: node_offset  = 0
@@ -103,6 +104,12 @@ contains
                 call this%FieldValues(i)%Free()
             enddo
             deallocate(this%FieldValues)
+        endif
+        if(allocated(this%CellValues)) then
+            do i=1, size(this%Cellvalues)
+                call this%CellValues(i)%Free()
+            enddo
+            deallocate(this%CellValues)
         endif
         this%node_offset  = 0
         this%cell_offset  = 0
@@ -251,16 +258,19 @@ contains
         type(patch_subcell_accessor_t), intent(in) :: subcell_accessor
         real(rp),    allocatable                   :: Coordinates(:,:)
         integer(ip), allocatable                   :: Connectivity(:)
-        real(rp),                        pointer   :: Value(:,:)
+        real(rp),                        pointer   :: FieldValue(:,:)
+        real(rp),                        pointer   :: CellValue(:)
         integer(ip)                                :: number_vertices
         integer(ip)                                :: number_dimensions
         integer(ip)                                :: number_fields
+        integer(ip)                                :: number_cell_vectors
         integer(ip)                                :: number_components
         integer(ip)                                :: i
     !-----------------------------------------------------------------
-        number_vertices   = subcell_accessor%get_number_vertices()
-        number_dimensions = subcell_accessor%get_number_dimensions()
-        number_fields     = this%get_number_fields()
+        number_vertices     = subcell_accessor%get_number_vertices()
+        number_dimensions   = subcell_accessor%get_number_dimensions()
+        number_fields       = this%get_number_fields()
+        number_cell_vectors = this%get_number_cell_vectors()
 
         call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
                                               this%Y(this%node_offset+1:this%node_offset+number_vertices), &
@@ -272,11 +282,18 @@ contains
         do i=1, number_fields
             number_components = subcell_accessor%get_number_field_components(i)
             if(.not. this%FieldValues(i)%value_is_allocated()) call this%FieldValues(i)%allocate_value(number_components, this%get_number_nodes())
-            Value => this%FieldValues(i)%get_value()
-            call subcell_accessor%get_field(i, number_components, Value(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
+            FieldValue => this%FieldValues(i)%get_value()
+            call subcell_accessor%get_field(i, number_components, FieldValue(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
         enddo
+
         this%node_offset = this%node_offset + number_vertices
         this%cell_offset = this%cell_offset + 1
+
+        do i=1, number_cell_vectors
+            if(.not. this%CellValues(i)%value_is_allocated()) call this%CellValues(i)%allocate_value(1, this%get_number_cells())
+            CellValue => this%CellValues(i)%get_value()
+            call subcell_accessor%get_cell_vector(i, CellValue(this%cell_offset:this%cell_offset))
+        enddo
 
         this%Offset(this%cell_offset) = this%node_offset
         this%CellTypes(this%cell_offset) = topology_to_vtk_celltype(subcell_accessor%get_cell_type(), number_dimensions)
@@ -305,6 +322,7 @@ contains
 
             assert(allocated(this%Path) .and. allocated(this%FilePrefix))
             if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
+            if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_number_cell_vectors()))
 
             call this%fill_data()
 
@@ -338,17 +356,18 @@ contains
     !-----------------------------------------------------------------
     !< Write the vtu file 
     !-----------------------------------------------------------------
-        class(vtk_output_handler_t),  intent(in) :: this
-        character(len=*),             intent(in) :: dir_path
-        character(len=*),             intent(in) :: prefix
-        integer(ip),                  intent(in) :: task_id
-        character(len=:), allocatable            :: filename
-        type(output_handler_fe_field_t), pointer :: field
-        integer(ip)                              :: number_fields
-        integer(ip)                              :: number_components
-        integer(ip)                              :: file_id
-        real(rp), pointer                        :: Value(:,:)
-        integer(ip)                              :: E_IO, i
+        class(vtk_output_handler_t),     intent(in) :: this
+        character(len=*),                intent(in) :: dir_path
+        character(len=*),                intent(in) :: prefix
+        integer(ip),                     intent(in) :: task_id
+        character(len=:), allocatable               :: filename
+        type(output_handler_fe_field_t),    pointer :: field
+        type(output_handler_cell_vector_t), pointer :: cell_vector
+        integer(ip)                                 :: number_components
+        integer(ip)                                 :: file_id
+        real(rp), pointer                           :: FieldValue(:,:)
+        real(rp), pointer                           :: CellValue(:)
+        integer(ip)                                 :: E_IO, i
     !-----------------------------------------------------------------
         E_IO = 0
         filename = get_vtk_filename(prefix, task_id)
@@ -371,19 +390,30 @@ contains
                            cell_type = this%CellTypes,          &
                            cf        = file_id)
         assert(E_IO == 0)
-        E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=file_id)
 
-        number_fields     = this%get_number_fields()
-        do i=1, number_fields
-            field => this%get_field(i)
-            Value => this%FieldValues(i)%get_value()
-            number_components = size(Value,1)
-            E_IO = VTK_VAR_XML(NC_NN=this%get_number_nodes(), N_COL=number_components, varname=field%get_name(), var=Value, cf=file_id)
+        E_IO = VTK_DAT_XML(var_location='Node',var_block_action='OPEN', cf=file_id)
+        assert(E_IO == 0)
+        do i=1, this%get_number_fields()
+            field => this%get_fe_field(i)
+            FieldValue => this%FieldValues(i)%get_value()
+            number_components = size(FieldValue,1)
+            E_IO = VTK_VAR_XML(NC_NN=this%get_number_nodes(), N_COL=number_components, varname=field%get_name(), var=FieldValue, cf=file_id)
             assert(E_IO == 0)
         enddo
-
-        E_IO = VTK_DAT_XML(var_location='node', var_block_action='close', cf=file_id)
+        E_IO = VTK_DAT_XML(var_location='Node', var_block_action='CLOSE', cf=file_id)
         assert(E_IO == 0)
+
+        E_IO = VTK_DAT_XML(var_location='Cell',var_block_action='OPEN', cf=file_id)
+        assert(E_IO == 0)
+        do i=1, this%get_number_cell_vectors()
+            cell_vector => this%get_cell_vector(i)
+            CellValue => this%CellValues(i)%get_value()
+            E_IO = VTK_VAR_XML(NC_NN=this%get_number_cells(), varname=cell_vector%get_name(), var=CellValue, cf=file_id)
+            assert(E_IO == 0)
+        enddo
+        E_IO = VTK_DAT_XML(var_location='Cell', var_block_action='CLOSE', cf=file_id)
+        assert(E_IO == 0)
+
         E_IO = VTK_GEO_XML(cf=file_id)
         assert(E_IO == 0)
         E_IO = VTK_END_XML(cf=file_id)
@@ -396,18 +426,19 @@ contains
     !< Write the pvtu file containing the number of parts
     !< (only root processor)
     !-----------------------------------------------------------------
-        class(vtk_output_handler_t), intent(in)  :: this
-        character(len=*),            intent(in)  :: dir_path
-        character(len=*),            intent(in)  :: prefix
-        integer(ip),                 intent(in)  :: number_parts
-        character(len=:), allocatable            :: path
-        character(len=:), allocatable            :: filename
-        class(serial_fe_space_t),        pointer :: fe_space
-        type(environment_t),             pointer :: environment
-        type(output_handler_fe_field_t), pointer :: field
-        integer(ip)                              :: file_id
-        integer(ip)                              :: E_IO
-        integer(ip)                              :: me, np, i
+        class(vtk_output_handler_t),    intent(in)  :: this
+        character(len=*),               intent(in)  :: dir_path
+        character(len=*),               intent(in)  :: prefix
+        integer(ip),                    intent(in)  :: number_parts
+        character(len=:), allocatable               :: path
+        character(len=:), allocatable               :: filename
+        class(serial_fe_space_t),           pointer :: fe_space
+        type(environment_t),                pointer :: environment
+        type(output_handler_fe_field_t),    pointer :: field
+        type(output_handler_cell_vector_t), pointer :: cell_vector
+        integer(ip)                                 :: file_id
+        integer(ip)                                 :: E_IO
+        integer(ip)                                 :: me, np, i
     !-----------------------------------------------------------------
         E_IO = 0
         filename = trim(adjustl(get_pvtu_filename(prefix)))
@@ -422,10 +453,12 @@ contains
             E_IO = PVTK_GEO_XML(source=trim(adjustl(get_vtk_filename(prefix, i))), cf=file_id)
             assert(E_IO == 0)
         enddo
+
         E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN', cf=file_id)
+        assert(E_IO == 0)
         ! Write point data fields
         do i=1, this%get_number_fields()
-            field => this%get_field(i)
+            field => this%get_fe_field(i)
             E_IO = PVTK_VAR_XML(varname = trim(adjustl(field%get_name())),             &
                                 tp      = 'Float64',                                   &
                                 Nc      = this%FieldValues(i)%get_number_components(), &
@@ -434,6 +467,21 @@ contains
         enddo
         E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=file_id)
         assert(E_IO == 0)
+
+        E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN', cf=file_id)
+        assert(E_IO == 0)
+        ! Write point data fields
+        do i=1, this%get_number_cell_vectors()
+            cell_vector => this%get_cell_vector(i)
+            E_IO = PVTK_VAR_XML(varname = trim(adjustl(cell_vector%get_name())),       &
+                                tp      = 'Float64',                                   &
+                                Nc      = 1,                                           &
+                                cf      = file_id )
+            assert(E_IO == 0)
+        enddo
+        E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE', cf=file_id)
+        assert(E_IO == 0)
+
         E_IO = PVTK_END_XML(cf = file_id)
         assert(E_IO == 0)
 

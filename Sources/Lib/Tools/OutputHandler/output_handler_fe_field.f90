@@ -54,6 +54,20 @@ private
         generic,                    public :: assignment(=)         => output_handler_fe_field_assign
     end type
 
+
+    type :: output_handler_cell_vector_t
+    private
+        character(len=:),  allocatable :: name
+        real(rp), pointer              :: cell_vector(:) => NULL()
+    contains
+        procedure, non_overridable         ::                          output_handler_cell_vector_assign
+        procedure, non_overridable, public :: set                   => output_handler_cell_vector_set
+        procedure, non_overridable, public :: get_name              => output_handler_cell_vector_get_name
+        procedure, non_overridable, public :: get_cell_vector       => output_handler_cell_vector_get_cell_vector
+        procedure, non_overridable, public :: free                  => output_handler_cell_vector_free
+        generic,                    public :: assignment(=)         => output_handler_cell_vector_assign
+    end type
+
     type :: output_handler_fe_field_1D_value_t
     private
         integer(ip)                    :: number_components = 0
@@ -79,6 +93,7 @@ private
     end type
 
 public :: output_handler_fe_field_t
+public :: output_handler_cell_vector_t
 public :: output_handler_fe_field_1D_value_t
 public :: output_handler_fe_field_2D_value_t
 
@@ -184,6 +199,75 @@ contains
         assert(associated(this%fe_function))
         fe_function => this%fe_function
     end function output_handler_fe_field_get_fe_function
+
+
+!---------------------------------------------------------------------
+!< output_handler_CELL_VECTOR_t PROCEDURES
+!---------------------------------------------------------------------
+
+    subroutine output_handler_cell_vector_free(this)
+    !-----------------------------------------------------------------
+    !< Free output_handler_cell_vector_t derived type
+    !-----------------------------------------------------------------
+        class(output_handler_cell_vector_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        if(allocated(this%name)) deallocate(this%name)
+        nullify(this%cell_vector)
+    end subroutine output_handler_cell_vector_free
+
+
+    subroutine output_handler_cell_vector_assign(this, output_handler_cell_vector)
+    !----------------------------------------------------------------- 
+    !< Assign operator overloading for output_handler_cell_vector_t
+    !----------------------------------------------------------------- 
+        class(output_handler_cell_vector_t), intent(inout) :: this
+        type(output_handler_cell_vector_t),  intent(in)    :: output_handler_cell_vector
+        real(rp), pointer                                  :: cell_vector(:)
+        character(len=:), allocatable                      :: name
+    !----------------------------------------------------------------- 
+        call this%free()
+        cell_vector => output_handler_cell_vector%get_cell_vector() 
+        name        =  output_handler_cell_vector%get_name()
+        call this%set(cell_vector, name)
+    end subroutine output_handler_cell_vector_assign
+
+
+    subroutine output_handler_cell_vector_set(this, cell_Vector, name)
+    !-----------------------------------------------------------------
+    !< Associate a fe_function with a field name
+    !-----------------------------------------------------------------
+        class(output_handler_cell_vector_t),  intent(inout) :: this
+        real(rp),               target,       intent(in)    :: cell_vector(:)
+        character(len=*),                     intent(in)    :: name
+    !-----------------------------------------------------------------
+        call this%free()
+        this%cell_vector   => cell_vector
+        this%name          = name
+    end subroutine output_handler_cell_vector_set
+
+
+    function output_handler_cell_vector_get_name(this) result(name)
+    !-----------------------------------------------------------------
+    !< Return the name of a field associated with a fe_function
+    !-----------------------------------------------------------------
+        class(output_handler_cell_vector_t), intent(in) :: this
+        character(len=:), allocatable                :: name
+    !-----------------------------------------------------------------
+        assert(allocated(this%name))
+        name = this%name
+    end function output_handler_cell_vector_get_name
+
+
+    function output_handler_cell_vector_get_cell_vector(this) result(cell_vector)
+    !-----------------------------------------------------------------
+    !< Return a fe_function pointer
+    !-----------------------------------------------------------------
+        class(output_handler_cell_vector_t), target, intent(in) :: this
+        real(rp), pointer                                       :: cell_vector(:)
+    !-----------------------------------------------------------------
+        assert(associated(this%cell_vector))
+        cell_vector => this%cell_vector
+    end function output_handler_cell_vector_get_cell_vector
 
 
 !---------------------------------------------------------------------

@@ -62,6 +62,7 @@ private
         real(rp),                                 allocatable :: Z(:)
         integer(ip),                              allocatable :: Connectivities(:)
         type(output_handler_fe_field_1D_value_t), allocatable :: FieldValues(:)
+        type(output_handler_fe_field_1D_value_t), allocatable :: CellValues(:)
         integer(ip)                                           :: number_steps = 0
         integer(ip)                                           :: node_offset = 0
         integer(ip)                                           :: cell_offset = 0
@@ -99,6 +100,12 @@ contains
                 call this%FieldValues(i)%Free()
             enddo
             deallocate(this%FieldValues)
+        endif
+        if(allocated(this%CellValues)) then
+            do i=1, size(this%CellValues)
+                call this%CellValues(i)%Free()
+            enddo
+            deallocate(this%CellValues)
         endif
         this%number_steps = 0
         this%node_offset  = 0
@@ -282,6 +289,7 @@ contains
         integer(ip)                                :: number_vertices
         integer(ip)                                :: number_dimensions
         integer(ip)                                :: number_fields
+        integer(ip)                                :: number_cell_vectors
         integer(ip)                                :: number_components
         integer(ip)                                :: node_and_cell_offset
         integer(ip)                                :: i
@@ -289,6 +297,7 @@ contains
         number_vertices   = subcell_accessor%get_number_vertices()
         number_dimensions = subcell_accessor%get_number_dimensions()
         number_fields     = this%get_number_fields()
+        number_cell_vectors = this%get_number_cell_vectors()
 
         call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
                                                   this%Y(this%node_offset+1:this%node_offset+number_vertices), &
@@ -324,8 +333,15 @@ contains
             Value => this%FieldValues(i)%get_value()
             call subcell_accessor%get_field(i, Value((number_components*this%node_offset)+1:number_components*(this%node_offset+number_vertices)))
         enddo
+
         this%node_offset = this%node_offset + number_vertices
         this%cell_offset = this%cell_offset + 1
+
+        do i=1, number_cell_vectors
+            if(.not. this%CellValues(i)%value_is_allocated()) call this%CellValues(i)%allocate_value(1, this%get_number_cells())
+            Value => this%CellValues(i)%get_value()
+            call subcell_accessor%get_cell_vector(i, Value(this%cell_offset:this%cell_offset))
+        enddo
 
     end subroutine xh5_output_handler_append_cell
 
@@ -335,14 +351,15 @@ contains
     !< Fill global arrays and Write VTU and PVTU files
     !-----------------------------------------------------------------
         class(xh5_output_handler_t), intent(inout) :: this
-        class(serial_fe_space_t),        pointer   :: fe_space
-        type(environment_t),             pointer   :: environment
-        type(output_handler_fe_field_t), pointer   :: field
-        real(rp), pointer                          :: Value(:)
-        integer(ip)                                :: attribute_type
-        integer(ip)                                :: number_fields
-        integer(ip)                                :: E_IO, i
-        integer(ip)                                :: me, np
+        class(serial_fe_space_t),           pointer   :: fe_space
+        type(environment_t),                pointer   :: environment
+        type(output_handler_fe_field_t),    pointer   :: field
+        type(output_handler_cell_vector_t), pointer   :: cell_vector
+        real(rp), pointer                             :: Value(:)
+        integer(ip)                                   :: attribute_type
+        integer(ip)                                   :: number_fields
+        integer(ip)                                   :: E_IO, i
+        integer(ip)                                   :: me, np
     !-----------------------------------------------------------------
         fe_space          => this%get_fe_space()
         assert(associated(fe_space))
@@ -351,6 +368,7 @@ contains
 
         if( environment%am_i_l1_task()) then
             if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
+            if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_number_cell_vectors()))
 
             call this%fill_data()
 
@@ -368,12 +386,21 @@ contains
             call this%xh5%WriteTopology(Connectivities = this%Connectivities)
 
             do i=1, this%get_number_fields()
-                field => this%get_field(i)
+                field => this%get_fe_field(i)
                 Value => this%FieldValues(i)%get_value()
                 attribute_type = number_components_to_xh5_AttributeType(this%FieldValues(i)%get_number_components())
                 call this%xh5%WriteAttribute(Name   = field%get_name(),             &
                                              Type   = attribute_type,               &
                                              Center = XDMF_ATTRIBUTE_CENTER_NODE ,  &
+                                             Values = Value)
+            enddo
+
+            do i=1, this%get_number_cell_vectors()
+                cell_vector => this%get_cell_vector(i)
+                Value => this%CellValues(i)%get_value()
+                call this%xh5%WriteAttribute(Name   = cell_vector%get_name(),       &
+                                             Type   = XDMF_ATTRIBUTE_TYPE_SCALAR,   &
+                                             Center = XDMF_ATTRIBUTE_CENTER_CELL ,  &
                                              Values = Value)
             enddo
         endif
