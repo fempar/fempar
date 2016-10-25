@@ -38,6 +38,9 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   type(p_reference_fe_t)    :: reference_fe_geo_list(1)
 
   real(rp)    , allocatable :: coordinates(:,:)
+  real(rp)    , allocatable :: cell_coordinates(:,:)
+  real(rp)    , allocatable :: cell_coordinates_ghost_extended(:,:)
+
   type(list_t), pointer     :: given_vefs
   integer(ip) , pointer     :: lst_vefs_geo(:), lst_vefs_set(:)
 
@@ -128,9 +131,9 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         ! Extract data from mesh
         call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
         this%num_vefs=this%num_vertices
-
         call mesh%move_cells(ptr_vefs_per_cell,lst_vefs_lids, cells_set)
         call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
+        call mesh%move_coordinates(coordinates)
 
         ! Read mesh distribution 
         if(this%p_env%get_l1_size()>1) then
@@ -152,14 +155,14 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
              &                                              lst_ext_neighs_gids, &
              &                                              lst_ext_neighs_part_ids)
 
-        ! Build cell-wise vefs_gid and vefs_dim
+        ! Build cell-wise vefs_gid and vefs_dim (we only have vertices here)
         call memalloc(ptr_vefs_per_cell(this%num_local_cells+1)-1,lst_vefs_gids,__FILE__,__LINE__)
+        call memalloc(SPACE_DIM,ptr_vefs_per_cell(this%num_local_cells+1)-1,cell_coordinates,__FILE__,__LINE__)
         if(this%p_env%get_l1_size()>1) then
            do i=1,ptr_vefs_per_cell(this%num_local_cells+1)-1
               lst_vefs_gids(i) = vertx_gid(lst_vefs_lids(i))
+              cell_coordinates(:,i) = coordinates(:,lst_vefs_lids(i))
            end do
-        else
-           lst_vefs_gids = lst_vefs_lids
         end if
         ! We need to fill the element_import data structure first
         ! in order to determine the number of ghost elements. This
@@ -181,18 +184,25 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         call this%fill_local_cells_gid(cells_gid)
         call this%allocate_cells_mypart()
         call this%fill_local_cells_mypart()
-        call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended)
+        call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended, &
+             &   coordinates=cell_coordinates,coordinates_ghost_extended=cell_coordinates_ghost_extended)
 
         ! Extend lids to ghost vefs and update number of vefs (=vertices at this point)
         call this%allocate_and_fill_lst_vefs_lids(lst_vefs_lids,lst_vefs_gids_ghost_extended)
         this%num_vertices=this%num_vefs
 
+        ! Realloc coordinates to hold ghost vertices and fill them
+        call memrealloc (SPACE_DIM,this%num_vertices, coordinates, __FILE__, __LINE__ )
+        if(this%p_env%get_l1_size()>1) then
+           do i=1,this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1
+              coordinates(:,this%lst_vefs_lids(i)) = cell_coordinates_ghost_extended(:,i)
+           end do
+        end if
+        
         ! Generate edges and faces
         call this%allocate_and_fill_cells_around()
         call this%generate_vefs(geometry_interpolation_order)
         call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
-
-        call mesh%move_coordinates(coordinates)
 
         if(this%p_env%get_l1_size()>1) then
            call memfree (cells_gid,                    __FILE__, __LINE__)
