@@ -303,8 +303,9 @@ subroutine cell_fe_function_vector_move_alloc_values_out ( this, values )
   class(cell_fe_function_vector_t) , intent(inout) :: this 
   type(vector_field_t), allocatable, intent(inout) :: values(:)
   assert ( .not. allocated(values) ) 
-  assert ( allocated(this%quadrature_points_values))
-  call move_alloc( to=values, from=this%quadrature_points_values)
+  if ( allocated(this%quadrature_points_values) ) then
+     call move_alloc( to=values, from=this%quadrature_points_values)
+  end if
 end subroutine cell_fe_function_vector_move_alloc_values_out
 
 subroutine cell_fe_function_vector_move_alloc_gradients_in ( this, gradients )
@@ -321,8 +322,9 @@ subroutine cell_fe_function_vector_move_alloc_gradients_out ( this, gradients )
   class(cell_fe_function_vector_t)  , intent(inout) :: this 
   type(tensor_field_t), allocatable , intent(inout) :: gradients(:)
   assert ( .not. allocated(gradients) ) 
-  assert ( allocated(this%quadrature_points_gradients))
-  call move_alloc( to=gradients, from=this%quadrature_points_gradients)
+  if ( allocated(this%quadrature_points_gradients) ) then
+     call move_alloc( to=gradients, from=this%quadrature_points_gradients)
+  end if
 end subroutine cell_fe_function_vector_move_alloc_gradients_out
 
 !===============================================================================================
@@ -523,8 +525,9 @@ subroutine cell_fe_function_tensor_move_alloc_values_out ( this, values )
   class(cell_fe_function_tensor_t) , intent(inout) :: this 
   type(tensor_field_t), allocatable, intent(inout) :: values(:)
   assert ( .not. allocated(values) ) 
-  assert ( allocated(this%quadrature_points_values))
-  call move_alloc( to=values, from=this%quadrature_points_values)
+  if ( allocated(this%quadrature_points_values) ) then
+     call move_alloc( to=values, from=this%quadrature_points_values)
+  end if
 end subroutine cell_fe_function_tensor_move_alloc_values_out
 
 !===============================================================================================
