@@ -31,9 +31,10 @@ then
             then
               final_exit_code=1
             fi
-	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.mesh.* 
-	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.prt.* 
-	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.env.*
+	        rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.mesh.* 
+    	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.prt.* 
+    	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.env.*
+    	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.*post.*
           fi
         done
       done
@@ -53,8 +54,9 @@ then
                final_exit_code=1
              fi
              rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.mesh.* 
-	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.prt.* 
-	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.env.*
+    	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.prt.* 
+    	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.env.*
+    	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.*post.*
           fi
        done
     done
@@ -74,8 +76,9 @@ then
                final_exit_code=1
              fi
              rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.mesh.*
-	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.prt.*
-	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.env.*
+    	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.prt.*
+    	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.env.*
+    	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.*post.*
           fi
        done
     done
@@ -95,8 +98,9 @@ then
                final_exit_code=1
              fi
              rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.mesh.*
-	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.prt.*
-	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.env.*
+    	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.prt.*
+    	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.env.*
+    	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.*post.*
           fi
        done
     done
