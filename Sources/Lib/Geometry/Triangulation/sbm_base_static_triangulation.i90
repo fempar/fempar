@@ -446,7 +446,7 @@ end subroutine bst_free_cells_set
     buffer(first:last) = transfer(cell%get_gid(),mold)
     first = last + 1
     last   = first + size_of_ip -1
-    buffer(first:last) = transfer(cell%get_mypart(),mold)
+    buffer(first:last) = transfer(cell%get_my_part(),mold)
     first = last + 1
     last   = first + cell%get_num_vefs()*size_of_igp - 1
     buffer(first:last) = transfer(vef_gids,mold)
@@ -781,7 +781,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       
       do icell=1, current_itfc_vef%get_num_cells_around()
         call current_itfc_vef%get_cell_around(icell,cell)
-        part_id       = cell%get_mypart()
+        part_id       = cell%get_my_part()
         if ( part_id /= mypart_id ) then
          local_part_id = this%cell_import%get_local_neighbour_id(part_id)
          if (.not. touched_neighbours (local_part_id)) then
@@ -822,7 +822,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
   
   subroutine bst_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, perm_itfc_vefs )
     implicit none
-    class(base_static_triangulation_t), intent(in)    :: this
+    class(base_static_triangulation_t), intent(inout) :: this
     integer(ip), allocatable          , intent(inout) :: subparts_itfc_vefs(:,:)
     integer(ip), allocatable          , intent(inout) :: perm_itfc_vefs(:)
     
@@ -839,7 +839,6 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     integer(ip)                               :: num_subparts
     integer(ip)                               :: cur_subpart_lid
     integer(ip)                               :: subpart_lid, subpart_gid
-    type(hash_table_ip_ip_t)                  :: g2l_subparts
     integer(ip)                               :: istat
     
     
@@ -849,14 +848,14 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     if (allocated(perm_itfc_vefs)) call memfree(perm_itfc_vefs,__FILE__,__LINE__)
     
     cur_subpart_lid = 1
-    call g2l_subparts%init()
+    call this%g2l_subparts%init()
     itfc_vef_iterator = this%create_itfc_vef_iterator()
     do while ( .not. itfc_vef_iterator%has_finished() )
       call itfc_vef_iterator%current(current_itfc_vef)
       do icell=1, current_itfc_vef%get_num_cells_around()
         call current_itfc_vef%get_cell_around(icell,cell)
-        subpart_gid = cell%get_mysubpart()
-        call g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
+        subpart_gid = cell%get_my_subpart()
+        call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
         if (istat == now_stored) then
           cur_subpart_lid = cur_subpart_lid + 1
         end if
@@ -882,8 +881,8 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       nsubparts_around = 0
       do icell=1, current_itfc_vef%get_num_cells_around()
         call current_itfc_vef%get_cell_around(icell,cell)
-        subpart_gid = cell%get_mysubpart()
-        call g2l_subparts%get(key=subpart_gid, val=subpart_lid, stat=istat)
+        subpart_gid = cell%get_my_subpart()
+        call this%g2l_subparts%get(key=subpart_gid, val=subpart_lid, stat=istat)
         assert ( istat == key_found )
         if (.not. touched_subparts (subpart_lid)) then
            touched_subparts (subpart_lid) = .true.
@@ -918,7 +917,6 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_subparts, __FILE__, __LINE__ )
-    call g2l_subparts%free()
 
   end subroutine bst_compute_subparts_itfc_vefs
   
@@ -1004,6 +1002,24 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     assert ( subpart_gid >= 1 )
     bst_compute_part_id_from_subpart_gid = mod(subpart_gid-1, this%cell_import%get_number_parts())+1
   end function bst_compute_part_id_from_subpart_gid
+
+  function bst_get_number_subparts(this)
+    implicit none
+    class(base_static_triangulation_t), intent(in) :: this
+    integer(ip) :: bst_get_number_subparts
+    bst_get_number_subparts = this%number_subparts
+  end function bst_get_number_subparts
+  
+  function bst_get_subpart_lid(this, subpart_gid)
+    implicit none
+    class(base_static_triangulation_t), intent(in) :: this
+    integer(ip)                       , intent(in) :: subpart_gid
+    integer(ip) :: bst_get_subpart_lid, istat
+    call this%g2l_subparts%get(key=subpart_gid, &
+                               val=bst_get_subpart_lid, &
+                               stat=istat)
+    assert ( istat == key_found )
+  end function bst_get_subpart_lid
   
   subroutine bst_compute_vefs_and_parts_object(this)
     implicit none
@@ -1963,6 +1979,7 @@ subroutine bst_print ( this )
         call this%vefs_object%free()
         call this%parts_object%free()
         call this%subparts_object%free()
+        call this%g2l_subparts%free()
         this%number_objects = -1
         this%number_global_objects = -1
         

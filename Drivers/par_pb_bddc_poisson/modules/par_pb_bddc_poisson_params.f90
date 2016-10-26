@@ -27,6 +27,8 @@ module par_pb_bddc_poisson_params_names
      character(len=:), allocatable :: default_is_periodic_in_x
      character(len=:), allocatable :: default_is_periodic_in_y
      character(len=:), allocatable :: default_is_periodic_in_z
+     character(len=:), allocatable :: default_jump
+     character(len=:), allocatable :: default_inclusion
 
      ! IO parameters
      character(len=256)            :: dir_path
@@ -41,6 +43,10 @@ module par_pb_bddc_poisson_params_names
      integer(ip) :: number_of_cells_per_dir(0:SPACE_DIM-1)
      integer(ip) :: number_of_parts_per_dir(0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1) 
+     
+     integer(ip) :: jump
+     integer(ip) :: inclusion
+     
 
      type(Command_Line_Interface)  :: cli
   contains
@@ -57,6 +63,8 @@ module par_pb_bddc_poisson_params_names
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dimensions
+     procedure, non_overridable             :: get_jump
+     procedure, non_overridable             :: get_inclusion
   end type par_pb_bddc_poisson_params_t
 
   ! Types
@@ -103,6 +111,9 @@ contains
     this%default_is_periodic_in_x = '0'
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
+    
+    this%default_jump = '1'
+    this%default_inclusion = '1'
 
   end subroutine par_pb_bddc_poisson_params_set_default
 
@@ -171,6 +182,13 @@ contains
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
     check(error==0) 
 
+    call this%cli%add(switch='--jump',switch_ab='-j',help='Jump of physical parameter in the inclusion',&
+         &            required=.false.,act='store',def=trim(this%default_jump),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--inclusion',switch_ab='-i',help='inclusion type',&
+         &            required=.false.,act='store',def=trim(this%default_inclusion),error=error) 
+    check(error==0)
+    
   end subroutine par_pb_bddc_poisson_params_add_to_cli
 
   !==================================================================================================
@@ -201,6 +219,9 @@ contains
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
+    
+    call this%cli%get(switch='-j',val=this%jump,error=istat); check(istat==0)
+    call this%cli%get(switch='-i',val=this%inclusion,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -231,6 +252,8 @@ contains
     if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
+    if(allocated(this%default_jump)) deallocate(this%default_jump)
+    if(allocated(this%default_inclusion)) deallocate(this%default_inclusion)
     call this%cli%free()
   end subroutine par_pb_bddc_poisson_params_free
   
@@ -297,5 +320,21 @@ contains
     integer(ip) :: get_num_dimensions
     get_num_dimensions = this%num_dimensions
   end function get_num_dimensions
+  
+  !==================================================================================================
+  function get_jump(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    integer(ip) :: get_jump
+    get_jump = this%jump
+  end function get_jump
+  
+  !==================================================================================================
+  function get_inclusion(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    integer(ip) :: get_inclusion
+    get_inclusion = this%inclusion
+  end function get_inclusion
   
 end module par_pb_bddc_poisson_params_names

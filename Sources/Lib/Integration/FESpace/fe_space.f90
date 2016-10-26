@@ -480,7 +480,6 @@ module fe_space_names
    procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => par_fe_space_generate_non_consecutive_dof_gid
 
    procedure        , non_overridable          :: get_number_fe_objects                           => par_fe_space_get_number_fe_objects
-   procedure                                   :: get_par_triangulation                           => par_fe_space_get_par_triangulation
    procedure                                   :: get_par_environment                             => par_fe_space_get_par_environment
    procedure                                   :: get_environment                                 => par_fe_space_get_environment
    

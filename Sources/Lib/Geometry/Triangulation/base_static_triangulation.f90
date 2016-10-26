@@ -111,8 +111,9 @@ module base_static_triangulation_names
     procedure, non_overridable           :: set_coordinates         => cell_accessor_set_coordinates
     procedure, non_overridable           :: get_lid                 => cell_accessor_get_lid
     procedure, non_overridable           :: get_gid                 => cell_accessor_get_gid
-    procedure, non_overridable           :: get_mypart              => cell_accessor_get_mypart
-    procedure, non_overridable           :: get_mysubpart           => cell_accessor_get_mysubpart
+    procedure, non_overridable           :: get_my_part             => cell_accessor_get_mypart
+    procedure, non_overridable           :: get_my_subpart          => cell_accessor_get_mysubpart
+    procedure, non_overridable           :: get_my_subpart_lid      => cell_accessor_get_mysubpart_lid
     procedure, non_overridable           :: get_set_id              => cell_accessor_get_set_id
     procedure, non_overridable           :: get_num_vefs            => cell_accessor_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_accessor_get_num_nodes
@@ -261,18 +262,20 @@ module base_static_triangulation_names
     class(base_static_triangulation_t), pointer :: base_static_triangulation
   contains
     procedure                   :: object_accessor_create
-    generic                     :: create                         => object_accessor_create
-    procedure                   :: free                           => object_accessor_free
-    procedure                   :: next                           => object_accessor_next
-    procedure                   :: set_lid                        => object_accessor_set_lid
-    procedure                   :: past_the_end                   => object_accessor_past_the_end
-    procedure, non_overridable  :: get_lid                        => object_accessor_get_lid
-    procedure, non_overridable  :: get_gid                        => object_accessor_get_gid
-    procedure, non_overridable  :: get_dimension                  => object_accessor_get_dimension
-    procedure, non_overridable  :: get_number_parts_around        => object_accessor_get_number_parts_around
-    procedure, non_overridable  :: create_parts_around_iterator   => object_accessor_create_parts_around_iterator
-    procedure, non_overridable  :: get_number_vefs_on_object      => object_accessor_get_number_vefs_on_object
-    procedure, non_overridable  :: create_vefs_on_object_iterator => object_accessor_get_vefs_on_object_iterator
+    generic                     :: create                          => object_accessor_create
+    procedure                   :: free                            => object_accessor_free
+    procedure                   :: next                            => object_accessor_next
+    procedure                   :: set_lid                         => object_accessor_set_lid
+    procedure                   :: past_the_end                    => object_accessor_past_the_end
+    procedure, non_overridable  :: get_lid                         => object_accessor_get_lid
+    procedure, non_overridable  :: get_gid                         => object_accessor_get_gid
+    procedure, non_overridable  :: get_dimension                   => object_accessor_get_dimension
+    procedure, non_overridable  :: get_number_parts_around         => object_accessor_get_number_parts_around
+    procedure, non_overridable  :: get_number_subparts_around      => object_accessor_get_number_subparts_around
+    procedure, non_overridable  :: create_parts_around_iterator    => object_accessor_create_parts_around_iterator
+    procedure, non_overridable  :: create_subparts_around_iterator => object_accessor_create_subparts_around_iterator
+    procedure, non_overridable  :: get_number_vefs_on_object       => object_accessor_get_number_vefs_on_object
+    procedure, non_overridable  :: create_vefs_on_object_iterator  => object_accessor_get_vefs_on_object_iterator
   end type object_accessor_t
   
   type object_iterator_t
@@ -377,7 +380,9 @@ module base_static_triangulation_names
      integer(ip) , allocatable               :: objects_dimension(:)
      type(list_t)                            :: vefs_object
      type(list_t)                            :: parts_object
-     type(list_t)                            :: subparts_object
+     integer(ip)                             :: number_subparts        ! Number of subparts around part (including those subparts which are local)
+     type(list_t)                            :: subparts_object        ! Number and list of subparts GIDs around each coarse n_face
+     type(hash_table_ip_ip_t)                :: g2l_subparts           ! Translator among the GIDs of subparts and LIDs
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
@@ -463,6 +468,8 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_face_orientation_rotation              => bst_free_face_orientation_rotation
 
      ! Private methods to compute objects
+     procedure, non_overridable          :: get_number_subparts                            => bst_get_number_subparts
+     procedure, non_overridable          :: get_subpart_lid                                => bst_get_subpart_lid
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => bst_compute_vefs_and_parts_object
      procedure, non_overridable, private :: compute_vefs_and_parts_object_body             => bst_compute_vefs_and_parts_object_body
      procedure, non_overridable, private :: compute_parts_itfc_vefs                        => bst_compute_parts_itfc_vefs

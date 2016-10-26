@@ -128,21 +128,6 @@ subroutine par_fe_space_free( this )
 end subroutine par_fe_space_free
 
 ! Required (at least) by type(mlbddc_t)
-function par_fe_space_get_par_triangulation(this)
-  implicit none
-  class(par_fe_space_t), target, intent(in) :: this
-  type(par_triangulation_t), pointer :: par_fe_space_get_par_triangulation
-  
-  assert ( associated(this%triangulation) )
-  select type ( par_triangulation => this%triangulation )
-    class is ( par_triangulation_t )
-      par_fe_space_get_par_triangulation => par_triangulation
-    class default
-      assert(.false.)
-  end select
-end function par_fe_space_get_par_triangulation
-
-! Required (at least) by type(mlbddc_t)
 function par_fe_space_get_par_environment(this)
   implicit none
   class(par_fe_space_t), intent(in) :: this
@@ -417,7 +402,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   logical                                :: vef_active
   type(par_context_t)          , pointer :: l1_context
   type(par_environment_t)      , pointer :: par_environment
-  type(par_triangulation_t), pointer :: par_triangulation
+  class(base_static_triangulation_t), pointer :: triangulation
   type(cell_import_t)       , pointer :: cell_import
   class(reference_fe_t)        , pointer :: reference_fe
   type(itfc_fe_vef_iterator_t) :: itfc_vef_iterator
@@ -425,8 +410,8 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   type(fe_accessor_t)          :: fe
   
   par_environment   => this%get_par_environment()
-  par_triangulation => this%get_par_triangulation()
-  cell_import       => par_triangulation%get_cell_import()
+  triangulation => this%get_triangulation()
+  cell_import       => triangulation%get_cell_import()
   assert ( par_environment%am_i_l1_task() )
 
   l1_context => par_environment%get_l1_context()
@@ -451,7 +436,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
         !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
         ! alert: something has to be done for null FEs
         ! if ( .not.finite_element%is_void ) 
-        part_id = fe%get_mypart()
+        part_id = fe%get_my_part()
         if ( part_id == mypart_id ) then
            vef_active = .true.
            exit
@@ -462,7 +447,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
         do ielem=1, vef%get_num_cells_around()
            call vef%get_cell_around(ielem,fe)
            !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
-           part_id = fe%get_mypart()
+           part_id = fe%get_my_part()
            if ( part_id /= mypart_id ) then
               local_part_id = cell_import%get_local_neighbour_id(part_id)
               if (.not. touched_neighbours (local_part_id)) then
@@ -588,7 +573,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
 
   type(par_context_t)          , pointer :: l1_context
   type(par_environment_t)      , pointer :: par_environment
-  type(par_triangulation_t), pointer :: par_triangulation
+  class(base_static_triangulation_t), pointer :: triangulation
   type(cell_import_t)       , pointer :: cell_import
   class(reference_fe_t)        , pointer :: reference_fe
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator
@@ -599,8 +584,8 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
 
 
   par_environment   => this%get_par_environment()
-  par_triangulation => this%get_par_triangulation()
-  cell_import       => par_triangulation%get_cell_import()
+  triangulation     => this%get_triangulation()
+  cell_import       => triangulation%get_cell_import()
   assert ( par_environment%am_i_l1_task() )
 
   ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
@@ -640,7 +625,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
      do ielem=1, vef%get_num_cells_around()
         call vef%get_cell_around(ielem,fe)
         !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
-        part_id = fe%get_mypart()
+        part_id = fe%get_my_part()
         elem_gid = fe%get_gid()
         ivef = fe%find_lpos_vef_lid(vef%get_lid())
         call fe%get_elem2dof( elem2dof )
@@ -1129,7 +1114,7 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
   integer(igp), allocatable             :: lst_dofs_gids(:)
   integer(igp), allocatable             :: lst_vefs_gids_dofs_objects(:)
   type(par_environment_t), pointer      :: par_environment
-  type(par_triangulation_t), pointer    :: triangulation
+  class(base_static_triangulation_t), pointer    :: triangulation
   type(coarse_triangulation_t), pointer :: coarse_triangulation
   
   
@@ -1162,7 +1147,7 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
      ! lgt1 MPI tasks (recursively) build coarse triangulation
      allocate  ( this%coarse_fe_space, stat = istat )
      check( istat == 0 )
-     triangulation        => this%get_par_triangulation()
+     triangulation        => this%get_triangulation()
      coarse_triangulation => triangulation%get_coarse_triangulation()
      call this%coarse_fe_space%create (coarse_triangulation, &
                                        number_fields, &
@@ -1232,13 +1217,13 @@ subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field( this, number_fields, p
   integer(ip)                                :: i, num_local_cells
   integer(ip)                                :: dummy_integer_array(0)
   type(par_environment_t), pointer           :: par_environment
-  type(par_triangulation_t), pointer         :: triangulation
+  class(base_static_triangulation_t), pointer         :: triangulation
   type(coarse_triangulation_t), pointer      :: coarse_triangulation
   
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_to_l2_task() )
   if ( par_environment%am_i_l1_to_l2_root() ) then
-     triangulation => this%get_par_triangulation()
+     triangulation => this%get_triangulation()
      coarse_triangulation => triangulation%get_coarse_triangulation()
      num_local_cells = coarse_triangulation%get_num_local_cells()
      if (allocated(ptr_dofs_per_fe_and_field)) call memfree ( ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )

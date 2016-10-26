@@ -176,8 +176,19 @@ function cell_accessor_get_mysubpart ( this )
   class(cell_accessor_t), intent(in) :: this
   integer(ip) :: cell_accessor_get_mysubpart
   assert ( this%get_set_id() >= 0 )
-  cell_accessor_get_mysubpart = (this%get_set_id())*this%base_static_triangulation%cell_import%get_number_parts() + this%get_mypart()
+  cell_accessor_get_mysubpart = (this%get_set_id())*this%base_static_triangulation%cell_import%get_number_parts() + this%get_my_part()
 end function cell_accessor_get_mysubpart
+
+function cell_accessor_get_mysubpart_lid ( this )
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(ip) :: cell_accessor_get_mysubpart_lid
+  integer(ip) :: istat
+  call this%base_static_triangulation%g2l_subparts%get(key=this%get_my_subpart(), &
+                                                       val=cell_accessor_get_mysubpart_lid, &
+                                                       stat=istat)
+  assert ( istat == key_found )
+end function cell_accessor_get_mysubpart_lid
 
 ! get_set_id() let's the user to get the cell set ID assigned to
 ! a cell. Note that the counterpart, set_set_id(), does not exist, as we do not let 

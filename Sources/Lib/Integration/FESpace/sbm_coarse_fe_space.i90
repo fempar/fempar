@@ -948,8 +948,8 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
     coarse_fe_vef = itfc_coarse_fe_vef_iterator%current()
     do ielem=1, coarse_fe_vef%get_num_coarse_fes_around()
        coarse_fe = coarse_fe_vef%get_coarse_fe_around(ielem)
-       if ( coarse_fe%get_mypart() /= mypart_id ) then
-          local_part_id = cell_import%get_local_neighbour_id(coarse_fe%get_mypart())
+       if ( coarse_fe%get_my_part() /= mypart_id ) then
+          local_part_id = cell_import%get_local_neighbour_id(coarse_fe%get_my_part())
           if (.not. touched_neighbours (local_part_id)) then
              touched_neighbours (local_part_id) = .true.
              ivef = coarse_fe%find_lpos_vef_lid(coarse_fe_vef%get_lid())
@@ -1036,7 +1036,7 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
      ! Find the list of parts around current itfc vef
      do ielem=1, coarse_fe_vef%get_num_coarse_fes_around()
         coarse_fe = coarse_fe_vef%get_coarse_fe_around(ielem)
-        part_id = coarse_fe%get_mypart()
+        part_id = coarse_fe%get_my_part()
         if ( part_id /= mypart_id ) then 
            local_part_id = cell_import%get_local_neighbour_id(part_id)
            if ( .not. touched_neighbours(local_part_id) ) then
