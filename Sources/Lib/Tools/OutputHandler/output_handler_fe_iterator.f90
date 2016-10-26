@@ -28,7 +28,7 @@
 
 module output_handler_fe_iterator_names
 
-use fe_space_names, only: fe_iterator_t, fe_accessor_t
+use fe_space_names, only: fe_iterator_t, fe_accessor_t, serial_fe_space_t
 
 implicit none
 #include "debug.i90"
@@ -39,7 +39,7 @@ private
         type(fe_iterator_t) :: fe_iterator
     contains
     private
-        procedure, public :: set_fe_iterator => output_handler_fe_iterator_set_fe_iterator
+        procedure, public :: create          => output_handler_fe_iterator_create
         procedure, public :: get_fe_iterator => output_handler_fe_iterator_get_fe_iterator
         procedure, public :: free            => output_handler_fe_iterator_free
         procedure, public :: init            => output_handler_fe_iterator_init
@@ -54,15 +54,16 @@ public :: output_handler_fe_iterator_t
 contains
 
 
-    subroutine output_handler_fe_iterator_set_fe_iterator(this, fe_iterator)
+    subroutine output_handler_fe_iterator_create(this, fe_space)
     !-----------------------------------------------------------------
     !< Set fe iterator
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(inout) :: this
-        type(fe_iterator_t),                 intent(in)    :: fe_iterator
+        class(serial_fe_space_t)           , intent(in)    :: fe_space
     !-----------------------------------------------------------------
-        this%fe_iterator = fe_iterator
-    end subroutine output_handler_fe_iterator_set_fe_iterator
+        call this%free()
+        this%fe_iterator = fe_space%create_fe_iterator()
+    end subroutine output_handler_fe_iterator_create
 
 
     function output_handler_fe_iterator_get_fe_iterator(this) result(fe_iterator)

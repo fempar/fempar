@@ -83,7 +83,7 @@ private
     character(*), parameter, public :: xh5_Info       = 'xh5_Info'
 
     ! DEFAULT PARAMETERS
-    logical,     parameter, public :: xh5_default_StaticGrid = .false.
+    logical,     parameter, public :: xh5_default_StaticGrid = .true.
     integer(ip), parameter, public :: xh5_default_Strategy   = XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB
     integer(ip), parameter, public :: xh5_default_GridType   = XDMF_GRID_TYPE_UNSTRUCTURED
     integer(ip), parameter, public :: xh5_default_Action     = XDMF_ACTION_WRITE

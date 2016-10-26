@@ -48,6 +48,7 @@ private
     private
         class(serial_fe_space_t),            pointer    :: fe_space => NULL()
         class(output_handler_fe_iterator_t), pointer    :: iterator => NULL()
+        type(output_handler_fe_iterator_t)              :: default_iterator
         type(output_handler_fe_field_t),    allocatable :: fe_fields(:)
         type(output_handler_cell_vector_t), allocatable :: cell_vectors(:)
         integer(ip)                                     :: number_cells        = 0
@@ -66,8 +67,6 @@ private
         procedure, non_overridable, public :: attach_fe_space              => output_handler_base_attach_fe_space
         procedure, non_overridable, public :: get_fe_space                 => output_handler_base_get_fe_space
         procedure, non_overridable, public :: set_iterator                 => output_handler_base_set_iterator
-        procedure, non_overridable, public :: set_default_iterator         => output_handler_base_set_default_iterator
-        procedure, non_overridable         :: get_default_iterator         => output_handler_base_get_default_iterator
         procedure, non_overridable         :: resize_fe_fields_if_needed   => output_handler_base_resize_fe_fields_if_needed
         procedure, non_overridable         :: resize_cell_vectors_if_needed=> output_handler_base_resize_cell_vectors_if_needed
         procedure, non_overridable, public :: add_fe_function              => output_handler_base_add_fe_function
@@ -127,8 +126,6 @@ private
         end subroutine
     end interface
 
-    class(output_handler_fe_iterator_t), allocatable, target, save :: default_output_handler_fe_iterator
-
 public :: base_output_handler_t
 
 contains
@@ -152,44 +149,13 @@ contains
             deallocate(this%fe_fields)
         endif
         nullify(this%iterator)
+        call this%default_iterator%free()
         nullify(this%fe_space)
         this%number_cell_vectors = 0
         this%number_fields       = 0
         this%number_nodes        = 0
         this%number_cells        = 0
     end subroutine output_handler_base_free
-
-
-    subroutine output_handler_base_set_default_iterator(this, iterator)
-    !-----------------------------------------------------------------
-    !< Set default output handler
-    !-----------------------------------------------------------------
-        class(base_output_handler_t),        intent(in) :: this
-        class(output_handler_fe_iterator_t), intent(in) :: iterator
-        integer                                         :: error
-    !-----------------------------------------------------------------
-        if (allocated(default_output_handler_fe_iterator)) then
-            call default_output_handler_fe_iterator%free()
-            deallocate(default_output_handler_fe_iterator)
-        endif 
-        allocate(default_output_handler_fe_iterator, mold=iterator, stat=error)
-        check(error==0)
-    end subroutine output_handler_base_set_default_iterator
-
-
-    function output_handler_base_get_default_iterator(this) result(iterator)
-    !-----------------------------------------------------------------
-    !< Return default output_handler_fe_iterator
-    !-----------------------------------------------------------------
-        class(base_output_handler_t),        intent(in) :: this
-        class(output_handler_fe_iterator_t), pointer    :: iterator
-    !-----------------------------------------------------------------
-        if (.not. allocated(default_output_handler_fe_iterator)) then 
-            allocate(output_handler_fe_iterator_t :: default_output_handler_fe_iterator)
-        end if
-        iterator => default_output_handler_fe_iterator
-    end function output_handler_base_get_default_iterator
-
 
     subroutine output_handler_base_set_iterator(this, iterator)
     !-----------------------------------------------------------------
@@ -370,20 +336,20 @@ contains
     !-----------------------------------------------------------------
     !< Attach a fe_space to the output_handler_base_t derived type
     !-----------------------------------------------------------------
-        class(base_output_handler_t),     intent(inout) :: this
-        type(fe_accessor_t)                             :: fe
-        type(output_handler_cell_fe_function_t)         :: output_handler_cell_function
-        type(output_handler_patch_t)                    :: patch
-        type(patch_subcell_iterator_t)                  :: subcell_iterator
+        class(base_output_handler_t), target, intent(inout) :: this
+        type(fe_accessor_t)                                 :: fe
+        type(output_handler_cell_fe_function_t)             :: output_handler_cell_function
+        type(output_handler_patch_t)                        :: patch
+        type(patch_subcell_iterator_t)                      :: subcell_iterator
     !-----------------------------------------------------------------
         assert(associated(this%fe_space))
 
         ! Ouput_handler_FE_iterator 
         if(.not. associated (this%iterator)) then
-            this%iterator => this%get_default_iterator()
+            this%iterator => this%default_iterator
+            call this%iterator%create(this%fe_space)
         endif
-        call this%iterator%set_fe_iterator(this%fe_space%create_fe_iterator())
-
+        
         ! Create Output Cell Handler and allocate patch fields
         call output_handler_cell_function%create(this%fe_space, this%iterator, this%number_fields, this%fe_fields(1:this%number_fields))
 

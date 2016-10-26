@@ -50,8 +50,7 @@ private
     private
         procedure, non_overridable         ::                                   output_handler_create
         procedure, non_overridable         ::                                   output_handler_create_string
-        procedure, non_overridable         :: get_default_output_handler     => output_handler_get_default_output_handler
-        procedure, non_overridable, public :: set_default_output_handler     => output_handler_set_default_output_handler
+        procedure, non_overridable         ::                                   output_handler_create_mold
         procedure, non_overridable, public :: attach_fe_space                => output_handler_attach_fe_space
         procedure, non_overridable, public :: set_iterator                   => output_handler_set_iterator
         procedure, non_overridable, public :: add_fe_function                => output_handler_add_fe_function
@@ -62,16 +61,41 @@ private
         procedure, non_overridable, public :: close                          => output_handler_close
         procedure, non_overridable, public :: free                           => output_handler_free
         generic,                    public :: create                         => output_handler_create, &
-                                                                                output_handler_create_string
+                                                                                output_handler_create_string, &
+                                                                                output_handler_create_mold
     end type
 
-    class(base_output_handler_t), allocatable, target, save :: default_output_handler
+    class(base_output_handler_t), allocatable  :: output_handler_prototype
 
 public :: output_handler_t
+public :: output_handler_prototype_reset, output_handler_prototype_free
 public :: VTK
 public :: XH5
 
 contains
+
+    subroutine output_handler_prototype_reset(output_handler)
+        class(base_output_handler_t), optional, intent(in) :: output_handler
+        integer                                  :: error
+        call output_handler_prototype_free()
+        if (present(output_handler)) then
+          allocate(output_handler_prototype, mold=output_handler, stat=error); check(error==0)
+        else
+#ifdef ENABLE_HDF5
+          allocate(xh5_output_handler_t :: default_output_handler)
+#else
+          allocate(vtk_output_handler_t :: output_handler_prototype)
+#endif          
+        end if
+    end subroutine output_handler_prototype_reset
+
+
+    subroutine output_handler_prototype_free()
+       integer(ip) :: error
+       if (allocated(output_handler_prototype)) then 
+          deallocate(output_handler_prototype, stat=error); check(error==0)
+       end if   
+    end subroutine output_handler_prototype_free
 
     subroutine output_handler_create(this)
     !-----------------------------------------------------------------
@@ -79,8 +103,9 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_t), intent(inout) :: this
     !-----------------------------------------------------------------
+        assert(allocated(output_handler_prototype))
         call this%free()
-        allocate(this%state, mold=this%get_default_output_handler())
+        allocate(this%state, mold=output_handler_prototype)
     end subroutine output_handler_create
 
 
@@ -101,39 +126,17 @@ contains
                 check(.false.)
         end select
     end subroutine output_handler_create_string
-
-
-    subroutine output_handler_set_default_output_handler(this, output_handler)
+    
+    subroutine output_handler_create_mold(this, mold)
     !-----------------------------------------------------------------
-    !< Set default output handler
+    !< Create the state output handler by means of the default output handler
     !-----------------------------------------------------------------
-        class(output_handler_t),      intent(in) :: this
-        class(base_output_handler_t), intent(in) :: output_handler
-        integer                                  :: error
+        class(output_handler_t)     , intent(inout) :: this
+        class(base_output_handler_t), intent(in)    :: mold
     !-----------------------------------------------------------------
-        if (allocated(default_output_handler)) deallocate(default_output_handler) 
-        allocate(default_output_handler, mold=output_handler, stat=error)
-        check(error==0)
-    end subroutine output_handler_set_default_output_handler
-
-
-    function output_handler_get_default_output_handler(this) result(output_handler)
-    !-----------------------------------------------------------------
-    !< Return default output handler
-    !-----------------------------------------------------------------
-        class(output_handler_t),          intent(inout) :: this
-        class(base_output_handler_t), pointer           :: output_handler
-    !-----------------------------------------------------------------
-        if (.not. allocated(default_output_handler)) then 
-#ifdef ENABLE_HDF5
-            allocate(xh5_output_handler_t :: default_output_handler)
-#else
-            allocate(vtk_output_handler_t :: default_output_handler)
-#endif
-        end if
-        output_handler => default_output_handler
-    end function output_handler_get_default_output_handler
-
+        call this%free()
+        allocate(this%state, mold=mold)
+    end subroutine output_handler_create_mold
 
     subroutine output_handler_set_iterator(this, iterator)
     !-----------------------------------------------------------------
