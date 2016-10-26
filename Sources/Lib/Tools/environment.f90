@@ -89,6 +89,7 @@ module environment_names
      ! Getters
      procedure :: get_num_tasks                  => environment_get_num_tasks
      procedure :: get_next_level                 => environment_get_next_level
+     procedure :: get_l1_context                 => environment_get_l1_context
      procedure :: get_l1_rank                    => environment_get_l1_rank
      procedure :: get_l1_size                    => environment_get_l1_size
      procedure :: get_l1_to_l2_rank              => environment_get_l1_to_l2_rank
@@ -480,6 +481,15 @@ contains
 
     environment_get_next_level => this%next_level
   end function environment_get_next_level
+  
+  !=============================================================================
+  function environment_get_l1_context ( this ) result(l1_context)
+    implicit none 
+    ! Parameters
+    class(environment_t),       target, intent(in) :: this
+    class(execution_context_t), pointer            :: l1_context
+    l1_context => this%l1_context
+  end function environment_get_l1_context
 
   !=============================================================================
   function environment_get_l1_rank ( this )

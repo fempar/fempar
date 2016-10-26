@@ -27,12 +27,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_test_poisson_driver_names
   use fempar_names
-  use fempar_names
   use par_test_poisson_params_names
   use poisson_cG_discrete_integration_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
-  use vtk_handler_names
 # include "debug.i90"
 
   implicit none
@@ -304,17 +302,15 @@ contains
   subroutine write_solution(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(in) :: this
-    type(vtk_handler_t)                             :: vtk_handler
-    integer(ip)                                     :: err
-    
+    type(output_handler_t)                          :: oh
     if(this%test_params%get_write_solution()) then
-       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path(), this%test_params%get_prefix())
-       err = vtk_handler%open_vtu(); check(err==0)
-       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
-       err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
-       err = vtk_handler%close_vtu(); check(err==0)
-       err = vtk_handler%write_pvtu(); check(err==0)
-       call  vtk_handler%free()
+        call oh%create()
+        call oh%attach_fe_space(this%fe_space)
+        call oh%add_fe_function(this%solution, 1, 'solution')
+        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+        call oh%write()
+        call oh%close()
+        call oh%free()
     endif
   end subroutine write_solution
   
