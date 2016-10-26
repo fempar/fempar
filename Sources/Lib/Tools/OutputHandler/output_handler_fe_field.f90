@@ -44,6 +44,7 @@ private
         type(fe_function_t), pointer   :: fe_function => NULL()
         character(len=:),  allocatable :: diff_operator
     contains
+    private
         procedure, non_overridable         ::                          output_handler_fe_field_assign
         procedure, non_overridable, public :: set                   => output_handler_fe_field_set
         procedure, non_overridable, public :: get_name              => output_handler_fe_field_get_name
@@ -60,6 +61,7 @@ private
         character(len=:),  allocatable :: name
         real(rp), pointer              :: cell_vector(:) => NULL()
     contains
+    private
         procedure, non_overridable         ::                          output_handler_cell_vector_assign
         procedure, non_overridable, public :: set                   => output_handler_cell_vector_set
         procedure, non_overridable, public :: get_name              => output_handler_cell_vector_get_name
@@ -73,6 +75,7 @@ private
         integer(ip)                    :: number_components = 0
         real(rp), allocatable          :: value(:)
     contains
+    private
         procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_1D_value_value_is_allocated
         procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_1D_value_allocate_value
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_1D_value_get_value
@@ -85,6 +88,7 @@ private
         integer(ip)                    :: number_components = 0
         real(rp), allocatable          :: value(:,:)
     contains
+    private
         procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_2D_value_value_is_allocated
         procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_2D_value_allocate_value
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_2D_value_get_value

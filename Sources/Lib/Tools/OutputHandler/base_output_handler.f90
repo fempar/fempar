@@ -54,6 +54,7 @@ private
         integer(ip)                                     :: number_fields       = 0
         integer(ip)                                     :: number_cell_vectors = 0
     contains
+    private
         procedure,                  public :: free                         => output_handler_base_free
         procedure, non_overridable, public :: get_number_nodes             => output_handler_base_get_number_nodes
         procedure, non_overridable, public :: get_number_cells             => output_handler_base_get_number_cells
@@ -73,8 +74,8 @@ private
         procedure, non_overridable, public :: fill_data                    => output_handler_base_fill_data
         procedure(output_handler_base_open),                           public, deferred :: open
         procedure(output_handler_base_append_time_step),               public, deferred :: append_time_step
-        procedure(output_handler_base_allocate_cell_and_nodal_arrays), public, deferred :: allocate_cell_and_nodal_arrays
-        procedure(output_handler_base_append_cell),                    public, deferred :: append_cell
+        procedure(output_handler_base_allocate_cell_and_nodal_arrays),         deferred :: allocate_cell_and_nodal_arrays
+        procedure(output_handler_base_append_cell),                            deferred :: append_cell
         procedure(output_handler_base_write),                          public, deferred :: write
         procedure(output_handler_base_close),                          public, deferred :: close
     end type

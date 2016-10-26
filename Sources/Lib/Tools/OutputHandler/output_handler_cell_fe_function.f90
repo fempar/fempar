@@ -70,36 +70,37 @@ private
         type(fill_patch_field_procedure_t), allocatable:: fill_patch_field(:)
 
         contains
-            procedure, non_overridable :: create                              => output_handler_cell_fe_function_create
-            procedure, non_overridable :: get_number_nodes                    => output_handler_cell_fe_function_get_number_nodes
-            procedure, non_overridable :: get_number_cells                    => output_handler_cell_fe_function_get_number_cells
-            procedure, non_overridable :: fill_patch                          => output_handler_cell_fe_function_fill_patch
-            procedure, non_overridable :: free                                => output_handler_cell_fe_function_free
+        private
+            procedure, non_overridable, public :: create           => output_handler_cell_fe_function_create
+            procedure, non_overridable, public :: get_number_nodes => output_handler_cell_fe_function_get_number_nodes
+            procedure, non_overridable, public :: get_number_cells => output_handler_cell_fe_function_get_number_cells
+            procedure, non_overridable, public :: fill_patch       => output_handler_cell_fe_function_fill_patch
+            procedure, non_overridable, public :: free             => output_handler_cell_fe_function_free
 
             ! Strategy procedures to fill patch field data
-            procedure, non_overridable, private :: apply_fill_patch_field_strategy => &
+            procedure, non_overridable :: apply_fill_patch_field_strategy => &
                                                             output_handler_cell_fe_function_apply_fill_patch_field_strategy
-            procedure, non_overridable, private :: fill_patch_scalar_field_val     => &
+            procedure, non_overridable :: fill_patch_scalar_field_val     => &
                                                             output_handler_cell_fe_function_fill_patch_scalar_field_val
-            procedure, non_overridable, private :: fill_patch_scalar_field_grad    => &
+            procedure, non_overridable :: fill_patch_scalar_field_grad    => &
                                                             output_handler_cell_fe_function_fill_patch_scalar_field_grad
-            procedure, non_overridable, private :: fill_patch_vector_field_val     => &
+            procedure, non_overridable :: fill_patch_vector_field_val     => &
                                                             output_handler_cell_fe_function_fill_patch_vector_field_val
-            procedure, non_overridable, private :: fill_patch_vector_field_grad    => &
+            procedure, non_overridable :: fill_patch_vector_field_grad    => &
                                                             output_handler_cell_fe_function_fill_patch_vector_field_grad
-            procedure, non_overridable, private :: fill_patch_vector_field_div     => &
+            procedure, non_overridable :: fill_patch_vector_field_div     => &
                                                             output_handler_cell_fe_function_fill_patch_vector_field_div
-            procedure, non_overridable, private :: fill_patch_vector_field_curl    => &
+            procedure, non_overridable :: fill_patch_vector_field_curl    => &
                                                             output_handler_cell_fe_function_fill_patch_vector_field_curl
-            procedure, non_overridable, private :: fill_patch_tensor_field_val     => &
+            procedure, non_overridable :: fill_patch_tensor_field_val     => &
                                                             output_handler_cell_fe_function_fill_patch_tensor_field_val
-            procedure, non_overridable, private :: fill_patch_cell_vector => output_handler_cell_fe_function_fill_patch_cell_vector
+            procedure, non_overridable :: fill_patch_cell_vector => output_handler_cell_fe_function_fill_patch_cell_vector
 
-            procedure, non_overridable, private :: generate_vol_integ_pos_key => output_handler_cell_fe_function_generate_vol_integ_pos_key
-            procedure, non_overridable, private :: get_number_reference_fes   => output_handler_cell_fe_function_get_number_reference_fes
-            procedure, non_overridable, private :: get_quadrature             => output_handler_cell_fe_function_get_quadrature
-            procedure, non_overridable, private :: get_fe_map                 => output_handler_cell_fe_function_get_fe_map
-            procedure, non_overridable, private :: get_volume_integrator      => output_handler_cell_fe_function_get_volume_integrator      
+            procedure, non_overridable :: generate_vol_integ_pos_key => output_handler_cell_fe_function_generate_vol_integ_pos_key
+            procedure, non_overridable :: get_number_reference_fes   => output_handler_cell_fe_function_get_number_reference_fes
+            procedure, non_overridable :: get_quadrature             => output_handler_cell_fe_function_get_quadrature
+            procedure, non_overridable :: get_fe_map                 => output_handler_cell_fe_function_get_fe_map
+            procedure, non_overridable :: get_volume_integrator      => output_handler_cell_fe_function_get_volume_integrator      
     end type output_handler_cell_fe_function_t
 
 

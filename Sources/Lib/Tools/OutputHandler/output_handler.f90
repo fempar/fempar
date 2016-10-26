@@ -47,6 +47,7 @@ private
     private
         class(base_output_handler_t), pointer :: state => NULL()
     contains
+    private
         procedure, non_overridable         ::                                   output_handler_create
         procedure, non_overridable         ::                                   output_handler_create_string
         procedure, non_overridable         :: get_default_output_handler     => output_handler_get_default_output_handler

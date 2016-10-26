@@ -45,6 +45,7 @@ private
         type(allocatable_array_vector_field_t) :: vector_function_values
         type(allocatable_array_tensor_field_t) :: tensor_function_values
     contains
+    private
         procedure, non_overridable, public :: free                          => output_handler_patch_field_free
         procedure, non_overridable, public :: set_field_type                => output_handler_patch_field_set_field_type
         procedure, non_overridable, public :: get_field_type                => output_handler_patch_field_get_field_type
@@ -69,6 +70,7 @@ private
         type(output_handler_patch_field_t), allocatable :: fields(:)
         type(allocatable_array_rp1_t),      allocatable :: cell_vectors(:)
     contains
+    private
         procedure, non_overridable, public :: set_cell_type                   => output_handler_patch_set_cell_type
         procedure, non_overridable, public :: set_number_dimensions           => output_handler_patch_set_number_dimensions
         procedure, non_overridable, public :: set_number_points               => output_handler_patch_set_number_points
@@ -96,6 +98,7 @@ private
         type(output_handler_patch_t), pointer :: patch => NULL()
         integer(ip)                           :: current_subcell = 0
     contains
+    private
         procedure, non_overridable, public :: create                      => patch_subcell_accessor_create
         procedure, non_overridable, public :: free                        => patch_subcell_accessor_free
         procedure, non_overridable, public :: get_cell_type               => patch_subcell_accessor_get_cell_type
@@ -118,6 +121,7 @@ private
         integer(ip)                           :: current_subcell = 0
         integer(ip)                           :: number_subcells = 0
     contains
+    private
         procedure, non_overridable         :: create                      => patch_subcell_iterator_create
         procedure, non_overridable, public :: begin                       => patch_subcell_iterator_begin
         procedure, non_overridable, public :: next                        => patch_subcell_iterator_next

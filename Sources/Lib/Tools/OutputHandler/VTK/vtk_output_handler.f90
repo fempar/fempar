@@ -64,6 +64,7 @@ private
         integer(ip)                                           :: node_offset  = 0
         integer(ip)                                           :: cell_offset  = 0
     contains
+    private
         procedure, non_overridable        :: resize_times_if_needed         => vtk_output_handler_resize_times_if_needed
         procedure, non_overridable        :: write_vtu                      => vtk_output_handler_write_vtu
         procedure, non_overridable        :: write_pvtu                     => vtk_output_handler_write_pvtu
@@ -71,8 +72,8 @@ private
         procedure,                 public :: open                           => vtk_output_handler_open
         procedure,                 public :: append_time_step               => vtk_output_handler_append_time_step
         procedure,                 public :: write                          => vtk_output_handler_write
-        procedure,                 public :: allocate_cell_and_nodal_arrays => vtk_output_handler_allocate_cell_and_nodal_arrays
-        procedure,                 public :: append_cell                    => vtk_output_handler_append_cell
+        procedure                         :: allocate_cell_and_nodal_arrays => vtk_output_handler_allocate_cell_and_nodal_arrays
+        procedure                         :: append_cell                    => vtk_output_handler_append_cell
         procedure,                 public :: close                          => vtk_output_handler_close
         procedure,                 public :: free                           => vtk_output_handler_free
     end type

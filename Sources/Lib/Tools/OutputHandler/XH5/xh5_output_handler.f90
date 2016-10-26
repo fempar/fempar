@@ -67,10 +67,11 @@ private
         integer(ip)                                           :: node_offset = 0
         integer(ip)                                           :: cell_offset = 0
     contains
+    private
         procedure,                 public :: open                           => xh5_output_handler_open
         procedure,                 public :: append_time_step               => xh5_output_handler_append_time_step
-        procedure,                 public :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
-        procedure,                 public :: append_cell                    => xh5_output_handler_append_cell
+        procedure                         :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
+        procedure                         :: append_cell                    => xh5_output_handler_append_cell
         procedure,                 public :: write                          => xh5_output_handler_write
         procedure,                 public :: close                          => xh5_output_handler_close
         procedure,                 public :: free                           => xh5_output_handler_free

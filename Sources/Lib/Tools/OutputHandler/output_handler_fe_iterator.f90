@@ -34,18 +34,19 @@ implicit none
 #include "debug.i90"
 private
 
-  type output_handler_fe_iterator_t
+    type output_handler_fe_iterator_t
     private
-    type(fe_iterator_t) :: fe_iterator
-  contains
-    procedure          :: set_fe_iterator => output_handler_fe_iterator_set_fe_iterator
-    procedure          :: get_fe_iterator => output_handler_fe_iterator_get_fe_iterator
-    procedure          :: free            => output_handler_fe_iterator_free
-    procedure          :: init            => output_handler_fe_iterator_init
-    procedure          :: next            => output_handler_fe_iterator_next
-    procedure          :: has_finished    => output_handler_fe_iterator_has_finished
-    procedure, private ::                    output_handler_fe_iterator_current
-    generic            :: current         => output_handler_fe_iterator_current
+        type(fe_iterator_t) :: fe_iterator
+    contains
+    private
+        procedure, public :: set_fe_iterator => output_handler_fe_iterator_set_fe_iterator
+        procedure, public :: get_fe_iterator => output_handler_fe_iterator_get_fe_iterator
+        procedure, public :: free            => output_handler_fe_iterator_free
+        procedure, public :: init            => output_handler_fe_iterator_init
+        procedure, public :: next            => output_handler_fe_iterator_next
+        procedure, public :: has_finished    => output_handler_fe_iterator_has_finished
+        procedure         ::                    output_handler_fe_iterator_current
+        generic,   public :: current         => output_handler_fe_iterator_current
   end type output_handler_fe_iterator_t
 
 public :: output_handler_fe_iterator_t
