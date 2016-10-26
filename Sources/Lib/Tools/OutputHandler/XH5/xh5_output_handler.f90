@@ -37,7 +37,7 @@ USE xh5_parameters_names
 USE environment_names
 USE execution_context_names
 USE mpi_context_names
-USE output_handler_base_names
+USE base_output_handler_names
 USE output_handler_fe_field_names
 USE fe_space_names,             only: serial_fe_space_t
 USE output_handler_patch_names, only: patch_subcell_accessor_t
@@ -48,7 +48,7 @@ implicit none
 #include "debug.i90"
 private
 
-    type, extends(output_handler_base_t) :: xh5_output_handler_t
+    type, extends(base_output_handler_t) :: xh5_output_handler_t
     private 
         type(xh5for_t)                                        :: xh5
         character(:), allocatable                             :: FilePrefix

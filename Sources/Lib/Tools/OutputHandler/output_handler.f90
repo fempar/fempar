@@ -31,7 +31,7 @@ USE FPL
 USE types_names
 USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t, fe_accessor_t
 USE fe_function_names,           only: fe_function_t
-USE output_handler_base_names
+USE base_output_handler_names
 USE output_handler_fe_iterator_names
 USE vtk_output_handler_names
 USE xh5_output_handler_names
@@ -45,7 +45,7 @@ private
 
     type :: output_handler_t
     private
-        class(output_handler_base_t), pointer :: state => NULL()
+        class(base_output_handler_t), pointer :: state => NULL()
     contains
         procedure, non_overridable         ::                                   output_handler_create
         procedure, non_overridable         ::                                   output_handler_create_string
@@ -64,7 +64,7 @@ private
                                                                                 output_handler_create_string
     end type
 
-    class(output_handler_base_t), allocatable, target, save :: default_output_handler
+    class(base_output_handler_t), allocatable, target, save :: default_output_handler
 
 public :: output_handler_t
 public :: VTK
@@ -109,7 +109,7 @@ contains
     !< Set default output handler
     !-----------------------------------------------------------------
         class(output_handler_t),      intent(in) :: this
-        class(output_handler_base_t), intent(in) :: output_handler
+        class(base_output_handler_t), intent(in) :: output_handler
         integer                                  :: error
     !-----------------------------------------------------------------
         if (allocated(default_output_handler)) deallocate(default_output_handler) 
@@ -123,7 +123,7 @@ contains
     !< Return default output handler
     !-----------------------------------------------------------------
         class(output_handler_t),          intent(inout) :: this
-        class(output_handler_base_t), pointer           :: output_handler
+        class(base_output_handler_t), pointer           :: output_handler
     !-----------------------------------------------------------------
         if (.not. allocated(default_output_handler)) then 
 #ifdef ENABLE_HDF5

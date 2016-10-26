@@ -34,7 +34,7 @@ USE lib_vtk_io
 USE FPL
 USE environment_names
 USE vtk_utils_names
-USE output_handler_base_names
+USE base_output_handler_names
 USE output_handler_fe_field_names
 USE vtk_parameters_names
 USE fe_space_names,             only: serial_fe_space_t
@@ -46,7 +46,7 @@ implicit none
 #include "debug.i90"
 private
 
-    type, extends(output_handler_base_t) :: vtk_output_handler_t
+    type, extends(base_output_handler_t) :: vtk_output_handler_t
     private 
         character(:), allocatable                             :: FilePrefix
         character(:), allocatable                             :: Path

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module output_handler_base_names
+module base_output_handler_names
 
 USE FPL
 USE types_names
@@ -43,7 +43,7 @@ private
 
     integer(ip), parameter :: cell_node_field_array_size = 10
 
-    type, abstract :: output_handler_base_t
+    type, abstract :: base_output_handler_t
     private
         class(serial_fe_space_t),            pointer    :: fe_space => NULL()
         class(output_handler_fe_iterator_t), pointer    :: iterator => NULL()
@@ -81,47 +81,47 @@ private
 
     abstract interface
         subroutine output_handler_base_open(this, dir_path, prefix, parameter_list)
-            import output_handler_base_t
+            import base_output_handler_t
             import ParameterList_t
-            class(output_handler_base_t),    intent(inout) :: this
+            class(base_output_handler_t),    intent(inout) :: this
             character(len=*),                intent(in)    :: dir_path
             character(len=*),                intent(in)    :: prefix
             type(ParameterList_t), optional, intent(in)    :: parameter_list
         end subroutine
 
         subroutine output_handler_base_append_time_step(this, value)
-            import output_handler_base_t
+            import base_output_handler_t
             import rp
-            class(output_handler_base_t), intent(inout) :: this
+            class(base_output_handler_t), intent(inout) :: this
             real(rp),                     intent(in)    :: value
         end subroutine
 
         subroutine output_handler_base_write(this)
-            import output_handler_base_t
-            class(output_handler_base_t), intent(inout) :: this
+            import base_output_handler_t
+            class(base_output_handler_t), intent(inout) :: this
         end subroutine
 
         subroutine output_handler_base_allocate_cell_and_nodal_arrays(this)
-            import output_handler_base_t
-            class(output_handler_base_t), intent(inout) :: this
+            import base_output_handler_t
+            class(base_output_handler_t), intent(inout) :: this
         end subroutine
 
         subroutine output_handler_base_append_cell(this, subcell_accessor)
-            import output_handler_base_t
+            import base_output_handler_t
             import patch_subcell_accessor_t
-            class(output_handler_base_t),   intent(inout) :: this
+            class(base_output_handler_t),   intent(inout) :: this
             type(patch_subcell_accessor_t), intent(in)    :: subcell_accessor
         end subroutine
 
         subroutine output_handler_base_close(this)
-            import output_handler_base_t
-            class(output_handler_base_t), intent(inout) :: this
+            import base_output_handler_t
+            class(base_output_handler_t), intent(inout) :: this
         end subroutine
     end interface
 
     class(output_handler_fe_iterator_t), allocatable, target, save :: default_output_handler_fe_iterator
 
-public :: output_handler_base_t
+public :: base_output_handler_t
 
 contains
 
@@ -133,7 +133,7 @@ contains
     !-----------------------------------------------------------------
     !< Free output_handler_base_t derived type
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(inout) :: this
+        class(base_output_handler_t), intent(inout) :: this
         integer(ip)                                 :: i
     !-----------------------------------------------------------------
         if(allocated(this%fe_fields)) then
@@ -158,7 +158,7 @@ contains
     !-----------------------------------------------------------------
     !< Set default output handler
     !-----------------------------------------------------------------
-        class(output_handler_base_t),        intent(in) :: this
+        class(base_output_handler_t),        intent(in) :: this
         class(output_handler_fe_iterator_t), intent(in) :: iterator
         integer                                         :: error
     !-----------------------------------------------------------------
@@ -172,7 +172,7 @@ contains
     !-----------------------------------------------------------------
     !< Return default output_handler_fe_iterator
     !-----------------------------------------------------------------
-        class(output_handler_base_t),        intent(in) :: this
+        class(base_output_handler_t),        intent(in) :: this
         class(output_handler_fe_iterator_t), pointer    :: iterator
     !-----------------------------------------------------------------
         if (.not. allocated(default_output_handler_fe_iterator)) then 
@@ -186,7 +186,7 @@ contains
     !-----------------------------------------------------------------
     !< Set output handler fe_iterator
     !-----------------------------------------------------------------
-        class(output_handler_base_t),        intent(inout) :: this
+        class(base_output_handler_t),        intent(inout) :: this
         class(output_handler_fe_iterator_t), intent(in)    :: iterator
         integer                                            :: error
     !-----------------------------------------------------------------
@@ -200,7 +200,7 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of nodes
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(in) :: this
+        class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_nodes
     !-----------------------------------------------------------------
         number_nodes = this%number_nodes
@@ -211,7 +211,7 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of cells
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(in) :: this
+        class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_cells
     !-----------------------------------------------------------------
         number_cells = this%number_cells
@@ -222,7 +222,7 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of fields
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(in) :: this
+        class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_fields
     !-----------------------------------------------------------------
         number_fields = this%number_fields
@@ -233,7 +233,7 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of cell_vectors
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(in) :: this
+        class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_cell_vectors
     !-----------------------------------------------------------------
         number_cell_vectors = this%number_cell_vectors
@@ -244,7 +244,7 @@ contains
     !-----------------------------------------------------------------
     !< Return a fe field given its id
     !-----------------------------------------------------------------
-        class(output_handler_base_t),    target, intent(in) :: this
+        class(base_output_handler_t),    target, intent(in) :: this
         integer(ip),                             intent(in) :: field_id
         type(output_handler_fe_field_t), pointer            :: field
     !-----------------------------------------------------------------
@@ -257,7 +257,7 @@ contains
     !-----------------------------------------------------------------
     !< Return a cell vector given its id
     !-----------------------------------------------------------------
-        class(output_handler_base_t),       target, intent(in) :: this
+        class(base_output_handler_t),       target, intent(in) :: this
         integer(ip),                                intent(in) :: cell_vector_id
         type(output_handler_cell_vector_t), pointer            :: cell_vector
     !-----------------------------------------------------------------
@@ -270,7 +270,7 @@ contains
     !-----------------------------------------------------------------
     !< Attach a fe_space to the output_handler_base_t derived type
     !-----------------------------------------------------------------
-        class(output_handler_base_t),          intent(inout) :: this
+        class(base_output_handler_t),          intent(inout) :: this
         class(serial_fe_space_t), target,      intent(in)    :: fe_space
     !-----------------------------------------------------------------
         this%fe_space => fe_space
@@ -281,7 +281,7 @@ contains
     !-----------------------------------------------------------------
     !< Return a fe_space pointer
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(in) :: this
+        class(base_output_handler_t), intent(in) :: this
         class(serial_fe_space_t), pointer        :: fe_space
     !-----------------------------------------------------------------
         fe_space => this%fe_space
@@ -292,7 +292,7 @@ contains
     !-----------------------------------------------------------------
     !< Attach a fe_space to the output_handler_base_t derived type
     !-----------------------------------------------------------------
-        class(output_handler_base_t),       intent(inout) :: this
+        class(base_output_handler_t),       intent(inout) :: this
         integer(ip),                        intent(in)    :: number_fields
         integer(ip)                                       :: current_size
         type(output_handler_fe_field_t), allocatable      :: temp_fe_functions(:)
@@ -313,7 +313,7 @@ contains
     !-----------------------------------------------------------------
     !< Attach a fe_space to the output_handler_base_t derived type
     !-----------------------------------------------------------------
-        class(output_handler_base_t),       intent(inout) :: this
+        class(base_output_handler_t),       intent(inout) :: this
         integer(ip),                        intent(in)    :: number_fields
         integer(ip)                                       :: current_size
         type(output_handler_cell_vector_t), allocatable   :: temp_cell_vectors(:)
@@ -334,7 +334,7 @@ contains
     !-----------------------------------------------------------------
     !< Add a fe_function to the output_handler_base_t derived type
     !-----------------------------------------------------------------
-        class(output_handler_base_t),       intent(inout) :: this
+        class(base_output_handler_t),       intent(inout) :: this
         type(fe_function_t),                intent(in)    :: fe_function
         integer(ip),                        intent(in)    :: field_id
         character(len=*),                   intent(in)    :: name
@@ -350,7 +350,7 @@ contains
     !-----------------------------------------------------------------
     !< Add a fe_function to the output_handler_base_t derived type
     !-----------------------------------------------------------------
-        class(output_handler_base_t),       intent(inout) :: this
+        class(base_output_handler_t),       intent(inout) :: this
         real(rp), allocatable,              intent(in)    :: cell_vector(:)
         character(len=*),                   intent(in)    :: name
     !-----------------------------------------------------------------
@@ -364,7 +364,7 @@ contains
     !-----------------------------------------------------------------
     !< Attach a fe_space to the output_handler_base_t derived type
     !-----------------------------------------------------------------
-        class(output_handler_base_t),     intent(inout) :: this
+        class(base_output_handler_t),     intent(inout) :: this
         type(fe_accessor_t)                             :: fe
         type(output_handler_cell_fe_function_t)         :: output_handler_cell_function
         type(output_handler_patch_t)                    :: patch
@@ -414,6 +414,6 @@ contains
         call fe%free()
     end subroutine output_handler_base_fill_data
 
-end module output_handler_base_names
+end module base_output_handler_names
 
 
