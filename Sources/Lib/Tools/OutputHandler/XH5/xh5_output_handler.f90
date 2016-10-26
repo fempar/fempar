@@ -74,7 +74,7 @@ private
         procedure                         :: append_cell                    => xh5_output_handler_append_cell
         procedure,                 public :: write                          => xh5_output_handler_write
         procedure,                 public :: close                          => xh5_output_handler_close
-        procedure,                 public :: free                           => xh5_output_handler_free
+        procedure                         :: free_body                      => xh5_output_handler_free_body
     end type
 
 public :: xh5_output_handler_t
@@ -82,7 +82,7 @@ public :: xh5_output_handler_t
 contains
 
 
-    subroutine xh5_output_handler_free(this)
+    subroutine xh5_output_handler_free_body(this)
     !-----------------------------------------------------------------
     !< Free procedure
     !-----------------------------------------------------------------
@@ -111,7 +111,7 @@ contains
         this%number_steps = 0
         this%node_offset  = 0
         this%cell_offset  = 0
-    end subroutine xh5_output_handler_free
+    end subroutine xh5_output_handler_free_body
 
 
     subroutine xh5_output_handler_open(this, dir_path, prefix, parameter_list)

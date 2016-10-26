@@ -30,6 +30,7 @@ module base_output_handler_names
 
 USE FPL
 USE types_names
+USE memor_names
 USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t, fe_accessor_t
 USE fe_function_names,           only: fe_function_t
 USE output_handler_fe_field_names
@@ -55,7 +56,7 @@ private
         integer(ip)                                     :: number_cell_vectors = 0
     contains
     private
-        procedure,                  public :: free                         => output_handler_base_free
+        procedure, non_overridable, public :: free                         => output_handler_base_free
         procedure, non_overridable, public :: get_number_nodes             => output_handler_base_get_number_nodes
         procedure, non_overridable, public :: get_number_cells             => output_handler_base_get_number_cells
         procedure, non_overridable, public :: get_number_fields            => output_handler_base_get_number_fields
@@ -78,6 +79,7 @@ private
         procedure(output_handler_base_append_cell),                            deferred :: append_cell
         procedure(output_handler_base_write),                          public, deferred :: write
         procedure(output_handler_base_close),                          public, deferred :: close
+        procedure(output_handler_base_free_body),                              deferred :: free_body
     end type
 
     abstract interface
@@ -118,6 +120,11 @@ private
             import base_output_handler_t
             class(base_output_handler_t), intent(inout) :: this
         end subroutine
+
+        subroutine output_handler_base_free_body(this)
+            import base_output_handler_t
+            class(base_output_handler_t), intent(inout) :: this
+        end subroutine
     end interface
 
     class(output_handler_fe_iterator_t), allocatable, target, save :: default_output_handler_fe_iterator
@@ -137,6 +144,7 @@ contains
         class(base_output_handler_t), intent(inout) :: this
         integer(ip)                                 :: i
     !-----------------------------------------------------------------
+        call this%free_body()
         if(allocated(this%fe_fields)) then
             do i=1, size(this%fe_fields)
                 call this%fe_fields(i)%free()

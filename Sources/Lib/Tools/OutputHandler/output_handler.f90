@@ -45,7 +45,7 @@ private
 
     type :: output_handler_t
     private
-        class(base_output_handler_t), pointer :: state => NULL()
+        class(base_output_handler_t), allocatable :: state
     contains
     private
         procedure, non_overridable         ::                                   output_handler_create
@@ -79,7 +79,8 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        this%state => this%get_default_output_handler()
+        call this%free()
+        allocate(this%state, mold=this%get_default_output_handler())
     end subroutine output_handler_create
 
 
@@ -90,10 +91,7 @@ contains
         class(output_handler_t), intent(inout) :: this
         character(len=*),        intent(in)    :: descriptor
     !-----------------------------------------------------------------
-        if(associated(this%state)) then
-            call this%state%free()
-            deallocate(this%state)
-        endif
+        call this%free()
         select case (descriptor)
             case (VTK)
                 allocate(vtk_output_handler_t :: this%state)
@@ -144,7 +142,7 @@ contains
         class(output_handler_t),          intent(inout) :: this
         class(output_handler_fe_iterator_t), intent(in) :: iterator
     !-----------------------------------------------------------------
-        assert(associated(this%state))
+        assert(allocated(this%state))
         call this%state%set_iterator(iterator)
     end subroutine output_handler_set_iterator
 
@@ -155,7 +153,7 @@ contains
         class(output_handler_t),          intent(inout) :: this
         class(serial_fe_space_t), target, intent(in)    :: fe_space
     !-----------------------------------------------------------------
-        assert(associated(this%state))
+        assert(allocated(this%state))
         call this%state%attach_fe_space(fe_space)
     end subroutine output_handler_attach_fe_space
 
@@ -170,7 +168,7 @@ contains
         character(len=*),           intent(in)    :: name
         character(len=*), optional, intent(in)    :: diff_operator
     !-----------------------------------------------------------------
-        assert(associated(this%state))
+        assert(allocated(this%state))
         call this%state%add_fe_function(fe_function, field_id, name, diff_operator)
     end subroutine output_handler_add_fe_function
 
@@ -183,7 +181,7 @@ contains
         real(rp), allocatable,      intent(in)    :: cell_vector(:)
         character(len=*),           intent(in)    :: name
     !-----------------------------------------------------------------
-        assert(associated(this%state))
+        assert(allocated(this%state))
         call this%state%add_cell_vector(cell_vector, name)
     end subroutine output_handler_add_cell_vector
 
@@ -197,7 +195,7 @@ contains
         character(len=*),                intent(in)    :: prefix
         type(ParameterList_t), optional, intent(in)    :: parameter_list
     !-----------------------------------------------------------------
-        assert(associated(this%state))
+        assert(allocated(this%state))
         call this%state%open(dir_path, prefix, parameter_list)
     end subroutine output_handler_open
 
@@ -209,7 +207,7 @@ contains
         class(output_handler_t), intent(inout) :: this
         real(rp),                intent(in)    :: value
     !-----------------------------------------------------------------
-        assert(associated(this%state))    
+        assert(allocated(this%state))    
         call this%state%append_time_step(value)
     end  subroutine output_handler_append_time_step
 
@@ -220,7 +218,7 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_t),          intent(inout) :: this
     !-----------------------------------------------------------------
-        assert(associated(this%state))
+        assert(allocated(this%state))
         call this%state%write()
     end subroutine output_handler_write
 
@@ -231,7 +229,7 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_t),          intent(inout) :: this
     !-----------------------------------------------------------------
-        assert(associated(this%state))
+        assert(allocated(this%state))
         call this%state%close()
     end subroutine output_handler_close
 
@@ -242,7 +240,7 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_t),          intent(inout) :: this
     !-----------------------------------------------------------------
-        if(associated(this%state)) then
+        if(allocated(this%state)) then
             call this%State%Free()
             deallocate(this%state)
         endif

@@ -75,7 +75,7 @@ private
         procedure                         :: allocate_cell_and_nodal_arrays => vtk_output_handler_allocate_cell_and_nodal_arrays
         procedure                         :: append_cell                    => vtk_output_handler_append_cell
         procedure,                 public :: close                          => vtk_output_handler_close
-        procedure,                 public :: free                           => vtk_output_handler_free
+        procedure                         :: free_body                      => vtk_output_handler_free_body
     end type
 
 public :: vtk_output_handler_t
@@ -83,7 +83,7 @@ public :: vtk_output_handler_t
 contains
 
 
-    subroutine vtk_output_handler_free(this)
+    subroutine vtk_output_handler_free_body(this)
     !-----------------------------------------------------------------
     !< Free procedure
     !-----------------------------------------------------------------
@@ -115,7 +115,7 @@ contains
         this%node_offset  = 0
         this%cell_offset  = 0
         this%number_steps = 0
-    end subroutine vtk_output_handler_free
+    end subroutine vtk_output_handler_free_body
 
 
     subroutine vtk_output_handler_open(this, dir_path, prefix, parameter_list)
