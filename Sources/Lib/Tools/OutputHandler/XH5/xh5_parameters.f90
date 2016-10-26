@@ -77,7 +77,6 @@ private
     integer(ip), parameter, public :: XDMF_MIXED                    = 112 ! p(new XdmfTopologyType(0, 0, faces, 0, "Mixed", Arbitrary, 0x70));
 
     ! PARAMETERS IDENTIFIERS
-    character(*), parameter, public :: xh5_StaticGrid = 'xh5_StaticGrid'
     character(*), parameter, public :: xh5_Strategy   = 'xh5_Strategy'
     character(*), parameter, public :: xh5_GridType   = 'xh5_GridType'
     character(*), parameter, public :: xh5_Action     = 'xh5_Action'

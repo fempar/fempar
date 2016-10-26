@@ -36,6 +36,7 @@ USE environment_names
 USE vtk_utils_names
 USE base_output_handler_names
 USE output_handler_fe_field_names
+USE output_handler_parameters_names
 USE vtk_parameters_names
 USE fe_space_names,             only: serial_fe_space_t
 USE output_handler_patch_names, only: patch_subcell_accessor_t
@@ -51,6 +52,7 @@ private
         character(:), allocatable                             :: FilePrefix
         character(:), allocatable                             :: Path
         character(:), allocatable                             :: vtk_format
+        logical                                               :: StaticGrid
         real(rp),                                 allocatable :: X(:)
         real(rp),                                 allocatable :: Y(:)
         real(rp),                                 allocatable :: Z(:)
@@ -136,6 +138,7 @@ contains
 
         ! Set defaults
         this%vtk_format = vtk_default_format
+        this%StaticGrid = vtk_default_staticgrid
 
         if(present(parameter_list)) then
             ! Get StaticGrid value from parameter_list
@@ -151,6 +154,22 @@ contains
 #ifdef DEBUG
                 else
                     write(*,'(a)') ' Warning! vtk_format ignored. Wrong data type or shape. '
+                endif
+#endif
+            endif
+
+            is_present         = parameter_list%isPresent(Key=oh_staticgrid)
+            if(is_present) then
+#ifdef DEBUG
+                same_data_type = parameter_list%isOfDataType(Key=oh_staticgrid, mold=this%StaticGrid)
+                FPLError       = parameter_list%getshape(Key=oh_staticgrid, shape=shape)
+                if(same_data_type .and. size(shape) == 0) then
+#endif
+                    FPLError   = parameter_list%Get(Key=oh_staticgrid, Value=this%StaticGrid)
+                    assert(FPLError == 0)
+#ifdef DEBUG
+                else
+                    write(*,'(a)') ' Warning! oh_staticgrid ignored. Wrong data type or shape. '
                 endif
 #endif
             endif
@@ -273,12 +292,14 @@ contains
         number_fields       = this%get_number_fields()
         number_cell_vectors = this%get_number_cell_vectors()
 
-        call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
-                                              this%Y(this%node_offset+1:this%node_offset+number_vertices), &
-                                              this%Z(this%node_offset+1:this%node_offset+number_vertices))
+        if(.not. this%StaticGrid .or. this%number_steps > 1) then
+            call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
+                                                  this%Y(this%node_offset+1:this%node_offset+number_vertices), &
+                                                  this%Z(this%node_offset+1:this%node_offset+number_vertices))
 
-        this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = &
-                            (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
+            this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = &
+                                (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
+        endif
 
         do i=1, number_fields
             number_components = subcell_accessor%get_number_field_components(i)

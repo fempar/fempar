@@ -38,6 +38,7 @@ USE environment_names
 USE execution_context_names
 USE mpi_context_names
 USE base_output_handler_names
+USE output_handler_parameters_names
 USE output_handler_fe_field_names
 USE fe_space_names,             only: serial_fe_space_t
 USE output_handler_patch_names, only: patch_subcell_accessor_t
@@ -53,7 +54,7 @@ private
         type(xh5for_t)                                        :: xh5
         character(:), allocatable                             :: FilePrefix
         character(:), allocatable                             :: Path
-        logical                                               :: StaticGrid
+        logical                                               :: StaticGrid = .false.
         integer(ip)                                           :: GridType
         integer(ip)                                           :: Strategy
         integer(ip)                                           :: Action
@@ -159,18 +160,18 @@ contains
 
             if(present(parameter_list)) then
                 ! Get StaticGrid value from parameter_list
-                is_present         = parameter_list%isPresent(Key=xh5_StaticGrid)
+                is_present         = parameter_list%isPresent(Key=oh_StaticGrid)
                 if(is_present) then
 #ifdef DEBUG
-                    same_data_type = parameter_list%isOfDataType(Key=xh5_StaticGrid, mold=this%StaticGrid)
-                    FPLError       = parameter_list%getshape(Key=xh5_StaticGrid, shape=shape)
+                    same_data_type = parameter_list%isOfDataType(Key=oh_StaticGrid, mold=this%StaticGrid)
+                    FPLError       = parameter_list%getshape(Key=oh_StaticGrid, shape=shape)
                     if(same_data_type .and. size(shape) == 0) then
 #endif
-                        FPLError   = parameter_list%Get(Key=xh5_StaticGrid, Value=this%StaticGrid)
+                        FPLError   = parameter_list%Get(Key=oh_StaticGrid, Value=this%StaticGrid)
                         assert(FPLError == 0)
 #ifdef DEBUG
                     else
-                        write(*,'(a)') ' Warning! xh5_StaticGrid ignored. Wrong data type or shape. '
+                        write(*,'(a)') ' Warning! oh_StaticGrid ignored. Wrong data type or shape. '
                     endif
 #endif
                 endif
@@ -300,33 +301,35 @@ contains
         number_fields     = this%get_number_fields()
         number_cell_vectors = this%get_number_cell_vectors()
 
-        call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
+
+        if(.not. this%StaticGrid .or. this%number_steps <= 1) then
+            call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
                                                   this%Y(this%node_offset+1:this%node_offset+number_vertices), &
                                                   this%Z(this%node_offset+1:this%node_offset+number_vertices))
 
+            node_and_cell_offset = this%node_offset+this%cell_offset
+            this%Connectivities(node_and_cell_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), number_dimensions)
+            node_and_cell_offset = node_and_cell_offset+1
 
-        node_and_cell_offset = this%node_offset+this%cell_offset
-        this%Connectivities(node_and_cell_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), number_dimensions)
-        node_and_cell_offset = node_and_cell_offset+1
-
-        select case (subcell_accessor%get_cell_type())
-            case (topology_hex) 
-                select case (number_dimensions)
-                    case (2)
-                        this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
-                                (/0,1,3,2/)+this%node_offset
-                    case (3)
-                        this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
-                                (/0,1,3,2,4,5,7,6/)+this%node_offset
-                    case DEFAULT
-                        check(.false.)
-                end select
-            case (topology_tet) 
-                this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
-                                (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
-            case DEFAULT
-                check(.false.)    
-        end select
+            select case (subcell_accessor%get_cell_type())
+                case (topology_hex) 
+                    select case (number_dimensions)
+                        case (2)
+                            this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
+                                    (/0,1,3,2/)+this%node_offset
+                        case (3)
+                            this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
+                                    (/0,1,3,2,4,5,7,6/)+this%node_offset
+                        case DEFAULT
+                            check(.false.)
+                    end select
+                case (topology_tet) 
+                    this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
+                                    (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
+                case DEFAULT
+                    check(.false.)    
+            end select
+        endif
 
         do i=1, number_fields
             number_components = subcell_accessor%get_number_field_components(i)
@@ -375,10 +378,12 @@ contains
 
             call environment%info(me, np)
 
-            call this%xh5%SetGrid(NumberOfNodes        = this%get_number_nodes(),  &
-                                  NumberOfElements     = this%get_number_cells(),  &
-                                  TopologyType         = XDMF_TOPOLOGY_TYPE_MIXED, &
-                                  GeometryType         = XDMF_GEOMETRY_TYPE_X_Y_Z)
+            if(.not. this%StaticGrid .or. this%number_steps <= 1) then                 ! Avoid communications
+                call this%xh5%SetGrid(NumberOfNodes        = this%get_number_nodes(),  &
+                                      NumberOfElements     = this%get_number_cells(),  &
+                                      TopologyType         = XDMF_TOPOLOGY_TYPE_MIXED, &
+                                      GeometryType         = XDMF_GEOMETRY_TYPE_X_Y_Z)
+            endif
 
             call this%xh5%WriteGeometry(X              = this%X, &
                                         Y              = this%Y, &

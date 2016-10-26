@@ -32,6 +32,8 @@ module output_handler_parameters_names
 implicit none
 private
 
+    character(*), parameter, public :: oh_staticgrid = 'OH_StaticGrid'
+
     ! Diff operators
     character(len=*), parameter, public :: no_diff_operator = 'no_diff_operator'
     character(len=*), parameter, public :: grad_diff_operator = 'grad_diff_operator'

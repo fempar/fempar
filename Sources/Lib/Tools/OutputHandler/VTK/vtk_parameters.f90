@@ -65,5 +65,6 @@ private
     integer(ip),      parameter, public :: vtk_default_guess_number_of_steps = 100
     real(rp),         parameter, public :: vtk_default_step_value            = 0.0_rp
     character(len=3), parameter, public :: vtk_default_format                = 'raw'
+    logical,          parameter, public :: vtk_default_StaticGrid            = .false.
 
 end module vtk_parameters_names
