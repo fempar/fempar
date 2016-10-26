@@ -210,6 +210,7 @@ contains
 #endif
                 endif
             endif
+print*, 'StaticGrid', this%StaticGrid
 
             call this%xh5%Open(FilePrefix = this%FilePrefix, &
                                Path       = this%Path,       &
@@ -383,13 +384,13 @@ contains
                                       NumberOfElements     = this%get_number_cells(),  &
                                       TopologyType         = XDMF_TOPOLOGY_TYPE_MIXED, &
                                       GeometryType         = XDMF_GEOMETRY_TYPE_X_Y_Z)
+
+                call this%xh5%WriteGeometry(X              = this%X, &
+                                            Y              = this%Y, &
+                                            Z              = this%Z)
+
+                call this%xh5%WriteTopology(Connectivities = this%Connectivities)
             endif
-
-            call this%xh5%WriteGeometry(X              = this%X, &
-                                        Y              = this%Y, &
-                                        Z              = this%Z)
-
-            call this%xh5%WriteTopology(Connectivities = this%Connectivities)
 
             do i=1, this%get_number_fields()
                 field => this%get_fe_field(i)
