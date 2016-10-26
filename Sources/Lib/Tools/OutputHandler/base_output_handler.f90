@@ -151,9 +151,6 @@ contains
             enddo
             deallocate(this%fe_fields)
         endif
-        if(associated(this%iterator)) then
-            call this%iterator%free()
-        endif
         nullify(this%iterator)
         nullify(this%fe_space)
         this%number_cell_vectors = 0
@@ -171,7 +168,10 @@ contains
         class(output_handler_fe_iterator_t), intent(in) :: iterator
         integer                                         :: error
     !-----------------------------------------------------------------
-        if (allocated(default_output_handler_fe_iterator)) deallocate(default_output_handler_fe_iterator) 
+        if (allocated(default_output_handler_fe_iterator)) then
+            call default_output_handler_fe_iterator%free()
+            deallocate(default_output_handler_fe_iterator)
+        endif 
         allocate(default_output_handler_fe_iterator, mold=iterator, stat=error)
         check(error==0)
     end subroutine output_handler_base_set_default_iterator
@@ -195,13 +195,10 @@ contains
     !-----------------------------------------------------------------
     !< Set output handler fe_iterator
     !-----------------------------------------------------------------
-        class(base_output_handler_t),        intent(inout) :: this
-        class(output_handler_fe_iterator_t), intent(in)    :: iterator
-        integer                                            :: error
+        class(base_output_handler_t),                intent(inout) :: this
+        class(output_handler_fe_iterator_t), target, intent(in)  :: iterator
     !-----------------------------------------------------------------
-        if (associated(this%iterator)) deallocate(this%iterator) 
-        allocate(this%iterator, mold=iterator, stat=error)
-        check(error==0)
+        this%iterator => iterator
     end subroutine output_handler_base_set_iterator
 
 
