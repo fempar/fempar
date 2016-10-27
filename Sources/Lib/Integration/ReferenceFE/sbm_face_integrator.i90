@@ -328,20 +328,11 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   ! @sbadia: order+2 only works for topology_hex. When the work for high order TETS with face 
   ! integration will be performed, it has to be corrected
   assert ( left_reference_fe%topology == topology_hex )
-  
-  select type( left_reference_fe )
-  class is ( lagrangian_reference_fe_t )
-    call left_reference_fe%node_array%fill_permutations( left_reference_fe%order+2, &
-                                                         quadrature%number_dimensions, &
-                                                         left_reference_fe%polytope, &
-                                                         this%qpoints_perm ) 
-  class is ( raviart_thomas_reference_fe_t )
-    call left_reference_fe%node_array%fill_permutations( left_reference_fe%order+3, &
-                                                         quadrature%number_dimensions, &
-                                                         left_reference_fe%polytope, &
-                                                         this%qpoints_perm ) 
-  end select  
-  
+
+  call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
+                                                       quadrature%number_dimensions, &
+                                                       left_reference_fe%polytope, &
+                                                       this%qpoints_perm )
 end subroutine face_integrator_create
 
 !==================================================================================================
