@@ -95,7 +95,6 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
 
   subroutine setup_triangulation(this)
@@ -107,7 +106,7 @@ contains
     call this%triangulation%create(this%parameter_list)
     this%par_environment => this%triangulation%get_par_environment()
 
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        vef_iterator = this%triangulation%create_vef_iterator()
        do while ( .not. vef_iterator%has_finished() )
           call vef_iterator%current(vef)
@@ -366,9 +365,48 @@ contains
   subroutine write_solution(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
-    ! To be implemented
-    check(.false.)
+    type(output_handler_t)                             :: oh
+    type(fe_iterator_t)                                :: fe_iterator
+    class(base_static_triangulation_t), pointer        :: triangulation
+    type(fe_accessor_t)                                :: fe
+    real(rp), allocatable                              :: set_id_cell_vector(:)
+    integer(ip)                                        :: i
+    if(this%test_params%get_write_solution()) then
+        call build_set_id_cell_vector()
+
+        call oh%create()
+        call oh%attach_fe_space(this%fe_space)
+        call oh%add_fe_function(this%solution, 1, 'solution')
+        call oh%add_cell_vector(set_id_cell_vector, 'set_id')
+        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+        call oh%write()
+        call oh%close()
+        call oh%free()
+
+        call free_set_id_cell_vector()
+    endif
+
+    contains
+    
+        subroutine build_set_id_cell_vector()
+            fe_iterator = this%fe_space%create_fe_iterator()
+            triangulation => this%fe_space%get_triangulation()
+            call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
+            i = 1
+            do while (.not. fe_iterator%has_finished())
+                call fe_iterator%current(fe)
+                set_id_cell_vector(i) = fe%get_set_id()
+                call fe_iterator%next()
+                i = i + 1
+            enddo
+        end subroutine build_set_id_cell_vector
+
+        subroutine free_set_id_cell_vector()
+            call memfree(set_id_cell_vector, __FILE__, __LINE__)
+        end subroutine free_set_id_cell_vector
+
   end subroutine write_solution
+
 
   subroutine run_simulation(this) 
     implicit none
