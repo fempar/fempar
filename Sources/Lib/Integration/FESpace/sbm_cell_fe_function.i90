@@ -69,8 +69,9 @@ subroutine cell_fe_function_scalar_move_alloc_values_out ( this, values )
   class(cell_fe_function_scalar_t), intent(inout) :: this 
   real(rp), allocatable           , intent(inout) :: values(:)
   assert ( .not. allocated(values) ) 
-  assert ( allocated(this%quadrature_points_values))
-  call move_alloc( to=values, from=this%quadrature_points_values)
+  if ( allocated(this%quadrature_points_values) ) then
+     call move_alloc( to=values, from=this%quadrature_points_values)
+  end if
 end subroutine cell_fe_function_scalar_move_alloc_values_out
 
 subroutine cell_fe_function_scalar_move_alloc_gradients_in ( this, gradients )
@@ -87,8 +88,9 @@ subroutine cell_fe_function_scalar_move_alloc_gradients_out ( this, gradients )
   class(cell_fe_function_scalar_t)  , intent(inout) :: this 
   type(vector_field_t), allocatable , intent(inout) :: gradients(:)
   assert ( .not. allocated(gradients) ) 
-  assert ( allocated(this%quadrature_points_gradients))
-  call move_alloc( to=gradients, from=this%quadrature_points_gradients)
+  if ( allocated(this%quadrature_points_gradients) ) then
+     call move_alloc( to=gradients, from=this%quadrature_points_gradients)
+  end if
 end subroutine cell_fe_function_scalar_move_alloc_gradients_out
 
 
@@ -277,15 +279,13 @@ subroutine cell_fe_function_vector_update ( this, fe_accessor, fe_function)
      ! Gather DoFs of current cell + field_id on nodal_values 
      call fe_function%gather_nodal_values(fe_accessor, field_id, this%nodal_values)
 
-     ! Evaluate values, gradients and curl at quadrature points
+     ! Evaluate values, gradients at quadrature points
      call volume_integrator%evaluate_fe_function ( this%nodal_values, & 
                                                    this%quadrature_points_values )
 
      call volume_integrator%evaluate_gradient_fe_function ( this%nodal_values, & 
                                                             this%quadrature_points_gradients )
-	 
-     call volume_integrator%evaluate_curl_fe_function ( this%nodal_values, & 
-                                                        this%quadrature_points_curl_values )
+
   end if
 end subroutine cell_fe_function_vector_update
 
@@ -303,8 +303,9 @@ subroutine cell_fe_function_vector_move_alloc_values_out ( this, values )
   class(cell_fe_function_vector_t) , intent(inout) :: this 
   type(vector_field_t), allocatable, intent(inout) :: values(:)
   assert ( .not. allocated(values) ) 
-  assert ( allocated(this%quadrature_points_values))
-  call move_alloc( to=values, from=this%quadrature_points_values)
+  if ( allocated(this%quadrature_points_values) ) then
+     call move_alloc( to=values, from=this%quadrature_points_values)
+  end if
 end subroutine cell_fe_function_vector_move_alloc_values_out
 
 subroutine cell_fe_function_vector_move_alloc_gradients_in ( this, gradients )
@@ -321,8 +322,9 @@ subroutine cell_fe_function_vector_move_alloc_gradients_out ( this, gradients )
   class(cell_fe_function_vector_t)  , intent(inout) :: this 
   type(tensor_field_t), allocatable , intent(inout) :: gradients(:)
   assert ( .not. allocated(gradients) ) 
-  assert ( allocated(this%quadrature_points_gradients))
-  call move_alloc( to=gradients, from=this%quadrature_points_gradients)
+  if ( allocated(this%quadrature_points_gradients) ) then
+     call move_alloc( to=gradients, from=this%quadrature_points_gradients)
+  end if
 end subroutine cell_fe_function_vector_move_alloc_gradients_out
 
 !===============================================================================================
@@ -358,12 +360,18 @@ function cell_fe_function_vector_get_quadrature_points_gradients ( this )
 end function cell_fe_function_vector_get_quadrature_points_gradients
 
 !===============================================================================================
-function cell_fe_function_vector_get_quadrature_points_curl_values( this )
+subroutine cell_fe_function_vector_compute_quadrature_points_curl_values ( this, quad_points_curl_values )
   implicit none
-  class(cell_fe_function_vector_t), target, intent(in) :: this 
-  type(vector_field_t), pointer :: cell_fe_function_vector_get_quadrature_points_curl_values(:)
-  cell_fe_function_vector_get_quadrature_points_curl_values => this%quadrature_points_curl_values
-end function cell_fe_function_vector_get_quadrature_points_curl_values 
+  class(cell_fe_function_vector_t),  intent(in)     :: this 
+  type(vector_field_t)            ,  intent(inout)  :: quad_points_curl_values(:)
+  integer(ip)    :: qpoin 
+  ! Build curl values from gradients 
+  do qpoin=1, this%current_number_quadrature_points
+     call quad_points_curl_values(qpoin)%set(1, this%quadrature_points_gradients(qpoin)%get(2,3) - this%quadrature_points_gradients(qpoin)%get(3,2) )
+     call quad_points_curl_values(qpoin)%set(2, this%quadrature_points_gradients(qpoin)%get(3,1) - this%quadrature_points_gradients(qpoin)%get(1,3) )
+     call quad_points_curl_values(qpoin)%set(3, this%quadrature_points_gradients(qpoin)%get(1,2) - this%quadrature_points_gradients(qpoin)%get(2,1) )
+  end do
+end subroutine cell_fe_function_vector_compute_quadrature_points_curl_values
 
 !===============================================================================================
 subroutine cell_fe_function_vector_get_value ( this, point, value )
@@ -386,14 +394,17 @@ subroutine cell_fe_function_vector_get_gradient ( this, point, value )
 end subroutine cell_fe_function_vector_get_gradient
 
 !===============================================================================================
-subroutine cell_fe_function_vector_get_curl ( this, point, value )
+subroutine cell_fe_function_vector_compute_curl ( this, point, value )
   implicit none
   class(cell_fe_function_vector_t), intent(in)    :: this 
   integer(ip)                     , intent(in)    :: point
   type(vector_field_t)            , intent(inout) :: value
   assert ( point <= this%current_number_quadrature_points )
-  value = this%quadrature_points_curl_values(point)
-end subroutine cell_fe_function_vector_get_curl
+  ! Build curl values from gradients 
+  call value%set(1, this%quadrature_points_gradients(point)%get(2,3) - this%quadrature_points_gradients(point)%get(3,2) )
+  call value%set(2, this%quadrature_points_gradients(point)%get(3,1) - this%quadrature_points_gradients(point)%get(1,3) )
+  call value%set(3, this%quadrature_points_gradients(point)%get(1,2) - this%quadrature_points_gradients(point)%get(2,1) )
+end subroutine cell_fe_function_vector_compute_curl
 
 !===============================================================================================
 subroutine cell_fe_function_vector_set_current_number_nodes ( this, value )
@@ -514,8 +525,9 @@ subroutine cell_fe_function_tensor_move_alloc_values_out ( this, values )
   class(cell_fe_function_tensor_t) , intent(inout) :: this 
   type(tensor_field_t), allocatable, intent(inout) :: values(:)
   assert ( .not. allocated(values) ) 
-  assert ( allocated(this%quadrature_points_values))
-  call move_alloc( to=values, from=this%quadrature_points_values)
+  if ( allocated(this%quadrature_points_values) ) then
+     call move_alloc( to=values, from=this%quadrature_points_values)
+  end if
 end subroutine cell_fe_function_tensor_move_alloc_values_out
 
 !===============================================================================================

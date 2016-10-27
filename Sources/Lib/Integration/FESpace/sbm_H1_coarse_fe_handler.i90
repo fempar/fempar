@@ -30,7 +30,7 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix)
   class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
-  type(par_environment_t), pointer :: par_environment
+  type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
@@ -193,7 +193,7 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   integer(ip) :: field_id
-  type(par_environment_t), pointer :: par_environment
+  type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
@@ -253,7 +253,6 @@ subroutine pb_H1_l1_setup_weighting_operator(this, par_fe_space, weighting_opera
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   integer(ip) :: field_id
-  type(par_environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
@@ -266,7 +265,7 @@ subroutine pb_H1_l1_setup_weighting_operator(this, par_fe_space, weighting_opera
   integer(ip) :: num_rows, num_cols
   integer(ip) :: num_fine_dofs_on_coarse_dof
   integer(ip) :: ivef, idof, dof_lid, coarse_dof_lid
-  type(par_environment_t), pointer  :: par_env
+  type(environment_t), pointer  :: par_env
   class(base_static_triangulation_t), pointer :: triangulation
   integer(ip) :: subpart
   real(rp) :: weigh, denom

@@ -40,7 +40,7 @@
                                            lst_ext_neighs_part_ids)
     implicit none
     class(coarse_triangulation_t)      , intent(inout) :: this
-    type(par_environment_t)     ,target, intent(in)    :: par_environment
+    type(environment_t)     ,target, intent(in)    :: par_environment
     integer(ip)                        , intent(in)    :: num_dimensions
     integer(ip)                        , intent(in)    :: num_local_cells
     integer(igp)                       , intent(in)    :: cells_gid(*)

@@ -420,9 +420,6 @@ module reference_fe_names
      generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
           & evaluate_gradient_fe_function_vector
 		  
-     procedure(evaluate_curl_fe_function_vector_interface), deferred :: evaluate_curl_fe_function_vector
-   	 generic :: evaluate_curl_fe_function => evaluate_curl_fe_function_vector
-
      ! This subroutine gives the reodering (o2n) of the nodes of an n-face given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same n-face.
      procedure (check_compatibility_of_n_faces_interface), deferred :: &
@@ -692,18 +689,6 @@ module reference_fe_names
        type(tensor_field_t) , allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
 	 
-	  subroutine evaluate_curl_fe_function_vector_interface( this,             &
-          & actual_cell_interpolation, &
-          & nodal_values,              &
-          & quadrature_points_values)
-       import :: reference_fe_t, interpolation_t, rp, vector_field_t
-       implicit none
-       class(reference_fe_t)             , intent(in)    :: this 
-       type(interpolation_t)             , intent(in)    :: actual_cell_interpolation 
-       real(rp)                          , intent(in)    :: nodal_values(:)
-       type(vector_field_t) , allocatable, intent(inout) :: quadrature_points_values(:)
-     end subroutine evaluate_curl_fe_function_vector_interface
-
      function check_compatibility_of_n_faces_interface(target_reference_fe, &
           &                       source_reference_fe, source_n_face_id,target_n_face_id)
        import :: reference_fe_t, ip
@@ -812,8 +797,6 @@ contains
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
   procedure :: evaluate_gradient_fe_function_vector &
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_vector
-  procedure :: evaluate_curl_fe_function_vector &
-       & => lagrangian_reference_fe_evaluate_curl_fe_function_vector
   procedure :: free                      => lagrangian_reference_fe_free
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
@@ -1300,9 +1283,6 @@ procedure, non_overridable, private :: volume_integrator_evaluate_gradient_fe_fu
 procedure, non_overridable, private :: volume_integrator_evaluate_gradient_fe_function_vector
 generic :: evaluate_gradient_fe_function => volume_integrator_evaluate_gradient_fe_function_scalar, &
 & volume_integrator_evaluate_gradient_fe_function_vector
-
-procedure, non_overridable, private :: volume_integrator_evaluate_curl_fe_function_vector
-generic :: evaluate_curl_fe_function => volume_integrator_evaluate_curl_fe_function_vector
 
 end type volume_integrator_t
 

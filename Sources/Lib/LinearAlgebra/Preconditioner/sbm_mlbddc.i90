@@ -128,7 +128,7 @@ end function mlbddc_get_par_fe_space
 function mlbddc_get_par_environment(this)
   implicit none
   class(mlbddc_t)          , intent(in) :: this
-  type(par_environment_t)  , pointer    :: mlbddc_get_par_environment
+  type(environment_t)  , pointer    :: mlbddc_get_par_environment
   type(par_fe_space_t)     , pointer    :: coarse_fe_space
   coarse_fe_space => this%get_par_fe_space()
   mlbddc_get_par_environment => coarse_fe_space%get_par_environment()
@@ -138,7 +138,7 @@ function mlbddc_am_i_l1_task(this)
   implicit none
   class(mlbddc_t)          , intent(in) :: this
   logical                               :: mlbddc_am_i_l1_task
-  type(par_environment_t)   , pointer   :: par_environment
+  type(environment_t)   , pointer   :: par_environment
   par_environment => this%get_par_environment()
   mlbddc_am_i_l1_task = par_environment%am_i_l1_task()
 end function mlbddc_am_i_l1_task

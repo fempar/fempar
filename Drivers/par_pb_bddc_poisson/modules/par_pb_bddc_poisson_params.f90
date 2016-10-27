@@ -146,7 +146,7 @@ contains
          &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
     check(error==0) 
     
-        call this%cli%add(switch='--trinagulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
+        call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
          &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
     check(error==0) 
         call this%cli%add(switch='--number_of_dimensions',switch_ab='-dim',help='Number of space dimensions',&

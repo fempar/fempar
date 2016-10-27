@@ -90,15 +90,7 @@ module function_names
      generic                    :: get_gradient                 => get_gradient_space, get_gradient_space_time
      procedure                  :: get_gradients_set_space      => vector_function_get_gradients_set_space
      procedure                  :: get_gradients_set_space_time => vector_function_get_gradients_set_space_time
-     generic                    :: get_gradients_set            => get_gradients_set_space, get_gradients_set_space_time    
-	 
-     procedure                  :: get_curl_space               => vector_function_get_curl_space
-     procedure                  :: get_curl_space_time          => vector_function_get_curl_space_time
-     generic                    :: get_curl                     => get_curl_space, get_curl_space_time
-     procedure                  :: get_curl_set_space           => vector_function_get_curl_set_space
-     procedure                  :: get_curl_set_space_time      => vector_function_get_curl_set_space_time
-     generic                    :: get_curl_set                 => get_curl_set_space, get_curl_set_space_time 
-     
+     generic                    :: get_gradients_set            => get_gradients_set_space, get_gradients_set_space_time     
   end type vector_function_t
 
   type :: tensor_function_t
