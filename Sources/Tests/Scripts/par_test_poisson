@@ -16,6 +16,28 @@ then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
 
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0
+            if [ $? -ne 0 ] 
+            then
+              final_exit_code=1
+            fi
+
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 18 18 0"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 18 18 0
+            if [ $? -ne 0 ] 
+            then
+              final_exit_code=1
+            fi
+
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18
+            if [ $? -ne 0 ] 
+            then
+              final_exit_code=1
+            fi
+
+
       # Square + Quads (4 parts)
       for gorder in 1 # 2 3 4 5 6
       do
