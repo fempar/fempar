@@ -45,11 +45,14 @@ module serial_context_names
      procedure :: free               => serial_context_free
      procedure :: nullify            => serial_context_nullify
      procedure :: am_i_member        => serial_context_am_i_member
+     procedure :: am_i_root          => serial_context_am_i_root
      procedure :: barrier            => serial_context_barrier
+     procedure :: time               => serial_context_time
      procedure :: sum_scalar_rp      => serial_context_sum_scalar_rp
      procedure :: sum_vector_rp      => serial_context_sum_vector_rp
      procedure :: max_scalar_rp      => serial_context_max_scalar_rp
      procedure :: max_vector_rp      => serial_context_max_vector_rp
+     procedure :: min_scalar_rp      => serial_context_min_scalar_rp
      procedure :: scatter            => serial_context_scatter_scalar_ip
      procedure :: gather             => serial_context_gather_scalar_ip
      procedure :: bcast              => serial_context_bcast_scalar_ip
@@ -69,38 +72,6 @@ module serial_context_names
      procedure, private :: gather_to_masterv_rp_1D_array    => serial_context_gather_to_masterv_rp_1D_array 
      procedure, private :: gather_to_masterv_rp_2D_array    => serial_context_gather_to_masterv_rp_2D_array  
      procedure, private :: scatter_from_masterv_rp_1D_array => serial_context_scatter_from_masterv_rp_1D_array
-
-     ! procedure, non_overridable :: create             => serial_context_create
-     ! procedure, non_overridable :: assign             => serial_context_assign
-     ! procedure, non_overridable :: split_by_condition => serial_context_split_by_condition
-     ! procedure, non_overridable :: split_by_color     => serial_context_split_by_color
-     ! procedure, non_overridable :: free               => serial_context_free
-     ! procedure, non_overridable :: nullify            => serial_context_nullify
-     ! procedure, non_overridable :: am_i_member        => serial_context_am_i_member
-     ! procedure, non_overridable :: barrier            => serial_context_barrier
-     ! procedure, non_overridable :: sum_scalar_rp      => serial_context_sum_scalar_rp
-     ! procedure, non_overridable :: sum_vector_rp      => serial_context_sum_vector_rp
-     ! procedure, non_overridable :: max_scalar_rp      => serial_context_max_scalar_rp
-     ! procedure, non_overridable :: max_vector_rp      => serial_context_max_vector_rp
-     ! procedure, non_overridable :: scatter            => serial_context_scatter_scalar_ip
-     ! procedure, non_overridable :: gather             => serial_context_gather_scalar_ip
-     ! procedure, non_overridable :: bcast              => serial_context_bcast_scalar_ip
-     ! procedure, non_overridable :: bcast_subcontext   => serial_context_bcast_subcontext
-     ! procedure, non_overridable, private :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp                 
-     ! procedure, non_overridable, private :: neighbours_exchange_ip                  =>  serial_context_neighbours_exchange_ip                 
-     ! procedure, non_overridable, private :: neighbours_exchange_igp                 =>  serial_context_neighbours_exchange_igp                
-     ! procedure, non_overridable, private :: neighbours_exchange_single_ip           =>  serial_context_neighbours_exchange_single_ip          
-     ! procedure, non_overridable, private :: neighbours_exchange_wo_pack_unpack_ieep =>  serial_context_neighbours_exchange_wo_pack_unpack_ieep
-     ! procedure, non_overridable, private :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
-     ! procedure, non_overridable, private :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
-     ! procedure, non_overridable, private :: gather_to_master_ip              => serial_context_gather_to_master_ip           
-     ! procedure, non_overridable, private :: gather_to_master_igp             => serial_context_gather_to_master_igp          
-     ! procedure, non_overridable, private :: gather_to_master_ip_1D_array     => serial_context_gather_to_master_ip_1D_array  
-     ! procedure, non_overridable, private :: gather_to_masterv_ip_1D_array    => serial_context_gather_to_masterv_ip_1D_array 
-     ! procedure, non_overridable, private :: gather_to_masterv_igp_1D_array   => serial_context_gather_to_masterv_igp_1D_array
-     ! procedure, non_overridable, private :: gather_to_masterv_rp_1D_array    => serial_context_gather_to_masterv_rp_1D_array 
-     ! procedure, non_overridable, private :: gather_to_masterv_rp_2D_array    => serial_context_gather_to_masterv_rp_2D_array  
-     ! procedure, non_overridable, private :: scatter_from_masterv_rp_1D_array => serial_context_scatter_from_masterv_rp_1D_array
   end type serial_context_t
 
   ! Types
@@ -173,10 +144,28 @@ contains
   end function serial_context_am_i_member
 
   !=============================================================================
+  pure function serial_context_am_i_root(this)
+    implicit none
+    class(serial_context_t), intent(in) :: this
+    logical                          :: serial_context_am_i_root
+    serial_context_am_i_root = .true.
+  end function serial_context_am_i_root
+
+  !=============================================================================
   subroutine serial_context_barrier(this)
     implicit none 
     class(serial_context_t), intent(in) :: this
   end subroutine serial_context_barrier
+
+  !=============================================================================
+  function serial_context_time(this)
+    implicit none 
+    class(serial_context_t), intent(in) :: this
+    real(rp) :: serial_context_time
+    integer :: clock_reading, clock_rate, clock_max
+    call system_clock ( clock_reading, clock_rate, clock_max ) 
+    serial_context_time =  real ( clock_reading, kind = rp ) / real ( clock_rate, kind = rp)     
+  end function serial_context_time
 
   !=============================================================================
   subroutine serial_context_sum_scalar_rp (this,alpha)
@@ -205,6 +194,13 @@ contains
     class(serial_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha(:) 
   end subroutine serial_context_max_vector_rp
+
+  !=============================================================================
+  subroutine serial_context_min_scalar_rp (this,alpha)
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha
+  end subroutine serial_context_min_scalar_rp
 
   !=============================================================================
   subroutine serial_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)

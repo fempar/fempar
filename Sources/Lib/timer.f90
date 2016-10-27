@@ -25,12 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_timer_names
-  ! Serial modules
+module timer_names
   use types_names
-
-  ! Parallel modules
-  use psb_penv_mod_names
+  use execution_context_names
 
   implicit none
 # include "debug.i90"
@@ -42,15 +39,14 @@ module par_timer_names
   character(len=:), parameter :: PAR_TIMER_MODE_LAST    = "par_timer_mode_last"
   character(len=:), parameter :: DEFAULT_PAR_TIMER_MODE = PAR_TIMER_MODE_LAST
 
-  type par_timer_t
+  type timer_t
      private
-     integer                   :: ictxt    ! Parallel context
-     integer                   :: root     ! PID responsible of gathering/reporting timings
+     class(execution_context_t), allocatable :: context
      character(:), allocatable :: message  ! Concept being measured (e.g., assembly)
      character(:), allocatable :: mode     ! par_timer operation mode (see options above)
-     real(8)                   :: t_start  ! last call to start
-     real(8)                   :: t_stop   ! last call to stop
-     real(8)                   :: t_accum  ! sum of all stop-start 
+     real(rp)                  :: t_start  ! last call to start
+     real(rp)                  :: t_stop   ! last call to stop
+     real(rp)                  :: t_accum  ! sum of all stop-start 
    contains
      procedure, non_overridable :: create => par_timer_create
      procedure, non_overridable :: free   => par_timer_free
@@ -58,36 +54,22 @@ module par_timer_names
      procedure, non_overridable :: start  => par_timer_start
      procedure, non_overridable :: stop   => par_timer_stop
      procedure, non_overridable :: report => par_timer_report
-  end type par_timer_t
+  end type timer_t
 
   ! Public types
-  public :: par_timer_t 
+  public :: timer_t 
 
 contains  
-    subroutine par_timer_create ( this, message, ictxt, root, mode )
-#ifdef MPI_MOD
-      use mpi
-#endif
-      implicit none 
-#ifdef MPI_H
-      include 'mpif.h'
-#endif
+    subroutine par_timer_create ( this, context, message, mode )
       ! Parameters
-      class(par_timer_t), intent(inout)        :: this
-      character(len=*) , intent(in)            :: message
-      integer          , intent(in), optional  :: ictxt
-      integer          , intent(in), optional  :: root
-      character(len=*) , intent(in), optional  :: mode
-      
-      ! Locals
-      integer                               :: ictxt_, root_
+      class(timer_t)        , intent(inout) :: this
+      character(len=*)          , intent(in)    :: message
+      class(execution_context_t), intent(in)    :: context
+      character(len=*), optional, intent(in)    :: mode
+      integer(ip) :: istat
 
       call this%free()
-      
-      ictxt_ = mpi_comm_world
-      root_  = 0 
-      if ( present(ictxt) ) ictxt_ = ictxt
-      if ( present(root)  ) root_  = root 
+
       if ( present(mode) ) then
         assert ( mode == PAR_TIMER_MODE_SUM .or. mode == PAR_TIMER_MODE_MIN .or. mode == PAR_TIMER_MODE_LAST )
         this%mode = mode
@@ -95,28 +77,21 @@ contains
         this%mode = DEFAULT_PAR_TIMER_MODE
       end if
       
-      this%ictxt   = ictxt_
-      this%root    = root_ 
+      allocate(this%context,mold=context,stat=istat);check(istat==0)
+      this%context = context
       this%message = message
-      this%t_start   = 0.0 
-      this%t_stop    = 0.0
+      this%t_start   = 0.0_rp
+      this%t_stop    = 0.0_rp
       if ( this%mode == PAR_TIMER_MODE_MIN ) then
-        this%t_accum   = 1.79769E+308 ! Largest double precision number
+        this%t_accum   = 1.79769e+308_rp ! Largest double precision number
       else
-        this%t_accum   = 0.0
+        this%t_accum   = 0.0_rp
       end if
     end subroutine par_timer_create
     
     subroutine par_timer_free ( this )
-#ifdef MPI_MOD
-      use mpi
-#endif
-      implicit none 
-#ifdef MPI_H
-      include 'mpif.h'
-#endif
       ! Parameters
-      class(par_timer_t), intent(inout) :: this  
+      class(timer_t), intent(inout) :: this  
       integer(ip) :: istat
       
       if (allocated(this%message) ) then
@@ -127,46 +102,45 @@ contains
          deallocate(this%mode, stat=istat); check(istat==0);
       end if
       
-      this%ictxt     = mpi_comm_null
-      this%root      = -1
-      this%t_start   = 0.0 
-      this%t_stop    = 0.0
-      this%t_accum   = 1.79769E+308 ! Largest double precision number
+      call this%context%free(finalize=.false.)
+      deallocate(this%context,stat=istat); check(istat==0);
+      this%t_start   = 0.0_rp
+      this%t_stop    = 0.0_rp
+      this%t_accum   = 1.79769E+308_rp ! Largest double precision number
     end subroutine par_timer_free
 
     subroutine par_timer_init ( this )
       implicit none 
       ! Parameters
-      class(par_timer_t), intent(inout) :: this
-      this%t_start  = 0.0 
-      this%t_stop   = 0.0
+      class(timer_t), intent(inout) :: this
+      this%t_start  = 0.0_rp
+      this%t_stop   = 0.0_rp
       if ( this%mode == PAR_TIMER_MODE_MIN ) then
-        this%t_accum   = 1.79769E+308 ! Largest double precision number
+        this%t_accum   = 1.79769e+308_rp ! Largest double precision number
       else
-        this%t_accum   = 0.0
+        this%t_accum   = 0.0_rp
       end if
     end subroutine par_timer_init
 
     subroutine par_timer_start ( this )
       implicit none 
       ! Parameters
-      class(par_timer_t), intent(inout)          :: this
-      call psb_barrier (this%ictxt)
-      this%t_start  = psb_wtime()
+      class(timer_t), intent(inout)          :: this
+      call this%context%barrier()
+      this%t_start  = this%context%time()
     end subroutine par_timer_start
 
     subroutine par_timer_stop ( this )
       implicit none 
       ! Parameters
-      class(par_timer_t), intent(inout)          :: this
-      real(8) :: cur_time
-      
-      this%t_stop = psb_wtime()
-      
-      if ( this%t_stop - this%t_start >= 0.0) then
+      class(timer_t), intent(inout)          :: this
+      real(rp) :: cur_time
+
+      this%t_stop = this%context%time()
+      if ( this%t_stop - this%t_start >= 0.0_rp) then
         cur_time = this%t_stop - this%t_start
       else
-        cur_time = 0.0
+        cur_time = 0.0_rp
       end if  
       
       if ( this%mode == PAR_TIMER_MODE_MIN ) then
@@ -177,25 +151,22 @@ contains
          this%t_accum = cur_time
       end if
       
-      this%t_start  = 0.0 
-      this%t_stop   = 0.0
+      this%t_start  = 0.0_rp
+      this%t_stop   = 0.0_rp
     end subroutine par_timer_stop
    
     subroutine par_timer_report ( this, show_header, luout )
       implicit none 
       ! Parameters
-      class(par_timer_t), intent(inout)     :: this
+      class(timer_t), intent(inout)  :: this
       logical, intent(in), optional      :: show_header 
       integer(ip), intent(in), optional  :: luout
       
       ! Locals
       character(len=*), parameter    :: fmt_header = '(a25,1x,3(2x,a15),3(2x,a15))'
       character(len=*), parameter    :: fmt_data   = '(a25,1x,3(2x,es15.9),3(2x,es15.9))'
-      real(8)                        :: accum_max, accum_min, accum_sum
-      integer                        :: my_id, num_procs
+      real(rp)                       :: accum_max, accum_min, accum_sum
       logical                        :: show_header_
-
-      call psb_info ( this%ictxt, my_id, num_procs )
 
       accum_max = this%t_accum
       accum_min = this%t_accum
@@ -205,22 +176,22 @@ contains
 
       if ( show_header_ ) then 
          if (present(luout) ) then
-            if ( my_id == this%root ) write(luout,fmt_header) '', 'Min (secs.)', 'Max (secs.)', 'Avg (secs.)'
+            if ( this%context%am_i_root() ) write(luout,fmt_header) '', 'Min (secs.)', 'Max (secs.)', 'Avg (secs.)'
          else
-            if ( my_id == this%root ) write(*,fmt_header) '', 'Min (secs.)', 'Max (secs.)', 'Avg (secs.)'
+            if ( this%context%am_i_root() ) write(*,fmt_header) '', 'Min (secs.)', 'Max (secs.)', 'Avg (secs.)'
          end if
       end if         
-  
-      call psb_max ( this%ictxt, accum_max, this%root )
-      call psb_min ( this%ictxt, accum_min, this%root )
-      call psb_sum ( this%ictxt, accum_sum, this%root )
+
+      call this%context%max_scalar_rp(accum_max)
+      call this%context%min_scalar_rp(accum_min)
+      call this%context%sum_scalar_rp(accum_sum)
       
       if (present(luout) ) then
-         if ( my_id == this%root ) write(luout,fmt_data) adjustl(this%message), accum_min, accum_max, accum_sum/num_procs
+         if ( this%context%am_i_root() ) write(luout,fmt_data) adjustl(this%message), accum_min, accum_max, accum_sum/this%context%get_num_tasks()
       else
-         if ( my_id == this%root ) write(*,fmt_data) adjustl(this%message), accum_min, accum_max, accum_sum/num_procs
+         if ( this%context%am_i_root() ) write(*,fmt_data) adjustl(this%message), accum_min, accum_max, accum_sum/this%context%get_num_tasks()
       end if
 
     end subroutine par_timer_report
 
-end module par_timer_names
+end module timer_names

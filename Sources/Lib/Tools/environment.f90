@@ -32,6 +32,7 @@ module environment_names
   use FPL
   use par_io_names
   use uniform_hex_mesh_generator_names
+  use timer_names
   ! Parallel modules
   use execution_context_names
   use mpi_context_names
@@ -100,6 +101,8 @@ module environment_names
      procedure :: am_i_l1_to_l2_root             => environment_am_i_l1_to_l2_root
      procedure :: am_i_l1_root                   => environment_am_i_l1_root
 
+     procedure :: create_l1_timer                => environment_create_l1_timer
+     
      procedure :: get_l2_part_id_l1_task_is_mapped_to => environment_get_l2_part_id_l1_task_is_mapped_to
 
 
@@ -149,7 +152,7 @@ module environment_names
 
 
      ! Deferred TBPs inherited from class(environment_t)
-     procedure :: info                        => environment_info
+     !procedure :: info                        => environment_info
      procedure :: am_i_l1_task                => environment_am_i_l1_task
      procedure :: l1_lgt1_bcast               => environment_l1_lgt1_bcast
      procedure :: l1_barrier                  => environment_l1_barrier
@@ -555,7 +558,8 @@ contains
     implicit none
     class(environment_t), intent(in) :: this
     logical                              :: environment_am_i_l1_root
-    environment_am_i_l1_root = (this%l1_context%get_current_task() == 0)
+    !environment_am_i_l1_root = (this%l1_context%get_current_task() == 0)
+    environment_am_i_l1_root = this%l1_context%am_i_root()
   end function environment_am_i_l1_root
 
   !=============================================================================
@@ -601,6 +605,15 @@ contains
     call this%world_context%bcast_subcontext(this%l1_context,this%lgt1_context,condition)
   end subroutine environment_l1_lgt1_bcast
 
+  !=============================================================================
+  subroutine environment_create_l1_timer(this, message, mode, timer)
+    class(environment_t)      , intent(in)    :: this
+    character(len=*)          , intent(in)    :: message
+    character(len=*), optional, intent(in)    :: mode
+    type(timer_t)             , intent(out)   :: timer
+    call timer%create(this%l1_context, message, mode)
+  end subroutine environment_create_l1_timer  
+  
   !=============================================================================
   subroutine environment_l1_sum_scalar_rp (this,alpha)
     implicit none
@@ -693,8 +706,6 @@ contains
        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        num_snd, list_snd, snd_ptrs, pack_idx,   &
        x, chunk_size)
-    use psb_const_mod_names
-    use psb_penv_mod_names
     implicit none
     class(environment_t), intent(in)    :: this
     ! Control info to receive

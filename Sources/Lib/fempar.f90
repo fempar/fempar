@@ -39,7 +39,7 @@ module fempar_names
   use parameter_generator_names
   use vtk_handler_names
   
-  use par_timer_names
+  use timer_names
   use environment_names
 
   ! Geometry

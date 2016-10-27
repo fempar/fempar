@@ -32,8 +32,6 @@ module mpi_context_names
 
   ! Parallel modules
   use execution_context_names
-  use psb_const_mod_names
-  use psb_penv_mod_names
 #ifdef MPI_MOD
   use mpi
 #endif
@@ -44,17 +42,26 @@ module mpi_context_names
 
 #include "debug.i90"
   private
+
+  
+  ! Constants that define buffer types. They must be changed if
+  ! our definitions in types.f90 changes.
+  integer, parameter :: mpi_context_ieep = mpi_integer1
+  integer, parameter :: mpi_context_ip   = mpi_integer
+  integer, parameter :: mpi_context_igp  = mpi_integer8
+  integer, parameter :: mpi_context_rp   = mpi_double_precision
+  integer, parameter :: mpi_context_lg   = mpi_logical
+  integer, parameter :: mpi_context_root = 0
+  integer, parameter :: mpi_context_tag  = 1453524 ! which number should go here?
   
   ! Parallel context
   type, extends(execution_context_t) :: mpi_context_t
      private 
-     ! The following member is an integer which identifies an initialized 
-     ! parallel context which is created and manipulated using 
-     ! our own wrappers to the MPI library (adapted from PSBLAS 2.4.0 library)
-
      ! ***IMPORTANT NOTE***: parallel contexts are always of type 
      ! integer: the kind parameter must NOT be specified. This requirement is 
      ! imposed by the underlying message-passing library, i.e., MPI. 
+     ! The same comment applies to other integers in mpi interfaces (except
+     ! buffers).
      integer :: icontxt = mpi_comm_null
    contains
      ! These functions should be non_overridable but there is a bug in gfotran
@@ -65,11 +72,14 @@ module mpi_context_names
      procedure :: free               => mpi_context_free
      procedure :: nullify            => mpi_context_nullify
      procedure :: am_i_member        => mpi_context_am_i_member
+     procedure :: am_i_root          => mpi_context_am_i_root
      procedure :: barrier            => mpi_context_barrier
+     procedure :: time               => mpi_context_time
      procedure :: sum_scalar_rp      => mpi_context_sum_scalar_rp
      procedure :: sum_vector_rp      => mpi_context_sum_vector_rp
      procedure :: max_scalar_rp      => mpi_context_max_scalar_rp
      procedure :: max_vector_rp      => mpi_context_max_vector_rp
+     procedure :: min_scalar_rp      => mpi_context_min_scalar_rp
      procedure :: scatter            => mpi_context_scatter_scalar_ip
      procedure :: gather             => mpi_context_gather_scalar_ip
      procedure :: bcast              => mpi_context_bcast_scalar_ip
@@ -90,37 +100,6 @@ module mpi_context_names
      procedure, private :: gather_to_masterv_rp_2D_array    => mpi_context_gather_to_masterv_rp_2D_array  
      procedure, private :: scatter_from_masterv_rp_1D_array => mpi_context_scatter_from_masterv_rp_1D_array
 
-     ! procedure, non_overridable :: create             => mpi_context_create
-     ! procedure, non_overridable :: assign             => mpi_context_assign
-     ! procedure, non_overridable :: split_by_condition => mpi_context_split_by_condition
-     ! procedure, non_overridable :: split_by_color     => mpi_context_split_by_color
-     ! procedure, non_overridable :: free               => mpi_context_free
-     ! procedure, non_overridable :: nullify            => mpi_context_nullify
-     ! procedure, non_overridable :: am_i_member        => mpi_context_am_i_member
-     ! procedure, non_overridable :: barrier            => mpi_context_barrier
-     ! procedure, non_overridable :: sum_scalar_rp      => mpi_context_sum_scalar_rp
-     ! procedure, non_overridable :: sum_vector_rp      => mpi_context_sum_vector_rp
-     ! procedure, non_overridable :: max_scalar_rp      => mpi_context_max_scalar_rp
-     ! procedure, non_overridable :: max_vector_rp      => mpi_context_max_vector_rp
-     ! procedure, non_overridable :: scatter            => mpi_context_scatter_scalar_ip
-     ! procedure, non_overridable :: gather             => mpi_context_gather_scalar_ip
-     ! procedure, non_overridable :: bcast              => mpi_context_bcast_scalar_ip
-     ! procedure, non_overridable :: bcast_subcontext   => mpi_context_bcast_subcontext
-     ! procedure, non_overridable, private :: neighbours_exchange_rp                   => mpi_context_neighbours_exchange_rp                 
-     ! procedure, non_overridable, private :: neighbours_exchange_ip                   => mpi_context_neighbours_exchange_ip                 
-     ! procedure, non_overridable, private :: neighbours_exchange_igp                  => mpi_context_neighbours_exchange_igp                
-     ! procedure, non_overridable, private :: neighbours_exchange_single_ip            => mpi_context_neighbours_exchange_single_ip          
-     ! procedure, non_overridable, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_context_neighbours_exchange_wo_pack_unpack_ieep
-     ! procedure, non_overridable, private :: root_send_master_rcv_ip          => mpi_context_root_send_master_rcv_ip
-     ! procedure, non_overridable, private :: root_send_master_rcv_ip_1D_array => mpi_context_root_send_master_rcv_ip_1D_array
-     ! procedure, non_overridable, private :: gather_to_master_ip              => mpi_context_gather_to_master_ip            
-     ! procedure, non_overridable, private :: gather_to_master_igp             => mpi_context_gather_to_master_igp           
-     ! procedure, non_overridable, private :: gather_to_master_ip_1D_array     => mpi_context_gather_to_master_ip_1D_array   
-     ! procedure, non_overridable, private :: gather_to_masterv_ip_1D_array    => mpi_context_gather_to_masterv_ip_1D_array  
-     ! procedure, non_overridable, private :: gather_to_masterv_igp_1D_array   => mpi_context_gather_to_masterv_igp_1D_array 
-     ! procedure, non_overridable, private :: gather_to_masterv_rp_1D_array    => mpi_context_gather_to_masterv_rp_1D_array  
-     ! procedure, non_overridable, private :: gather_to_masterv_rp_2D_array    => mpi_context_gather_to_masterv_rp_2D_array  
-     ! procedure, non_overridable, private :: scatter_from_masterv_rp_1D_array => mpi_context_scatter_from_masterv_rp_1D_array
   end type mpi_context_t
 
   ! Types
@@ -131,14 +110,19 @@ contains
   !=============================================================================
   subroutine mpi_context_assign(this, that)
     implicit none 
-    class(mpi_context_t), intent(inout) :: this
+    class(mpi_context_t)      , intent(inout) :: this
     class(execution_context_t), intent(in)    :: that
-    integer  :: current_task,num_tasks
+    integer  :: current_task, num_tasks, istat
     call this%free(finalize=.false.)
     select type(that)
     type is(mpi_context_t)
-       call psb_init ( this%icontxt, basectxt=that%icontxt)
-       call psb_info ( this%icontxt, current_task, num_tasks)
+       ! Uncomment the following line for maximum checking
+       ! call mpi_initialized(initialized,info); check((initialized).and.(info == mpi_success))
+       assert(that%icontxt/=mpi_comm_null)
+       call mpi_comm_dup(that%icontxt,this%icontxt,istat) ; check(istat == mpi_success)
+       assert(this%icontxt/=mpi_comm_null)
+       call mpi_comm_size(this%icontxt,num_tasks,istat)   ; check(istat == mpi_success)
+       call mpi_comm_rank(this%icontxt,current_task,istat); check(istat == mpi_success)
        assert(current_task==that%get_current_task())
        assert(num_tasks==that%get_num_tasks())
        call this%set_current_task(current_task)
@@ -152,10 +136,15 @@ contains
   subroutine mpi_context_create ( this )
     implicit none 
     class(mpi_context_t), intent(inout) :: this
-    integer  :: current_task,num_tasks
+    integer :: current_task, num_tasks,istat
+    logical :: initialized
     call this%free(finalize=.false.)
-    call psb_init ( this%icontxt )
-    call psb_info ( this%icontxt, current_task, num_tasks)
+    call mpi_initialized(initialized,istat); check((.not.initialized).and.(istat == mpi_success))
+    call mpi_init(istat); check(istat == mpi_success)
+    call mpi_comm_dup(mpi_comm_world,this%icontxt,istat); check(istat == mpi_success)
+    assert(this%icontxt/=mpi_comm_null)
+    call mpi_comm_size(this%icontxt,num_tasks,istat)    ; check(istat == mpi_success)
+    call mpi_comm_rank(this%icontxt,current_task,istat) ; check(istat == mpi_success)
     call this%set_current_task(current_task)
     call this%set_num_tasks(num_tasks)
   end subroutine mpi_context_create
@@ -166,9 +155,8 @@ contains
     class(mpi_context_t), intent(in)    :: this
     integer             , intent(in)    :: color
     class(execution_context_t), allocatable , intent(inout) :: new_subcontext
-    integer             , parameter     :: key=0
-    integer  :: istat,my_color
-    integer  :: current_task,num_tasks
+    integer, parameter :: key=0
+    integer :: istat, my_color, current_task,num_tasks
 
     if(color==undefined_color) then
        my_color = mpi_undefined
@@ -184,12 +172,16 @@ contains
 
     select type(new_subcontext)
     type is(mpi_context_t)
-       call mpi_comm_split(this%icontxt, my_color, key, new_subcontext%icontxt, istat)
-       assert ( istat == mpi_success )
-       call psb_info ( new_subcontext%icontxt, current_task, num_tasks)
+       call mpi_comm_split(this%icontxt, my_color, key, new_subcontext%icontxt, istat);  assert ( istat == mpi_success )
+       if(new_subcontext%icontxt/=mpi_comm_null) then
+          call mpi_comm_size(new_subcontext%icontxt,num_tasks,istat)    ; check(istat == mpi_success)
+          call mpi_comm_rank(new_subcontext%icontxt,current_task,istat) ; check(istat == mpi_success)
+       else
+          current_task = -1
+          num_tasks = -1
+       end if
        call new_subcontext%set_current_task(current_task)
        call new_subcontext%set_num_tasks(num_tasks)
- 
     class default
        check(.false.)
     end select
@@ -222,18 +214,29 @@ contains
        select type(subcontext2)
        type is(mpi_context_t)
           if ( in_subcontext1 ) then
-             call mpi_comm_split(this%icontxt, 1, key, subcontext1%icontxt, istat)
+             call mpi_comm_split(this%icontxt, 1, key, subcontext1%icontxt, istat); assert ( istat == mpi_success )
              call subcontext2%nullify()
           else
-             call mpi_comm_split(this%icontxt, 2, key, subcontext2%icontxt, istat)
+             call mpi_comm_split(this%icontxt, 2, key, subcontext2%icontxt, istat); assert ( istat == mpi_success )
              call subcontext1%nullify()
           end if
-          assert ( istat == mpi_success )
-          call psb_info ( subcontext1%icontxt, current_task, num_tasks)
+          if(subcontext1%icontxt/=mpi_comm_null) then
+             call mpi_comm_size(subcontext1%icontxt,num_tasks,istat)    ; check(istat == mpi_success)
+             call mpi_comm_rank(subcontext1%icontxt,current_task,istat) ; check(istat == mpi_success)
+          else
+             num_tasks = -1
+             current_task = -1
+          end if
           call subcontext1%set_current_task(current_task)
           call subcontext1%set_num_tasks(num_tasks)
           
-          call psb_info ( subcontext2%icontxt, current_task, num_tasks)
+          if(subcontext2%icontxt/=mpi_comm_null) then
+             call mpi_comm_size(subcontext2%icontxt,num_tasks,istat)    ; check(istat == mpi_success)
+             call mpi_comm_rank(subcontext2%icontxt,current_task,istat) ; check(istat == mpi_success)
+          else
+             num_tasks = -1
+             current_task = -1
+          end if
           call subcontext2%set_current_task(current_task)
           call subcontext2%set_num_tasks(num_tasks)
 
@@ -247,16 +250,19 @@ contains
   end subroutine mpi_context_split_by_condition
 
   !=============================================================================
-  ! Frees the memory related to the communication object underlying "this"
-  ! and finalizes the underlying message-passing library (i.e., MPI) if 
-  ! finalize == .true. 
   subroutine mpi_context_free ( p_context, finalize  )
     implicit none 
-    ! Parameters
     class(mpi_context_t)            , intent(inout) :: p_context
     logical                         , intent(in)    :: finalize
-
-    if(p_context%icontxt/=mpi_comm_null) call psb_exit ( p_context%icontxt, finalize )
+    integer(ip) :: istat
+    
+    if(p_context%icontxt/=mpi_comm_null.and.p_context%icontxt/=mpi_comm_world) then
+       call mpi_comm_free(p_context%icontxt,istat); check(istat == mpi_success)
+    end if
+    
+    if(finalize) then
+       call mpi_finalize(istat); check(istat == mpi_success)
+    end if
 
     p_context%icontxt=mpi_comm_null
     call p_context%set_current_task(-1)
@@ -268,14 +274,10 @@ contains
   subroutine mpi_context_nullify ( this )
     implicit none 
     class(mpi_context_t), intent(inout) :: this
-    integer  :: current_task,num_tasks
-
     call this%free(finalize=.false.)
     this%icontxt = mpi_comm_null
-    call psb_info ( this%icontxt, current_task, num_tasks)
-    call this%set_current_task(current_task)
-    call this%set_num_tasks(num_tasks)
-
+    call this%set_current_task(-1)
+    call this%set_num_tasks(-1)
   end subroutine mpi_context_nullify
 
   !=============================================================================
@@ -287,21 +289,38 @@ contains
   end function mpi_context_am_i_member
 
   !=============================================================================
+  pure function mpi_context_am_i_root(this)
+    implicit none
+    class(mpi_context_t), intent(in) :: this
+    logical                          :: mpi_context_am_i_root
+    mpi_context_am_i_root = (this%get_current_task()==0)
+  end function mpi_context_am_i_root
+
+  !=============================================================================
   subroutine mpi_context_barrier(this)
     implicit none 
     class(mpi_context_t), intent(in) :: this
-    integer :: mpi_comm_p, ierr
-    call psb_get_mpicomm (this%icontxt, mpi_comm_p)
-    call mpi_barrier ( mpi_comm_p, ierr)
-    check ( ierr == mpi_success )
+    integer :: istat
+    call mpi_barrier ( this%icontxt, istat); check ( istat == mpi_success )
   end subroutine mpi_context_barrier
+
+  !=============================================================================
+  function mpi_context_time(this)
+    implicit none 
+    class(mpi_context_t), intent(in) :: this
+    real(rp) :: mpi_context_time
+    mpi_context_time =  mpi_wtime ()
+  end function mpi_context_time
 
   !=============================================================================
   subroutine mpi_context_sum_scalar_rp (this,alpha)
     implicit none
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha
-    call psb_sum(this%icontxt, alpha)
+    integer  :: istat
+    real(rp) :: dat
+    call mpi_allreduce(alpha,dat,1,mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
+    alpha = dat
   end subroutine mpi_context_sum_scalar_rp
 
   !=============================================================================
@@ -309,7 +328,11 @@ contains
     implicit none
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha(:) 
-    call psb_sum(this%icontxt, alpha)
+    integer  :: istat
+    real(rp), allocatable :: dat(:)
+    call memalloc(size(alpha),dat,__FILE__,__LINE__)
+    dat = alpha
+    call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_sum_vector_rp
 
   !=============================================================================
@@ -317,7 +340,10 @@ contains
     implicit none
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha
-    call psb_max(this%icontxt, alpha)
+    integer  :: istat
+    real(rp) :: dat
+    call mpi_allreduce(alpha,dat,1,mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
+    alpha = dat
   end subroutine mpi_context_max_scalar_rp
 
   !=============================================================================
@@ -325,22 +351,34 @@ contains
     implicit none
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha(:) 
-    call psb_max(this%icontxt, alpha)
+    integer  :: istat
+    real(rp), allocatable :: dat(:)
+    call memalloc(size(alpha),dat,__FILE__,__LINE__)
+    dat = alpha
+    call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_max_vector_rp
+
+  !=============================================================================
+  subroutine mpi_context_min_scalar_rp (this,alpha)
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha
+    integer  :: istat
+    real(rp) :: dat
+    call mpi_allreduce(alpha,dat,1,mpi_context_rp,mpi_min,this%icontxt,istat); check ( istat == mpi_success )
+    alpha = dat
+  end subroutine mpi_context_min_scalar_rp
 
   !=============================================================================
   subroutine mpi_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
     implicit none
-    class(mpi_context_t) , intent(in)    :: this
+    class(mpi_context_t)       , intent(in)    :: this
     class(execution_context_t) , intent(in)    :: subcontxt1
     class(execution_context_t) , intent(in)    :: subcontxt2
-    logical              , intent(inout) :: condition
+    logical                    , intent(inout) :: condition
+    integer :: recv_rank, send_rank, istat
 
-    integer(ip) :: recv_rank
-    integer(ip) :: send_rank
-    integer :: mpi_comm, info
-
-    send_rank = psb_root_
+    send_rank = mpi_context_root
     if(subcontxt1%am_i_member()) then
        recv_rank = subcontxt1%get_num_tasks()
     else if(subcontxt2%am_i_member()) then
@@ -348,17 +386,17 @@ contains
     end if
 
     if(this%get_current_task()==send_rank) then
-       call psb_snd(this%icontxt, condition, recv_rank)
+       call mpi_send(condition, 1, mpi_context_lg, recv_rank,  &
+               & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
     else if(this%get_current_task()==recv_rank) then
-       call psb_rcv(this%icontxt, condition, send_rank)
+       call mpi_recv(condition, 1, mpi_context_lg, send_rank,  &
+               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
     end if
 
     select type(subcontxt2)
     type is(mpi_context_t)
        if(subcontxt2%am_i_member()) then
-          call psb_get_mpicomm (subcontxt2%icontxt, mpi_comm)
-          call mpi_bcast(condition,1,MPI_LOGICAL,psb_root_,mpi_comm,info)
-          check( info == mpi_success )
+          call mpi_bcast(condition,1,mpi_context_lg,mpi_context_root,subcontxt2%icontxt,istat); check( istat == mpi_success )
        end if
     class default
        check(.false.)
@@ -373,8 +411,6 @@ contains
        &                                          num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
        &                                          alpha, beta, x)
-    ! use psb_const_mod_names
-    ! use psb_penv_mod_names
     implicit none
     class(mpi_context_t), intent(in) :: this
 
@@ -391,10 +427,8 @@ contains
     real(rp), intent(inout) :: x(:)
 
     ! Communication related locals 
-    integer :: my_pid, i, proc_to_comm, sizmsg
-    integer :: the_mpi_comm,  iret
+    integer :: i, proc_to_comm, sizmsg, istat
     integer :: p2pstat(mpi_status_size)
-    integer :: icontxt
 
     ! Request handlers for non-blocking receives
     integer, allocatable :: rcvhd(:)
@@ -404,8 +438,6 @@ contains
 
     real(rp), allocatable :: sndbuf(:) 
     real(rp), allocatable :: rcvbuf(:)
-
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
 
     call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
     call memalloc (num_snd, sndhd, __FILE__,__LINE__)
@@ -418,52 +450,43 @@ contains
 
     ! First post all the non blocking receives   
     do i=1, num_rcv
-       proc_to_comm = list_rcv(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_rcv(i) - 1 
 
        ! Message size to be received
        sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
 
        if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
           call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
-               &  psb_mpi_real, proc_to_comm, &
-               &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
-          check ( iret == mpi_success )
+               &  mpi_context_rp, proc_to_comm, &
+               &  mpi_context_tag, this%icontxt, rcvhd(i), istat)
+          check ( istat == mpi_success )
        end if
     end do
 
     ! Secondly post all non-blocking sends
     do i=1, num_snd
-       proc_to_comm = list_snd(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_snd(i) - 1
 
        ! Message size to be sent
        sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
 
        if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
           call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
-               & psb_mpi_real, proc_to_comm,    &
-               & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
-          check ( iret == mpi_success )
+               & mpi_context_rp, proc_to_comm,    &
+               & mpi_context_tag, this%icontxt, sndhd(i), istat)
+          check ( istat == mpi_success )
        end if
     end do
 
     ! Wait on all non-blocking receives
     do i=1, num_rcv
-       proc_to_comm = list_rcv(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_rcv(i) - 1
 
        ! Message size to be received
        sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
 
        if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
-          call mpi_wait(rcvhd(i), p2pstat, iret)
+          call mpi_wait(rcvhd(i), p2pstat, istat)
 
        else if ( list_rcv(i)-1 == this%get_current_task() ) then
           if ( sizmsg /= snd_ptrs(i+1)-snd_ptrs(i) ) then 
@@ -478,17 +501,14 @@ contains
 
     ! Finally wait on all non-blocking sends
     do i=1, num_snd
-       proc_to_comm = list_snd(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_snd(i) - 1 
 
        ! Message size to be received
        sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
 
        if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then
-          call mpi_wait(sndhd(i), p2pstat, iret)
-          check ( iret == mpi_success )
+          call mpi_wait(sndhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
        end if
     end do
 
@@ -510,8 +530,6 @@ contains
        &                                          num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
        &                                          x,chunk_size)
-    ! use psb_const_mod_names
-    ! use psb_penv_mod_names
     implicit none
     class(mpi_context_t), intent(in)    :: this
     ! Control info to receive
@@ -525,10 +543,8 @@ contains
     integer(ip)   , optional, intent(in)    :: chunk_size
 
     ! Communication related locals 
-    integer :: my_pid, i, proc_to_comm, sizmsg
-    integer :: the_mpi_comm,  iret
+    integer :: i, proc_to_comm, sizmsg, istat
     integer :: p2pstat(mpi_status_size)
-    integer :: icontxt
 
     ! Request handlers for non-blocking receives
     integer, allocatable :: rcvhd(:)
@@ -548,8 +564,6 @@ contains
        chunk_size_ = 1
     end if
 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-
     call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
     call memalloc (num_snd, sndhd, __FILE__,__LINE__)
 
@@ -561,53 +575,44 @@ contains
 
     ! First post all the non blocking receives   
     do i=1, num_rcv
-       proc_to_comm = list_rcv(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_rcv(i) - 1 
 
        ! Message size to be received
        sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*chunk_size_
 
        if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
           call mpi_irecv(  rcvbuf((rcv_ptrs(i)-1)*chunk_size_+1), sizmsg,        &
-               &  psb_mpi_integer, proc_to_comm, &
-               &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
-          check ( iret == mpi_success )
+               &  mpi_context_ip, proc_to_comm, &
+               &  mpi_context_tag, this%icontxt, rcvhd(i), istat)
+          check ( istat == mpi_success )
        end if
     end do
 
     ! Secondly post all non-blocking sends
     do i=1, num_snd
-       proc_to_comm = list_snd(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_snd(i) - 1
 
        ! Message size to be sent
        sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_
 
        if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
           call mpi_isend(sndbuf((snd_ptrs(i)-1)*chunk_size_+1), sizmsg, &
-               & psb_mpi_integer, proc_to_comm,    &
-               & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
-          check ( iret == mpi_success )
+               & mpi_context_ip, proc_to_comm,    &
+               & mpi_context_tag, this%icontxt, sndhd(i), istat)
+          check ( istat == mpi_success )
        end if
     end do
 
     ! Wait on all non-blocking receives
     do i=1, num_rcv
-       proc_to_comm = list_rcv(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_rcv(i) - 1
 
        ! Message size to be received
        sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*chunk_size_
 
        if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
-          call mpi_wait(rcvhd(i), p2pstat, iret)
-          check ( iret == mpi_success )
+          call mpi_wait(rcvhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
        else if ( list_rcv(i)-1 == this%get_current_task() ) then
           if ( sizmsg /= (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_ ) then 
              write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
@@ -621,17 +626,14 @@ contains
 
     ! Finally wait on all non-blocking sends
     do i=1, num_snd
-       proc_to_comm = list_snd(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_snd(i) - 1
 
        ! Message size to be received
        sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_
 
        if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then
-          call mpi_wait(sndhd(i), p2pstat, iret)
-          check ( iret == mpi_success )
+          call mpi_wait(sndhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
        end if
     end do
 
@@ -663,10 +665,8 @@ contains
     integer(ip)   , optional, intent(in)    :: chunk_size
 
     ! Communication related locals 
-    integer :: my_pid, i, proc_to_comm, sizmsg
-    integer :: the_mpi_comm,  iret
+    integer :: i, proc_to_comm, sizmsg, istat
     integer :: p2pstat(mpi_status_size)
-    integer :: icontxt
 
     ! Request handlers for non-blocking receives
     integer, allocatable :: rcvhd(:)
@@ -685,8 +685,6 @@ contains
        chunk_size_ = 1
     end if
 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-
     call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
     call memalloc (num_snd, sndhd, __FILE__,__LINE__)
 
@@ -698,53 +696,44 @@ contains
 
     ! First post all the non blocking receives   
     do i=1, num_rcv
-       proc_to_comm = list_rcv(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_rcv(i) - 1
 
        ! Message size to be received
        sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*chunk_size_
 
        if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
           call mpi_irecv(  rcvbuf((rcv_ptrs(i)-1)*chunk_size_+1), sizmsg,        &
-               &  psb_mpi_long_integer, proc_to_comm, &
-               &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
-          check ( iret == mpi_success )
+               &  mpi_context_igp, proc_to_comm, &
+               &  mpi_context_tag, this%icontxt, rcvhd(i), istat)
+          check ( istat == mpi_success )
        end if
     end do
 
     ! Secondly post all non-blocking sends
     do i=1, num_snd
-       proc_to_comm = list_snd(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_snd(i) - 1
 
        ! Message size to be sent
        sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_
 
        if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
           call mpi_isend(sndbuf((snd_ptrs(i)-1)*chunk_size_+1), sizmsg, &
-               & psb_mpi_long_integer, proc_to_comm,    &
-               & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
-          check ( iret == mpi_success )
+               & mpi_context_igp, proc_to_comm,    &
+               & mpi_context_tag, this%icontxt, sndhd(i), istat)
+          check ( istat == mpi_success )
        end if
     end do
 
     ! Wait on all non-blocking receives
     do i=1, num_rcv
-       proc_to_comm = list_rcv(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_rcv(i) - 1
 
        ! Message size to be received
        sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*chunk_size_
 
        if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
-          call mpi_wait(rcvhd(i), p2pstat, iret)
-          check ( iret == mpi_success )
+          call mpi_wait(rcvhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
        else if ( list_rcv(i)-1 == this%get_current_task() ) then
           if ( sizmsg /= (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_ ) then 
              write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
@@ -758,17 +747,14 @@ contains
 
     ! Finally wait on all non-blocking sends
     do i=1, num_snd
-       proc_to_comm = list_snd(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = list_snd(i) - 1
 
        ! Message size to be received
        sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_
 
        if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then
-          call mpi_wait(sndhd(i), p2pstat, iret)
-          check ( iret == mpi_success )
+          call mpi_wait(sndhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
        end if
     end do
 
@@ -788,8 +774,6 @@ contains
        &                                                    list_neighbours, &
        &                                                    input_data,&
        &                                                    output_data)
-    !use psb_const_mod_names
-    !use psb_penv_mod_names
     implicit none
     class(mpi_context_t), intent(in) :: this
 
@@ -860,10 +844,8 @@ contains
     integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(number_neighbours+1)-1)
 
     ! Communication related locals 
-    integer(ip) :: icontxt 
-    integer     :: my_pid, proc_to_comm, sizmsg
-    integer     :: the_mpi_comm,  iret
-    integer     :: p2pstat(mpi_status_size)
+    integer :: i, proc_to_comm, sizmsg, istat
+    integer :: p2pstat(mpi_status_size)
 
     ! Request handlers for non-blocking receives
     integer, allocatable, dimension(:) :: rcvhd
@@ -871,62 +853,49 @@ contains
     ! Request handlers for non-blocking receives
     integer, allocatable, dimension(:) :: sndhd
 
-    integer(ip) :: i
-
     call memalloc (number_neighbours, rcvhd, __FILE__,__LINE__)
     call memalloc (number_neighbours, sndhd, __FILE__,__LINE__)
 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-
     ! First post all the non blocking receives   
     do i=1, number_neighbours
-       proc_to_comm = neighbour_ids(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be received
        sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
 
        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= this%get_current_task()) ) then
           call mpi_irecv(  rcv_buf(rcv_ptrs(i)), sizmsg, &
-               &  psb_mpi_integer1, proc_to_comm, &
-               &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
-          check ( iret == mpi_success )
+               &  mpi_context_ieep, proc_to_comm, &
+               &  mpi_context_tag, this%icontxt, rcvhd(i), istat)
+          check ( istat == mpi_success )
        end if
     end do
 
     ! Secondly post all non-blocking sends
     do i=1, number_neighbours
-       proc_to_comm = neighbour_ids(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be sent
        sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
 
        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= this%get_current_task()) ) then 
           call mpi_isend(snd_buf(snd_ptrs(i)), sizmsg, &
-               & psb_mpi_integer1, proc_to_comm, &
-               & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
-          check ( iret == mpi_success )
+               & mpi_context_ieep, proc_to_comm, &
+               & mpi_context_tag, this%icontxt, sndhd(i), istat)
+          check ( istat == mpi_success )
        end if
     end do
 
     ! Wait on all non-blocking receives
     do i=1, number_neighbours
-       proc_to_comm = neighbour_ids(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be received
        sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
 
        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= this%get_current_task()) ) then
-          call mpi_wait(rcvhd(i), p2pstat, iret)
-          check (iret == mpi_success)
+          call mpi_wait(rcvhd(i), p2pstat, istat)
+          check (istat == mpi_success)
        else if ( neighbour_ids(i)-1 == this%get_current_task() ) then
           if ( sizmsg /= snd_ptrs(i+1)-snd_ptrs(i) ) then 
              write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
@@ -939,17 +908,14 @@ contains
 
     ! Finally wait on all non-blocking sends
     do i=1, number_neighbours
-       proc_to_comm = neighbour_ids(i)
-
-       ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-       call psb_get_rank (proc_to_comm, this%icontxt, proc_to_comm-1)
+       proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be received
        sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
 
        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= this%get_current_task()) ) then
-          call mpi_wait(sndhd(i), p2pstat, iret)
-          check ( iret == mpi_success )
+          call mpi_wait(sndhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
        end if
     end do
 
@@ -964,10 +930,9 @@ contains
     class(mpi_context_t), intent(in)   :: this
     integer(ip)         , intent(in)   :: input_data
     integer(ip)         , intent(out)  :: output_data(:) ! (this%get_num_tasks())
-    integer     :: the_mpi_comm, iret
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, psb_root_, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    integer  ::  istat
+    call mpi_gather( input_data, 1, mpi_context_ip, output_data, 1, mpi_context_ip, mpi_context_root, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_gather_scalar_ip
 
   !=============================================================================
@@ -976,18 +941,18 @@ contains
     class(mpi_context_t), intent(in)   :: this
     integer(ip)             , intent(in)   :: input_data(:) ! (this%get_num_tasks())
     integer(ip)             , intent(out)  :: output_data
-    integer     :: the_mpi_comm, iret
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_scatter( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, psb_root_, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    integer  ::  istat
+    call mpi_scatter( input_data, 1, mpi_context_ip, output_data, 1, mpi_context_ip, mpi_context_root, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_scatter_scalar_ip
 
   !=============================================================================
   subroutine mpi_context_bcast_scalar_ip ( this, data )
     implicit none
     class(mpi_context_t), intent(in)    :: this
-    integer(ip)             , intent(inout) :: data
-    call psb_bcast ( this%icontxt, data, root=psb_root_)
+    integer(ip)         , intent(inout) :: data
+    integer  ::  istat
+    call mpi_bcast(data,1,mpi_context_ip,mpi_context_root,this%icontxt,istat); check( istat == mpi_success )
   end subroutine mpi_context_bcast_scalar_ip
 
   !=============================================================================
@@ -1156,16 +1121,17 @@ contains
     class(mpi_context_t), intent(in)      :: this
     integer(ip)         , intent(in)      :: input_data
     integer(ip)         , intent(inout)   :: output_data
-    integer(ip) :: recv_rank
-    integer(ip) :: send_rank
-    send_rank = psb_root_
+    integer :: send_rank, recv_rank, istat
+    send_rank = mpi_context_root
     recv_rank = this%get_num_tasks()-1
-    if ( this%get_current_task() == send_rank ) then
-       call psb_snd(this%icontxt, input_data, recv_rank)
-    else if (this%get_current_task() == recv_rank) then
-       call psb_rcv(this%icontxt, output_data, send_rank)
+    if(this%get_current_task()==send_rank) then
+       call mpi_send(input_data, 1, mpi_context_ip, recv_rank,  &
+               & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
+    else if(this%get_current_task()==recv_rank) then
+       call mpi_recv(output_data, 1, mpi_context_ip, send_rank,  &
+               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
     end if
-  end subroutine mpi_context_root_send_master_rcv_ip
+    end subroutine mpi_context_root_send_master_rcv_ip
 
   !=============================================================================
   subroutine mpi_context_root_send_master_rcv_ip_1D_array ( this, input_data, output_data )
@@ -1173,14 +1139,15 @@ contains
     class(mpi_context_t), intent(in)      :: this
     integer(ip)         , intent(in)      :: input_data(:)
     integer(ip)         , intent(inout)   :: output_data(:)
-    integer(ip) :: recv_rank
-    integer(ip) :: send_rank
-    send_rank = psb_root_
-    recv_rank = this%get_num_tasks()-1 
-    if ( this%get_current_task() == send_rank ) then
-       call psb_snd(this%icontxt, input_data, recv_rank)
-    else if (this%get_current_task() == recv_rank) then
-       call psb_rcv(this%icontxt, output_data, send_rank)
+    integer :: send_rank, recv_rank, istat
+    send_rank = mpi_context_root
+    recv_rank = this%get_num_tasks()-1
+    if(this%get_current_task()==send_rank) then
+       call mpi_send(input_data, size(input_data), mpi_context_ip, recv_rank,  &
+               & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
+    else if(this%get_current_task()==recv_rank) then
+       call mpi_recv(output_data, size(output_data), mpi_context_ip, send_rank,  &
+               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
     end if
   end subroutine mpi_context_root_send_master_rcv_ip_1D_array
 
@@ -1189,42 +1156,38 @@ contains
   subroutine mpi_context_gather_to_master_ip ( this, input_data, output_data )
     implicit none
     class(mpi_context_t), intent(in)   :: this
-    integer(ip)             , intent(in)   :: input_data
-    integer(ip)             , intent(out)  :: output_data(:) ! (this%get_num_tasks())
-    integer                :: the_mpi_comm, iret, root
-    root    = this%get_num_tasks() - 1 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    integer(ip)         , intent(in)   :: input_data
+    integer(ip)         , intent(out)  :: output_data(:) ! (this%get_num_tasks())
+    integer  :: istat, master
+    master = this%get_num_tasks() - 1 
+    call mpi_gather( input_data, 1, mpi_context_ip, output_data, 1, mpi_context_ip, master, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_gather_to_master_ip
 
   !=============================================================================
   subroutine mpi_context_gather_to_master_igp ( this, input_data, output_data )
     implicit none
     class(mpi_context_t), intent(in)   :: this
-    integer(igp)            , intent(in)   :: input_data
-    integer(igp)            , intent(out)  :: output_data(:) ! (this%get_num_tasks())
-    integer                :: the_mpi_comm, iret, root
-    root    = this%get_num_tasks() - 1 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_gather( input_data, 1, psb_mpi_long_integer, output_data, 1, psb_mpi_long_integer, root, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    integer(igp)        , intent(in)   :: input_data
+    integer(igp)        , intent(out)  :: output_data(:) ! (this%get_num_tasks())
+    integer ::  istat, master
+    master = this%get_num_tasks() - 1 
+    call mpi_gather( input_data, 1, mpi_context_igp, output_data, 1, mpi_context_igp, master, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_gather_to_master_igp
 
   !=============================================================================
   subroutine mpi_context_gather_to_master_ip_1D_array ( this, input_data_size, input_data, output_data )
     implicit none
     class(mpi_context_t), intent(in)   :: this
-    integer(ip)             , intent(in)   :: input_data_size
-    integer(ip)             , intent(in)   :: input_data(input_data_size)
-    integer(ip)             , intent(out)  :: output_data(:)
-    integer                :: the_mpi_comm, iret, root
-    root    = this%get_num_tasks() - 1 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_gather( input_data,  input_data_size, psb_mpi_integer, &
-         output_data, input_data_size, psb_mpi_integer, &
-         root, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    integer(ip)         , intent(in)   :: input_data_size
+    integer(ip)         , intent(in)   :: input_data(input_data_size)
+    integer(ip)         , intent(out)  :: output_data(:)
+    integer ::  istat, master
+    master    = this%get_num_tasks() - 1 
+    call mpi_gather( input_data,  input_data_size, mpi_context_ip, &
+         & output_data, input_data_size, mpi_context_ip, master, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_gather_to_master_ip_1D_array
 
   !=============================================================================
@@ -1236,84 +1199,74 @@ contains
     integer(ip)             , intent(in)   :: recv_counts(:) ! (this%get_num_tasks())
     integer(ip)             , intent(in)   :: displs(:) ! (this%get_num_tasks())
     integer(ip)             , intent(out)  :: output_data(:)
-    integer                :: the_mpi_comm, iret, root
-    root    = this%get_num_tasks() - 1 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_gatherv( input_data, input_data_size, psb_mpi_integer, &
-         output_data, recv_counts, displs, psb_mpi_integer, &
-         root, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    integer                :: istat, master
+    master    = this%get_num_tasks() - 1 
+    call mpi_gatherv( input_data, input_data_size, mpi_context_ip, &
+         & output_data, recv_counts, displs, mpi_context_ip, master, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_gather_to_masterv_ip_1D_array
 
   !=============================================================================
   subroutine mpi_context_gather_to_masterv_igp_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
     implicit none
     class(mpi_context_t), intent(in)   :: this
-    integer(ip)             , intent(in)   :: input_data_size
-    integer(igp)            , intent(in)   :: input_data(input_data_size)
-    integer(ip)             , intent(in)   :: recv_counts(:) ! (this%get_num_tasks())
-    integer(ip)             , intent(in)   :: displs(:) ! (this%get_num_tasks())
-    integer(igp)            , intent(out)  :: output_data(:)
-    integer                :: the_mpi_comm, iret, root
-    root    = this%get_num_tasks() - 1 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_gatherv( input_data, input_data_size, psb_mpi_long_integer, &
-         output_data, recv_counts, displs, psb_mpi_long_integer, &
-         root, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    integer(ip)         , intent(in)   :: input_data_size
+    integer(igp)        , intent(in)   :: input_data(input_data_size)
+    integer(ip)         , intent(in)   :: recv_counts(:) ! (this%get_num_tasks())
+    integer(ip)         , intent(in)   :: displs(:) ! (this%get_num_tasks())
+    integer(igp)        , intent(out)  :: output_data(:)
+    integer :: istat, master
+    master    = this%get_num_tasks() - 1 
+    call mpi_gatherv( input_data, input_data_size, mpi_context_igp, &
+         & output_data, recv_counts, displs, mpi_context_igp, master, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_gather_to_masterv_igp_1D_array
 
   !=============================================================================
   subroutine mpi_context_gather_to_masterv_rp_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
     implicit none
     class(mpi_context_t), intent(in)   :: this
-    integer(ip)             , intent(in)   :: input_data_size
-    real(rp)                , intent(in)   :: input_data(input_data_size)
-    integer(ip)             , intent(in)   :: recv_counts(:) ! (this%get_num_tasks())
-    integer(ip)             , intent(in)   :: displs(:) ! (this%get_num_tasks())
-    real(rp)                , intent(out)  :: output_data(:)
-    integer                :: the_mpi_comm, iret, root
-    root    = this%get_num_tasks() - 1 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_gatherv( input_data , input_data_size, psb_mpi_real, &
-         output_data, recv_counts, displs, psb_mpi_real, &
-         root, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    integer(ip)         , intent(in)   :: input_data_size
+    real(rp)            , intent(in)   :: input_data(input_data_size)
+    integer(ip)         , intent(in)   :: recv_counts(:) ! (this%get_num_tasks())
+    integer(ip)         , intent(in)   :: displs(:) ! (this%get_num_tasks())
+    real(rp)            , intent(out)  :: output_data(:)
+    integer :: istat, master
+    master = this%get_num_tasks() - 1 
+    call mpi_gatherv( input_data , input_data_size, mpi_context_rp, &
+         & output_data, recv_counts, displs, mpi_context_rp, master, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_gather_to_masterv_rp_1D_array
 
   !=============================================================================
   subroutine mpi_context_gather_to_masterv_rp_2D_array ( this, input_data, recv_counts, displs, output_data )
     implicit none
     class(mpi_context_t), intent(in)   :: this
-    real(rp)                , intent(in)   :: input_data(:,:)
-    integer(ip)             , intent(in)   :: recv_counts(:) ! (this%get_num_tasks())
-    integer(ip)             , intent(in)   :: displs(:) ! (this%get_num_tasks())
-    real(rp)                , intent(out)  :: output_data(:)
-    integer                :: the_mpi_comm, iret, root
-    root    = this%get_num_tasks() - 1 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_gatherv( input_data , size(input_data,1)*size(input_data,2), psb_mpi_real, &
-         output_data, recv_counts, displs, psb_mpi_real, &
-         root, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    real(rp)            , intent(in)   :: input_data(:,:)
+    integer(ip)         , intent(in)   :: recv_counts(:) ! (this%get_num_tasks())
+    integer(ip)         , intent(in)   :: displs(:) ! (this%get_num_tasks())
+    real(rp)            , intent(out)  :: output_data(:)
+    integer :: istat, master
+    master = this%get_num_tasks() - 1 
+    call mpi_gatherv( input_data , size(input_data,1)*size(input_data,2), mpi_context_rp, &
+         & output_data, recv_counts, displs, mpi_context_rp, master, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_gather_to_masterv_rp_2D_array
 
   !=============================================================================
   subroutine mpi_context_scatter_from_masterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
     implicit none
     class(mpi_context_t), intent(in)   :: this
-    real(rp)                , intent(in)   :: input_data(:)
-    integer(ip)             , intent(in)   :: send_counts(:) ! (this%get_num_tasks())
-    integer(ip)             , intent(in)   :: displs(:) ! (this%get_num_tasks())
-    integer(ip)             , intent(in)   :: output_data_size
-    real(rp)                , intent(out)  :: output_data(output_data_size)
-    integer                :: the_mpi_comm, iret, root
-    root    = this%get_num_tasks() - 1 
-    call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_scatterv( input_data, send_counts, displs, psb_mpi_real, &
-         output_data, output_data_size, psb_mpi_real, &
-         root, the_mpi_comm, iret)
-    check( iret == mpi_success )
+    real(rp)            , intent(in)   :: input_data(:)
+    integer(ip)         , intent(in)   :: send_counts(:) ! (this%get_num_tasks())
+    integer(ip)         , intent(in)   :: displs(:) ! (this%get_num_tasks())
+    integer(ip)         , intent(in)   :: output_data_size
+    real(rp)            , intent(out)  :: output_data(output_data_size)
+    integer :: istat, master
+    master = this%get_num_tasks() - 1 
+    call mpi_scatterv( input_data, send_counts, displs, mpi_context_rp, &
+         & output_data, output_data_size, mpi_context_rp, master, this%icontxt, istat)
+    check( istat == mpi_success )
   end subroutine mpi_context_scatter_from_masterv_rp_1D_array
 
 end module mpi_context_names
