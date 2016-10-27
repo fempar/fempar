@@ -29,9 +29,9 @@ module par_pb_bddc_poisson_driver_names
   use fempar_names
   use fempar_names
   use par_pb_bddc_poisson_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_conditions_names
-  use poisson_analytical_functions_names
+  use pb_bddc_poisson_cG_discrete_integration_names
+  use pb_bddc_poisson_conditions_names
+  use pb_bddc_poisson_analytical_functions_names
   use vtk_handler_names
 # include "debug.i90"
 
@@ -51,7 +51,8 @@ module par_pb_bddc_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(H1_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     !type(H1_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -169,8 +170,11 @@ contains
        end do
     end if
     
-    call this%triangulation%setup_coarse_triangulation()
     call this%setup_cell_set_ids()
+    call this%triangulation%setup_coarse_triangulation()
+    write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
+    !call this%setup_cell_set_ids()
+    
   end subroutine setup_triangulation
   
   subroutine setup_cell_set_ids(this)
@@ -218,11 +222,44 @@ contains
     integer(ip)  , intent(in)  :: inclusion
     type(point_t) :: origin, opposite
     integer(ip) :: cell_set_id
-    cell_set_id = 0
+    integer(ip) :: i,j, nchannel
+    real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
+    real(rp) :: p1(6), p2(6)
+    cell_set_id = 1
     ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
-    call origin%set(1,0.0_rp)  ; call origin%set(2, 0.25_rp) ; call origin%set(3,0.25_rp);
-    call opposite%set(1,1.0_rp); call opposite%set(2,0.50_rp); call opposite%set(3,0.50_rp);
-    if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+    if ( inclusion == 1 ) then
+       call origin%set(1,0.0_rp)  ; call origin%set(2, 0.25_rp) ; call origin%set(3,0.25_rp);
+       call opposite%set(1,0.5_rp); call opposite%set(2,0.50_rp); call opposite%set(3,0.50_rp);
+       if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+    else if ( inclusion == 2 ) then
+       nchannel = 8
+       do i = 1, nchannel
+          j = 2*i
+          y_pos_0 = real(j-1)/real(2*nchannel+1)
+          y_pos_1 = j/real(2*nchannel+1)
+          z_pos_0 = (j-1)/real(2*nchannel+1)
+          z_pos_1 = j/real(2*nchannel+1)
+          call origin%set(1,y_pos_0)  ; call origin%set(2, y_pos_0) ; call origin%set(3,z_pos_0);
+          call opposite%set(1,1.0_rp); call opposite%set(2,y_pos_1); call opposite%set(3,z_pos_1);
+          if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+          ! 
+          z_pos_0 = j/real(2*nchannel+1)
+          z_pos_1 = (j+1)/real(2*nchannel+1)
+          call origin%set(1,y_pos_0)  ; call origin%set(2, y_pos_0) ; call origin%set(3,z_pos_0);
+          call opposite%set(1,y_pos_1); call opposite%set(2,1.0_rp); call opposite%set(3,z_pos_1);
+          if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+       end do
+    else if ( inclusion == 3 ) then
+       ! Hieu's test in PB-BDDC article (two channels)
+       p1 = [2.0_rp/36.0_rp, 7.0_rp/36.0_rp, 14.0_rp/36.0_rp, 19.0_rp/36.0_rp, 26.0_rp/36.0_rp, 30.0_rp/36.0_rp] ! lower y value
+       p2 = [4.0_rp/36.0_rp, 9.0_rp/36.0_rp, 16.0_rp/36.0_rp, 21.0_rp/36.0_rp, 28.0_rp/36.0_rp, 32.0_rp/36.0_rp] ! upper y value
+       do i = 1, 6
+          call origin%set(1,0.0_rp)  ; call origin%set(2, p1(i)) ; call origin%set(3,p1(i));
+          call opposite%set(1,1.0_rp); call opposite%set(2,p2(i)); call opposite%set(3,p2(i));
+          if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
+       end do
+    end if
+       
   end function cell_set_id
 
   function is_point_in_rectangle( origin, opposite, coord, num_dimensions )
@@ -312,7 +349,7 @@ contains
     call this%mlbddc%numerical_setup()
     
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-6_rp)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
 

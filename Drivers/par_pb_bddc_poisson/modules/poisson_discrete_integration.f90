@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_cG_discrete_integration_names
+module pb_bddc_poisson_cG_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
+  use pb_bddc_poisson_analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -126,7 +126,7 @@ contains
           ! Get subset_id
           viscosity = fe%get_set_id()
           
-          if (viscosity == 0.0_rp) viscosity = 1.0_rp
+          !if (viscosity == 0.0_rp) viscosity = 1.0_rp
           
           ! Compute element matrix and vector
           elmat = 0.0_rp
@@ -146,7 +146,7 @@ contains
              call source_term%get_value(quad_coords(qpoint),source_term_value)
              do idof = 1, num_dofs
                 call vol_int%get_value(idof, qpoint, shape_trial)
-                elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial * viscosity
+                elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial !* viscosity
              end do
           end do
           
@@ -162,4 +162,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate
   
-end module poisson_cG_discrete_integration_names
+end module pb_bddc_poisson_cG_discrete_integration_names

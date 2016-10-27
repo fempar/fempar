@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module poisson_dG_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
-  use poisson_conditions_names
+  use pb_bddc_poisson_analytical_functions_names
+  use pb_bddc_poisson_conditions_names
   
   implicit none
 # include "debug.i90"

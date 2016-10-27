@@ -864,6 +864,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end do
     
     num_subparts = cur_subpart_lid-1
+    this%number_subparts = num_subparts
    
     call memalloc ( num_subparts, touched_subparts, __FILE__, __LINE__ )
     

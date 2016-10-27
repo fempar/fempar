@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module poisson_analytical_functions_names
+module pb_bddc_poisson_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -88,7 +88,7 @@ contains
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    result = 0.0_rp 
+    result = 1.0_rp 
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -99,9 +99,9 @@ contains
     real(rp)                , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      result = point%get(1) + point%get(2) ! x+y
+      result = 0.0_rp !point%get(1) + point%get(2) ! x+y
     else if ( this%num_dimensions == 3 ) then
-      result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
+      result = 0.0_rp !point%get(1) + point%get(2) + point%get(3) ! x+y+z
     end if  
   end subroutine boundary_function_get_value_space 
 
@@ -171,5 +171,5 @@ contains
     poisson_analytical_functions_get_solution_function => this%solution_function
   end function poisson_analytical_functions_get_solution_function
 
-end module poisson_analytical_functions_names
+end module pb_bddc_poisson_analytical_functions_names
 !***************************************************************************************************

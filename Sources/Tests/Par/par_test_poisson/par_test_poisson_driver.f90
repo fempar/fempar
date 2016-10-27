@@ -29,9 +29,9 @@ module par_test_poisson_driver_names
   use fempar_names
   use fempar_names
   use par_test_poisson_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_conditions_names
-  use poisson_analytical_functions_names
+  use pb_bddc_poisson_cG_discrete_integration_names
+  use pb_bddc_poisson_conditions_names
+  use pb_bddc_poisson_analytical_functions_names
   use vtk_handler_names
 # include "debug.i90"
 

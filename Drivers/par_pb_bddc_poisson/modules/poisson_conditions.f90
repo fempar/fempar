@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_conditions_names
+module pb_bddc_poisson_conditions_names
   use fempar_names
   
   implicit none
@@ -85,4 +85,4 @@ contains
     end if  
   end subroutine poisson_conditions_get_function 
 
-end module poisson_conditions_names
+end module pb_bddc_poisson_conditions_names
