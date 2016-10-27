@@ -2,8 +2,10 @@
 # Serial and Parallel tests
 #################################################################
 
+SET(TEMP_Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
 ADD_SUBDIRECTORY(${SERIAL_TESTS_PATH})
 ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
+SET(CMAKE_Fortran_MODULE_DIRECTORY ${TEMP_Fortran_MODULE_DIRECTORY})
 
 #################################################################
 # Custom clean-Tests target
