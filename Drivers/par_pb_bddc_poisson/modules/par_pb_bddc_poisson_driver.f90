@@ -27,12 +27,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_pb_bddc_poisson_driver_names
   use fempar_names
-  use fempar_names
   use par_pb_bddc_poisson_params_names
   use pb_bddc_poisson_cG_discrete_integration_names
   use pb_bddc_poisson_conditions_names
   use pb_bddc_poisson_analytical_functions_names
-  use vtk_handler_names
 # include "debug.i90"
 
   implicit none
@@ -43,7 +41,6 @@ module par_pb_bddc_poisson_driver_names
 
      ! Place-holder for parameter-value set provided through command-line interface
      type(par_pb_bddc_poisson_params_t)      :: test_params
-     type(ParameterList_t)                :: parameter_list
 
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
@@ -71,12 +68,9 @@ module par_pb_bddc_poisson_driver_names
      type(fe_function_t)                   :: solution
 
      ! Environment required for fe_affine_operator + vtk_handler
-     type(par_context_t)                       :: w_context
-     type(par_environment_t)                   :: par_environment
+     type(environment_t), pointer          :: par_environment
    contains
      procedure                  :: run_simulation
-     procedure        , private :: setup_context
-     procedure        , private :: setup_par_environment
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_cell_set_ids
@@ -100,54 +94,7 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
-
-  subroutine setup_context(this)
-    implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    ! Initialize MPI environment
-    call this%w_context%create()
-  end subroutine setup_context
-
-  subroutine setup_par_environment(this)
-    implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-
-    integer(ip)              :: num_levels
-    integer(ip), allocatable :: parts_mapping(:)
-    integer(ip), allocatable :: num_parts_per_level(:)
-    integer(ip)              :: half_num_parts
-
-    !num_levels = 3
-    !call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
-    !call memalloc(num_levels, num_parts_per_level, __FILE__, __LINE__)
-
-    !num_parts_per_level = [ this%test_params%get_nparts(), 2, 1 ]
-    !if ( this%w_context%get_rank() < this%test_params%get_nparts() ) then
-    !  half_num_parts      = this%test_params%get_nparts()/2
-    !  parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()/half_num_parts+1, 1 ]
-    !else if ( this%w_context%get_rank() >= this%test_params%get_nparts()) then
-    !  parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()+1-this%test_params%get_nparts(), 1 ]
-    !end if
-
-    !call this%par_environment%create ( this%w_context,&
-    !                                   num_levels,&
-    !                                   num_parts_per_level,&
-    !                                   parts_mapping )
-    call this%par_environment%create(this%w_context,&
-         2,&
-         [this%test_params%get_nparts(), 1],&
-         [this%w_context%get_rank()+1,1])
-
-    !call memfree(parts_mapping, __FILE__, __LINE__)
-    !call memfree(num_parts_per_level, __FILE__, __LINE__)
-
-    !call this%par_environment%create(this%w_context,&
-    !                                 2,&
-    !                                 [this%test_params%get_nparts(), 1],&
-    !                                 [this%w_context%get_rank()+1,1])
-  end subroutine setup_par_environment
 
   subroutine setup_triangulation(this)
     implicit none
@@ -155,9 +102,10 @@ contains
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
 
-    call this%triangulation%create(this%par_environment, this%parameter_list)
+    call this%triangulation%create(this%test_params%get_parameters())
+    this%par_environment => this%triangulation%get_par_environment()
 
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        vef_iterator = this%triangulation%create_vef_iterator()
        do while ( .not. vef_iterator%has_finished() )
           call vef_iterator%current(vef)
@@ -452,27 +400,53 @@ contains
   subroutine write_solution(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
-    type(vtk_handler_t)                             :: vtk_handler
-    integer(ip)                                     :: err
-
+    type(output_handler_t)                             :: oh
+    type(fe_iterator_t)                                :: fe_iterator
+    class(base_static_triangulation_t), pointer        :: triangulation
+    type(fe_accessor_t)                                :: fe
+    real(rp), allocatable                              :: set_id_cell_vector(:)
+    integer(ip)                                        :: i
     if(this%test_params%get_write_solution()) then
-       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path(), this%test_params%get_prefix())
-       err = vtk_handler%open_vtu(); check(err==0)
-       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
-       err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
-       err = vtk_handler%close_vtu(); check(err==0)
-       err = vtk_handler%write_pvtu(); check(err==0)
-       call  vtk_handler%free()
+        call build_set_id_cell_vector()
+
+        call oh%create()
+        call oh%attach_fe_space(this%fe_space)
+        call oh%add_fe_function(this%solution, 1, 'solution')
+        call oh%add_cell_vector(set_id_cell_vector, 'set_id')
+        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+        call oh%write()
+        call oh%close()
+        call oh%free()
+        call free_set_id_cell_vector()
     endif
+
+    contains
+    
+        subroutine build_set_id_cell_vector()
+            fe_iterator = this%fe_space%create_fe_iterator()
+            triangulation => this%fe_space%get_triangulation()
+            call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
+            i = 1
+            do while (.not. fe_iterator%has_finished())
+                call fe_iterator%current(fe)
+                set_id_cell_vector(i) = fe%get_set_id()
+                call fe_iterator%next()
+                i = i + 1
+            enddo
+        end subroutine build_set_id_cell_vector
+
+        subroutine free_set_id_cell_vector()
+            call memfree(set_id_cell_vector, __FILE__, __LINE__)
+        end subroutine free_set_id_cell_vector
+
   end subroutine write_solution
+
 
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     !call this%free()
     call this%parse_command_line_parameters()
-    call this%setup_context()
-    call this%setup_par_environment()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
@@ -505,14 +479,6 @@ contains
     end if
     call this%triangulation%free()
     call this%test_params%free()
-    call this%par_environment%free() 
-    call this%w_context%free(.true.)
   end subroutine free
-
-
-
-
-
-
 
 end module par_pb_bddc_poisson_driver_names

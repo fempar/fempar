@@ -61,7 +61,7 @@ module mlbddc_names
 #endif
   
  ! Parallel communication-related data structures
- use par_environment_names
+ use environment_names
  
  implicit none
 # include "debug.i90"
@@ -241,5 +241,5 @@ contains
 #include "sbm_base_mlbddc.i90"
 #include "sbm_mlbddc.i90"
 #include "sbm_mlbddc_coarse.i90"
-  
+
 end module mlbddc_names

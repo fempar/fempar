@@ -1648,7 +1648,7 @@ function serial_fe_space_get_environment(this) result(environment)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
   class(environment_t), pointer:: environment 
-  environment => the_serial_environment 
+  environment => this%triangulation%get_par_environment()
 end function serial_fe_space_get_environment
 
 function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichlet_values)

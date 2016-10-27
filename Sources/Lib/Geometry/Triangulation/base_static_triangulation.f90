@@ -48,7 +48,7 @@ module base_static_triangulation_names
   use geometry_names
 
   ! Par modules
-  use par_environment_names
+  use environment_names
 
   implicit none
 # include "debug.i90"
@@ -117,6 +117,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_set_id              => cell_accessor_get_set_id
     procedure, non_overridable           :: get_num_vefs            => cell_accessor_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_accessor_get_num_nodes
+    procedure, non_overridable           :: get_num_vertices        => cell_accessor_get_num_vertices    
     procedure, non_overridable           :: get_node_lid            => cell_accessor_get_node_lid
     procedure, non_overridable           :: get_vef_lid             => cell_accessor_get_vef_lid
     procedure, non_overridable           :: get_vef_lids            => cell_accessor_get_vef_lids
@@ -127,7 +128,11 @@ module base_static_triangulation_names
     procedure, non_overridable           :: is_local                => cell_accessor_is_local
     procedure, non_overridable           :: is_ghost                => cell_accessor_is_ghost
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_accessor_get_scan_sum_number_vefs
-    procedure, non_overridable           :: fill_nodes_on_vertices  => cell_accessor_fill_nodes_on_vertices
+
+    procedure, non_overridable           :: fill_nodes_on_vertices        => cell_accessor_fill_nodes_on_vertices
+    procedure, non_overridable           :: fill_nodes_on_vef_new         => cell_accessor_fill_nodes_on_vef_new
+    procedure, non_overridable           :: fill_nodes_on_vef_from_source => cell_accessor_fill_nodes_on_vef_from_source
+    procedure, non_overridable           :: fill_internal_nodes_new       => cell_accessor_fill_internal_nodes_new
   end type cell_accessor_t
   
   type cell_iterator_t
@@ -334,15 +339,16 @@ module base_static_triangulation_names
 
      ! Parallel environment describing MPI tasks among which the triangulation is distributed
      ! (NULL for serial_triangulation_t)
-     type(par_environment_t),   pointer      :: p_env => NULL()
-     
+     type(environment_t), pointer      :: p_env => NULL()
+     type(environment_t)               :: par_environment
+    
      ! Sizes
-     integer(ip)                           :: num_dimensions  = -1
+     integer(ip)                           :: num_dimensions  = 0
 
      ! Data structures to store cell related information
-     integer(ip)                           :: num_local_cells = -1
-     integer(ip)                           :: num_ghost_cells = -1
-     integer(ip)                           :: max_vefs_per_cell = -1
+     integer(ip)                           :: num_local_cells = 0
+     integer(ip)                           :: num_ghost_cells = 0
+     integer(ip)                           :: max_vefs_per_cell = 0
      integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_set(:)               ! Num local cells + num ghost cells
@@ -354,7 +360,7 @@ module base_static_triangulation_names
      type(cell_import_t)                   :: cell_import   
      
      ! Data structures to store vef related information
-     integer(ip)                           :: num_vefs = -1        ! = num_vertices + num_edges + num_faces
+     integer(ip)                           :: num_vefs = 0         ! = num_vertices + num_edges + num_faces
      integer(ip)                           :: num_vertices = 0
      integer(ip)                           :: num_edges = 0
      integer(ip)                           :: num_faces = 0
@@ -364,7 +370,7 @@ module base_static_triangulation_names
      integer(ip) , allocatable             :: vefs_type(:)         ! num_vefs, will replace vefs_dimension
                                                                    ! above and vef_itfc_lid below (which is currently only accessed
                                                                    ! to check whether a vef is interface or not).
-     integer(ip)                           :: num_itfc_vefs  = -1
+     integer(ip)                           :: num_itfc_vefs  = 0
      integer(ip), allocatable              :: lst_itfc_vefs(:)
      integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
@@ -374,8 +380,8 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: face_rotation(:)
 
      ! Data structures to create objects (coarse cell info)
-     integer(ip)                             :: number_global_objects = -1
-     integer(ip)                             :: number_objects = -1
+     integer(ip)                             :: number_global_objects = 0
+     integer(ip)                             :: number_objects = 0
      integer(igp), allocatable               :: objects_gids(:)
      integer(ip) , allocatable               :: objects_dimension(:)
      type(list_t)                            :: vefs_object

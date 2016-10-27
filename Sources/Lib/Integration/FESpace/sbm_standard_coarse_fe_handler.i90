@@ -35,7 +35,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, num_coarse_dofs)
   integer(ip)                            :: ivef
   integer(ip)                            :: idof, dof_lid
   logical                                :: dofs_on_vef
-  type(par_environment_t), pointer       :: par_environment
+  type(environment_t), pointer       :: par_environment
   type(fe_object_iterator_t)             :: object_iterator
   type(fe_object_accessor_t)             :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
@@ -94,7 +94,7 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, constraint_ma
   class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
-  type(par_environment_t), pointer :: par_environment
+  type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
@@ -189,7 +189,7 @@ subroutine standard_l1_setup_weighting_operator(this, par_fe_space, weighting_op
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   integer(ip) :: field_id
-  type(par_environment_t), pointer :: par_environment
+  type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator

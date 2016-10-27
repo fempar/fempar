@@ -94,11 +94,11 @@ module types_names
   integer(ieep), parameter :: mold(1) = [0_ieep]
   integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
   integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
+  integer(ip)  , parameter :: size_of_rp = size(transfer(1.0_rp, mold))
 
-  
-  character(len=*), parameter :: dir_path_key     = 'dir_path'
-  character(len=*), parameter :: prefix_key       = 'prefix'
-  character(len=*), parameter :: dir_path_out_key = 'dir_path_out'
+  character(len=*), parameter :: dir_path_key           = 'dir_path'
+  character(len=*), parameter :: prefix_key             = 'prefix'
+  character(len=*), parameter :: dir_path_out_key       = 'dir_path_out'
 
   interface
      subroutine runend

@@ -30,7 +30,7 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix)
   class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
-  type(par_environment_t), pointer :: par_environment
+  type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
@@ -187,73 +187,12 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix)
   !call constraint_matrix%print(6)
 end subroutine H1_l1_setup_constraint_matrix
 
-!subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator) 
-!  implicit none
-!  class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
-!  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-!  real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
-!  integer(ip) :: field_id
-!  type(par_environment_t), pointer :: par_environment
-!  type(fe_object_iterator_t) :: object_iterator
-!  type(fe_object_accessor_t) :: object
-!  type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
-!  type(fe_vef_accessor_t)                :: vef
-!  type(fe_accessor_t)                    :: fe
-!  type(list_iterator_t)                  :: own_coarse_dofs_iterator
-!  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
-!  integer(ip), pointer                   :: elem2dof(:)
-!  integer(ip)                            :: off
-!  integer(ip) :: num_rows, num_cols
-!  integer(ip) :: num_fine_dofs_on_coarse_dof
-!  integer(ip) :: ivef, idof, dof_lid, coarse_dof_lid
-
-!  if (allocated(weighting_operator) ) then
-!     call memfree ( weighting_operator, __FILE__, __LINE__ )
-!  end if
-
-!  ! To-think where field_id should come from? Temporarily let us assume that we have
-!  ! a single-field PDE problem
-!  field_id = 1
-
-!  call memalloc ( par_fe_space%number_dofs_per_field(field_id), &
-!       weighting_operator, __FILE__, __LINE__ )
-
-!  weighting_operator = 1.0_rp
-
-!  ! Fill constraint matrix entries (transposed)
-!  object_iterator = par_fe_space%create_fe_object_iterator()
-!  do while ( .not. object_iterator%has_finished() )
-!     call object_iterator%current(object)
-
-!     ! Count how many fine DoFs current coarse DoF aggregates
-!     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
-!     do while ( .not. vefs_on_object_iterator%has_finished() )
-!        call vefs_on_object_iterator%current(vef)
-!        call vef%get_cell_around(1,fe)
-!        call fe%get_field_elem2dof(field_id, elem2dof)
-!        ivef = fe%find_lpos_vef_lid(vef%get_lid())
-!        own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
-!        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-!           idof    = own_dofs_on_vef_iterator%get_current()
-!           dof_lid = elem2dof(idof)
-!           if ( dof_lid > 0 ) then
-!              weighting_operator(dof_lid) = weighting_operator(dof_lid)/real(object%get_number_parts_around(),rp)
-!           end if
-!           call own_dofs_on_vef_iterator%next()
-!        end do
-!        call vefs_on_object_iterator%next()
-!     end do
-!     call object_iterator%next()
-!  end do
-!end subroutine H1_l1_setup_weighting_operator
-
 subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator) 
   implicit none
   class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   integer(ip) :: field_id
-  type(par_environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
@@ -266,7 +205,7 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator
   integer(ip) :: num_rows, num_cols
   integer(ip) :: num_fine_dofs_on_coarse_dof
   integer(ip) :: ivef, idof, dof_lid, coarse_dof_lid
-  type(par_environment_t), pointer  :: par_env
+  type(environment_t), pointer  :: par_env
   class(base_static_triangulation_t), pointer :: triangulation
   integer(ip) :: subpart
   real(rp) :: weigh, denom

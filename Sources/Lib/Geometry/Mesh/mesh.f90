@@ -37,6 +37,9 @@ module mesh_names
   use rcm_renumbering_names
   use postpro_names
   use FPL
+
+  use environment_names
+
   implicit none
 # include "debug.i90"
   private
@@ -271,7 +274,7 @@ contains
     call memalloc(msh_new%nelem+1,msh_new%pnods,__FILE__,__LINE__)
     msh_new%pnods = msh_old%pnods
 
-    call memalloc(msh_new%pnods(msh_new%nelem+1),msh_new%lnods,__FILE__,__LINE__)
+    call memalloc(msh_new%pnods(msh_new%nelem+1)-1,msh_new%lnods,__FILE__,__LINE__)
     msh_new%lnods = msh_old%lnods
 
     if (allocated(msh_old%coord)) then
@@ -343,7 +346,7 @@ contains
     end do
 
     ! Read elements
-    call memalloc(msh%pnods(msh%nelem+1),msh%lnods,__FILE__,__LINE__)
+    call memalloc(msh%pnods(msh%nelem+1)-1,msh%lnods,__FILE__,__LINE__)
     call memalloc(msh%nelem,msh%legeo,__FILE__,__LINE__)
     call memalloc(msh%nelem,msh%leset,__FILE__,__LINE__)
     call io_rewind(lunio)
@@ -858,7 +861,7 @@ contains
    end subroutine mesh_write_file_for_postprocess
 
   !subroutine create_mesh_distribution( femesh, prt_pars, distr, lmesh)
-  subroutine create_mesh_distribution( femesh, parameters, distr, lmesh)
+  subroutine create_mesh_distribution( femesh, parameters, distr, env, lmesh)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -868,21 +871,17 @@ contains
     class(mesh_t)             , intent(inout)      :: femesh
     type(ParameterList_t)     , intent(in)         :: parameters
     type(mesh_distribution_t) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
+    type(environment_t)   , allocatable, intent(out) :: env(:) ! Environments
     type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables
-    type(mesh_distribution_params_t)                    :: prt_pars
-
-    type(list_t)                 :: fe_graph    ! Dual graph (to be partitioned)
-    integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
-    integer(ip)                  :: ipart
-    integer                      :: istat
-
-    integer(ip) :: ielem,jelem,iedge,inode,ipoin,jpoin
-    real(rp) :: cnorm,vnorm
-    integer(ip)   , allocatable  :: weight(:)
-    real(rp)      , allocatable  :: coord_i(:),coord_j(:),veloc(:)
-
+    type(mesh_distribution_params_t) :: prt_pars
+    type(list_t)                     :: fe_graph         ! Dual graph (to be partitioned)
+    type(list_t)                     :: parts_graph      ! Parts graph (to be partitioned)
+    integer(ip), allocatable, target :: ldome(:)         ! Part of each element
+    type(i1p_t), allocatable         :: ldomp(:)         ! Part of each part (recursively)
+    integer(ip), allocatable         :: parts_mapping(:) ! Part of each element
+    integer(ip) :: istat, ilevel, jlevel, ipart, itask, num_tasks
 
     ! Get parameters from fpl
     call prt_pars%get_parameters_from_fpl(parameters)
@@ -892,33 +891,65 @@ contains
 
     ! Create dual (i.e. list of elements around elements)
     call create_dual_graph(femesh,fe_graph)
-    !call fe_graph%print(6)
    
     ! Partition dual graph to assign a domain to each element (in ldome)
     call memalloc (femesh%nelem, ldome, __FILE__,__LINE__)   
-    ! ! write(*,*) weight
-    ! call graph_pt_renumbering(prt_pars,fe_graph,ldome,weight)
-    ! call memfree ( coord_i, __FILE__,__LINE__)
-    ! call memfree ( coord_j, __FILE__,__LINE__)
-    ! call memfree ( veloc, __FILE__,__LINE__)
-    ! call memfree ( weight, __FILE__,__LINE__)
+    
     call graph_pt_renumbering(prt_pars,fe_graph,ldome)
 
-    ! Now free fe_graph, not needed anymore?
-    allocate(distr(prt_pars%nparts), stat=istat)
-    check(istat==0)
-    allocate(lmesh(prt_pars%nparts), stat=istat)
-    check(istat==0) 
-
-    do ipart=1, prt_pars%nparts
-       distr(ipart)%ipart  = ipart
-       distr(ipart)%nparts = prt_pars%nparts
+    allocate(ldomp(prt_pars%num_levels), stat=istat); check(istat==0);
+    ldomp(1)%p => ldome
+    do ilevel=1,prt_pars%num_levels-1
+       call memallocp(prt_pars%num_parts_per_level(ilevel),ldomp(ilevel+1)%p, __FILE__,__LINE__)
+       if(prt_pars%num_parts_per_level(ilevel+1)>1) then  ! Typically in the last level there is onle one part
+          call build_parts_graph (prt_pars%num_parts_per_level(ilevel), ldomp(ilevel)%p, fe_graph, parts_graph)
+          call fe_graph%free()
+          fe_graph = parts_graph
+          prt_pars%nparts = prt_pars%num_parts_per_level(ilevel+1)
+          call graph_pt_renumbering(prt_pars,parts_graph,ldomp(ilevel+1)%p)
+       else
+          ldomp(ilevel+1)%p = 1
+       end if
+       call parts_graph%free()
     end do
+    prt_pars%nparts = prt_pars%num_parts_per_level(1)
+    call fe_graph%free()
+
+    num_tasks = 0
+    do ilevel=1,prt_pars%num_levels
+       num_tasks = num_tasks + prt_pars%num_parts_per_level(ilevel)
+    end do
+    allocate(env(num_tasks), stat=istat); check(istat==0) 
+    itask = 0
+    call memalloc(prt_pars%num_levels,parts_mapping,__FILE__,__LINE__)
+    do ilevel=1,prt_pars%num_levels
+       do ipart = 1, prt_pars%num_parts_per_level(ilevel)
+          itask = itask+1
+          do jlevel = 1 , ilevel - 1 
+             parts_mapping(jlevel) = 0
+          end do
+          parts_mapping(ilevel) = ipart
+          do jlevel = ilevel+1 , prt_pars%num_levels
+             parts_mapping(jlevel) = ldomp(jlevel)%p( parts_mapping(jlevel-1) )
+          end do
+          call env(itask)%assign_parts_to_tasks(prt_pars%num_levels,prt_pars%num_parts_per_level,parts_mapping)
+       end do
+    end do
+    call memfree(parts_mapping,__FILE__,__LINE__)
+
+    prt_pars%nparts = prt_pars%num_parts_per_level(1)
+    do ilevel=1,prt_pars%num_levels-1
+       call memfreep(ldomp(ilevel+1)%p, __FILE__,__LINE__)
+    end do
+    deallocate(ldomp, stat=istat); check(istat==0);
+
+    allocate(distr(prt_pars%nparts), stat=istat); check(istat==0)
+    allocate(lmesh(prt_pars%nparts), stat=istat); check(istat==0) 
+
     call build_maps(prt_pars%nparts, ldome, femesh, distr)
 
     ! Build local meshes and their duals and generate partition adjacency
     do ipart=1,prt_pars%nparts
-
        ! Generate Local mesh
        call mesh_g2l(distr(ipart)%num_local_vertices,  &
                      distr(ipart)%l2g_vertices,        &
@@ -926,7 +957,6 @@ contains
                      distr(ipart)%l2g_cells,           &
                      femesh,                           &
                      lmesh(ipart))
-
        call build_adjacency_new (femesh, ldome,             &
             &                    ipart,                     &
             &                    lmesh(ipart),              &
@@ -940,8 +970,10 @@ contains
             &                    distr(ipart)%lextn,        &
             &                    distr(ipart)%lextp )
     end do
-    call fe_graph%free()
     call memfree(ldome,__FILE__,__LINE__)
+
+    call prt_pars%free()
+
   end subroutine create_mesh_distribution
 
   !================================================================================================
@@ -991,7 +1023,6 @@ contains
     integer(ip)                 :: neadj,ielel,jelel,nelel  ! Indices
 
     lelem=0
-    !neadj=1
     knode=nnode
     call graph%create(nelem)
     do ielem=1,nelem
@@ -1024,7 +1055,6 @@ contains
           jelem=keadj(ielel)
           if(lelem(jelem)>=ncomm) jelel=jelel+1
        end do
-       !neadj=neadj+jelel
        call graph%sum_to_pointer_index(ielem, jelel)
 
        ! Reset lelem
@@ -1033,7 +1063,6 @@ contains
           lelem(jelem)=0
        end do
     end do
-    !call graph%sum_to_pointer_index(nelem, neadj)
     
     call graph%calculate_header()
 
@@ -1078,7 +1107,6 @@ contains
        end do
 
        ! Now we loop over the elements around ielem and define neighbors
-       !call graph%allocate_list_from_pointer()
        graph_iterator = graph%create_iterator(ielem)
        do ielel=1,nelel
           jelem=keadj(ielel)
@@ -1103,11 +1131,9 @@ contains
     implicit none
     integer(ip)   , intent(in)  :: my_part
     type(mesh_t)  , intent(in)  :: gmesh,lmesh
-    !type(mesh_t)  , intent(in)  :: dual_lmesh
     integer(ip)   , intent(in)  :: ldome(gmesh%nelem)
     integer(igp)  , intent(in)  :: l2gn(lmesh%npoin)
     integer(igp)  , intent(in)  :: l2ge(lmesh%nelem)
-    !integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
     integer(ip)   , intent(out) :: nebou
     integer(ip)   , intent(out) :: nnbou
     integer(ip)   , allocatable, intent(out) ::  lebou(:)    ! List of boundary elements
@@ -1254,7 +1280,6 @@ contains
     end if
 
     ! 3) Store boundary elements and external edges
-    !do lelem = 1, lmesh%nelem
     do iebou = 1, nebou
        lelem = lebou(iebou)
        ielem = l2ge(lelem)
@@ -1304,7 +1329,7 @@ contains
     ! and (unlike parts_sizes, parts_maps, etc.) does not generate a new global numbering.
     implicit none
     integer(ip)                , intent(in)    :: nparts
-    type(mesh_t)             , intent(in)    :: femesh
+    type(mesh_t)               , intent(in)    :: femesh
     integer(ip)                , intent(in)    :: ldome(femesh%nelem)
     type(mesh_distribution_t), intent(inout) :: distr(nparts)
 
@@ -1499,11 +1524,6 @@ contains
        end do
     end do
 
-    ! write(*,*) 'ZZ', g%nv, m%npoin, l
-    ! write(*,*) 'XX', lconn%n
-    ! write(*,*) 'YY', lconn%p
-    ! write(*,*) 'PP', lconn%l
-
     call memfree( auxe,__FILE__,__LINE__)
     call memfree( e,__FILE__,__LINE__)
     call memfree( vmarked,__FILE__,__LINE__)
@@ -1597,9 +1617,7 @@ contains
        
        ncon = 1 
        
-       !write(*,*) 'k_way',present(weight)
        if(present(weight)) then
-          write(*,*) 'calling metis',options(METIS_OPTION_CTYPE)
           options(METIS_OPTION_NITER) = 100
 
           ierr = metis_partgraphkway( gp%get_num_pointers_c_loc(), c_loc(ncon), gp%get_pointers_c_loc(), gp%get_list_c_loc() , & 
@@ -1607,7 +1625,6 @@ contains
                                       C_NULL_PTR  , C_NULL_PTR , c_loc(weight) , c_loc(prt_parts%nparts), &
                                       C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
        else
-          !write(*,*) gp%get_num_pointers_c_loc(), gp%get_pointers_c_loc(), gp%get_list_c_loc()
           ierr = metis_partgraphkway( gp%get_num_pointers_c_loc(), c_loc(ncon), gp%get_pointers_c_loc(), gp%get_list_c_loc() , & 
                                       C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
                                       C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
@@ -1616,8 +1633,6 @@ contains
        assert(ierr == METIS_OK) 
        
     else if ( prt_parts%strat == part_recursive ) then
-       write(*,*) 'part_recursive',present(weight)
-
        options(METIS_OPTION_NUMBERING) = 1
        options(METIS_OPTION_DBGLVL)    = prt_parts%metis_option_debug
        options(METIS_OPTION_UFACTOR)   = prt_parts%metis_option_ufactor
@@ -1771,7 +1786,6 @@ contains
              end if
           end do
           if(count_it) then
-             !write(*,*) '1',ivef_lmesh,node_list
              call lmesh%given_vefs%sum_to_pointer_index(ivef_lmesh, kvef_size)
              lmesh%lst_vefs_geo(ivef_lmesh)=gmesh%lst_vefs_geo(ivef_gmesh)
              lmesh%lst_vefs_set(ivef_lmesh)=gmesh%lst_vefs_set(ivef_gmesh)
@@ -1796,27 +1810,14 @@ contains
              end if
           end do
           if(count_it) then
-             !write(*,*) '2',ivef_lmesh,node_list
              given_vefs_iterator = lmesh%given_vefs%create_iterator(ivef_lmesh)
              do inode=1,kvef_size
-			             call given_vefs_iterator%set_current(node_list(inode))
-			             call given_vefs_iterator%next()
+                call given_vefs_iterator%set_current(node_list(inode))
+                call given_vefs_iterator%next()
              enddo
              ivef_lmesh=ivef_lmesh+1
           end if
        end do
-       
-       !do ivef_lmesh=1,lmesh%given_vefs%get_num_pointers()
-       !   given_vefs_iterator = lmesh%given_vefs%create_iterator(ivef_lmesh)
-       !   kvef_size = given_vefs_iterator%get_size()
-       !   do inode=1,kvef_size
-       !      call ws_inmap%get(key=int(given_vefs_iterator%get_current(),igp),val=node_list(inode),stat=istat)
-			    !      call given_vefs_iterator%set_current(node_list(inode))
-			    !      call given_vefs_iterator%next()
-       !   enddo
-       !   write(*,*) '2',ivef_lmesh,node_list
-       !enddo
-
        call memfree (node_list, __FILE__,__LINE__)
     end if
     
@@ -1824,12 +1825,82 @@ contains
     call el_inmap%free
 
     call memalloc(SPACE_DIM, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
-    !call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord)
     do ipoin=1,num_local_vertices
        lmesh%coord(:,ipoin)=gmesh%coord(:,l2g_vertices(ipoin))
     end do
 
   end subroutine mesh_g2l
-  
-  
+
+  subroutine build_parts_graph (nparts, ldome, fe_graph, parts_graph)
+    implicit none
+    integer(ip)             , intent(in)  :: nparts
+    type(list_t)            , intent(in)  :: fe_graph
+    integer(ip)             , intent(in)  :: ldome(:)
+    type(list_t)            , intent(out) :: parts_graph
+
+    integer(ip)              :: istat,ielem,jelem,ipart,jpart
+    integer(ip)              :: num_parts_around, touched
+    type(list_iterator_t)                    :: fe_graph_iterator
+    type(list_iterator_t)                    :: parts_graph_iterator
+    type(position_hash_table_t), allocatable :: visited_parts_touched(:)
+    type(hash_table_ip_ip_t)   , allocatable :: visited_parts_numbers(:)
+
+    call parts_graph%create(nparts)
+
+    ! The maximum number of parts around a part can be estimated from the
+    ! maximum number of elements connected to an element, that is, by the 
+    ! maximum degree of elements graph. Note, however, that it can be bigger.
+    num_parts_around=0
+    do ielem=1,fe_graph%get_num_pointers()
+       fe_graph_iterator = fe_graph%create_iterator(ielem)
+       num_parts_around = max(num_parts_around,fe_graph_iterator%get_size())
+    end do
+    allocate(visited_parts_touched(nparts),stat=istat); assert(istat==0);
+    allocate(visited_parts_numbers(nparts),stat=istat); assert(istat==0);
+    do ipart=1,nparts
+       call visited_parts_touched(ipart)%init(num_parts_around)
+       call visited_parts_numbers(ipart)%init(num_parts_around)
+    end do
+
+    ! Now compute graph pointers and fill tables
+    do ielem=1,fe_graph%get_num_pointers()
+       ipart = ldome(ielem)
+       fe_graph_iterator = fe_graph%create_iterator(ielem)
+       do while(.not.fe_graph_iterator%is_upper_bound())
+          jelem = fe_graph_iterator%get_current()
+          jpart = ldome(jelem)
+          call visited_parts_touched(ipart)%get(key=jpart,val=num_parts_around,stat=istat) ! Touch it (jpart is around ipart)
+          if(istat==new_index) then
+             call visited_parts_numbers(ipart)%put(key=num_parts_around,val=jpart,stat=istat) ! Store it
+             assert(istat==now_stored)
+          end if
+          call fe_graph_iterator%next()
+       end do
+    end do
+    do ipart=1,nparts
+       call parts_graph%sum_to_pointer_index(ipart,visited_parts_touched(ipart)%last())
+    end do
+
+    ! Fill graph from tables
+    call parts_graph%calculate_header()
+    call parts_graph%allocate_list_from_pointer()
+    do ipart=1,nparts
+       num_parts_around = 0
+       parts_graph_iterator = parts_graph%create_iterator(ipart)
+       do while(.not.parts_graph_iterator%is_upper_bound())
+          num_parts_around = num_parts_around + 1
+          call visited_parts_numbers(ipart)%get(key=num_parts_around,val=jpart,stat=istat) 
+          assert(istat==key_found)
+          call parts_graph_iterator%set_current(jpart)
+          call parts_graph_iterator%next()
+       end do
+       assert(num_parts_around==visited_parts_touched(ipart)%last())
+       call visited_parts_touched(ipart)%free() ! This could be done before, as far as the assert is eliminated
+       call visited_parts_numbers(ipart)%free()
+    end do
+
+    deallocate(visited_parts_touched,stat=istat)
+    deallocate(visited_parts_numbers,stat=istat)
+  end subroutine build_parts_graph
+
 end module mesh_names

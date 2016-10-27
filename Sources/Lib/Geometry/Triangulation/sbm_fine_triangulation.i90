@@ -602,7 +602,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   class(fine_triangulation_t), intent(inout) :: this
   integer(ip)           :: icell 
   integer(ip)           :: cell_type, istat
-  type(cell_accessor_t) :: cell
+  type(cell_accessor_t) :: cell, cell2
   type(cell_iterator_t) :: cell_iterator
   type(vef_iterator_t)  :: vef_iterator
   type(vef_accessor_t)  :: vef
@@ -625,8 +625,6 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   end do
   call memalloc(this%ptr_nodes_per_cell(this%num_local_cells + this%num_ghost_cells+1)-1, this%lst_nodes , __FILE__, __LINE__ )
   this%lst_nodes=0
-  !write(*,*) 'Heade ptr_nodes_per_cell computed:'
-  !write(*,*) this%ptr_nodes_per_cell
 
   ! Set nodes on vertices (with id = id of the vertex)
   call cell_iterator%init()
@@ -646,41 +644,19 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
         ivef = vef%get_lid()
 
         call vef%get_cell_around(1,cell) ! There is always one cell around
-        
+
         ! The first cell around a local or interface vef is always local provided
         ! that we first enumerate local, followed by ghost cells, and how the dual
         ! mesh is computed (from 1st to last cell).
         assert ( cell%is_local() )
-        
-        ielem = cell%get_lid()
-        reference_fe_geo => cell%get_reference_fe_geo()
-        ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
-        ! Fill vef nodes (new numbers)
-        call fill_new_nodes_on_vef(reference_fe_geo, &
-             &                     ivef_pos_in_cell, &
-             &                     this%lst_nodes(this%ptr_nodes_per_cell(ielem):this%ptr_nodes_per_cell(ielem+1)-1),&
-             &                     this%num_nodes)
-
+        call cell%fill_nodes_on_vef_new(ivef,this%num_nodes)
         do icell = 2, vef%get_num_cells_around()
-           call vef%get_cell_around(icell,cell)
-           if ( cell%is_local() ) then
-             jelem = cell%get_lid()
-             call this%reference_fe_geo_index%get(key=cell%get_num_vefs(),val=jelem_type,stat=istat)
-             assert(istat==key_found)
-             jvef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
-             call fill_nodes_on_vef_from_source_element ( &
-                  ! Source
-                  & reference_fe_geo, &
-                  & ivef_pos_in_cell, &
-                  & this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem) :this%ptr_vefs_per_cell(ielem+1)-1), &
-                  & this%lst_nodes    (this%ptr_nodes_per_cell(ielem):this%ptr_nodes_per_cell(ielem+1)-1), &
-                  ! Target
-                  & this%reference_fe_geo_list(jelem_type)%p, &
-                  & jvef_pos_in_cell, &
-                  & this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem) :this%ptr_vefs_per_cell(jelem+1)-1), &
-                  & this%lst_nodes    (this%ptr_nodes_per_cell(jelem):this%ptr_nodes_per_cell(jelem+1)-1))
+           call vef%get_cell_around(icell,cell2)
+           if ( cell2%is_local() ) then
+               call cell%fill_nodes_on_vef_from_source(ivef,cell2)
            end if 
         end do
+
      end if
      call vef_iterator%next()
   end do
@@ -690,14 +666,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   do while ( .not. cell_iterator%has_finished() )
      call cell_iterator%current(cell)
      if ( cell%is_local() ) then
-       call this%reference_fe_geo_index%get(key=cell%get_num_vefs(),val=cell_type,stat=istat)
-       assert(istat==key_found)
-       ielem = cell%get_lid()
-       !write(*,*) 'Element i:',ielem
-       ! Fill interior nodes (new numbers)
-       call fill_internal_new_nodes(this%reference_fe_geo_list(cell_type)%p, &
-            &                       this%lst_nodes(this%ptr_nodes_per_cell(ielem):this%ptr_nodes_per_cell(ielem+1)-1),&
-            &                       this%num_nodes)
+       call cell%fill_internal_nodes_new(this%num_nodes)
       end if 
       call cell_iterator%next()  
   end do
@@ -712,127 +681,6 @@ subroutine fine_triangulation_free_nodes (this)
   if (allocated (this%ptr_nodes_per_cell)) call memfree ( this%ptr_nodes_per_cell, __FILE__, __LINE__ )
   if (allocated (this%lst_nodes)) call memfree ( this%lst_nodes, __FILE__, __LINE__ )
 end subroutine fine_triangulation_free_nodes
-
-subroutine fill_internal_new_nodes(reference_fe,node_list,node_count)
-  implicit none
-  ! Parameters
-  class(reference_fe_t)  , intent(in)    :: reference_fe
-  integer(ip)           , intent(inout) :: node_list(:)
-  integer(ip)           , intent(inout) :: node_count
-  
-  ! Local variables
-  integer(ip) :: inode, l_node, ivef
-  
-  ivef = reference_fe%get_number_n_faces()+1 ! volume
-  do inode = 1, reference_fe%get_number_own_nodes_n_face(ivef)
-     l_node = reference_fe%get_own_node_n_face(inode,ivef)
-     node_count = node_count +1
-     node_list(l_node) = node_count
-  end do
-
-end subroutine fill_internal_new_nodes
-
-subroutine fill_new_nodes_on_vef (reference_fe,vef_local_id, node_list, node_count )
-  implicit none
-  ! Parameters
-  class(reference_fe_t) , intent(in)    :: reference_fe
-  integer(ip)           , intent(in)    :: vef_local_id
-  integer(ip)           , intent(inout) :: node_list(:)
-  integer(ip)           , intent(inout) :: node_count
-
-  ! Local variables
-  integer(ip) :: inode, l_node
-
-  !write(*,*) vef_local_id, reference_fe%get_number_own_nodes_vef(vef_local_id)
-  !write(*,*) node_list
-
-  do inode = 1,reference_fe%get_number_own_nodes_n_face(vef_local_id)
-    l_node = reference_fe%get_own_node_n_face(inode,vef_local_id)
-    !write(*,*) l_node
-    assert ( node_list(l_node) <= 0 )
-    if ( node_list(l_node) == 0 ) then
-      node_count = node_count + 1
-      node_list(l_node) = node_count
-    end	if
-  end do
-end subroutine fill_new_nodes_on_vef
-
-subroutine fill_nodes_on_vertices (reference_fe, vertex_list, node_list)
-  implicit none
-  ! Parameters
-  class(reference_fe_t) , intent(in)    :: reference_fe
-  integer(ip)           , intent(in)    :: vertex_list(:)
-  integer(ip)           , intent(inout) :: node_list(:)
-  type(vef_accessor_t) :: vef
-
-  ! Local variables
-  integer(ip) :: ivef, inode, l_node, node_count, ndime
-
-  ndime = reference_fe%get_number_dimensions()
-  do ivef=1,reference_fe%get_number_n_faces_of_dimension(0)
-     assert(reference_fe%get_number_own_nodes_n_face(ivef)==1)
-
-     l_node = reference_fe%get_own_node_n_face(1,ivef)
-     node_list(l_node) = vertex_list(ivef)
-  end do
-
-end subroutine fill_nodes_on_vertices
-
-subroutine fill_nodes_on_vef_from_source_element ( source_ref_fe,    &
-                                                   source_vef_lid,   &
-                                                   source_vefs,      &
-                                                   source_node_list, &
-                                                   target_ref_fe,    &  
-                                                   target_vef_lid,   &
-                                                   target_vefs,      &
-                                                   target_node_list)
-  implicit none
-  ! Parameters
-  class(reference_fe_t) , intent(in)    :: source_ref_fe
-  integer(ip)           , intent(in)    :: source_vef_lid
-  integer(ip)           , intent(in)    :: source_vefs(:)
-  integer(ip)           , intent(in)    :: source_node_list(:)
-
-  class(reference_fe_t) , intent(in)    :: target_ref_fe
-  integer(ip)           , intent(in)    :: target_vef_lid
-  integer(ip)           , intent(in)    :: target_vefs(:) 
-  integer(ip)           , intent(inout) :: target_node_list(:)
-
-  ! Local variables
-  integer(ip) :: own_inode, l_node, own_nnode, inode_source, inode_target
-  integer(ip) :: relative_orientation, relative_rotation
-
-
-  assert(size(source_vefs)==source_ref_fe%get_number_n_faces())
-  assert(size(target_vefs)==target_ref_fe%get_number_n_faces())
-
-  own_nnode = source_ref_fe%get_number_own_nodes_n_face(source_vef_lid)
-
-  if ( own_nnode > 0 ) then
-
-     check (target_ref_fe%check_compatibility_of_n_faces(source_ref_fe,source_vef_lid,target_vef_lid))
-     relative_rotation = target_ref_fe%compute_relative_rotation( source_ref_fe,                  &
-          &                                        source_vef_lid,                                &
-          &                                        target_vef_lid,                                &
-          &                                        source_vefs,                                   &
-          &                                        target_vefs)
-
-     relative_orientation = target_ref_fe%compute_relative_orientation( source_ref_fe,            &
-          &                                           source_vef_lid,                             &
-          &                                           target_vef_lid)
-     
-     do own_inode = 1, own_nnode
-        inode_source = source_ref_fe%get_own_node_n_face(own_inode,source_vef_lid)
-        inode_target = target_ref_fe%get_permuted_own_node_n_face(own_inode,               &
-             &                          target_vef_lid, relative_orientation,relative_rotation)
-        assert ( target_node_list(inode_target) <= 0 )
-        if ( target_node_list(inode_target) == 0 ) then
-          target_node_list(inode_target) = source_node_list(inode_source)
-        end if
-    end do 
- end if
- 
-end subroutine fill_nodes_on_vef_from_source_element
 
 subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordinates)
   implicit none
@@ -972,9 +820,16 @@ end subroutine fine_triangulation_free_coordinates
 
 subroutine fine_triangulation_free ( this )
   implicit none
-  class(fine_triangulation_t), intent(inout) :: this
+  class(fine_triangulation_t), target, intent(inout) :: this
+  integer(ip) :: icell
   call this%free_geometry_and_set()
   call this%free_nodes()
   call this%free_coordinates()
+  do icell=1, max_num_reference_fes_geo
+     if(associated(this%reference_fe_geo_list(icell)%p)) then
+        call this%reference_fe_geo_list(icell)%p%free()
+        nullify(this%reference_fe_geo_list(icell)%p)
+     endif
+  enddo
   call this%base_static_triangulation_t%free()  
 end subroutine fine_triangulation_free
