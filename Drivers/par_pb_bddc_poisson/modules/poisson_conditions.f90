@@ -33,10 +33,8 @@ module pb_bddc_poisson_conditions_names
   private
   type, extends(conditions_t) :: poisson_conditions_t
      private
-     type(constant_scalar_function_t)  :: constant_scalar_function
-     class(scalar_function_t), pointer :: boundary_function
+     class(scalar_function_t), pointer :: boundary_function  
    contains
-     procedure :: set_constant_function_value => poisson_conditions_set_constant_function
      procedure :: set_boundary_function       => poisson_conditions_set_boundary_function
      procedure :: get_number_components       => poisson_conditions_get_number_components  
      procedure :: get_components_code         => poisson_conditions_get_components_code
@@ -47,18 +45,11 @@ module pb_bddc_poisson_conditions_names
   
 contains
 
-  subroutine poisson_conditions_set_constant_function (this, value)
+  subroutine poisson_conditions_set_boundary_function (this, boundary_function)
     implicit none
-    class(poisson_conditions_t), intent(inout) :: this
-    real(rp)                   , intent(in)    :: value
-    this%constant_scalar_function = constant_scalar_function_t(value)
-  end subroutine poisson_conditions_set_constant_function
-  
-  subroutine poisson_conditions_set_boundary_function (this, scalar_function)
-    implicit none
-    class(poisson_conditions_t)        , intent(inout) :: this
-    class(scalar_function_t)   , target, intent(in)    :: scalar_function
-    this%boundary_function => scalar_function
+    class(poisson_conditions_t)     , intent(inout) :: this
+    class(scalar_function_t), target, intent(in)    :: boundary_function
+    this%boundary_function => boundary_function
   end subroutine poisson_conditions_set_boundary_function
 
   function poisson_conditions_get_number_components(this)
@@ -74,7 +65,7 @@ contains
     integer(ip)            , intent(in)  :: boundary_id
     logical                , intent(out) :: components_code(:)
     assert ( size(components_code) == 1 )
-    components_code(1) = .false.
+    components_code(1) = .true.
     if ( boundary_id == 1 ) then
       components_code(1) = .true.
     end if
@@ -87,10 +78,11 @@ contains
     integer(ip)                        , intent(in)  :: component_id
     class(scalar_function_t), pointer  , intent(out) :: function
     assert ( component_id == 1 )
+    assert ( associated(this%boundary_function) )
     nullify(function)
     if ( boundary_id == 1 ) then
       function => this%boundary_function
     end if  
   end subroutine poisson_conditions_get_function 
 
-end module poisson_conditions_names
+end module pb_bddc_poisson_conditions_names

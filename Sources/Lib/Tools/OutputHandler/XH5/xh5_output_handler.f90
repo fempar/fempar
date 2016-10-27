@@ -210,7 +210,6 @@ contains
 #endif
                 endif
             endif
-print*, 'StaticGrid', this%StaticGrid
 
             call this%xh5%Open(FilePrefix = this%FilePrefix, &
                                Path       = this%Path,       &

@@ -55,6 +55,7 @@
   
     integer(igp), allocatable :: lst_vefs_gids_ghost_extended(:)
     integer(ip) , allocatable :: lst_vefs_dimension_ghost_extended(:)
+    integer(ip) , allocatable :: cells_set(:)
     
     call this%free()
     
@@ -103,9 +104,15 @@
       call memfree (lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
       call memfree (lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)
       
-      call this%compute_vefs_and_parts_object()
-      call this%compute_objects_dimension()
-      call this%compute_number_global_objects_and_their_gids()
+      
+      ! Warning: this%compute_vefs_and_parts_object() below relies on cells_set being
+      !          allocated + filled. Therefore, these lines of code CANNOT be moved
+      !          below the call to this%compute_vefs_and_parts_object()
+      call this%allocate_cells_set()
+      call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
+      cells_set = 0
+      call this%fill_cells_set(cells_set)
+      call memfree (cells_set, __FILE__, __LINE__)      
     end if
     call this%setup_coarse_triangulation()
     !call this%print()

@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine coarse_dof_object_iterator_create ( this, field_id, lid, mlbddc_coarse ) 
+subroutine coarse_dof_object_iterator_create ( this, field_id, lid, fe_space ) 
   implicit none
   class(coarse_dof_object_iterator_t)      , intent(inout) :: this
   integer(ip)                              , intent(in)    :: field_id
   integer(ip)                              , intent(in)    :: lid
-  type(mlbddc_coarse_t)                    , intent(in)    :: mlbddc_coarse
+  type(coarse_fe_space_t)                  , intent(in)    :: fe_space
   call this%free()
-  call this%current_coarse_dof_object_accessor%create(field_id, lid, mlbddc_coarse)
+  call this%current_coarse_dof_object_accessor%create(field_id, lid, fe_space)
 end subroutine coarse_dof_object_iterator_create
 
 subroutine coarse_dof_object_iterator_free ( this ) 
@@ -60,9 +60,9 @@ function coarse_dof_object_iterator_has_finished ( this )
   coarse_dof_object_iterator_has_finished = this%current_coarse_dof_object_accessor%past_the_end()
 end function coarse_dof_object_iterator_has_finished
 
-function coarse_dof_object_iterator_current ( this ) 
+subroutine coarse_dof_object_iterator_current ( this, current ) 
   implicit none
   class(coarse_dof_object_iterator_t), target, intent(in) :: this
-  type(coarse_dof_object_accessor_t) :: coarse_dof_object_iterator_current
-  coarse_dof_object_iterator_current = this%current_coarse_dof_object_accessor
-end function coarse_dof_object_iterator_current
+  type(coarse_dof_object_accessor_t) :: current
+  current = this%current_coarse_dof_object_accessor
+end subroutine coarse_dof_object_iterator_current

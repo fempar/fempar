@@ -249,7 +249,6 @@ contains
     implicit none 
     class(environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
-    class(execution_context_t)    , allocatable   :: world_context
 
     ! Some refactoring is needed here separating number_of_parts_per_level (and dir)
     ! from the rest of the mesh information.
@@ -282,18 +281,15 @@ contains
     end if
 
     if(execution_context==serial_context) then
-       allocate(serial_context_t :: world_context,stat=istat); check(istat==0)
+       allocate(serial_context_t :: this%world_context,stat=istat); check(istat==0)
     else if(execution_context==mpi_context) then
-       allocate(mpi_context_t :: world_context,stat=istat); check(istat==0)
+       allocate(mpi_context_t :: this%world_context,stat=istat); check(istat==0)
     end if
-    call world_context%create()
+    call this%world_context%create()
 
     if(environment_type==unstructured) then
 
-       allocate(this%world_context,mold=world_context,stat=istat);check(istat==0)
-       this%world_context = world_context
-
-       if(world_context%get_num_tasks()>1) then
+       if(this%world_context%get_num_tasks()>1) then
           ! Mandatory parameters
           is_present =  parameters%isPresent(key = dir_path_key)      ; assert(is_present)
           is_present =  parameters%isPresent(key = prefix_key)        ; assert(is_present)
@@ -301,13 +297,13 @@ contains
           istat = parameters%get(key = prefix_key  , value = prefix)  ; check(istat==0)
 
           call environment_compose_name(prefix, name )  
-          call par_filename( world_context%get_current_task()+1, world_context%get_num_tasks() , name )
+          call par_filename( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
           lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
 
           ! Read parts assignment to tasks and verify that the multilevel environment 
           ! can be executed in current context (long-lasting Alberto's concern). 
           call this%read(lunio)
-          check(this%get_num_tasks() <= world_context%get_num_tasks())
+          check(this%get_num_tasks() <= this%world_context%get_num_tasks())
 
           ! Recursively create multilevel environment
           call this%fill_contexts()
@@ -327,17 +323,19 @@ contains
 
        ! Generate parts, assign them to tasks and verify that the multilevel environment 
        ! can be executed in current context (long-lasting Alberto's concern). 
-       call uniform_hex_mesh%generate_levels_and_parts(world_context%get_current_task(), &
+       call uniform_hex_mesh%generate_levels_and_parts(this%world_context%get_current_task(), &
             &                                          num_levels, &
             &                                          num_parts_per_level, &
             &                                          parts_mapping)
        call this%assign_parts_to_tasks(num_levels, num_parts_per_level, parts_mapping)
        call memfree(num_parts_per_level,__FILE__,__LINE__)
        call memfree(parts_mapping,__FILE__,__LINE__)
-       check(this%get_num_tasks() <= world_context%get_num_tasks())
+       check(this%get_num_tasks() <= this%world_context%get_num_tasks())
 
        ! Recursively create multilevel environment
        call this%fill_contexts()
+
+       call uniform_hex_mesh%free()
 
     end if
     this%state = created_from_scratch

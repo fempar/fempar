@@ -129,16 +129,18 @@ subroutine cell_accessor_get_coordinates (this, cell_coordinates)
   type(point_t)        ,  intent(inout) :: cell_coordinates(:)
   integer(ip)                    :: inode
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   assert ( allocated ( this%base_static_triangulation%coordinates ) )
-  !assert ( this%is_local() )
-  
-   reference_fe_geo => this%get_reference_fe_geo()
-   do inode=1, reference_fe_geo%get_number_shape_functions()
-     cell_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_lid(inode))
-   end do
-  
+  reference_fe_geo => this%get_reference_fe_geo()
+  if ( this%is_local() ) then
+    do inode=1, reference_fe_geo%get_number_shape_functions()
+      cell_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_lid(inode))
+    end do
+ else
+    do inode=1, reference_fe_geo%get_number_shape_functions()
+      cell_coordinates(inode) = 0.0_rp
+    end do
+ end if
 end subroutine cell_accessor_get_coordinates
 
 subroutine cell_accessor_set_coordinates (this, cell_coordinates)
@@ -166,6 +168,24 @@ pure function cell_accessor_get_mypart (this)
   cell_accessor_get_mypart = this%base_static_triangulation%cells_mypart(this%lid)
 end function cell_accessor_get_mypart
 
+function cell_accessor_get_mysubpart ( this )
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(ip) :: cell_accessor_get_mysubpart
+  assert ( this%get_set_id() >= 0 )
+  cell_accessor_get_mysubpart = (this%get_set_id())*this%base_static_triangulation%cell_import%get_number_parts() + this%get_my_part()
+end function cell_accessor_get_mysubpart
+
+function cell_accessor_get_mysubpart_lid ( this )
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(ip) :: cell_accessor_get_mysubpart_lid
+  integer(ip) :: istat
+  call this%base_static_triangulation%g2l_subparts%get(key=this%get_my_subpart(), &
+                                                       val=cell_accessor_get_mysubpart_lid, &
+                                                       stat=istat)
+  assert ( istat == key_found )
+end function cell_accessor_get_mysubpart_lid
 
 ! get_set_id() let's the user to get the cell set ID assigned to
 ! a cell. Note that the counterpart, set_set_id(), does not exist, as we do not let 
