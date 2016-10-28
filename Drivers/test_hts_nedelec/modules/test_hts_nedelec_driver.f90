@@ -478,9 +478,11 @@ contains
        call  this%oh%create() 
        call  this%oh%attach_fe_space(this%fe_space)
        call  this%oh%add_fe_function(this%H_current, 1, 'H')
+       call  this%oh%add_fe_function(this%H_current, 1, 'grad(H)', grad_diff_operator)
        call  this%oh%add_fe_function(this%H_current, 1, 'div(H)', div_diff_operator)
        call  this%oh%add_fe_function(this%H_current, 1, 'J', curl_diff_operator)
        call  this%oh%add_fe_function(this%H_current, 2, 'p')
+       call  this%oh%add_fe_function(this%H_current, 2, 'grad(p)',grad_diff_operator )
     endif
   end subroutine initialize_output
   
