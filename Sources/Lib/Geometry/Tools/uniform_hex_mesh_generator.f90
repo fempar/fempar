@@ -180,7 +180,7 @@ contains
        last  = first + this%number_of_dimensions
        call spatial_to_ijk_numbering(this%number_of_dimensions, this%number_of_parts_per_dir(first:last), ipart-1, part_ijk)
        do idime = 0, this%number_of_dimensions - 1 
-          part_ijk(idime) = part_ijk(idime)*this%number_of_parts_per_dir(ilevel*SPACE_DIM+idime+1)/this%number_of_parts_per_dir((ilevel-1)*SPACE_DIM+idime)
+          part_ijk(idime) = part_ijk(idime)*this%number_of_parts_per_dir(ilevel*SPACE_DIM+idime)/this%number_of_parts_per_dir((ilevel-1)*SPACE_DIM+idime)
        end do
        ipart = ijk_to_spatial_numbering(this%number_of_dimensions,this%number_of_parts_per_dir(first:last), part_ijk)+1
        ilevel = ilevel +1
