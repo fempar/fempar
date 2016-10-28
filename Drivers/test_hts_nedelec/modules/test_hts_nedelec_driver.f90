@@ -38,6 +38,9 @@ module test_hts_nedelec_driver_names
   implicit none
   private
 
+  integer(ip), parameter :: hts = 1
+  integer(ip), parameter :: air = 2
+  
   type test_hts_nedelec_driver_t 
      private 
 
@@ -69,7 +72,7 @@ module test_hts_nedelec_driver_names
      type(fe_function_t)            :: H_previous 
      
      ! Writing solution 
-     type(vtk_handler_t)            :: vtk_handler
+     type(output_handler_t)         :: oh 
 
    contains
      procedure                  :: run_simulation
@@ -140,9 +143,9 @@ contains
        cy = cy/real(cell%get_num_nodes(),rp)
        ! Select material case
        if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then 
-          cells_set( cell%get_lid() ) = 1 ! HTS material 
+          cells_set( cell%get_lid() ) = hts  
        else 
-          cells_set( cell%get_lid() ) = 1 ! Air material 
+          cells_set( cell%get_lid() ) = air  
        end if
        call cell_iterator%next() 
     end do
@@ -211,7 +214,7 @@ contains
        call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
     end if
     ! Interpolate Dirichlet values to magnetic pressure field 
-    !call this%fe_space%interpolate_dirichlet_values(this%hts_nedelec_conditions, this%theta_method%get_initial_time() )
+    ! call this%fe_space%interpolate_dirichlet_values(this%hts_nedelec_conditions, this%theta_method%get_initial_time() )
     ! Create H_previous with initial time (t0) boundary conditions 
     call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_initial_time())
     call this%H_previous%create(this%fe_space) 
@@ -472,7 +475,12 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip)                                      :: err
     if(this%test_params%get_write_solution()) then
-       call  this%vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
+       call  this%oh%create() 
+       call  this%oh%attach_fe_space(this%fe_space)
+       call  this%oh%add_fe_function(this%H_current, 1, 'H')
+       call  this%oh%add_fe_function(this%H_current, 1, 'div(H)', div_diff_operator)
+       call  this%oh%add_fe_function(this%H_current, 1, 'J', curl_diff_operator)
+       call  this%oh%add_fe_function(this%H_current, 2, 'p')
     endif
   end subroutine initialize_output
   
@@ -484,14 +492,12 @@ contains
     
     ! Define customized output by the user 
     if( this%test_params%get_write_solution() .and. this%theta_method%print_this_step() ) then
-       err = this%vtk_handler%open_vtu(time_step=this%theta_method%get_current_time() ,format='ascii'); check(err==0)
-       err = this%vtk_handler%write_vtu_mesh(this%H_current); check(err==0)
-       err = this%vtk_handler%write_vtu_node_field(this%H_current, 1, 'H'); check(err==0)
-       err = this%vtk_handler%write_vtu_node_field(this%H_current, 1, 'J'); check(err==0)
-       err = this%vtk_handler%write_vtu_node_field(this%H_current, 2, 'p'); check(err==0)
-       err = this%vtk_handler%close_vtu(); check(err==0)
-       err = this%vtk_handler%write_pvtu(time_step=this%theta_method%get_current_time() ); check(err==0)
-       err = this%vtk_handler%write_pvd(); check(err==0)
+        call this%oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
+        call this%oh%append_time_step(this%theta_method%get_current_time())
+        call this%oh%write()
+        call this%oh%close()
+      ! err = this%vtk_handler%write_pvtu(time_step=this%theta_method%get_current_time() ); check(err==0)
+      ! err = this%vtk_handler%write_pvd(); check(err==0)
        call this%theta_method%update_time_to_be_printed() 
     endif
     
@@ -504,7 +510,7 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip)                                      :: err
     if(this%test_params%get_write_solution()) then
-    call  this%vtk_handler%free()
+    call  this%oh%free()
     endif
   end subroutine finalize_output
 
