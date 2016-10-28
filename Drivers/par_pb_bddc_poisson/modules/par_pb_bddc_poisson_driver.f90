@@ -401,11 +401,12 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
     type(output_handler_t)                             :: oh
+    type(parameterlist_T)                               :: parameter_list
     type(fe_iterator_t)                                :: fe_iterator
     class(base_static_triangulation_t), pointer        :: triangulation
     type(fe_accessor_t)                                :: fe
     real(rp), allocatable                              :: set_id_cell_vector(:)
-    integer(ip)                                        :: i
+    integer(ip)                                        :: i, istat
     if(this%test_params%get_write_solution()) then
        if ( this%par_environment%am_i_l1_task() ) then
           call build_set_id_cell_vector()
@@ -413,11 +414,14 @@ contains
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'solution')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-          call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+          call parameter_list%init()
+          istat = parameter_list%set(key=vtk_format, value='ascii');
+          call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix(), parameter_list=parameter_list)
           call oh%write()
           call oh%close()
           call oh%free()
           call free_set_id_cell_vector()
+          call parameter_list%free()
        end if
     end if
   contains
