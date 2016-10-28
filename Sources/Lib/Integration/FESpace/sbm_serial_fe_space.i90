@@ -421,8 +421,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
 
               ! TO-DO: This call should ONLY be performed once 
               !        per FE s.t. at least one of its fields
-              !        has DoFs subject to BCs. 
-              call fe%get_elem2dof(elem2dof(reference_fe_id))
+              !        has DoFs subject to BCs.
+              call fe%get_elem2dof(elem2dof)
 
               cell_coordinates => fe_maps(reference_fe_id)%get_coordinates()
               call fe%get_coordinates(cell_coordinates)

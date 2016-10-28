@@ -390,8 +390,8 @@ end subroutine fe_accessor_get_field_elem2dof
 
 subroutine fe_accessor_get_elem2dof( this, elem2dof )
   implicit none
-  class(fe_accessor_t), intent(in) :: this
-  type(i1p_t)                      :: elem2dof(this%fe_space%number_fields)
+  class(fe_accessor_t), intent(in)    :: this
+  type(i1p_t)         , intent(inout) :: elem2dof(this%fe_space%number_fields)
   integer(ip) :: field_id, j, spos, epos
  
   do field_id = 1, this%get_number_fields()-1
