@@ -30,7 +30,9 @@
 module xh5_parameters_names
 
 USE types_names
-USE xh5for, only: XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB, XDMF_GRID_TYPE_UNSTRUCTURED, XDMF_ACTION_WRITE
+USE xh5for, only: XDMF_GRID_TYPE_CURVILINEAR, XDMF_GRID_TYPE_RECTILINEAR, XDMF_GRID_TYPE_REGULAR, &
+                  XDMF_GRID_TYPE_UNSTRUCTURED, XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB,                &
+                  XDMF_STRATEGY_DATASET_PER_PROCESS, XDMF_ACTION_READ, XDMF_ACTION_WRITE
 
 implicit none
 private
@@ -82,6 +84,20 @@ private
     character(*), parameter, public :: xh5_Action     = 'xh5_Action'
     character(*), parameter, public :: xh5_Info       = 'xh5_Info'
 
+    ! GRID TYPE PARAMETERS (from xh5for)
+    public :: XDMF_GRID_TYPE_CURVILINEAR
+    public :: XDMF_GRID_TYPE_RECTILINEAR
+    public :: XDMF_GRID_TYPE_REGULAR
+    public :: XDMF_GRID_TYPE_UNSTRUCTURED
+
+    ! STRATEGY PARAMETERS (from xh5for)
+    public :: XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB
+    public :: XDMF_STRATEGY_DATASET_PER_PROCESS
+
+    ! ACTION PARAMETERS (from xh5for)
+    public :: XDMF_ACTION_READ
+    public :: XDMF_ACTION_WRITE
+
     ! DEFAULT PARAMETERS
     logical,     parameter, public :: xh5_default_StaticGrid = .true.
     integer(ip), parameter, public :: xh5_default_Strategy   = XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB
@@ -89,5 +105,6 @@ private
     integer(ip), parameter, public :: xh5_default_Action     = XDMF_ACTION_WRITE
     integer(ip), parameter, public :: xh5_default_Info       = 0
     integer(ip), parameter, public :: xh5_default_Comm       = 0
+
 
 end module xh5_parameters_names
