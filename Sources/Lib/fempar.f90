@@ -40,6 +40,8 @@ module fempar_names
   use par_timer_names
   use output_handler_names
   use output_handler_parameters_names
+  use vtk_parameters_names
+  use xh5_parameters_names
 
   ! Geometry
   use metis_interface_names

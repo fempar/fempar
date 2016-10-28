@@ -132,6 +132,7 @@ contains
         logical                                        :: same_data_type
         integer(ip), allocatable                       :: shape(:)
         integer(ip)                                    :: FPLError
+        integer(ip)                                    :: vtk_format_size_in_bytes
     !-----------------------------------------------------------------
         this%Path       = dir_path
         this%FilePrefix = prefix
@@ -149,6 +150,9 @@ contains
                 FPLError       = parameter_list%getshape(Key=vtk_format, shape=shape)
                 if(same_data_type .and. size(shape) == 0) then
 #endif
+                    if(allocated(this%vtk_format)) deallocate(this%vtk_format)
+                    vtk_format_size_in_bytes = parameter_list%DataSizeInBytes(Key=vtk_format)
+                    allocate(character(len=vtk_format_size_in_bytes)::this%vtk_format)
                     FPLError   = parameter_list%Get(Key=vtk_format, Value=this%vtk_format)
                     assert(FPLError == 0)
 #ifdef DEBUG
@@ -292,7 +296,7 @@ contains
         number_fields       = this%get_number_fields()
         number_cell_vectors = this%get_number_cell_vectors()
 
-        if(.not. this%StaticGrid .or. this%number_steps > 1) then
+        if(.not. this%StaticGrid .or. this%number_steps <= 1) then 
             call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
                                                   this%Y(this%node_offset+1:this%node_offset+number_vertices), &
                                                   this%Z(this%node_offset+1:this%node_offset+number_vertices))
