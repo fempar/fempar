@@ -814,7 +814,7 @@ contains
                 do vertex=1, number_vertices
                     do i_comp=1, SPACE_DIM
                         do j_comp=1, SPACE_DIM
-                            field((i_comp-1*SPACE_DIM)+j_comp,vertex) = tensor_field(subcells_connectivity%a(vertex, this%current_subcell))%get(i_comp,j_comp)
+                            field(((i_comp-1)*SPACE_DIM)+j_comp,vertex) = tensor_field(subcells_connectivity%a(vertex, this%current_subcell))%get(i_comp,j_comp)
                         enddo
                     enddo
                 enddo

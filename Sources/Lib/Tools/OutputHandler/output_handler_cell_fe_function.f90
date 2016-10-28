@@ -457,7 +457,7 @@ contains
 
     subroutine output_handler_cell_fe_function_fill_patch_vector_field_val(this, fe_function, field_id, patch_field)
     !-----------------------------------------------------------------
-    !< Fill the patch with field gradients given a scalar fe_field
+    !< Fill the patch with field values given a vector fe_field
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(inout) :: this
         type(fe_function_t),                      intent(in)    :: fe_function
@@ -583,6 +583,13 @@ contains
         ! Calculate gradients
         call volume_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
 
+        ! Allocate scalar function values
+        if ( allocated(scalar_function_values) ) then
+           call memrealloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+        else
+           call memalloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+        end if
+        
         ! Calculate divergence
         scalar_function_values = 0._rp
         do shape_function = 1, reference_fe%get_number_shape_functions()
@@ -619,6 +626,7 @@ contains
         type(allocatable_array_vector_field_t),   pointer       :: patch_field_vector_function_values
         type(allocatable_array_tensor_field_t),   pointer       :: patch_field_tensor_function_values
         integer(ip)                                             :: shape_function
+        integer(ip)                                             :: istat
     !-----------------------------------------------------------------
         ! Get reference_Fe
         reference_fe => this%current_fe%get_reference_fe(field_id)
@@ -635,8 +643,7 @@ contains
         call patch_field_nodal_values%create(reference_fe%get_number_shape_functions())
         call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
 
-        ! get vector and tensor function values
-        patch_field_vector_function_values => patch_field%get_vector_function_values()
+        ! get tensor function values
         patch_field_tensor_function_values => patch_field%get_tensor_function_values()
         call patch_field_tensor_function_values%move_alloc_out(tensor_function_values) 
 
@@ -647,6 +654,12 @@ contains
             call patch_field%set_field_type(field_type_scalar)
             patch_field_scalar_function_values => patch_field%get_scalar_function_values()
             call patch_field_scalar_function_values%move_alloc_out(scalar_function_values) 
+            ! Allocate scalar function values
+            if ( allocated(scalar_function_values) ) then
+               call memrealloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+            else
+               call memalloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+            end if
             ! Calculate curl
             do shape_function = 1, reference_fe%get_number_shape_functions()
                 scalar_function_values(shape_function) = &
@@ -656,7 +669,17 @@ contains
 
         elseif(this%number_dimensions == 3) then
             call patch_field%set_field_type(field_type_vector)
+            patch_field_vector_function_values => patch_field%get_vector_function_values()
             call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
+            ! Allocate vector function values
+            if ( allocated(vector_function_values) ) then
+               if ( size(vector_function_values) < reference_fe%get_number_shape_functions() ) then
+                  deallocate(vector_function_values, stat=istat); check(istat==0)
+                  allocate(scalar_function_values(reference_fe%get_number_shape_functions()), stat=istat); check(istat==0)
+               endif
+            else
+               allocate(scalar_function_values(reference_fe%get_number_shape_functions()), stat=istat); check(istat==0)
+            end if
             ! Calculate curl
             do shape_function = 1, reference_fe%get_number_shape_functions()
                 call vector_function_values(shape_function)%set(1, &
