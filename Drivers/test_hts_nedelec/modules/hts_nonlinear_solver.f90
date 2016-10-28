@@ -34,16 +34,20 @@ module hts_nonlinear_solver_names
   
   type :: hts_nonlinear_solver_t
      private
-     integer(ip)                     :: current_iteration 
-     integer(ip)                     :: ideal_num_iterations 
-     integer(ip)                     :: max_number_iterations
-	    real(rp)                        :: absolute_tolerance
-     real(rp)                        :: relative_tolerance
-     real(rp)                        :: step_length 
-     class(vector_t), pointer        :: current_dof_values 
-     class(vector_t), allocatable    :: increment_dof_values 
-	    class(vector_t), allocatable    :: residual 
-     type(direct_solver_t)           :: direct_solver
+     integer(ip)                             :: current_iteration 
+     integer(ip)                             :: ideal_num_iterations 
+     integer(ip)                             :: max_number_iterations
+	    real(rp)                                :: absolute_tolerance
+     real(rp)                                :: relative_tolerance
+     real(rp)                                :: step_length 
+     character(len=:) , allocatable          :: convergence_criteria 
+     type(fe_affine_operator_t) , pointer    :: fe_affine_operator 
+     class(vector_t), pointer                :: current_dof_values 
+     class(vector_t), pointer                :: current_rhs 
+     class(vector_t), allocatable            :: increment_dof_values 
+	    class(vector_t), allocatable            :: residual 
+     class(vector_t), allocatable            :: initial_residual 
+     type(direct_solver_t)                   :: direct_solver
    contains
      procedure :: create                          => hts_nonlinear_solver_create 
      procedure :: start_new_iteration             => hts_nonlinear_solver_start_new_iteration 
@@ -65,14 +69,15 @@ module hts_nonlinear_solver_names
   
 contains
 
-subroutine hts_nonlinear_solver_create(this, abs_tol, rel_tol, max_iters, ideal_iters, fe_affine_operator, current_dof_values)
+subroutine hts_nonlinear_solver_create(this, convergence_criteria, abs_tol, rel_tol, max_iters, ideal_iters, fe_affine_operator, current_dof_values)
 implicit none 
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
+character(len=*)                      , intent(in)     :: convergence_criteria 
 real(rp)                              , intent(in)     :: abs_tol
 real(rp)                              , intent(in)     :: rel_tol 
 integer(ip)                           , intent(in)     :: max_iters 
 integer(ip)                           , intent(in)     :: ideal_iters 
-type(fe_affine_operator_t)            , intent(in)     :: fe_affine_operator 
+type(fe_affine_operator_t) , target   , intent(in)     :: fe_affine_operator 
 class(vector_t)            , target   , intent(in)     :: current_dof_values 
 integer                      :: FPLError
 type(parameterlist_t)        :: parameter_list
@@ -81,17 +86,21 @@ class(matrix_t), pointer     :: matrix
 
 ! Initialize values 
 this%current_iteration     = 0
+this%convergence_criteria  = convergence_criteria 
 this%absolute_tolerance    = abs_tol
 this%relative_tolerance    = rel_tol
 this%max_number_iterations = max_iters 
 this%ideal_num_iterations  = ideal_iters 
-this%step_length           = 1.0_rp 
+this%step_length           = 1.0_rp  
 
 ! Point current dof values 
 this%current_dof_values => current_dof_values 
+this%current_rhs        => fe_affine_operator%get_translation() 
+this%fe_affine_operator => fe_affine_operator 
 
 ! Create auxiliar structures 
 call fe_affine_operator%create_range_vector(this%residual) 
+call fe_affine_operator%create_range_vector(this%initial_residual)
 call fe_affine_operator%create_range_vector(this%increment_dof_values) 
 
 ! Create direct solver to update iterates 
@@ -126,6 +135,7 @@ class(hts_nonlinear_solver_t)         , intent(inout)  :: this
 
 assert(.not. this%finished()  )
 this%current_iteration = this%current_iteration + 1
+
 end subroutine hts_nonlinear_solver_start_new_iteration 
 
 ! ---------------------------------------------------------------------------------------
@@ -133,46 +143,45 @@ subroutine hts_nonlinear_solver_initialize(this)
 implicit none 
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 
-this%current_iteration = 0
+this%current_iteration = 0 
+call this%compute_residual()
+this%initial_residual  = this%residual 
+
 end subroutine hts_nonlinear_solver_initialize  
 
 ! ---------------------------------------------------------------------------------------
-subroutine hts_nonlinear_solver_compute_residual(this, fe_affine_operator, current_dof_values )
+subroutine hts_nonlinear_solver_compute_residual(this)
 implicit none 
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
-type(fe_affine_operator_t)            , intent(in)     :: fe_affine_operator
-class(vector_t)                       , intent(in)     :: current_dof_values 
 
 call this%residual%init(0.0_rp)
-call fe_affine_operator%apply( current_dof_values, this%residual ) 
+call this%fe_affine_operator%apply( this%current_dof_values, this%residual ) 
 
 end subroutine hts_nonlinear_solver_compute_residual 
 
 ! ---------------------------------------------------------------------------------------
-subroutine hts_nonlinear_solver_compute_Jacobian(this, discrete_integration, fe_affine_operator )
+subroutine hts_nonlinear_solver_compute_Jacobian(this, discrete_integration )
 implicit none 
 class(hts_nonlinear_solver_t)               , intent(inout)   :: this 
 class(hts_nedelec_discrete_integration_t)   , intent(inout)   :: discrete_integration
-type(fe_affine_operator_t)                  , intent(inout)   :: fe_affine_operator
 
 ! This subroutine is in charge of adding tangent terms to the current operator 
 ! J(u) = A(u) + A'(u)·u, stored in fe_affine_operator 
 call discrete_integration%set_integration_type('add_tangent_terms')
-call fe_affine_operator%numerical_setup() 
+call this%fe_affine_operator%numerical_setup() 
 call discrete_integration%set_integration_type('regular')
 
 end subroutine hts_nonlinear_solver_compute_Jacobian 
 
 ! ---------------------------------------------------------------------------------------
-subroutine hts_nonlinear_solver_solve_tangent_system(this, fe_affine_operator )
+subroutine hts_nonlinear_solver_solve_tangent_system(this)
 implicit none 
 class(hts_nonlinear_solver_t)               , intent(inout)     :: this  
-type(fe_affine_operator_t)                  , intent(in)        :: fe_affine_operator
 class(vector_t), pointer       :: current_dof_values 
 class(matrix_t), pointer       :: Jacobian
 class(vector_t), pointer       :: residual 
 
-Jacobian => fe_affine_operator%get_matrix() 
+Jacobian => this%fe_affine_operator%get_matrix() 
  
 select type (Jacobian) 
 class is (sparse_matrix_t) 
@@ -201,8 +210,17 @@ implicit none
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 logical         :: hts_nonlinear_solver_converged
 
+select case (this%convergence_criteria) 
+case ('abs_res_norm') !  |R| < abs_tol & |dH|/|H| < rel_tol 
 hts_nonlinear_solver_converged = ( (this%residual%nrm2() .lt. this%absolute_tolerance ) .and. &
                                    (this%increment_dof_values%nrm2()/this%current_dof_values%nrm2() .lt. this%relative_tolerance) )
+case ('relative_r0_res_norm') ! |R|/|Ro| < rel_tol 
+hts_nonlinear_solver_converged = (this%residual%nrm2()/this%initial_residual%nrm2() .lt. this%relative_tolerance ) 
+case ('relative_rhs_res_norm') ! |R|/|b| < rel_tol 
+hts_nonlinear_solver_converged = (this%residual%nrm2()/this%current_rhs%nrm2() .lt. this%relative_tolerance ) 
+case DEFAULT
+assert(.false.) 
+end select 
 
 end function hts_nonlinear_solver_converged
 
@@ -212,7 +230,7 @@ implicit none
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 logical                                                :: hts_nonlinear_solver_finished
 
-hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_number_iterations) .or. (this%residual%nrm2()>1e12_rp) )  &
+hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_number_iterations) .or. (this%residual%nrm2()>1e15_rp) )  &
                                    .and. this%current_iteration .gt. 0 )
 
 end function hts_nonlinear_solver_finished
@@ -241,10 +259,23 @@ end function hts_nonlinear_solver_get_ideal_num_iterations
 subroutine hts_nonlinear_solver_print_current_iteration_output(this) 
 implicit none 
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
+class(vector_t), pointer         :: rhs 
 
   ! Screen output 
+select case (this%convergence_criteria) 
+case ('abs_res_norm')         !  |R| < abs_tol & |dH|/|H| < rel_tol 
 write(6,'(a14,i3,a10,es21.15, a14, es21.15)')  'NL iteration ', this%current_iteration, '  |R| ', this%residual%nrm2(), &
                                                '  |dH|/|H| ', this%increment_dof_values%nrm2()/this%current_dof_values%nrm2()
+case ('relative_r0_res_norm') ! |R|/|Ro| < rel_tol 
+write(6,'(a14,i3,a16,es21.15, a10, es21.15)')  'NL iteration ', this%current_iteration, '  |R|/|Ro| ', this%residual%nrm2()/this%initial_residual%nrm2(), &
+                                               '  |R| ', this%residual%nrm2()
+case ('relative_rhs_res_norm') ! |R|/|b| < rel_tol 
+write(6,'(a14,i3,a16,es21.15, a10, es21.15)')  'NL iteration ', this%current_iteration, '  |R|/|b| ', this%residual%nrm2()/this%current_rhs%nrm2(), &
+                                               '  |R| ', this%residual%nrm2()
+case DEFAULT
+assert(.false.) 
+end select 
+
 
 end subroutine hts_nonlinear_solver_print_current_iteration_output
 
@@ -268,6 +299,7 @@ implicit none
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 
 if (allocated(this%residual)) call this%residual%free()
+if (allocated(this%initial_residual)) call this%initial_residual%free()
 if (allocated(this%increment_dof_values)) call this%increment_dof_values%free()
 ! call this%direct_solver%free() 
 

@@ -138,9 +138,8 @@ contains
        end do
        cx = cx/real(cell%get_num_nodes(),rp)
        cy = cy/real(cell%get_num_nodes(),rp)
-       ! Select material case 
-       !if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then 
-       if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (21e-3_rp<cy) .and. (cy<27e-3_rp) ) ) then 
+       ! Select material case
+       if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then 
           cells_set( cell%get_lid() ) = 1 ! HTS material 
        else 
           cells_set( cell%get_lid() ) = 1 ! Air material 
@@ -161,14 +160,21 @@ contains
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
 
-    allocate(this%reference_fes(1), stat=istat)
+    allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
 
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
-                                                 fe_type = fe_type_nedelec, &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                     &
+                                                 fe_type = fe_type_nedelec,                                   &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = this%test_params%get_reference_fe_order(), &
-                                                 field_type = field_type_vector, &
+                                                 order = this%test_params%get_reference_fe_order(),           &
+                                                 field_type = field_type_vector,                              &
+                                                 continuity = .true. ) 
+    
+    this%reference_fes(2) =  make_reference_fe ( topology = topology_hex,                                     &
+                                                 fe_type = fe_type_lagrangian,                                &
+                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 order = this%test_params%get_reference_fe_order(),           &
+                                                 field_type = field_type_scalar,                              &
                                                  continuity = .true. ) 
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
@@ -192,25 +198,27 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
 
     call this%hts_nedelec_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%fe_space%create( triangulation       = this%triangulation,      &
-         conditions          = this%hts_nedelec_conditions, &
-         reference_fes       = this%reference_fes)
+    call this%fe_space%create( triangulation       = this%triangulation,          &
+                               conditions          = this%hts_nedelec_conditions, &
+                               reference_fes       = this%reference_fes           )
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration() 
+    call this%hts_nedelec_conditions%set_boundary_function_p(this%problem_functions%get_boundary_function_p())
     call this%hts_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
     call this%hts_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
     if ( this%triangulation%get_num_dimensions() == 3) then 
        call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
     end if
+    ! Interpolate Dirichlet values to magnetic pressure field 
+    !call this%fe_space%interpolate_dirichlet_values(this%hts_nedelec_conditions, this%theta_method%get_initial_time() )
     ! Create H_previous with initial time (t0) boundary conditions 
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_initial_time() )
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_initial_time())
     call this%H_previous%create(this%fe_space) 
     ! Update fe_space to the current time (t1) boundary conditions, create H_current 
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_current_time() )
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_current_time())
     call this%H_current%create(this%fe_space)
 
-    !call this%fe_space%print()
   end subroutine setup_fe_space
 
   ! -----------------------------------------------------------------------------------------------
@@ -245,12 +253,13 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     
-    call this%nonlinear_solver%create( abs_tol = this%test_params%get_absolute_nonlinear_tolerance(),  &
-                                       rel_tol = this%test_params%get_relative_nonlinear_tolerance(),  &
-                                       max_iters = this%test_params%get_max_nonlinear_iterations(),    &
-                                       ideal_iters = this%test_params%get_stepping_parameter(),        &
-                                       fe_affine_operator = this%fe_affine_operator,                   &
-                                       current_dof_values = this%H_current%get_dof_values()            )
+    call this%nonlinear_solver%create( convergence_criteria = this%test_params%get_nonlinear_convergence_criteria() , &
+                                       abs_tol = this%test_params%get_absolute_nonlinear_tolerance(),                 &
+                                       rel_tol = this%test_params%get_relative_nonlinear_tolerance(),                 &
+                                       max_iters = this%test_params%get_max_nonlinear_iterations(),                   &
+                                       ideal_iters = this%test_params%get_stepping_parameter(),                       &
+                                       fe_affine_operator = this%fe_affine_operator,                                  &
+                                       current_dof_values = this%H_current%get_dof_values()                           )
     
   end subroutine setup_nonlinear_solver
   
@@ -264,8 +273,8 @@ contains
                                    this%test_params%get_final_time(),           & 
                                    this%test_params%get_number_time_steps(),    &
                                    this%test_params%get_max_time_step(),        & 
-                                   this%test_params%get_min_time_step()         )
-  
+                                   this%test_params%get_min_time_step(),        &
+                                   this%test_params%get_save_solution_n_steps() )
   
   end subroutine setup_theta_method 
 
@@ -324,14 +333,12 @@ contains
   
     call this%nonlinear_solver%initialize() 
     nonlinear: do while ( .not. this%nonlinear_solver%finished() )
-   
-    ! 0 - Update counter
+       
+    ! 0 - Update initial residual 
     call this%nonlinear_solver%start_new_iteration() 
-    ! 1 - Evaluate initial residual 
-    call this%nonlinear_solver%compute_residual(this%fe_affine_operator, this%H_current%get_dof_values() )
-    ! 2 - Integrate Jacobian
-    call this%nonlinear_solver%compute_jacobian(this%hts_nedelec_integration, this%fe_affine_operator)
-    ! 3 - Solve tangent system 
+    ! 1 - Integrate Jacobian
+    call this%nonlinear_solver%compute_jacobian(this%hts_nedelec_integration)
+    ! 2 - Solve tangent system 
     !A => this%fe_affine_operator%get_matrix() 
     !  select type(A)
     !   class is (sparse_matrix_t)  
@@ -339,14 +346,15 @@ contains
     !   class DEFAULT
     !   assert(.false.) 
     !end select  
-    call this%nonlinear_solver%solve_tangent_system(this%fe_affine_operator) 
-    ! 4 - Update solution 
+
+    call this%nonlinear_solver%solve_tangent_system() 
+    ! 3 - Update solution 
     call this%nonlinear_solver%update_solution(this%H_current) 
-    ! 5 - New picard iterate with updated solution 
+    ! 4 - New picard iterate with updated solution 
     call this%assemble_system() 
-    ! 6 - Evaluate new residual 
-    call this%nonlinear_solver%compute_residual(this%fe_affine_operator, this%H_current%get_dof_values() )
-    ! 7 - Print current output 
+    ! 5 - Evaluate new residual 
+    call this%nonlinear_solver%compute_residual()
+    ! 6 - Print current output 
     call this%nonlinear_solver%print_current_iteration_output() 
     
     end do nonlinear 
@@ -365,10 +373,8 @@ contains
     type(fe_iterator_t) :: fe_iterator
     type(fe_accessor_t) :: fe
     ! Integration loop 
-    integer(ip) :: ielem, fe_num_dofs, num_dofs_per_field  
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
-    type(i1p_t)              , allocatable :: elem2dof(:)
     type(cell_fe_function_vector_t)        :: cell_fe_function_current
     integer(ip)                            :: qpoin, num_quad_points, idof 
     type(point_t)            , pointer     :: quad_coords(:)
@@ -377,7 +383,7 @@ contains
     type(vector_field_t)                   :: H_value, H_curl 
     ! Hysteresis variables for final computations 
     real(rp)                               :: Hy_average, J_average, hts_area
-    real(rp)                               :: w, A, x_coord, Happ
+    real(rp)                               :: w, A, x_coord, Happ, mu0
     real(rp)                 , pointer     :: external_magnetic_field_amplitude(:) 
     real(rp)                 , pointer     :: hts_domain_length(:)
     integer(ip) :: istat 
@@ -390,7 +396,6 @@ contains
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
-    fe_num_dofs      =  fe%get_number_dofs()
 
     ! Loop over elements
     Hy_average = 0
@@ -408,14 +413,14 @@ contains
           ! Get quadrature coordinates to evaluate boundary value
           quad_coords => fe_map%get_quadrature_coordinates()
 
-          ! Compute contribution to Hy average 
+          ! Integrate cell contribution to H_y, x·J_z average 
           do qpoin=1, num_quad_points
              factor = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						         
                 call cell_fe_function_current%get_value(qpoin, H_value)
                 call cell_fe_function_current%compute_curl(qpoin, H_curl)
                 x_coord = quad_coords(qpoin)%get(1) 
-                Hy_average = Hy_average + factor*H_value%get(2)          ! Hy value
-                J_average  = J_average  + factor*x_coord*H_curl%get(3)   ! Jz value 
+                Hy_average = Hy_average + factor*H_value%get(2)          
+                J_average  = J_average  + factor*x_coord*H_curl%get(3)  
           end do
 
        end if
@@ -428,9 +433,10 @@ contains
     hts_area   = hts_domain_length(1)*hts_domain_length(2) 
     A          = external_magnetic_field_amplitude(2)
     w          = this%test_params%get_external_magnetic_field_frequency()
+    mu0        = this%test_params%get_air_permeability() 
     Happ       = A*sin(2.0_rp*pi*w*this%theta_method%get_current_time() )   
     write(*,*) 'Hysteresis Data -----------------------------------------'
-    write(*,*) '(Hy-Happ)', (Hy_average/hts_area-Happ), 'Happ', Happ 
+    write(*,*) 'mu0·(Hy-Happ)', mu0*(Hy_average/hts_area-Happ), 'Happ', Happ 
     write(*,*) 'xJ', J_average/hts_area
     write(*,*) ' --------------------------------------------------------' 
 
@@ -475,15 +481,21 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip)                                      :: err
-    if(this%test_params%get_write_solution()) then
+    
+    ! Define customized output by the user 
+    if( this%test_params%get_write_solution() .and. this%theta_method%print_this_step() ) then
        err = this%vtk_handler%open_vtu(time_step=this%theta_method%get_current_time() ,format='ascii'); check(err==0)
        err = this%vtk_handler%write_vtu_mesh(this%H_current); check(err==0)
        err = this%vtk_handler%write_vtu_node_field(this%H_current, 1, 'H'); check(err==0)
        err = this%vtk_handler%write_vtu_node_field(this%H_current, 1, 'J'); check(err==0)
+       err = this%vtk_handler%write_vtu_node_field(this%H_current, 2, 'p'); check(err==0)
        err = this%vtk_handler%close_vtu(); check(err==0)
        err = this%vtk_handler%write_pvtu(time_step=this%theta_method%get_current_time() ); check(err==0)
        err = this%vtk_handler%write_pvd(); check(err==0)
+       call this%theta_method%update_time_to_be_printed() 
     endif
+    
+    
   end subroutine write_time_step_solution
   
       ! -----------------------------------------------------------------------------------------------

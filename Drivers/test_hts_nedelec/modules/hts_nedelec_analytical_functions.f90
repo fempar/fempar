@@ -79,6 +79,13 @@ module hts_nedelec_analytical_functions_names
      procedure :: get_value_space        => boundary_function_Hz_get_value_space
      procedure :: get_value_space_time   => boundary_function_Hz_get_value_space_time
   end type boundary_function_Hz_t
+  
+    type, extends(base_scalar_function_t) :: boundary_function_p_t
+     private 
+   contains
+     procedure :: get_value_space        => boundary_function_p_get_value_space
+     procedure :: get_value_space_time   => boundary_function_p_get_value_space_time
+  end type boundary_function_p_t
 
 
   type hts_nedelec_analytical_functions_t
@@ -88,6 +95,7 @@ module hts_nedelec_analytical_functions_names
      type(boundary_function_Hx_t)            :: boundary_function_Hx
      type(boundary_function_Hy_t)            :: boundary_function_Hy
      type(boundary_function_Hz_t)            :: boundary_function_Hz 
+     type(boundary_function_p_t)             :: boundary_function_p
    contains
      procedure :: set_num_dimensions               => mn_set_num_dimensions
      procedure :: get_source_term                  => mn_get_source_term
@@ -95,6 +103,7 @@ module hts_nedelec_analytical_functions_names
      procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
      procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
      procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
+     procedure :: get_boundary_function_p          => mn_get_boundary_function_p
   end type hts_nedelec_analytical_functions_t
 
   public :: hts_nedelec_analytical_functions_t
@@ -141,9 +150,9 @@ contains
     n = 3.0_rp 
     
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    call result%set(1, 0.0_rp) 
-    call result%set(2, -(n+1.0_rp)*((time*3.0_rp*x*x)**n)*(time*6.0_rp*x) + x*x*x )
-    call result%set(3, 0.0_rp) 
+    !call result%set(1, 0.0_rp) 
+    !call result%set(2, -(n+1.0_rp)*((time*3.0_rp*x*x)**n)*(time*6.0_rp*x) + x*x*x )
+    !call result%set(3, 0.0_rp) 
   end subroutine source_term_get_value_space_time 
 
   !===============================================================================================
@@ -218,7 +227,7 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3) 
-    
+
     call result%set(1,2, time*3.0_rp*x*x) 
 
   end subroutine solution_get_gradient_space_time
@@ -300,8 +309,8 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3)
-    result = x*x*x 
-    ! result = 0.0_rp 
+    !result = x*x*x 
+     result = 0.0_rp 
 
   end subroutine boundary_function_Hy_get_value_space
   
@@ -318,8 +327,8 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3)
-    result = time*x*x*x 
-    !result = 1e6_rp*sin(100.0_rp*pi*time) 
+    !result = time*x*x*x 
+    result = 1e6_rp*sin(100.0_rp*pi*time) 
     
   end subroutine boundary_function_Hy_get_value_space_time
 
@@ -330,11 +339,6 @@ contains
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result    
 
-    ! Locals 
-    real(rp)  :: x,y,z 
-    x = point%get(1) 
-    y = point%get(2) 
-    z = point%get(3) 
     result = 0.0_rp 
     
   end subroutine boundary_function_Hz_get_value_space
@@ -347,14 +351,30 @@ contains
     real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result    
 
-    ! Locals 
-    real(rp)  :: x,y,z 
-    x = point%get(1) 
-    y = point%get(2) 
-    z = point%get(3) 
     result = 0.0_rp 
     
   end subroutine boundary_function_Hz_get_value_space_time
+  
+      ! ============================================================================================
+  subroutine boundary_function_p_get_value_space( this, point, result )
+    implicit none 
+    class(boundary_function_p_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+    real(rp)                       , intent(inout) :: result    
+
+    result = 0.0_rp    
+  end subroutine boundary_function_p_get_value_space
+  
+    ! ============================================================================================
+  subroutine boundary_function_p_get_value_space_time( this, point, time, result )
+    implicit none 
+    class(boundary_function_p_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+    real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(inout) :: result    
+
+    result = 0.0_rp    
+  end subroutine boundary_function_p_get_value_space_time
   
   !===============================================================================================
   subroutine mn_set_num_dimensions ( this, num_dimensions )
@@ -404,6 +424,14 @@ contains
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hz
     mn_get_boundary_function_Hz => this%boundary_function_Hz
   end function mn_get_boundary_function_Hz
+  
+    !===============================================================================================
+  function mn_get_boundary_function_p ( this )
+    implicit none
+    class(hts_nedelec_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: mn_get_boundary_function_p
+    mn_get_boundary_function_p => this%boundary_function_p
+  end function mn_get_boundary_function_p
 
 end module hts_nedelec_analytical_functions_names
 !***************************************************************************************************

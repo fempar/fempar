@@ -84,7 +84,9 @@ module hts_nedelec_params_names
      character(len=:), allocatable :: default_stepping_parameter
      character(len=:), allocatable :: default_max_time_step 
      character(len=:), allocatable :: default_min_time_step 
+     character(len=:), allocatable :: default_save_solution_n_steps 
      ! Nonlinear solver tolerance 
+     character(len=:), allocatable :: default_nonlinear_convergence_criteria 
      character(len=:), allocatable :: default_absolute_nonlinear_tolerance
      character(len=:), allocatable :: default_relative_nonlinear_tolerance 
      character(len=:), allocatable :: default_max_nonlinear_iterations 
@@ -127,7 +129,9 @@ module hts_nedelec_params_names
      integer(ip)                   :: stepping_parameter
      real(rp)                      :: max_time_step 
      real(rp)                      :: min_time_step 
+     integer(ip)                   :: save_solution_n_steps 
      ! Nonlinear solver tolerance 
+     character(len=256)            :: nonlinear_convergence_criteria 
      real(rp)                      :: absolute_nonlinear_tolerance
      real(rp)                      :: relative_nonlinear_tolerance 
      real(rp)                      :: max_nonlinear_iterations 
@@ -167,6 +171,8 @@ module hts_nedelec_params_names
      procedure, non_overridable             :: get_stepping_parameter
      procedure, non_overridable             :: get_max_time_step 
      procedure, non_overridable             :: get_min_time_step 
+     procedure, non_overridable             :: get_save_solution_n_steps 
+     procedure, non_overridable             :: get_nonlinear_convergence_criteria 
      procedure, non_overridable             :: get_absolute_nonlinear_tolerance
      procedure, non_overridable             :: get_relative_nonlinear_tolerance 
      procedure, non_overridable             :: get_max_nonlinear_iterations 
@@ -217,8 +223,8 @@ contains
     this%default_domain_length_lx = '1.0'
     this%default_domain_length_ly = '1.0'
     this%default_domain_length_lz = '1.0'
-    this%default_hts_domain_length_lx = '0.5'
-    this%default_hts_domain_length_ly = '0.2'
+    this%default_hts_domain_length_lx = '1.0'
+    this%default_hts_domain_length_ly = '1.0'
     this%default_hts_domain_length_lz = '1.0'
     ! Customized Problem conditions and source term  
     this%default_external_magnetic_field_frequency = '0'
@@ -247,7 +253,9 @@ contains
     this%default_stepping_parameter         = '20'
     this%default_max_time_step              = '0.1'
     this%default_min_time_step              = '1e-3'
+    this%default_save_solution_n_steps      = '10'
     ! Nonlinear solver tolerance 
+    this%default_nonlinear_convergence_criteria     = 'abs_res_norm'
     this%default_absolute_nonlinear_tolerance       = '1e-3'
     this%default_relative_nonlinear_tolerance       = '1e-3'
     this%default_max_nonlinear_iterations           = '200'
@@ -395,6 +403,12 @@ contains
     call this%cli%add(switch='--min_time_step',switch_ab='-min_ts',help='Minimum time step lenght allowed ',&
          &            required=.false.,act='store',def=trim(this%default_min_time_step),error=error) 
     check(error==0)
+     call this%cli%add(switch='--save_n_solutions',switch_ab='-save_nsteps',help='Solution will be printed in equidistant "n" steps over the entire time interval',&
+         &            required=.false.,act='store',def=trim(this%default_save_solution_n_steps),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--nonlinear_convergence_criteria',switch_ab='-nl_conv_crit', help='Select nonlinear convergence criteria from ', &
+         &            required=.false.,act='store',def=trim(this%default_nonlinear_convergence_criteria), &
+                      choices='abs_res_norm,relative_r0_res_norm,relative_rhs_res_norm',error=error) 
     call this%cli%add(switch='--abs_nl_tolerance',switch_ab='-abs_tol',help=' Absolute tolerance for the NL solver ',&
          &            required=.false.,act='store',def=trim(this%default_absolute_nonlinear_tolerance),error=error) 
     check(error==0)
@@ -460,6 +474,8 @@ contains
     call this%cli%get(switch='-tsp',val=this%stepping_parameter,error=istat); check(istat==0)
     call this%cli%get(switch='-max_ts',val=this%max_time_step,error=istat); check(istat==0)
     call this%cli%get(switch='-min_ts',val=this%min_time_step,error=istat); check(istat==0)
+    call this%cli%get(switch='-save_nsteps',val=this%save_solution_n_steps,error=istat); check(istat==0)
+    call this%cli%get(switch='-nl_conv_crit',val=this%nonlinear_convergence_criteria,error=istat); check(istat==0)
     call this%cli%get(switch='-abs_tol',val=this%absolute_nonlinear_tolerance,error=istat); check(istat==0)
     call this%cli%get(switch='-rel_tol',val=this%relative_nonlinear_tolerance,error=istat); check(istat==0)
     call this%cli%get(switch='-max_nl_its',val=this%max_nonlinear_iterations,error=istat); check(istat==0)
@@ -725,6 +741,22 @@ contains
     real(rp) :: get_min_time_step 
     get_min_time_step  = this%min_time_step
   end function get_min_time_step
+  
+        !==================================================================================================
+  function get_save_solution_n_steps(this) 
+    implicit none
+    class(hts_nedelec_params_t) , intent(in) :: this
+    integer(ip) :: get_save_solution_n_steps 
+    get_save_solution_n_steps  = this%save_solution_n_steps
+  end function get_save_solution_n_steps
+  
+    !==================================================================================================
+  function get_nonlinear_convergence_criteria(this)
+    implicit none
+    class(hts_nedelec_params_t) , intent(in) :: this
+    character(len=256) :: get_nonlinear_convergence_criteria
+    get_nonlinear_convergence_criteria = this%nonlinear_convergence_criteria
+  end function get_nonlinear_convergence_criteria 
   
       !==================================================================================================
   function get_absolute_nonlinear_tolerance  (this)
