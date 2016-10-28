@@ -48,7 +48,7 @@ module base_static_triangulation_names
   use geometry_names
 
   ! Par modules
-  use par_environment_names
+  use environment_names
 
   implicit none
 # include "debug.i90"
@@ -111,10 +111,13 @@ module base_static_triangulation_names
     procedure, non_overridable           :: set_coordinates         => cell_accessor_set_coordinates
     procedure, non_overridable           :: get_lid                 => cell_accessor_get_lid
     procedure, non_overridable           :: get_gid                 => cell_accessor_get_gid
-    procedure, non_overridable           :: get_mypart              => cell_accessor_get_mypart
+    procedure, non_overridable           :: get_my_part             => cell_accessor_get_mypart
+    procedure, non_overridable           :: get_my_subpart          => cell_accessor_get_mysubpart
+    procedure, non_overridable           :: get_my_subpart_lid      => cell_accessor_get_mysubpart_lid
     procedure, non_overridable           :: get_set_id              => cell_accessor_get_set_id
     procedure, non_overridable           :: get_num_vefs            => cell_accessor_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_accessor_get_num_nodes
+    procedure, non_overridable           :: get_num_vertices        => cell_accessor_get_num_vertices    
     procedure, non_overridable           :: get_node_lid            => cell_accessor_get_node_lid
     procedure, non_overridable           :: get_vef_lid             => cell_accessor_get_vef_lid
     procedure, non_overridable           :: get_vef_lids            => cell_accessor_get_vef_lids
@@ -125,7 +128,11 @@ module base_static_triangulation_names
     procedure, non_overridable           :: is_local                => cell_accessor_is_local
     procedure, non_overridable           :: is_ghost                => cell_accessor_is_ghost
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_accessor_get_scan_sum_number_vefs
-    procedure, non_overridable           :: fill_nodes_on_vertices  => cell_accessor_fill_nodes_on_vertices
+
+    procedure, non_overridable           :: fill_nodes_on_vertices        => cell_accessor_fill_nodes_on_vertices
+    procedure, non_overridable           :: fill_nodes_on_vef_new         => cell_accessor_fill_nodes_on_vef_new
+    procedure, non_overridable           :: fill_nodes_on_vef_from_source => cell_accessor_fill_nodes_on_vef_from_source
+    procedure, non_overridable           :: fill_internal_nodes_new       => cell_accessor_fill_internal_nodes_new
   end type cell_accessor_t
   
   type cell_iterator_t
@@ -260,17 +267,20 @@ module base_static_triangulation_names
     class(base_static_triangulation_t), pointer :: base_static_triangulation
   contains
     procedure                   :: object_accessor_create
-    generic                     :: create                         => object_accessor_create
-    procedure                   :: free                           => object_accessor_free
-    procedure                   :: next                           => object_accessor_next
-    procedure                   :: set_lid                        => object_accessor_set_lid
-    procedure                   :: past_the_end                   => object_accessor_past_the_end
-    procedure, non_overridable  :: get_lid                        => object_accessor_get_lid
-    procedure, non_overridable  :: get_gid                        => object_accessor_get_gid
-    procedure, non_overridable  :: get_number_parts_around        => object_accessor_get_number_parts_around
-    procedure, non_overridable  :: create_parts_around_iterator   => object_accessor_create_parts_around_iterator
-    procedure, non_overridable  :: get_number_vefs_on_object      => object_accessor_get_number_vefs_on_object
-    procedure, non_overridable  :: create_vefs_on_object_iterator => object_accessor_get_vefs_on_object_iterator
+    generic                     :: create                          => object_accessor_create
+    procedure                   :: free                            => object_accessor_free
+    procedure                   :: next                            => object_accessor_next
+    procedure                   :: set_lid                         => object_accessor_set_lid
+    procedure                   :: past_the_end                    => object_accessor_past_the_end
+    procedure, non_overridable  :: get_lid                         => object_accessor_get_lid
+    procedure, non_overridable  :: get_gid                         => object_accessor_get_gid
+    procedure, non_overridable  :: get_dimension                   => object_accessor_get_dimension
+    procedure, non_overridable  :: get_number_parts_around         => object_accessor_get_number_parts_around
+    procedure, non_overridable  :: get_number_subparts_around      => object_accessor_get_number_subparts_around
+    procedure, non_overridable  :: create_parts_around_iterator    => object_accessor_create_parts_around_iterator
+    procedure, non_overridable  :: create_subparts_around_iterator => object_accessor_create_subparts_around_iterator
+    procedure, non_overridable  :: get_number_vefs_on_object       => object_accessor_get_number_vefs_on_object
+    procedure, non_overridable  :: create_vefs_on_object_iterator  => object_accessor_get_vefs_on_object_iterator
   end type object_accessor_t
   
   type object_iterator_t
@@ -329,15 +339,16 @@ module base_static_triangulation_names
 
      ! Parallel environment describing MPI tasks among which the triangulation is distributed
      ! (NULL for serial_triangulation_t)
-     type(par_environment_t),   pointer      :: p_env => NULL()
-     
+     type(environment_t), pointer      :: p_env => NULL()
+     type(environment_t)               :: par_environment
+    
      ! Sizes
-     integer(ip)                           :: num_dimensions  = -1
+     integer(ip)                           :: num_dimensions  = 0
 
      ! Data structures to store cell related information
-     integer(ip)                           :: num_local_cells = -1
-     integer(ip)                           :: num_ghost_cells = -1
-     integer(ip)                           :: max_vefs_per_cell = -1
+     integer(ip)                           :: num_local_cells = 0
+     integer(ip)                           :: num_ghost_cells = 0
+     integer(ip)                           :: max_vefs_per_cell = 0
      integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_set(:)               ! Num local cells + num ghost cells
@@ -349,18 +360,17 @@ module base_static_triangulation_names
      type(cell_import_t)                   :: cell_import   
      
      ! Data structures to store vef related information
-     integer(ip)                           :: num_vefs = -1        ! = num_vertices + num_edges + num_faces
+     integer(ip)                           :: num_vefs = 0         ! = num_vertices + num_edges + num_faces
      integer(ip)                           :: num_vertices = 0
      integer(ip)                           :: num_edges = 0
      integer(ip)                           :: num_faces = 0
      integer(igp), allocatable             :: vefs_gid(:)          ! num_vefs
      integer(ip) , allocatable             :: vefs_set(:)          ! num_vefs
      integer(ip) , allocatable             :: vefs_geometry(:)     ! num_vefs
-     integer(ip) , allocatable             :: vefs_dimension(:)    ! num_vefs
      integer(ip) , allocatable             :: vefs_type(:)         ! num_vefs, will replace vefs_dimension
                                                                    ! above and vef_itfc_lid below (which is currently only accessed
                                                                    ! to check whether a vef is interface or not).
-     integer(ip)                           :: num_itfc_vefs  = -1
+     integer(ip)                           :: num_itfc_vefs  = 0
      integer(ip), allocatable              :: lst_itfc_vefs(:)
      integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
@@ -369,13 +379,16 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: face_orientation(:)
      integer(ip), allocatable              :: face_rotation(:)
 
-     ! Data structures to create objects
-     integer(ip)                             :: number_global_objects = -1
-     integer(ip)                             :: number_objects = -1
+     ! Data structures to create objects (coarse cell info)
+     integer(ip)                             :: number_global_objects = 0
+     integer(ip)                             :: number_objects = 0
      integer(igp), allocatable               :: objects_gids(:)
      integer(ip) , allocatable               :: objects_dimension(:)
      type(list_t)                            :: vefs_object
      type(list_t)                            :: parts_object
+     integer(ip)                             :: number_subparts        ! Number of subparts around part (including those subparts which are local)
+     type(list_t)                            :: subparts_object        ! Number and list of subparts GIDs around each coarse n_face
+     type(hash_table_ip_ip_t)                :: g2l_subparts           ! Translator among the GIDs of subparts and LIDs
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
@@ -461,14 +474,21 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_face_orientation_rotation              => bst_free_face_orientation_rotation
 
      ! Private methods to compute objects
+     procedure, non_overridable          :: get_number_subparts                            => bst_get_number_subparts
+     procedure, non_overridable          :: get_subpart_lid                                => bst_get_subpart_lid
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => bst_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_vefs_and_parts_object_body             => bst_compute_vefs_and_parts_object_body
+     procedure, non_overridable, private :: compute_parts_itfc_vefs                        => bst_compute_parts_itfc_vefs
+     procedure, non_overridable, private :: compute_subparts_itfc_vefs                     => bst_compute_subparts_itfc_vefs
+     procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => bst_compute_parts_object_from_subparts_object
+     procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => bst_compute_part_id_from_subpart_gid
      procedure, non_overridable, private :: compute_objects_dimension                      => bst_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
      procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids
      procedure, non_overridable, private :: free_objects_gids_and_dim                      => bst_free_objects_gids_and_dim
 
      ! Private methods for coarser triangulation set-up
-     procedure, non_overridable, private :: setup_coarse_triangulation                     => bst_setup_coarse_triangulation
+     procedure, non_overridable          :: setup_coarse_triangulation                     => bst_setup_coarse_triangulation
      procedure, non_overridable, private :: gather_coarse_cell_gids                        => bst_gather_coarse_cell_gids
      procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => bst_gather_coarse_vefs_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_vefs_gids                        => bst_gather_coarse_vefs_gids

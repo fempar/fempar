@@ -39,7 +39,7 @@ implicit none
     !----------------------------------------------------------------- 
         private
         integer(ip), private     :: state = LIST_STATE_START
-        integer(ip)              :: n
+        integer(ip)              :: n = 0
         integer(ip), allocatable :: p(:) 
         integer(ip), allocatable :: l(:) 
     contains
