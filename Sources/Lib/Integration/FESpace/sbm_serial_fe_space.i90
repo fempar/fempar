@@ -342,6 +342,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   integer(ip)                                :: icomp, component_id
   integer(ip)                                :: offset_component
   integer(ip)                                :: number_components
+  integer(ip)                                :: number_fields
   integer(ip)                                :: reference_fe_id
   integer(ip)                                :: number_reference_fes
   integer(ip)                                :: local_within_ref_fe_dof_id
@@ -370,6 +371,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
 
   number_components    = this%get_number_components()
   number_reference_fes = this%get_number_reference_fes()
+  number_fields        = this%get_number_fields()
 
   assert ( conditions%get_number_components() == number_components )
   call memalloc ( number_components, components_code, __FILE__, __LINE__ )
@@ -383,7 +385,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   check(istat==0)
   allocate(values(number_components,number_reference_fes), stat=istat)
   check(istat==0)
-  allocate ( elem2dof(number_reference_fes), stat=istat ) 
+  allocate ( elem2dof(number_fields), stat=istat ) 
   check (istat==0)
 
   ! IMPORTANT : The following code is implicitly assuming that the
