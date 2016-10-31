@@ -67,12 +67,12 @@ private
         integer(ip)                                           :: cell_offset = 0
     contains
     private
-        procedure,                 public :: open                           => xh5_output_handler_open
+        procedure,                 public :: open_body                      => xh5_output_handler_open_body
         procedure,                 public :: append_time_step               => xh5_output_handler_append_time_step
         procedure                         :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
         procedure                         :: append_cell                    => xh5_output_handler_append_cell
         procedure,                 public :: write                          => xh5_output_handler_write
-        procedure,                 public :: close                          => xh5_output_handler_close
+        procedure,                 public :: close_body                     => xh5_output_handler_close_body
         procedure                         :: free_body                      => xh5_output_handler_free_body
     end type
 
@@ -111,7 +111,7 @@ contains
     end subroutine xh5_output_handler_free_body
 
 
-    subroutine xh5_output_handler_open(this, dir_path, prefix, parameter_list)
+    subroutine xh5_output_handler_open_body(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
     !< Open xh5for_t derive dtype. Set parameters from parameter list
     !-----------------------------------------------------------------
@@ -129,9 +129,9 @@ contains
         integer(ip), allocatable                       :: shape(:)
         integer(ip)                                    :: FPLError
     !-----------------------------------------------------------------
-        fe_space          => this%get_fe_space()
+        fe_space    => this%get_fe_space()
         assert(associated(fe_space))
-        environment   => fe_space%get_environment()
+        environment => fe_space%get_environment()
         assert(associated(environment))
 
         if( environment%am_i_l1_task()) then
@@ -217,7 +217,7 @@ contains
                                Info       = mpi_info)
         endif
 
-    end subroutine xh5_output_handler_open
+    end subroutine xh5_output_handler_open_body
 
 
     subroutine xh5_output_handler_append_time_step(this, value)
@@ -406,7 +406,7 @@ contains
     end subroutine xh5_output_handler_write
 
 
-    subroutine xh5_output_handler_close(this)
+    subroutine xh5_output_handler_close_body(this)
     !-----------------------------------------------------------------
     !< Close xh5for_t derived type
     !-----------------------------------------------------------------
@@ -420,6 +420,6 @@ contains
         assert(associated(environment))
 
         if( environment%am_i_l1_task()) call this%xh5%close()
-    end subroutine
+    end subroutine xh5_output_handler_close_body
 
 end module xh5_output_handler_names

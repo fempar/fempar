@@ -44,6 +44,33 @@ private
 
     integer(ip), parameter :: cell_node_field_array_size = 10
 
+    integer(ip), parameter :: BASE_OUTPUT_HANDLER_STATE_INIT   = 0
+    integer(ip), parameter :: BASE_OUTPUT_HANDLER_STATE_OPEN   = 1
+    integer(ip), parameter :: BASE_OUTPUT_HANDLER_STATE_FILLED = 2
+
+    !-----------------------------------------------------------------
+    ! State transition diagram for type(base_output_handler_t)
+    !-----------------------------------------------------------------
+    ! Note: it is desirable that the state management occurs only
+    !       inside this class to get a cleaner implementation
+    !       of the son classes
+    !-----------------------------------------------------------------
+    ! Note: 
+    !       * All setters must be called before OPEN
+    !       * All getters (except get_fe_space) must be called
+    !         after OPEN
+    !       * FILLED occurs when metadata is filled from ohcff.
+    !-----------------------------------------------------------------
+    ! Input State         | Action                | Output State 
+    !-----------------------------------------------------------------
+    ! Init                | free                  | Init
+    ! Init                | Open                  | Open
+    !-----------------------------------------------------------------
+    ! Open                | free                  | Init
+    ! Open                | fill_data             | Filled
+    ! Open                | close                 | Init
+    !-----------------------------------------------------------------
+
     type, abstract :: base_output_handler_t
     private
         class(serial_fe_space_t),            pointer    :: fe_space => NULL()
@@ -52,6 +79,7 @@ private
         type(output_handler_fe_iterator_t)              :: default_iterator
         type(output_handler_fe_field_t),    allocatable :: fe_fields(:)
         type(output_handler_cell_vector_t), allocatable :: cell_vectors(:)
+        integer(ip)                                     :: state               = BASE_OUTPUT_HANDLER_STATE_INIT
         integer(ip)                                     :: number_cells        = 0
         integer(ip)                                     :: number_nodes        = 0
         integer(ip)                                     :: number_fields       = 0
@@ -59,33 +87,35 @@ private
         integer(ip)                                     :: number_cell_vectors = 0
     contains
     private
-        procedure, non_overridable, public :: free                         => output_handler_base_free
-        procedure, non_overridable, public :: get_number_nodes             => output_handler_base_get_number_nodes
-        procedure, non_overridable, public :: get_number_cells             => output_handler_base_get_number_cells
-        procedure, non_overridable, public :: get_number_dimensions        => output_handler_base_get_number_dimensions
-        procedure, non_overridable, public :: get_number_fields            => output_handler_base_get_number_fields
-        procedure, non_overridable, public :: get_number_cell_vectors      => output_handler_base_get_number_cell_vectors
-        procedure, non_overridable, public :: get_fe_field                 => output_handler_base_get_fe_field
-        procedure, non_overridable, public :: get_cell_vector              => output_handler_base_get_cell_vector
-        procedure, non_overridable, public :: get_fe_space                 => output_handler_base_get_fe_space
-        procedure, non_overridable, public :: set_iterator                 => output_handler_base_set_iterator
-        procedure, non_overridable         :: resize_fe_fields_if_needed   => output_handler_base_resize_fe_fields_if_needed
-        procedure, non_overridable         :: resize_cell_vectors_if_needed=> output_handler_base_resize_cell_vectors_if_needed
-        procedure, non_overridable, public :: attach_fe_space              => output_handler_base_attach_fe_space
-        procedure, non_overridable, public :: add_fe_function              => output_handler_base_add_fe_function
-        procedure, non_overridable, public :: add_cell_vector              => output_handler_base_add_cell_vector
-        procedure, non_overridable, public :: fill_data                    => output_handler_base_fill_data
-        procedure(output_handler_base_open),                           public, deferred :: open
-        procedure(output_handler_base_append_time_step),               public, deferred :: append_time_step
-        procedure(output_handler_base_allocate_cell_and_nodal_arrays),         deferred :: allocate_cell_and_nodal_arrays
-        procedure(output_handler_base_append_cell),                            deferred :: append_cell
-        procedure(output_handler_base_write),                          public, deferred :: write
-        procedure(output_handler_base_close),                          public, deferred :: close
-        procedure(output_handler_base_free_body),                              deferred :: free_body
+        procedure, non_overridable, public :: free                         => base_output_handler_free
+        procedure, non_overridable, public :: get_number_nodes             => base_output_handler_get_number_nodes
+        procedure, non_overridable, public :: get_number_cells             => base_output_handler_get_number_cells
+        procedure, non_overridable, public :: get_number_dimensions        => base_output_handler_get_number_dimensions
+        procedure, non_overridable, public :: get_number_fields            => base_output_handler_get_number_fields
+        procedure, non_overridable, public :: get_number_cell_vectors      => base_output_handler_get_number_cell_vectors
+        procedure, non_overridable, public :: get_fe_field                 => base_output_handler_get_fe_field
+        procedure, non_overridable, public :: get_cell_vector              => base_output_handler_get_cell_vector
+        procedure, non_overridable, public :: get_fe_space                 => base_output_handler_get_fe_space
+        procedure, non_overridable, public :: set_iterator                 => base_output_handler_set_iterator
+        procedure, non_overridable         :: resize_fe_fields_if_needed   => base_output_handler_resize_fe_fields_if_needed
+        procedure, non_overridable         :: resize_cell_vectors_if_needed=> base_output_handler_resize_cell_vectors_if_needed
+        procedure, non_overridable, public :: attach_fe_space              => base_output_handler_attach_fe_space
+        procedure, non_overridable, public :: add_fe_function              => base_output_handler_add_fe_function
+        procedure, non_overridable, public :: add_cell_vector              => base_output_handler_add_cell_vector
+        procedure, non_overridable, public :: fill_data                    => base_output_handler_fill_data
+        procedure, non_overridable, public :: open                         => base_output_handler_open
+        procedure, non_overridable, public :: close                        => base_output_handler_close
+        procedure(base_output_handler_open_body),                      public, deferred :: open_body
+        procedure(base_output_handler_append_time_step),               public, deferred :: append_time_step
+        procedure(base_output_handler_allocate_cell_and_nodal_arrays),         deferred :: allocate_cell_and_nodal_arrays
+        procedure(base_output_handler_append_cell),                            deferred :: append_cell
+        procedure(base_output_handler_write),                          public, deferred :: write
+        procedure(base_output_handler_close_body),                     public, deferred :: close_body
+        procedure(base_output_handler_free_body),                              deferred :: free_body
     end type
 
     abstract interface
-        subroutine output_handler_base_open(this, dir_path, prefix, parameter_list)
+        subroutine base_output_handler_open_body(this, dir_path, prefix, parameter_list)
             import base_output_handler_t
             import ParameterList_t
             class(base_output_handler_t),    intent(inout) :: this
@@ -94,36 +124,36 @@ private
             type(ParameterList_t), optional, intent(in)    :: parameter_list
         end subroutine
 
-        subroutine output_handler_base_append_time_step(this, value)
+        subroutine base_output_handler_append_time_step(this, value)
             import base_output_handler_t
             import rp
             class(base_output_handler_t), intent(inout) :: this
             real(rp),                     intent(in)    :: value
         end subroutine
 
-        subroutine output_handler_base_write(this)
+        subroutine base_output_handler_write(this)
             import base_output_handler_t
             class(base_output_handler_t), intent(inout) :: this
         end subroutine
 
-        subroutine output_handler_base_allocate_cell_and_nodal_arrays(this)
+        subroutine base_output_handler_allocate_cell_and_nodal_arrays(this)
             import base_output_handler_t
             class(base_output_handler_t), intent(inout) :: this
         end subroutine
 
-        subroutine output_handler_base_append_cell(this, subcell_accessor)
+        subroutine base_output_handler_append_cell(this, subcell_accessor)
             import base_output_handler_t
             import patch_subcell_accessor_t
             class(base_output_handler_t),   intent(inout) :: this
             type(patch_subcell_accessor_t), intent(in)    :: subcell_accessor
         end subroutine
 
-        subroutine output_handler_base_close(this)
+        subroutine base_output_handler_close_body(this)
             import base_output_handler_t
             class(base_output_handler_t), intent(inout) :: this
         end subroutine
 
-        subroutine output_handler_base_free_body(this)
+        subroutine base_output_handler_free_body(this)
             import base_output_handler_t
             class(base_output_handler_t), intent(inout) :: this
         end subroutine
@@ -134,12 +164,12 @@ public :: base_output_handler_t
 contains
 
 !---------------------------------------------------------------------
-!< output_handler_BASE_T PROCEDURES
+!< base_output_handler_T PROCEDURES
 !---------------------------------------------------------------------
 
-    subroutine output_handler_base_free(this)
+    subroutine base_output_handler_free(this)
     !-----------------------------------------------------------------
-    !< Free output_handler_base_t derived type
+    !< Free base_output_handler_t derived type
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(inout) :: this
         integer(ip)                                 :: i
@@ -160,75 +190,82 @@ contains
         this%number_nodes        = 0
         this%number_cells        = 0
         this%number_dimensions   = 0
-    end subroutine output_handler_base_free
+        this%state               = BASE_OUTPUT_HANDLER_STATE_INIT
+    end subroutine base_output_handler_free
 
-    subroutine output_handler_base_set_iterator(this, iterator)
+    subroutine base_output_handler_set_iterator(this, iterator)
     !-----------------------------------------------------------------
     !< Set output handler fe_iterator
     !-----------------------------------------------------------------
         class(base_output_handler_t),                intent(inout) :: this
         class(output_handler_fe_iterator_t), target, intent(in)  :: iterator
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         this%iterator => iterator
-    end subroutine output_handler_base_set_iterator
+    end subroutine base_output_handler_set_iterator
 
 
-    function output_handler_base_get_number_nodes(this) result(number_nodes)
+    function base_output_handler_get_number_nodes(this) result(number_nodes)
     !-----------------------------------------------------------------
     !< Return the number of nodes
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_nodes
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
         number_nodes = this%number_nodes
-    end function output_handler_base_get_number_nodes
+    end function base_output_handler_get_number_nodes
 
 
-    function output_handler_base_get_number_cells(this) result(number_cells)
+    function base_output_handler_get_number_cells(this) result(number_cells)
     !-----------------------------------------------------------------
     !< Return the number of cells
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_cells
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
         number_cells = this%number_cells
-    end function output_handler_base_get_number_cells
+    end function base_output_handler_get_number_cells
 
 
-    function output_handler_base_get_number_dimensions(this) result(number_dimensions)
+    function base_output_handler_get_number_dimensions(this) result(number_dimensions)
     !-----------------------------------------------------------------
     !< Return the number of dimensions
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_dimensions
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
         number_dimensions = this%number_dimensions
-    end function output_handler_base_get_number_dimensions
+    end function base_output_handler_get_number_dimensions
 
 
-    function output_handler_base_get_number_fields(this) result(number_fields)
+    function base_output_handler_get_number_fields(this) result(number_fields)
     !-----------------------------------------------------------------
     !< Return the number of fields
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_fields
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
         number_fields = this%number_fields
-    end function output_handler_base_get_number_fields
+    end function base_output_handler_get_number_fields
 
 
-    function output_handler_base_get_number_cell_vectors(this) result(number_cell_vectors)
+    function base_output_handler_get_number_cell_vectors(this) result(number_cell_vectors)
     !-----------------------------------------------------------------
     !< Return the number of cell_vectors
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_cell_vectors
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
         number_cell_vectors = this%number_cell_vectors
-    end function output_handler_base_get_number_cell_vectors
+    end function base_output_handler_get_number_cell_vectors
 
 
-    function output_handler_base_get_fe_field(this, field_id) result(field)
+    function base_output_handler_get_fe_field(this, field_id) result(field)
     !-----------------------------------------------------------------
     !< Return a fe field given its id
     !-----------------------------------------------------------------
@@ -236,12 +273,13 @@ contains
         integer(ip),                             intent(in) :: field_id
         type(output_handler_fe_field_t), pointer            :: field
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
         assert(field_id <= this%number_fields)
         field => this%fe_fields(field_id)
-    end function output_handler_base_get_fe_field
+    end function base_output_handler_get_fe_field
 
 
-    function output_handler_base_get_cell_vector(this, cell_vector_id) result(cell_vector)
+    function base_output_handler_get_cell_vector(this, cell_vector_id) result(cell_vector)
     !-----------------------------------------------------------------
     !< Return a cell vector given its id
     !-----------------------------------------------------------------
@@ -251,21 +289,22 @@ contains
     !-----------------------------------------------------------------
         assert(cell_vector_id <= this%number_cell_vectors)
         cell_vector => this%cell_vectors(cell_vector_id)
-    end function output_handler_base_get_cell_vector
+    end function base_output_handler_get_cell_vector
 
 
-    subroutine output_handler_base_attach_fe_space(this, fe_space)
+    subroutine base_output_handler_attach_fe_space(this, fe_space)
     !-----------------------------------------------------------------
-    !< Attach a fe_space to the output_handler_base_t derived type
+    !< Attach a fe_space to the base_output_handler_t derived type
     !-----------------------------------------------------------------
         class(base_output_handler_t),          intent(inout) :: this
         class(serial_fe_space_t), target,      intent(in)    :: fe_space
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         this%fe_space => fe_space
-    end subroutine output_handler_base_attach_fe_space
+    end subroutine base_output_handler_attach_fe_space
 
 
-    function output_handler_base_get_fe_space(this) result(fe_space)
+    function base_output_handler_get_fe_space(this) result(fe_space)
     !-----------------------------------------------------------------
     !< Return a fe_space pointer
     !-----------------------------------------------------------------
@@ -273,18 +312,19 @@ contains
         class(serial_fe_space_t), pointer        :: fe_space
     !-----------------------------------------------------------------
         fe_space => this%fe_space
-    end function output_handler_base_get_fe_space
+    end function base_output_handler_get_fe_space
 
 
-    subroutine output_handler_base_resize_fe_fields_if_needed(this, number_fields)
+    subroutine base_output_handler_resize_fe_fields_if_needed(this, number_fields)
     !-----------------------------------------------------------------
-    !< Attach a fe_space to the output_handler_base_t derived type
+    !< Attach a fe_space to the base_output_handler_t derived type
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
         integer(ip),                        intent(in)    :: number_fields
         integer(ip)                                       :: current_size
         type(output_handler_fe_field_t), allocatable      :: temp_fe_functions(:)
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         if(.not. allocated(this%fe_fields)) then
             allocate(this%fe_fields(cell_node_field_array_size))
         elseif(number_fields > size(this%fe_fields)) then
@@ -294,18 +334,19 @@ contains
             this%fe_fields(1:current_size) = temp_fe_functions(1:current_size)
             deallocate(temp_fe_functions)
         endif
-    end subroutine output_handler_base_resize_fe_fields_if_needed
+    end subroutine base_output_handler_resize_fe_fields_if_needed
 
 
-    subroutine output_handler_base_resize_cell_vectors_if_needed(this, number_fields)
+    subroutine base_output_handler_resize_cell_vectors_if_needed(this, number_fields)
     !-----------------------------------------------------------------
-    !< Attach a fe_space to the output_handler_base_t derived type
+    !< Attach a fe_space to the base_output_handler_t derived type
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
         integer(ip),                        intent(in)    :: number_fields
         integer(ip)                                       :: current_size
         type(output_handler_cell_vector_t), allocatable   :: temp_cell_vectors(:)
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         if(.not. allocated(this%cell_vectors)) then
             allocate(this%cell_vectors(cell_node_field_array_size))
         elseif(number_fields > size(this%cell_vectors)) then
@@ -315,12 +356,12 @@ contains
             this%cell_vectors(1:current_size) = temp_cell_vectors(1:current_size)
             deallocate(temp_cell_vectors)
         endif
-    end subroutine output_handler_base_resize_cell_vectors_if_needed
+    end subroutine base_output_handler_resize_cell_vectors_if_needed
 
 
-    subroutine output_handler_base_add_fe_function(this, fe_function, field_id, name, diff_operator)
+    subroutine base_output_handler_add_fe_function(this, fe_function, field_id, name, diff_operator)
     !-----------------------------------------------------------------
-    !< Add a fe_function to the output_handler_base_t derived type
+    !< Add a fe_function to the base_output_handler_t derived type
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
         type(fe_function_t),                intent(in)    :: fe_function
@@ -328,29 +369,58 @@ contains
         character(len=*),                   intent(in)    :: name
         character(len=*), optional,         intent(in)    :: diff_operator
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         call this%resize_fe_fields_if_needed(this%number_fields+1)
         this%number_fields = this%number_fields + 1
         call this%fe_fields(this%number_fields)%set(fe_function, field_id, name, diff_operator)
-    end subroutine output_handler_base_add_fe_function
+    end subroutine base_output_handler_add_fe_function
 
 
-    subroutine output_handler_base_add_cell_vector(this, cell_vector, name)
+    subroutine base_output_handler_add_cell_vector(this, cell_vector, name)
     !-----------------------------------------------------------------
-    !< Add a fe_function to the output_handler_base_t derived type
+    !< Add a fe_function to the base_output_handler_t derived type
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
         real(rp), allocatable,              intent(in)    :: cell_vector(:)
         character(len=*),                   intent(in)    :: name
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         call this%resize_cell_vectors_if_needed(this%number_cell_vectors+1)
         this%number_cell_vectors = this%number_cell_vectors + 1
         call this%cell_vectors(this%number_cell_vectors)%set(cell_vector, name)
-    end subroutine output_handler_base_add_cell_Vector
+    end subroutine base_output_handler_add_cell_Vector
 
 
-    subroutine output_handler_base_fill_data(this, update_mesh)
+    subroutine base_output_handler_open(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
-    !< Attach a fe_space to the output_handler_base_t derived type
+    !< Open procedure. State diagram transition management
+    !-----------------------------------------------------------------
+        class(base_output_handler_t),    intent(inout) :: this
+        character(len=*),                intent(in)    :: dir_path
+        character(len=*),                intent(in)    :: prefix
+        type(ParameterList_t), optional, intent(in)    :: parameter_list
+    !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
+        call this%open_body(dir_path, prefix, parameter_list)
+        this%state = BASE_OUTPUT_HANDLER_STATE_OPEN
+    end subroutine base_output_handler_open
+
+
+    subroutine base_output_handler_close(this)
+    !-----------------------------------------------------------------
+    !< Close procedure. State diagram transition management
+    !-----------------------------------------------------------------
+        class(base_output_handler_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
+        call this%close_body()
+        this%state = BASE_OUTPUT_HANDLER_STATE_INIT
+    end subroutine base_output_handler_close
+
+
+    subroutine base_output_handler_fill_data(this, update_mesh)
+    !-----------------------------------------------------------------
+    !< Attach a fe_space to the base_output_handler_t derived type
     !-----------------------------------------------------------------
         class(base_output_handler_t), target, intent(inout) :: this
         logical,                              intent(in)    :: update_mesh
@@ -358,6 +428,7 @@ contains
         type(output_handler_patch_t)                        :: patch
         type(patch_subcell_iterator_t)                      :: subcell_iterator
     !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
         assert(associated(this%fe_space))
 
         ! Ouput_handler_FE_iterator 
@@ -369,6 +440,7 @@ contains
         if(update_mesh) then
             ! Create Output Cell Handler and allocate patch fields
             call this%ohcff%create(this%fe_space, this%iterator, this%number_fields, this%fe_fields(1:this%number_fields))
+            this%state = BASE_OUTPUT_HANDLER_STATE_FILLED
 
             ! Allocate geometry and connectivity arrays
             this%number_nodes      = this%ohcff%get_number_nodes()
@@ -377,6 +449,7 @@ contains
             call this%allocate_cell_and_nodal_arrays()
         endif
 
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
         call patch%create(this%number_fields, this%number_cell_vectors)
         ! Translate coordinates and connectivities to VTK format for every subcell
         call this%iterator%init()
@@ -402,7 +475,8 @@ contains
 
         call patch%free()
         call fe%free()
-    end subroutine output_handler_base_fill_data
+
+    end subroutine base_output_handler_fill_data
 
 end module base_output_handler_names
 

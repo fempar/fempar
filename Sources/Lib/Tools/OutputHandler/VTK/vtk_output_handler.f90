@@ -71,12 +71,12 @@ private
         procedure, non_overridable        :: write_vtu                      => vtk_output_handler_write_vtu
         procedure, non_overridable        :: write_pvtu                     => vtk_output_handler_write_pvtu
         procedure, non_overridable        :: write_pvd                      => vtk_output_handler_write_pvd
-        procedure,                 public :: open                           => vtk_output_handler_open
+        procedure,                 public :: open_body                      => vtk_output_handler_open_body
         procedure,                 public :: append_time_step               => vtk_output_handler_append_time_step
         procedure,                 public :: write                          => vtk_output_handler_write
         procedure                         :: allocate_cell_and_nodal_arrays => vtk_output_handler_allocate_cell_and_nodal_arrays
         procedure                         :: append_cell                    => vtk_output_handler_append_cell
-        procedure,                 public :: close                          => vtk_output_handler_close
+        procedure,                 public :: close_body                     => vtk_output_handler_close_body
         procedure                         :: free_body                      => vtk_output_handler_free_body
     end type
 
@@ -120,7 +120,7 @@ contains
     end subroutine vtk_output_handler_free_body
 
 
-    subroutine vtk_output_handler_open(this, dir_path, prefix, parameter_list)
+    subroutine vtk_output_handler_open_body(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
     !< Open procedure. Set parameters from parameter list
     !-----------------------------------------------------------------
@@ -180,7 +180,7 @@ contains
 
         endif
 
-    end subroutine vtk_output_handler_open
+    end subroutine vtk_output_handler_open_body
 
 
     subroutine vtk_output_handler_resize_times_if_needed(this, number_steps)
@@ -554,14 +554,14 @@ contains
     end subroutine vtk_output_handler_write_pvd
 
 
-    subroutine vtk_output_handler_close(this)
+    subroutine vtk_output_handler_close_body(this)
     !-----------------------------------------------------------------
     !< Close procedure
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
     !-----------------------------------------------------------------
 
-    end subroutine vtk_output_handler_close
+    end subroutine vtk_output_handler_close_body
 
 
 end module vtk_output_handler_names
