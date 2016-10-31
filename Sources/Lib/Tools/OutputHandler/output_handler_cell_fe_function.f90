@@ -153,7 +153,7 @@ contains
     !-----------------------------------------------------------------
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
-
+            call this%free()
             triangulation => fe_space%get_triangulation()
             this%number_dimensions = triangulation%get_num_dimensions()
             this%number_cells       = 0
@@ -801,8 +801,9 @@ contains
             check(istat==0)
         end if
 
-        this%number_cells = 0
-        this%number_nodes = 0
+        this%number_cells      = 0
+        this%number_nodes      = 0
+        this%number_dimensions = 0
     end subroutine output_handler_cell_fe_function_free
 
 

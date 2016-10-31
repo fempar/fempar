@@ -360,12 +360,12 @@ contains
             if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
             if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_number_cell_vectors()))
 
-            call this%fill_data()
+            call this%fill_data(update_mesh = (.not. this%StaticGrid .or. this%number_steps <= 1))
 
             call environment%info(me, np)
 
             if(.not. this%StaticGrid .or. this%number_steps <= 1) then                 
-                select case (this%get_number_dimensions()
+                select case (this%get_number_dimensions())
                     case (2)
                         geometry_type = XDMF_GEOMETRY_TYPE_XY
                     case (3)

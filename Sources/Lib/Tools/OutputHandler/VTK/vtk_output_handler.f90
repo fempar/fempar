@@ -338,9 +338,9 @@ contains
         integer(ip)                                :: E_IO, i
         integer(ip)                                :: me, np
     !-----------------------------------------------------------------
-        fe_space          => this%get_fe_space()
+        fe_space    => this%get_fe_space()
         assert(associated(fe_space))
-        environment   => fe_space%get_environment()
+        environment => fe_space%get_environment()
         assert(associated(environment))
         call environment%info(me, np)
 
@@ -350,7 +350,7 @@ contains
             if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
             if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_number_cell_vectors()))
 
-            call this%fill_data()
+            call this%fill_data(update_mesh = (.not. this%StaticGrid .or. this%number_steps <= 1))
 
             if(this%number_steps > 0) then
                 path     = get_vtk_output_path(trim(adjustl(this%Path)), this%Times(this%number_steps))

@@ -48,6 +48,7 @@ private
     private
         class(serial_fe_space_t),            pointer    :: fe_space => NULL()
         class(output_handler_fe_iterator_t), pointer    :: iterator => NULL()
+        type(output_handler_cell_fe_function_t)         :: ohcff
         type(output_handler_fe_iterator_t)              :: default_iterator
         type(output_handler_fe_field_t),    allocatable :: fe_fields(:)
         type(output_handler_cell_vector_t), allocatable :: cell_vectors(:)
@@ -66,11 +67,11 @@ private
         procedure, non_overridable, public :: get_number_cell_vectors      => output_handler_base_get_number_cell_vectors
         procedure, non_overridable, public :: get_fe_field                 => output_handler_base_get_fe_field
         procedure, non_overridable, public :: get_cell_vector              => output_handler_base_get_cell_vector
-        procedure, non_overridable, public :: attach_fe_space              => output_handler_base_attach_fe_space
         procedure, non_overridable, public :: get_fe_space                 => output_handler_base_get_fe_space
         procedure, non_overridable, public :: set_iterator                 => output_handler_base_set_iterator
         procedure, non_overridable         :: resize_fe_fields_if_needed   => output_handler_base_resize_fe_fields_if_needed
         procedure, non_overridable         :: resize_cell_vectors_if_needed=> output_handler_base_resize_cell_vectors_if_needed
+        procedure, non_overridable, public :: attach_fe_space              => output_handler_base_attach_fe_space
         procedure, non_overridable, public :: add_fe_function              => output_handler_base_add_fe_function
         procedure, non_overridable, public :: add_cell_vector              => output_handler_base_add_cell_vector
         procedure, non_overridable, public :: fill_data                    => output_handler_base_fill_data
@@ -151,6 +152,7 @@ contains
             deallocate(this%fe_fields)
         endif
         nullify(this%iterator)
+        call this%ohcff%free()
         call this%default_iterator%free()
         nullify(this%fe_space)
         this%number_cell_vectors = 0
@@ -346,13 +348,13 @@ contains
     end subroutine output_handler_base_add_cell_Vector
 
 
-    subroutine output_handler_base_fill_data(this)
+    subroutine output_handler_base_fill_data(this, update_mesh)
     !-----------------------------------------------------------------
     !< Attach a fe_space to the output_handler_base_t derived type
     !-----------------------------------------------------------------
         class(base_output_handler_t), target, intent(inout) :: this
+        logical,                              intent(in)    :: update_mesh
         type(fe_accessor_t)                                 :: fe
-        type(output_handler_cell_fe_function_t)             :: output_handler_cell_function
         type(output_handler_patch_t)                        :: patch
         type(patch_subcell_iterator_t)                      :: subcell_iterator
     !-----------------------------------------------------------------
@@ -363,15 +365,17 @@ contains
             this%iterator => this%default_iterator
             call this%iterator%create(this%fe_space)
         endif
-        
-        ! Create Output Cell Handler and allocate patch fields
-        call output_handler_cell_function%create(this%fe_space, this%iterator, this%number_fields, this%fe_fields(1:this%number_fields))
 
-        ! Allocate geometry and connectivity arrays
-        this%number_nodes      = output_handler_cell_function%get_number_nodes()
-        this%number_cells      = output_handler_cell_function%get_number_cells()
-        this%number_dimensions = output_handler_cell_function%get_number_dimensions()
-        call this%allocate_cell_and_nodal_arrays()
+        if(update_mesh) then
+            ! Create Output Cell Handler and allocate patch fields
+            call this%ohcff%create(this%fe_space, this%iterator, this%number_fields, this%fe_fields(1:this%number_fields))
+
+            ! Allocate geometry and connectivity arrays
+            this%number_nodes      = this%ohcff%get_number_nodes()
+            this%number_cells      = this%ohcff%get_number_cells()
+            this%number_dimensions = this%ohcff%get_number_dimensions()
+            call this%allocate_cell_and_nodal_arrays()
+        endif
 
         call patch%create(this%number_fields, this%number_cell_vectors)
         ! Translate coordinates and connectivities to VTK format for every subcell
@@ -380,12 +384,12 @@ contains
             ! Get Finite element
             call this%iterator%current(fe)
             if ( fe%is_local() ) then
-                call output_handler_cell_function%fill_patch(fe, &
-                                                             this%number_fields, &
-                                                             this%fe_fields(1:this%number_fields), &
-                                                             this%number_cell_vectors, &
-                                                             this%cell_vectors(1:this%number_cell_vectors), &
-                                                             patch)
+                call this%ohcff%fill_patch(fe, &
+                                           this%number_fields, &
+                                           this%fe_fields(1:this%number_fields), &
+                                           this%number_cell_vectors, &
+                                           this%cell_vectors(1:this%number_cell_vectors), &
+                                           patch)
                 subcell_iterator = patch%get_subcells_iterator()
 !               ! Fill data
                 do while(.not. subcell_iterator%has_finished())
@@ -397,7 +401,6 @@ contains
         end do
 
         call patch%free()
-        call output_handler_cell_function%free()
         call fe%free()
     end subroutine output_handler_base_fill_data
 
