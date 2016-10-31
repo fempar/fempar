@@ -54,6 +54,7 @@ private
         type(xh5for_t)                                        :: xh5
         character(:), allocatable                             :: FilePrefix
         character(:), allocatable                             :: Path
+        character(:), allocatable                             :: CellType
         logical                                               :: StaticGrid = .false.
         integer(ip)                                           :: GridType
         integer(ip)                                           :: Strategy
@@ -254,14 +255,22 @@ contains
         number_cells      = this%get_number_cells()
         number_dimensions = this%get_number_dimensions()
         if(allocated(this%XYZ)) then
-            call memrealloc(number_nodes*number_dimensions, this%XYZ,       __FILE__, __LINE__)
+            call memrealloc(number_nodes*number_dimensions, this%XYZ,            __FILE__, __LINE__)
         else
-            call memalloc(  number_nodes*number_dimensions, this%XYZ,       __FILE__, __LINE__)
+            call memalloc(  number_nodes*number_dimensions, this%XYZ,            __FILE__, __LINE__)
         endif
-        if(allocated(this%Connectivities)) then
-            call memrealloc(number_nodes+number_cells, this%Connectivities, __FILE__, __LINE__)
+        if(this%has_mixed_cell_topologies()) then
+            if(allocated(this%Connectivities)) then
+                call memrealloc(number_nodes+number_cells,  this%Connectivities, __FILE__, __LINE__)
+            else
+                call memalloc(  number_nodes+number_cells,  this%Connectivities, __FILE__, __LINE__)
+            endif
         else
-            call memalloc(  number_nodes+number_cells, this%Connectivities, __FILE__, __LINE__)
+            if(allocated(this%Connectivities)) then
+                call memrealloc(number_nodes,               this%Connectivities, __FILE__, __LINE__)
+            else
+                call memalloc(  number_nodes,               this%Connectivities, __FILE__, __LINE__)
+            endif
         endif
     end subroutine xh5_output_handler_allocate_cell_and_nodal_arrays
 
@@ -280,7 +289,7 @@ contains
         integer(ip)                                :: number_fields
         integer(ip)                                :: number_cell_vectors
         integer(ip)                                :: number_components
-        integer(ip)                                :: node_and_cell_offset
+        integer(ip)                                :: connectivities_offset
         integer(ip)                                :: i
     !-----------------------------------------------------------------
         number_vertices   = subcell_accessor%get_number_vertices()
@@ -293,24 +302,30 @@ contains
             call subcell_accessor%get_coordinates(this%XYZ( &
                                 this%node_offset*number_dimensions+1:(this%node_offset+number_vertices)*number_dimensions) )
 
-            node_and_cell_offset = this%node_offset+this%cell_offset
-            this%Connectivities(node_and_cell_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), number_dimensions)
-            node_and_cell_offset = node_and_cell_offset+1
+            if(this%has_mixed_cell_topologies()) then
+                ! Add element topology ID before its connectivities
+                connectivities_offset = this%node_offset+this%cell_offset
+                this%Connectivities(connectivities_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), number_dimensions)
+                connectivities_offset = connectivities_offset+1
+            else
+                connectivities_offset = this%node_offset
+                if(.not. allocated(this%CellType)) this%CellType = subcell_accessor%get_cell_type()
+            endif
 
             select case (subcell_accessor%get_cell_type())
                 case (topology_hex) 
                     select case (number_dimensions)
                         case (2)
-                            this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
+                            this%Connectivities(connectivities_offset+1:connectivities_offset+number_vertices) = &
                                     (/0,1,3,2/)+this%node_offset
                         case (3)
-                            this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
+                            this%Connectivities(connectivities_offset+1:connectivities_offset+number_vertices) = &
                                     (/0,1,3,2,4,5,7,6/)+this%node_offset
                         case DEFAULT
                             check(.false.)
                     end select
                 case (topology_tet) 
-                    this%Connectivities(node_and_cell_offset+1:node_and_cell_offset+number_vertices) = &
+                    this%Connectivities(connectivities_offset+1:connectivities_offset+number_vertices) = &
                                     (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
                 case DEFAULT
                     check(.false.)    
@@ -348,6 +363,7 @@ contains
         real(rp), pointer                             :: Value(:)
         integer(ip)                                   :: attribute_type
         integer(ip)                                   :: geometry_type
+        integer(ip)                                   :: topology_type
         integer(ip)                                   :: E_IO, i
         integer(ip)                                   :: me, np
     !-----------------------------------------------------------------
@@ -365,18 +381,16 @@ contains
             call environment%info(me, np)
 
             if(.not. this%StaticGrid .or. this%number_steps <= 1) then                 
-                select case (this%get_number_dimensions())
-                    case (2)
-                        geometry_type = XDMF_GEOMETRY_TYPE_XY
-                    case (3)
-                        geometry_type = XDMF_GEOMETRY_TYPE_XYZ
-                    case DEFAULT
-                        assert(.false.)
-                end select
+                geometry_type = dimensions_to_xh5_unstructured_GeometryType(this%get_number_dimensions())
+                if(allocated(this%CellType) .and.  .not. this%has_mixed_cell_topologies()) then
+                    topology_type = topology_to_xh5_topologytype(this%CellType, this%get_number_dimensions())
+                else
+                    topology_type = XDMF_TOPOLOGY_TYPE_MIXED
+                endif
 
                 call this%xh5%SetGrid(NumberOfNodes        = this%get_number_nodes(),  &
                                       NumberOfElements     = this%get_number_cells(),  &
-                                      TopologyType         = XDMF_TOPOLOGY_TYPE_MIXED, &
+                                      TopologyType         = topology_type,            &
                                       GeometryType         = geometry_type)
 
                 call this%xh5%WriteGeometry(XYZ = this%XYZ)

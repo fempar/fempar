@@ -46,7 +46,7 @@ private
 
     integer(ip), parameter :: BASE_OUTPUT_HANDLER_STATE_INIT   = 0
     integer(ip), parameter :: BASE_OUTPUT_HANDLER_STATE_OPEN   = 1
-    integer(ip), parameter :: BASE_OUTPUT_HANDLER_STATE_FILLED = 2
+    integer(ip), parameter :: BASE_OUTPUT_HANDLER_STATE_FILL   = 2
 
     !-----------------------------------------------------------------
     ! State transition diagram for type(base_output_handler_t)
@@ -67,9 +67,11 @@ private
     ! Init                | Open                  | Open
     !-----------------------------------------------------------------
     ! Open                | free                  | Init
-    ! Open                | fill_data             | Filled
+    ! Open                | fill_data             | Fill
     ! Open                | close                 | Init
     !-----------------------------------------------------------------
+    ! Fill                | free                  | Init
+    ! Fill                | close                 | Init
 
     type, abstract :: base_output_handler_t
     private
@@ -79,17 +81,15 @@ private
         type(output_handler_fe_iterator_t)              :: default_iterator
         type(output_handler_fe_field_t),    allocatable :: fe_fields(:)
         type(output_handler_cell_vector_t), allocatable :: cell_vectors(:)
-        integer(ip)                                     :: state               = BASE_OUTPUT_HANDLER_STATE_INIT
-        integer(ip)                                     :: number_cells        = 0
-        integer(ip)                                     :: number_nodes        = 0
-        integer(ip)                                     :: number_fields       = 0
-        integer(ip)                                     :: number_dimensions   = 0
-        integer(ip)                                     :: number_cell_vectors = 0
+        integer(ip)                                     :: state                 = BASE_OUTPUT_HANDLER_STATE_INIT
+        integer(ip)                                     :: number_fields         = 0
+        integer(ip)                                     :: number_cell_vectors   = 0
     contains
     private
         procedure, non_overridable, public :: free                         => base_output_handler_free
         procedure, non_overridable, public :: get_number_nodes             => base_output_handler_get_number_nodes
         procedure, non_overridable, public :: get_number_cells             => base_output_handler_get_number_cells
+        procedure, non_overridable, public :: has_mixed_cell_topologies    => base_output_handler_has_mixed_cell_topologies
         procedure, non_overridable, public :: get_number_dimensions        => base_output_handler_get_number_dimensions
         procedure, non_overridable, public :: get_number_fields            => base_output_handler_get_number_fields
         procedure, non_overridable, public :: get_number_cell_vectors      => base_output_handler_get_number_cell_vectors
@@ -185,12 +185,9 @@ contains
         call this%ohcff%free()
         call this%default_iterator%free()
         nullify(this%fe_space)
-        this%number_cell_vectors = 0
-        this%number_fields       = 0
-        this%number_nodes        = 0
-        this%number_cells        = 0
-        this%number_dimensions   = 0
-        this%state               = BASE_OUTPUT_HANDLER_STATE_INIT
+        this%number_cell_vectors   = 0
+        this%number_fields         = 0
+        this%state                 = BASE_OUTPUT_HANDLER_STATE_INIT
     end subroutine base_output_handler_free
 
     subroutine base_output_handler_set_iterator(this, iterator)
@@ -212,8 +209,8 @@ contains
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_nodes
     !-----------------------------------------------------------------
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
-        number_nodes = this%number_nodes
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
+        number_nodes = this%ohcff%get_number_nodes()
     end function base_output_handler_get_number_nodes
 
 
@@ -224,8 +221,8 @@ contains
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_cells
     !-----------------------------------------------------------------
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
-        number_cells = this%number_cells
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
+        number_cells = this%ohcff%get_number_cells()
     end function base_output_handler_get_number_cells
 
 
@@ -236,9 +233,23 @@ contains
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_dimensions
     !-----------------------------------------------------------------
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
-        number_dimensions = this%number_dimensions
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
+        number_dimensions = this%ohcff%get_number_dimensions()
     end function base_output_handler_get_number_dimensions
+
+
+
+
+    function base_output_handler_has_mixed_cell_topologies(this) result(mixed_cell_topologies)
+    !-----------------------------------------------------------------
+    !< Return if the mesh has mixed cell topologies
+    !-----------------------------------------------------------------
+        class(base_output_handler_t), intent(in) :: this
+        logical                                  :: mixed_cell_topologies
+    !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
+        mixed_cell_topologies = this%ohcff%has_mixed_cell_topologies()
+    end function base_output_handler_has_mixed_cell_topologies
 
 
     function base_output_handler_get_number_fields(this) result(number_fields)
@@ -248,7 +259,7 @@ contains
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_fields
     !-----------------------------------------------------------------
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         number_fields = this%number_fields
     end function base_output_handler_get_number_fields
 
@@ -260,7 +271,7 @@ contains
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_cell_vectors
     !-----------------------------------------------------------------
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         number_cell_vectors = this%number_cell_vectors
     end function base_output_handler_get_number_cell_vectors
 
@@ -273,7 +284,7 @@ contains
         integer(ip),                             intent(in) :: field_id
         type(output_handler_fe_field_t), pointer            :: field
     !-----------------------------------------------------------------
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         assert(field_id <= this%number_fields)
         field => this%fe_fields(field_id)
     end function base_output_handler_get_fe_field
@@ -412,7 +423,7 @@ contains
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         call this%close_body()
         this%state = BASE_OUTPUT_HANDLER_STATE_INIT
     end subroutine base_output_handler_close
@@ -428,7 +439,7 @@ contains
         type(output_handler_patch_t)                        :: patch
         type(patch_subcell_iterator_t)                      :: subcell_iterator
     !-----------------------------------------------------------------
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         assert(associated(this%fe_space))
 
         ! Ouput_handler_FE_iterator 
@@ -440,16 +451,13 @@ contains
         if(update_mesh) then
             ! Create Output Cell Handler and allocate patch fields
             call this%ohcff%create(this%fe_space, this%iterator, this%number_fields, this%fe_fields(1:this%number_fields))
-            this%state = BASE_OUTPUT_HANDLER_STATE_FILLED
+            this%state = BASE_OUTPUT_HANDLER_STATE_FILL
 
             ! Allocate geometry and connectivity arrays
-            this%number_nodes      = this%ohcff%get_number_nodes()
-            this%number_cells      = this%ohcff%get_number_cells()
-            this%number_dimensions = this%ohcff%get_number_dimensions()
             call this%allocate_cell_and_nodal_arrays()
         endif
 
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILLED)
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         call patch%create(this%number_fields, this%number_cell_vectors)
         ! Translate coordinates and connectivities to VTK format for every subcell
         call this%iterator%init()
