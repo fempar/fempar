@@ -58,9 +58,7 @@ private
         integer(ip)                                           :: GridType
         integer(ip)                                           :: Strategy
         integer(ip)                                           :: Action
-        real(rp),                                 allocatable :: X(:)
-        real(rp),                                 allocatable :: Y(:)
-        real(rp),                                 allocatable :: Z(:)
+        real(rp),                                 allocatable :: XYZ(:)
         integer(ip),                              allocatable :: Connectivities(:)
         type(output_handler_fe_field_1D_value_t), allocatable :: FieldValues(:)
         type(output_handler_fe_field_1D_value_t), allocatable :: CellValues(:)
@@ -93,9 +91,7 @@ contains
         call this%xh5%free()
         if(allocated(this%Path))           deallocate(this%Path)
         if(allocated(this%FilePrefix))     deallocate(this%FilePrefix)
-        if(allocated(this%X))              call memfree(this%X,              __FILE__, __LINE__)
-        if(allocated(this%Y))              call memfree(this%Y,              __FILE__, __LINE__)
-        if(allocated(this%Z))              call memfree(this%Z,              __FILE__, __LINE__)
+        if(allocated(this%XYZ))            call memfree(this%XYZ,            __FILE__, __LINE__)
         if(allocated(this%Connectivities)) call memfree(this%Connectivities, __FILE__, __LINE__)
         if(allocated(this%FieldValues)) then
             do i=1, size(this%Fieldvalues)
@@ -252,24 +248,15 @@ contains
         class(xh5_output_handler_t), intent(inout) :: this
         integer(ip)                                :: number_nodes
         integer(ip)                                :: number_cells
+        integer(ip)                                :: number_dimensions
     !-----------------------------------------------------------------
-        number_nodes = this%get_number_nodes()
-        number_cells = this%get_number_cells()
-        if(allocated(this%X)) then
-            call memrealloc(number_nodes,              this%X,              __FILE__, __LINE__)
+        number_nodes      = this%get_number_nodes()
+        number_cells      = this%get_number_cells()
+        number_dimensions = this%get_number_dimensions()
+        if(allocated(this%XYZ)) then
+            call memrealloc(number_nodes*number_dimensions, this%XYZ,       __FILE__, __LINE__)
         else
-            call memalloc(  number_nodes,              this%X,              __FILE__, __LINE__)
-        endif
-        if(allocated(this%Y)) then
-            call memrealloc(number_nodes,              this%Y,              __FILE__, __LINE__)
-        else
-            call memalloc(  number_nodes,              this%Y,              __FILE__, __LINE__)
-        endif
-        if(allocated(this%Z)) then
-            call memrealloc(number_nodes,              this%Z,              __FILE__, __LINE__)
-        else
-            call memalloc(  number_nodes,              this%Z,              __FILE__, __LINE__)
-            this%Z = 0_rp
+            call memalloc(  number_nodes*number_dimensions, this%XYZ,       __FILE__, __LINE__)
         endif
         if(allocated(this%Connectivities)) then
             call memrealloc(number_nodes+number_cells, this%Connectivities, __FILE__, __LINE__)
@@ -303,9 +290,8 @@ contains
 
 
         if(.not. this%StaticGrid .or. this%number_steps <= 1) then
-            call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
-                                                  this%Y(this%node_offset+1:this%node_offset+number_vertices), &
-                                                  this%Z(this%node_offset+1:this%node_offset+number_vertices))
+            call subcell_accessor%get_coordinates(this%XYZ( &
+                                this%node_offset*number_dimensions+1:(this%node_offset+number_vertices)*number_dimensions) )
 
             node_and_cell_offset = this%node_offset+this%cell_offset
             this%Connectivities(node_and_cell_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), number_dimensions)
@@ -361,7 +347,7 @@ contains
         type(output_handler_cell_vector_t), pointer   :: cell_vector
         real(rp), pointer                             :: Value(:)
         integer(ip)                                   :: attribute_type
-        integer(ip)                                   :: number_fields
+        integer(ip)                                   :: geometry_type
         integer(ip)                                   :: E_IO, i
         integer(ip)                                   :: me, np
     !-----------------------------------------------------------------
@@ -378,15 +364,22 @@ contains
 
             call environment%info(me, np)
 
-            if(.not. this%StaticGrid .or. this%number_steps <= 1) then                 ! Avoid communications
+            if(.not. this%StaticGrid .or. this%number_steps <= 1) then                 
+                select case (this%get_number_dimensions()
+                    case (2)
+                        geometry_type = XDMF_GEOMETRY_TYPE_XY
+                    case (3)
+                        geometry_type = XDMF_GEOMETRY_TYPE_XYZ
+                    case DEFAULT
+                        assert(.false.)
+                end select
+
                 call this%xh5%SetGrid(NumberOfNodes        = this%get_number_nodes(),  &
                                       NumberOfElements     = this%get_number_cells(),  &
                                       TopologyType         = XDMF_TOPOLOGY_TYPE_MIXED, &
-                                      GeometryType         = XDMF_GEOMETRY_TYPE_X_Y_Z)
+                                      GeometryType         = geometry_type)
 
-                call this%xh5%WriteGeometry(X              = this%X, &
-                                            Y              = this%Y, &
-                                            Z              = this%Z)
+                call this%xh5%WriteGeometry(XYZ = this%XYZ)
 
                 call this%xh5%WriteTopology(Connectivities = this%Connectivities)
             endif

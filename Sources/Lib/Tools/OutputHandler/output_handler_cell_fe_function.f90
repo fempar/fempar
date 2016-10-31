@@ -71,11 +71,12 @@ private
 
         contains
         private
-            procedure, non_overridable, public :: create           => output_handler_cell_fe_function_create
-            procedure, non_overridable, public :: get_number_nodes => output_handler_cell_fe_function_get_number_nodes
-            procedure, non_overridable, public :: get_number_cells => output_handler_cell_fe_function_get_number_cells
-            procedure, non_overridable, public :: fill_patch       => output_handler_cell_fe_function_fill_patch
-            procedure, non_overridable, public :: free             => output_handler_cell_fe_function_free
+            procedure, non_overridable, public :: create                => output_handler_cell_fe_function_create
+            procedure, non_overridable, public :: get_number_nodes      => output_handler_cell_fe_function_get_number_nodes
+            procedure, non_overridable, public :: get_number_cells      => output_handler_cell_fe_function_get_number_cells
+            procedure, non_overridable, public :: get_number_dimensions => output_handler_cell_fe_function_get_number_dimensions
+            procedure, non_overridable, public :: fill_patch            => output_handler_cell_fe_function_fill_patch
+            procedure, non_overridable, public :: free                  => output_handler_cell_fe_function_free
 
             ! Strategy procedures to fill patch field data
             procedure, non_overridable :: apply_fill_patch_field_strategy => &
@@ -242,6 +243,17 @@ contains
     !-----------------------------------------------------------------
         number_cells = this%number_cells
     end function output_handler_cell_fe_function_get_number_cells
+
+
+    function output_handler_cell_fe_function_get_number_dimensions(this) result(number_dimensions)
+    !-----------------------------------------------------------------
+    !< Return number of dimensions
+    !-----------------------------------------------------------------
+        class(output_handler_cell_fe_function_t),  intent(in) :: this
+        integer(ip)                                           :: number_dimensions
+    !-----------------------------------------------------------------
+        number_dimensions = this%number_dimensions
+    end function output_handler_cell_fe_function_get_number_dimensions
 
 
     subroutine output_handler_cell_fe_function_fill_patch(this, fe_accessor, number_fields, fe_fields, number_cell_vectors, cell_vectors, patch)

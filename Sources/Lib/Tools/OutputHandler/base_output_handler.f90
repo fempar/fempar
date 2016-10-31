@@ -54,12 +54,14 @@ private
         integer(ip)                                     :: number_cells        = 0
         integer(ip)                                     :: number_nodes        = 0
         integer(ip)                                     :: number_fields       = 0
+        integer(ip)                                     :: number_dimensions   = 0
         integer(ip)                                     :: number_cell_vectors = 0
     contains
     private
         procedure, non_overridable, public :: free                         => output_handler_base_free
         procedure, non_overridable, public :: get_number_nodes             => output_handler_base_get_number_nodes
         procedure, non_overridable, public :: get_number_cells             => output_handler_base_get_number_cells
+        procedure, non_overridable, public :: get_number_dimensions        => output_handler_base_get_number_dimensions
         procedure, non_overridable, public :: get_number_fields            => output_handler_base_get_number_fields
         procedure, non_overridable, public :: get_number_cell_vectors      => output_handler_base_get_number_cell_vectors
         procedure, non_overridable, public :: get_fe_field                 => output_handler_base_get_fe_field
@@ -155,6 +157,7 @@ contains
         this%number_fields       = 0
         this%number_nodes        = 0
         this%number_cells        = 0
+        this%number_dimensions   = 0
     end subroutine output_handler_base_free
 
     subroutine output_handler_base_set_iterator(this, iterator)
@@ -188,6 +191,17 @@ contains
     !-----------------------------------------------------------------
         number_cells = this%number_cells
     end function output_handler_base_get_number_cells
+
+
+    function output_handler_base_get_number_dimensions(this) result(number_dimensions)
+    !-----------------------------------------------------------------
+    !< Return the number of dimensions
+    !-----------------------------------------------------------------
+        class(base_output_handler_t), intent(in) :: this
+        integer(ip)                              :: number_dimensions
+    !-----------------------------------------------------------------
+        number_dimensions = this%number_dimensions
+    end function output_handler_base_get_number_dimensions
 
 
     function output_handler_base_get_number_fields(this) result(number_fields)
@@ -354,8 +368,9 @@ contains
         call output_handler_cell_function%create(this%fe_space, this%iterator, this%number_fields, this%fe_fields(1:this%number_fields))
 
         ! Allocate geometry and connectivity arrays
-        this%number_nodes = output_handler_cell_function%get_number_nodes()
-        this%number_cells = output_handler_cell_function%get_number_cells()
+        this%number_nodes      = output_handler_cell_function%get_number_nodes()
+        this%number_cells      = output_handler_cell_function%get_number_cells()
+        this%number_dimensions = output_handler_cell_function%get_number_dimensions()
         call this%allocate_cell_and_nodal_arrays()
 
         call patch%create(this%number_fields, this%number_cell_vectors)
