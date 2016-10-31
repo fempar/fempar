@@ -30,8 +30,6 @@ module xh5_utils_names
 
 USE types_names
 USE xh5_parameters_names
-USE xh5for,             only: XDMF_ATTRIBUTE_TYPE_SCALAR, XDMF_ATTRIBUTE_TYPE_VECTOR, &
-                              XDMF_ATTRIBUTE_TYPE_TENSOR, XDMF_ATTRIBUTE_TYPE_TENSOR6
 USE reference_fe_names, only: topology_hex, topology_tet
 USE iso_fortran_env,    only: error_unit
 
@@ -43,9 +41,28 @@ private
 
 
 public :: topology_to_xh5_celltype
+public :: topology_to_xh5_topologytype
+public :: dimensions_to_xh5_unstructured_GeometryType
 public :: number_components_to_xh5_AttributeType
 
 contains
+
+    function dimensions_to_xh5_unstructured_GeometryType(dimension) result(geometry_type)
+    !-----------------------------------------------------------------
+    !< Translate the topology type of the reference_fe_geo into XH5 cell type
+    !-----------------------------------------------------------------
+        integer(ip),                 intent(in)    :: dimension
+        integer(ip)                                :: geometry_type
+    !-----------------------------------------------------------------
+            select case (dimension)
+                case (2)
+                    geometry_type = XDMF_GEOMETRY_TYPE_XY
+                case (3)
+                    geometry_type = XDMF_GEOMETRY_TYPE_XYZ
+                case DEFAULT
+                    assert(.false.)
+            end select
+    end function dimensions_to_xh5_unstructured_GeometryType
 
 
     function topology_to_xh5_CellType(topology, dimension) result(cell_type)
@@ -73,6 +90,33 @@ contains
             check(.false.)    
         endif
     end function topology_to_xh5_CellType
+
+
+    function topology_to_xh5_TopologyType(topology, dimension) result(topology_type)
+    !-----------------------------------------------------------------
+    !< Translate the topology type of the reference_fe_geo into XH5 cell type
+    !-----------------------------------------------------------------
+        character(len=*),            intent(in)    :: topology
+        integer(ip),                 intent(in)    :: dimension
+        integer(ip)                                :: topology_type
+    !-----------------------------------------------------------------
+        if(topology == topology_hex) then 
+            if(dimension == 2) then
+                topology_type = XDMF_TOPOLOGY_TYPE_QUADRILATERAL
+            elseif(dimension == 3) then
+                topology_type = XDMF_TOPOLOGY_TYPE_HEXAHEDRON
+            endif
+        elseif(topology == topology_tet) then
+            if(dimension == 2) then
+                topology_type = XDMF_TOPOLOGY_TYPE_TRIANGLE
+            elseif(dimension == 3) then
+                topology_type = XDMF_TOPOLOGY_TYPE_TETRAHEDRON
+            endif
+        else
+            write(error_unit,*) 'Topology_to_xh5_TopologyType: Topology not supported ('//trim(adjustl(topology))//')'
+            check(.false.)    
+        endif
+    end function topology_to_xh5_TopologyType
 
 
     function number_components_to_xh5_AttributeType(number_components) result(attribute_type)
