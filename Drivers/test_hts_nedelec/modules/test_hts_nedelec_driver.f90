@@ -450,23 +450,31 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     class(vector_function_t), pointer :: H_exact_function
-    type(error_norms_vector_t) :: H_error_norm
-    real(rp) :: l2, hcurl
+    class(scalar_function_t), pointer :: p_exact_function
+    
+    type(error_norms_vector_t)  :: H_error_norm
+    type(error_norms_scalar_t)  :: p_error_norm 
+    real(rp) :: l2, hcurl, l2p
     real(rp) :: error_tolerance
     
     H_exact_function => this%problem_functions%get_solution()
+    p_exact_function => this%problem_functions%get_boundary_function_p()
     
     call H_error_norm%create(this%fe_space,1)
+    call p_error_norm%create(this%fe_space,2)
 
     write(*,*) 'H ERROR NORMS'  
     l2 = H_error_norm%compute(H_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )   
     hcurl = H_error_norm%compute(H_exact_function, this%H_current, hcurl_seminorm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )    
     error_tolerance = 1.0e-04
 
-    write(*,'(a20,f20.16)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
-    write(*,'(a20,f20.16)') 'hcurl_norm:', hcurl; !check ( h1 < error_tolerance )
+    l2p = p_error_norm%compute(p_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )
+    write(*,'(a20,f20.16)') 'l2_norm(H):', l2; !check ( l2 < error_tolerance )
+    write(*,'(a20,f20.16)') 'hcurl_norm(H):', hcurl; !check ( h1 < error_tolerance )
+    write(*,'(a20,f20.16)') 'l2_norm(p):', l2p; !check ( l2 < error_tolerance )
     
     call H_error_norm%free()
+    call p_error_norm%free() 
   end subroutine check_solution 
   
     ! -----------------------------------------------------------------------------------------------
@@ -479,8 +487,8 @@ contains
        call  this%oh%attach_fe_space(this%fe_space)
        call  this%oh%add_fe_function(this%H_current, 1, 'H')
        call  this%oh%add_fe_function(this%H_current, 1, 'grad(H)', grad_diff_operator)
-       call  this%oh%add_fe_function(this%H_current, 1, 'div(H)', div_diff_operator)
-       call  this%oh%add_fe_function(this%H_current, 1, 'J', curl_diff_operator)
+       call  this%oh%add_fe_function(this%H_current, 1, 'div(H)',  div_diff_operator)
+       call  this%oh%add_fe_function(this%H_current, 1, 'J',       curl_diff_operator)
        call  this%oh%add_fe_function(this%H_current, 2, 'p')
        call  this%oh%add_fe_function(this%H_current, 2, 'grad(p)',grad_diff_operator )
     endif
@@ -498,8 +506,6 @@ contains
         call this%oh%append_time_step(this%theta_method%get_current_time())
         call this%oh%write()
         call this%oh%close()
-      ! err = this%vtk_handler%write_pvtu(time_step=this%theta_method%get_current_time() ); check(err==0)
-      ! err = this%vtk_handler%write_pvd(); check(err==0)
        call this%theta_method%update_time_to_be_printed() 
     endif
     

@@ -150,7 +150,7 @@ contains
     n = 0.0_rp 
     
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    call result%set(1, x*x*x ) 
+    call result%set(1, 0.0_rp ) 
     call result%set(2, -(n+1.0_rp)*((time*3.0_rp*x*x)**n)*(time*6.0_rp*x) + x*x*x )
     call result%set(3, 0.0_rp) 
 
@@ -176,7 +176,7 @@ contains
     x = point%get(1)
     y = point%get(2) 
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    call result%set(1, x*x*x ) 
+    call result%set(1, 0.0_rp ) 
     call result%set(2,  x*x*x  ) 
     call result%set(3, 0.0_rp) 
  
@@ -194,7 +194,7 @@ contains
     x = point%get(1)
     y = point%get(2) 
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    call result%set(1,  time*x*x*x ) 
+    call result%set(1,  0.0_rp ) 
     call result%set(2,  time*x*x*x ) 
     call result%set(3, 0.0_rp) 
  
@@ -229,7 +229,6 @@ contains
     y = point%get(2) 
     z = point%get(3) 
 
-    call result%set(1,1, time*3.0_rp*x*x) 
     call result%set(1,2, time*3.0_rp*x*x) 
 
   end subroutine solution_get_gradient_space_time
@@ -296,8 +295,7 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3) 
-    result = time*x*x*x 
-    !result = 0.0_rp
+    result = 0.0_rp
     
   end subroutine boundary_function_Hx_get_value_space_time 
 
@@ -312,7 +310,6 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3)
-    !result = x*x*x 
      result = 0.0_rp 
 
   end subroutine boundary_function_Hy_get_value_space

@@ -102,7 +102,7 @@ contains
     class(hts_nedelec_conditions_t), intent(in)  :: this
     integer(ip)                       , intent(in)  :: boundary_id
     logical                           , intent(out) :: components_code(:)
-    assert ( size(components_code) == 2 .or. size(components_code) == 3 )
+    assert ( size(components_code) == 2 .or. size(components_code) == 3 .or. size(components_code)==4 )
     components_code(1:size(components_code)) = .false.
     if ( boundary_id == 1 ) then
       components_code(1:size(components_code)) = .true.
