@@ -37,8 +37,8 @@ contains
     class(par_pb_bddc_poisson_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip)    :: error
-    character(512) :: msg
-    character(len=512) :: tmp
+    character(len=512)            :: msg
+    character(len=:), allocatable :: tmp
 
     list        => this%get_parameters()
     switches    => this%get_switches()
@@ -134,88 +134,224 @@ contains
   function get_dir_path(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    character(len=256) :: get_dir_path
-    type(ParameterList_t), pointer :: list
-    integer(ip) :: error
+    character(len=:),      allocatable            :: get_dir_path
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    check(list%get(key = dir_path_key, value = get_dir_path)==0)
+    is_present         = list%isPresent(Key=dir_path_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = list%isOfDataType(Key=dir_path_key, mold=get_dir_path)
+        error          = list%getshape(Key=dir_path_key, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = list%GetAsString(key = dir_path_key, string = get_dir_path)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
   end function get_dir_path
 
   !==================================================================================================
   function get_prefix(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    character(len=256) :: get_prefix
-    type(ParameterList_t), pointer :: list
-    integer(ip) :: error
+    character(len=:),      allocatable            :: get_prefix
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    check(list%get(key = prefix_key, value = get_prefix)==0)
+    is_present         = list%isPresent(Key=prefix_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = list%isOfDataType(Key=prefix_key, mold=get_prefix)
+        error       = list%getshape(Key=prefix_key, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = list%GetAsString(key = prefix_key, string = get_prefix)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(prefix_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
   end function get_prefix
 
     !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer :: list
-    integer(ip) :: error
+    integer(ip)                                   :: get_reference_fe_geo_order
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    check(list%get(key = reference_fe_geo_order_key, value = get_reference_fe_geo_order)==0)
+    is_present         = list%isPresent(Key=reference_fe_geo_order_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = list%isOfDataType(Key=reference_fe_geo_order_key, mold=get_reference_fe_geo_order)
+        error       = list%getshape(Key=reference_fe_geo_order_key, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(reference_fe_geo_order_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
   end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_order
-    type(ParameterList_t), pointer :: list
-    integer(ip) :: error
+    integer(ip)                                   :: get_reference_fe_order
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    check(list%get(key = reference_fe_order_key, value = get_reference_fe_order)==0)
+    is_present         = list%isPresent(Key=reference_fe_order_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = list%isOfDataType(Key=reference_fe_order_key, mold=get_reference_fe_order)
+        error       = list%getshape(Key=reference_fe_order_key, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(reference_fe_order_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
   end function get_reference_fe_order
   
-  !==================================================================================================
+  !==========================================================================================par_pb_bddc_poisson_params_t========
   function get_write_solution(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    logical :: get_write_solution
-    type(ParameterList_t), pointer :: list
-    integer(ip) :: error
+    logical                                       :: get_write_solution
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    check(list%get(key = write_solution_key, value = get_write_solution)==0)
+    is_present         = list%isPresent(Key=write_solution_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = list%isOfDataType(Key=write_solution_key, mold=get_write_solution)
+        error       = list%getshape(Key=write_solution_key, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = list%Get(key = write_solution_key, Value = get_write_solution)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(write_solution_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
   end function get_write_solution
 
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip) :: get_triangulation_type
-    type(ParameterList_t), pointer :: list
-    integer(ip) :: error
+    integer(ip)                                   :: get_triangulation_type
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    check(list%get(key = triangulation_generate_key, value = get_triangulation_type)==0)
+    is_present         = list%isPresent(Key=triangulation_generate_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = list%isOfDataType(Key=triangulation_generate_key, mold=get_triangulation_type)
+        error       = list%getshape(Key=write_solution_key, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(triangulation_generate_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
   end function get_triangulation_type 
 
   !==================================================================================================
   function get_jump(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip) :: get_jump
-    type(ParameterList_t), pointer :: list
-    integer(ip) :: error
+    integer(ip)                                   :: get_jump
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    check(list%get(key = jump_key, value = get_jump)==0)
+    is_present         = list%isPresent(Key=jump_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = list%isOfDataType(Key=jump_key, mold=get_jump)
+        error       = list%getshape(Key=jump_key, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = list%Get(key = jump_key, Value = get_jump)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(jump_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
   end function get_jump
 
   !==================================================================================================
   function get_inclusion(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip) :: get_inclusion
-    type(ParameterList_t), pointer :: list
-    integer(ip) :: error
+    integer(ip)                                   :: get_inclusion
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    check(list%get(key = inclusion_key, value = get_inclusion)==0)
+    is_present         = list%isPresent(Key=inclusion_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = list%isOfDataType(Key=inclusion_key, mold=get_inclusion)
+        error       = list%getshape(Key=inclusion_key, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = list%Get(key = inclusion_key, Value = get_inclusion)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(inclusion_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
   end function get_inclusion
 
 end module par_pb_bddc_poisson_params_names

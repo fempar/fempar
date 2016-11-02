@@ -217,6 +217,7 @@ contains
     class(*), pointer :: val1(:)
     integer(ip), allocatable :: val_ip(:)
     real(rp)   , allocatable :: val_rp(:)
+    character(512)           :: val_ch
     
     call this%cli%parse(error=error); check(error==0)
 
@@ -227,7 +228,13 @@ contains
        if (this%cli%is_passed(switch=switch)) then
           if(this%list%GetDimensions(key = key)==0) then
              error = this%list%GetPointer(key = key, value=val0); check(error==0)
-             call this%cli%get(switch=switch, val=val0, error=error)
+             select type(val0)
+             type is(character(*))
+                 call this%cli%get(switch=switch, val=val_ch, error=error)
+                 error = this%list%Set(key = key, value=trim(val_ch)); check(error==0)
+             class default
+                 call this%cli%get(switch=switch, val=val0, error=error)
+             end select
           else if(this%list%GetDimensions(key = key)==1) then
              error = this%list%GetPointer(key = key, value=val1); check(error==0)
              select type(val1)

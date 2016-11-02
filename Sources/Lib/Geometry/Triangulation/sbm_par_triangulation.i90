@@ -54,43 +54,94 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   integer(ip)               :: i, ipart,npart
   integer(ip)               :: num_local_cells, num_itfc_cells
   integer(ip) , allocatable :: lst_itfc_cells(:)
-  integer(ip) , allocatable :: ptr_ext_neighs_per_itfc_cell(:)
+  integer(ip) , allocatable :: ptr_ext_neighs_per_itfc_cell(:) 
   integer(igp), allocatable :: lst_ext_neighs_gids(:)
   integer(ip) , allocatable :: lst_ext_neighs_part_ids(:)
 
   integer(igp), allocatable :: lst_vefs_gids_ghost_extended(:)
   integer(ip) , allocatable :: lst_vefs_dimension_ghost_extended(:)
 
-  integer(ip)          :: istat
-  integer(ip)          :: triangulation_generate
-  logical              :: is_present
-  character(len=256)   :: dir_path
-  character(len=256)   :: prefix
-  integer(ip)          :: geometry_interpolation_order
+  integer(ip)                     :: triangulation_generate
+  character(len=:), allocatable   :: dir_path
+  character(len=:), allocatable   :: prefix
   character(len=:), allocatable   :: name
+  integer(ip)                     :: geometry_interpolation_order
   integer(ip)                     :: lunio
+  integer(ip)                     :: istat
+  logical                         :: is_present
+  logical                         :: same_data_type
+  integer(ip),      allocatable   :: shape(:)
 
-  ! Mandatory parameters
-  is_present = .true.
-  is_present =  is_present.and. parameters%isPresent(key = dir_path_key)
-  is_present =  is_present.and. parameters%isPresent(key = prefix_key)
-  assert(is_present)
+     ! Mandatory parameters
+    is_present         = parameters%isPresent(Key=dir_path_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = parameters%isOfDataType(Key = dir_path_key, mold = dir_path)
+        istat          = parameters%getshape(Key=dir_path_key, shape=shape)
+        assert(istat == 0)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            istat = parameters%GetAsString(key = dir_path_key, string = dir_path)
+            check(istat==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
 
-  istat = 0
-  istat = istat + parameters%get(key = dir_path_key, value = dir_path)
-  istat = istat + parameters%get(key = prefix_key  , value = prefix)
-  check(istat==0)
+
+    is_present         = parameters%isPresent(Key=prefix_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = parameters%isOfDataType(Key = prefix_key, mold = prefix)
+        istat          = parameters%getshape(Key=prefix_key, shape=shape)
+        assert(istat == 0)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            istat = parameters%GetAsString(key = prefix_key, string = prefix)
+            check(istat==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
 
   ! Optional parameters
   if( parameters%isPresent(key = triangulation_generate_key) ) then
-     istat = parameters%get(key = triangulation_generate_key, value = triangulation_generate)
-     check(istat==0)
+#ifdef DEBUG
+        same_data_type = parameters%isOfDataType(Key = triangulation_generate_key, mold = triangulation_generate)
+        istat          = parameters%getshape(Key=triangulation_generate_key, shape=shape)
+        assert(istat == 0)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            istat = parameters%Get(key = triangulation_generate_key, Value = triangulation_generate)
+            check(istat==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! tringulation_generate_key ignored. Wrong data type or shape. '
+        endif
+#endif
   else
      triangulation_generate = triangulation_generate_from_mesh
   end if
 
+
   if( parameters%isPresent(key = geometry_interpolation_order_key) ) then
-     istat = parameters%get(key = geometry_interpolation_order_key , value = geometry_interpolation_order)
+#ifdef DEBUG
+        same_data_type = parameters%isOfDataType(Key = geometry_interpolation_order_key, mold = geometry_interpolation_order)
+        istat          = parameters%getshape(Key=geometry_interpolation_order_key, shape=shape)
+        assert(istat == 0)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            istat = parameters%Get(key = geometry_interpolation_order_key, Value = geometry_interpolation_order)
+            check(istat==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! geometry_interpolation_order_key ignored. Wrong data type or shape. '
+        endif
+#endif
   else
      geometry_interpolation_order = 1
   end if
