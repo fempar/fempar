@@ -581,6 +581,7 @@ contains
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
         integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
+        type(quadrature_t),                       pointer       :: quadrature
         type(fe_map_t),                           pointer       :: fe_map
         type(volume_integrator_t),                pointer       :: volume_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
@@ -588,12 +589,13 @@ contains
         type(tensor_field_t),  allocatable                      :: tensor_function_values(:)
         type(allocatable_array_rp1_t),            pointer       :: patch_field_scalar_function_values
         type(allocatable_array_tensor_field_t),   pointer       :: patch_field_tensor_function_values
-        integer(ip)                                             :: shape_function
+        integer(ip)                                             :: qpoint
         integer(ip)                                             :: dim
     !-----------------------------------------------------------------
         ! Get reference_Fe
-        reference_fe => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
+        reference_fe    => this%current_fe%get_reference_fe(field_id)
+        reference_fe_id =  this%current_fe%get_reference_fe_id(field_id)
+        quadrature      => this%get_quadrature()
         assert(reference_fe%get_field_type() == field_type_vector)
 
         ! Get and Update volume integrator
@@ -619,17 +621,16 @@ contains
 
         ! Allocate scalar function values
         if ( allocated(scalar_function_values) ) then
-           call memrealloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+           call memrealloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
         else
-           call memalloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+           call memalloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
         end if
         
         ! Calculate divergence
         scalar_function_values = 0._rp
-        do shape_function = 1, reference_fe%get_number_shape_functions()
+        do qpoint = 1, quadrature%get_number_quadrature_points()
             do dim = 1, this%number_dimensions
-                scalar_function_values(shape_function) = &
-                    scalar_function_values(shape_function) + tensor_function_values(shape_function)%get(dim, dim)
+                scalar_function_values(qpoint) = scalar_function_values(qpoint) + tensor_function_values(qpoint)%get(dim, dim)
             enddo
         enddo 
 
@@ -650,6 +651,7 @@ contains
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
         integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
+        type(quadrature_t),                       pointer       :: quadrature
         type(fe_map_t),                           pointer       :: fe_map
         type(volume_integrator_t),                pointer       :: volume_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
@@ -659,12 +661,13 @@ contains
         type(allocatable_array_rp1_t),            pointer       :: patch_field_scalar_function_values
         type(allocatable_array_vector_field_t),   pointer       :: patch_field_vector_function_values
         type(allocatable_array_tensor_field_t),   pointer       :: patch_field_tensor_function_values
-        integer(ip)                                             :: shape_function
+        integer(ip)                                             :: qpoint
         integer(ip)                                             :: istat
     !-----------------------------------------------------------------
         ! Get reference_Fe
-        reference_fe => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
+        reference_fe    => this%current_fe%get_reference_fe(field_id)
+        reference_fe_id =  this%current_fe%get_reference_fe_id(field_id)
+        quadrature      => this%get_quadrature()
         assert(reference_fe%get_field_type() == field_type_vector)
 
         ! Get and Update volume integrator
@@ -690,14 +693,13 @@ contains
             call patch_field_scalar_function_values%move_alloc_out(scalar_function_values) 
             ! Allocate scalar function values
             if ( allocated(scalar_function_values) ) then
-               call memrealloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+               call memrealloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
             else
-               call memalloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+               call memalloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
             end if
             ! Calculate curl
-            do shape_function = 1, reference_fe%get_number_shape_functions()
-                scalar_function_values(shape_function) = &
-                        tensor_function_values(shape_function)%get(1,2)-tensor_function_values(shape_function)%get(2,1)
+            do qpoint = 1, quadrature%get_number_quadrature_points()
+                scalar_function_values(qpoint) = tensor_function_values(qpoint)%get(1,2)-tensor_function_values(qpoint)%get(2,1)
             enddo
             call patch_field_scalar_function_values%move_alloc_in(scalar_function_values)     
 
@@ -707,21 +709,21 @@ contains
             call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
             ! Allocate vector function values
             if ( allocated(vector_function_values) ) then
-               if ( size(vector_function_values) < reference_fe%get_number_shape_functions() ) then
+               if ( size(vector_function_values) < quadrature%get_number_quadrature_points() ) then
                   deallocate(vector_function_values, stat=istat); check(istat==0)
-                  allocate(scalar_function_values(reference_fe%get_number_shape_functions()), stat=istat); check(istat==0)
+                  allocate(scalar_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
                endif
             else
-               allocate(scalar_function_values(reference_fe%get_number_shape_functions()), stat=istat); check(istat==0)
+               allocate(scalar_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
             end if
             ! Calculate curl
-            do shape_function = 1, reference_fe%get_number_shape_functions()
-                call vector_function_values(shape_function)%set(1, &
-                        tensor_function_values(shape_function)%get(2,3)-tensor_function_values(shape_function)%get(3,2))
-                call vector_function_values(shape_function)%set(2, &
-                        tensor_function_values(shape_function)%get(3,1)-tensor_function_values(shape_function)%get(1,3))
-                call vector_function_values(shape_function)%set(3, &
-                        tensor_function_values(shape_function)%get(1,2)-tensor_function_values(shape_function)%get(2,1))
+            do qpoint = 1, quadrature%get_number_quadrature_points()
+                call vector_function_values(qpoint)%set(1, &
+                        tensor_function_values(qpoint)%get(2,3)-tensor_function_values(qpoint)%get(3,2))
+                call vector_function_values(qpoint)%set(2, &
+                        tensor_function_values(qpoint)%get(3,1)-tensor_function_values(qpoint)%get(1,3))
+                call vector_function_values(qpoint)%set(3, &
+                        tensor_function_values(qpoint)%get(1,2)-tensor_function_values(qpoint)%get(2,1))
             enddo
             call patch_field_vector_function_values%move_alloc_in(vector_function_values) 
         endif
