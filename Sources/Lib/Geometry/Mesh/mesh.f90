@@ -102,19 +102,20 @@ module mesh_names
     
     contains
      ! JP-TODO: program get and set for variables.
-     procedure, non_overridable         :: to_dual              => mesh_to_dual
-     procedure, non_overridable         :: create_distribution  => create_mesh_distribution
-     procedure, non_overridable         :: get_sizes            => mesh_get_sizes
-     procedure, non_overridable         :: move_cells           => mesh_move_cells
-     procedure, non_overridable         :: move_coordinates     => mesh_move_coordinates
-     procedure, non_overridable         :: get_coordinates      => mesh_get_coordinates
-     procedure, non_overridable         :: get_given_vefs       => mesh_get_given_vefs
-     procedure, non_overridable         :: free                 => mesh_free
-     procedure, non_overridable         :: read_from_unit       => mesh_read_from_unit
-     procedure, non_overridable         :: read_from_file       => mesh_read_from_file
-     generic                            :: read                 => read_from_file, read_from_unit
-     procedure, non_overridable, nopass :: compose_name => mesh_compose_name
-     procedure, non_overridable         :: write_file_for_postprocess => mesh_write_file_for_postprocess
+     procedure, non_overridable          :: to_dual                       => mesh_to_dual
+     procedure, non_overridable          :: create_distribution           => create_mesh_distribution
+     procedure, non_overridable          :: get_sizes                     => mesh_get_sizes
+     procedure, non_overridable          :: move_cells                    => mesh_move_cells
+     procedure, non_overridable          :: move_coordinates              => mesh_move_coordinates
+     procedure, non_overridable          :: get_coordinates               => mesh_get_coordinates
+     procedure, non_overridable          :: get_given_vefs                => mesh_get_given_vefs
+     procedure, non_overridable          :: free                          => mesh_free
+     procedure, non_overridable          :: read_from_unit                => mesh_read_from_unit
+     procedure, non_overridable          :: read_from_file                => mesh_read_from_file
+     generic                             :: read                          => read_from_file, read_from_unit
+     procedure, non_overridable, nopass  :: compose_name                  => mesh_compose_name
+     procedure, non_overridable, nopass  :: check_and_get_path_and_prefix_from_parameterlist
+     procedure, non_overridable          :: write_file_for_postprocess    => mesh_write_file_for_postprocess
   end type mesh_t
 
   ! Types
@@ -610,6 +611,56 @@ contains
     character(len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.mesh'
   end subroutine mesh_compose_name
+
+
+  !=============================================================================
+   subroutine check_and_get_path_and_prefix_from_parameterlist( parameter_list, dir_path, prefix ) 
+     type(ParameterList_t),         intent(in)    :: parameter_list
+     character(len=:), allocatable, intent(inout) :: dir_path
+     character(len=:), allocatable, intent(inout) :: prefix
+     ! Locals
+     integer(ip)                                  :: error
+     logical                                      :: is_present
+     logical                                      :: same_data_type
+     integer(ip),      allocatable                :: shape(:)
+
+     ! Mandatory parameters
+    is_present         = parameter_list%isPresent(Key=dir_path_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = parameter_list%isOfDataType(Key = dir_path_key, mold = dir_path)
+        error          = parameter_list%getshape(Key=dir_path_key, shape=shape)
+        assert(error == 0)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
+
+
+    is_present         = parameter_list%isPresent(Key=prefix_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = parameter_list%isOfDataType(Key = prefix_key, mold = prefix)
+        error          = parameter_list%getshape(Key=prefix_key, shape=shape)
+        assert(error == 0)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            error = parameter_list%GetAsString(key = prefix_key, string = prefix)
+            check(error==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
+  end subroutine check_and_get_path_and_prefix_from_parameterlist
+
   !=============================================================================
   subroutine mesh_compose_post_name ( prefix, name ) 
     implicit none
@@ -627,10 +678,8 @@ contains
 
      ! Locals
      integer(ip)          :: nparts
-     integer(ip)          :: istat
-     logical              :: is_present
-     character(len=256)   :: dir_path
-     character(len=256)   :: prefix
+     character(len=:), allocatable  :: dir_path
+     character(len=:), allocatable  :: prefix
      character(len=:), allocatable  :: name, rename
      integer(ip)                    :: lunio
      integer(ip)                    :: i
@@ -638,15 +687,7 @@ contains
      nparts = size(lmesh)
 
      ! Mandatory parameters
-     is_present = .true.
-     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
-     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-     assert(is_present)
-     
-     istat = 0
-     istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
-     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-     check(istat==0)
+     call check_and_get_path_and_prefix_from_parameterlist(parameter_list, dir_path, prefix)
 
      call mesh_compose_name ( prefix, name )
 
@@ -670,27 +711,18 @@ contains
      type(mesh_t)         , intent(in) :: lmesh (:)
 
      ! Locals
-     integer(ip)          :: nparts
-     integer(ip)          :: istat
-     logical              :: is_present
-     character(len=256)   :: dir_path
-     character(len=256)   :: prefix
+     integer(ip)                     :: nparts
+     character(len=:), allocatable   :: dir_path
+     character(len=:), allocatable   :: prefix
      character(len=:), allocatable   :: name, rename
-     integer(ip)                    :: lunio
-     integer(ip)                    :: i
+     integer(ip)                     :: lunio
+     integer(ip)                     :: i
 
      nparts = size(lmesh)
 
      ! Mandatory parameters
-     is_present = .true.
-     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
-     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-     assert(is_present)
-     
-     istat = 0
-     istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
-     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-     check(istat==0)
+     ! Mandatory parameters
+     call check_and_get_path_and_prefix_from_parameterlist(parameter_list, dir_path, prefix)
 
      do i=nparts, 1, -1  
         name=prefix
@@ -713,29 +745,19 @@ contains
     type(mesh_distribution_t), intent(in) :: parts(:)
 
     ! Locals
-    integer(ip)          :: nparts
-    integer(ip)          :: istat
-    logical              :: is_present
-    character(len=256)   :: dir_path
-    character(len=256)   :: prefix
-    character(len=256)   :: name, rename
-    integer(ip)                    :: lunio
-    integer(ip)                    :: i,j
-    integer(ip), allocatable       :: ldome(:)
-    type(post_file_t)              :: lupos
+    integer(ip)                     :: nparts
+    character(len=:), allocatable   :: dir_path
+    character(len=:), allocatable   :: prefix
+    character(len=:), allocatable   :: name, rename
+    integer(ip)                     :: lunio
+    integer(ip)                     :: i,j
+    integer(ip),      allocatable   :: ldome(:)
+    type(post_file_t)               :: lupos
 
     nparts = size(parts)
 
-    ! Mandatory parameters
-    is_present = .true.
-    is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
-    is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-    assert(is_present)
-     
-    istat = 0
-    istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
-    istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-    check(istat==0)
+     ! Mandatory parameters
+     call check_and_get_path_and_prefix_from_parameterlist(parameter_list, dir_path, prefix)
 
 
     ! Output domain partition to GiD file
@@ -763,24 +785,14 @@ contains
      type(mesh_t)         , intent(out) :: lmesh (nparts)
 
      ! Locals
-     integer(ip)          :: istat
-     logical              :: is_present
-     character(len=256)   :: dir_path
-     character(len=256)   :: prefix
+     character(len=:), allocatable   :: dir_path
+     character(len=:), allocatable   :: prefix
      character(len=:), allocatable   :: name, rename
-     integer(ip)                    :: lunio
-     integer(ip)                    :: i
+     integer(ip)                     :: lunio
+     integer(ip)                     :: i
 
      ! Mandatory parameters
-     is_present = .true.
-     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_key)
-     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-     assert(is_present)
-     
-     istat = 0
-     istat = istat + parameter_list%get(key = dir_path_key, value = dir_path)
-     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-     check(istat==0)
+     call check_and_get_path_and_prefix_from_parameterlist(parameter_list, dir_path, prefix)
     
      call mesh_compose_name ( prefix, name )
      do i=nparts, 1, -1  
@@ -799,23 +811,13 @@ contains
      class(mesh_t)        , intent(out) :: f_mesh
      type(ParameterList_t), intent(in)    :: parameter_list
      ! Locals
-     integer(ip)          :: istat
-     logical              :: is_present
-     character(len=256)   :: dir_path
-     character(len=256)   :: prefix
+     character(len=:), allocatable   :: dir_path
+     character(len=:), allocatable   :: prefix
      character(len=:), allocatable   :: name
-     integer(ip)                    :: lunio
+     integer(ip)                     :: lunio
 
      ! Mandatory parameters
-     is_present = .true.
-     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_key)
-     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-     assert(is_present)
-     
-     istat = 0
-     istat = istat + parameter_list%get(key = dir_path_key, value = dir_path)
-     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-     check(istat==0)
+     call check_and_get_path_and_prefix_from_parameterlist(parameter_list, dir_path, prefix)
 
      ! Read mesh
      call mesh_compose_name ( prefix, name )
@@ -835,23 +837,13 @@ contains
      type(ParameterList_t), intent(in) :: parameter_list
 
      ! Locals
-     integer(ip)          :: istat
-     logical              :: is_present
-     character(len=256)   :: dir_path
-     character(len=256)   :: prefix
+     character(len=:), allocatable   :: dir_path
+     character(len=:), allocatable   :: prefix
      character(len=:), allocatable   :: name
-     integer(ip)                    :: lunio
+     integer(ip)                     :: lunio
 
      ! Mandatory parameters
-     is_present = .true.
-     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
-     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-     assert(is_present)
-     
-     istat = 0
-     istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
-     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-     check(istat==0)
+     call check_and_get_path_and_prefix_from_parameterlist(parameter_list, dir_path, prefix)
 
      call mesh_compose_post_name ( prefix, name )
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' )

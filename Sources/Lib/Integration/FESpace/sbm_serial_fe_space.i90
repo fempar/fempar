@@ -339,7 +339,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
   integer(ip)    , optional   , intent(in) :: fields_to_interpolate(:)
 
   !  Locals
-  integer(ip)                                :: field_id, istat, ifield, jfield 
+  integer(ip)                                :: field_id, istat, ifield
   integer(ip)                                :: icomp, component_id
   integer(ip)                  , allocatable :: offset_component(:)
   integer(ip)                                :: number_components
@@ -380,7 +380,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
      call memalloc ( size(fields_to_interpolate) , fields_to_interpolate_ , __FILE__, __LINE__ ) 
      fields_to_interpolate_ = fields_to_interpolate
   else  
-     ! By default, all fields are projected ( i.e., 1-field case where no subset selection is needed) 
+     ! By default, all fields are projected 
      call memalloc ( number_fields , fields_to_interpolate_, __FILE__, __LINE__ )  
      do field_id = 1,number_fields 
         fields_to_interpolate_(field_id) = field_id  
@@ -389,12 +389,10 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
   
          ! Build offset components 
         call memalloc( this%get_number_fields(), offset_component, __FILE__, __LINE__ ) 
-        offset_component = 0
-        do field_id = 1, this%get_number_fields() 
-          do ifield = 1, field_id-1   
-           reference_fe                   => this%get_reference_fe(ifield)
-           offset_component(field_id)     =  offset_component(field_id) + reference_fe%get_number_field_components() 
-          end do
+        offset_component    = 0
+        do field_id = 2, this%get_number_fields() 
+           reference_fe                   => this%get_reference_fe(field_id-1)
+           offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_number_field_components() 
         end do 
   
   assert ( conditions%get_number_components() == number_components )
@@ -613,11 +611,9 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
        ! Build offset components 
         call memalloc( this%get_number_fields(), offset_component, __FILE__, __LINE__ ) 
         offset_component = 0
-        do field_id = 1, this%get_number_fields() 
-          do ifield = 1, field_id-1   
-           reference_fe                   => this%get_reference_fe(ifield)
-           offset_component(field_id)     =  offset_component(field_id) + reference_fe%get_number_field_components() 
-          end do
+        do field_id = 2, this%get_number_fields() 
+           reference_fe                   => this%get_reference_fe(field_id-1)
+           offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_number_field_components() 
         end do 
 
   call memalloc ( this%get_max_number_shape_functions(), &

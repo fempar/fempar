@@ -560,7 +560,8 @@ contains
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
     !-----------------------------------------------------------------
-
+        this%number_steps = 0
+        if(allocated(this%Times)) call memfree(this%Times, __FILE__, __LINE__)
     end subroutine vtk_output_handler_close_body
 
 
