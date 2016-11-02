@@ -57,10 +57,11 @@ private
   
     type :: output_handler_cell_fe_function_t
     private
-        integer(ip)                                    :: number_dimensions = 0
-        integer(ip)                                    :: number_nodes      = 0
-        integer(ip)                                    :: number_cells      = 0
-        type(fe_accessor_t), pointer                   :: current_fe => NULL()
+        logical                                        :: mixed_cell_topologies = .false.
+        integer(ip)                                    :: number_dimensions     = 0
+        integer(ip)                                    :: number_nodes          = 0
+        integer(ip)                                    :: number_cells          = 0
+        type(fe_accessor_t), pointer                   :: current_fe            => NULL()
         type(quadrature_t),        allocatable         :: quadratures(:)
         type(fe_map_t),            allocatable         :: fe_maps(:)
         type(volume_integrator_t), allocatable         :: volume_integrators(:)
@@ -71,11 +72,13 @@ private
 
         contains
         private
-            procedure, non_overridable, public :: create           => output_handler_cell_fe_function_create
-            procedure, non_overridable, public :: get_number_nodes => output_handler_cell_fe_function_get_number_nodes
-            procedure, non_overridable, public :: get_number_cells => output_handler_cell_fe_function_get_number_cells
-            procedure, non_overridable, public :: fill_patch       => output_handler_cell_fe_function_fill_patch
-            procedure, non_overridable, public :: free             => output_handler_cell_fe_function_free
+            procedure, non_overridable, public :: create                    => output_handler_cell_fe_function_create
+            procedure, non_overridable, public :: get_number_nodes          => output_handler_cell_fe_function_get_number_nodes
+            procedure, non_overridable, public :: get_number_cells          => output_handler_cell_fe_function_get_number_cells
+            procedure, non_overridable, public :: get_number_dimensions     => output_handler_cell_fe_function_get_number_dimensions
+            procedure, non_overridable, public :: has_mixed_cell_topologies => output_handler_cell_fe_function_has_mixed_cell_topologies
+            procedure, non_overridable, public :: fill_patch                => output_handler_cell_fe_function_fill_patch
+            procedure, non_overridable, public :: free                      => output_handler_cell_fe_function_free
 
             ! Strategy procedures to fill patch field data
             procedure, non_overridable :: apply_fill_patch_field_strategy => &
@@ -139,6 +142,7 @@ contains
         type(fe_accessor_t)                                     :: fe
         class(reference_fe_t),            pointer               :: reference_fe
         class(lagrangian_reference_fe_t), pointer               :: reference_fe_geo
+        class(lagrangian_reference_fe_t), pointer               :: previous_reference_fe_geo
         class(environment_t),             pointer               :: environment
         integer(ip)                                             :: current_quadrature_and_map
         integer(ip)                                             :: current_volume_integrator
@@ -152,11 +156,11 @@ contains
     !-----------------------------------------------------------------
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
-
+            call this%free()
             triangulation => fe_space%get_triangulation()
             this%number_dimensions = triangulation%get_num_dimensions()
-            this%number_cells       = 0
-            this%number_nodes       = 0
+            this%number_cells      = 0
+            this%number_nodes      = 0
 
             allocate ( this%quadratures(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
             allocate ( this%fe_maps(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
@@ -169,6 +173,7 @@ contains
             current_volume_integrator  = 1
 
             call output_handler_fe_iterator%init()
+            nullify(previous_reference_fe_geo)
             do while ( .not. output_handler_fe_iterator%has_finished() ) 
                 call output_handler_fe_iterator%current(fe)
                 reference_fe_geo => fe%get_reference_fe_geo()
@@ -202,9 +207,16 @@ contains
                     end if
                 end do
                 if ( fe%is_local() ) then
+                    ! Local cell and node counter
                     this%number_cells = this%number_cells + reference_fe_geo%get_number_subcells(max_order_within_fe-1)
                     this%number_nodes = this%number_nodes + &
                             (reference_fe_geo%get_number_subcells(max_order_within_fe-1)*reference_fe_geo%get_number_vertices())
+
+                    ! Check if there are several topology types or a single one
+                    if(associated(previous_reference_fe_geo) .and.                       &
+                        .not. same_type_as(previous_reference_fe_geo, reference_fe_geo)) &
+                            this%mixed_cell_topologies = .true.
+                    previous_reference_fe_geo => reference_fe_geo
                 endif
                 call output_handler_fe_iterator%next()
             end do
@@ -242,6 +254,28 @@ contains
     !-----------------------------------------------------------------
         number_cells = this%number_cells
     end function output_handler_cell_fe_function_get_number_cells
+
+
+    function output_handler_cell_fe_function_get_number_dimensions(this) result(number_dimensions)
+    !-----------------------------------------------------------------
+    !< Return number of dimensions
+    !-----------------------------------------------------------------
+        class(output_handler_cell_fe_function_t),  intent(in) :: this
+        integer(ip)                                           :: number_dimensions
+    !-----------------------------------------------------------------
+        number_dimensions = this%number_dimensions
+    end function output_handler_cell_fe_function_get_number_dimensions
+
+
+    function output_handler_cell_fe_function_has_mixed_cell_topologies(this) result(mixed_cell_topologies)
+    !-----------------------------------------------------------------
+    !< Return number of dimensions
+    !-----------------------------------------------------------------
+        class(output_handler_cell_fe_function_t),  intent(in) :: this
+        logical                                               :: mixed_cell_topologies
+    !-----------------------------------------------------------------
+        mixed_cell_topologies = this%mixed_cell_topologies
+    end function output_handler_cell_fe_function_has_mixed_cell_topologies
 
 
     subroutine output_handler_cell_fe_function_fill_patch(this, fe_accessor, number_fields, fe_fields, number_cell_vectors, cell_vectors, patch)
@@ -547,6 +581,7 @@ contains
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
         integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
+        type(quadrature_t),                       pointer       :: quadrature
         type(fe_map_t),                           pointer       :: fe_map
         type(volume_integrator_t),                pointer       :: volume_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
@@ -554,12 +589,13 @@ contains
         type(tensor_field_t),  allocatable                      :: tensor_function_values(:)
         type(allocatable_array_rp1_t),            pointer       :: patch_field_scalar_function_values
         type(allocatable_array_tensor_field_t),   pointer       :: patch_field_tensor_function_values
-        integer(ip)                                             :: shape_function
+        integer(ip)                                             :: qpoint
         integer(ip)                                             :: dim
     !-----------------------------------------------------------------
         ! Get reference_Fe
-        reference_fe => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
+        reference_fe    => this%current_fe%get_reference_fe(field_id)
+        reference_fe_id =  this%current_fe%get_reference_fe_id(field_id)
+        quadrature      => this%get_quadrature()
         assert(reference_fe%get_field_type() == field_type_vector)
 
         ! Get and Update volume integrator
@@ -585,17 +621,16 @@ contains
 
         ! Allocate scalar function values
         if ( allocated(scalar_function_values) ) then
-           call memrealloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+           call memrealloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
         else
-           call memalloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+           call memalloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
         end if
         
         ! Calculate divergence
         scalar_function_values = 0._rp
-        do shape_function = 1, reference_fe%get_number_shape_functions()
+        do qpoint = 1, quadrature%get_number_quadrature_points()
             do dim = 1, this%number_dimensions
-                scalar_function_values(shape_function) = &
-                    scalar_function_values(shape_function) + tensor_function_values(shape_function)%get(dim, dim)
+                scalar_function_values(qpoint) = scalar_function_values(qpoint) + tensor_function_values(qpoint)%get(dim, dim)
             enddo
         enddo 
 
@@ -616,6 +651,7 @@ contains
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
         integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
+        type(quadrature_t),                       pointer       :: quadrature
         type(fe_map_t),                           pointer       :: fe_map
         type(volume_integrator_t),                pointer       :: volume_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
@@ -625,12 +661,13 @@ contains
         type(allocatable_array_rp1_t),            pointer       :: patch_field_scalar_function_values
         type(allocatable_array_vector_field_t),   pointer       :: patch_field_vector_function_values
         type(allocatable_array_tensor_field_t),   pointer       :: patch_field_tensor_function_values
-        integer(ip)                                             :: shape_function
+        integer(ip)                                             :: qpoint
         integer(ip)                                             :: istat
     !-----------------------------------------------------------------
         ! Get reference_Fe
-        reference_fe => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
+        reference_fe    => this%current_fe%get_reference_fe(field_id)
+        reference_fe_id =  this%current_fe%get_reference_fe_id(field_id)
+        quadrature      => this%get_quadrature()
         assert(reference_fe%get_field_type() == field_type_vector)
 
         ! Get and Update volume integrator
@@ -656,14 +693,13 @@ contains
             call patch_field_scalar_function_values%move_alloc_out(scalar_function_values) 
             ! Allocate scalar function values
             if ( allocated(scalar_function_values) ) then
-               call memrealloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+               call memrealloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
             else
-               call memalloc(reference_fe%get_number_shape_functions(), scalar_function_values, __FILE__, __LINE__)
+               call memalloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
             end if
             ! Calculate curl
-            do shape_function = 1, reference_fe%get_number_shape_functions()
-                scalar_function_values(shape_function) = &
-                        tensor_function_values(shape_function)%get(1,2)-tensor_function_values(shape_function)%get(2,1)
+            do qpoint = 1, quadrature%get_number_quadrature_points()
+                scalar_function_values(qpoint) = tensor_function_values(qpoint)%get(1,2)-tensor_function_values(qpoint)%get(2,1)
             enddo
             call patch_field_scalar_function_values%move_alloc_in(scalar_function_values)     
 
@@ -673,21 +709,21 @@ contains
             call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
             ! Allocate vector function values
             if ( allocated(vector_function_values) ) then
-               if ( size(vector_function_values) < reference_fe%get_number_shape_functions() ) then
+               if ( size(vector_function_values) < quadrature%get_number_quadrature_points() ) then
                   deallocate(vector_function_values, stat=istat); check(istat==0)
-                  allocate(scalar_function_values(reference_fe%get_number_shape_functions()), stat=istat); check(istat==0)
+                  allocate(scalar_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
                endif
             else
-               allocate(scalar_function_values(reference_fe%get_number_shape_functions()), stat=istat); check(istat==0)
+               allocate(scalar_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
             end if
             ! Calculate curl
-            do shape_function = 1, reference_fe%get_number_shape_functions()
-                call vector_function_values(shape_function)%set(1, &
-                        tensor_function_values(shape_function)%get(2,3)-tensor_function_values(shape_function)%get(3,2))
-                call vector_function_values(shape_function)%set(2, &
-                        tensor_function_values(shape_function)%get(3,1)-tensor_function_values(shape_function)%get(1,3))
-                call vector_function_values(shape_function)%set(3, &
-                        tensor_function_values(shape_function)%get(1,2)-tensor_function_values(shape_function)%get(2,1))
+            do qpoint = 1, quadrature%get_number_quadrature_points()
+                call vector_function_values(qpoint)%set(1, &
+                        tensor_function_values(qpoint)%get(2,3)-tensor_function_values(qpoint)%get(3,2))
+                call vector_function_values(qpoint)%set(2, &
+                        tensor_function_values(qpoint)%get(3,1)-tensor_function_values(qpoint)%get(1,3))
+                call vector_function_values(qpoint)%set(3, &
+                        tensor_function_values(qpoint)%get(1,2)-tensor_function_values(qpoint)%get(2,1))
             enddo
             call patch_field_vector_function_values%move_alloc_in(vector_function_values) 
         endif
@@ -789,8 +825,10 @@ contains
             check(istat==0)
         end if
 
-        this%number_cells = 0
-        this%number_nodes = 0
+        this%number_cells          = 0
+        this%number_nodes          = 0
+        this%number_dimensions     = 0
+        this%mixed_cell_topologies = .false.
     end subroutine output_handler_cell_fe_function_free
 
 

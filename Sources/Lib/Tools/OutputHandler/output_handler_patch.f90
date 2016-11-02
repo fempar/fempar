@@ -104,13 +104,16 @@ private
         procedure, non_overridable, public :: get_cell_type               => patch_subcell_accessor_get_cell_type
         procedure, non_overridable, public :: get_number_dimensions       => patch_subcell_accessor_get_number_dimensions
         procedure, non_overridable, public :: get_number_vertices         => patch_subcell_accessor_get_number_vertices
-        procedure, non_overridable, public :: get_coordinates             => patch_subcell_accessor_get_coordinates
         procedure, non_overridable, public :: get_connectivity            => patch_subcell_accessor_get_connectivity
         procedure, non_overridable, public :: get_number_fields           => patch_subcell_accessor_get_number_fields
         procedure, non_overridable, public :: get_number_field_components => patch_subcell_accessor_get_number_field_components
+        procedure, non_overridable, public :: get_cell_vector             => patch_subcell_accessor_get_cell_vector
+        procedure, non_overridable         ::                                patch_subcell_accessor_get_coordinates_X_Y_Z
+        procedure, non_overridable         ::                                patch_subcell_accessor_get_coordinates_XYZ
         procedure, non_overridable         ::                                patch_subcell_accessor_get_field_1D
         procedure, non_overridable         ::                                patch_subcell_accessor_get_field_2D
-        procedure, non_overridable, public :: get_cell_vector             => patch_subcell_accessor_get_cell_vector
+        generic,                    public :: get_coordinates             => patch_subcell_accessor_get_coordinates_X_Y_Z, &
+                                                                             patch_subcell_accessor_get_coordinates_XYZ
         generic,                    public :: get_field                   => patch_subcell_accessor_get_field_1D, &
                                                                              patch_subcell_accessor_get_field_2D
     end type
@@ -625,7 +628,7 @@ contains
     end function patch_subcell_accessor_get_number_vertices
 
 
-    subroutine patch_subcell_accessor_get_coordinates(this, X, Y, Z)
+    subroutine patch_subcell_accessor_get_coordinates_X_Y_Z(this, X, Y, Z)
     !-----------------------------------------------------------------
     !< Return subcell coordinates
     !-----------------------------------------------------------------
@@ -648,7 +651,33 @@ contains
             if(number_dimensions>=2) Y(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(2)
             if(number_dimensions>=3) Z(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(3)
         end do
-    end subroutine patch_subcell_accessor_get_coordinates
+    end subroutine patch_subcell_accessor_get_coordinates_X_Y_Z
+
+
+    subroutine patch_subcell_accessor_get_coordinates_XYZ(this, XYZ)
+    !-----------------------------------------------------------------
+    !< Return subcell coordinates (x1,y1,z1,x2,y2,z2,...)
+    !-----------------------------------------------------------------
+        class(patch_subcell_accessor_t),        intent(in)    :: this
+        real(rp),                               intent(inout) :: XYZ(this%patch%get_number_vertices_per_subcell()*this%patch%get_number_dimensions())
+        type(point_t),                 pointer                :: patch_coordinates(:)
+        type(allocatable_array_ip2_t), pointer                :: subcells_connectivity
+        integer(ip)                                           :: number_vertices
+        integer(ip)                                           :: vertex
+        integer(ip)                                           :: dim
+        integer(ip)                                           :: counter
+    !-----------------------------------------------------------------
+        number_vertices       =  this%get_number_vertices()
+        patch_coordinates     => this%patch%get_coordinates()
+        subcells_connectivity => this%patch%get_subcells_connectivity()
+        counter = 1
+        do vertex = 1, number_vertices
+            do dim = 1, this%get_number_dimensions()
+                XYZ(counter) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(dim)
+                counter = counter + 1
+            enddo
+        end do
+    end subroutine patch_subcell_accessor_get_coordinates_XYZ
 
 
     subroutine patch_subcell_accessor_get_connectivity(this, connectivity)
