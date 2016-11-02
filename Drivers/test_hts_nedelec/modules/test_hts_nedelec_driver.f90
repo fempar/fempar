@@ -214,12 +214,12 @@ contains
        call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
     end if
     ! Interpolate Dirichlet values to magnetic pressure field 
-    ! call this%fe_space%interpolate_dirichlet_values(this%hts_nedelec_conditions, this%theta_method%get_initial_time() )
+    call this%fe_space%interpolate_dirichlet_values(this%hts_nedelec_conditions, this%theta_method%get_initial_time() , fields_to_interpolate=(/2/) )
     ! Create H_previous with initial time (t0) boundary conditions 
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_initial_time())
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, time=this%theta_method%get_initial_time(), fields_to_project=(/1/) )
     call this%H_previous%create(this%fe_space) 
     ! Update fe_space to the current time (t1) boundary conditions, create H_current 
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_current_time())
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, time=this%theta_method%get_current_time(), fields_to_project=(/1/) )
     call this%H_current%create(this%fe_space)
 
   end subroutine setup_fe_space
@@ -319,7 +319,7 @@ contains
      end if
 
      if (.not. this%theta_method%finished() ) then 
-        call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_current_time() )
+        call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, time=this%theta_method%get_current_time(), fields_to_project=(/ 1 /) )
         call this%H_current%update_strong_dirichlet_values(this%fe_space) 
         call this%assemble_system() 
      end if
@@ -469,9 +469,9 @@ contains
     error_tolerance = 1.0e-04
 
     l2p = p_error_norm%compute(p_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )
-    write(*,'(a20,f20.16)') 'l2_norm(H):', l2; !check ( l2 < error_tolerance )
-    write(*,'(a20,f20.16)') 'hcurl_norm(H):', hcurl; !check ( h1 < error_tolerance )
-    write(*,'(a20,f20.16)') 'l2_norm(p):', l2p; !check ( l2 < error_tolerance )
+    write(*,'(a20,f20.16)') 'l2_norm(H):', l2;        !check ( l2 < error_tolerance )
+    write(*,'(a20,f20.16)') 'hcurl_norm(H):', hcurl;  !check ( h1 < error_tolerance )
+    write(*,'(a20,f20.16)') 'l2_norm(p):', l2p;       !check ( l2 < error_tolerance )
     
     call H_error_norm%free()
     call p_error_norm%free() 
@@ -491,6 +491,7 @@ contains
        call  this%oh%add_fe_function(this%H_current, 1, 'J',       curl_diff_operator)
        call  this%oh%add_fe_function(this%H_current, 2, 'p')
        call  this%oh%add_fe_function(this%H_current, 2, 'grad(p)',grad_diff_operator )
+       call  this%oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
     endif
   end subroutine initialize_output
   
@@ -502,11 +503,9 @@ contains
     
     ! Define customized output by the user 
     if( this%test_params%get_write_solution() .and. this%theta_method%print_this_step() ) then
-        call this%oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
         call this%oh%append_time_step(this%theta_method%get_current_time())
         call this%oh%write()
-        call this%oh%close()
-       call this%theta_method%update_time_to_be_printed() 
+        call this%theta_method%update_time_to_be_printed() 
     endif
     
     
@@ -518,6 +517,7 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip)                                      :: err
     if(this%test_params%get_write_solution()) then
+    call this%oh%close()
     call  this%oh%free()
     endif
   end subroutine finalize_output

@@ -331,16 +331,17 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   check ( istat == 0 )
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
 
-subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
+subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time, fields_to_interpolate)
   implicit none
   class(serial_fe_space_t), intent(inout)  :: this
   class(conditions_t)     , intent(in)     :: conditions
   real(rp)       , optional   , intent(in) :: time
+  integer(ip)    , optional   , intent(in) :: fields_to_interpolate(:)
 
   !  Locals
-  integer(ip)                                :: field_id, istat
+  integer(ip)                                :: field_id, istat, ifield, jfield 
   integer(ip)                                :: icomp, component_id
-  integer(ip)                                :: offset_component
+  integer(ip)                  , allocatable :: offset_component(:)
   integer(ip)                                :: number_components
   integer(ip)                                :: number_fields
   integer(ip)                                :: reference_fe_id
@@ -357,6 +358,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   type(point_t)                , pointer     :: cell_coordinates(:)
   logical                      , allocatable :: components_code(:)
   logical                      , allocatable :: reference_fes_touched(:)
+  integer(ip)                  , allocatable :: fields_to_interpolate_(:)
 
 
   class(reference_fe_t)        , pointer     :: reference_fe
@@ -372,7 +374,29 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   number_components    = this%get_number_components()
   number_reference_fes = this%get_number_reference_fes()
   number_fields        = this%get_number_fields()
-
+  
+   if ( present(fields_to_interpolate) ) then 
+     ! User specifies which fields will be projected 
+     call memalloc ( size(fields_to_interpolate) , fields_to_interpolate_ , __FILE__, __LINE__ ) 
+     fields_to_interpolate_ = fields_to_interpolate
+  else  
+     ! By default, all fields are projected ( i.e., 1-field case where no subset selection is needed) 
+     call memalloc ( number_fields , fields_to_interpolate_, __FILE__, __LINE__ )  
+     do field_id = 1,number_fields 
+        fields_to_interpolate_(field_id) = field_id  
+     end do
+  end if
+  
+         ! Build offset components 
+        call memalloc( this%get_number_fields(), offset_component, __FILE__, __LINE__ ) 
+        offset_component = 0
+        do field_id = 1, this%get_number_fields() 
+          do ifield = 1, field_id-1   
+           reference_fe                   => this%get_reference_fe(ifield)
+           offset_component(field_id)     =  offset_component(field_id) + reference_fe%get_number_field_components() 
+          end do
+        end do 
+  
   assert ( conditions%get_number_components() == number_components )
   call memalloc ( number_components, components_code, __FILE__, __LINE__ )
 
@@ -403,9 +427,9 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
      
      if ( fe%is_local() ) then 
 
-        offset_component = 0
-        do field_id = 1, fe%get_number_fields()
-           reference_fe => fe%get_reference_fe(field_id)
+        do ifield = 1, size(fields_to_interpolate_) 
+              field_id = fields_to_interpolate_(ifield) 
+              reference_fe => fe%get_reference_fe(field_id)
 
            if ( fe%at_strong_dirichlet_boundary(field_id) ) then
               reference_fe_id = this%reference_fe_id_per_fe(field_id, fe%get_lid()) 
@@ -416,7 +440,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
                       fe%get_reference_fe_geo())
 
                  do icomp=1, reference_fe%get_number_field_components()
-                    component_id = offset_component + icomp
+                    component_id = offset_component(field_id) + icomp
                     call values(component_id,reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p%get_number_quadrature_points(),1) 
                  end do
               end if
@@ -446,7 +470,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
                     call conditions%get_components_code( vef%get_set_id(), components_code )
 
                     do icomp=1, reference_fe%get_number_field_components()
-                       component_id = offset_component + icomp
+                       component_id = offset_component(field_id) + icomp
                        if (components_code(component_id)) then
                           call conditions%get_function( vef%get_set_id(), component_id, scalar_function )
                           assert(associated(scalar_function))
@@ -462,7 +486,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
                     own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                        local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
-                       component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
+                       component_id = offset_component(field_id) + reference_fe%get_component_node(local_within_ref_fe_dof_id)
                        if ( components_code(component_id) ) then 
                           ! Check if current node is subject to strong Dirichlet boundary conditions
                           if(elem2dof(field_id)%p(local_within_ref_fe_dof_id) < 0) then
@@ -476,7 +500,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
                  end if
               end do
            end if
-           offset_component = offset_component + reference_fe%get_number_field_components()
         end do
      end if
      call fe_iterator%next() 
@@ -494,6 +517,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
      end do
   end do
 
+  call memfree(offset_component, __FILE__, __LINE__) 
   deallocate(elem2dof, stat=istat ) 
   check (istat==0)
   deallocate(fe_maps, stat=istat)
@@ -502,19 +526,22 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   check(istat==0)
   deallocate(values, stat=istat)
   check(istat==0)
+  call memfree ( fields_to_interpolate_, __FILE__, __LINE__ ) 
 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
-subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time)
+subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time, fields_to_project)
   implicit none
   class(serial_fe_space_t), intent(inout)  :: this
   class(conditions_t)     , intent(in)     :: conditions
   real(rp)       , optional   , intent(in) :: time
+  integer(ip)    , optional   , intent(in) :: fields_to_project(:) 
 
   !  Locals
+  integer(ip)                  , allocatable :: fields_to_project_(:)  
   integer(ip)                                :: field_id, istat
   integer(ip)                                :: icomp, component_id
-  integer(ip)                                :: offset_component
+  integer(ip)                  , allocatable :: offset_component(:)
   integer(ip)                                :: number_components
   integer(ip)                                :: ivef
   real(rp)                                   :: time_(1)
@@ -532,13 +559,18 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
 
   type(sparse_matrix_t)       :: matrix
   type(serial_scalar_array_t) :: rhs
+  type(serial_scalar_array_t) :: projected_nodal_values
+  real(rp),    allocatable    :: projected_nodal_values_entries(:) 
+  integer(ip), allocatable    :: subset2global_dirichlet_dofs(:) 
+  integer(ip), allocatable    :: global2subset_dirichlet_dofs(:) 
+  integer(ip), allocatable    :: subset_elem2dof(:) 
 #ifdef ENABLE_MKL  
   type(direct_solver_t)           :: direct_solver
 #else
   type(iterative_linear_solver_t) :: iterative_linear_solver
 #endif
   real(rp), allocatable       :: elmat(:,:)
-  real(rp), allocatable       :: elvec(:)
+  real(rp), allocatable       :: elvec(:) 
   integer(ip)                 :: qpoint, n_q_points, ishape, jshape
   type(point_t), pointer      :: quad_coords(:)
   real(rp)                    :: factor
@@ -555,14 +587,38 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   type(vector_field_t) :: normal 
   real(rp)             :: scalar_shape_test, scalar_shape_trial
   type(vector_field_t) :: vector_shape_test, vector_shape_trial
-  
-  type(parameterlist_t) :: parameter_list
+
+  type(parameterlist_t)  :: parameter_list
   integer(ip)            :: FPLError
   integer                :: iparm(64)
+  integer(ip)            :: ifield, jfield, idof, subset_idof 
+  integer(ip)            :: number_subset_strong_dirichlet_dofs
 
   number_components = this%get_number_components()
   assert ( conditions%get_number_components() == number_components )
   call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+
+  if ( present(fields_to_project) ) then 
+     ! User specifies which fields will be projected 
+     call memalloc ( size(fields_to_project), fields_to_project_, __FILE__, __LINE__ ) 
+     fields_to_project_ = fields_to_project
+  else  
+     ! By default, all fields are projected ( i.e., 1-field case where no subset selection is needed) 
+     call memalloc ( this%get_number_fields() , fields_to_project_, __FILE__, __LINE__ )  
+     do field_id=1,this%get_number_fields() 
+        fields_to_project_(field_id) = field_id
+     end do
+  end if
+
+       ! Build offset components 
+        call memalloc( this%get_number_fields(), offset_component, __FILE__, __LINE__ ) 
+        offset_component = 0
+        do field_id = 1, this%get_number_fields() 
+          do ifield = 1, field_id-1   
+           reference_fe                   => this%get_reference_fe(ifield)
+           offset_component(field_id)     =  offset_component(field_id) + reference_fe%get_number_field_components() 
+          end do
+        end do 
 
   call memalloc ( this%get_max_number_shape_functions(), &
        this%get_max_number_shape_functions(), &
@@ -571,34 +627,69 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call memalloc ( this%get_max_number_shape_functions(), &
        elvec, __FILE__, __LINE__ )
 
-  ! Create linear system data structures
-  call matrix%create(num_rows_and_cols=this%number_strong_dirichlet_dofs, &
-       symmetric_storage=.false.,       &
-       is_symmetric=.false.,            &
-       sign=SPARSE_MATRIX_SIGN_UNKNOWN )
-
-  call rhs%create_and_allocate(this%number_strong_dirichlet_dofs) 
-  call rhs%init(0.0_rp)
+  call memalloc ( this%get_max_number_shape_functions(), subset_elem2dof, __FILE__, __LINE__ )
 
   allocate ( vector_function_values(this%get_max_number_face_quadrature_points(),1), & 
        stat=istat); check(istat==0);
-  
+
   allocate ( scalar_function_values(this%get_max_number_face_quadrature_points(),1), & 
        stat=istat); check(istat==0);
-  
+
   allocate ( function_scalar_components(this%triangulation%get_num_dimensions()), & 
        stat=istat); check(istat==0);
-  
+
   allocate( elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
 
 
   if ( present(time) ) time_(1) = time
+
+  if ( present(fields_to_project) ) then 
+     call memalloc ( this%number_strong_dirichlet_dofs, global2subset_dirichlet_dofs, __FILE__, __LINE__ ) 
+     global2subset_dirichlet_dofs=0
+     
+     ! Count number of Dirichlet DOFs to be projected
+     fe_iterator  = this%create_fe_iterator()
+     number_subset_strong_dirichlet_dofs = 0
+     do while ( .not. fe_iterator%has_finished() )
+        call fe_iterator%current(fe)
+        do ifield = 1, size(fields_to_project_) 
+           field_id = fields_to_project_(ifield) 
+           if ( fe%at_strong_dirichlet_boundary(field_id) ) then 
+              call fe%get_elem2dof(elem2dof)
+              do idof = 1,size(elem2dof(field_id)%p)
+                 if ( (elem2dof(field_id)%p(idof) < 0)) then 
+                 if (global2subset_dirichlet_dofs(-elem2dof(field_id)%p(idof))==0) then 
+                    number_subset_strong_dirichlet_dofs = number_subset_strong_dirichlet_dofs + 1
+                    global2subset_dirichlet_dofs(-elem2dof(field_id)%p(idof)) = number_subset_strong_dirichlet_dofs 
+                    end if 
+                 end if
+              end do
+           end if
+        end do
+        call fe_iterator%next()
+     end do
+
+     call memalloc ( number_subset_strong_dirichlet_dofs, subset2global_dirichlet_dofs, __FILE__, __LINE__ ) 
+     subset2global_dirichlet_dofs=0
+     subset_idof                 =0
+  else 
+     number_subset_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs
+  end if
   
-  ! TO-DO: right before this loop starts we should determine how many
-  !        of the DoFs on the boundary which are subject to strong Dirichlet BCS 
-  !        are going to be evaluated by projection. We also need a consecutive
-  !        numbering of this (potential) subset of DoFs, and the translation among
-  !        both numberings. 
+  ! Create linear system 
+  call matrix%create(num_rows_and_cols=number_subset_strong_dirichlet_dofs, &
+       symmetric_storage=.false.,       &
+       is_symmetric=.false.,            &
+       sign=SPARSE_MATRIX_SIGN_UNKNOWN )
+
+  call rhs%create_and_allocate(number_subset_strong_dirichlet_dofs) 
+  call rhs%init(0.0_rp)
+  
+    ! Create data structures
+  call projected_nodal_values%create(number_subset_strong_dirichlet_dofs) 
+  call memalloc( number_subset_strong_dirichlet_dofs, projected_nodal_values_entries, __FILE__, __LINE__ )
+  projected_nodal_values_entries = 0.0_rp
+  call projected_nodal_values%set_view_entries(projected_nodal_values_entries)
 
   fe_face_iterator = this%create_fe_face_iterator()
   do while ( .not. fe_face_iterator%has_finished() )
@@ -609,17 +700,19 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
            call fe_face%get_cell_around(1,fe)
            call fe%get_elem2dof(elem2dof)
            call conditions%get_components_code( fe_face%get_set_id(), components_code )
-           offset_component = 0
-           do field_id = 1, fe%get_number_fields() ! Should I merge all fields within the same variational problem??
-              component_id = offset_component + 1
+
+           do ifield = 1, size(fields_to_project_)    
+              field_id = fields_to_project_(ifield) 
+              component_id = offset_component(field_id) + 1
+
               if (components_code(component_id)) then
                  reference_fe => fe%get_reference_fe(field_id)
-                 
+
                  ! Retreive the scalar functions corresponding to the components of the function to be projected
                  do icomp=1, reference_fe%get_number_field_components()
-                   call conditions%get_function(fe_face%get_set_id(), &
-												component_id+icomp-1, &
-                                                function_scalar_components(icomp)%p)
+                    call conditions%get_function(fe_face%get_set_id(), &
+                         component_id+icomp-1, &
+                         function_scalar_components(icomp)%p)
                  end do
 
                  ! Evaluate function restricted to the boundary
@@ -630,80 +723,91 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                  quad_coords  => face_map%get_quadrature_coordinates()
                  select case(reference_fe%get_field_type())
                  case ( field_type_scalar )
-                   ! Curl-conforming projection does not make sense with scalar-valued fields
-                   assert ( .false. )
+                    ! Curl-conforming projection does not make sense with scalar-valued fields
+                    assert ( .false. )
                  case ( field_type_vector )
-                   do icomp=1, reference_fe%get_number_field_components()
-                     if(present(time)) then
-                       call function_scalar_components(icomp)%p%get_values_set_space_time(quad_coords,time_,scalar_function_values(1:n_q_points,:))
-                     else
-                       call function_scalar_components(icomp)%p%get_values_set_space(quad_coords,scalar_function_values(1:n_q_points,1))
-                     end if
-                     do qpoint = 1, n_q_points
-                       call vector_function_values(qpoint,1)%set(icomp,scalar_function_values(qpoint,1))
-                     end do
-                 end do
+                    do icomp=1, reference_fe%get_number_field_components()
+                       if(present(time)) then
+                          call function_scalar_components(icomp)%p%get_values_set_space_time(quad_coords,time_,scalar_function_values(1:n_q_points,:))
+                       else
+                          call function_scalar_components(icomp)%p%get_values_set_space(quad_coords,scalar_function_values(1:n_q_points,1))
+                       end if
+                       do qpoint = 1, n_q_points
+                          call vector_function_values(qpoint,1)%set(icomp,scalar_function_values(qpoint,1))
+                       end do
+                    end do
                  case ( field_type_tensor )
-                   ! Curl-conforming projection does not make sense with tensor-valued fields
-                   check(.false.)
+                    ! Curl-conforming projection does not make sense with tensor-valued fields
+                    check(.false.)
                  end select
-                 
+
                  face_int     => fe_face%get_face_integrator(field_id)
                  select case(reference_fe%get_field_type())
                  case ( field_type_scalar )
-                   ! Could this piece of code be part of a (reutilizable) TBP 
-                   ! (i.e., evaluate boundary_mass matrix face contribution) of e.g., type(face_accessor_t) ??
-                   ! Anyway, I think that we should have a way to evaluate boundary_mass_matrices, volume_mass_matrices,
-                   ! in a module of recurrently reutilizable set of subroutines ...
-                   elmat = 0.0_rp
-                   elvec = 0.0_rp
-                   do qpoint = 1, n_q_points
-                    factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-                    do ishape = 1, reference_fe%get_number_shape_functions() 
-                       call face_int%get_value(ishape,qpoint,1,scalar_shape_test)
-                       do jshape = 1, reference_fe%get_number_shape_functions()
-                          call face_int%get_value(jshape,qpoint,1,scalar_shape_trial)
-                          elmat(ishape,jshape) = elmat(ishape,jshape) + scalar_shape_test*scalar_shape_trial*factor
+                    ! Could this piece of code be part of a (reutilizable) TBP 
+                    ! (i.e., evaluate boundary_mass matrix face contribution) of e.g., type(face_accessor_t) ??
+                    ! Anyway, I think that we should have a way to evaluate boundary_mass_matrices, volume_mass_matrices,
+                    ! in a module of recurrently reutilizable set of subroutines ...
+                    elmat = 0.0_rp
+                    elvec = 0.0_rp
+                    do qpoint = 1, n_q_points
+                       factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+                       do ishape = 1, reference_fe%get_number_shape_functions() 
+                          call face_int%get_value(ishape,qpoint,1,scalar_shape_test)
+                          do jshape = 1, reference_fe%get_number_shape_functions()
+                             call face_int%get_value(jshape,qpoint,1,scalar_shape_trial)
+                             elmat(ishape,jshape) = elmat(ishape,jshape) + scalar_shape_test*scalar_shape_trial*factor
+                          end do
+                          elvec(ishape) = elvec(ishape) + scalar_function_values(qpoint,1)*scalar_shape_test*factor
                        end do
-                       elvec(ishape) = elvec(ishape) + scalar_function_values(qpoint,1)*scalar_shape_test*factor
                     end do
-                   end do
                  case ( field_type_vector )
-                   elmat = 0.0_rp
-                   elvec = 0.0_rp
-                   do qpoint = 1, n_q_points
-                      factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-                      call face_map_face_map%get_normal(qpoint, normal)
-                      do ishape = 1, reference_fe%get_number_shape_functions() 
-                         call face_int%get_value(ishape,qpoint,1,vector_shape_test)
-                         do jshape = 1, reference_fe%get_number_shape_functions()
-                            call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
-                            elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
-                         end do
-                         elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
-                      end do
-                   end do
+                    elmat = 0.0_rp
+                    elvec = 0.0_rp
+                    do qpoint = 1, n_q_points
+                       factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+                       call face_map_face_map%get_normal(qpoint, normal)
+                       do ishape = 1, reference_fe%get_number_shape_functions() 
+                          call face_int%get_value(ishape,qpoint,1,vector_shape_test)
+                          do jshape = 1, reference_fe%get_number_shape_functions()
+                             call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
+                             elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
+                          end do
+                          elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
+                       end do
+                    end do
                  case ( field_type_tensor )
-                   ! Not implemented !!!
-                   check(.false.)
+                    ! Not implemented !!!
+                    check(.false.)
                  end select
-                 
-                 elem2dof(field_id)%p = -elem2dof(field_id)%p
+
+                 ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
+                 subset_elem2dof = 0
+                 if (present(fields_to_project) ) then 
+                    do idof = 1, size(elem2dof(field_id)%p)
+                       if ( (elem2dof(field_id)%p(idof) < 0) ) then 
+                       subset2global_dirichlet_dofs(global2subset_dirichlet_dofs( -elem2dof(field_id)%p(idof) )) = -elem2dof(field_id)%p(idof) 
+                       subset_elem2dof(idof) = global2subset_dirichlet_dofs( -elem2dof(field_id)%p(idof) )
+                       end if
+                    end do
+                 else 
+                    subset_elem2dof = -elem2dof(field_id)%p
+                 end if
+
                  call matrix%insert(num_rows = reference_fe%get_number_shape_functions(),& 
                       num_cols = reference_fe%get_number_shape_functions(),& 
-                      ia       = elem2dof(field_id)%p, &
-                      ja       = elem2dof(field_id)%p, &
+                      ia       = subset_elem2dof, &
+                      ja       = subset_elem2dof, &
                       ioffset  = 0, &
                       joffset  = 0, & 
                       val      = elmat)
                  call rhs%add(num_entries = reference_fe%get_number_shape_functions(),& 
-                      ia          = elem2dof(field_id)%p, &
+                      ia          = subset_elem2dof, &
                       ioffset     = 0, &
                       val         = elvec)
-                 elem2dof(field_id)%p = -elem2dof(field_id)%p
+
 
               end if
-              offset_component = offset_component + reference_fe%get_number_field_components()
            end do
         end if
      end if
@@ -720,12 +824,12 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   iparm = 0
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
   assert(FPLError == 0)
-    
+
   call direct_solver%set_type_from_pl(parameter_list)
   call direct_solver%set_parameters_from_pl(parameter_list)
   call direct_solver%set_matrix(matrix)
-  call direct_solver%numerical_setup()!
-  call direct_solver%solve(rhs,this%strong_dirichlet_values)
+  call direct_solver%numerical_setup()
+  call direct_solver%solve(rhs,projected_nodal_values)
   call direct_solver%free()
 #else
   FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
@@ -735,19 +839,39 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call iterative_linear_solver%set_type_from_string(cg_name)
   call iterative_linear_solver%set_parameters_from_pl(parameter_list)
   call iterative_linear_solver%set_operators(matrix, .identity. matrix) 
-  call iterative_linear_solver%solve(rhs,this%strong_dirichlet_values)
+  call iterative_linear_solver%solve(rhs,projected_nodal_values)
   call iterative_linear_solver%free()
 #endif
   call parameter_list%free()
+
+  ! Insert projected nodal values into strong_dirichlet_values array 
+  if ( present(fields_to_project) ) then 
   
+  call this%strong_dirichlet_values%insert_subvector(iblock=1,                                         &
+                                                     size_indices=number_subset_strong_dirichlet_dofs, &
+                                                     indices=subset2global_dirichlet_dofs,             &
+                                                     values=projected_nodal_values_entries)
+  else 
+  call this%strong_dirichlet_values%copy(projected_nodal_values) 
+  end if 
+
   call matrix%free()
   call rhs%free()
+  call projected_nodal_values%free()
   call memfree (elmat, __FILE__, __LINE__)
   call memfree (elvec, __FILE__, __LINE__)
+  call memfree (offset_component, __FILE__, __LINE__ )
   deallocate ( function_scalar_components, stat=istat); check(istat==0);
   deallocate ( vector_function_values, stat=istat); check(istat==0);
   deallocate ( scalar_function_values, stat=istat); check(istat==0);
   call memfree ( components_code, __FILE__, __LINE__ )
+  if (present(fields_to_project)) then 
+     call memfree ( subset2global_dirichlet_dofs, __FILE__, __LINE__ )
+     call memfree ( global2subset_dirichlet_dofs, __FILE__, __LINE__ ) 
+  end if
+  call memfree ( fields_to_project_, __FILE__, __LINE__ )
+  call memfree ( projected_nodal_values_entries ) 
+  call memfree ( subset_elem2dof, __FILE__, __LINE__ )
   deallocate(elem2dof, stat=istat ); check (istat==0)
 end subroutine serial_fe_space_project_dirichlet_values_curl_conforming
 
