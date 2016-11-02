@@ -317,16 +317,16 @@ contains
                     select case (number_dimensions)
                         case (2)
                             this%Connectivities(connectivities_offset+1:connectivities_offset+number_vertices) = &
-                                    (/0,1,3,2/)+this%node_offset
+                                    [0,1,3,2]+this%node_offset
                         case (3)
                             this%Connectivities(connectivities_offset+1:connectivities_offset+number_vertices) = &
-                                    (/0,1,3,2,4,5,7,6/)+this%node_offset
+                                    [0,1,3,2,4,5,7,6]+this%node_offset
                         case DEFAULT
                             check(.false.)
                     end select
                 case (topology_tet) 
                     this%Connectivities(connectivities_offset+1:connectivities_offset+number_vertices) = &
-                                    (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
+                                    [(i, i=this%node_offset, this%node_offset+number_vertices-1)]
                 case DEFAULT
                     check(.false.)    
             end select
