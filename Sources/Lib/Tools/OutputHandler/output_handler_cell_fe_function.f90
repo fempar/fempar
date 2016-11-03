@@ -711,10 +711,10 @@ contains
             if ( allocated(vector_function_values) ) then
                if ( size(vector_function_values) < quadrature%get_number_quadrature_points() ) then
                   deallocate(vector_function_values, stat=istat); check(istat==0)
-                  allocate(scalar_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
+                  allocate(vector_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
                endif
             else
-               allocate(scalar_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
+               allocate(vector_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
             end if
             ! Calculate curl
             do qpoint = 1, quadrature%get_number_quadrature_points()
