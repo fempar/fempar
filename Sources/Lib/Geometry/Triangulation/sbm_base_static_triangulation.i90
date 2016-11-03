@@ -306,15 +306,15 @@ end subroutine bst_free_cells_set
                        __LINE__ )
     end if
 
-    ! We assume that coordintes are exhcanged when the triangulation only contains vertices.
+    ! We assume that coordinates are exchanged when the triangulation only contains vertices
     if(present(coordinates)) then
        assert(present(coordinates_ghost_extended))
        if ( allocated (coordinates_ghost_extended) )  &
             call memfree( coordinates_ghost_extended, __FILE__, __LINE__)
-       call memalloc ( SPACE_DIM, this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
-                       coordinates_ghost_extended, &
-                       __FILE__, &
-                       __LINE__ )
+            call memalloc ( SPACE_DIM, this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
+                            coordinates_ghost_extended, &
+                            __FILE__, &
+                            __LINE__ )
     end if
 
 

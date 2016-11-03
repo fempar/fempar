@@ -260,8 +260,9 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
            call memfree (cells_gid,                    __FILE__, __LINE__)
            call memfree (vertx_gid,                    __FILE__, __LINE__)
         end if
-        call memfree (ptr_vefs_per_cell,            __FILE__, __LINE__)
-
+        call memfree (ptr_vefs_per_cell              , __FILE__, __LINE__)
+        call memfree (cell_coordinates               , __FILE__, __LINE__)
+        call memfree (cell_coordinates_ghost_extended, __FILE__, __LINE__)
      else if(triangulation_generate==triangulation_generate_structured) then
 
         ! Get num_dimensions from FPL
