@@ -31,7 +31,7 @@
 ! This is an abstract class that defines services the need to be provided by
 ! concrete implementations of an execution context. This context contains a
 ! set of tasks labelled 0 to n-1. One of them is the root task (tipically 0)
-! and one of which is the master task (tipically n-1). 
+! and one of them is the master task (tipically n-1). 
 !
 ! This class is exploited by the multilevel environment to manage communications
 ! between the tasks on different levels and between tasks on the same level.
@@ -40,8 +40,8 @@
 !
 ! The first (and most natural) implementation of this class is mpi_context_t
 ! which actually implementes communications defined here. There is also a class
-! serial_context_t which provides a fake implementation to build a serial
-! environment.
+! serial_context_t which provides a fake implementation consisting of one task
+! only.
 !
 module execution_context_names
   use types_names
@@ -163,11 +163,11 @@ module execution_context_names
      ! Frees the memory related to the communication object underlying "this"
      ! and finalizes the underlying message-passing library (i.e., MPI) if 
      ! finalize == .true. 
-     subroutine execution_context_free ( p_context, finalize  )
+     subroutine execution_context_free ( this, finalize  )
        import :: execution_context_t
        implicit none 
        ! Parameters
-       class(execution_context_t), intent(inout) :: p_context
+       class(execution_context_t), intent(inout) :: this
        logical                   , intent(in)    :: finalize
      end subroutine execution_context_free
 

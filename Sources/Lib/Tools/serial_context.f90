@@ -121,12 +121,12 @@ contains
   end subroutine serial_context_split_by_condition
 
   !=============================================================================
-  subroutine serial_context_free ( p_context, finalize  )
+  subroutine serial_context_free ( this, finalize  )
     implicit none 
-    class(serial_context_t), intent(inout) :: p_context
+    class(serial_context_t), intent(inout) :: this
     logical                , intent(in)    :: finalize
-    call p_context%set_current_task(-1)
-    call p_context%set_num_tasks(-1)
+    call this%set_current_task(-1)
+    call this%set_num_tasks(-1)
   end subroutine serial_context_free
 
   !=============================================================================

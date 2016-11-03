@@ -53,7 +53,7 @@ module mpi_context_names
   integer, parameter :: mpi_context_lg   = mpi_logical
   integer, parameter :: mpi_context_root = 0
   integer, parameter :: mpi_context_tag  = 1453524 ! which number should go here?
-  
+
   ! Parallel context
   type, extends(execution_context_t) :: mpi_context_t
      private 
@@ -62,6 +62,7 @@ module mpi_context_names
      ! imposed by the underlying message-passing library, i.e., MPI. 
      ! The same comment applies to other integers in mpi interfaces (except
      ! buffers).
+     logical :: created_from_mpi = .false.
      integer :: icontxt = mpi_comm_null
    contains
      ! These functions should be non_overridable but there is a bug in gfotran
@@ -120,7 +121,9 @@ contains
        ! Uncomment the following line for maximum checking
        ! call mpi_initialized(initialized,info); check((initialized).and.(info == mpi_success))
        assert(that%icontxt/=mpi_comm_null)
-       call mpi_comm_dup(that%icontxt,this%icontxt,istat) ; check(istat == mpi_success)
+       !call mpi_comm_dup(that%icontxt,this%icontxt,istat) ; check(istat == mpi_success)
+       this%icontxt=that%icontxt
+       this%created_from_mpi = .false.
        assert(this%icontxt/=mpi_comm_null)
        call mpi_comm_size(this%icontxt,num_tasks,istat)   ; check(istat == mpi_success)
        call mpi_comm_rank(this%icontxt,current_task,istat); check(istat == mpi_success)
@@ -150,6 +153,7 @@ contains
     call mpi_initialized(initialized,istat); check((.not.initialized).and.(istat == mpi_success))
     call mpi_init(istat); check(istat == mpi_success)
     call mpi_comm_dup(mpi_comm_world,this%icontxt,istat); check(istat == mpi_success)
+    this%created_from_mpi = .true.
     assert(this%icontxt/=mpi_comm_null)
     call mpi_comm_size(this%icontxt,num_tasks,istat)    ; check(istat == mpi_success)
     call mpi_comm_rank(this%icontxt,current_task,istat) ; check(istat == mpi_success)
@@ -190,6 +194,7 @@ contains
        end if
        call new_subcontext%set_current_task(current_task)
        call new_subcontext%set_num_tasks(num_tasks)
+       new_subcontext%created_from_mpi = .true.
     class default
        check(.false.)
     end select
@@ -223,11 +228,14 @@ contains
        type is(mpi_context_t)
           if ( in_subcontext1 ) then
              call mpi_comm_split(this%icontxt, 1, key, subcontext1%icontxt, istat); assert ( istat == mpi_success )
+             subcontext1%created_from_mpi = .true.
              call subcontext2%nullify()
           else
              call mpi_comm_split(this%icontxt, 2, key, subcontext2%icontxt, istat); assert ( istat == mpi_success )
+             subcontext2%created_from_mpi = .true.
              call subcontext1%nullify()
           end if
+
           if(subcontext1%icontxt/=mpi_comm_null) then
              call mpi_comm_size(subcontext1%icontxt,num_tasks,istat)    ; check(istat == mpi_success)
              call mpi_comm_rank(subcontext1%icontxt,current_task,istat) ; check(istat == mpi_success)
@@ -258,23 +266,25 @@ contains
   end subroutine mpi_context_split_by_condition
 
   !=============================================================================
-  subroutine mpi_context_free ( p_context, finalize  )
+  subroutine mpi_context_free ( this, finalize  )
     implicit none 
-    class(mpi_context_t)            , intent(inout) :: p_context
+    class(mpi_context_t)            , intent(inout) :: this
     logical                         , intent(in)    :: finalize
     integer(ip) :: istat
-    
-    if(p_context%icontxt/=mpi_comm_null.and.p_context%icontxt/=mpi_comm_world) then
-       call mpi_comm_free(p_context%icontxt,istat); check(istat == mpi_success)
-    end if
-    
-    if(finalize) then
-       call mpi_finalize(istat); check(istat == mpi_success)
-    end if
 
-    p_context%icontxt=mpi_comm_null
-    call p_context%set_current_task(-1)
-    call p_context%set_num_tasks(-1)
+    if(this%created_from_mpi) then
+       if(this%icontxt/=mpi_comm_null.and.this%icontxt/=mpi_comm_world) then
+          call mpi_comm_free(this%icontxt,istat); check(istat == mpi_success)
+       end if
+    
+       if(finalize) then
+          call mpi_finalize(istat); check(istat == mpi_success)
+       end if
+    end if
+    this%created_from_mpi=.false.
+    this%icontxt=mpi_comm_null
+    call this%set_current_task(-1)
+    call this%set_num_tasks(-1)
 
   end subroutine mpi_context_free
 
@@ -363,7 +373,7 @@ contains
     real(rp), allocatable :: dat(:)
     call memalloc(size(alpha),dat,__FILE__,__LINE__)
     dat = alpha
-    call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
+    call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_max_vector_rp
 
   !=============================================================================
