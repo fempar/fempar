@@ -33,8 +33,7 @@ contains
     class(par_test_poisson_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip)    :: error
-    character(len=512)            :: msg
-    character(len=:), allocatable :: tmp
+    character(len=:), allocatable            :: msg
 
     list        => this%get_parameters()
     switches    => this%get_switches()
@@ -42,9 +41,9 @@ contains
     helpers     => this%get_helpers()
     required    => this%get_required()
 
-    tmp = '.'     ; error = list%set(key = dir_path_key            , value = tmp) ; check(error==0)
-    tmp = 'square'; error = list%set(key = prefix_key              , value = tmp) ; check(error==0)
-    tmp = '.'     ; error = list%set(key = dir_path_out_key        , value = tmp) ; check(error==0)
+    error = list%set(key = dir_path_key            , value = '.') ; check(error==0)
+    error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
+    error = list%set(key = dir_path_out_key        , value = '.') ; check(error==0)
     error = list%set(key = number_of_dimensions_key          , value =  2)                   ; check(error==0)
     error = list%set(key = number_of_cells_per_dir_key       , value =  [12,12,12])          ; check(error==0)
     error = list%set(key = is_dir_periodic_key               , value =  [0,0,0])             ; check(error==0)
@@ -99,8 +98,8 @@ contains
     error = helpers%set(key = triangulation_generate_key     , value = msg)  ; check(error==0)
     
     msg = 'serial (*) or mpi (*) context?'
-    write(msg(13:13),'(i1)') serial_context
-    write(msg(33:33),'(i1)') mpi_context
+    write(msg(9:9),'(i1)') serial_context
+    write(msg(20:20),'(i1)') mpi_context
     error = helpers%set(key = execution_context_key     , value = msg)  ; check(error==0)
 
     
