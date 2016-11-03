@@ -56,11 +56,21 @@ private
     integer(ip), parameter, public :: vtk_quadratic_tetra      = 24_I1P
     integer(ip), parameter, public :: vtk_quadratic_hexahedron = 25_I1P
 
+    ! PARAMETERS IDENTIFIERS
+    character(len=*), parameter, public :: vtk_format                  = 'vtk_format'
+
+    ! VTK_FORMAT PARAMETERS
+    character(len=*), parameter, public :: vtk_format_ascii            = 'ASCII'
+    character(len=*), parameter, public :: vtk_format_raw              = 'RAW'
+    character(len=*), parameter, public :: vtk_format_binary_appended  = 'BINARY-APPENDED'
+    character(len=*), parameter, public :: vtk_format_binary           = 'BINARY'
+
     ! DEFAULT PARAMETERS
-    integer(ip),      parameter, public :: default_root_task             = 0
-    integer(ip),      parameter, public :: default_number_of_tasks       = 1
-    integer(ip),      parameter, public :: default_guess_number_of_steps = 100
-    real(rp),         parameter, public :: default_step_value            = 0.0_rp
-    character(len=3), parameter, public :: default_vtk_format            = 'raw'
+    integer(ip),      parameter, public :: vtk_default_root_task             = 0
+    integer(ip),      parameter, public :: vtk_default_number_of_tasks       = 1
+    integer(ip),      parameter, public :: vtk_default_guess_number_of_steps = 100
+    real(rp),         parameter, public :: vtk_default_step_value            = 0.0_rp
+    character(len=*), parameter, public :: vtk_default_format                = vtk_format_raw
+    logical,          parameter, public :: vtk_default_StaticGrid            = .true.
 
 end module vtk_parameters_names

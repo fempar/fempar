@@ -27,12 +27,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_test_poisson_driver_names
   use fempar_names
-  use fempar_names
   use par_test_poisson_params_names
-  use poisson_cG_discrete_integration_names
+  use poisson_discrete_integration_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
-  use vtk_handler_names
 # include "debug.i90"
 
   implicit none
@@ -51,6 +49,7 @@ module par_test_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
+     type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -121,7 +120,9 @@ contains
           end if
           call vef_iterator%next()
        end do
-    end if    
+    end if  
+    
+    call this%triangulation%setup_coarse_triangulation()
     
   end subroutine setup_triangulation
   
@@ -155,12 +156,12 @@ contains
     
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%poisson_conditions, &
-                               reference_fes       = this%reference_fes)
+                               reference_fes       = this%reference_fes, &
+                               coarse_fe_handler   = this%l1_coarse_fe_handler)
     
     call this%fe_space%fill_dof_info() 
+    call this%fe_space%initialize_fe_integration()
     
-    ! Step required by the MLBDDC preconditioner
-    call this%fe_space%renumber_dofs_first_interior_then_interface()
     call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
     call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)    
@@ -304,17 +305,15 @@ contains
   subroutine write_solution(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(in) :: this
-    type(vtk_handler_t)                             :: vtk_handler
-    integer(ip)                                     :: err
-    
+    type(output_handler_t)                          :: oh
     if(this%test_params%get_write_solution()) then
-       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path(), this%test_params%get_prefix())
-       err = vtk_handler%open_vtu(); check(err==0)
-       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
-       err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
-       err = vtk_handler%close_vtu(); check(err==0)
-       err = vtk_handler%write_pvtu(); check(err==0)
-       call  vtk_handler%free()
+        call oh%create()
+        call oh%attach_fe_space(this%fe_space)
+        call oh%add_fe_function(this%solution, 1, 'solution')
+        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+        call oh%write()
+        call oh%close()
+        call oh%free()
     endif
   end subroutine write_solution
   

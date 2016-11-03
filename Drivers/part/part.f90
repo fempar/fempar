@@ -45,8 +45,8 @@ contains
     implicit none
     class(partitioner_input_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
-    integer(ip) :: error
-    character(len=512) :: tmp
+    integer(ip)                    :: error
+    character(len=:), allocatable  :: tmp
 
     list        => this%get_parameters()
     switches    => this%get_switches()

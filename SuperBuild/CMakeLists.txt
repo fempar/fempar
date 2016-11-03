@@ -39,19 +39,6 @@ IF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 ENDIF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 
 #################################################################
-# ENABLE TESTING
-#################################################################
-
-IF(${PROJECT_NAME}_ENABLE_TESTS)
-    ENABLE_TESTING()
-    INCLUDE(CTest)
-    SET(CTEST_COMMAND ${CMAKE_COMMAND} --build . --target test)
-ELSE()
-    SET(BUILD_TESTING OFF)
-    UNSET(CTEST_COMMAND CACHE)
-ENDIF()
-
-#################################################################
 # SET BUILD NAME
 #################################################################
 
@@ -145,7 +132,7 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
             DEPENDERS configure
             ALWAYS 1
         )
-        ADD_CUSTOM_TARGET(${FEMPAR_DRIVER}-clean
+        ADD_CUSTOM_TARGET(DRIVERS-clean
             COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target clean 
             COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target clean 
         )
@@ -155,14 +142,14 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
             PREFIX ${EXT_PROJ}
             STAMP_DIR ${EXT_PROJ}/src/${EXT_PROJ}-stamp
             DEPENDS THIRDPARTY
-            STEP_TARGETS configure build test
+            STEP_TARGETS configure build 
             DOWNLOAD_COMMAND ""
             SOURCE_DIR ${${EXT_PROJ}_SRC_PATH}
             BINARY_DIR ${${EXT_PROJ}_BINARY_PATH}
             INSTALL_DIR ${INSTALL_PREFIX}
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE} -DMPI_Fortran_COMPILER=${MPI_Fortran_COMPILER} -DMPI_Fortran_COMPILER=${MPI_Fortran_COMPILER} -DMPI_C_COMPILER=${MPI_C_COMPILER} -DMPIEXEC=${MPIEXEC} -DFEMPAR_THIRDPARTY_DIR=${THIRDPARTY_DIR} -DFEMPAR_ENABLE_TESTS=${${PROJECT_NAME}_ENABLE_TESTS} ${${EXT_PROJ}_SRC_PATH}
             BUILD_COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH}
-            TEST_COMMAND ${CTEST_COMMAND}
+            TEST_COMMAND ""
             INSTALL_COMMAND ""
         )
         EXTERNALPROJECT_Add_Step(${EXT_PROJ} force-build
@@ -172,6 +159,9 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
             ALWAYS 1
         )
         IF(${PROJECT_NAME}_ENABLE_TESTS)
+            ADD_CUSTOM_TARGET(${EXT_PROJ}-test
+                COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target test
+            )
             ADD_CUSTOM_TARGET(${EXT_PROJ}-clean-tests
                 COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target clean-tests
             )
@@ -184,7 +174,7 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
         SET(${EXT_PROJ}_SRC_PATH ${FEMPAR_THIRDPARTY_PATH})
         EXTERNALPROJECT_Add(${EXT_PROJ}
             PREFIX ${EXT_PROJ}
-            STEP_TARGETS configure build test
+            STEP_TARGETS configure build
             DOWNLOAD_COMMAND ""
             SOURCE_DIR ${${EXT_PROJ}_SRC_PATH}
             BINARY_DIR ${${EXT_PROJ}_BINARY_PATH}

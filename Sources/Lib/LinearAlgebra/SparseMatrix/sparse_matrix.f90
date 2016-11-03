@@ -84,7 +84,6 @@ private
         procedure, non_overridable, public :: is_by_rows                       => sparse_matrix_is_by_rows
         procedure, non_overridable, public :: is_by_cols                       => sparse_matrix_is_by_cols
         procedure, non_overridable, public :: is_symmetric                     => sparse_matrix_is_symmetric
-        procedure, non_overridable, public :: get_default_sparse_matrix        => sparse_matrix_get_default_sparse_matrix
         procedure,                  public :: allocate                         => sparse_matrix_allocate
         procedure,                  public :: init                             => sparse_matrix_init
         procedure,                  public :: free_in_stages                   => sparse_matrix_free_in_stages  
@@ -138,7 +137,7 @@ private
         procedure, non_overridable, public :: get_entry                        => sparse_matrix_get_entry
     end type sparse_matrix_t
 
-    class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
+    class(base_sparse_matrix_t), allocatable :: sparse_matrix_prototype
 
     type, extends(matrix_iterator_t) :: sparse_matrix_iterator_t
        private
@@ -155,6 +154,8 @@ private
 
 public :: sparse_matrix_t
 public :: sparse_matrix_iterator_t
+public :: sparse_matrix_prototype_reset
+public :: sparse_matrix_prototype_free
 public :: csr_format
 public :: coo_format
 public :: SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE
@@ -164,6 +165,27 @@ public :: SPARSE_MATRIX_SIGN_UNKNOWN
 
 contains
 
+    subroutine sparse_matrix_prototype_reset(mold) 
+    !-------------------------------------------------------------------------------
+    !< Sets the dynamic type of the prototype sparse matrix to the one given by mold
+    !-------------------------------------------------------------------------------
+        class(base_sparse_matrix_t), optional, intent(in) :: mold
+    !-----------------------------------------------------------------
+        call sparse_matrix_prototype_free()
+        if ( present(mold) ) then
+          allocate(sparse_matrix_prototype, mold=mold)
+        else
+          allocate(csr_sparse_matrix_t :: sparse_matrix_prototype)
+        end if
+    end subroutine sparse_matrix_prototype_reset
+    
+    subroutine sparse_matrix_prototype_free() 
+    !-------------------------------------------------------------------------------
+    !< Frees the prototype sparse matrix
+    !-------------------------------------------------------------------------------
+        if (allocated(sparse_matrix_prototype)) deallocate(sparse_matrix_prototype)
+    end subroutine sparse_matrix_prototype_free
+    
     function sparse_matrix_get_pointer_to_base_matrix(this) result(pointer_to_base_matrix)
     !-----------------------------------------------------------------
     !< Get the symmetry property of the matrix
@@ -705,15 +727,13 @@ contains
     !-----------------------------------------------------------------
         class(sparse_matrix_t),    intent(inout) :: this
         class(base_sparse_matrix_t), allocatable :: tmp
-        class(base_sparse_matrix_t), pointer     :: default_sparse_matrix
         integer                                  :: error
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         ! GNU fortran 5.3 crashes in compilation while passing
         ! directly the pointer returned for the function
-        default_sparse_matrix => this%get_default_sparse_matrix()
-        if(.not. same_type_as(this%State, default_sparse_matrix)) then
-            allocate(tmp, mold=default_sparse_matrix, stat=error)
+        if(.not. same_type_as(this%State, sparse_matrix_prototype)) then
+            allocate(tmp, mold=sparse_matrix_prototype, stat=error)
             check(error==0)
             call tmp%move_from_fmt(from=this%State)
             if(allocated(this%State)) deallocate(this%State)
@@ -797,33 +817,6 @@ contains
         endif
         call this%State%state_transition_after_convert()
     end subroutine sparse_matrix_convert_base_sparse_matrix_mold
-
-
-    subroutine sparse_matrix_set_default_sparse_matrix(this, mold) 
-    !-----------------------------------------------------------------
-    !< Allocate the default sparse matrix to a given mold
-    !-----------------------------------------------------------------
-        class(sparse_matrix_t),      intent(in) :: this
-        class(base_sparse_matrix_t), intent(in) :: mold
-    !-----------------------------------------------------------------
-        if (allocated(default_sparse_matrix)) deallocate(default_sparse_matrix)
-        allocate(default_sparse_matrix, mold=mold)
-    end subroutine sparse_matrix_set_default_sparse_matrix
-
-
-    function sparse_matrix_get_default_sparse_matrix(this) result(default_sparse_matrix_pointer)
-    !-----------------------------------------------------------------
-    !< Get a pointer to the default sparse matrix
-    !-----------------------------------------------------------------
-        class(sparse_matrix_t),   intent(in) :: this
-        class(base_sparse_matrix_t), pointer :: default_sparse_matrix_pointer
-    !-----------------------------------------------------------------
-        if (.not.allocated(default_sparse_matrix)) then 
-            allocate(csr_sparse_matrix_t :: default_sparse_matrix)
-        end if
-        default_sparse_matrix_pointer => default_sparse_matrix
-    end function sparse_matrix_get_default_sparse_matrix
-
 
     subroutine sparse_matrix_split_2x2_numeric(this, num_row, num_col, A_II, A_IG, A_GI, A_GG, symmetric_storage, symmetric, sign)
     !-----------------------------------------------------------------
@@ -1283,9 +1276,9 @@ contains
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        if(allocated(default_sparse_matrix)) then
-            call default_sparse_matrix%free()
-            deallocate(default_sparse_matrix)
+        if(allocated(sparse_matrix_prototype)) then
+            call sparse_matrix_prototype%free()
+            deallocate(sparse_matrix_prototype)
         endif
         if(allocated(this%State)) then
             call this%State%free()
@@ -1319,9 +1312,9 @@ contains
                 call this%State%free_clean()
                 call this%free_vector_spaces()
                 deallocate(this%State)
-                if(allocated(default_sparse_matrix)) then
-                    call default_sparse_matrix%free()
-                    deallocate(default_sparse_matrix)
+                if(allocated(sparse_matrix_prototype)) then
+                    call sparse_matrix_prototype%free()
+                    deallocate(sparse_matrix_prototype)
                 endif
             else
                 call this%free()

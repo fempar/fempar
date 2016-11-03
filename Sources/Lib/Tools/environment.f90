@@ -90,6 +90,7 @@ module environment_names
      ! Getters
      procedure :: get_num_tasks                  => environment_get_num_tasks
      procedure :: get_next_level                 => environment_get_next_level
+     procedure :: get_l1_context                 => environment_get_l1_context
      procedure :: get_l1_rank                    => environment_get_l1_rank
      procedure :: get_l1_size                    => environment_get_l1_size
      procedure :: get_l1_to_l2_rank              => environment_get_l1_to_l2_rank
@@ -189,24 +190,51 @@ contains
     integer(ip)          :: nenvs
     integer(ip)          :: istat
     logical              :: is_present
-    character(len=256)   :: dir_path
-    character(len=256)   :: prefix
+    character(len=:), allocatable :: dir_path
+    character(len=:), allocatable :: prefix
     character(len=:), allocatable :: name, rename
     integer(ip)          :: lunio
     integer(ip)          :: i
+    logical              :: same_data_type
+    integer(ip), allocatable :: shape(:)
 
     nenvs = size(envs)
 
-    ! Mandatory parameters
-    is_present = .true.
-    is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
-    is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-    assert(is_present)
+     ! Mandatory parameters
+    is_present         = parameter_list%isPresent(Key=dir_path_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = parameter_list%isOfDataType(Key = dir_path_key, mold = dir_path)
+        istat          = parameter_list%getshape(Key=dir_path_key, shape=shape)
+        assert(istat == 0)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            istat = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
+            check(istat==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
 
-    istat = 0
-    istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
-    istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-    check(istat==0)
+
+    is_present         = parameter_list%isPresent(Key=prefix_key)
+    if(is_present) then
+#ifdef DEBUG
+        same_data_type = parameter_list%isOfDataType(Key = prefix_key, mold = prefix)
+        istat          = parameter_list%getshape(Key=prefix_key, shape=shape)
+        assert(istat == 0)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+            istat = parameter_list%GetAsString(key = prefix_key, string = prefix)
+            check(istat==0)
+#ifdef DEBUG
+        else
+            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
+        endif
+#endif
+    endif
 
     call environment_compose_name ( prefix, name )
 
@@ -251,7 +279,6 @@ contains
     implicit none 
     class(environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
-    class(execution_context_t)    , allocatable   :: world_context
 
     ! Some refactoring is needed here separating number_of_parts_per_level (and dir)
     ! from the rest of the mesh information.
@@ -284,18 +311,15 @@ contains
     end if
 
     if(execution_context==serial_context) then
-       allocate(serial_context_t :: world_context,stat=istat); check(istat==0)
+       allocate(serial_context_t :: this%world_context,stat=istat); check(istat==0)
     else if(execution_context==mpi_context) then
-       allocate(mpi_context_t :: world_context,stat=istat); check(istat==0)
+       allocate(mpi_context_t :: this%world_context,stat=istat); check(istat==0)
     end if
-    call world_context%create()
+    call this%world_context%create()
 
     if(environment_type==unstructured) then
 
-       allocate(this%world_context,mold=world_context,stat=istat);check(istat==0)
-       this%world_context = world_context
-
-       if(world_context%get_num_tasks()>1) then
+       if(this%world_context%get_num_tasks()>1) then
           ! Mandatory parameters
           is_present =  parameters%isPresent(key = dir_path_key)      ; assert(is_present)
           is_present =  parameters%isPresent(key = prefix_key)        ; assert(is_present)
@@ -303,13 +327,13 @@ contains
           istat = parameters%get(key = prefix_key  , value = prefix)  ; check(istat==0)
 
           call environment_compose_name(prefix, name )  
-          call par_filename( world_context%get_current_task()+1, world_context%get_num_tasks() , name )
+          call par_filename( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
           lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
 
           ! Read parts assignment to tasks and verify that the multilevel environment 
           ! can be executed in current context (long-lasting Alberto's concern). 
           call this%read(lunio)
-          check(this%get_num_tasks() <= world_context%get_num_tasks())
+          check(this%get_num_tasks() <= this%world_context%get_num_tasks())
 
           ! Recursively create multilevel environment
           call this%fill_contexts()
@@ -329,17 +353,19 @@ contains
 
        ! Generate parts, assign them to tasks and verify that the multilevel environment 
        ! can be executed in current context (long-lasting Alberto's concern). 
-       call uniform_hex_mesh%generate_levels_and_parts(world_context%get_current_task(), &
+       call uniform_hex_mesh%generate_levels_and_parts(this%world_context%get_current_task(), &
             &                                          num_levels, &
             &                                          num_parts_per_level, &
             &                                          parts_mapping)
        call this%assign_parts_to_tasks(num_levels, num_parts_per_level, parts_mapping)
        call memfree(num_parts_per_level,__FILE__,__LINE__)
        call memfree(parts_mapping,__FILE__,__LINE__)
-       check(this%get_num_tasks() <= world_context%get_num_tasks())
+       check(this%get_num_tasks() <= this%world_context%get_num_tasks())
 
        ! Recursively create multilevel environment
        call this%fill_contexts()
+
+       call uniform_hex_mesh%free()
 
     end if
     this%state = created_from_scratch
@@ -483,6 +509,15 @@ contains
 
     environment_get_next_level => this%next_level
   end function environment_get_next_level
+  
+  !=============================================================================
+  function environment_get_l1_context ( this ) result(l1_context)
+    implicit none 
+    ! Parameters
+    class(environment_t),       target, intent(in) :: this
+    class(execution_context_t), pointer            :: l1_context
+    l1_context => this%l1_context
+  end function environment_get_l1_context
 
   !=============================================================================
   function environment_get_l1_rank ( this )

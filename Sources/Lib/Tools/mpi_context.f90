@@ -67,6 +67,7 @@ module mpi_context_names
      ! These functions should be non_overridable but there is a bug in gfotran
      procedure :: create             => mpi_context_create
      procedure :: assign             => mpi_context_assign
+     procedure :: get_icontxt        => mpi_context_get_icontxt
      procedure :: split_by_condition => mpi_context_split_by_condition
      procedure :: split_by_color     => mpi_context_split_by_color
      procedure :: free               => mpi_context_free
@@ -131,6 +132,13 @@ contains
        check(.false.)
     end select
   end subroutine mpi_context_assign
+  
+  !=============================================================================
+  function mpi_context_get_icontxt(this) result(icontxt)
+    class(mpi_context_t), intent(inout) :: this
+    integer                             :: icontxt
+    icontxt = this%icontxt
+  end function mpi_context_get_icontxt
 
   !=============================================================================
   subroutine mpi_context_create ( this )

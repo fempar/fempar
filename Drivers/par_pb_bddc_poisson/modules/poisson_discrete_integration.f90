@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_cG_discrete_integration_names
+module pb_bddc_poisson_cG_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
+  use pb_bddc_poisson_analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -88,6 +88,8 @@ contains
     integer(ip), allocatable :: num_dofs_per_field(:)  
     class(scalar_function_t), pointer :: source_term
 
+    real(rp) :: viscosity
+    
     assert (associated(this%analytical_functions))
 
     source_term => this%analytical_functions%get_source_term()
@@ -96,8 +98,6 @@ contains
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
-
-    call fe_space%initialize_fe_integration()
 
     fe_iterator = fe_space%create_fe_iterator()
     call fe_iterator%current(fe)
@@ -123,6 +123,11 @@ contains
           ! Get quadrature coordinates to evaluate source_term
           quad_coords => fe_map%get_quadrature_coordinates()
           
+          ! Get subset_id
+          viscosity = fe%get_set_id()
+          
+          !if (viscosity == 0.0_rp) viscosity = 1.0_rp
+          
           ! Compute element matrix and vector
           elmat = 0.0_rp
           elvec = 0.0_rp
@@ -133,7 +138,7 @@ contains
                 do jdof = 1, num_dofs
                    call vol_int%get_gradient(jdof, qpoint, grad_test)
                    ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial * viscosity
                 end do
              end do
              
@@ -141,7 +146,7 @@ contains
              call source_term%get_value(quad_coords(qpoint),source_term_value)
              do idof = 1, num_dofs
                 call vol_int%get_value(idof, qpoint, shape_trial)
-                elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial
+                elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial !* viscosity
              end do
           end do
           
@@ -157,4 +162,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate
   
-end module poisson_cG_discrete_integration_names
+end module pb_bddc_poisson_cG_discrete_integration_names

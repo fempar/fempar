@@ -212,27 +212,29 @@ subroutine fe_face_accessor_impose_strong_dirichlet_bcs ( this, facemat, facevec
  class(fe_face_accessor_t), intent(in)    :: this
  real(rp)                 , intent(in)    :: facemat(:,:,:,:)
  real(rp)                 , intent(inout) :: facevec(:,:)  
- integer(ip)                              :: inode,ineigh,jneigh, elmat_col, field_id
+ integer(ip)                              :: idof,ineigh,jneigh, elmat_col, field_id,spos
  real(rp), pointer                        :: strong_dirichlet_values_entries(:)
  type(fe_accessor_t)                      :: fe
- check(.false.)
+ class(reference_fe_t), pointer           :: reference_fe
  
- !do ineigh = 1,this%get_num_cells_around()
- !   do jneigh = 1,this%get_num_cells_around()
- !      call this%get_cell_around(jneigh, fe)
- !      strong_dirichlet_values_entries => fe%strong_dirichlet_values%get_entries()
- !      elmat_col = 0
- !      do field_id = 1, this%fe_space%get_number_fields()
- !         do inode = 1, fe%reference_fe_phy(field_id)%p%get_number_nodes()
- !            elmat_col = elmat_col + 1
- !            if ( fe%elem2dof(field_id)%p(inode) < 0 ) then
- !               facevec(:,ineigh) = facevec(:,ineigh) - &
- !                    facemat(:,elmat_col,ineigh,jneigh)*strong_dirichlet_values_entries(-fe%elem2dof(field_id)%p(inode))
- !            end if
- !         end do
- !      end do
- !   end do
- !end do
+ do ineigh = 1,this%get_num_cells_around()
+    do jneigh = 1,this%get_num_cells_around()
+       call this%get_cell_around(jneigh, fe)
+       strong_dirichlet_values_entries => this%fe_space%strong_dirichlet_values%get_entries()
+       elmat_col = 0
+       do field_id = 1, this%fe_space%get_number_fields()
+          reference_fe => fe%get_reference_fe(field_id)
+          spos = this%fe_space%ptr_dofs_per_fe(field_id, fe%get_lid())
+          do idof = 1, reference_fe%get_number_shape_functions()
+             elmat_col = elmat_col + 1
+             if ( this%fe_space%lst_dofs_lids(spos+idof-1) < 0 ) then
+                facevec(:,ineigh) = facevec(:,ineigh) - facemat(:,elmat_col,ineigh,jneigh)* &
+                     &              strong_dirichlet_values_entries(-this%fe_space%lst_dofs_lids(spos+idof-1))
+             end if
+          end do
+       end do
+    end do
+ end do
  
 end subroutine fe_face_accessor_impose_strong_dirichlet_bcs
 
@@ -242,12 +244,18 @@ function fe_face_accessor_compute_surface ( this )
   class(fe_face_accessor_t), intent(in) :: this
   real(rp)                         :: fe_face_accessor_compute_surface
   integer(ip) :: qpoin,number_quadrature_points
-  check(.false.)
-  !number_quadrature_points = this%quadrature%get_number_quadrature_points()
-  !fe_face_accessor_compute_surface = 0.0_rp
-  !do qpoin = 1, number_quadrature_points
-  !   fe_face_accessor_compute_surface = fe_face_accessor_compute_surface + &
-  !        &                        this%map%get_det_jacobian(qpoin) * &
-  !        &                        this%quadrature%get_weight(qpoin)
-  !end do
+  type(face_map_t)  , pointer :: face_map
+  type(quadrature_t), pointer :: quad
+  
+  face_map => this%get_face_map()
+  quad     => this%get_quadrature()
+  number_quadrature_points = quad%get_number_quadrature_points()
+  
+  fe_face_accessor_compute_surface = 0.0_rp
+  do qpoin = 1, number_quadrature_points
+     fe_face_accessor_compute_surface = fe_face_accessor_compute_surface + &
+          &                        face_map%get_det_jacobian(qpoin) * &
+          &                        quad%get_weight(qpoin)
+  end do
+  
 end function fe_face_accessor_compute_surface
