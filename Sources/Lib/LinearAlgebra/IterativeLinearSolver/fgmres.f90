@@ -108,41 +108,18 @@ contains
    class(fgmres_t),       intent(inout) :: this
    type(ParameterList_t), intent(in)    :: parameter_list
    integer(ip)                          :: FPLError
-   logical                              :: is_present
-   logical                              :: same_data_type
-   integer(ip), allocatable             :: shape(:)
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Dkrymax
-   is_present     = parameter_list%isPresent(Key=ils_dkrymax)
-   if(is_present) then
-#ifdef DEBUG
-      same_data_type = parameter_list%isOfDataType(Key=ils_dkrymax, mold=this%dkrymax)
-      FPLError       = parameter_list%getshape(Key=ils_dkrymax, shape=shape)
-      if(same_data_type .and. size(shape) == 0) then
-#endif
-         FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
-         assert(FPLError == 0)
-#ifdef DEBUG
-      else
-         write(0,'(a)') ' Warning! ils_dkrymax ignored. Wrong data type or shape. '
-      endif
-#endif
+   if(parameter_list%isPresent(ils_dkrymax)) then
+       assert(parameter_list%isAssignable(ils_dkrymax, this%dkrymax))
+       FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
+       assert(FPLError == 0)
    endif
    ! Orthonorm strat
-   is_present     = parameter_list%isPresent(Key=ils_orthonorm_strat)
-   if(is_present) then
-#ifdef DEBUG
-      same_data_type = parameter_list%isOfDataType(Key=ils_orthonorm_strat, mold=this%orthonorm_strat)
-      FPLError       = parameter_list%getshape(Key=ils_orthonorm_strat, shape=shape)
-      if(same_data_type .and. size(shape) == 0) then
-#endif
+   if(parameter_list%isPresent(ils_orthonorm_strat)) then
+         assert(parameter_list%isAssignable(ils_orthonorm_strat, this%orthonorm_strat))
          FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
          assert(FPLError == 0)
-#ifdef DEBUG
-      else
-         write(0,'(a)') ' Warning! ils_orthonorm_strat ignored. Wrong data type or shape. '
-         endif
-#endif
    endif
   end subroutine fgmres_set_parameters_from_pl
   

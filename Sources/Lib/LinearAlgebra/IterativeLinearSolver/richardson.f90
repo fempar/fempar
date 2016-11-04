@@ -92,25 +92,12 @@ contains
    class(richardson_t),   intent(inout) :: this
    type(ParameterList_t), intent(in)    :: parameter_list
    integer(ip)                          :: FPLError
-   logical                              :: is_present
-   logical                              :: same_data_type
-   integer(ip), allocatable             :: shape(:)
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Relaxation
-   is_present     = parameter_list%isPresent(Key=ils_relaxation)
-   if(is_present) then
-#ifdef DEBUG
-      same_data_type = parameter_list%isOfDataType(Key=ils_relaxation, mold=this%relaxation)
-      FPLError       = parameter_list%getshape(Key=ils_relaxation, shape=shape)
-      if(same_data_type .and. size(shape) == 0) then
-#endif
-         FPLError   = parameter_list%Get(Key=ils_relaxation, Value=this%relaxation)
-         assert(FPLError == 0)
-#ifdef DEBUG
-      else
-         write(0,'(a)') ' Warning! ils_relaxation ignored. Wrong data type or shape. '
-      endif
-#endif
+   if(parameter_list%isPresent(ils_relaxation)) then
+       assert(parameter_list%isAssignable(ils_relaxation, this%relaxation))
+       FPLError   = parameter_list%Get(Key=ils_relaxation, Value=this%relaxation)
+       assert(FPLError == 0)
    endif
   end subroutine richardson_set_parameters_from_pl
   
