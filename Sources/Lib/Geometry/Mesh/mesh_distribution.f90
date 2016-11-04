@@ -230,7 +230,7 @@ contains
     end if
 
     if( parameter_list%isPresent(metis_option_minconn_key) ) then
-       assert(parameter_list%isAssignabel(metis_option_minconn_key, this%metis_option_minconn))
+       assert(parameter_list%isAssignable(metis_option_minconn_key, this%metis_option_minconn))
        istat = parameter_list%get(key = metis_option_minconn_key, value = this%metis_option_minconn)
        check(istat==0)
     end if
