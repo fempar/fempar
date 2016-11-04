@@ -621,17 +621,13 @@ contains
      integer(ip)                                  :: error
 
      ! Mandatory parameters
-    if(parameter_list%isPresent(dir_path_key)) then
-       assert(parameter_list%isAssignable(dir_path_key, dir_path))
-       error = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
-       assert(error==0)
-    endif
+     assert(parameter_list%isAssignable(dir_path_key, dir_path))
+     error = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
+     assert(error==0)
 
-    if(parameter_list%isPresent(prefix_key)) then
-       assert(parameter_list%isAssignable(prefix_key, prefix))
-       error = parameter_list%GetAsString(key = prefix_key, string = prefix)
-       assert(error==0)
-    endif
+     assert(parameter_list%isAssignable(prefix_key, prefix))
+     error = parameter_list%GetAsString(key = prefix_key, string = prefix)
+     assert(error==0)
   end subroutine check_and_get_path_and_prefix_from_parameterlist
 
   !=============================================================================
@@ -693,7 +689,6 @@ contains
 
      nparts = size(lmesh)
 
-     ! Mandatory parameters
      ! Mandatory parameters
      call check_and_get_path_and_prefix_from_parameterlist(parameter_list, dir_path, prefix)
 
