@@ -38,7 +38,6 @@ module richardson_names
   use base_iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
   use ParameterList
-  use parameters_consistency_names
 
   implicit none
 # include "debug.i90"
@@ -96,7 +95,7 @@ contains
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Relaxation
    if(parameter_list%isPresent(ils_relaxation)) then
-       assert(parameter_consistency(parameter_list, ils_relaxation, this%relaxation))
+       assert(parameter_list%isAssignable(ils_relaxation, this%relaxation))
        FPLError   = parameter_list%Get(Key=ils_relaxation, Value=this%relaxation)
        assert(FPLError == 0)
    endif

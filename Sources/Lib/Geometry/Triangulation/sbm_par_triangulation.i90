@@ -70,16 +70,17 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   integer(ip)                     :: istat
 
     ! Mandatory parameters
-    assert(parameter_consistency(parameters, dir_path_key, dir_path))
+    assert(parameters%isAssignable(dir_path_key, dir_path))
     istat = parameters%GetAsString(key = dir_path_key, string = dir_path)
     check(istat==0)
 
+    assert(parameters%isAssignable(prefix_key, prefix))
     istat = parameters%GetAsString(key = prefix_key, string = prefix)
     check(istat==0)
 
   ! Optional parameters
   if( parameters%isPresent(triangulation_generate_key) ) then
-     assert(parameter_consistency(parameters, triangulation_generate_key, triangulation_generate))
+     assert(parameters%isAssignable(triangulation_generate_key, triangulation_generate))
      istat = parameters%Get(key = triangulation_generate_key, Value = triangulation_generate)
      check(istat==0)
   else
@@ -88,7 +89,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
 
   if( parameters%isPresent(geometry_interpolation_order_key) ) then
-     assert(parameter_consistency(parameters, geometry_interpolation_order_key, geometry_interpolation_order))
+     assert(parameters%isAssignable(geometry_interpolation_order_key, geometry_interpolation_order))
      istat = parameters%Get(key = geometry_interpolation_order_key, Value = geometry_interpolation_order)
      check(istat==0)
   else
@@ -215,7 +216,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
      else if(triangulation_generate==triangulation_generate_structured) then
 
         ! Get num_dimensions from FPL
-        assert(parameter_consistency(parameters, number_of_dimensions_key, this%num_dimensions))
+        assert(parameters%isAssignable(number_of_dimensions_key, this%num_dimensions))
         istat = parameters%get(key = number_of_dimensions_key, value = this%num_dimensions); check(istat==0)
 
         call uniform_hex_mesh%get_data_from_parameter_list(parameters)

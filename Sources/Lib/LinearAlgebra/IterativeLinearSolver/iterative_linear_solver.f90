@@ -37,7 +37,6 @@ module iterative_linear_solver_names
   use iterative_linear_solver_creational_methods_dictionary_names
   use environment_names
   use ParameterList
-  use parameters_consistency_names
   
   implicit none
 # include "debug.i90"
@@ -123,7 +122,7 @@ contains
      type(ParameterList_t),            intent(in)    :: parameter_list
      character(len=:)      , allocatable             :: iterative_linear_solver_type
      integer                                         :: FPLError
-     assert(parameter_consistency(parameter_list, ils_type, iterative_linear_solver_type))
+     assert(parameter_list%isAssignable(ils_type, iterative_linear_solver_type))
      FPLError = parameter_list%GetAsString(Key=ils_type, String=iterative_linear_solver_type)
      assert(FPLError == 0)
      call this%set_type_from_string (iterative_linear_solver_type)

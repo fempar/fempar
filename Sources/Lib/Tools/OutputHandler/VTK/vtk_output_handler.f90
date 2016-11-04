@@ -32,7 +32,6 @@ USE types_names
 USE memor_names
 USE lib_vtk_io
 USE FPL
-USE parameters_consistency_names
 USE environment_names
 USE vtk_utils_names
 USE base_output_handler_names
@@ -141,13 +140,13 @@ contains
 
         if(present(parameter_list)) then
             if(parameter_list%isPresent(vtk_format)) then
-                assert(parameter_consistency(parameter_list, vtk_format, this%vtk_format))
+                assert(parameter_list%isAssignable(vtk_format, this%vtk_format))
                 FPLError   = parameter_list%GetAsString(Key=vtk_format, String=this%vtk_format)
                 assert(FPLError == 0)
             endif
 
             if(parameter_list%isPresent(oh_staticgrid)) then
-                assert(parameter_consistency(parameter_list, oh_staticgrid, this%StaticGrid))
+                assert(parameter_list%isAssignable(oh_staticgrid, this%StaticGrid))
                 FPLError   = parameter_list%Get(Key=oh_staticgrid, Value=this%StaticGrid)
                 assert(FPLError == 0)
             endif

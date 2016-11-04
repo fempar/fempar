@@ -47,7 +47,7 @@ subroutine serial_triangulation_create ( this, parameters)
 
   ! Optional parameters
   if( parameters%isPresent(triangulation_generate_key) ) then
-     assert(parameter_consistency(parameters, triangulation_generate_key, triangulation_generate))
+     assert(parameters%isAssignable(triangulation_generate_key, triangulation_generate))
      istat = parameters%get(key = triangulation_generate_key, value = triangulation_generate)
      check(istat==0)
   else
@@ -55,7 +55,7 @@ subroutine serial_triangulation_create ( this, parameters)
   end if
 
   if( parameters%isPresent(geometry_interpolation_order_key) ) then
-     assert(parameter_consistency(parameters, geometry_interpolation_order_key, geometry_interpolation_order))
+     assert(parameters%isAssignable(geometry_interpolation_order_key, geometry_interpolation_order))
      istat = parameters%get(key = geometry_interpolation_order_key , value = geometry_interpolation_order)
      check(istat==0)
   else
@@ -66,7 +66,7 @@ subroutine serial_triangulation_create ( this, parameters)
 
   ! Verify (and eventually set) execution type and create serial environment
   if( parameters%isPresent(execution_context_key) ) then
-     assert(parameter_consistency(parameters, execution_context_key, execution_context))
+     assert(parameters%isAssignable(execution_context_key, execution_context))
      istat = parameters%get(key = execution_context_key, value = execution_context); check(istat==0)
      check(execution_context==serial_context)
   else
@@ -99,7 +99,7 @@ subroutine serial_triangulation_create ( this, parameters)
      this%num_ghost_cells=0
 
      ! Get num_dimensions from FPL
-     assert(parameter_consistency(parameters, number_of_dimensions_key, this%num_dimensions ))
+     assert(parameters%isAssignable(number_of_dimensions_key, this%num_dimensions ))
      istat = parameters%get(key = number_of_dimensions_key   , value = this%num_dimensions)
      check(istat==0)
 

@@ -31,7 +31,6 @@ module mesh_distribution_names
   use stdio_names
   use metis_interface_names
   use FPL
-  use parameters_consistency_names
   implicit none
 # include "debug.i90"
   private
@@ -174,11 +173,11 @@ contains
     ! Mandatory parameters: either nparts or num_levels
     assert(parameter_list%isPresent(key = num_parts_key).or.parameter_list%isPresent(key = num_levels_key))
     if( parameter_list%isPresent(num_parts_key)) then
-       assert(parameter_consistency(parameter_list, num_parts_key, this%nparts))
+       assert(parameter_list%isAssignable(num_parts_key, this%nparts))
        istat = parameter_list%get(key = num_parts_key , value = this%nparts); check(istat==0)
     end if
     if( parameter_list%isPresent(num_levels_key) ) then
-       assert(parameter_consistency(parameter_list, num_levels_key, this%num_levels))
+       assert(parameter_list%isAssignable(num_levels_key, this%num_levels))
        istat = parameter_list%get(key = num_levels_key  , value = this%num_levels); check(istat==0)
        assert(parameter_list%isPresent(key = num_parts_per_level_key ))
        assert( parameter_list%GetDimensions(key = num_parts_per_level_key) == 1)
@@ -186,7 +185,7 @@ contains
        ! Get the array using the local variable
        istat =  parameter_list%GetShape(key = num_parts_per_level_key, shape = param_size ); check(istat==0)
        call memalloc(param_size(1), param,__FILE__,__LINE__)
-       assert(parameter_consistency(parameter_list, num_parts_per_level_key, param))
+       assert(parameter_list%isAssignable(num_parts_per_level_key, param))
        istat = parameter_list%get(key = num_parts_per_level_key, value = param); check(istat==0)
 
        call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__)
@@ -202,44 +201,44 @@ contains
 
     ! Optional paramters
     if( parameter_list%isPresent(debug_key) ) then
-       assert(parameter_consistency(parameter_list, debug_key, this%debug))
+       assert(parameter_list%isAssignable(debug_key, this%debug))
        istat = parameter_list%get(key = debug_key  , value = this%debug)
        check(istat==0)
     end if
 
     if( parameter_list%isPresent(strategy_key) ) then
-       assert(parameter_consistency(parameter_list, strategy_key, this%strat))
+       assert(parameter_list%isAssignable(strategy_key, this%strat))
        istat = parameter_list%get(key = strategy_key  , value = this%strat)
        check(istat==0)
        assert(this%strat==part_kway.or.this%strat==part_recursive.or.this%strat==part_strip.or.this%strat==part_rcm_strip)
     end if
 
     if( parameter_list%isPresent(metis_option_debug_key) ) then
-       assert(parameter_consistency(parameter_list,  metis_option_debug_key, this%metis_option_debug))
+       assert(parameter_list%isAssginable(metis_option_debug_key, this%metis_option_debug))
        istat = parameter_list%get(key = metis_option_debug_key  , value = this%metis_option_debug)
        check(istat==0)
     end if
 
     if( parameter_list%isPresent(metis_option_ufactor_key) ) then
-       assert(parameter_consistency(parameter_list, metis_option_ufactor_key, this%metis_option_ufactor))
+       assert(parameter_list%isAssignable(metis_option_ufactor_key, this%metis_option_ufactor))
        istat = parameter_list%get(key = metis_option_ufactor_key, value = this%metis_option_ufactor)
        check(istat==0)
     end if
 
     if( parameter_list%isPresent(metis_option_minconn_key) ) then
-       assert(parameter_consistency(parameter_list, metis_option_minconn_key, this%metis_option_minconn))
+       assert(parameter_list%isAssignabel(metis_option_minconn_key, this%metis_option_minconn))
        istat = parameter_list%get(key = metis_option_minconn_key, value = this%metis_option_minconn)
        check(istat==0)
     end if
 
     if( parameter_list%isPresent(metis_option_contig_key) ) then
-       assert(parameter_consistency(parameter_list, metis_option_contig_key, this%metis_option_contig))
+       assert(parameter_list%isAssignable(metis_option_contig_key, this%metis_option_contig))
        istat = parameter_list%get(key = metis_option_contig_key , value = this%metis_option_contig)
        check(istat==0)
     end if
 
     if( parameter_list%isPresent(metis_option_ctype_key) ) then
-       assert(parameter_consistency(parameter_list, metis_option_ctype_key, this%metis_option_ctype))
+       assert(parameter_list%isAssignable(metis_option_ctype_key, this%metis_option_ctype))
        istat = parameter_list%get(key = metis_option_ctype_key  , value = this%metis_option_ctype)
        check(istat==0)
     end if
@@ -492,11 +491,11 @@ contains
     nparts = size(parts)
 
     ! Mandatory parameters
-    assert(parameter_consistency(parameter_list, dir_path_out_key, dir_path))
+    assert(parameter_list%isAssignable(dir_path_out_key, dir_path))
     istat = parameter_list%get(key = dir_path_out_key, value = dir_path)
     check(istat == 0)
     
-    assert(parameter_consistency(parameter_list, prefix_key, prefix))
+    assert(parameter_list%isAssignable(prefix_key, prefix))
     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
     check(istat==0)
 

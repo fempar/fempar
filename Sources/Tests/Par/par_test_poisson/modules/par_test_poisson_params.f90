@@ -127,7 +127,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(parameter_consistency(list, dir_path_key, get_dir_path))
+    assert(list%isAssignable(dir_path_key, get_dir_path))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     check(error==0)
   end function get_dir_path
@@ -140,7 +140,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(parameter_consistency(list, prefix_key, get_prefix))
+    assert(list%isAssignable(prefix_key, get_prefix))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     check(error==0)
   end function get_prefix
@@ -153,7 +153,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(parameter_consistency(list, reference_fe_geo_order_key, get_reference_fe_geo_order))
+    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
     check(error==0)
   end function get_reference_fe_geo_order
@@ -166,7 +166,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(parameter_consistency(list, reference_fe_order_key, get_reference_fe_order))
+    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
     error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
     check(error==0)
   end function get_reference_fe_order
@@ -182,7 +182,7 @@ contains
     logical                                       :: same_data_type
     integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    assert(parameter_consistency(list, write_solution_key, get_write_solution))
+    assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key = write_solution_key, Value = get_write_solution)
     check(error==0)
   end function get_write_solution
@@ -195,7 +195,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(parameter_consistency(list, triangulation_generate_key, get_triangulation_type))
+    assert(list%isAssignable(triangulation_generate_key, get_triangulation_type))
     error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
     check(error==0)
   end function get_triangulation_type 

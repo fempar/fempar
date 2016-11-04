@@ -41,7 +41,6 @@ module lfom_names
   use multivector_names
   use rgmres_names
   use ParameterList
-  use parameters_consistency_names
 
   implicit none
 # include "debug.i90"
@@ -113,13 +112,13 @@ contains
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Dkrymax
    if(parameter_list%isPresent(ils_dkrymax)) then
-       assert(parameter_consistency(parameter_list, ils_dkrymax, this%dkrymax))
+       assert(parameter_list%isAssignable(ils_dkrymax, this%dkrymax))
        FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
        assert(FPLError == 0)
    endif
    ! Orthonorm strat
    if(parameter_list%isPresent(ils_orthonorm_strat)) then
-       assert(parameter_consistency(parameter_list, ils_orthonorm_strat, this%orthonorm_strat))
+       assert(parameter_list%isAssignable(ils_orthonorm_strat, this%orthonorm_strat))
        FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
        assert(FPLError == 0)
    endif

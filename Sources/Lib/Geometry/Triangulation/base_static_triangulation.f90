@@ -41,7 +41,6 @@ module base_static_triangulation_names
   use stdio_names
   use field_names
   use FPL
-  use parameters_consistency_names
   use uniform_hex_mesh_generator_names
   
   ! Geometry modules

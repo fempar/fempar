@@ -39,7 +39,7 @@ module umfpack_direct_solver_names
     USE direct_solver_parameters_names
     USE umfpack_interface_names
     USE FPL
-    USE parameters_consistency_names 
+
 implicit none
 # include "debug.i90"
   
@@ -134,7 +134,7 @@ contains
 #ifdef ENABLE_UMFPACK
         if( parameter_list%isPresent(umfpack_control_params)) then
             ! UMFPACK control parameters
-            assert(parameter_consistency(parameter_list, umfpack_control_params, this%control))
+            assert(parameter_list%isAssignable(umfpack_control_params, this%control))
             FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
             assert(FPLError == 0)
         endif

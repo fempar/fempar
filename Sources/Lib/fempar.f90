@@ -36,7 +36,6 @@ module fempar_names
   use environment_names
   use flap, only : command_line_interface
   use FPL
-  use parameters_consistency_names
   use parameter_generator_names
   use par_timer_names
   use output_handler_names

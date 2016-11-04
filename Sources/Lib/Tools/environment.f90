@@ -30,7 +30,6 @@ module environment_names
   use memor_names
   use stdio_names
   use FPL
-  use parameters_consistency_names
   use par_io_names
   use uniform_hex_mesh_generator_names
   ! Parallel modules
@@ -196,11 +195,11 @@ contains
     nenvs = size(envs)
 
      ! Mandatory parameters
-    assert(parameter_consistency(parameter_list, dir_path_key, dir_path))
+    assert(parameter_list%isAssignable(dir_path_key, dir_path))
     istat = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
     check(istat==0)
 
-    assert(parameter_consistency(parameter_list, prefix_key, prefix)) 
+    assert(parameter_list%isAssignable(prefix_key, prefix)) 
     istat = parameter_list%GetAsString(key = prefix_key, string = prefix)
     check(istat==0)
 
@@ -268,13 +267,13 @@ contains
 
     ! Optional parameters
     if(parameters%isPresent(execution_context_key)) then
-       assert(parameter_consistency(parameters, execution_context_key, execution_context))
+       assert(%isAssignable(execution_context_key, execution_context))
        istat = parameters%get(key = execution_context_key, value = execution_context); check(istat==0)
     else
        execution_context = serial_context
     end if
     if( parameters%isPresent(environment_type_key)) then
-       assert(parameter_consistency(parameters, environment_type_key, environment_type))
+       assert(parameters%isAssignable(environment_type_key, environment_type))
        istat = parameters%get(key = environment_type_key, value = environment_type); check(istat==0)
     else
        environment_type = unstructured
@@ -291,10 +290,10 @@ contains
 
        if(this%world_context%get_num_tasks()>1) then
           ! Mandatory parameters
-          assert(parameter_consistency(parameters, dir_path_key, dir_path))
+          assert(parameters%isAssignable(dir_path_key, dir_path))
           istat = parameters%get(key = dir_path_key, value = dir_path); check(istat==0)
           
-          assert(parameter_consistency(parameters, prefix_key, prefix))
+          assert(parameters%isAssignable(prefix_key, prefix))
           istat = parameters%get(key = prefix_key  , value = prefix)  ; check(istat==0)
 
           call environment_compose_name(prefix, name )  

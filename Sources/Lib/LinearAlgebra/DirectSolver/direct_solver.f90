@@ -39,7 +39,6 @@ module direct_solver_names
     USE serial_scalar_array_names
     USE direct_solver_creational_methods_dictionary_names
     USE FPL
-    USE parameters_consistency_names
     
 implicit none
 # include "debug.i90"
@@ -107,7 +106,7 @@ contains
     !-----------------------------------------------------------------
         ! check if DIRECT_SOLVER_TYPE is present and is a scalar string
         ! in the given parameter list,
-        assert(parameter_consistency(parameter_list, direct_solver_type, name)) 
+        assert(parameter_list%isAssignable(direct_solver_type, name)) 
         FPLError = parameter_list%GetAsString(Key=direct_solver_type, String=name)
         assert(FPLError == 0)
         call this%set_type(name)

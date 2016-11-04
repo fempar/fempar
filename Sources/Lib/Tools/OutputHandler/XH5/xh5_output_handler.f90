@@ -32,7 +32,6 @@ USE types_names
 USE memor_names
 USE xh5for
 USE FPL
-Use parameters_consistency_names
 USE xh5_utils_names
 USE xh5_parameters_names
 USE environment_names
@@ -156,21 +155,21 @@ contains
             if(present(parameter_list)) then
                 ! Get StaticGrid value from parameter_list
                 if(parameter_list%isPresent(oh_staticgrid)) then
-                    assert(parameter_consistency(parameter_list, oh_StaticGrid, this%StaticGrid))
+                    assert(parameter_list%isAssignable(oh_StaticGrid, this%StaticGrid))
                     FPLError   = parameter_list%Get(Key=oh_StaticGrid, Value=this%StaticGrid)
                     assert(FPLError == 0)
                 endif
 
                 ! Get Strategy value from parameter_list
                 if(parameter_list%isPresent(xh5_Strategy)) then
-                    assert(parameter_consistency(parameter_list, xh5_Strategy, this%Strategy))
+                    assert(parameter_list%isAssignable(xh5_Strategy, this%Strategy))
                     FPLError   = parameter_list%Get(Key=xh5_Strategy, Value=this%Strategy)
                     assert(FPLError == 0)
                 endif
 
                 ! Get Info value from parameter_list
                 if(parameter_list%isPresent(xh5_Info)) then
-                    assert(parameter_consistency(parameter_list, xh5_info, mpi_info))
+                    assert(parameter_list%isAssignable(xh5_info, mpi_info))
                     FPLError   = parameter_list%Get(Key=xh5_Info, Value=mpi_info)
                     assert(FPLError == 0)
                 endif

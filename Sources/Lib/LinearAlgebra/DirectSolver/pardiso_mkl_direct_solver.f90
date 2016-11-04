@@ -41,7 +41,6 @@ module pardiso_mkl_direct_solver_names
     USE base_direct_solver_names
     USE direct_solver_parameters_names
     USE FPL
-    USE parameters_consistency_names
 #ifdef ENABLE_MKL
     USE mkl_pardiso
 #endif
@@ -187,7 +186,7 @@ contains
 #ifdef ENABLE_MKL  
         ! Matrix type
         if(parameter_list%isPresent(pardiso_mkl_matrix_type)) then
-            assert(parameter_consistency(parameter_list, pardiso_mkl_matrix_type, this%matrix_type))
+            assert(parameter_list%isAssignable(pardiso_mkl_matrix_type, this%matrix_type))
             FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=matrix_type)
             assert(FPLError == 0)
             if(this%state_is_start()) then
@@ -201,14 +200,14 @@ contains
 
          ! iparm
         if(parameter_list%isPresent(pardiso_mkl_iparm)) then
-            assert(parameter_consistency(parameter_list, pardiso_mkl_iparm, this%pardiso_mkl_iparm))
+            assert(parameter_list%isAssignable(pardiso_mkl_iparm, this%pardiso_mkl_iparm))
             FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
             assert(FPLError == 0)
         endif
 
          ! Message level
         if(parameter_list%isPresent(pardiso_mkl_message_level)) then
-            assert(parameter_consistency(parameter_list, pardiso_mkl_message_level, this%message_level))
+            assert(parameter_list%isAssignable(pardiso_mkl_message_level, this%message_level))
             FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
             assert(FPLError == 0)
         endif

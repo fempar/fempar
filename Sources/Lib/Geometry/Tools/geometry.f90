@@ -7,7 +7,6 @@ module geometry_names
   use sisl_names
   use field_names
   use FPL
-  use parameters_consistency_names
   implicit none
   private
 #include "debug.i90"
@@ -378,11 +377,11 @@ contains
      integer(ip)                    :: lunio
 
      ! Mandatory parameters
-     assert(parameter_consistency(parameter_list, dir_path_key, dir_path))
+     assert(parameter_list%isAssignable(dir_path_key, dir_path))
      istat = istat + parameter_list%get(key = dir_path_key, value = dir_path)
      check(istat == 0)
      
-     assert(parameter_consistency(parameter_list, prefix_key, prefix))
+     assert(parameter_list%isAssignable(prefix_key, prefix))
      istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
      check(istat==0)
      

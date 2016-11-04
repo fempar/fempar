@@ -37,7 +37,6 @@ module mesh_names
   use rcm_renumbering_names
   use postpro_names
   use FPL
-  use parameters_consistency_names
   use environment_names
 
   implicit none
@@ -623,13 +622,13 @@ contains
 
      ! Mandatory parameters
     if(parameter_list%isPresent(dir_path_key)) then
-       assert(parameter_consistency(parameter_list, dir_path_key, dir_path))
+       assert(parameter_list%isAssignable(dir_path_key, dir_path))
        error = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
        check(error==0)
     endif
 
     if(parameter_list%isPresent(prefix_key)) then
-       assert(parameter_consistency(parameter_list, prefix_key, prefix))
+       assert(parameter_list%isAssignable(prefix_key, prefix))
        error = parameter_list%GetAsString(key = prefix_key, string = prefix)
        check(error==0)
     endif
