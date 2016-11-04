@@ -129,7 +129,7 @@ contains
     list  => this%get_parameters()
     assert(list%isAssignable(dir_path_key, get_dir_path))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
-    check(error==0)
+    assert(error==0)
   end function get_dir_path
 
   !==================================================================================================
@@ -142,7 +142,7 @@ contains
     list  => this%get_parameters()
     assert(list%isAssignable(prefix_key, get_prefix))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
-    check(error==0)
+    assert(error==0)
   end function get_prefix
 
     !==================================================================================================
@@ -155,7 +155,7 @@ contains
     list  => this%get_parameters()
     assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    check(error==0)
+    assert(error==0)
   end function get_reference_fe_geo_order
   
   !==================================================================================================
@@ -168,7 +168,7 @@ contains
     list  => this%get_parameters()
     assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
     error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    check(error==0)
+    assert(error==0)
   end function get_reference_fe_order
   
   !==================================================================================================
@@ -184,7 +184,7 @@ contains
     list  => this%get_parameters()
     assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key = write_solution_key, Value = get_write_solution)
-    check(error==0)
+    assert(error==0)
   end function get_write_solution
 
   !==================================================================================================
@@ -197,7 +197,7 @@ contains
     list  => this%get_parameters()
     assert(list%isAssignable(triangulation_generate_key, get_triangulation_type))
     error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
-    check(error==0)
+    assert(error==0)
   end function get_triangulation_type 
 
 end module par_test_poisson_params_names

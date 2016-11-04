@@ -379,11 +379,11 @@ contains
      ! Mandatory parameters
      assert(parameter_list%isAssignable(dir_path_key, dir_path))
      istat = istat + parameter_list%get(key = dir_path_key, value = dir_path)
-     check(istat == 0)
+     assert(istat == 0)
      
      assert(parameter_list%isAssignable(prefix_key, prefix))
      istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-     check(istat==0)
+     assert(istat==0)
      
      ! Read geometry
      call geometry_compose_name ( prefix, name )
