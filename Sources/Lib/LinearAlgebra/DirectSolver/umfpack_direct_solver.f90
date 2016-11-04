@@ -132,8 +132,9 @@ contains
         integer(ip)                                    :: FPLError
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        if(parameter_consistency(parameter_list, umfpack_control_params, this%control)) then
+        if( parameter_list%isPresent(umfpack_control_params)) then
             ! UMFPACK control parameters
+            assert(parameter_consistency(parameter_list, umfpack_control_params, this%control))
             FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
             assert(FPLError == 0)
         endif

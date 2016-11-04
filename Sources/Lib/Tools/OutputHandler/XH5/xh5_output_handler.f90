@@ -155,19 +155,22 @@ contains
 
             if(present(parameter_list)) then
                 ! Get StaticGrid value from parameter_list
-                if(parameter_consistency(parameter_list, oh_StaticGrid, this%StaticGrid)) then
+                if(parameter_list%isPresent(oh_staticgrid)) then
+                    assert(parameter_consistency(parameter_list, oh_StaticGrid, this%StaticGrid))
                     FPLError   = parameter_list%Get(Key=oh_StaticGrid, Value=this%StaticGrid)
                     assert(FPLError == 0)
                 endif
 
                 ! Get Strategy value from parameter_list
-                if(parameter_consistency(parameter_list, xh5_Strategy, this%Strategy)) then
+                if(parameter_list%isPresent(xh5_Strategy)) then
+                    assert(parameter_consistency(parameter_list, xh5_Strategy, this%Strategy))
                     FPLError   = parameter_list%Get(Key=xh5_Strategy, Value=this%Strategy)
                     assert(FPLError == 0)
                 endif
 
                 ! Get Info value from parameter_list
-                if(parameter_consistency(parameter_list, xh5_info, mpi_info)) then
+                if(parameter_list%isPresent(xh5_Info)) then
+                    assert(parameter_consistency(parameter_list, xh5_info, mpi_info))
                     FPLError   = parameter_list%Get(Key=xh5_Info, Value=mpi_info)
                     assert(FPLError == 0)
                 endif

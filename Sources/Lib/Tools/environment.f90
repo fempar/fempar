@@ -267,12 +267,14 @@ contains
     call this%free()
 
     ! Optional parameters
-    if(parameter_consistency(parameters, execution_context_key, execution_context)) then
+    if(parameters%isPresent(execution_context_key)) then
+       assert(parameter_consistency(parameters, execution_context_key, execution_context))
        istat = parameters%get(key = execution_context_key, value = execution_context); check(istat==0)
     else
        execution_context = serial_context
     end if
-    if( parameter_consistency(parameters, environment_type_key, environment_type)) then
+    if( parameters%isPresent(environment_type_key)) then
+       assert(parameter_consistency(parameters, environment_type_key, environment_type))
        istat = parameters%get(key = environment_type_key, value = environment_type); check(istat==0)
     else
        environment_type = unstructured

@@ -109,12 +109,14 @@ contains
    integer(ip)                          :: FPLError
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Dkrymax
-   if(parameter_consistency(parameter_list, ils_dkrymax, this%dkrymax)) then
+   if(parameter_list%isPresent(ils_dkrymax)) then
+       assert(parameter_consistency(parameter_list, ils_dkrymax, this%dkrymax))
        FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
        assert(FPLError == 0)
    endif
    ! Orthonorm strat
-   if(parameter_consistency(parameter_list, ils_orthonorm_strat, this%orthonorm_strat)) then
+   if(parameter_list%isPresent(ils_orthonorm_strat)) then
+       assert(parameter_consistency(parameter_list, ils_orthonorm_strat, this%orthonorm_strat))
        FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
        assert(FPLError == 0)
    endif

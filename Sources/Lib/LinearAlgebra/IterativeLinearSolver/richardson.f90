@@ -95,7 +95,8 @@ contains
    integer(ip)                          :: FPLError
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Relaxation
-   if(parameter_consistency(parameter_list, ils_relaxation, this%relaxation)) then
+   if(parameter_list%isPresent(ils_relaxation)) then
+       assert(parameter_consistency(parameter_list, ils_relaxation, this%relaxation))
        FPLError   = parameter_list%Get(Key=ils_relaxation, Value=this%relaxation)
        assert(FPLError == 0)
    endif

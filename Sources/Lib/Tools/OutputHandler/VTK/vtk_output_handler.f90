@@ -140,12 +140,14 @@ contains
         this%StaticGrid = vtk_default_staticgrid
 
         if(present(parameter_list)) then
-            if(parameter_consistency(parameter_list, vtk_format, this%vtk_format)) then
+            if(parameter_list%isPresent(vtk_format)) then
+                assert(parameter_consistency(parameter_list, vtk_format, this%vtk_format))
                 FPLError   = parameter_list%GetAsString(Key=vtk_format, String=this%vtk_format)
                 assert(FPLError == 0)
             endif
 
-            if(parameter_consistency(parameter_list, oh_staticgrid, this%StaticGrid)) then
+            if(parameter_list%isPresent(oh_staticgrid)) then
+                assert(parameter_consistency(parameter_list, oh_staticgrid, this%StaticGrid))
                 FPLError   = parameter_list%Get(Key=oh_staticgrid, Value=this%StaticGrid)
                 assert(FPLError == 0)
             endif

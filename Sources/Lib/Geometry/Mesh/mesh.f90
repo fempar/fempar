@@ -622,12 +622,14 @@ contains
      integer(ip)                                  :: error
 
      ! Mandatory parameters
-    if(parameter_consistency(parameter_list, dir_path_key, dir_path)) then
+    if(parameter_list%isPresent(dir_path_key)) then
+       assert(parameter_consistency(parameter_list, dir_path_key, dir_path))
        error = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
        check(error==0)
     endif
 
-    if(parameter_consistency(parameter_list, prefix_key, prefix)) then
+    if(parameter_list%isPresent(prefix_key)) then
+       assert(parameter_consistency(parameter_list, prefix_key, prefix))
        error = parameter_list%GetAsString(key = prefix_key, string = prefix)
        check(error==0)
     endif

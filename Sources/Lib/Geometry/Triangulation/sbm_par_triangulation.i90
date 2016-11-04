@@ -78,7 +78,8 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
     check(istat==0)
 
   ! Optional parameters
-  if( parameter_consistency(parameters, triangulation_generate_key, triangulation_generate) ) then
+  if( parameters%isPresent(triangulation_generate_key) ) then
+     assert(parameter_consistency(parameters, triangulation_generate_key, triangulation_generate))
      istat = parameters%Get(key = triangulation_generate_key, Value = triangulation_generate)
      check(istat==0)
   else
@@ -86,7 +87,8 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   end if
 
 
-  if( parameter_consistency(parameters, geometry_interpolation_order_key, geometry_interpolation_order) ) then
+  if( parameters%isPresent(geometry_interpolation_order_key) ) then
+     assert(parameter_consistency(parameters, geometry_interpolation_order_key, geometry_interpolation_order))
      istat = parameters%Get(key = geometry_interpolation_order_key, Value = geometry_interpolation_order)
      check(istat==0)
   else

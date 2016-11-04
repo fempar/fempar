@@ -705,32 +705,38 @@ contains
       type(ParameterList_t),                 intent(in)    :: parameter_list
       integer(ip)                                          :: FPLError
       ! Rtol
-      if(parameter_consistency(parameter_list, ils_rtol, this%rtol)) then
+      if(parameter_list%isPresent(ils_rtol)) then
+          assert(parameter_consistency(parameter_list, ils_rtol, this%rtol))
           FPLError   = parameter_list%Get(Key=ils_rtol, Value=this%rtol)
           assert(FPLError == 0)
       endif
       ! Atol
-      if(parameter_consistency(parameter_list, ils_atol, this%atol)) then
+      if(parameter_list%isPresent(ils_atol)) then
+          assert(parameter_consistency(parameter_list, ils_atol, this%atol))
           FPLError   = parameter_list%Get(Key=ils_atol, Value=this%atol)
           assert(FPLError == 0)
       endif
       ! Stopping criterias
-      if(parameter_consistency(parameter_list, ils_stopping_criteria, this%stopping_criteria)) then
+      if(parameter_list%isPresent(ils_stopping_criteria)) then
+          assert(parameter_consistency(parameter_list, ils_stopping_criteria, this%stopping_criteria))
           FPLError   = parameter_list%Get(Key=ils_stopping_criteria, Value=this%stopping_criteria)
           assert(FPLError == 0)
       endif
       ! Output frequency
-      if(parameter_consistency(parameter_list, ils_output_frequency, this%output_frequency)) then
+      if(parameter_list%isPresent(ils_output_frequency)) then
+          assert(parameter_consistency(parameter_list, ils_output_frequency, this%output_frequency))
           FPLError   = parameter_list%Get(Key=ils_output_frequency, Value=this%output_frequency)
           assert(FPLError == 0)
       endif
       ! Max num iterations
-      if(parameter_consistency(parameter_list, ils_max_num_iterations, this%max_num_iterations)) then
+      if(parameter_list%isPresent(ils_max_num_iterations)) then
+          assert(parameter_consistency(parameter_list, ils_max_num_iterations, this%max_num_iterations))
           FPLError   = parameter_list%Get(Key=ils_max_num_iterations, Value=this%max_num_iterations)
           assert(FPLError == 0)
       endif
       ! Track convergence history
-      if(parameter_consistency(parameter_list, ils_track_convergence_history, this%track_convergence_history)) then
+      if(parameter_list%isPresent(ils_track_convergence_history)) then
+          assert(parameter_consistency(parameter_list, ils_track_convergence_history, this%track_convergence_history))
           FPLError   = parameter_list%Get(Key=ils_track_convergence_history, Value=this%track_convergence_history)
           assert(FPLError == 0)
       endif

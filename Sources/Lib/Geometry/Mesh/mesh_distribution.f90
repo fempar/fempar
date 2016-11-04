@@ -170,21 +170,23 @@ contains
     ! Locals
     integer(ip)              :: istat
     integer(ip), allocatable :: param_size(:), param(:)
-    logical                  :: is_present
 
     ! Mandatory parameters: either nparts or num_levels
     assert(parameter_list%isPresent(key = num_parts_key).or.parameter_list%isPresent(key = num_levels_key))
-    if( parameter_consistency(parameter_list, num_parts_key, this%nparts)) then
+    if( parameter_list%isPresent(num_parts_key)) then
+       assert(parameter_consistency(parameter_list, num_parts_key, this%nparts))
        istat = parameter_list%get(key = num_parts_key , value = this%nparts); check(istat==0)
     end if
-    if( parameter_consistency(parameter_list, num_levels_key, this%num_levels) ) then
+    if( parameter_list%isPresent(num_levels_key) ) then
+       assert(parameter_consistency(parameter_list, num_levels_key, this%num_levels))
        istat = parameter_list%get(key = num_levels_key  , value = this%num_levels); check(istat==0)
-       is_present =  parameter_list%isPresent(key = num_parts_per_level_key )
+       assert(parameter_list%isPresent(key = num_parts_per_level_key ))
        assert( parameter_list%GetDimensions(key = num_parts_per_level_key) == 1)
 
        ! Get the array using the local variable
        istat =  parameter_list%GetShape(key = num_parts_per_level_key, shape = param_size ); check(istat==0)
        call memalloc(param_size(1), param,__FILE__,__LINE__)
+       assert(parameter_consistency(parameter_list, num_parts_per_level_key, param))
        istat = parameter_list%get(key = num_parts_per_level_key, value = param); check(istat==0)
 
        call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__)
@@ -199,38 +201,45 @@ contains
     end if
 
     ! Optional paramters
-    if( parameter_consistency(parameter_list, debug_key, this%debug) ) then
+    if( parameter_list%isPresent(debug_key) ) then
+       assert(parameter_consistency(parameter_list, debug_key, this%debug))
        istat = parameter_list%get(key = debug_key  , value = this%debug)
        check(istat==0)
     end if
 
-    if( parameter_consistency(parameter_list, strategy_key, this%strat) ) then
+    if( parameter_list%isPresent(strategy_key) ) then
+       assert(parameter_consistency(parameter_list, strategy_key, this%strat))
        istat = parameter_list%get(key = strategy_key  , value = this%strat)
        check(istat==0)
        assert(this%strat==part_kway.or.this%strat==part_recursive.or.this%strat==part_strip.or.this%strat==part_rcm_strip)
     end if
 
-    if( parameter_consistency(parameter_list,  metis_option_debug_key, this%metis_option_debug) ) then
+    if( parameter_list%isPresent(metis_option_debug_key) ) then
+       assert(parameter_consistency(parameter_list,  metis_option_debug_key, this%metis_option_debug))
        istat = parameter_list%get(key = metis_option_debug_key  , value = this%metis_option_debug)
        check(istat==0)
     end if
 
-    if( parameter_consistency(parameter_list, metis_option_ufactor_key, this%metis_option_ufactor) ) then
+    if( parameter_list%isPresent(metis_option_ufactor_key) ) then
+       assert(parameter_consistency(parameter_list, metis_option_ufactor_key, this%metis_option_ufactor))
        istat = parameter_list%get(key = metis_option_ufactor_key, value = this%metis_option_ufactor)
        check(istat==0)
     end if
 
-    if( parameter_consistency(parameter_list, metis_option_minconn_key, this%metis_option_minconn) ) then
+    if( parameter_list%isPresent(metis_option_minconn_key) ) then
+       assert(parameter_consistency(parameter_list, metis_option_minconn_key, this%metis_option_minconn))
        istat = parameter_list%get(key = metis_option_minconn_key, value = this%metis_option_minconn)
        check(istat==0)
     end if
 
-    if( parameter_consistency(parameter_list, metis_option_contig_key, this%metis_option_contig) ) then
+    if( parameter_list%isPresent(metis_option_contig_key) ) then
+       assert(parameter_consistency(parameter_list, metis_option_contig_key, this%metis_option_contig))
        istat = parameter_list%get(key = metis_option_contig_key , value = this%metis_option_contig)
        check(istat==0)
     end if
 
-    if( parameter_consistency(parameter_list, metis_option_ctype_key, this%metis_option_ctype) ) then
+    if( parameter_list%isPresent(metis_option_ctype_key) ) then
+       assert(parameter_consistency(parameter_list, metis_option_ctype_key, this%metis_option_ctype))
        istat = parameter_list%get(key = metis_option_ctype_key  , value = this%metis_option_ctype)
        check(istat==0)
     end if
