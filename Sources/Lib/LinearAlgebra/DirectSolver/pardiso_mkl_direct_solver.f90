@@ -41,6 +41,7 @@ module pardiso_mkl_direct_solver_names
     USE base_direct_solver_names
     USE direct_solver_parameters_names
     USE FPL
+    USE parameters_consistency_names
 #ifdef ENABLE_MKL
     USE mkl_pardiso
 #endif
@@ -182,71 +183,31 @@ contains
         type(ParameterList_t),               intent(in)    :: parameter_list
         integer(ip)                                        :: FPLError
         integer(ip)                                        :: matrix_type
-        logical                                            :: is_present
-        logical                                            :: same_data_type
-        integer(ip), allocatable                           :: shape(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL  
         ! Matrix type
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
-        if(is_present) then
-#ifdef DEBUG
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_matrix_type, mold=this%matrix_type)
-            FPLError       = parameter_list%getshape(Key=pardiso_mkl_matrix_type, shape=shape)
-            if(same_data_type .and. size(shape) == 0) then
-#endif
-                FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=matrix_type)
-                assert(FPLError == 0)
-                if(this%state_is_start()) then
-                    ! Matrix cannot change in symbolic to numeric transition
-                    this%matrix_type = matrix_type
-                    this%forced_matrix_type = .true.
-                else
-                    write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. It cannot be changed after analysis phase'
-                endif
-#ifdef DEBUG
+        if(parameter_consistency(parameter_list, pardiso_mkl_matrix_type, this%matrix_type)) then
+            FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=matrix_type)
+            assert(FPLError == 0)
+            if(this%state_is_start()) then
+                ! Matrix cannot change in symbolic to numeric transition
+                this%matrix_type = matrix_type
+                this%forced_matrix_type = .true.
             else
-                write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. Wrong data type or shape. '
+                write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. It cannot be changed after analysis phase'
             endif
-#endif
         endif
 
          ! iparm
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
-        if(is_present) then
-#ifdef DEBUG
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%pardiso_mkl_iparm)
-            FPLError       = parameter_list%getshape(Key=pardiso_mkl_iparm, shape=shape)
-            if(same_data_type .and. size(shape) == 1) then
-                if(shape(1) == 64) then
-#endif
-                    FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! pardiso_mkl_iparm ignored. Expected size (64). '
-                endif
-            else
-                write(*,'(a)') ' Warning! pardiso_mkl_iparm ignored. Wrong data type or shape. '
-            endif
-#endif
+        if(parameter_consistency(parameter_list, pardiso_mkl_iparm, this%pardiso_mkl_iparm)) then
+            FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
+            assert(FPLError == 0)
         endif
 
          ! Message level
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
-        if(is_present) then
-#ifdef DEBUG
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_message_level, mold=this%message_level)
-            FPLError       = parameter_list%getshape(Key=pardiso_mkl_message_level, shape=shape)
-            if(same_data_type .and. size(shape) == 0) then
-#endif
-                FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
-                assert(FPLError == 0)
-#ifdef DEBUG
-            else
-                write(*,'(a)') ' Warning! pardiso_mkl_message_level ignored. Wrong data type or shape. '
-            endif
-#endif
+        if(parameter_consistency(parameter_list, pardiso_mkl_message_level, this%message_level)) then
+            FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
+            assert(FPLError == 0)
         endif
 #else
         call this%not_enabled_error()

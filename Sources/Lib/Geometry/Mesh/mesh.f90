@@ -37,7 +37,7 @@ module mesh_names
   use rcm_renumbering_names
   use postpro_names
   use FPL
-
+  use parameters_consistency_names
   use environment_names
 
   implicit none
@@ -620,44 +620,16 @@ contains
      character(len=:), allocatable, intent(inout) :: prefix
      ! Locals
      integer(ip)                                  :: error
-     logical                                      :: is_present
-     logical                                      :: same_data_type
-     integer(ip),      allocatable                :: shape(:)
 
      ! Mandatory parameters
-    is_present         = parameter_list%isPresent(Key=dir_path_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key = dir_path_key, mold = dir_path)
-        error          = parameter_list%getshape(Key=dir_path_key, shape=shape)
-        assert(error == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            error = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
-            check(error==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
+    if(parameter_consistency(parameter_list, dir_path_key, dir_path)) then
+       error = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
+       check(error==0)
     endif
 
-
-    is_present         = parameter_list%isPresent(Key=prefix_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key = prefix_key, mold = prefix)
-        error          = parameter_list%getshape(Key=prefix_key, shape=shape)
-        assert(error == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            error = parameter_list%GetAsString(key = prefix_key, string = prefix)
-            check(error==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
+    if(parameter_consistency(parameter_list, prefix_key, prefix)) then
+       error = parameter_list%GetAsString(key = prefix_key, string = prefix)
+       check(error==0)
     endif
   end subroutine check_and_get_path_and_prefix_from_parameterlist
 

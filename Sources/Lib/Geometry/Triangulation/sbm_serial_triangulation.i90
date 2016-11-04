@@ -40,21 +40,20 @@ subroutine serial_triangulation_create ( this, parameters)
   integer(ip)               :: triangulation_generate
   integer(ip)               :: execution_context
   integer(ip)               :: istat
-  logical                   :: is_present
   integer(ip)               :: geometry_interpolation_order
   type(p_reference_fe_t)    :: reference_fe_geo_list(1)
   integer(ip)               :: ivef 
   integer(ip), allocatable  :: cells_set(:)
 
   ! Optional parameters
-  if( parameters%isPresent(key = triangulation_generate_key) ) then
+  if( parameter_consistency(parameters, triangulation_generate_key, triangulation_generate) ) then
      istat = parameters%get(key = triangulation_generate_key, value = triangulation_generate)
      check(istat==0)
   else
      triangulation_generate = triangulation_generate_from_mesh
   end if
 
-  if( parameters%isPresent(key = geometry_interpolation_order_key) ) then
+  if( parameter_consistency(parameters, geometry_interpolation_order_key, geometry_interpolation_order) ) then
      istat = parameters%get(key = geometry_interpolation_order_key , value = geometry_interpolation_order)
      check(istat==0)
   else
@@ -64,7 +63,7 @@ subroutine serial_triangulation_create ( this, parameters)
   call this%free()
 
   ! Verify (and eventually set) execution type and create serial environment
-  if( parameters%isPresent(key = execution_context_key) ) then
+  if( parameter_consistency(parameters, execution_context_key, execution_context) ) then
      istat = parameters%get(key = execution_context_key, value = execution_context); check(istat==0)
      check(execution_context==serial_context)
   else
@@ -97,8 +96,7 @@ subroutine serial_triangulation_create ( this, parameters)
      this%num_ghost_cells=0
 
      ! Get num_dimensions from FPL
-     is_present = parameters%isPresent(key = number_of_dimensions_key ) 
-     assert(is_present)
+     assert(parameter_consistency(parameters, number_of_dimensions_key, this%num_dimensions ))
      istat = parameters%get(key = number_of_dimensions_key   , value = this%num_dimensions)
      check(istat==0)
 

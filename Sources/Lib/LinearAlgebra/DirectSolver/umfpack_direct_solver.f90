@@ -39,7 +39,7 @@ module umfpack_direct_solver_names
     USE direct_solver_parameters_names
     USE umfpack_interface_names
     USE FPL
-
+    USE parameters_consistency_names 
 implicit none
 # include "debug.i90"
   
@@ -130,30 +130,12 @@ contains
         class(umfpack_direct_solver_t),  intent(inout) :: this
         type(ParameterList_t),           intent(in)    :: parameter_list
         integer(ip)                                    :: FPLError
-        logical                                        :: is_present
-        logical                                        :: same_data_type
-        integer(ip), allocatable                       :: shape(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        is_present     = parameter_list%isPresent(Key=umfpack_control_params)
-        if(is_present) then
-#ifdef DEBUG
-            same_data_type = parameter_list%isOfDataType(Key=umfpack_control_params, mold=this%Control)
-            FPLError       = parameter_list%getshape(Key=umfpack_control_params, shape=shape)
-            if(same_data_type .and. size(shape) == 1) then
-                if(shape(1) == UMFPACK_CONTROL) then
-#endif
-                    ! UMFPACK control parameters
-                    FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Expected size (20). '
-                endif
-            else
-                write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Wrong data type or shape. '
-            endif
-#endif
+        if(parameter_consistency(parameter_list, umfpack_control_params, this%control)) then
+            ! UMFPACK control parameters
+            FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
+            assert(FPLError == 0)
         endif
 #else
         call this%not_enabled_error()

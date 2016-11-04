@@ -31,6 +31,7 @@ module mesh_distribution_names
   use stdio_names
   use metis_interface_names
   use FPL
+  use parameters_consistency_names
   implicit none
 # include "debug.i90"
   private
@@ -173,13 +174,12 @@ contains
 
     ! Mandatory parameters: either nparts or num_levels
     assert(parameter_list%isPresent(key = num_parts_key).or.parameter_list%isPresent(key = num_levels_key))
-    if( parameter_list%isPresent(key = num_parts_key )) then
+    if( parameter_consistency(parameter_list, num_parts_key, this%nparts)) then
        istat = parameter_list%get(key = num_parts_key , value = this%nparts); check(istat==0)
     end if
-    if( parameter_list%isPresent(key = num_levels_key) ) then
+    if( parameter_consistency(parameter_list, num_levels_key, this%num_levels) ) then
        istat = parameter_list%get(key = num_levels_key  , value = this%num_levels); check(istat==0)
        is_present =  parameter_list%isPresent(key = num_parts_per_level_key )
-       assert(is_present)
        assert( parameter_list%GetDimensions(key = num_parts_per_level_key) == 1)
 
        ! Get the array using the local variable
@@ -199,38 +199,38 @@ contains
     end if
 
     ! Optional paramters
-    if( parameter_list%isPresent(key = debug_key) ) then
+    if( parameter_consistency(parameter_list, debug_key, this%debug) ) then
        istat = parameter_list%get(key = debug_key  , value = this%debug)
        check(istat==0)
     end if
 
-    if( parameter_list%isPresent(key = strategy_key) ) then
+    if( parameter_consistency(parameter_list, strategy_key, this%strat) ) then
        istat = parameter_list%get(key = strategy_key  , value = this%strat)
        check(istat==0)
        assert(this%strat==part_kway.or.this%strat==part_recursive.or.this%strat==part_strip.or.this%strat==part_rcm_strip)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_debug_key) ) then
+    if( parameter_consistency(parameter_list,  metis_option_debug_key, this%metis_option_debug) ) then
        istat = parameter_list%get(key = metis_option_debug_key  , value = this%metis_option_debug)
        check(istat==0)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_ufactor_key) ) then
+    if( parameter_consistency(parameter_list, metis_option_ufactor_key, this%metis_option_ufactor) ) then
        istat = parameter_list%get(key = metis_option_ufactor_key, value = this%metis_option_ufactor)
        check(istat==0)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_minconn_key) ) then
+    if( parameter_consistency(parameter_list, metis_option_minconn_key, this%metis_option_minconn) ) then
        istat = parameter_list%get(key = metis_option_minconn_key, value = this%metis_option_minconn)
        check(istat==0)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_contig_key) ) then
+    if( parameter_consistency(parameter_list, metis_option_contig_key, this%metis_option_contig) ) then
        istat = parameter_list%get(key = metis_option_contig_key , value = this%metis_option_contig)
        check(istat==0)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_ctype_key) ) then
+    if( parameter_consistency(parameter_list, metis_option_ctype_key, this%metis_option_ctype) ) then
        istat = parameter_list%get(key = metis_option_ctype_key  , value = this%metis_option_ctype)
        check(istat==0)
     end if
@@ -483,13 +483,11 @@ contains
     nparts = size(parts)
 
     ! Mandatory parameters
-    is_present = .true.
-    is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
-    is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-    assert(is_present)
-     
-    istat = 0
-    istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
+    assert(parameter_consistency(parameter_list, dir_path_out_key, dir_path))
+    istat = parameter_list%get(key = dir_path_out_key, value = dir_path)
+    check(istat == 0)
+    
+    assert(parameter_consistency(parameter_list, prefix_key, prefix))
     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
     check(istat==0)
 

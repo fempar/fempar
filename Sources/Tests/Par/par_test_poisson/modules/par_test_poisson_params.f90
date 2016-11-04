@@ -1,5 +1,6 @@
 module par_test_poisson_params_names
   use fempar_names
+
   implicit none
 #include "debug.i90" 
   private
@@ -125,25 +126,10 @@ contains
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    is_present         = list%isPresent(Key=dir_path_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = list%isOfDataType(Key=dir_path_key, mold=get_dir_path)
-        error          = list%getshape(Key=dir_path_key, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            error = list%GetAsString(key = dir_path_key, string = get_dir_path)
-            check(error==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    assert(parameter_consistency(list, dir_path_key, get_dir_path))
+    error = list%GetAsString(key = dir_path_key, string = get_dir_path)
+    check(error==0)
   end function get_dir_path
 
   !==================================================================================================
@@ -153,25 +139,10 @@ contains
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    is_present         = list%isPresent(Key=prefix_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = list%isOfDataType(Key=prefix_key, mold=get_prefix)
-        error       = list%getshape(Key=prefix_key, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            error = list%GetAsString(key = prefix_key, string = get_prefix)
-            check(error==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(prefix_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    assert(parameter_consistency(list, prefix_key, get_prefix))
+    error = list%GetAsString(key = prefix_key, string = get_prefix)
+    check(error==0)
   end function get_prefix
 
     !==================================================================================================
@@ -181,25 +152,10 @@ contains
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    is_present         = list%isPresent(Key=reference_fe_geo_order_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = list%isOfDataType(Key=reference_fe_geo_order_key, mold=get_reference_fe_geo_order)
-        error       = list%getshape(Key=reference_fe_geo_order_key, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-            check(error==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(reference_fe_geo_order_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    assert(parameter_consistency(list, reference_fe_geo_order_key, get_reference_fe_geo_order))
+    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
+    check(error==0)
   end function get_reference_fe_geo_order
   
   !==================================================================================================
@@ -209,25 +165,10 @@ contains
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    is_present         = list%isPresent(Key=reference_fe_order_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = list%isOfDataType(Key=reference_fe_order_key, mold=get_reference_fe_order)
-        error       = list%getshape(Key=reference_fe_order_key, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-            check(error==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(reference_fe_order_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    assert(parameter_consistency(list, reference_fe_order_key, get_reference_fe_order))
+    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
+    check(error==0)
   end function get_reference_fe_order
   
   !==================================================================================================
@@ -241,21 +182,9 @@ contains
     logical                                       :: same_data_type
     integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    is_present         = list%isPresent(Key=write_solution_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = list%isOfDataType(Key=write_solution_key, mold=get_write_solution)
-        error       = list%getshape(Key=write_solution_key, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            error = list%Get(key = write_solution_key, Value = get_write_solution)
-            check(error==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(write_solution_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    assert(parameter_consistency(list, write_solution_key, get_write_solution))
+    error = list%Get(key = write_solution_key, Value = get_write_solution)
+    check(error==0)
   end function get_write_solution
 
   !==================================================================================================
@@ -265,25 +194,10 @@ contains
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
     list  => this%get_parameters()
-    is_present         = list%isPresent(Key=triangulation_generate_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = list%isOfDataType(Key=triangulation_generate_key, mold=get_triangulation_type)
-        error       = list%getshape(Key=write_solution_key, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
-            check(error==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(triangulation_generate_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    assert(parameter_consistency(list, triangulation_generate_key, get_triangulation_type))
+    error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
+    check(error==0)
   end function get_triangulation_type 
 
 end module par_test_poisson_params_names

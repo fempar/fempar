@@ -68,80 +68,27 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   integer(ip)                     :: geometry_interpolation_order
   integer(ip)                     :: lunio
   integer(ip)                     :: istat
-  logical                         :: is_present
-  logical                         :: same_data_type
-  integer(ip),      allocatable   :: shape(:)
 
-     ! Mandatory parameters
-    is_present         = parameters%isPresent(Key=dir_path_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameters%isOfDataType(Key = dir_path_key, mold = dir_path)
-        istat          = parameters%getshape(Key=dir_path_key, shape=shape)
-        assert(istat == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            istat = parameters%GetAsString(key = dir_path_key, string = dir_path)
-            check(istat==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    ! Mandatory parameters
+    assert(parameter_consistency(parameters, dir_path_key, dir_path))
+    istat = parameters%GetAsString(key = dir_path_key, string = dir_path)
+    check(istat==0)
 
-
-    is_present         = parameters%isPresent(Key=prefix_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameters%isOfDataType(Key = prefix_key, mold = prefix)
-        istat          = parameters%getshape(Key=prefix_key, shape=shape)
-        assert(istat == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            istat = parameters%GetAsString(key = prefix_key, string = prefix)
-            check(istat==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    istat = parameters%GetAsString(key = prefix_key, string = prefix)
+    check(istat==0)
 
   ! Optional parameters
-  if( parameters%isPresent(key = triangulation_generate_key) ) then
-#ifdef DEBUG
-        same_data_type = parameters%isOfDataType(Key = triangulation_generate_key, mold = triangulation_generate)
-        istat          = parameters%getshape(Key=triangulation_generate_key, shape=shape)
-        assert(istat == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            istat = parameters%Get(key = triangulation_generate_key, Value = triangulation_generate)
-            check(istat==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! tringulation_generate_key ignored. Wrong data type or shape. '
-        endif
-#endif
+  if( parameter_consistency(parameters, triangulation_generate_key, triangulation_generate) ) then
+     istat = parameters%Get(key = triangulation_generate_key, Value = triangulation_generate)
+     check(istat==0)
   else
      triangulation_generate = triangulation_generate_from_mesh
   end if
 
 
-  if( parameters%isPresent(key = geometry_interpolation_order_key) ) then
-#ifdef DEBUG
-        same_data_type = parameters%isOfDataType(Key = geometry_interpolation_order_key, mold = geometry_interpolation_order)
-        istat          = parameters%getshape(Key=geometry_interpolation_order_key, shape=shape)
-        assert(istat == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            istat = parameters%Get(key = geometry_interpolation_order_key, Value = geometry_interpolation_order)
-            check(istat==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! geometry_interpolation_order_key ignored. Wrong data type or shape. '
-        endif
-#endif
+  if( parameter_consistency(parameters, geometry_interpolation_order_key, geometry_interpolation_order) ) then
+     istat = parameters%Get(key = geometry_interpolation_order_key, Value = geometry_interpolation_order)
+     check(istat==0)
   else
      geometry_interpolation_order = 1
   end if
@@ -266,7 +213,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
      else if(triangulation_generate==triangulation_generate_structured) then
 
         ! Get num_dimensions from FPL
-        is_present = parameters%isPresent(key = number_of_dimensions_key ); assert(is_present)
+        assert(parameter_consistency(parameters, number_of_dimensions_key, this%num_dimensions))
         istat = parameters%get(key = number_of_dimensions_key, value = this%num_dimensions); check(istat==0)
 
         call uniform_hex_mesh%get_data_from_parameter_list(parameters)

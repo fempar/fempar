@@ -31,6 +31,7 @@ module uniform_hex_mesh_generator_names
   use memor_names
   use reference_fe_names
   use FPL
+  use parameters_consistency_names
   implicit none
 # include "debug.i90"
   private
@@ -96,11 +97,11 @@ contains
     integer(ip), allocatable :: array_size(:)
     
     ! Mandatory
-    is_present = parameter_list%isPresent(key = number_of_dimensions_key ); assert(is_present)
-    istat      = parameter_list%get(key = number_of_dimensions_key, value = this%number_of_dimensions); check(istat==0)
+    assert(parameter_consistency(parameter_list, number_of_dimensions_key, this%number_of_dimensions))
+    istat = parameter_list%get(key = number_of_dimensions_key, value = this%number_of_dimensions); check(istat==0)
 
     ! Optional
-    if( parameter_list%isPresent(key = number_of_levels_key) ) then
+    if( parameter_consistency(parameter_list, number_of_levels_key, this%number_of_levels) ) then
        istat = parameter_list%get(key = number_of_levels_key , value = this%number_of_levels); check(istat==0)
     else
        this%number_of_levels = 1
