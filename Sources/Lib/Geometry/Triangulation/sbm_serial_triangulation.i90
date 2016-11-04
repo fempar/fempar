@@ -101,7 +101,7 @@ subroutine serial_triangulation_create ( this, parameters)
 
      ! Get num_dimensions from FPL
      assert(parameters%isAssignable(number_of_dimensions_key, this%num_dimensions ))
-     istat = parameters%get(key = number_of_dimensions_key   , value = this%num_dimensions)
+     istat = parameters%get(key = number_of_dimensions_key, value = this%num_dimensions)
      assert(istat==0)
 
      call uniform_hex_mesh%get_data_from_parameter_list(parameters)

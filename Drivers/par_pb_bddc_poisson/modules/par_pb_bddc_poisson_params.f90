@@ -228,7 +228,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(list%isAssginable(inclusion_key, get_inclusion))
+    assert(list%isAssignable(inclusion_key, get_inclusion))
     error = list%Get(key = inclusion_key, Value = get_inclusion)
     assert(error==0)
   end function get_inclusion

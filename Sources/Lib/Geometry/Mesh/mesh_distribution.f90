@@ -179,8 +179,9 @@ contains
     end if
     if( parameter_list%isPresent(num_levels_key) ) then
        assert(parameter_list%isAssignable(num_levels_key, this%num_levels))
-       istat = parameter_list%get(key = num_levels_key  , value = this%num_levels);
+       istat = parameter_list%get(key = num_levels_key  , value = this%num_levels)
        assert(istat==0)
+       
        assert(parameter_list%isPresent(key = num_parts_per_level_key ))
        assert( parameter_list%GetDimensions(key = num_parts_per_level_key) == 1)
 
@@ -217,7 +218,7 @@ contains
     end if
 
     if( parameter_list%isPresent(metis_option_debug_key) ) then
-       assert(parameter_list%isAssginable(metis_option_debug_key, this%metis_option_debug))
+       assert(parameter_list%isAssignable(metis_option_debug_key, this%metis_option_debug))
        istat = parameter_list%get(key = metis_option_debug_key  , value = this%metis_option_debug)
        check(istat==0)
     end if
