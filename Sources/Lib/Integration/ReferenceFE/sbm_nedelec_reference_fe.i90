@@ -770,6 +770,7 @@ subroutine nedelec_invert_change_basis_matrix(this)
                error )
   check ( error == 0 )
   
+  if ( allocated(this%change_basis_matrix) ) call memfree (  this%change_basis_matrix, __FILE__, __LINE__  )
   
  call memmovealloc(inverse_change_basis_matrix, &
                    this%change_basis_matrix, __FILE__, __LINE__ )

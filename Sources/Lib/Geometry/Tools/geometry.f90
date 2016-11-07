@@ -371,18 +371,18 @@ contains
 
      ! Locals
      integer(ip)          :: istat
-     character(len=256)   :: dir_path
-     character(len=256)   :: prefix
+     character(len=:), allocatable   :: dir_path
+     character(len=:), allocatable   :: prefix
      character(len=:), allocatable   :: name
      integer(ip)                    :: lunio
 
      ! Mandatory parameters
      assert(parameter_list%isAssignable(dir_path_key, dir_path))
-     istat = istat + parameter_list%get(key = dir_path_key, value = dir_path)
+     istat = parameter_list%getAsString(key = dir_path_key, string = dir_path)
      assert(istat == 0)
      
      assert(parameter_list%isAssignable(prefix_key, prefix))
-     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+     istat = parameter_list%getAsString(key = prefix_key  , string = prefix)
      assert(istat==0)
      
      ! Read geometry

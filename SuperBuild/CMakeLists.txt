@@ -34,10 +34,6 @@ IF(NOT CMAKE_BUILD_TYPE)
   SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS NONE DEBUG RELEASE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
-IF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
-    OPTION(${PROJECT_NAME}_ENABLE_TESTS "Enable/disable tests" OFF)
-ENDIF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
-
 #################################################################
 # STATIC LIBRARIES
 #################################################################
@@ -158,7 +154,7 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
             DEPENDERS configure
             ALWAYS 1
         )
-        IF(${PROJECT_NAME}_ENABLE_TESTS)
+        IF(FEMPAR_ENABLE_TESTS)
             ADD_CUSTOM_TARGET(${EXT_PROJ}-test
                 COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target test
             )

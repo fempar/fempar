@@ -94,6 +94,7 @@ subroutine serial_triangulation_create ( this, parameters)
      call this%allocate_and_fill_cells_around()
      call this%generate_vefs(geometry_interpolation_order)
      call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
+     call mesh%free()
 
   else if(triangulation_generate==triangulation_generate_structured) then
 
@@ -139,6 +140,7 @@ subroutine serial_triangulation_create ( this, parameters)
         class is(lagrangian_reference_fe_t)
         this%reference_fe_geo_list(1)%p => reference_fe
      end select
+     call uniform_hex_mesh%free()
   end if
 
   ! Allocate and fill this%cells_set from cells_set member variable
@@ -153,8 +155,6 @@ subroutine serial_triangulation_create ( this, parameters)
   call this%allocate_and_fill_face_orientation_rotation()
   call this%allocate_and_fill_nodes()
   call this%allocate_and_fill_coordinates(coordinates)
-  call mesh%free()
   call memfree(cells_set, __FILE__, __LINE__)
   call memfree(coordinates, __FILE__, __LINE__)
-
 end subroutine serial_triangulation_create
