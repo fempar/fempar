@@ -109,7 +109,7 @@ contains
        this%number_of_levels = 1
     end if
 
-    ! Mandartory (array)
+    ! Mandatory (array)
     is_present =  parameter_list%isPresent(key = number_of_cells_per_dir_key ); assert(is_present)
     istat = parameter_list%GetShape(key = number_of_cells_per_dir_key, shape = array_size); check(istat==0)
     assert(array_size(1) >= SPACE_DIM)
