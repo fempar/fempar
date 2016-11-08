@@ -110,9 +110,9 @@ contains
     ! SETTING DEFAULT PARAMETERS **************************************************************
 
     ! IO parameters 
-    error = list%set(key = dir_path_key       , value = '.')      ; check(error==0)
-    error = list%set(key = prefix_key         , value = 'square') ; check(error==0)
-    error = list%set(key = dir_path_out_key   , value = '.')      ; check(error==0)
+    error = list%set(key = dir_path_key       , value = '.')         ; check(error==0)
+    error = list%set(key = prefix_key         , value = 'square')    ; check(error==0)
+    error = list%set(key = dir_path_out_key   , value = './output/') ; check(error==0)
     error = list%set(key = write_solution_key , value =  .false.) ; check(error==0)
 
     ! MESHING parameters 
@@ -392,7 +392,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-   ! assert(list%isAssignable(dir_path_key, get_dir_path))
+    assert(list%isAssignable(dir_path_key, get_dir_path))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
   end function get_dir_path
@@ -405,7 +405,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-   ! assert(list%isAssignable(prefix_key, get_prefix))
+    assert(list%isAssignable(prefix_key, get_prefix))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
   end function get_prefix
@@ -418,7 +418,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(dir_path_out_key, get_dir_path_out))
+    assert(list%isAssignable(dir_path_out_key, get_dir_path_out))
     error = list%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
     assert(error==0)
   end function get_dir_path_out
@@ -431,7 +431,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(write_solution_key, get_write_solution))
+    assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key=write_solution_key, Value = get_write_solution)
     check(error==0)
   end function get_write_solution
@@ -444,7 +444,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(triangulation_generate_key, get_triangulation_type))
+    assert(list%isAssignable(triangulation_generate_key, get_triangulation_type))
     error = list%Get(key=triangulation_generate_key, Value = get_triangulation_type)
     assert(error==0)
   end function get_triangulation_type
@@ -457,7 +457,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(domain_length_key, get_domain_length))
+    assert(list%isAssignable(domain_length_key, get_domain_length))
     error = list%Get(key = domain_length_key, Value = get_domain_length)
     assert(error==0)
   end function get_domain_length
@@ -470,7 +470,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(hts_domain_length_key, get_hts_domain_length))
+    assert(list%isAssignable(hts_domain_length_key, get_hts_domain_length))
     error = list%Get(key = hts_domain_length_key, Value = get_hts_domain_length)
     assert(error==0)
   end function get_hts_domain_length
@@ -483,7 +483,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(magnetic_field_reference_fe_order_key, get_magnetic_field_reference_fe_order))
+    assert(list%isAssignable(magnetic_field_reference_fe_order_key, get_magnetic_field_reference_fe_order))
     error = list%Get(key =magnetic_field_reference_fe_order_key, Value = get_magnetic_field_reference_fe_order)
     assert(error==0)
   end function get_magnetic_field_reference_fe_order
@@ -496,7 +496,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(magnetic_pressure_reference_fe_order_key, get_magnetic_pressure_reference_fe_order))
+    assert(list%isAssignable(magnetic_pressure_reference_fe_order_key, get_magnetic_pressure_reference_fe_order))
     error = list%Get(key=magnetic_pressure_reference_fe_order_key, Value = get_magnetic_pressure_reference_fe_order)
     assert(error==0)
   end function get_magnetic_pressure_reference_fe_order
@@ -509,7 +509,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(external_magnetic_field_amplitude_key, get_external_magnetic_field_amplitude))
+    assert(list%isAssignable(external_magnetic_field_amplitude_key, get_external_magnetic_field_amplitude))
     error = list%Get(key=external_magnetic_field_amplitude_key, Value = get_external_magnetic_field_amplitude)
     assert(error==0)
   end function get_external_magnetic_field_amplitude
@@ -522,7 +522,7 @@ contains
     type(ParameterList_t), pointer             :: list
     integer(ip)                                :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(external_magnetic_field_frequency_key, get_external_magnetic_field_frequency))
+    assert(list%isAssignable(external_magnetic_field_frequency_key, get_external_magnetic_field_frequency))
     error = list%Get(key=external_magnetic_field_frequency_key, Value = get_external_magnetic_field_frequency)
     assert(error==0)
   end function get_external_magnetic_field_frequency
@@ -535,7 +535,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(external_current_amplitude_key, get_external_current_amplitude))
+    assert(list%isAssignable(external_current_amplitude_key, get_external_current_amplitude))
     error = list%Get(key=external_current_amplitude_key, Value = get_external_current_amplitude)
     assert(error==0)
   end function get_external_current_amplitude
@@ -548,7 +548,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(external_current_frequency_key, get_external_current_frequency))
+    assert(list%isAssignable(external_current_frequency_key, get_external_current_frequency))
     error = list%Get(key=external_current_frequency_key, Value = get_external_current_frequency)
     assert(error==0)
   end function get_external_current_frequency
@@ -561,7 +561,7 @@ contains
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(apply_current_density_constraint_key, get_apply_current_density_constraint))
+    assert(list%isAssignable(apply_current_density_constraint_key, get_apply_current_density_constraint))
     error = list%Get(key=apply_current_density_constraint_key, Value = get_apply_current_density_constraint)
     assert(error==0)
   end function get_apply_current_density_constraint
@@ -574,7 +574,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(air_permeability_key, get_air_permeability))
+    assert(list%isAssignable(air_permeability_key, get_air_permeability))
     error = list%Get(key=air_permeability_key, Value = get_air_permeability)
     assert(error==0)
   end function get_air_permeability
@@ -587,7 +587,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(air_resistivity_key, get_air_resistivity))
+    assert(list%isAssignable(air_resistivity_key, get_air_resistivity))
     error = list%Get(key=air_resistivity_key, Value = get_air_resistivity)
     assert(error==0)
   end function get_air_resistivity
@@ -601,7 +601,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(hts_permeability_key, get_hts_permeability))
+    assert(list%isAssignable(hts_permeability_key, get_hts_permeability))
     error = list%Get(key=hts_permeability_key, Value = get_hts_permeability)
     assert(error==0)
   end function get_hts_permeability
@@ -614,7 +614,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(hts_resistivity_key, get_hts_resistivity))
+    assert(list%isAssignable(hts_resistivity_key, get_hts_resistivity))
     error = list%Get(key=hts_resistivity_key, Value = get_hts_resistivity)
     assert(error==0)
   end function get_hts_resistivity
@@ -627,7 +627,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(critical_current_key, get_critical_current))
+    assert(list%isAssignable(critical_current_key, get_critical_current))
     error = list%Get(key=critical_current_key, Value = get_critical_current)
     assert(error==0)
   end function get_critical_current 
@@ -640,7 +640,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(critical_electric_field_key, get_critical_electric_field ))
+    assert(list%isAssignable(critical_electric_field_key, get_critical_electric_field ))
     error = list%Get(key=critical_electric_field_key, Value = get_critical_electric_field )
     assert(error==0)
   end function get_critical_electric_field   
@@ -653,7 +653,7 @@ contains
     type(ParameterList_t), pointer             :: list
     integer(ip)                                :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(nonlinear_exponent_key, get_nonlinear_exponent  ))
+    assert(list%isAssignable(nonlinear_exponent_key, get_nonlinear_exponent  ))
     error = list%Get(key=nonlinear_exponent_key, Value = get_nonlinear_exponent  )
     assert(error==0)
   end function get_nonlinear_exponent 
@@ -666,7 +666,7 @@ contains
     type(ParameterList_t), pointer           :: list
     integer(ip)                              :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(theta_value_key, get_theta_value  ))
+    assert(list%isAssignable(theta_value_key, get_theta_value  ))
     error = list%Get(key=theta_value_key, Value = get_theta_value  ) 
     assert(error==0)
   end function get_theta_value     
@@ -679,7 +679,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(initial_time_key, get_initial_time  ))
+    assert(list%isAssignable(initial_time_key, get_initial_time  ))
     error = list%Get(key=initial_time_key, Value = get_initial_time  )
     assert(error==0)
   end function get_initial_time   
@@ -692,7 +692,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(final_time_key, get_final_time  ))
+    assert(list%isAssignable(final_time_key, get_final_time  ))
     error = list%Get(key=final_time_key, Value = get_final_time  )
     assert(error==0)
   end function get_final_time   
@@ -705,7 +705,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(number_time_steps_key, get_number_time_steps  ))
+    assert(list%isAssignable(number_time_steps_key, get_number_time_steps  ))
     error = list%Get(key=number_time_steps_key, Value = get_number_time_steps  )
     assert(error==0)
   end function get_number_time_steps   
@@ -718,7 +718,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(is_adaptive_time_stepping_key, get_is_adaptive_time_stepping  ))
+    assert(list%isAssignable(is_adaptive_time_stepping_key, get_is_adaptive_time_stepping  ))
     error = list%Get(key=is_adaptive_time_stepping_key, Value = get_is_adaptive_time_stepping  )
     assert(error==0)
   end function get_is_adaptive_time_stepping  
@@ -731,7 +731,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(stepping_parameter_key, get_stepping_parameter ))
+    assert(list%isAssignable(stepping_parameter_key, get_stepping_parameter ))
     error = list%Get(key=stepping_parameter_key, Value = get_stepping_parameter )
     assert(error==0)
   end function get_stepping_parameter
@@ -744,7 +744,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(max_time_step_key, get_max_time_step ))
+    assert(list%isAssignable(max_time_step_key, get_max_time_step ))
     error = list%Get(key=max_time_step_key, Value = get_max_time_step )
     assert(error==0)
   end function get_max_time_step 
@@ -757,7 +757,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(min_time_step_key, get_min_time_step ))
+    assert(list%isAssignable(min_time_step_key, get_min_time_step ))
     error = list%Get(key=min_time_step_key, Value = get_min_time_step )
     assert(error==0)
   end function get_min_time_step
@@ -770,7 +770,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(save_solution_n_steps_key, get_save_solution_n_steps ))
+    assert(list%isAssignable(save_solution_n_steps_key, get_save_solution_n_steps ))
     error = list%Get(key=save_solution_n_steps_key, Value = get_save_solution_n_steps )
     assert(error==0)
   end function get_save_solution_n_steps 
@@ -783,7 +783,7 @@ contains
     type(ParameterList_t), pointer           :: list
     integer(ip)                              :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(nonlinear_convergence_criteria_key, get_nonlinear_convergence_criteria ))
+    assert(list%isAssignable(nonlinear_convergence_criteria_key, get_nonlinear_convergence_criteria ))
     error = list%GetAsString(key=nonlinear_convergence_criteria_key, string = get_nonlinear_convergence_criteria )
     assert(error==0)
   end function get_nonlinear_convergence_criteria  
@@ -796,7 +796,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(absolute_nonlinear_tolerance_key, get_absolute_nonlinear_tolerance ))
+    assert(list%isAssignable(absolute_nonlinear_tolerance_key, get_absolute_nonlinear_tolerance ))
     error = list%Get(key=absolute_nonlinear_tolerance_key, Value = get_absolute_nonlinear_tolerance )
     assert(error==0)
   end function get_absolute_nonlinear_tolerance
@@ -809,7 +809,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(relative_nonlinear_tolerance_key, get_relative_nonlinear_tolerance ))
+    assert(list%isAssignable(relative_nonlinear_tolerance_key, get_relative_nonlinear_tolerance ))
     error = list%Get(key=relative_nonlinear_tolerance_key, Value = get_relative_nonlinear_tolerance )
     assert(error==0)
   end function get_relative_nonlinear_tolerance
@@ -822,7 +822,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    !assert(list%isAssignable(max_nonlinear_iterations_key, get_max_nonlinear_iterations ))
+    assert(list%isAssignable(max_nonlinear_iterations_key, get_max_nonlinear_iterations ))
     error = list%Get(key=max_nonlinear_iterations_key, Value = get_max_nonlinear_iterations )
     assert(error==0)
   end function get_max_nonlinear_iterations 

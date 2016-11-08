@@ -502,6 +502,7 @@ contains
     type(cell_fe_function_vector_t)        :: cell_fe_function_current
     integer(ip)                            :: qpoin, num_quad_points, idof 
     type(point_t)            , pointer     :: quad_coords(:)
+    type(point_t)         , allocatable    :: aux_quad_coords(:)
     integer(ip)                            :: inode, number_nodes 
     real(rp)                               :: factor 
     type(vector_field_t)                   :: H_value, H_curl 
@@ -521,6 +522,8 @@ contains
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
+    quad_coords      => fe_map%get_quadrature_coordinates()
+    aux_quad_coords  = quad_coords
 
     ! Loop over elements
     Hy_average  = 0
@@ -556,7 +559,7 @@ contains
     hts_area             = hts_domain_length(0)*hts_domain_length(1) 
     ! Coordinates of quadrature does influence the constant value Happ(t) 
     boundary_function_Hy => this%problem_functions%get_boundary_function_Hy()
-    call boundary_function_Hy%get_value_space_time( quad_coords(1), this%theta_method%get_current_time() , Happ )
+    call boundary_function_Hy%get_value_space_time( aux_quad_coords(1), this%theta_method%get_current_time() , Happ )
 
     write(*,*) 'Hysteresis Data -----------------------------------------'
     write(*,*) 'mu0·(Hy-Happ)', this%test_params%get_air_permeability()*(Hy_average/hts_area-Happ), 'Happ', Happ 
