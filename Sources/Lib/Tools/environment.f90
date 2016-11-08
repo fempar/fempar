@@ -251,12 +251,12 @@ contains
     ! from the rest of the mesh information.
     type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
-    integer(ip)          :: istat
-    logical              :: is_present
-    integer(ip)          :: environment_type
-    integer(ip)          :: execution_context
-    character(len=256)   :: dir_path
-    character(len=256)   :: prefix
+    integer(ip)                     :: istat
+    logical                         :: is_present
+    integer(ip)                     :: environment_type
+    integer(ip)                     :: execution_context
+    character(len=:), allocatable   :: dir_path
+    character(len=:), allocatable   :: prefix
     character(len=:), allocatable   :: name
     integer(ip)                     :: lunio
     integer(ip)               :: num_levels
@@ -293,11 +293,11 @@ contains
        if(this%world_context%get_num_tasks()>1) then
           ! Mandatory parameters
           assert(parameters%isAssignable(dir_path_key, dir_path))
-          istat = parameters%get(key = dir_path_key, value = dir_path)
+          istat = parameters%GetAsString(key = dir_path_key, String = dir_path)
           assert(istat==0)
           
           assert(parameters%isAssignable(prefix_key, prefix))
-          istat = parameters%get(key = prefix_key  , value = prefix) 
+          istat = parameters%GetAsString(key = prefix_key  , String = prefix) 
           assert(istat==0)
 
           call environment_compose_name(prefix, name )  

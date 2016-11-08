@@ -483,24 +483,24 @@ contains
     type(mesh_distribution_t), intent(in)  :: parts(:)
 
     ! Locals
-    integer(ip)          :: nparts
-    integer(ip)          :: istat
-    logical              :: is_present
-    character(len=256)   :: dir_path
-    character(len=256)   :: prefix
+    integer(ip)                   :: nparts
+    integer(ip)                   :: istat
+    logical                       :: is_present
+    character(len=:), allocatable :: dir_path
+    character(len=:), allocatable :: prefix
     character(len=:), allocatable :: name, rename
-    integer(ip)          :: lunio
-    integer(ip)          :: i
+    integer(ip)                   :: lunio
+    integer(ip)                   :: i
 
     nparts = size(parts)
 
     ! Mandatory parameters
     assert(parameter_list%isAssignable(dir_path_out_key, dir_path))
-    istat = parameter_list%get(key = dir_path_out_key, value = dir_path)
+    istat = parameter_list%GetAsString(key = dir_path_out_key, String = dir_path)
     assert(istat == 0)
     
     assert(parameter_list%isAssignable(prefix_key, prefix))
-    istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+    istat = istat + parameter_list%GetAsString(key = prefix_key, String = prefix)
     assert(istat==0)
 
     call mesh_distribution_compose_name ( prefix, name )
