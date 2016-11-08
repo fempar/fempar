@@ -28,7 +28,7 @@
 module test_poisson_driver_names
   use fempar_names
   use test_poisson_params_names
-  use pcG_discrete_integration_names
+  use poisson_cG_discrete_integration_names
   use poisson_dG_discrete_integration_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
