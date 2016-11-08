@@ -63,7 +63,7 @@ contains
   
     subroutine hts_nedelec_conditions_set_boundary_function_Hx (this, scalar_function)
     implicit none
-    class(hts_nedelec_conditions_t), intent(inout)      :: this
+    class(hts_nedelec_conditions_t), intent(inout)          :: this
     class(scalar_function_t)           , target, intent(in) :: scalar_function
     this%boundary_function_Hx => scalar_function
   end subroutine hts_nedelec_conditions_set_boundary_function_Hx

@@ -199,7 +199,6 @@ contains
           ! Previous solution to integrate RHS contribution 
           call cell_fe_function_previous%get_value( qpoint, H_value_previous )
           
-          
           ! BLOCK [1,1] : mu_0 ( H,v ) + rho( curl(H), curl(v) )  
           do idof=1, num_dofs_per_field(1)
             call vol_int_H%get_value(idof, qpoint, H_shape_test)
@@ -220,22 +219,22 @@ contains
           end do
        
            ! BLOCK [1,2] : - ( v, grad(p) )
-          do idof=1, num_dofs_per_field(2)
+          do idof=1, num_dofs_per_field(1)
             call vol_int_H%get_value(idof, qpoint, H_shape_test)
             do jdof=1, num_dofs_per_field(2)
               call vol_int_p%get_gradient(jdof, qpoint, grad_p_shape_trial)   
               elmat(idof,num_dofs_per_field(1)+jdof) = elmat(idof,num_dofs_per_field(1)+jdof)  &
-                                                       - (H_shape_test*grad_p_shape_trial)*factor                  
+                                                       + (H_shape_test*grad_p_shape_trial)*factor                  
             end do            
           end do
-       
+
        ! BLOCK [2,1] :  ( H, grad(q) )
           do idof=1, num_dofs_per_field(2)
             call vol_int_p%get_gradient(idof, qpoint, grad_p_shape_test) 
-            do jdof=1, num_dofs_per_field(2)
+            do jdof=1, num_dofs_per_field(1)
               call vol_int_H%get_value(jdof, qpoint, H_shape_trial)
               elmat(num_dofs_per_field(1)+idof,jdof) = elmat(num_dofs_per_field(1)+idof,jdof)  &
-                                                       + (H_shape_trial*grad_p_shape_test)*factor                  
+                                                       - (H_shape_trial*grad_p_shape_test)*factor                  
             end do            
           end do
           
@@ -245,7 +244,7 @@ contains
             do jdof=1, num_dofs_per_field(2)
               call vol_int_p%get_value(jdof, qpoint, p_shape_trial)
               elmat(num_dofs_per_field(1)+idof,num_dofs_per_field(1)+jdof) = elmat(num_dofs_per_field(1)+idof,num_dofs_per_field(1)+jdof)  &
-                                                       + p_shape_trial*p_shape_test*factor                  
+                                                       + 1.0_rp/permeability*p_shape_trial*p_shape_test*factor                  
             end do            
           end do
 
