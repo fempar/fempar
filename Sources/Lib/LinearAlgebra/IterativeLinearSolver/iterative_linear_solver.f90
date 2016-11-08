@@ -121,23 +121,9 @@ contains
      class(iterative_linear_solver_t), intent(inout) :: this
      type(ParameterList_t),            intent(in)    :: parameter_list
      character(len=:)      , allocatable             :: iterative_linear_solver_type
-     integer(ip)                                     :: DataSizeInBytes
      integer                                         :: FPLError
-#ifdef DEBUG
-     logical                                         :: is_present
-     logical                                         :: is_string
-     integer(ip), allocatable                        :: shape(:)
-     is_present = parameter_list%isPresent   (Key = ils_type)
-     is_string  = parameter_list%isOfDataType(Key = ils_type, mold  = 'string')
-     FPLError   = parameter_list%getshape    (Key = ils_type, shape = shape)
-     ! check if ITERATIVE_LINEAR_SOLVER_TYPE is present and is a scalar string
-     ! in the given parameter list,
-     assert(is_present .and. is_string .and. size(shape) == 0) 
-#endif
-     DataSizeInBytes = parameter_list%DataSizeInBytes(Key=ils_type)
-     allocate(character(len=DataSizeInBytes) :: iterative_linear_solver_type, stat=FPLError)
-     assert(FPLError == 0)
-     FPLError = parameter_list%Get(Key=ils_type, Value=iterative_linear_solver_type)
+     assert(parameter_list%isAssignable(ils_type, iterative_linear_solver_type))
+     FPLError = parameter_list%GetAsString(Key=ils_type, String=iterative_linear_solver_type)
      assert(FPLError == 0)
      call this%set_type_from_string (iterative_linear_solver_type)
    end subroutine iterative_linear_solver_set_type_from_pl

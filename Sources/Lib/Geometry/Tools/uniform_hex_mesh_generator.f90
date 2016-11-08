@@ -96,17 +96,20 @@ contains
     integer(ip), allocatable :: array_size(:)
     
     ! Mandatory
-    is_present = parameter_list%isPresent(key = number_of_dimensions_key ); assert(is_present)
-    istat      = parameter_list%get(key = number_of_dimensions_key, value = this%number_of_dimensions); check(istat==0)
+    assert(parameter_list%isAssignable(number_of_dimensions_key, this%number_of_dimensions))
+    istat = parameter_list%get(key = number_of_dimensions_key, value = this%number_of_dimensions)
+    assert(istat==0)
 
     ! Optional
-    if( parameter_list%isPresent(key = number_of_levels_key) ) then
-       istat = parameter_list%get(key = number_of_levels_key , value = this%number_of_levels); check(istat==0)
+    if( parameter_list%isPresent(number_of_levels_key) ) then
+       assert(parameter_list%isAssignable(number_of_levels_key, this%number_of_levels))
+       istat = parameter_list%get(key = number_of_levels_key , value = this%number_of_levels)
+       assert(istat==0)
     else
        this%number_of_levels = 1
     end if
 
-    ! Mandartory (array)
+    ! Mandatory (array)
     is_present =  parameter_list%isPresent(key = number_of_cells_per_dir_key ); assert(is_present)
     istat = parameter_list%GetShape(key = number_of_cells_per_dir_key, shape = array_size); check(istat==0)
     assert(array_size(1) >= SPACE_DIM)

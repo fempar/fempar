@@ -99,6 +99,7 @@ module types_names
   character(len=*), parameter :: dir_path_key           = 'dir_path'
   character(len=*), parameter :: prefix_key             = 'prefix'
   character(len=*), parameter :: dir_path_out_key       = 'dir_path_out'
+  integer(ip)  ,    parameter :: str_cla_len                = 512 ! String Command line argument lenght
 
   interface
      subroutine runend

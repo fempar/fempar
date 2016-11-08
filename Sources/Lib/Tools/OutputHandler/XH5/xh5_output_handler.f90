@@ -125,9 +125,6 @@ contains
         class(execution_context_t),      pointer       :: cntxt
         integer(ip)                                    :: mpi_info
         integer(ip)                                    :: mpi_comm
-        logical                                        :: is_present
-        logical                                        :: same_data_type
-        integer(ip), allocatable                       :: shape(:)
         integer(ip)                                    :: FPLError
     !-----------------------------------------------------------------
         fe_space    => this%get_fe_space()
@@ -157,54 +154,24 @@ contains
 
             if(present(parameter_list)) then
                 ! Get StaticGrid value from parameter_list
-                is_present         = parameter_list%isPresent(Key=oh_StaticGrid)
-                if(is_present) then
-#ifdef DEBUG
-                    same_data_type = parameter_list%isOfDataType(Key=oh_StaticGrid, mold=this%StaticGrid)
-                    FPLError       = parameter_list%getshape(Key=oh_StaticGrid, shape=shape)
-                    if(same_data_type .and. size(shape) == 0) then
-#endif
-                        FPLError   = parameter_list%Get(Key=oh_StaticGrid, Value=this%StaticGrid)
-                        assert(FPLError == 0)
-#ifdef DEBUG
-                    else
-                        write(*,'(a)') ' Warning! oh_StaticGrid ignored. Wrong data type or shape. '
-                    endif
-#endif
+                if(parameter_list%isPresent(oh_staticgrid)) then
+                    assert(parameter_list%isAssignable(oh_StaticGrid, this%StaticGrid))
+                    FPLError   = parameter_list%Get(Key=oh_StaticGrid, Value=this%StaticGrid)
+                    assert(FPLError == 0)
                 endif
 
                 ! Get Strategy value from parameter_list
-                is_present         = parameter_list%isPresent(Key=xh5_Strategy)
-                if(is_present) then
-#ifdef DEBUG
-                    same_data_type = parameter_list%isOfDataType(Key=xh5_Strategy, mold=this%Strategy)
-                    FPLError       = parameter_list%getshape(Key=xh5_Strategy, shape=shape)
-                    if(same_data_type .and. size(shape) == 0) then
-#endif
-                        FPLError   = parameter_list%Get(Key=xh5_Strategy, Value=this%Strategy)
-                        assert(FPLError == 0)
-#ifdef DEBUG
-                    else
-                        write(*,'(a)') ' Warning! xh5_Strategy ignored. Wrong data type or shape. '
-                    endif
-#endif
+                if(parameter_list%isPresent(xh5_Strategy)) then
+                    assert(parameter_list%isAssignable(xh5_Strategy, this%Strategy))
+                    FPLError   = parameter_list%Get(Key=xh5_Strategy, Value=this%Strategy)
+                    assert(FPLError == 0)
                 endif
 
                 ! Get Info value from parameter_list
-                is_present         = parameter_list%isPresent(Key=xh5_Info)
-                if(is_present) then
-#ifdef DEBUG
-                    same_data_type = parameter_list%isOfDataType(Key=xh5_Info, mold=mpi_info)
-                    FPLError       = parameter_list%getshape(Key=xh5_Info, shape=shape)
-                    if(same_data_type .and. size(shape) == 0) then
-#endif
-                        FPLError   = parameter_list%Get(Key=xh5_Info, Value=mpi_info)
-                        assert(FPLError == 0)
-#ifdef DEBUG
-                    else
-                        write(*,'(a)') ' Warning! xh5_Info ignored. Wrong data type or shape. '
-                    endif
-#endif
+                if(parameter_list%isPresent(xh5_Info)) then
+                    assert(parameter_list%isAssignable(xh5_info, mpi_info))
+                    FPLError   = parameter_list%Get(Key=xh5_Info, Value=mpi_info)
+                    assert(FPLError == 0)
                 endif
             endif
 
@@ -416,6 +383,8 @@ contains
                                              Center = XDMF_ATTRIBUTE_CENTER_CELL ,  &
                                              Values = Value)
             enddo
+
+            call this%xh5%Serialize()
         endif
     end subroutine xh5_output_handler_write
 

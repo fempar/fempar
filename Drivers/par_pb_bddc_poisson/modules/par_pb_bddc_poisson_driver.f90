@@ -401,7 +401,7 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
     type(output_handler_t)                             :: oh
-    type(parameterlist_T)                               :: parameter_list
+    type(parameterlist_t)                              :: parameter_list
     type(fe_iterator_t)                                :: fe_iterator
     class(base_static_triangulation_t), pointer        :: triangulation
     type(fe_accessor_t)                                :: fe

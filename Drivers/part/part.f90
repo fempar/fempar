@@ -46,7 +46,6 @@ contains
     class(partitioner_input_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip)                    :: error
-    character(len=:), allocatable  :: tmp
 
     list        => this%get_parameters()
     switches    => this%get_switches()
@@ -54,9 +53,9 @@ contains
     helpers     => this%get_helpers()
     required    => this%get_required()
 
-    tmp = '.'     ; error = list%set(key = dir_path_key            , value = tmp) ; check(error==0)
-    tmp = 'square'; error = list%set(key = prefix_key              , value = tmp) ; check(error==0)
-    tmp = '.'     ; error = list%set(key = dir_path_out_key        , value = tmp) ; check(error==0)
+    error = list%set(key = dir_path_key            , value = '.') ; check(error==0)
+    error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
+    error = list%set(key = dir_path_out_key        , value = '.') ; check(error==0)
     error = list%set(key = num_parts_key           , value =  16)              ; check(error==0)
     error = list%set(key = num_levels_key          , value =  1)               ; check(error==0)
     error = list%set(key = num_parts_per_level_key , value =  [16,4,1,0,0])    ; check(error==0)

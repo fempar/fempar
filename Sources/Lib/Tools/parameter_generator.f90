@@ -170,10 +170,10 @@ contains
   subroutine parameter_generator_add_to_cli(this)
     implicit none
     class(parameter_generator_t) , intent(inout) :: this
-    integer(ip)        :: error
-    character(len=512) :: switch, switch_ab, help ! , cvalue
-    logical            :: required
-    integer(ip)        :: ivalue
+    integer(ip)                   :: error
+    character(len=:), allocatable :: switch, switch_ab, help ! , cvalue
+    logical                       :: required
+    integer(ip)                   :: ivalue
     character(len=:), allocatable :: key, cvalue !, switch, switch_ab, help
     type(ParameterListIterator_t) :: Iterator
 
@@ -181,11 +181,11 @@ contains
     Iterator = this%switches%GetIterator()
     do while (.not. Iterator%HasFinished())
        key = Iterator%GetKey()
-       error = error + Iterator%Get(switch)
-       error = error + this%switches_ab%get  (key = key , value = switch_ab)
-       error = error + this%helpers%get      (key = key , value = help)
-       error = error + this%required%get     (key = key , value = required)
-       error = error + this%list%GetAsString (key = key , string = cvalue, separator=" ")
+       error = error + Iterator%GetAsString (switch)
+       error = error + this%switches_ab%GetAsString (key = key , String = switch_ab)
+       error = error + this%helpers%GetAsString     (key = key , String = help)
+       error = error + this%required%Get            (key = key , value = required)
+       error = error + this%list%GetAsString        (key = key , string = cvalue, separator=" ")
 
        if(this%list%GetDimensions(Key=Iterator%GetKey()) == 0) then 
           call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
@@ -207,9 +207,9 @@ contains
   subroutine parameter_generator_parse(this)
     implicit none
     class(parameter_generator_t), intent(inout) :: this
-    integer(ip)    :: istat, error
-    character(512) :: switch ! , cvalue
-    integer(ip)    :: ivalue
+    integer(ip)                :: istat, error
+    character(len=str_cla_len) :: switch ! , cvalue
+    integer(ip)                :: ivalue
 
     character(len=:), allocatable :: key
     type(ParameterListIterator_t) :: Iterator

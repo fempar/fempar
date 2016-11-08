@@ -128,9 +128,6 @@ contains
         character(len=*),                intent(in)    :: dir_path
         character(len=*),                intent(in)    :: prefix
         type(ParameterList_t), optional, intent(in)    :: parameter_list
-        logical                                        :: is_present
-        logical                                        :: same_data_type
-        integer(ip), allocatable                       :: shape(:)
         integer(ip)                                    :: FPLError
         integer(ip)                                    :: vtk_format_size_in_bytes
     !-----------------------------------------------------------------
@@ -142,42 +139,17 @@ contains
         this%StaticGrid = vtk_default_staticgrid
 
         if(present(parameter_list)) then
-            ! Get StaticGrid value from parameter_list
-            is_present         = parameter_list%isPresent(Key=vtk_format)
-            if(is_present) then
-#ifdef DEBUG
-                same_data_type = parameter_list%isOfDataType(Key=vtk_format, mold=this%vtk_format)
-                FPLError       = parameter_list%getshape(Key=vtk_format, shape=shape)
-                if(same_data_type .and. size(shape) == 0) then
-#endif
-                    if(allocated(this%vtk_format)) deallocate(this%vtk_format)
-                    vtk_format_size_in_bytes = parameter_list%DataSizeInBytes(Key=vtk_format)
-                    allocate(character(len=vtk_format_size_in_bytes)::this%vtk_format)
-                    FPLError   = parameter_list%Get(Key=vtk_format, Value=this%vtk_format)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! vtk_format ignored. Wrong data type or shape. '
-                endif
-#endif
+            if(parameter_list%isPresent(vtk_format)) then
+                assert(parameter_list%isAssignable(vtk_format, this%vtk_format))
+                FPLError   = parameter_list%GetAsString(Key=vtk_format, String=this%vtk_format)
+                assert(FPLError == 0)
             endif
 
-            is_present         = parameter_list%isPresent(Key=oh_staticgrid)
-            if(is_present) then
-#ifdef DEBUG
-                same_data_type = parameter_list%isOfDataType(Key=oh_staticgrid, mold=this%StaticGrid)
-                FPLError       = parameter_list%getshape(Key=oh_staticgrid, shape=shape)
-                if(same_data_type .and. size(shape) == 0) then
-#endif
-                    FPLError   = parameter_list%Get(Key=oh_staticgrid, Value=this%StaticGrid)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! oh_staticgrid ignored. Wrong data type or shape. '
-                endif
-#endif
+            if(parameter_list%isPresent(oh_staticgrid)) then
+                assert(parameter_list%isAssignable(oh_staticgrid, this%StaticGrid))
+                FPLError   = parameter_list%Get(Key=oh_staticgrid, Value=this%StaticGrid)
+                assert(FPLError == 0)
             endif
-
         endif
 
     end subroutine vtk_output_handler_open_body

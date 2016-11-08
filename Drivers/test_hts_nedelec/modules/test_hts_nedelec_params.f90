@@ -47,12 +47,7 @@ module hts_nedelec_params_names
     character(len=*), parameter :: absolute_nonlinear_tolerance_key    = 'absolute_nonlinear_tolerance' 
     character(len=*), parameter :: relative_nonlinear_tolerance_key    = 'relative_nonlinear_tolerance' 
     character(len=*), parameter :: max_nonlinear_iterations_key        = 'max_nonlinear_iterations' 
-    
-    ! PARAMETER VALUES 
-   ! integer(ip) , parameter :: abs_res_norm     = 0
-   ! integer(ip) , parameter :: rel_rhs_res_norm = 1
-   ! integer(ip) , parameter :: rel_r0_res_norm  = 2
-    
+       
   type, extends(parameter_generator_t) :: hts_nedelec_params_t
      private
      contains
@@ -94,7 +89,7 @@ module hts_nedelec_params_names
     end type hts_nedelec_params_t
 
   ! Types
-  public :: hts_nedelec_params_t !, rel_rhs_res_norm, abs_res_norm, rel_r0_res_norm 
+  public :: hts_nedelec_params_t 
 
 contains
 
