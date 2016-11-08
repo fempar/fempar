@@ -107,8 +107,8 @@ program test_triangulations
   type(test_triangulations_params_t) :: test_params
 
   ! Arguments
-  character(len=256)       :: dir_path, dir_path_out
-  character(len=256)       :: prefix, filename
+  character(len=str_cla_len)       :: dir_path, dir_path_out
+  character(len=str_cla_len)       :: prefix, filename
 
   integer(ip) :: lunio, istat, order
 

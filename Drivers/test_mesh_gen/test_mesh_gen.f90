@@ -153,39 +153,39 @@ contains
   subroutine test_mesh_gen_input_add_to_cli(this)
     implicit none
     class(test_mesh_gen_input_t) , intent(inout) :: this
-    integer(ip)        :: error
-    character(len=512) :: switch, switch_ab, help, cvalue
-    logical            :: required
-    integer(ip)        :: ivalue
+    integer(ip)                   :: error
+    character(len=:), allocatable :: switch, switch_ab, help, cvalue
+    logical                       :: required
+    integer(ip)                   :: ivalue
 
     ! IO parameters
     error = 0
-    error = error + this%list%get       (key = dir_path_key , value = cvalue)
-    error = error + this%switches%get   (key = dir_path_key , value = switch)
-    error = error + this%switches_ab%get(key = dir_path_key , value = switch_ab)
-    error = error + this%helpers%get    (key = dir_path_key , value = help)
-    error = error + this%required%get   (key = dir_path_key , value = required)
+    error = error + this%list%GetAsString       (key = dir_path_key , String = cvalue)
+    error = error + this%switches%GetAsString   (key = dir_path_key , String = switch)
+    error = error + this%switches_ab%GetAsString(key = dir_path_key , String = switch_ab)
+    error = error + this%helpers%GetAsString    (key = dir_path_key , String = help)
+    error = error + this%required%Get           (key = dir_path_key , value  = required)
     call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
          &            required=required,act='store',def=trim(cvalue),error=error)
     check(error==0)
 
     error = 0
-    error = error + this%list%get       (key = prefix_key , value = cvalue)
-    error = error + this%switches%get   (key = prefix_key , value = switch)
-    error = error + this%switches_ab%get(key = prefix_key , value = switch_ab)
-    error = error + this%helpers%get    (key = prefix_key , value = help)
-    error = error + this%required%get   (key = prefix_key , value = required)
+    error = error + this%list%GetAsString       (key = prefix_key , String = cvalue)
+    error = error + this%switches%GetAsString   (key = prefix_key , String = switch)
+    error = error + this%switches_ab%GetAsString(key = prefix_key , String = switch_ab)
+    error = error + this%helpers%GetAsString    (key = prefix_key , String = help)
+    error = error + this%required%Get           (key = prefix_key , value  = required)
     check(error==0)
     call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
          &            required=required,act='store',def=trim(cvalue),error=error)
     check(error==0)
 
     error = 0
-    error = error + this%list%get       (key = dir_path_out_key , value = cvalue)
-    error = error + this%switches%get   (key = dir_path_out_key , value = switch)
-    error = error + this%switches_ab%get(key = dir_path_out_key , value = switch_ab)
-    error = error + this%helpers%get    (key = dir_path_out_key , value = help)
-    error = error + this%required%get   (key = dir_path_out_key , value = required)
+    error = error + this%list%GetAsString       (key = dir_path_out_key , String = cvalue)
+    error = error + this%switches%GetAsString   (key = dir_path_out_key , String = switch)
+    error = error + this%switches_ab%GetAsString(key = dir_path_out_key , String = switch_ab)
+    error = error + this%helpers%GetAsString    (key = dir_path_out_key , String = help)
+    error = error + this%required%Get           (key = dir_path_out_key , value  = required)
     check(error==0)
     call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
          &            required=required,act='store',def=trim(cvalue),error=error)
@@ -196,9 +196,9 @@ contains
   subroutine test_mesh_gen_input_parse(this)
     implicit none
     class(test_mesh_gen_input_t), intent(inout) :: this
-    integer(ip)    :: istat
-    character(512) :: switch, cvalue
-    integer(ip)    :: ivalue
+    integer(ip)                :: istat
+    character(len=str_cla_len) :: switch, cvalue
+    integer(ip)                :: ivalue
 
     call this%cli%parse(error=istat); check(istat==0)
 
