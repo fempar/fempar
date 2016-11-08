@@ -383,6 +383,8 @@ contains
                                              Center = XDMF_ATTRIBUTE_CENTER_CELL ,  &
                                              Values = Value)
             enddo
+
+            call this%xh5%Serialize()
         endif
     end subroutine xh5_output_handler_write
 
