@@ -124,7 +124,11 @@ contains
           quad_coords => fe_map%get_quadrature_coordinates()
           
           ! Get subset_id
-          viscosity = fe%get_set_id()
+          if ( fe%get_set_id() == 1 ) then
+             viscosity = 1.0_rp
+          else 
+             viscosity = fe%get_set_id()
+          end if
           
           !if (viscosity == 0.0_rp) viscosity = 1.0_rp
           
