@@ -16,6 +16,7 @@ module par_pb_bddc_poisson_params_names
      contains
        procedure                              :: set_default  => par_pb_bddc_poisson_params_set_default
        procedure, non_overridable             :: get_dir_path
+       procedure, non_overridable             :: get_dir_path_out
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
@@ -144,7 +145,20 @@ contains
     assert(list%isAssignable(dir_path_key, get_dir_path))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
-  end function get_dir_path
+  end function get_dir_path 
+  
+  ! GETTERS *****************************************************************************************
+  function get_dir_path_out(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    character(len=:),      allocatable            :: get_dir_path_out
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_parameters()
+    assert(list%isAssignable(dir_path_out_key, get_dir_path_out))
+    error = list%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
+    assert(error==0)
+  end function get_dir_path_out
 
   !==================================================================================================
   function get_prefix(this)

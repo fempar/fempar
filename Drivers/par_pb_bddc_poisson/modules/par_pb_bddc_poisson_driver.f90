@@ -118,7 +118,7 @@ contains
        end do
     end if
     
-    call this%setup_cell_set_ids()
+    call this%setup_cell_set_ids() 
     call this%triangulation%setup_coarse_triangulation()
     write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
     !call this%setup_cell_set_ids()
@@ -170,9 +170,9 @@ contains
     integer(ip)  , intent(in)  :: inclusion
     type(point_t) :: origin, opposite
     integer(ip) :: cell_set_id
-    integer(ip) :: i,j, nchannel
+    integer(ip) :: i,j,k, nchannel
     real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
-    real(rp) :: p1(6), p2(6)
+    real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
     cell_set_id = 1
     ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
     if ( inclusion == 1 ) then
@@ -202,9 +202,46 @@ contains
        p1 = [2.0_rp/36.0_rp, 7.0_rp/36.0_rp, 14.0_rp/36.0_rp, 19.0_rp/36.0_rp, 26.0_rp/36.0_rp, 30.0_rp/36.0_rp] ! lower y value
        p2 = [4.0_rp/36.0_rp, 9.0_rp/36.0_rp, 16.0_rp/36.0_rp, 21.0_rp/36.0_rp, 28.0_rp/36.0_rp, 32.0_rp/36.0_rp] ! upper y value
        do i = 1, 6
-          call origin%set(1,0.0_rp)  ; call origin%set(2, p1(i)) ; call origin%set(3,p1(i));
-          call opposite%set(1,1.0_rp); call opposite%set(2,p2(i)); call opposite%set(3,p2(i));
+          call origin%set(1,0.0_rp)  ; call origin%set(2, p1(i)) ; call origin%set(3,p1(7-i));
+          call opposite%set(1,1.0_rp); call opposite%set(2,p2(i)); call opposite%set(3,p2(7-i));
           if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
+       end do
+       do i = 7, 12  
+          call origin%set(2,0.0_rp)  ; call origin%set(1, p1(i-6)) ; call origin%set(3,p1(i-6));
+          call opposite%set(2,1.0_rp); call opposite%set(1,p2(i-6)); call opposite%set(3,p2(i-6));
+          if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
+       end do    
+    else if ( inclusion == 4 ) then
+       ! Hieu's test in PB-BDDC article (two channels)
+       p1_b = [4.0_rp/32.0_rp, 12.0_rp/32.0_rp, 20.0_rp/32.0_rp, 28.0_rp/32.0_rp] ! lower y value
+       p2_b = [6.0_rp/32.0_rp, 14.0_rp/32.0_rp, 22.0_rp/32.0_rp, 30.0_rp/32.0_rp] ! upper y value
+       nchannel = jump
+       ! x edges
+       do j = 1, 4
+          do k = 1,4
+             call origin%set(1,0.0_rp)  ; call origin%set(2, p1_b(j)) ; call origin%set(3,p1_b(k));
+             call opposite%set(1,1.0_rp); call opposite%set(2,p2_b(j)); call opposite%set(3,p2_b(k));
+             nchannel = nchannel + 1
+             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+          end do
+       end do
+       ! y edges
+       do j = 1, 4
+          do k = 1,4
+             call origin%set(2,0.0_rp)  ; call origin%set(1, p1_b(j)) ; call origin%set(3,p1_b(k));
+             call opposite%set(2,1.0_rp); call opposite%set(1,p2_b(j)); call opposite%set(3,p2_b(k));
+             nchannel = nchannel + 1
+             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+          end do
+       end do       
+       ! z edges
+       do j = 1, 4
+          do k = 1,4
+             call origin%set(3,0.0_rp)  ; call origin%set(2, p1_b(j)) ; call origin%set(1,p1_b(k));
+             call opposite%set(3,1.0_rp); call opposite%set(2,p2_b(j)); call opposite%set(1,p2_b(k));
+             nchannel = nchannel + 1
+             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+          end do
        end do
     end if
        
@@ -416,7 +453,7 @@ contains
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
           call parameter_list%init()
           istat = parameter_list%set(key=vtk_format, value='ascii');
-          call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix(), parameter_list=parameter_list)
+          call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix(), parameter_list=parameter_list)
           call oh%write()
           call oh%close()
           call oh%free()
