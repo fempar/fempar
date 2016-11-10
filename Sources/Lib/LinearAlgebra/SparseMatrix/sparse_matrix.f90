@@ -137,7 +137,7 @@ private
         procedure, non_overridable, public :: get_entry                        => sparse_matrix_get_entry
     end type sparse_matrix_t
 
-    class(base_sparse_matrix_t), allocatable :: sparse_matrix_prototype
+    class(base_sparse_matrix_t), allocatable, save :: sparse_matrix_prototype
 
     type, extends(matrix_iterator_t) :: sparse_matrix_iterator_t
        private

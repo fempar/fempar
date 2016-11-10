@@ -50,7 +50,7 @@ private
         procedure, non_overridable, public :: Free          => direct_solver_creational_methods_dictionary_Free
     end type
 
-    type(direct_solver_creational_methods_dictionary_t) :: The_direct_solver_creational_methods_dictionary
+    type(direct_solver_creational_methods_dictionary_t), save :: The_direct_solver_creational_methods_dictionary
 
 public :: The_direct_solver_creational_methods_dictionary
 

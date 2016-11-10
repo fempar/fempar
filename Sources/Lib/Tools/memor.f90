@@ -115,7 +115,7 @@ use types_names
 #define status_hash_table  status_hash_table_mem
 #include "hash_table_header.i90"
 
-  type(hash_table_mem) :: mem_db
+  type(hash_table_mem), save :: mem_db
 #endif
 
   public :: fempar_memmax, fempar_memcur, meminit, memstatus,  &

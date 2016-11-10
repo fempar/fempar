@@ -229,9 +229,9 @@ module metis_interface_names
 #ifdef ENABLE_METIS
 #ifndef METIS_LONG_INTEGERS
 
-  integer(c_int),target :: options(0:METIS_NOPTIONS-1)
-  integer(c_int),target :: ncon 
-  integer(c_int) :: ierr
+  integer(c_int),target, save :: options(0:METIS_NOPTIONS-1)
+  integer(c_int),target, save :: ncon 
+  integer(c_int),        save :: ierr
 
   interface
      function metis_nodend(nvtxs,xadj,adjncy,vwgt,options,perm,iperm) & 
