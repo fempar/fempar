@@ -353,6 +353,7 @@ contains
     class(environment_t), intent(inout) :: this
     integer                             :: my_color
     integer(ip)                         :: istat
+    type(environment_t), pointer        :: next_level
 
     assert ( this%num_levels >= 1 )
     assert ( allocated(this%world_context))
@@ -377,8 +378,9 @@ contains
     end if
 
     if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
-       allocate(this%next_level, stat=istat);check(istat == 0)
-       allocate(this%next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
+       allocate(next_level, stat=istat);check(istat == 0)
+       allocate(next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
+       this%next_level => next_level
        this%next_level%world_context = this%lgt1_context
        call this%next_level%assign_parts_to_tasks(this%num_levels-1, this%num_parts_per_level(2:),this%parts_mapping(2:))
        call this%next_level%fill_contexts()
