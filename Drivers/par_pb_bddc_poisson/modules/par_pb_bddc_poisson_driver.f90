@@ -49,8 +49,8 @@ module par_pb_bddc_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     !type(H1_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
-     type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     type(H1_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     !type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -123,10 +123,10 @@ contains
        end do
     end if
 
-    call this%setup_cell_set_ids() 
+    !call this%setup_cell_set_ids() 
     call this%triangulation%setup_coarse_triangulation()
     write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
-    !call this%setup_cell_set_ids()
+    call this%setup_cell_set_ids()
 
   end subroutine setup_triangulation
 
@@ -141,6 +141,9 @@ contains
     type(point_t), allocatable :: cell_coords(:)
     type(point_t) :: grav_center
     integer(ip)   :: inode  
+
+    this%poisson_integration%diffusion_inclusion = this%test_params%get_jump()    
+    !this%l1_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
 
     if ( this%environment%am_i_l1_task() ) then
        call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
@@ -179,6 +182,7 @@ contains
     real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
     real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
     cell_set_id = 1
+        
     ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
     if ( inclusion == 1 ) then
        call origin%set(1,0.0_rp)  ; call origin%set(2, 0.25_rp) ; call origin%set(3,0.25_rp);
@@ -220,7 +224,7 @@ contains
        ! Hieu's test in PB-BDDC article (two channels)
        p1_b = [4.0_rp/32.0_rp, 12.0_rp/32.0_rp, 20.0_rp/32.0_rp, 28.0_rp/32.0_rp] ! lower y value
        p2_b = [6.0_rp/32.0_rp, 14.0_rp/32.0_rp, 22.0_rp/32.0_rp, 30.0_rp/32.0_rp] ! upper y value
-       nchannel = jump
+       nchannel = 1
        ! x edges
        do j = 1, 4
           do k = 1,4
@@ -457,13 +461,13 @@ contains
           call oh%add_fe_function(this%solution, 1, 'solution')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
           call parameter_list%init()
-          istat = parameter_list%set(key=vtk_format, value='ascii');
-          call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix(), parameter_list=parameter_list)
+          !istat = parameter_list%set(key=vtk_format, value='ascii');
+          call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())!, parameter_list=parameter_list)
           call oh%write()
           call oh%close()
           call oh%free()
           call free_set_id_cell_vector()
-          call parameter_list%free()
+          !call parameter_list%free()
        end if
     end if
   contains
@@ -509,7 +513,7 @@ contains
     call t_solve_system%stop()
     call t_solve_system%report()
     
-    call this%check_solution()
+    !call this%check_solution()
     call this%write_solution()
     call this%free()
   end subroutine run_simulation
