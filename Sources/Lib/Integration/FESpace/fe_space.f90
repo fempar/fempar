@@ -99,7 +99,7 @@ module fe_space_names
     ! Pointer to data structure which is in charge of coarse DoF handling.
     ! It will be a nullified pointer on L1 tasks, and associated via target 
     ! allocation in the case of L2-Ln tasks.
-    type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
+    type(coarse_fe_space_t)       , pointer :: coarse_fe_space => NULL()
   contains 
     procedure, non_overridable                 :: get_number_fields                               => base_fe_space_get_number_fields
     procedure, non_overridable                 :: get_fe_space_type                               => base_fe_space_get_fe_space_type
@@ -477,7 +477,6 @@ module fe_space_names
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
-   procedure                         , private :: renumber_dofs_block                             => par_fe_space_renumber_dofs_block
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
    procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
