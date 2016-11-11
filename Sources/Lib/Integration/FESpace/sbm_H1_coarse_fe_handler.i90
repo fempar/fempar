@@ -299,4 +299,8 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator
      end do
      call object_iterator%next()
   end do
+  call memfree( is_subpart_local, __FILE__ , __LINE__ )
+  call memfree( touch_subpart, __FILE__ , __LINE__ )
+  call memfree( subpart_viscosity, __FILE__ , __LINE__ )
+  
 end subroutine H1_l1_setup_weighting_operator

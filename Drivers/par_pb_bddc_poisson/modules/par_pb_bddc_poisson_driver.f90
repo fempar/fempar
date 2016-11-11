@@ -49,7 +49,7 @@ module par_pb_bddc_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(H1_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     type(H1_l1_coarse_fe_handler_t)           :: l1_coarse_fe_handler
      !type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
@@ -123,10 +123,10 @@ contains
        end do
     end if
 
-    !call this%setup_cell_set_ids() 
+    call this%setup_cell_set_ids() 
     call this%triangulation%setup_coarse_triangulation()
     write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
-    call this%setup_cell_set_ids()
+    !call this%setup_cell_set_ids()
 
   end subroutine setup_triangulation
 
@@ -307,6 +307,7 @@ contains
          coarse_fe_handler   = this%l1_coarse_fe_handler)
 
     call this%fe_space%fill_dof_info() 
+    call this%fe_space%setup_coarse_fe_space()
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration()
 

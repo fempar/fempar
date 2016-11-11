@@ -178,13 +178,11 @@ subroutine par_fe_space_fill_dof_info( this )
      call this%compute_blocks_dof_import()
      ! Step required by the MLBDDC preconditioner
      call this%renumber_dofs_first_interior_then_interface()
-     call this%setup_coarse_dofs()
   else
      ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
      ! requires that this%blocks_dof_import is allocated 
      allocate ( this%blocks_dof_import(this%number_blocks) )
   end if
-  call this%setup_coarse_fe_space()
 end subroutine par_fe_space_fill_dof_info
 
 subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
@@ -1108,6 +1106,10 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
   
   
   par_environment => this%get_par_environment()
+  
+  if ( par_environment%am_i_l1_task() ) then
+    call this%setup_coarse_dofs()
+  end if  
   
    ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
    ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot

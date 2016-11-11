@@ -489,9 +489,9 @@ module fe_space_names
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
    procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    
-   procedure       , non_overridable           :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
+   procedure       , non_overridable, private  :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
    procedure       , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
-   procedure       , non_overridable, private  :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
+   procedure       , non_overridable           :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
    procedure       , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
    procedure       , non_overridable, private  :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
    procedure       , non_overridable, private  :: gather_ptr_dofs_per_fe_and_field                => par_fe_space_gather_ptr_dofs_per_fe_and_field
