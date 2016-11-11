@@ -307,7 +307,7 @@ contains
          coarse_fe_handler   = this%l1_coarse_fe_handler)
 
     call this%fe_space%fill_dof_info() 
-    call this%fe_space%setup_coarse_fe_space()
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration()
 
@@ -339,7 +339,7 @@ contains
     integer(ip) :: FPLError
 
     ! Set-up MLBDDC preconditioner
-    call this%mlbddc%create(this%fe_affine_operator)
+    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
 

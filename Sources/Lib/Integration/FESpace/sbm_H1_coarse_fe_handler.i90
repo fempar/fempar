@@ -25,10 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix) 
+subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
   class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
   type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object_iterator
@@ -187,10 +188,11 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix)
   !call constraint_matrix%print(6)
 end subroutine H1_l1_setup_constraint_matrix
 
-subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator) 
+subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
   implicit none
   class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   integer(ip) :: field_id
   type(fe_object_iterator_t) :: object_iterator
