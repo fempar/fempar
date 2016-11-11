@@ -557,6 +557,7 @@ module fe_space_names
   
   type, extends(standard_l1_coarse_fe_handler_t) :: H1_l1_coarse_fe_handler_t
     private
+    real(rp), public :: diffusion_inclusion
   contains
 	   procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix
 	   procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator

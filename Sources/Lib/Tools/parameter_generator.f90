@@ -165,6 +165,7 @@ contains
     call this%switches_ab%free()
     call this%helpers%free()
     call this%required%free()
+    call this%helpers%free()
     call this%cli%free()
    end subroutine parameter_generator_free
   !==================================================================================================
