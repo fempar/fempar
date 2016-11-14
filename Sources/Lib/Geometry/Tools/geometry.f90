@@ -377,11 +377,11 @@ contains
      integer(ip)                    :: lunio
 
      ! Mandatory parameters
-     assert(parameter_list%isAssignable(dir_path_key, dir_path))
+     assert(parameter_list%isAssignable(dir_path_key, 'string'))
      istat = parameter_list%getAsString(key = dir_path_key, string = dir_path)
      assert(istat == 0)
      
-     assert(parameter_list%isAssignable(prefix_key, prefix))
+     assert(parameter_list%isAssignable(prefix_key, 'string'))
      istat = parameter_list%getAsString(key = prefix_key  , string = prefix)
      assert(istat==0)
      

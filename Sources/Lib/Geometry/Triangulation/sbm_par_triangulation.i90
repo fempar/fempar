@@ -70,11 +70,11 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   integer(ip)                     :: istat
 
     ! Mandatory parameters
-    assert(parameters%isAssignable(dir_path_key, dir_path))
+    assert(parameters%isAssignable(dir_path_key, 'string'))
     istat = parameters%GetAsString(key = dir_path_key, string = dir_path)
     assert(istat==0)
 
-    assert(parameters%isAssignable(prefix_key, prefix))
+    assert(parameters%isAssignable(prefix_key, 'string'))
     istat = parameters%GetAsString(key = prefix_key, string = prefix)
     assert(istat==0)
 
