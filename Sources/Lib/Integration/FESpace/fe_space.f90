@@ -532,7 +532,6 @@ module fe_space_names
     ! interface
     subroutine l1_get_num_coarse_dofs_interface(this, par_fe_space, parameter_list, num_coarse_dofs) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, ip
-      implicit none
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       type(par_fe_space_t)         , intent(in)    :: par_fe_space 
       type(parameterlist_t)        , intent(in)    :: parameter_list
@@ -541,7 +540,6 @@ module fe_space_names
    
     subroutine l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, coo_sparse_matrix_t
-	     implicit none
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       type(par_fe_space_t)         , intent(in)    :: par_fe_space
       type(parameterlist_t)        , intent(in)    :: parameter_list
@@ -550,7 +548,6 @@ module fe_space_names
   
     subroutine l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
 	     import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, operator_t, rp
-      implicit none
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
       type(par_fe_space_t)          , intent(in)    :: par_fe_space
       type(parameterlist_t)         , intent(in)    :: parameter_list
