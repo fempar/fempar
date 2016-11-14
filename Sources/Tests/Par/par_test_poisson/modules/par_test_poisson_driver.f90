@@ -96,7 +96,6 @@ contains
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
-    !call this%test_params%parse(this%parameter_list)
     this%parameter_list => this%test_params%get_parameters()
   end subroutine parse_command_line_parameters
    

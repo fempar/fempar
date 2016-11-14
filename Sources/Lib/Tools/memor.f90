@@ -49,6 +49,8 @@ module mem_base_names
 use types_names
   use hash_table_names ! Only used ifdef memcheck but this avoids passing 
                        ! the definition to configure
+ use, intrinsic :: iso_fortran_env, only: ERROR_UNIT
+ 
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -69,18 +71,21 @@ use types_names
   end interface
 #endif
 
-  integer(ip) , save ::    &
-       lumem = 0,          &  ! Logical unit to write memory evolution
-       luerr = 0,          &  ! Logical unit to write errors
+  integer(ip), parameter :: luout=ERROR_UNIT ! unit t
+  
+  integer(ip), save ::           &
        meall = 0,          &  ! Number of memory allocations
        medea = 0              ! Number of memory deallocations
+  !$OMP THREADPRIVATE(meall,medea)
 
-  integer(imp), save ::    &
+  integer(imp), save ::          &
        memax = 0,          &  ! Maximum memory allocation in bytes
        mecur = 0              ! Current memory allocation in bytes
+  !$OMP THREADPRIVATE(memax,mecur)
 
   real(rp), save :: nan       ! An undefined value, initialized to nan 
                               ! if exception macro is defined
+  !$OMP THREADPRIVATE(nan)
 
   !***********************************************************************
   ! Specific purpose hash table specification (only if memcheck is defined)
@@ -115,7 +120,8 @@ use types_names
 #define status_hash_table  status_hash_table_mem
 #include "hash_table_header.i90"
 
-  type(hash_table_mem) :: mem_db
+  type(hash_table_mem), save :: mem_db
+  !$OMP THREADPRIVATE(mem_db)
 #endif
 
   public :: fempar_memmax, fempar_memcur, meminit, memstatus,  &
@@ -139,11 +145,11 @@ contains
     implicit none
     integer(imp), intent(in)    :: lbyts
 
-!$OMP CRITICAL (memor_lock)
+!!$OMP CRITICAL (memor_lock)
     mecur = mecur+lbyts
     memax = max(memax,mecur)
     meall = meall+1
-!$OMP END CRITICAL (memor_lock)
+!!$OMP END CRITICAL (memor_lock)
 
   end subroutine memsum
 
@@ -152,10 +158,10 @@ contains
     implicit none
     integer(imp), intent(in)    :: lbyts
 
-!$OMP CRITICAL (memor_lock)
+!!$OMP CRITICAL (memor_lock)
     mecur = mecur-lbyts
     medea = medea+1
-!$OMP END CRITICAL (memor_lock)
+!!$OMP END CRITICAL (memor_lock)
 
   end subroutine memsub
 
@@ -168,10 +174,8 @@ contains
     integer(ip)  , intent(in), optional :: line                     ! Calling line
     integer(ip)    :: luout
     character(20)  :: lsize,lstat
-    luout = 6
     lsize = ' unknown'
     lstat = ' unknown'
-    if(luerr > 0) luout = luerr
     if(present(lbyts)) write(lsize,'(i20)') lbyts
     if(present(istat)) write(lstat,'(i20)') istat
     write(luout,'(a)') '[Fempar Fatal Error] ***Memory allocation failed.'
@@ -195,9 +199,7 @@ contains
     integer(ip)  , intent(in), optional :: line                     ! Calling line
     integer(ip)    :: luout
     character(20)  :: lsize,lstat
-    luout = 6
     lstat = ' unknown'
-    if(luerr > 0) luout = luerr
     if(present(istat)) write(lstat,'(i20)') istat
     write(luout,'(a)') '[Fempar Fatal Error] ***Memory deallocation failed.'
     write(luout,'(a)') 'Error code: '// trim(lstat)
@@ -218,8 +220,6 @@ contains
     integer(ip)  , intent(in), optional :: line                     ! Calling line
     integer(ip)    :: luout
     character(20)  :: lsize,lstat
-    luout = 6
-    if(luerr > 0) luout = luerr
     write(luout,'(a)') '[Fempar Fatal Error] ***Attempting to (re)allocate an (un)allocated variable.'
     if(present(file)) then
        if(present(line)) then
@@ -236,6 +236,7 @@ contains
   subroutine fempar_memmax (maxmem)
     implicit none
     integer(imp), intent(out)    :: maxmem
+    !!$OMP ATOMIC READ
     maxmem = memax
   end subroutine fempar_memmax
 
@@ -243,6 +244,7 @@ contains
   subroutine fempar_memcur (curmem)
     implicit none
     integer(imp), intent(out)    :: curmem
+    !!$OMP ATOMIC READ
     curmem = mecur
   end subroutine fempar_memcur
 

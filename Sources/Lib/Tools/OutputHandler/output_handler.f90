@@ -65,7 +65,8 @@ private
                                                                                 output_handler_create_mold
     end type
 
-    class(base_output_handler_t), allocatable  :: output_handler_prototype
+    class(base_output_handler_t),save, allocatable  :: output_handler_prototype
+   !$OMP THREADPRIVATE(output_handler_prototype)
 
 public :: output_handler_t
 public :: output_handler_prototype_reset, output_handler_prototype_free

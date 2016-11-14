@@ -63,7 +63,8 @@ private
         procedure, non_overridable, public :: Free          => creational_methods_dictionary_Free
     end type
 
-    type(iterative_linear_solver_creational_methods_dictionary_t) :: The_iterative_linear_solver_creational_methods_dictionary
+    type(iterative_linear_solver_creational_methods_dictionary_t), save :: The_iterative_linear_solver_creational_methods_dictionary
+   !$OMP THREADPRIVATE(The_iterative_linear_solver_creational_methods_dictionary)
 
 public :: The_iterative_linear_solver_creational_methods_dictionary
 

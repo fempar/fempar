@@ -36,6 +36,7 @@ module environment_names
   ! Parallel modules
   use execution_context_names
   use mpi_context_names
+  use mpi_omp_context_names
   use serial_context_names
   implicit none
 
@@ -48,9 +49,11 @@ module environment_names
 
   integer(ip)     , parameter :: mpi_context    = 0
   integer(ip)     , parameter :: serial_context = 1
+  integer(ip)     , parameter :: mpi_omp_context = 2
   character(len=*), parameter :: execution_context_key  = 'execution_context'
   public :: mpi_context
   public :: serial_context
+  public :: mpi_omp_context
   public :: execution_context_key
 
   integer(ip)     , parameter :: structured   = 0
@@ -241,7 +244,7 @@ contains
     do i=1,nenvs
        rename=name
        call numbered_filename_compose(i,nenvs,rename)
-       lunio = io_open (trim(dir_path) // '/' // trim(rename))
+       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
        call envs(i)%write (lunio)
        call io_close (lunio)
     end do
@@ -276,6 +279,7 @@ contains
 
   !=============================================================================
   subroutine environment_create ( this, parameters)
+    !$ use omp_lib
     implicit none 
     class(environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
@@ -314,6 +318,8 @@ contains
        allocate(serial_context_t :: this%world_context,stat=istat); check(istat==0)
     else if(execution_context==mpi_context) then
        allocate(mpi_context_t :: this%world_context,stat=istat); check(istat==0)
+    else if(execution_context==mpi_omp_context) then
+       allocate(mpi_omp_context_t :: this%world_context,stat=istat); check(istat==0)
     end if
     call this%world_context%create()
 
@@ -328,7 +334,8 @@ contains
 
           call environment_compose_name(prefix, name )  
           call par_filename( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
-          lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+          lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
+          !$ write(*,*) omp_get_thread_num(),lunio 
 
           ! Read parts assignment to tasks and verify that the multilevel environment 
           ! can be executed in current context (long-lasting Alberto's concern). 

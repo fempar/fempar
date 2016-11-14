@@ -390,7 +390,7 @@ contains
      
      ! Read geometry
      call geometry_compose_name ( prefix, name )
-     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' ); check(lunio>0)
      call geometry%read(lunio)
      call io_close(lunio)
    end subroutine geometry_read_from_file

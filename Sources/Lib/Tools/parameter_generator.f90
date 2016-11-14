@@ -68,12 +68,12 @@ contains
     class(parameter_generator_t), intent(inout) :: this
     call this%free()
      ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'part',                                                     &
-         &        version     = '',                                                                 &
-         &        authors     = '',                                                                 &
-         &        license     = '',                                                                 &
-         &        description =  'FEMPAR driver to part a GiD mesh.', &
-         &        examples    = ['part -h  ', 'part -n  ' ])
+    !call this%cli%init(progname    = 'part',                                                     &
+    !     &        version     = '',                                                                 &
+    !     &        authors     = '',                                                                 &
+    !     &        license     = '',                                                                 &
+    !     &        description =  'FEMPAR driver to part a GiD mesh.', &
+    !     &        examples    = ['part -h  ', 'part -n  ' ])
 
     call this%list%init()
     call this%switches%init()
@@ -82,8 +82,8 @@ contains
     call this%required%init()
 
     call this%set_default()
-    call this%add_to_cli()
-    call this%parse()
+    !call this%add_to_cli()
+    !call this%parse()
   end subroutine parameter_generator_create
 
   !==================================================================================================
