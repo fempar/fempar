@@ -144,7 +144,7 @@ contains
        cx = cx/real(cell%get_num_nodes(),rp)
        cy = cy/real(cell%get_num_nodes(),rp)
        ! Select material case
-       if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (20e-3_rp<cy) .and. (cy<28e-3_rp) ) ) then 
+       if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23e-3_rp<cy) .and. (cy<25e-3_rp) ) ) then 
        !if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then 
           cells_set( cell%get_lid() ) = hts  
        else 
@@ -275,13 +275,17 @@ contains
     ! Integration loop 
     type(fe_iterator_t) :: fe_iterator
     type(fe_accessor_t) :: fe
+    type(fe_face_iterator_t) :: fe_face_iterator
+    type(fe_face_accessor_t) :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
+    type(face_map_t)         , pointer     :: face_map 
     type(vector_field_t)                   :: rot_test_vector
     integer(ip)                            :: qpoin, number_qpoints, idof 
     type(i1p_t)              , pointer     :: elem2dof(:)
     type(volume_integrator_t), pointer     :: vol_int_H
+    type(face_integrator_t), pointer       :: face_int_H
     integer(ip)                            :: i, inode, vector_size
     integer(ip)                            :: num_dofs, number_fields 
     integer(ip)              , allocatable :: number_dofs_per_field(:) 
@@ -306,6 +310,8 @@ contains
     call this%constraint_matrix%create ( num_rows=coefficient_matrix%get_num_rows(), num_cols=1 )
     call this%constraint_vector%create_and_allocate( coefficient_matrix%get_num_rows() )
     call this%constraint_vector%init(0.0_rp) 
+
+    ! ================================  2D CASE, integrate over entire HTS section ================
 
     ! Initialize
     fe_iterator = this%fe_space%create_fe_iterator()
@@ -334,7 +340,7 @@ contains
           call fe%get_elem2dof(elem2dof) 
  
           elvec      = 0.0_rp 
-          ! Integrate Jz over the hts subdomain 
+          ! Integrate J over the hts subdomain 
           do qpoin=1, number_qpoints
              factor = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						
              do inode = 1, number_dofs_per_field(1)  
@@ -359,7 +365,59 @@ contains
     ! Sum duplicates, re-order by rows, and leave the matrix in a final state
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 
-
+    
+    
+    ! ================================   3D CASE, integrate over z-normal faces ===================
+    !call fe_space%initialize_fe_face_integration()
+ 
+    !call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
+    
+    !! Search for the first boundary face
+    !fe_face_iterator = fe_space%create_fe_face_iterator()
+    !call fe_face_iterator%current(fe_face)
+    !do while ( .not. fe_face%is_at_boundary() ) 
+    !   call fe_face_iterator%next()
+    !   call fe_face_iterator%current(fe_face)
+    !end do
+    
+    !quad            => fe_face%get_quadrature()
+    !num_quad_points = quad%get_number_quadrature_points()
+    !face_map        => fe_face%get_face_map()
+    !face_int_H      => fe_face%get_face_integrator(1)
+    
+    !do while ( .not. fe_face_iterator%has_finished() )
+    !   facemat = 0.0_rp
+    !   facevec = 0.0_rp
+    !   call fe_face_iterator%current(fe_face)
+    !   if ( fe_face%is_at_boundary() .and. fe_face%get_set_id() == 0 ) then
+    !     call fe_face%update_integration()    
+    !     quad_coords => face_map%get_quadrature_coordinates()
+    !     do qpoint = 1, num_quad_points
+    !        factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+    !        do idof = 1, num_dofs_per_field(1)
+    !          call face_int%get_value(idof,qpoint,1,rot_test_vector)   
+    !          facevec(idof,1) = facevec(idof,1) + factor * rot_test_vector%get(3) 
+    !        end do   
+    !     end do
+    !     call fe_face%get_elem2dof(1, elem2dof)
+    
+          !    ! Add element contribution to matrix and vector 
+          !do i = 1, number_dofs_per_field(1) 
+          !   idof = elem2dof(1)%p(i) 
+	         !   if ( idof > 0 ) then 
+          !      call this%constraint_matrix%insert( idof, 1, facevec(i) )
+          !      call this%constraint_vector%add(idof, facevec(i))
+	         !   end if
+          !end do
+         
+    !   end if
+    !   call fe_face_iterator%next()
+    !end do
+    
+ 
+    
+    ! =============================================================================================
+    
     call memfree ( number_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     deallocate (elem2dof, stat=istat); check(istat==0)
@@ -378,7 +436,8 @@ contains
                                        ideal_iters = this%test_params%get_stepping_parameter(),                       &
                                        fe_affine_operator = this%fe_affine_operator,                                  &
                                        current_dof_values = this%H_current%get_dof_values(),                          &
-                                       apply_constraint = this%test_params%get_apply_current_density_constraint()     )
+                                       apply_constraint = this%test_params%get_apply_current_density_constraint(),    & 
+                                       constraint_vector = this%constraint_vector                                 )
     
     
   end subroutine setup_nonlinear_solver
@@ -422,7 +481,7 @@ contains
     
   temporal: do while ( .not. this%theta_method%finished() ) 
      call this%theta_method%print(6) 
-     
+    
      call this%solve_nonlinear_system()
 
      if (this%nonlinear_solver%converged() ) then  ! Theta method goes forward 
@@ -450,15 +509,17 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     type(constraint_value_t), pointer :: constraint_value_function 
-    real(rp) :: constraint_value 
+    real(rp)                          :: constraint_value 
     
+    ! Get constraint value for the system 
+    if (this%nonlinear_solver%get_apply_current_constraint() ) then 
     constraint_value_function => this%problem_functions%get_constraint_value() 
     call constraint_value_function%get_constraint_value(this%theta_method%get_current_time(), constraint_value)
-
+    call this%nonlinear_solver%initialize(constraint_value) 
+    else 
     call this%nonlinear_solver%initialize() 
-    if (this%nonlinear_solver%get_apply_current_constraint() ) then 
-    call this%nonlinear_solver%compute_constrained_residual( this%constraint_vector, constraint_value ) 
     end if 
+    
     nonlinear: do while ( .not. this%nonlinear_solver%finished() )
     ! 0 - Update initial residual 
     call this%nonlinear_solver%start_new_iteration() 
@@ -466,22 +527,38 @@ contains
     call this%nonlinear_solver%compute_jacobian(this%hts_nedelec_integration)
     ! 2 - Solve tangent system 
     if (this%nonlinear_solver%get_apply_current_constraint() ) then 
-    call this%nonlinear_solver%solve_constrained_tangent_system( this%constraint_matrix, this%constraint_vector, constraint_value ) 
+    call this%nonlinear_solver%solve_constrained_tangent_system( this%constraint_matrix ) 
     else 
     call this%nonlinear_solver%solve_tangent_system() 
     end if 
     ! 3 - Update solution 
-    call this%nonlinear_solver%update_solution(this%H_current) 
+    call this%nonlinear_solver%update_solution() 
     ! 4 - New picard iterate with updated solution 
     call this%assemble_system()  
     ! 5 - Evaluate new residual 
     call this%nonlinear_solver%compute_residual()
-    if ( this%nonlinear_solver%get_apply_current_constraint() ) then 
-    call this%nonlinear_solver%compute_constrained_residual( this%constraint_vector, constraint_value )
-    end if 
     
-    ! 6 - Print current output 
-    call this%nonlinear_solver%print_current_iteration_output( constraint_value ) 
+    !step_length: do while ( this%nonlinear_solver%step_length_get_next_trial() )
+    !   ! 6 - Apply step length technique 
+    !   call this%nonlinear_solver%apply_step_length_technique() 
+    !   ! 6.1 - New picard iterate with updated solution 
+    !   call this%assemble_system()  
+    !   ! 6.2 - Evaluate new residual 
+    !   call this%nonlinear_solver%compute_residual()
+    !   ! 6.3 - Decide to get_next_trial or go back to the previous solution 
+    !   if ( .not. this%nonlinear_solver%step_length_get_next_trial() ) then 
+    !      ! 6.3.1 - Go back to the previous solution 
+    !      call this%nonlinear_solver%back_update_solution()  
+    !      ! 6.3.2 - New picard iterate with updated solution 
+    !      call this%assemble_system()  
+    !      ! 6.3.3 - Evaluate new residual 
+    !      call this%nonlinear_solver%compute_residual()
+    !      exit 
+    !   end if
+    !end do step_length
+
+    ! 7 - Print current output 
+    call this%nonlinear_solver%print_current_iteration_output() 
     end do nonlinear 
     
     call this%nonlinear_solver%print_final_output() 
@@ -507,11 +584,14 @@ contains
     real(rp)                               :: factor 
     type(vector_field_t)                   :: H_value, H_curl 
     ! Hysteresis variables for final computations 
-    real(rp)                               :: Hy_average, xJ_average, hts_area
+    real(rp)                               :: Hy_average, xJ_average
+    real(rp)                               :: hts_volume
     real(rp)                               :: Happ
     real(rp)                               :: hts_domain_length(0:SPACE_DIM-1)
     class(scalar_function_t) , pointer     :: boundary_function_Hy
-
+    type(constraint_value_t) , pointer     :: constraint_value_function 
+    real(rp) :: constraint_value 
+    
     integer(ip) :: istat 
 
     ! Integrate structures needed 
@@ -528,12 +608,13 @@ contains
     ! Loop over elements
     Hy_average  = 0
     xJ_average  = 0
+    hts_volume  = 0.0_rp 
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
        call fe_iterator%current(fe)
 
-       if ( fe%get_set_id() == hts ) then  ! Integrate only in HTS device DOMAIN
-
+       if ( fe%get_set_id() == hts ) then  ! Integrate only in HTS device DOMAIN 
+       
           ! Update FE-integration related data structures
           call fe%update_integration()
           call cell_fe_function_current%update(fe, this%H_current)
@@ -550,20 +631,20 @@ contains
              xJ_average  = xJ_average  + factor*quad_coords(qpoin)%get(1)*H_curl%get(3)   
           end do
 
+           hts_volume = hts_volume + fe%compute_volume()
        end if
        call fe_iterator%next()
     end do
 
-    ! Compute Hy, Happ values and screen print them 
-    hts_domain_length    = this%test_params%get_hts_domain_length() 
-    hts_area             = hts_domain_length(0)*hts_domain_length(1) 
     ! Coordinates of quadrature does influence the constant value Happ(t) 
     boundary_function_Hy => this%problem_functions%get_boundary_function_Hy()
     call boundary_function_Hy%get_value_space_time( aux_quad_coords(1), this%theta_method%get_current_time() , Happ )
-
+    constraint_value_function => this%problem_functions%get_constraint_value() 
+    call constraint_value_function%get_constraint_value(this%theta_method%get_current_time(), constraint_value)
+    
     write(*,*) 'Hysteresis Data -----------------------------------------'
-    write(*,*) 'mu0·(Hy-Happ)', this%test_params%get_air_permeability()*(Hy_average/hts_area-Happ), 'Happ', Happ 
-    write(*,*) 'xJ', xJ_average/hts_area
+    write(*,*) 'mu0·(Hy-Happ)', this%test_params%get_air_permeability()*(Hy_average/hts_volume-Happ), 'Happ', Happ 
+    write(*,*) 'xJ', xJ_average/hts_volume, 'Iapp', constraint_value 
     write(*,*) ' --------------------------------------------------------' 
 
   end subroutine compute_hysteresis_data
@@ -586,15 +667,15 @@ contains
     call H_error_norm%create(this%fe_space,1)
     call p_error_norm%create(this%fe_space,2)
 
-    write(*,*) 'H ERROR NORMS'  
     l2 = H_error_norm%compute(H_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )   
     hcurl = H_error_norm%compute(H_exact_function, this%H_current, hcurl_seminorm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )    
     error_tolerance = 1.0e-04
-
     l2p = p_error_norm%compute(p_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )
-    write(*,'(a20,f20.16)') 'l2_norm(H):', l2;        !check ( l2 < error_tolerance )
-    write(*,'(a20,f20.16)') 'hcurl_norm(H):', hcurl;  !check ( h1 < error_tolerance )
-    write(*,'(a20,f20.16)') 'l2_norm(p):', l2p;       !check ( l2 < error_tolerance )
+    
+    write(*,*) 'H ERROR NORMS **********************' 
+    write(*,'(a20,f20.16)') 'l2_norm(H):', l2;        
+    write(*,'(a20,f20.16)') 'hcurl_norm(H):', hcurl;  
+    write(*,'(a20,f20.16)') 'l2_norm(p):', l2p;       
     
     call H_error_norm%free()
     call p_error_norm%free() 
@@ -609,11 +690,11 @@ contains
        call  this%oh%create() 
        call  this%oh%attach_fe_space(this%fe_space)
        call  this%oh%add_fe_function(this%H_current, 1, 'H')
-       call  this%oh%add_fe_function(this%H_current, 1, 'grad(H)', grad_diff_operator)
-       call  this%oh%add_fe_function(this%H_current, 1, 'div(H)',  div_diff_operator)
        call  this%oh%add_fe_function(this%H_current, 1, 'J',       curl_diff_operator)
        call  this%oh%add_fe_function(this%H_current, 2, 'p')
-       call  this%oh%add_fe_function(this%H_current, 2, 'grad(p)',grad_diff_operator )
+       !call  this%oh%add_fe_function(this%H_current, 1, 'grad(H)', grad_diff_operator)
+       !call  this%oh%add_fe_function(this%H_current, 1, 'div(H)',  div_diff_operator)
+       !call  this%oh%add_fe_function(this%H_current, 2, 'grad(p)',grad_diff_operator )
        call  this%oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
     endif
   end subroutine initialize_output
@@ -639,7 +720,6 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip)                                      :: err
     if(this%test_params%get_write_solution()) then
-    call this%oh%close()
     call this%oh%close()
     call this%oh%free()
     endif
