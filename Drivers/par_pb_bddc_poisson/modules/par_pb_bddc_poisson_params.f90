@@ -61,6 +61,9 @@ contains
     error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
     error = list%set(key = jump_key                          , value =  1)  ; check(error==0)
     error = list%set(key = inclusion_key                     , value =  1)  ; check(error==0)
+    error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
+    error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
+    error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                ; check(error==0)
@@ -77,6 +80,9 @@ contains
     error = switches%set(key = execution_context_key         , value = '--execution_context')       ; check(error==0)
     error = switches%set(key = jump_key                      , value = '--jump')                    ; check(error==0)
     error = switches%set(key = inclusion_key                 , value = '--inclusion')               ; check(error==0)
+    error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
+    error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
+    error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -92,6 +98,9 @@ contains
     error = switches_ab%set(key = execution_context_key      , value = '-exe')      ; check(error==0)
     error = switches_ab%set(key = jump_key                   , value = '-j')        ; check(error==0)
     error = switches_Ab%set(key = inclusion_key              , value = '-i')        ; check(error==0)
+    error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
+    error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
+    error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')               ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                       ; check(error==0)
@@ -105,6 +114,9 @@ contains
     error = helpers%set(key = write_solution_key             , value = 'Write solution in VTK format')                ; check(error==0)
     error = helpers%set(key = jump_key                       , value = 'Jump of physical parameter in the inclusion') ; check(error==0)
     error = helpers%set(key = inclusion_key                  , value = 'Inclusion type')                              ; check(error==0)
+    error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
+    error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
+    error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
 
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -131,6 +143,9 @@ contains
     error = required%set(key = execution_context_key         , value = .false.) ; check(error==0)
     error = required%set(key = jump_key                      , value = .false.) ; check(error==0)
     error = required%set(key = inclusion_key                 , value = .false.) ; check(error==0)
+    error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
+    error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
+    error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
 
   end subroutine par_pb_bddc_poisson_params_set_default
 

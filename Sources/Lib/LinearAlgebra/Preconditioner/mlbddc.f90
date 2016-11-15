@@ -31,6 +31,7 @@ module mlbddc_names
  use types_names
  use list_types_names
  use allocatable_array_names
+ use FPL
  
  ! Integration related modules
  use base_static_triangulation_names
@@ -189,6 +190,12 @@ end type base_mlbddc_t
  
  type, extends(base_mlbddc_t) :: mlbddc_t
    private
+   ! Pointer to parameter_list_t to be re-directed to TBPs of type(coarse_fe_handler_t)
+   ! This pointer is set-up during mlbddc_t%create() and re-used in the rest of stages.
+   ! Therefore, type(parameter_list_t) to which type(mlbddc_t) points to MUST NOT BE
+   ! freed before type(mlbddc_t)
+   type(parameterlist_t)         , pointer :: parameter_list
+   
    ! Pointer to the fe_affine_operator_t this mlbddc_t instance has been created from
    type(fe_affine_operator_t)    , pointer :: fe_affine_operator => NULL()
  contains

@@ -34,6 +34,7 @@ module pb_bddc_poisson_cG_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: poisson_cG_discrete_integration_t
      type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
+     real(rp), public :: diffusion_inclusion
    contains
      procedure :: set_analytical_functions
      procedure :: integrate
@@ -124,10 +125,10 @@ contains
           quad_coords => fe_map%get_quadrature_coordinates()
           
           ! Get subset_id
-          if ( fe%get_set_id() == 1 ) then
+          if ( fe%get_set_id() <= 1 ) then
              viscosity = 1.0_rp
           else 
-             viscosity = fe%get_set_id()
+             viscosity = this%diffusion_inclusion
           end if
           
           !if (viscosity == 0.0_rp) viscosity = 1.0_rp

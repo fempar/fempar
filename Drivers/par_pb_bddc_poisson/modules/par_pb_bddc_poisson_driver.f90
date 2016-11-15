@@ -41,6 +41,7 @@ module par_pb_bddc_poisson_driver_names
 
      ! Place-holder for parameter-value set provided through command-line interface
      type(par_pb_bddc_poisson_params_t)      :: test_params
+     type(ParameterList_t), pointer          :: parameter_list
 
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
@@ -48,8 +49,8 @@ module par_pb_bddc_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     !type(H1_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
-     type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     type(H1_l1_coarse_fe_handler_t)           :: l1_coarse_fe_handler
+     !type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -68,10 +69,12 @@ module par_pb_bddc_poisson_driver_names
      type(fe_function_t)                   :: solution
 
      ! Environment required for fe_affine_operator + vtk_handler
-     type(environment_t), pointer          :: par_environment
+     type(environment_t)                   :: environment
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: get_icontxt
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_cell_set_ids
      procedure        , private :: setup_reference_fes
@@ -83,6 +86,8 @@ module par_pb_bddc_poisson_driver_names
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure        , private :: free
+     procedure                  :: free_environment
+     procedure                  :: free_command_line_parameters
   end type par_pb_bddc_poisson_fe_driver_t
 
   ! Types
@@ -94,6 +99,7 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
+    this%parameter_list => this%test_params%get_parameters()
   end subroutine parse_command_line_parameters
 
   subroutine setup_triangulation(this)
@@ -101,9 +107,8 @@ contains
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
-
-    call this%triangulation%create(this%test_params%get_parameters())
-    this%par_environment => this%triangulation%get_par_environment()
+    
+    call this%triangulation%create(this%parameter_list, this%environment)
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        vef_iterator = this%triangulation%create_vef_iterator()
@@ -117,14 +122,14 @@ contains
           call vef_iterator%next()
        end do
     end if
-    
+
     call this%setup_cell_set_ids() 
     call this%triangulation%setup_coarse_triangulation()
     write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
     !call this%setup_cell_set_ids()
-    
+
   end subroutine setup_triangulation
-  
+
   subroutine setup_cell_set_ids(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
@@ -137,7 +142,10 @@ contains
     type(point_t) :: grav_center
     integer(ip)   :: inode  
 
-    if ( this%par_environment%am_i_l1_task() ) then
+    this%poisson_integration%diffusion_inclusion = this%test_params%get_jump()    
+    !this%l1_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
+
+    if ( this%environment%am_i_l1_task() ) then
        call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
        cell_iterator = this%triangulation%create_cell_iterator()
        call cell_iterator%current(cell)
@@ -145,15 +153,15 @@ contains
        do while( .not. cell_iterator%has_finished() )
           call cell_iterator%current(cell)
           if ( cell%is_local() ) then
-            call cell%get_coordinates(cell_coords)
-            call grav_center%init(0.0_rp)
-            do inode = 1, cell%get_num_nodes()
-               grav_center = grav_center + cell_coords(inode)
-            end do
-            grav_center = (1.0_rp/cell%get_num_nodes())*grav_center
-            cells_set( cell%get_lid() ) = cell_set_id( grav_center, &
-                                                       this%triangulation%get_num_dimensions(), &
-                                                       this%test_params%get_jump(), this%test_params%get_inclusion() )
+             call cell%get_coordinates(cell_coords)
+             call grav_center%init(0.0_rp)
+             do inode = 1, cell%get_num_nodes()
+                grav_center = grav_center + cell_coords(inode)
+             end do
+             grav_center = (1.0_rp/cell%get_num_nodes())*grav_center
+             cells_set( cell%get_lid() ) = cell_set_id( grav_center, &
+                  this%triangulation%get_num_dimensions(), &
+                  this%test_params%get_jump(), this%test_params%get_inclusion() )
           end if
           call cell_iterator%next()
        end do
@@ -174,6 +182,7 @@ contains
     real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
     real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
     cell_set_id = 1
+        
     ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
     if ( inclusion == 1 ) then
        call origin%set(1,0.0_rp)  ; call origin%set(2, 0.25_rp) ; call origin%set(3,0.25_rp);
@@ -210,12 +219,12 @@ contains
           call origin%set(2,0.0_rp)  ; call origin%set(1, p1(i-6)) ; call origin%set(3,p1(i-6));
           call opposite%set(2,1.0_rp); call opposite%set(1,p2(i-6)); call opposite%set(3,p2(i-6));
           if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
-       end do    
+       end do
     else if ( inclusion == 4 ) then
        ! Hieu's test in PB-BDDC article (two channels)
        p1_b = [4.0_rp/32.0_rp, 12.0_rp/32.0_rp, 20.0_rp/32.0_rp, 28.0_rp/32.0_rp] ! lower y value
        p2_b = [6.0_rp/32.0_rp, 14.0_rp/32.0_rp, 22.0_rp/32.0_rp, 30.0_rp/32.0_rp] ! upper y value
-       nchannel = jump
+       nchannel = 1
        ! x edges
        do j = 1, 4
           do k = 1,4
@@ -233,7 +242,7 @@ contains
              nchannel = nchannel + 1
              if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
           end do
-       end do       
+       end do
        ! z edges
        do j = 1, 4
           do k = 1,4
@@ -244,7 +253,7 @@ contains
           end do
        end do
     end if
-       
+
   end function cell_set_id
 
   function is_point_in_rectangle( origin, opposite, coord, num_dimensions )
@@ -263,7 +272,7 @@ contains
        end if
     end do
   end function is_point_in_rectangle
-  
+
   subroutine setup_reference_fes(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
@@ -275,7 +284,7 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
-    if ( this%par_environment%am_i_l1_task() ) then
+    if ( this%environment%am_i_l1_task() ) then
        cell_iterator = this%triangulation%create_cell_iterator()
        call cell_iterator%current(cell)
        reference_fe_geo => cell%get_reference_fe_geo()
@@ -298,6 +307,7 @@ contains
          coarse_fe_handler   = this%l1_coarse_fe_handler)
 
     call this%fe_space%fill_dof_info() 
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration()
 
@@ -329,10 +339,10 @@ contains
     integer(ip) :: FPLError
 
     ! Set-up MLBDDC preconditioner
-    call this%mlbddc%create(this%fe_affine_operator)
+    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
-    
+
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-6_rp)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
@@ -418,7 +428,7 @@ contains
     w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
     w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
-    if ( this%par_environment%get_l1_rank() == 0 ) then
+    if ( this%environment%get_l1_rank() == 0 ) then
        write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < 1.0e-04 )
        write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < 1.0e-04 )
        write(*,'(a20,e32.25)') 'l2_norm:', l2; !check ( l2 < 1.0e-04 )
@@ -445,20 +455,20 @@ contains
     real(rp), allocatable                              :: set_id_cell_vector(:)
     integer(ip)                                        :: i, istat
     if(this%test_params%get_write_solution()) then
-       if ( this%par_environment%am_i_l1_task() ) then
+       if ( this%environment%am_i_l1_task() ) then
           call build_set_id_cell_vector()
           call oh%create()
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'solution')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
           call parameter_list%init()
-          istat = parameter_list%set(key=vtk_format, value='ascii');
-          call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix(), parameter_list=parameter_list)
+          !istat = parameter_list%set(key=vtk_format, value='ascii');
+          call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())!, parameter_list=parameter_list)
           call oh%write()
           call oh%close()
           call oh%free()
           call free_set_id_cell_vector()
-          call parameter_list%free()
+          !call parameter_list%free()
        end if
     end if
   contains
@@ -486,17 +496,25 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    type(par_timer_t) :: t_solve_system
+    
     !call this%free()
-    call this%parse_command_line_parameters()
+    !call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
     call this%setup_system()
     call this%assemble_system()
+    
+    call t_solve_system%create("SOLVE SYSTEM", this%get_icontxt(), 0)
+    call t_solve_system%start()
     call this%setup_solver()
     call this%solution%create(this%fe_space) 
     call this%solve_system()
-    call this%check_solution()
+    call t_solve_system%stop()
+    call t_solve_system%report()
+    
+    !call this%check_solution()
     call this%write_solution()
     call this%free()
   end subroutine run_simulation
@@ -519,7 +537,45 @@ contains
        check(istat==0)
     end if
     call this%triangulation%free()
-    call this%test_params%free()
+    !call this%test_params%free()
   end subroutine free
+
+
+  function get_icontxt(this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+    integer(ip) :: get_icontxt
+    class(execution_context_t), pointer :: w_context
+    w_context => this%environment%get_w_context()
+    select type(w_context)
+    type is (mpi_context_t)
+       get_icontxt = w_context%get_icontxt()
+    end select
+  end function get_icontxt
+  
+  subroutine free_command_line_parameters(this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    call this%test_params%free()
+  end subroutine free_command_line_parameters
+
+  subroutine setup_environment(this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    integer(ip) :: istat
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
+    else
+       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
+    end if
+    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
+    call this%environment%create (this%parameter_list)
+  end subroutine setup_environment
+
+  subroutine free_environment(this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    call this%environment%free()
+  end subroutine free_environment
 
 end module par_pb_bddc_poisson_driver_names
