@@ -54,6 +54,12 @@ module mesh_names
   integer(ip), target :: permu_3DQ1(8) = (/ 1, 2, 4, 3, 5, 6, 8, 7/)
   integer(ip), target :: permu_id  (8) = (/ 1, 2, 3, 4, 5, 6, 7, 8/)
 
+#ifdef ENABLE_METIS
+  integer(c_int),target :: options(0:METIS_NOPTIONS-1)
+  integer(c_int),target :: ncon 
+  integer(c_int)        :: ierr
+#endif
+
   type mesh_t
      ! Sizes
      integer(ip)                :: &
