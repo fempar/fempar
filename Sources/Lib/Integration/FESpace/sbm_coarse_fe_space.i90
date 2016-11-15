@@ -773,10 +773,10 @@ subroutine coarse_fe_space_coarse_fe_pack (coarse_fe, dof_gids, vef_gids, buffer
   integer(ip)                             :: spos, epos 
   spos = 1
   epos = spos + coarse_fe%get_number_dofs()*size_of_igp - 1
-  buffer(spos:epos) = transfer(dof_gids,mold)
+  buffer(spos:epos) = transfer(dof_gids,buffer(spos:epos))
   spos = epos + 1
   epos = spos + coarse_fe%get_number_dofs()*size_of_igp - 1
-  buffer(spos:epos) = transfer(vef_gids,mold)
+  buffer(spos:epos) = transfer(vef_gids,buffer(spos:epos))
 end subroutine coarse_fe_space_coarse_fe_pack
   
 subroutine coarse_fe_space_coarse_fe_unpack (coarse_fe, buffer, dof_gids, vef_gids)

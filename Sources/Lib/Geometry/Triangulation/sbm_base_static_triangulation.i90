@@ -471,23 +471,23 @@ end subroutine bst_free_cells_set
         
     first = 1
     last   = first + size_of_igp -1
-    buffer(first:last) = transfer(cell%get_gid(),mold)
+    buffer(first:last) = transfer(cell%get_gid(),buffer(first:last))
     first = last + 1
     last   = first + size_of_ip -1
-    buffer(first:last) = transfer(cell%get_my_part(),mold)
+    buffer(first:last) = transfer(cell%get_my_part(),buffer(first:last))
     first = last + 1
     last   = first + cell%get_num_vefs()*size_of_igp - 1
-    buffer(first:last) = transfer(vef_gids,mold)
+    buffer(first:last) = transfer(vef_gids,buffer(first:last))
 
     if(present(vef_dimensions)) then
        first = last + 1
        last  = first + cell%get_num_vefs()*size_of_ip - 1
-       buffer(first:last) = transfer(vef_dimensions,mold)
+       buffer(first:last) = transfer(vef_dimensions,buffer(first:last))
     else if(present(coordinates)) then
        do ivef=1,cell%get_num_vefs()
           first = last + 1
           last  = first + SPACE_DIM*size_of_rp - 1
-          buffer(first:last) = transfer(coordinates(:,ivef),mold)
+          buffer(first:last) = transfer(coordinates(:,ivef),buffer(first:last))
        end do
     end if
 
