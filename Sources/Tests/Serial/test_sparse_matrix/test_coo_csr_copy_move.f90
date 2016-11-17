@@ -177,6 +177,7 @@ contains
     subroutine compare_coo_csr_matrix(a, b)
         class(coo_sparse_matrix_t), intent(in) :: a
         class(csr_sparse_matrix_t), intent(in) :: b
+        integer(ip), pointer                   :: irp(:)
     
         check(a%get_num_rows()            == b%get_num_rows())
         check(a%get_num_cols()            == b%get_num_cols())
@@ -186,7 +187,8 @@ contains
         check(a%get_sign()                == b%get_sign())
         check(a%is_by_rows()             .eqv. b%is_by_rows())
         check(a%get_state()               == b%get_state())
-        check(a%get_nnz()+1               == b%irp(a%get_num_rows()+1))
+        irp => b%get_irp()
+        check(a%get_nnz()+1               == irp(a%get_num_rows()+1))
     end subroutine compare_coo_csr_matrix
 
 end program
