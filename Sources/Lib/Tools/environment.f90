@@ -196,11 +196,11 @@ contains
     nenvs = size(envs)
 
      ! Mandatory parameters
-    assert(parameter_list%isAssignable(dir_path_key, dir_path))
+    assert(parameter_list%isAssignable(dir_path_key, 'string'))
     istat = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
     assert(istat==0)
 
-    assert(parameter_list%isAssignable(prefix_key, prefix)) 
+    assert(parameter_list%isAssignable(prefix_key, 'string')) 
     istat = parameter_list%GetAsString(key = prefix_key, string = prefix)
     assert(istat==0)
 
@@ -293,11 +293,11 @@ contains
 
        if(this%world_context%get_num_tasks()>1) then
           ! Mandatory parameters
-          assert(parameters%isAssignable(dir_path_key, dir_path))
+          assert(parameters%isAssignable(dir_path_key, 'string'))
           istat = parameters%GetAsString(key = dir_path_key, String = dir_path)
           assert(istat==0)
           
-          assert(parameters%isAssignable(prefix_key, prefix))
+          assert(parameters%isAssignable(prefix_key, 'string'))
           istat = parameters%GetAsString(key = prefix_key  , String = prefix) 
           assert(istat==0)
 

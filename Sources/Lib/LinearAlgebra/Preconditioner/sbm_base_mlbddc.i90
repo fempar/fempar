@@ -1336,7 +1336,7 @@ subroutine base_mlbddc_free_clean(this)
   call this%free_vector_spaces()
 end subroutine base_mlbddc_free_clean
 
-subroutine base_mlbddc_free_symbolic_setup(this)
+recursive subroutine base_mlbddc_free_symbolic_setup(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
   type(environment_t)   , pointer       :: par_environment
@@ -1410,7 +1410,7 @@ subroutine base_mlbddc_free_symbolic_setup_coarse_solver(this)
   call this%coarse_solver%free()
 end subroutine base_mlbddc_free_symbolic_setup_coarse_solver
 
-subroutine base_mlbddc_free_numerical_setup(this)
+recursive subroutine base_mlbddc_free_numerical_setup(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
   type(environment_t)   , pointer       :: par_environment
