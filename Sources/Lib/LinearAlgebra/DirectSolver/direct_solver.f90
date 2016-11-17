@@ -106,7 +106,7 @@ contains
     !-----------------------------------------------------------------
         ! check if DIRECT_SOLVER_TYPE is present and is a scalar string
         ! in the given parameter list,
-        assert(parameter_list%isAssignable(direct_solver_type, name)) 
+        assert(parameter_list%isAssignable(direct_solver_type, 'string')) 
         FPLError = parameter_list%GetAsString(Key=direct_solver_type, String=name)
         assert(FPLError == 0)
         call this%set_type(name)

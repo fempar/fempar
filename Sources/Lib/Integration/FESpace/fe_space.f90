@@ -99,7 +99,7 @@ module fe_space_names
     ! Pointer to data structure which is in charge of coarse DoF handling.
     ! It will be a nullified pointer on L1 tasks, and associated via target 
     ! allocation in the case of L2-Ln tasks.
-    type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
+    type(coarse_fe_space_t)       , pointer :: coarse_fe_space => NULL()
   contains 
     procedure, non_overridable                 :: get_number_fields                               => base_fe_space_get_number_fields
     procedure, non_overridable                 :: get_fe_space_type                               => base_fe_space_get_fe_space_type
@@ -477,7 +477,6 @@ module fe_space_names
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
-   procedure                         , private :: renumber_dofs_block                             => par_fe_space_renumber_dofs_block
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
    procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
@@ -533,7 +532,6 @@ module fe_space_names
     ! interface
     subroutine l1_get_num_coarse_dofs_interface(this, par_fe_space, parameter_list, num_coarse_dofs) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, ip
-      implicit none
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       type(par_fe_space_t)         , intent(in)    :: par_fe_space 
       type(parameterlist_t)        , intent(in)    :: parameter_list
@@ -542,7 +540,6 @@ module fe_space_names
    
     subroutine l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, coo_sparse_matrix_t
-	     implicit none
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       type(par_fe_space_t)         , intent(in)    :: par_fe_space
       type(parameterlist_t)        , intent(in)    :: parameter_list
@@ -551,7 +548,6 @@ module fe_space_names
   
     subroutine l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
 	     import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, operator_t, rp
-      implicit none
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
       type(par_fe_space_t)          , intent(in)    :: par_fe_space
       type(parameterlist_t)         , intent(in)    :: parameter_list

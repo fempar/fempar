@@ -281,14 +281,6 @@ subroutine par_fe_space_renumber_dofs_first_interior_then_interface( this )
   end if
 end subroutine par_fe_space_renumber_dofs_first_interior_then_interface
 
-subroutine par_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
-  implicit none
-  class(par_fe_space_t)   , intent(inout) :: this
-  integer(ip)                 , intent(in)    :: block_id
-  integer(ip)                 , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
-  call this%serial_fe_space_t%renumber_dofs_block(block_id, perm_old2new)
-end subroutine par_fe_space_renumber_dofs_block
-
 subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this

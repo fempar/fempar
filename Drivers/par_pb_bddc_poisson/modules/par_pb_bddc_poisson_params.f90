@@ -157,7 +157,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(list%isAssignable(dir_path_key, get_dir_path))
+    assert(list%isAssignable(dir_path_key, 'string'))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
   end function get_dir_path 
@@ -170,7 +170,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(list%isAssignable(dir_path_out_key, get_dir_path_out))
+    assert(list%isAssignable(dir_path_out_key, 'string'))
     error = list%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
     assert(error==0)
   end function get_dir_path_out
@@ -183,7 +183,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(list%isAssignable(prefix_key, get_prefix))
+    assert(list%isAssignable(prefix_key, 'string'))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
   end function get_prefix

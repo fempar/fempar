@@ -495,11 +495,11 @@ contains
     nparts = size(parts)
 
     ! Mandatory parameters
-    assert(parameter_list%isAssignable(dir_path_out_key, dir_path))
+    assert(parameter_list%isAssignable(dir_path_out_key, 'string'))
     istat = parameter_list%GetAsString(key = dir_path_out_key, String = dir_path)
     assert(istat == 0)
     
-    assert(parameter_list%isAssignable(prefix_key, prefix))
+    assert(parameter_list%isAssignable(prefix_key, 'string'))
     istat = istat + parameter_list%GetAsString(key = prefix_key, String = prefix)
     assert(istat==0)
 
