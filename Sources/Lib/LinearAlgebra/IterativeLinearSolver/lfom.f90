@@ -40,7 +40,7 @@ module lfom_names
   use iterative_linear_solver_parameters_names
   use multivector_names
   use rgmres_names
-  use ParameterList
+  use FPL
 
   implicit none
 # include "debug.i90"
