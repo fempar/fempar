@@ -143,12 +143,12 @@ contains
        end do
        cx = cx/real(cell%get_num_nodes(),rp)
        cy = cy/real(cell%get_num_nodes(),rp)
+
        ! Select material case
-       if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23e-3_rp<cy) .and. (cy<25e-3_rp) ) ) then 
-       !if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then 
-          cells_set( cell%get_lid() ) = hts  
+       if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then
+          cells_set( cell%get_lid() ) = hts 
        else 
-          cells_set( cell%get_lid() ) = air  
+          cells_set( cell%get_lid() ) = air
        end if
        call cell_iterator%next() 
     end do
@@ -162,9 +162,12 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
-    integer(ip) :: istat
+    integer(ip) :: istat, ivef
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
+    type(cell_iterator_t) :: cell_iterator
+    type(cell_accessor_t) :: cell
+    type(point_t)         :: cell_coordinates(8)
 
     allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
@@ -184,18 +187,21 @@ contains
                                                  continuity = .true. ) 
     
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+    
        vef_iterator = this%triangulation%create_vef_iterator()
        do while ( .not. vef_iterator%has_finished() )
           call vef_iterator%current(vef)
-          if(vef%is_at_boundary()) then
+          ! In the 3D case, vefs asociated to faces 21,22 are Neumann boundary (2D case set_id <= 9)
+         if ( vef%is_at_boundary() .and. ( vef%get_set_id() .ne. 21 .and. vef%get_set_id() .ne. 22) ) then 
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
           call vef_iterator%next()
        end do
+         
     end if    
-
+ 
   end subroutine setup_reference_fes
 
   ! -----------------------------------------------------------------------------------------------
@@ -203,7 +209,7 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
 
-    call this%hts_nedelec_conditions%set_num_dimensions( this%triangulation%get_num_dimensions() )
+    call this%hts_nedelec_conditions%set_num_dimensions( this%triangulation%get_num_dimensions() + 1)
     call this%problem_functions%initialize( H  = this%test_params%get_external_magnetic_field_amplitude(),  &
                                             wH = this%test_params%get_external_magnetic_field_frequency(),  &
                                             J  = this%test_params%get_external_current_amplitude(),         &
@@ -289,7 +295,7 @@ contains
     integer(ip)                            :: i, inode, vector_size
     integer(ip)                            :: num_dofs, number_fields 
     integer(ip)              , allocatable :: number_dofs_per_field(:) 
-    real(rp)                 , allocatable :: elvec(:)
+    real(rp)                 , allocatable :: elvec(:), facevec(:) 
     real(rp)                               :: factor 
     integer(ip)  :: istat 
 
@@ -311,9 +317,7 @@ contains
     call this%constraint_vector%create_and_allocate( coefficient_matrix%get_num_rows() )
     call this%constraint_vector%init(0.0_rp) 
 
-    ! ================================  2D CASE, integrate over entire HTS section ================
-
-    ! Initialize
+        ! Initialize
     fe_iterator = this%fe_space%create_fe_iterator()
     call this%fe_space%initialize_fe_integration()
     call fe_iterator%current(fe)
@@ -324,6 +328,9 @@ contains
     call fe%get_number_dofs_per_field( number_dofs_per_field )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
+    
+        ! ================================  2D CASE, integrate over entire HTS section ================
+    if ( this%triangulation%get_num_dimensions() == 2) then  
     
     quad           => fe%get_quadrature()
     fe_map         => fe%get_fe_map() 
@@ -338,7 +345,7 @@ contains
           ! Update finite structures
           call fe%update_integration()		               
           call fe%get_elem2dof(elem2dof) 
- 
+
           elvec      = 0.0_rp 
           ! Integrate J over the hts subdomain 
           do qpoin=1, number_qpoints
@@ -352,69 +359,75 @@ contains
           ! Add element contribution to matrix and vector 
           do i = 1, number_dofs_per_field(1) 
              idof = elem2dof(1)%p(i) 
-	            if ( idof > 0 ) then 
-                call this%constraint_matrix%insert( idof, 1, elvec(i) )
-                call this%constraint_vector%add(idof, elvec(i))
-	            end if
+             if ( idof > 0 ) then 
+                 call this%constraint_matrix%insert( idof, 1, elvec(i) )
+                 call this%constraint_vector%add(idof, elvec(i))
+             end if
           end do
 
        end if
        call fe_iterator%next()
     end do
+    
+    ! ================================   3D CASE, only integrate over z-normal faces ===================
+    elseif ( this%triangulation%get_num_dimensions() == 3) then 
+    
+       call this%fe_space%initialize_fe_face_integration()
 
+       ! Search for the first boundary face
+       fe_face_iterator = this%fe_space%create_fe_face_iterator()
+       call fe_face_iterator%current(fe_face)
+       do while ( .not. fe_face%is_at_boundary() ) 
+          call fe_face_iterator%next()
+          call fe_face_iterator%current(fe_face)
+       end do
+
+       num_dofs              =  fe%get_number_dofs() 
+       call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
+       quad            => fe_face%get_quadrature()
+       number_qpoints  =  quad%get_number_quadrature_points()
+       face_map        => fe_face%get_face_map()
+       face_int_H      => fe_face%get_face_integrator(1)
+
+       do while ( .not. fe_face_iterator%has_finished() )
+          facevec = 0.0_rp
+          call fe_face_iterator%current(fe_face)
+          if ( fe_face%is_at_boundary() .and. fe_face%get_set_id() == 0 ) then
+             
+             call fe_face%get_cell_around(1, fe)
+             if ( fe%get_set_id() == hts ) then 
+
+                call fe_face%update_integration()    
+                do qpoin = 1, number_qpoints
+                   factor = face_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+                   do idof = 1, number_dofs_per_field(1) 
+                      call face_int_H%get_curl(idof,qpoin,1,rot_test_vector)    
+                      facevec(idof) = facevec(idof) + factor * rot_test_vector%get(3) 
+                   end do
+                end do
+
+                call fe_face%get_elem2dof(1, elem2dof)
+
+                ! Add element contribution to vector 
+                do i = 1, number_dofs_per_field(1) 
+                   idof = elem2dof(1)%p(i) 
+                   if ( idof > 0 ) then 
+                      call this%constraint_matrix%insert( idof, 1, facevec(i) )
+                      call this%constraint_vector%add(idof, facevec(i))
+                   end if
+                end do
+
+             end if
+          end if
+          call fe_face_iterator%next()
+       end do
+      
+        call memfree ( facevec, __FILE__, __LINE__ )
+    end if 
+    
     ! Sum duplicates, re-order by rows, and leave the matrix in a final state
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 
-    
-    
-    ! ================================   3D CASE, integrate over z-normal faces ===================
-    !call fe_space%initialize_fe_face_integration()
- 
-    !call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
-    
-    !! Search for the first boundary face
-    !fe_face_iterator = fe_space%create_fe_face_iterator()
-    !call fe_face_iterator%current(fe_face)
-    !do while ( .not. fe_face%is_at_boundary() ) 
-    !   call fe_face_iterator%next()
-    !   call fe_face_iterator%current(fe_face)
-    !end do
-    
-    !quad            => fe_face%get_quadrature()
-    !num_quad_points = quad%get_number_quadrature_points()
-    !face_map        => fe_face%get_face_map()
-    !face_int_H      => fe_face%get_face_integrator(1)
-    
-    !do while ( .not. fe_face_iterator%has_finished() )
-    !   facemat = 0.0_rp
-    !   facevec = 0.0_rp
-    !   call fe_face_iterator%current(fe_face)
-    !   if ( fe_face%is_at_boundary() .and. fe_face%get_set_id() == 0 ) then
-    !     call fe_face%update_integration()    
-    !     quad_coords => face_map%get_quadrature_coordinates()
-    !     do qpoint = 1, num_quad_points
-    !        factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-    !        do idof = 1, num_dofs_per_field(1)
-    !          call face_int%get_value(idof,qpoint,1,rot_test_vector)   
-    !          facevec(idof,1) = facevec(idof,1) + factor * rot_test_vector%get(3) 
-    !        end do   
-    !     end do
-    !     call fe_face%get_elem2dof(1, elem2dof)
-    
-          !    ! Add element contribution to matrix and vector 
-          !do i = 1, number_dofs_per_field(1) 
-          !   idof = elem2dof(1)%p(i) 
-	         !   if ( idof > 0 ) then 
-          !      call this%constraint_matrix%insert( idof, 1, facevec(i) )
-          !      call this%constraint_vector%add(idof, facevec(i))
-	         !   end if
-          !end do
-         
-    !   end if
-    !   call fe_face_iterator%next()
-    !end do
-    
- 
     
     ! =============================================================================================
     
@@ -520,6 +533,7 @@ contains
     call this%nonlinear_solver%initialize() 
     end if 
     
+
     nonlinear: do while ( .not. this%nonlinear_solver%finished() )
     ! 0 - Update initial residual 
     call this%nonlinear_solver%start_new_iteration() 
@@ -531,37 +545,21 @@ contains
     else 
     call this%nonlinear_solver%solve_tangent_system() 
     end if 
-    ! 3 - Update solution 
+    ! 3 - Determine step length to update solution 
+    call this%nonlinear_solver%line_search%cubic_backtracking( this%nonlinear_solver )
+    ! 4 - Update solution 
     call this%nonlinear_solver%update_solution() 
-    ! 4 - New picard iterate with updated solution 
+    ! 5 - New picard iterate with updated solution 
     call this%assemble_system()  
-    ! 5 - Evaluate new residual 
+    ! 6 - Evaluate new residual 
     call this%nonlinear_solver%compute_residual()
-    
-    !step_length: do while ( this%nonlinear_solver%step_length_get_next_trial() )
-    !   ! 6 - Apply step length technique 
-    !   call this%nonlinear_solver%apply_step_length_technique() 
-    !   ! 6.1 - New picard iterate with updated solution 
-    !   call this%assemble_system()  
-    !   ! 6.2 - Evaluate new residual 
-    !   call this%nonlinear_solver%compute_residual()
-    !   ! 6.3 - Decide to get_next_trial or go back to the previous solution 
-    !   if ( .not. this%nonlinear_solver%step_length_get_next_trial() ) then 
-    !      ! 6.3.1 - Go back to the previous solution 
-    !      call this%nonlinear_solver%back_update_solution()  
-    !      ! 6.3.2 - New picard iterate with updated solution 
-    !      call this%assemble_system()  
-    !      ! 6.3.3 - Evaluate new residual 
-    !      call this%nonlinear_solver%compute_residual()
-    !      exit 
-    !   end if
-    !end do step_length
-
     ! 7 - Print current output 
     call this%nonlinear_solver%print_current_iteration_output() 
+   
     end do nonlinear 
     
     call this%nonlinear_solver%print_final_output() 
+
     
   end subroutine solve_nonlinear_system
   
@@ -614,7 +612,6 @@ contains
        call fe_iterator%current(fe)
 
        if ( fe%get_set_id() == hts ) then  ! Integrate only in HTS device DOMAIN 
-       
           ! Update FE-integration related data structures
           call fe%update_integration()
           call cell_fe_function_current%update(fe, this%H_current)
@@ -641,7 +638,6 @@ contains
     call boundary_function_Hy%get_value_space_time( aux_quad_coords(1), this%theta_method%get_current_time() , Happ )
     constraint_value_function => this%problem_functions%get_constraint_value() 
     call constraint_value_function%get_constraint_value(this%theta_method%get_current_time(), constraint_value)
-    
     write(*,*) 'Hysteresis Data -----------------------------------------'
     write(*,*) 'mu0·(Hy-Happ)', this%test_params%get_air_permeability()*(Hy_average/hts_volume-Happ), 'Happ', Happ 
     write(*,*) 'xJ', xJ_average/hts_volume, 'Iapp', constraint_value 
@@ -659,7 +655,6 @@ contains
     type(error_norms_vector_t)  :: H_error_norm
     type(error_norms_scalar_t)  :: p_error_norm 
     real(rp) :: l2, hcurl, l2p
-    real(rp) :: error_tolerance
     
     H_exact_function => this%problem_functions%get_solution()
     p_exact_function => this%problem_functions%get_boundary_function_p()
@@ -669,7 +664,6 @@ contains
 
     l2 = H_error_norm%compute(H_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )   
     hcurl = H_error_norm%compute(H_exact_function, this%H_current, hcurl_seminorm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )    
-    error_tolerance = 1.0e-04
     l2p = p_error_norm%compute(p_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )
     
     write(*,*) 'H ERROR NORMS **********************' 
@@ -687,7 +681,7 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip)                                      :: err
     if(this%test_params%get_write_solution()) then
-       call  this%oh%create() 
+       call  this%oh%create(VTK) 
        call  this%oh%attach_fe_space(this%fe_space)
        call  this%oh%add_fe_function(this%H_current, 1, 'H')
        call  this%oh%add_fe_function(this%H_current, 1, 'J',       curl_diff_operator)

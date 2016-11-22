@@ -144,7 +144,7 @@ contains
     real(rp)  :: x, y, z, n  
     x = point%get(1)
     y = point%get(2) 
-    n = 0.0_rp 
+    n = 3.0_rp 
     
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     !call result%set(1, 0.0_rp) 
@@ -163,8 +163,9 @@ contains
     real(rp)  :: x, y, z, n  
     x = point%get(1)
     y = point%get(2) 
-    n = 0.0_rp 
+    n = 3.0_rp 
     
+    call result%init(0.0_rp) 
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     !call result%set(1, 0.0_rp ) 
     !call result%set(2, -(n+1.0_rp)*((time*3.0_rp*x*x)**n)*(time*6.0_rp*x) + x*x*x )
@@ -260,9 +261,9 @@ contains
     x = point%get(1)
     y = point%get(2) 
 
-    call result%set(1, 0.0_rp) 
-    call result%set(2, 0.0_rp) 
-    call result%set(3, 3.0_rp*x*x ) 
+    !call result%set(1, 0.0_rp) 
+    !call result%set(2, 0.0_rp) 
+    !call result%set(3, 3.0_rp*x*x ) 
     
   end subroutine solution_get_curl_space
   
@@ -277,9 +278,9 @@ contains
     x = point%get(1)
     y = point%get(2) 
 
-    call result%set(1, 0.0_rp) 
-    call result%set(2, 0.0_rp) 
-    call result%set(3, time*3.0_rp*x*x ) 
+    !call result%set(1, 0.0_rp) 
+    !call result%set(2, 0.0_rp) 
+    !call result%set(3, time*3.0_rp*x*x ) 
     
   end subroutine solution_get_curl_space_time
     

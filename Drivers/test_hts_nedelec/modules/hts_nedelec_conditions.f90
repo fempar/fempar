@@ -57,8 +57,7 @@ contains
     implicit none
     class(hts_nedelec_conditions_t)       , intent(inout) :: this
     integer(ip)                           , intent(in)    :: num_dimensions
-    ! Magnetic field and magnetic pressure 
-    this%num_dimensions = num_dimensions + 1
+    this%num_dimensions = num_dimensions
   end subroutine hts_nedelec_conditions_set_num_dimensions 
   
     subroutine hts_nedelec_conditions_set_boundary_function_Hx (this, scalar_function)

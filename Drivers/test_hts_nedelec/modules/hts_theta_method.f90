@@ -121,7 +121,7 @@ contains
     integer(ip)          , intent(in)    :: ideal_num_iterations 
     
     ! Update time step with nonlinear convergence history 
-    this%time_step = real(ideal_num_iterations,rp)/real(num_iterations,rp)*this%time_step
+    this%time_step = min( real(ideal_num_iterations,rp)/real(num_iterations,rp), 5.0_rp )*this%time_step
     this%time_step = max(this%time_step, this%min_time_step) 
     this%time_step = min(this%time_step, this%max_time_step) 
     

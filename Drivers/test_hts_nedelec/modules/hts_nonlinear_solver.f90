@@ -32,27 +32,27 @@ module hts_nonlinear_solver_names
   implicit none
 # include "debug.i90"
   private
+     
+  type :: hts_line_search_t 
+  real(rp)                        :: step_length 
+  real(rp)                        :: alpha
+  integer(ip)                     :: n, current_iterate 
+  class(vector_t), allocatable    :: initial_dof_values 
+  class(vector_t), allocatable    :: initial_residual 
+  contains
+  procedure :: initialize         => line_search_initialize 
+  procedure :: cubic_backtracking => line_search_cubic_backtracking  
+  procedure :: free               => line_search_free 
   
-    type :: step_length_t
-  private 
-  real(rp)            :: relaxation 
-  integer(ip)         :: current_factor 
-  integer(ip)         :: max_factor 
-  real(rp)            :: previous_residual_norm 
-  real(rp)            :: current_residual_norm 
-  contains 
-  procedure  :: create         => step_length_create
-  procedure  :: initialize     => step_length_initialize  
-  end type
+  end type hts_line_search_t 
   
   type :: hts_nonlinear_solver_t
-     private
      integer(ip)                                :: current_iteration 
      integer(ip)                                :: ideal_num_iterations 
      integer(ip)                                :: max_number_iterations
 	    real(rp)                                   :: absolute_tolerance
      real(rp)                                   :: relative_tolerance
-     type(step_length_t)                        :: step_length 
+     type(hts_line_search_t)                    :: line_search  
      character(len=:) , allocatable             :: convergence_criteria 
      type(fe_affine_operator_t) , pointer       :: fe_affine_operator 
      class(vector_t), pointer                   :: current_dof_values 
@@ -78,22 +78,19 @@ module hts_nonlinear_solver_names
      procedure :: solve_tangent_system             => hts_nonlinear_solver_solve_tangent_system 
      procedure :: solve_constrained_tangent_system => hts_nonlinear_solver_solve_constrained_tangent_system 
      procedure :: update_solution                  => hts_nonlinear_solver_update_solution
-     procedure :: back_update_solution             => hts_nonlinear_solver_back_update_solution
      procedure :: converged                        => hts_nonlinear_solver_converged 
      procedure :: finished                         => hts_nonlinear_solver_finished 
      procedure :: get_current_iteration            => hts_nonlinear_solver_get_current_iteration 
      procedure :: get_ideal_num_iterations         => hts_nonlinear_solver_get_ideal_num_iterations 
      procedure :: get_apply_current_constraint     => hts_nonlinear_solver_get_apply_current_constraint 
-     procedure :: apply_step_length_technique      => hts_nonlinear_solver_apply_step_length_technique 
      procedure :: print_current_iteration_output   => hts_nonlinear_solver_print_current_iteration_output
      procedure :: print_final_output               => hts_nonlinear_solver_print_final_output 
-     procedure :: step_length_get_next_trial       => hts_nonlinear_solver_step_length_get_next_trial
      procedure :: get_constrained_rhs_norm 
      procedure :: get_constrained_Au_norm 
      procedure :: free                             => hts_nonlinear_solver_free 
   end type hts_nonlinear_solver_t 
   
-  public :: hts_nonlinear_solver_t, step_length_t 
+  public :: hts_nonlinear_solver_t
   
 contains
 
@@ -123,7 +120,6 @@ this%relative_tolerance    = rel_tol
 this%max_number_iterations = max_iters 
 this%ideal_num_iterations  = ideal_iters 
 this%apply_current_constraint = apply_constraint 
-call this%step_length%create() 
 
 ! Point current dof values 
 this%current_dof_values => current_dof_values 
@@ -180,7 +176,7 @@ class(hts_nonlinear_solver_t)         , intent(inout)  :: this
 
 assert(.not. this%finished()  )
 this%current_iteration = this%current_iteration + 1
-call this%step_length%initialize() 
+call this%line_search%initialize() 
 
 end subroutine hts_nonlinear_solver_start_new_iteration 
 
@@ -192,8 +188,7 @@ real(rp)  , optional                  , intent(in)     :: constraint_value
 
 this%current_iteration = 0 
 call this%compute_residual()
-this%initial_residual  = this%residual 
-
+this%initial_residual   = this%residual 
 
 if (present(constraint_value))  then 
 this%constraint_value  = constraint_value 
@@ -206,23 +201,13 @@ subroutine hts_nonlinear_solver_compute_residual(this)
 implicit none 
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 
-
-! Save previous residual norm 
-if (this%apply_current_constraint) then 
-this%step_length%previous_residual_norm = this%residual%nrm2()
-else 
-this%step_length%previous_residual_norm = this%constrained_residual%nrm2()
-end if 
-
 ! Compute current residual 
 call this%residual%init(0.0_rp)
 call this%fe_affine_operator%apply( this%current_dof_values, this%residual ) 
-this%step_length%current_residual_norm = this%residual%nrm2()
 
 ! Build constrained residual if needed 
 if (this%apply_current_constraint) then 
 call this%compute_constrained_residual() 
-this%step_length%current_residual_norm = this%constrained_residual%nrm2()
 end if 
 
 end subroutine hts_nonlinear_solver_compute_residual 
@@ -419,29 +404,10 @@ subroutine hts_nonlinear_solver_update_solution(this)
 implicit none 
 class(hts_nonlinear_solver_t)               , intent(inout)     :: this
 
-this%current_dof_values          = this%current_dof_values + this%step_length%relaxation*this%increment_dof_values
-this%current_lagrange_multiplier = this%current_lagrange_multiplier + this%step_length%relaxation*this%increment_lagrange_multiplier 
+this%current_dof_values          = this%current_dof_values + this%line_search%step_length*this%increment_dof_values
+this%current_lagrange_multiplier = this%current_lagrange_multiplier + this%line_search%step_length*this%increment_lagrange_multiplier 
 
 end subroutine hts_nonlinear_solver_update_solution 
-
-  ! ------------------------------------------------------------------------------------
-subroutine hts_nonlinear_solver_back_update_solution(this) 
-implicit none 
-class(hts_nonlinear_solver_t)               , intent(inout)     :: this
-
-! Backwards to the original iterate
-this%current_dof_values          = this%current_dof_values - this%step_length%relaxation*this%increment_dof_values
-this%current_lagrange_multiplier = this%current_lagrange_multiplier - this%step_length%relaxation*this%increment_lagrange_multiplier 
-
-! Increase step length 
-this%step_length%relaxation     = 2.0_rp * this%step_length%relaxation
-this%step_length%current_factor = this%step_length%current_factor - 1
-
-! Forwards with the new iterate
-this%current_dof_values          = this%current_dof_values + this%step_length%relaxation*this%increment_dof_values
-this%current_lagrange_multiplier = this%current_lagrange_multiplier + this%step_length%relaxation*this%increment_lagrange_multiplier
-
-end subroutine hts_nonlinear_solver_back_update_solution
 
 ! ---------------------------------------------------------------------------------------
 function hts_nonlinear_solver_converged(this) 
@@ -480,31 +446,13 @@ end if
 
 end function hts_nonlinear_solver_converged
 
-subroutine hts_nonlinear_solver_apply_step_length_technique(this) 
-implicit none 
-class(hts_nonlinear_solver_t)  , intent(inout) :: this 
-
-! 1- Go back to the previous solution 
-this%current_dof_values          = this%current_dof_values - this%step_length%relaxation*this%increment_dof_values
-this%current_lagrange_multiplier = this%current_lagrange_multiplier - this%step_length%relaxation*this%increment_lagrange_multiplier 
-
-! 2- Update step lenght relaxation value 
-this%step_length%current_factor = this%step_length%current_factor + 1
-this%step_length%relaxation     = this%step_length%relaxation/2.0_rp 
-
-! 3 - Update solution with new length step 
-this%current_dof_values          = this%current_dof_values + this%step_length%relaxation*this%increment_dof_values
-this%current_lagrange_multiplier = this%current_lagrange_multiplier + this%step_length%relaxation*this%increment_lagrange_multiplier  
-
-end subroutine hts_nonlinear_solver_apply_step_length_technique 
-
 ! ---------------------------------------------------------------------------------------
 function hts_nonlinear_solver_finished(this) 
 implicit none 
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 logical                                                :: hts_nonlinear_solver_finished
 
-hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_number_iterations) .or. (this%residual%nrm2()>1e30_rp) )  &
+hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_number_iterations) .or. (this%residual%nrm2()>1e15_rp) )  &
                                    .and. this%current_iteration .gt. 0 )
 
 end function hts_nonlinear_solver_finished
@@ -555,8 +503,8 @@ case ('rel_r0_res_norm') ! |R|/|Ro| < rel_tol
 write(6,'(a14,i3,a16,es21.15, a10, es21.15)')  'NL iteration ', this%current_iteration, '  |R|/|Ro| ', this%residual%nrm2()/this%initial_residual%nrm2(), &
                                                '  |R| ', this%residual%nrm2()
 case ('rel_rhs_res_norm') ! |R|/|b| < rel_tol 
-write(6,'(a14,i3,a16,es21.15, a10, es21.15)')  'NL iteration ', this%current_iteration, '  |R|/|b| ', this%residual%nrm2()/this%current_rhs%nrm2(), &
-                                               '  |R| ', this%residual%nrm2()
+write(6,'(a14,i3,a16,es21.15, a10, es21.15, a5, f8.4)')  'NL iteration ', this%current_iteration, '  |R|/|b| ', this%residual%nrm2()/this%current_rhs%nrm2(), &
+                                               '  |R| ', this%residual%nrm2(), 'BT ', this%line_search%step_length
 case DEFAULT
 assert(.false.) 
 end select 
@@ -624,7 +572,7 @@ real(rp) :: get_constrained_Au_norm
   end select
   
    call Au%create_and_allocate( original_sol%get_size() ) 
-   Au = original_residual + this%step_length%relaxation*this%constraint_vector
+   Au = original_residual + this%line_search%step_length*this%constraint_vector
    CH = this%constraint_vector%dot(original_sol)
    get_constrained_Au_norm = sqrt( Au%nrm2()**2  + CH**2 ) 
    
@@ -639,6 +587,7 @@ class(hts_nonlinear_solver_t)         , intent(inout)  :: this
 
 if (allocated(this%residual)) call this%residual%free()
 call this%constrained_residual%free()
+call this%line_search%free()
 if (allocated(this%initial_residual)) call this%initial_residual%free()
 if (allocated(this%increment_dof_values)) call this%increment_dof_values%free()
  
@@ -646,37 +595,133 @@ if (allocated(this%increment_dof_values)) call this%increment_dof_values%free()
 
 end subroutine hts_nonlinear_solver_free
 
-! STEP LENGTH SUBROUTINES *****************************************************************************************
-subroutine step_length_create(this) 
-implicit none 
-class(step_length_t)       , intent(inout)  :: this 
+! **********************    LINE SEARCH SUBROUTINES ***************************************
 
-this%relaxation     = 1.0_rp 
-this%current_factor = 0
-this%max_factor     = 1
+subroutine line_search_initialize(this)  
+  implicit none 
+  class(hts_line_search_t)  , intent(inout)   :: this
+  
+  this%step_length     = 1.0_rp
+  this%alpha           = 1.0e-4_rp 
+  this%n               = 4 
+  this%current_iterate = 0
+  
+  end subroutine line_search_initialize 
+  
+  subroutine line_search_cubic_backtracking(this, newton_raphson_solver ) 
+  implicit none 
+  class(hts_line_search_t)       , intent(inout)  :: this
+  type(hts_nonlinear_solver_t)   , intent(inout)  :: newton_raphson_solver 
+  
+  real(rp)    :: s, mu, mu_residual, lambda_residual 
+  real(rp)    :: lambda, lambda_0, lambda_q, lambda_s, lambda_c 
+  real(rp)    :: t1, t2, a, b, d 
+  integer(ip) :: i
 
-end subroutine step_length_create 
+  call newton_raphson_solver%fe_affine_operator%create_range_vector(this%initial_residual)
+  call newton_raphson_solver%fe_affine_operator%create_range_vector(this%initial_dof_values)
 
-! -------------------------------------------------------------------------------------------------
-subroutine step_length_initialize(this) 
-implicit none 
-class(step_length_t)       , intent(inout)  :: this 
+      ! Line search Cubic Backtracking algorithm 
+  call newton_raphson_solver%fe_affine_operator%numerical_setup() 
+  call newton_raphson_solver%compute_residual()
+  
+  call this%initial_dof_values%copy( newton_raphson_solver%current_dof_values )  
+  call this%initial_residual%copy(newton_raphson_solver%residual)
+   s = -newton_raphson_solver%residual%nrm2()**2.0_rp 
+   lambda_0 = this%step_length 
+   
+  newton_raphson_solver%current_dof_values = this%initial_dof_values + lambda_0*newton_raphson_solver%increment_dof_values  
+  call newton_raphson_solver%fe_affine_operator%numerical_setup()
+  call newton_raphson_solver%compute_residual()
+ 
+  ! Check if linear is sufficient 
+  if ( newton_raphson_solver%residual%nrm2()**2 .le. (this%initial_residual%nrm2()**2.0_rp + 2.0_rp*this%alpha*lambda_0*s) ) then 
+    this%step_length     = lambda_0
+    this%current_iterate = 1
+    newton_raphson_solver%current_dof_values     = this%initial_dof_values 
+    return 
+  end if 
+  
+  mu          = lambda_0
+  mu_residual = newton_raphson_solver%residual%nrm2()
+  lambda_q = -s/(newton_raphson_solver%residual%nrm2()**2.0_rp - this%initial_residual%nrm2()**2.0_rp - 2.0_rp*lambda_0*s )
+  
+  ! Update lambda
+  if ( lambda_q .lt. 0.1_rp*lambda_0 ) then 
+  lambda = 0.1_rp*lambda_0
+  elseif ( lambda_q .gt. 0.5_rp*lambda_0 ) then 
+  lambda = 0.5_rp*lambda_0
+  else
+  lambda = lambda_q 
+  end if 
+  
+  !  Update solution with new length step 
+    newton_raphson_solver%current_dof_values = this%initial_dof_values + lambda*newton_raphson_solver%increment_dof_values 
+    call newton_raphson_solver%fe_affine_operator%numerical_setup() 
+    call newton_raphson_solver%compute_residual() 
 
-this%relaxation     = 1.0_rp 
-this%current_factor = 0
-end subroutine step_length_initialize  
+  ! Check if quadratic is sufficient 
+    if ( newton_raphson_solver%residual%nrm2()**2 .le. (this%initial_residual%nrm2()**2 + 2.0_rp*this%alpha*lambda*s) ) then 
+    this%step_length     = lambda
+    this%current_iterate = 2
+    newton_raphson_solver%current_dof_values     = this%initial_dof_values 
+    return 
+  end if 
 
-! -------------------------------------------------------------------------------------------------
-function hts_nonlinear_solver_step_length_get_next_trial(this) 
-implicit none 
-class(hts_nonlinear_solver_t)       , intent(in)  :: this 
-logical       :: hts_nonlinear_solver_step_length_get_next_trial
+      lambda_residual = newton_raphson_solver%residual%nrm2()
+  do i = 1,this%n
+  
+  t1 = 0.5_rp* ( mu_residual**2.0_rp     - this%initial_residual%nrm2()**2.0_rp - lambda*s ) 
+  t2 = 0.5_rp* ( lambda_residual**2.0_rp - this%initial_residual%nrm2()**2.0_rp - lambda*s ) 
 
-hts_nonlinear_solver_step_length_get_next_trial = ( (this%step_length%previous_residual_norm .gt. this%step_length%current_residual_norm)  & 
-                                              .and. (this%step_length%current_factor .le. this%step_length%max_factor)                   )  
+  a = (t1/lambda**2.0_rp - t2/mu**2.0_rp)/(lambda - mu)
+  b = ( lambda*t2/mu**2.0_rp - lambda*t1/lambda**2.0_rp )/(lambda - mu)
+  d = max ( b**2.0_rp - 3.0_rp*a*s, 0.0_rp ) 
+  
+  if ( abs(a) .gt. 1e-10 ) then 
+  lambda_c = (sqrt(d)-b)/(3.0_rp*a)
+  else 
+  lambda_c = -s/(2.0_rp*b)
+  end if 
+ 
+    mu = lambda
+    mu_residual = lambda_residual
+  
+    ! Update lambda
+  if ( lambda_c .lt. 0.1_rp*lambda ) then 
+  lambda = 0.1_rp*lambda
+  elseif ( lambda_c .gt. 0.5_rp*lambda ) then 
+  lambda = 0.5_rp*lambda 
+  else
+  lambda = lambda_c 
+  end if 
+  
+    newton_raphson_solver%current_dof_values = this%initial_dof_values + lambda*newton_raphson_solver%increment_dof_values 
+    call newton_raphson_solver%fe_affine_operator%numerical_setup() 
+    call newton_raphson_solver%compute_residual() 
+    ! Check if cubic is sufficient 
+    if ( newton_raphson_solver%residual%nrm2()**2 .le. ( this%initial_residual%nrm2()**2 + 2.0_rp*this%alpha*lambda*s)  ) then 
+        this%step_length = lambda
+        this%current_iterate = 2 + i
+        newton_raphson_solver%current_dof_values     = this%initial_dof_values 
+    return 
+  end if 
+  lambda_residual = newton_raphson_solver%residual%nrm2()
 
-end function hts_nonlinear_solver_step_length_get_next_trial 
-
-
-
+  end do 
+  
+  this%step_length                             = lambda 
+  newton_raphson_solver%current_dof_values     = this%initial_dof_values 
+  
+  end subroutine line_search_cubic_backtracking 
+  
+    subroutine line_search_free(this)  
+  implicit none 
+  class(hts_line_search_t)  , intent(inout)   :: this
+  
+  if ( allocated(this%initial_dof_values) ) call this%initial_dof_values%free()
+  if ( allocated(this%initial_residual)   ) call this%initial_residual%free() 
+  
+  end subroutine line_search_free
+  
 end module hts_nonlinear_solver_names 
