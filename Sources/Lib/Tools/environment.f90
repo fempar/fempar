@@ -89,6 +89,7 @@ module environment_names
      ! Getters
      procedure :: get_num_tasks                  => environment_get_num_tasks
      procedure :: get_next_level                 => environment_get_next_level
+     procedure :: get_w_context                  => environment_get_w_context
      procedure :: get_l1_context                 => environment_get_l1_context
      procedure :: get_l1_rank                    => environment_get_l1_rank
      procedure :: get_l1_size                    => environment_get_l1_size
@@ -195,11 +196,11 @@ contains
     nenvs = size(envs)
 
      ! Mandatory parameters
-    assert(parameter_list%isAssignable(dir_path_key, dir_path))
+    assert(parameter_list%isAssignable(dir_path_key, 'string'))
     istat = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
     assert(istat==0)
 
-    assert(parameter_list%isAssignable(prefix_key, prefix)) 
+    assert(parameter_list%isAssignable(prefix_key, 'string')) 
     istat = parameter_list%GetAsString(key = prefix_key, string = prefix)
     assert(istat==0)
 
@@ -292,11 +293,11 @@ contains
 
        if(this%world_context%get_num_tasks()>1) then
           ! Mandatory parameters
-          assert(parameters%isAssignable(dir_path_key, dir_path))
+          assert(parameters%isAssignable(dir_path_key, 'string'))
           istat = parameters%GetAsString(key = dir_path_key, String = dir_path)
           assert(istat==0)
           
-          assert(parameters%isAssignable(prefix_key, prefix))
+          assert(parameters%isAssignable(prefix_key, 'string'))
           istat = parameters%GetAsString(key = prefix_key  , String = prefix) 
           assert(istat==0)
 
@@ -353,6 +354,7 @@ contains
     class(environment_t), intent(inout) :: this
     integer                             :: my_color
     integer(ip)                         :: istat
+    type(environment_t), pointer        :: next_level
 
     assert ( this%num_levels >= 1 )
     assert ( allocated(this%world_context))
@@ -377,8 +379,9 @@ contains
     end if
 
     if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
-       allocate(this%next_level, stat=istat);check(istat == 0)
-       allocate(this%next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
+       allocate(next_level, stat=istat);check(istat == 0)
+       allocate(next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
+       this%next_level => next_level
        this%next_level%world_context = this%lgt1_context
        call this%next_level%assign_parts_to_tasks(this%num_levels-1, this%num_parts_per_level(2:),this%parts_mapping(2:))
        call this%next_level%fill_contexts()
@@ -919,5 +922,14 @@ contains
     assert( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%scatter_from_master (input_data, send_counts, displs, output_data_size, output_data )
   end subroutine environment_l2_to_l1_scatterv_rp_1D_array
-
+ !=============================================================================
+ 	function environment_get_w_context ( this ) result(w_context)
+ 	  implicit none 
+ 	  ! Parameters
+ 	  class(environment_t),       target, intent(in) :: this
+    class(execution_context_t), pointer            :: w_context
+ 	  w_context => this%world_context
+ 	end function environment_get_w_context
+  
+  
 end module environment_names

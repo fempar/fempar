@@ -9,13 +9,17 @@ module par_pb_bddc_poisson_params_names
   character(len=*), parameter :: write_solution_key         = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
   character(len=*), parameter :: jump_key                   = 'jump'    
-  character(len=*), parameter :: inclusion_key              = 'inclusion'    
+  character(len=*), parameter :: inclusion_key              = 'inclusion'  
+  character(len=*), parameter :: coarse_fe_handler_type_key = 'coarse_fe_handler_type_key' 
+  character(len=*), parameter :: standard_bddc              = 'standard_bddc' 
+  character(len=*), parameter :: pb_bddc                    = 'pb_bddc' 
 
   type, extends(parameter_generator_t) :: par_pb_bddc_poisson_params_t
      private
      contains
        procedure                              :: set_default  => par_pb_bddc_poisson_params_set_default
        procedure, non_overridable             :: get_dir_path
+       procedure, non_overridable             :: get_dir_path_out
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
@@ -23,11 +27,12 @@ module par_pb_bddc_poisson_params_names
        procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_jump
        procedure, non_overridable             :: get_inclusion
+       procedure, non_overridable             :: get_coarse_fe_handler_type
        !procedure, non_overridable             :: get_num_dimensions
   end type par_pb_bddc_poisson_params_t
 
   ! Types
-  public :: par_pb_bddc_poisson_params_t
+  public :: par_pb_bddc_poisson_params_t, standard_bddc, pb_bddc
 
 contains
 
@@ -60,6 +65,10 @@ contains
     error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
     error = list%set(key = jump_key                          , value =  1)  ; check(error==0)
     error = list%set(key = inclusion_key                     , value =  1)  ; check(error==0)
+    error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
+    error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
+    error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
+    error = list%set(key = coarse_fe_handler_type_key        , value =  pb_bddc)                      ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                ; check(error==0)
@@ -76,6 +85,11 @@ contains
     error = switches%set(key = execution_context_key         , value = '--execution_context')       ; check(error==0)
     error = switches%set(key = jump_key                      , value = '--jump')                    ; check(error==0)
     error = switches%set(key = inclusion_key                 , value = '--inclusion')               ; check(error==0)
+    error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
+    error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
+    error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
+    error = switches%set(key = coarse_fe_handler_type_key    , value = '--coarse-fe-handler')        ; check(error==0)
+
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -91,6 +105,10 @@ contains
     error = switches_ab%set(key = execution_context_key      , value = '-exe')      ; check(error==0)
     error = switches_ab%set(key = jump_key                   , value = '-j')        ; check(error==0)
     error = switches_Ab%set(key = inclusion_key              , value = '-i')        ; check(error==0)
+    error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
+    error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
+    error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
+    error = switches_ab%set(key = coarse_fe_handler_type_key    , value = '-coarse-handler')        ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')               ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                       ; check(error==0)
@@ -104,6 +122,10 @@ contains
     error = helpers%set(key = write_solution_key             , value = 'Write solution in VTK format')                ; check(error==0)
     error = helpers%set(key = jump_key                       , value = 'Jump of physical parameter in the inclusion') ; check(error==0)
     error = helpers%set(key = inclusion_key                  , value = 'Inclusion type')                              ; check(error==0)
+    error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
+    error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
+    error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
+    error = helpers%set(key = coarse_fe_handler_type_key    , value  = 'Which coarse fe handler to use?')        ; check(error==0)
 
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -130,6 +152,11 @@ contains
     error = required%set(key = execution_context_key         , value = .false.) ; check(error==0)
     error = required%set(key = jump_key                      , value = .false.) ; check(error==0)
     error = required%set(key = inclusion_key                 , value = .false.) ; check(error==0)
+    error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
+    error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
+    error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
+    error = required%set(key = coarse_fe_handler_type_key    , value = .false.) ; check(error==0)
+
 
   end subroutine par_pb_bddc_poisson_params_set_default
 
@@ -141,10 +168,23 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(list%isAssignable(dir_path_key, get_dir_path))
+    assert(list%isAssignable(dir_path_key, 'string'))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
-  end function get_dir_path
+  end function get_dir_path 
+  
+  ! GETTERS *****************************************************************************************
+  function get_dir_path_out(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    character(len=:),      allocatable            :: get_dir_path_out
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_parameters()
+    assert(list%isAssignable(dir_path_out_key, 'string'))
+    error = list%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
+    assert(error==0)
+  end function get_dir_path_out
 
   !==================================================================================================
   function get_prefix(this)
@@ -154,7 +194,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_parameters()
-    assert(list%isAssignable(prefix_key, get_prefix))
+    assert(list%isAssignable(prefix_key, 'string'))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
   end function get_prefix
@@ -236,5 +276,18 @@ contains
     error = list%Get(key = inclusion_key, Value = get_inclusion)
     assert(error==0)
   end function get_inclusion
+  
+  function get_coarse_fe_handler_type(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    character(len=:),      allocatable            :: get_coarse_fe_handler_type
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_parameters()
+    assert(list%isAssignable(coarse_fe_handler_type_key, get_coarse_fe_handler_type))
+    error = list%GetAsString(key = coarse_fe_handler_type_key, string = get_coarse_fe_handler_type)
+    assert(error==0)
+  end function get_coarse_fe_handler_type 
+  
 
 end module par_pb_bddc_poisson_params_names

@@ -178,13 +178,11 @@ subroutine par_fe_space_fill_dof_info( this )
      call this%compute_blocks_dof_import()
      ! Step required by the MLBDDC preconditioner
      call this%renumber_dofs_first_interior_then_interface()
-     call this%setup_coarse_dofs()
   else
      ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
      ! requires that this%blocks_dof_import is allocated 
      allocate ( this%blocks_dof_import(this%number_blocks) )
   end if
-  call this%setup_coarse_fe_space()
 end subroutine par_fe_space_fill_dof_info
 
 subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
@@ -282,14 +280,6 @@ subroutine par_fe_space_renumber_dofs_first_interior_then_interface( this )
     end do
   end if
 end subroutine par_fe_space_renumber_dofs_first_interior_then_interface
-
-subroutine par_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
-  implicit none
-  class(par_fe_space_t)   , intent(inout) :: this
-  integer(ip)                 , intent(in)    :: block_id
-  integer(ip)                 , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
-  call this%serial_fe_space_t%renumber_dofs_block(block_id, perm_old2new)
-end subroutine par_fe_space_renumber_dofs_block
 
 subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
@@ -976,9 +966,10 @@ subroutine par_fe_space_interpolate_dirichlet_values(this, conditions, time, fie
   end if
 end subroutine par_fe_space_interpolate_dirichlet_values
 
- subroutine par_fe_space_setup_coarse_dofs ( this )
+ subroutine par_fe_space_setup_coarse_dofs ( this, parameter_list )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
+  type(ParameterList_t), intent(in)    :: parameter_list
   integer(ip)                          :: i, istat, field_id
   type(environment_t), pointer         :: par_environment
   integer(ip)                          :: coarse_dof_lid
@@ -1007,7 +998,7 @@ end subroutine par_fe_space_interpolate_dirichlet_values
   
   this%ptr_coarse_dofs_per_field(1) = 1
   do field_id=1, this%number_fields
-    call this%coarse_fe_handler%get_num_coarse_dofs(this, num_coarse_dofs(:,field_id))
+    call this%coarse_fe_handler%get_num_coarse_dofs(this, parameter_list, num_coarse_dofs(:,field_id))
     this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id)
     do i=1, this%get_number_fe_objects()
       this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id+1) + &
@@ -1092,9 +1083,10 @@ subroutine par_fe_space_free_coarse_dofs(this)
     end if
 end subroutine par_fe_space_free_coarse_dofs
    
-subroutine par_fe_space_setup_coarse_fe_space(this)
+subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
   implicit none
-  class(par_fe_space_t), intent(inout) :: this
+  class(par_fe_space_t), intent(inout)  :: this
+  type(parameterlist_t) , intent(in)    :: parameter_list
   integer(ip)                           :: istat
   integer(ip)                           :: number_fields
   integer(ip), allocatable              :: fe_space_type_per_field(:)
@@ -1109,6 +1101,10 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
   
   
   par_environment => this%get_par_environment()
+  
+  if ( par_environment%am_i_l1_task() ) then
+    call this%setup_coarse_dofs(parameter_list)
+  end if  
   
    ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
    ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot

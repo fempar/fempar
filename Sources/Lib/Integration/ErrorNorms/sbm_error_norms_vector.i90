@@ -191,6 +191,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   end if
 
   ! Do the same for gradients, if required by norm type 
+  curl_values_cell_contribution = 0.0_rp
   if (norm_requires_gradients .or. norm_requires_curl_values) then  
      if(present(time)) then
         call exact_solution%get_gradients_set_space_time(coordinates, &
@@ -203,7 +204,6 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
 
      ! If norm type requires curl values, Compute their contribution from gradients
      if (norm_requires_curl_values) then  
-        curl_values_cell_contribution = 0.0_rp
         select case ( trim(norm_type) )
         case (hcurl_seminorm)
            do q_point=1, n_q_points

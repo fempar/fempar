@@ -454,10 +454,20 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set
 
      ! Private methods to perform nearest neighbor exchange
-     procedure, non_overridable, private :: fetch_ghost_cells_data              => bst_fetch_ghost_cells_data
-     procedure, non_overridable, nopass, private :: cell_size                   => bst_cell_size
-     procedure, non_overridable, nopass, private :: cell_pack                   => bst_cell_pack
-     procedure, non_overridable, nopass, private :: cell_unpack                 => bst_cell_unpack
+     procedure, non_overridable, nopass, private :: bst_cell_pack_vef_gids
+     procedure, non_overridable, nopass, private :: bst_cell_pack_vef_gids_and_dimension
+     procedure, non_overridable, nopass, private :: bst_cell_pack_vef_gids_and_coordinates
+     procedure, non_overridable, nopass, private :: bst_cell_unpack_vef_gids
+     procedure, non_overridable, nopass, private :: bst_cell_unpack_vef_gids_and_dimension
+     procedure, non_overridable, nopass, private :: bst_cell_unpack_vef_gids_and_coordinates
+     procedure, non_overridable, private :: fetch_ghost_cells_data         => bst_fetch_ghost_cells_data
+     procedure, non_overridable, nopass, private :: cell_size              => bst_cell_size
+     generic,                            private :: cell_pack              => bst_cell_pack_vef_gids, &
+                                                                              bst_cell_pack_vef_gids_and_dimension, &
+                                                                              bst_cell_pack_vef_gids_and_coordinates
+     generic,                            private :: cell_unpack            => bst_cell_unpack_vef_gids, &
+                                                                              bst_cell_unpack_vef_gids_and_dimension, &
+                                                                              bst_cell_unpack_vef_gids_and_coordinates
 
      ! Private methods for creating vef-related data
      procedure, non_overridable, private :: compute_num_vefs                    => bst_compute_num_vefs

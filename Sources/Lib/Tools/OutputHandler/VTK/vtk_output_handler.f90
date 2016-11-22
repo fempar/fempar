@@ -140,7 +140,7 @@ contains
 
         if(present(parameter_list)) then
             if(parameter_list%isPresent(vtk_format)) then
-                assert(parameter_list%isAssignable(vtk_format, this%vtk_format))
+                assert(parameter_list%isAssignable(vtk_format, 'string'))
                 FPLError   = parameter_list%GetAsString(Key=vtk_format, String=this%vtk_format)
                 assert(FPLError == 0)
             endif

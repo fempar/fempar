@@ -25,10 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix) 
+subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
   class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
   type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object_iterator
@@ -187,10 +188,11 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix)
   !call constraint_matrix%print(6)
 end subroutine H1_l1_setup_constraint_matrix
 
-subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator) 
+subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
   implicit none
   class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   integer(ip) :: field_id
   type(fe_object_iterator_t) :: object_iterator
@@ -249,7 +251,14 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator
      if ( .not. touch_subpart(subpart)) then
         touch_subpart(subpart) = .true.
         is_subpart_local(subpart) = ( fe%get_my_part() == par_env%get_l1_rank() + 1 ) 
-        subpart_viscosity(subpart) = fe%get_set_id()
+        
+        if ( fe%get_set_id() <= 1 ) then
+             subpart_viscosity(subpart) = 1.0_rp
+          else 
+             subpart_viscosity(subpart) = this%diffusion_inclusion
+        end if
+        
+        
      end if
      call fe_iterator%next()
   end do
@@ -292,4 +301,8 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator
      end do
      call object_iterator%next()
   end do
+  call memfree( is_subpart_local, __FILE__ , __LINE__ )
+  call memfree( touch_subpart, __FILE__ , __LINE__ )
+  call memfree( subpart_viscosity, __FILE__ , __LINE__ )
+  
 end subroutine H1_l1_setup_weighting_operator
