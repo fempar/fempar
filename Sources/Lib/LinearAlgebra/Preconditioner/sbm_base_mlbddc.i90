@@ -644,7 +644,7 @@ subroutine base_mlbddc_numerical_setup_coarse_solver(this)
 end subroutine base_mlbddc_numerical_setup_coarse_solver
 
 !=============================================================================
-subroutine base_mlbddc_apply (op, x, y)
+recursive subroutine base_mlbddc_apply (op, x, y)
   implicit none
   ! Parameters
   class(base_mlbddc_t)   , intent(in)    :: op
