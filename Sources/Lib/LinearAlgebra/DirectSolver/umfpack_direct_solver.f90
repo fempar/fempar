@@ -130,30 +130,13 @@ contains
         class(umfpack_direct_solver_t),  intent(inout) :: this
         type(ParameterList_t),           intent(in)    :: parameter_list
         integer(ip)                                    :: FPLError
-        logical                                        :: is_present
-        logical                                        :: same_data_type
-        integer(ip), allocatable                       :: shape(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        is_present     = parameter_list%isPresent(Key=umfpack_control_params)
-        if(is_present) then
-#ifdef DEBUG
-            same_data_type = parameter_list%isOfDataType(Key=umfpack_control_params, mold=this%Control)
-            FPLError       = parameter_list%getshape(Key=umfpack_control_params, shape=shape)
-            if(same_data_type .and. size(shape) == 1) then
-                if(shape(1) == UMFPACK_CONTROL) then
-#endif
-                    ! UMFPACK control parameters
-                    FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Expected size (20). '
-                endif
-            else
-                write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Wrong data type or shape. '
-            endif
-#endif
+        if( parameter_list%isPresent(umfpack_control_params)) then
+            ! UMFPACK control parameters
+            assert(parameter_list%isAssignable(umfpack_control_params, this%control))
+            FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
+            assert(FPLError == 0)
         endif
 #else
         call this%not_enabled_error()
@@ -184,8 +167,8 @@ contains
                 !  From the matrix data, create the symbolic factorization information.
                 status = umfpack_di_symbolic (matrix%get_num_rows(), &  !< Number of rows of the transposed CSC (CSR) matrix
                                               matrix%get_num_cols(), &  !< Number of columns of the transposed CSC (CSR) matrix
-                                              matrix%irp,            &  !< Transposed CSC column (CSR rows) pointers
-                                              matrix%ja,             &  !< Transposed CSC row (CSR columns) indices
+                                              matrix%get_irp(),      &  !< Transposed CSC column (CSR rows) pointers
+                                              matrix%get_ja(),       &  !< Transposed CSC row (CSR columns) indices
                                               C_NULL_PTR,            &  !< Numerical values
                                               this%Symbolic,         &  !< Opaque symbolic object
                                               this%Control,          &  !< UMPACK control parameters array
@@ -227,15 +210,15 @@ contains
             type is (csr_sparse_matrix_t)
                 ! Fortran to C numbering 
                 call this%Fortran_to_C_numbering()
-                val => matrix%val(:)
+                val => matrix%get_val()
                 !  From the symbolic factorization information, carry out the numeric factorization.
-                status = umfpack_di_numeric ( matrix%irp,    &  !< Transposed CSC column (CSR rows) pointers
-                                              matrix%ja,     &  !< Transposed CSC row (CSR columns) indices
-                                              val,           &  !< Numerical values
-                                              this%Symbolic, &  !< Opaque symbolic object
-                                              this%Numeric,  &  !< Opaque numeric object
-                                              this%Control,  &  !< UMPACK control parameters array
-                                              this%Info)        !< UMPACK info array
+                status = umfpack_di_numeric ( matrix%get_irp(), &  !< Transposed CSC column (CSR rows) pointers
+                                              matrix%get_ja(),  &  !< Transposed CSC row (CSR columns) indices
+                                              val,              &  !< Numerical values
+                                              this%Symbolic,    &  !< Opaque symbolic object
+                                              this%Numeric,     &  !< Opaque numeric object
+                                              this%Control,     &  !< UMPACK control parameters array
+                                              this%Info)           !< UMPACK info array
           
                 if ( status < 0 ) then
                     write ( *, '(a)' ) ''
@@ -280,19 +263,19 @@ contains
             type is (csr_sparse_matrix_t)
                 ! Fortran to C numbering 
                 call op%Fortran_to_C_numbering()
-                val => matrix%val(:)
+                val => matrix%get_val()
                 x_b => x%get_entries()
                 y_b => y%get_entries()
                 ! Solve the linear system.
-                status = umfpack_di_solve ( UMFPACK_At, &  !< A'x=b
-                                            matrix%irp, &  !< Transposed CSC column (CSR rows) pointers
-                                            matrix%ja,  &  !< Transposed CSC row (CSR columns) indices
-                                            val,        &  !< Numerical values
-                                            y_b,        &  !< Output X array
-                                            x_b,        &  !< Input B array
-                                            op%Numeric, &  !< Opaque numeric object
-                                            op%Control, &  !< UMPACK control parameters array
-                                            op%Info )      !< UMPACK info array
+                status = umfpack_di_solve ( UMFPACK_At,       &  !< A'x=b
+                                            matrix%get_irp(), &  !< Transposed CSC column (CSR rows) pointers
+                                            matrix%get_ja(),  &  !< Transposed CSC row (CSR columns) indices
+                                            val,              &  !< Numerical values
+                                            y_b,              &  !< Output X array
+                                            x_b,              &  !< Input B array
+                                            op%Numeric,       &  !< Opaque numeric object
+                                            op%Control,       &  !< UMPACK control parameters array
+                                            op%Info )            !< UMPACK info array
 
                 if ( status < 0 ) then
                     write ( *, '(a)' ) ''
@@ -336,19 +319,19 @@ contains
                 assert(size(y,2) == number_rhs)
                 ! Fortran to C numbering 
                 call op%Fortran_to_C_numbering()
-                val => matrix%val(:)
+                val => matrix%get_val()
 
                 do i=1, number_rhs
                     ! Solve the linear system.
-                    status = umfpack_di_solve ( UMFPACK_At, &  !< A'x=b
-                                                matrix%irp, &  !< Transposed CSC column (CSR rows) pointers
-                                                matrix%ja,  &  !< Transposed CSC row (CSR columns) indices
-                                                val,        &  !< Numerical values
-                                                y(:,i),     &  !< Output X array
-                                                x(:,i),     &  !< Input B array
-                                                op%Numeric, &  !< Opaque numeric object
-                                                op%Control, &  !< UMPACK control parameters array
-                                                op%Info )      !< UMPACK info array
+                    status = umfpack_di_solve ( UMFPACK_At, &        !< A'x=b
+                                                matrix%get_irp(), &  !< Transposed CSC column (CSR rows) pointers
+                                                matrix%get_ja(),  &  !< Transposed CSC row (CSR columns) indices
+                                                val,        &        !< Numerical values
+                                                y(:,i),     &        !< Output X array
+                                                x(:,i),     &        !< Input B array
+                                                op%Numeric, &        !< Opaque numeric object
+                                                op%Control, &        !< UMPACK control parameters array
+                                                op%Info )            !< UMPACK info array
 
                     if ( status < 0 ) then
                         write ( *, '(a)' ) ''
@@ -418,14 +401,18 @@ contains
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
         class(base_sparse_matrix_t), pointer          :: matrix
+        integer(ip),                 pointer          :: irp(:)
+        integer(ip),                 pointer          :: ja(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         if(this%Matrix_Numbering == FORTRAN_NUMBERING) then
             matrix => this%matrix%get_pointer_to_base_matrix()
             select type (matrix)
                 type is (csr_sparse_matrix_t)
-                    matrix%irp = matrix%irp - 1
-                    matrix%ja  = matrix%ja  - 1
+                    irp => matrix%get_irp()
+                    ja => matrix%get_ja()
+                    irp = irp - 1
+                    ja  = ja  - 1
                     this%Matrix_Numbering = C_NUMBERING
             end select
         endif
@@ -441,14 +428,18 @@ contains
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
         class(base_sparse_matrix_t), pointer          :: matrix
+        integer(ip),                 pointer          :: irp(:)
+        integer(ip),                 pointer          :: ja(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         if(this%Matrix_Numbering == C_NUMBERING) then
             matrix => this%matrix%get_pointer_to_base_matrix()
             select type (matrix)
                 type is (csr_sparse_matrix_t)
-                    matrix%irp = matrix%irp + 1
-                    matrix%ja  = matrix%ja  + 1
+                    irp => matrix%get_irp()
+                    ja => matrix%get_ja()
+                    irp = irp + 1
+                    ja  = ja  + 1
                     this%Matrix_Numbering = FORTRAN_NUMBERING
             end select
         endif

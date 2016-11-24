@@ -43,11 +43,11 @@ private
 
     type, extends(base_sparse_matrix_t) :: csr_sparse_matrix_t
     private
-        character(len=3)                 :: format_name = csr_format    ! String format id
-        integer(ip)                      :: nnz = 0                     ! Number of non zeros
-        integer(ip), allocatable, public :: irp(:)                      ! Row pointers
-        integer(ip), allocatable, public :: ja(:)                       ! Column indices        
-        real(rp),    allocatable, public :: val(:)                      ! Values
+        character(len=3)         :: format_name = csr_format    ! String format id
+        integer(ip)              :: nnz = 0                     ! Number of non zeros
+        integer(ip), allocatable :: irp(:)                      ! Row pointers
+        integer(ip), allocatable :: ja(:)                       ! Column indices        
+        real(rp),    allocatable :: val(:)                      ! Values
     contains
     private
         procedure, public :: is_by_rows                              => csr_sparse_matrix_is_by_rows
@@ -55,6 +55,9 @@ private
         procedure, public :: get_format_name                         => csr_sparse_matrix_get_format_name
         procedure, public :: set_nnz                                 => csr_sparse_matrix_set_nnz
         procedure, public :: get_nnz                                 => csr_sparse_matrix_get_nnz
+        procedure, public :: get_irp                                 => csr_sparse_matrix_get_irp
+        procedure, public :: get_ja                                  => csr_sparse_matrix_get_ja
+        procedure, public :: get_val                                 => csr_sparse_matrix_get_val
         procedure, public :: copy_to_coo_body                        => csr_sparse_matrix_copy_to_coo_body
         procedure, public :: copy_from_coo_body                      => csr_sparse_matrix_copy_from_coo_body
         procedure, public :: move_to_coo_body                        => csr_sparse_matrix_move_to_coo_body
@@ -179,6 +182,42 @@ contains
     !-----------------------------------------------------------------
         nnz = this%nnz
     end function csr_sparse_matrix_get_nnz
+
+
+    function csr_sparse_matrix_get_irp(this) result(irp)
+    !-----------------------------------------------------------------
+    !< Return a pointer to irp
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), target, intent(in) :: this
+        integer(ip),                pointer            :: irp(:)
+    !-----------------------------------------------------------------
+        assert(allocated(this%irp))
+        irp => this%irp
+    end function csr_sparse_matrix_get_irp
+
+
+    function csr_sparse_matrix_get_ja(this) result(ja)
+    !-----------------------------------------------------------------
+    !< Return a pointer to ja
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), target, intent(in) :: this
+        integer(ip),                pointer            :: ja(:)
+    !-----------------------------------------------------------------
+        assert(allocated(this%ja))
+        ja => this%ja
+    end function csr_sparse_matrix_get_ja
+
+
+    function csr_sparse_matrix_get_val(this) result(val)
+    !-----------------------------------------------------------------
+    !< Return a pointer to val
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), target, intent(in) :: this
+        real(rp),                   pointer            :: val(:)
+    !-----------------------------------------------------------------
+        assert(allocated(this%val))
+        val => this%val
+    end function csr_sparse_matrix_get_val
 
 
     function csr_sparse_matrix_is_by_rows(this) result(is_by_rows)

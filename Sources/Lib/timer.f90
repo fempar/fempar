@@ -34,10 +34,10 @@ module timer_names
   private
   
   ! What to do in case several pairs of start()-stop() calls are performed?
-  character(len=:), parameter :: PAR_TIMER_MODE_SUM     = "par_timer_mode_sum"
-  character(len=:), parameter :: PAR_TIMER_MODE_MIN     = "par_timer_mode_min"
-  character(len=:), parameter :: PAR_TIMER_MODE_LAST    = "par_timer_mode_last"
-  character(len=:), parameter :: DEFAULT_PAR_TIMER_MODE = PAR_TIMER_MODE_LAST
+  character(len=*), parameter :: PAR_TIMER_MODE_SUM     = "par_timer_mode_sum"
+  character(len=*), parameter :: PAR_TIMER_MODE_MIN     = "par_timer_mode_min"
+  character(len=*), parameter :: PAR_TIMER_MODE_LAST    = "par_timer_mode_last"
+  character(len=*), parameter :: DEFAULT_PAR_TIMER_MODE = PAR_TIMER_MODE_LAST
 
   type timer_t
      private

@@ -1,15 +1,20 @@
 [submodule "ThirdParty/SISL"]
 	path = ThirdParty/SISL
 	url = https://github.com/victorsndvg/SISL.git
+	branch = master
 [submodule "ThirdParty/FPL"]
 	path = ThirdParty/FPL
 	url = https://github.com/victorsndvg/FPL.git
+	branch = openmp_threadsafe
 [submodule "ThirdParty/FLAP"]
 	path = ThirdParty/FLAP
 	url = https://github.com/victorsndvg/FLAP.git
+	branch = openmp_threadsafe
 [submodule "ThirdParty/VTKIO"]
 	path = ThirdParty/VTKIO
 	url = https://github.com/victorsndvg/Lib_VTK_IO.git
+	branch = master
 [submodule "ThirdParty/XH5For"]
 	path = ThirdParty/XH5For
 	url = https://github.com/victorsndvg/XH5For.git
+	branch = master

@@ -33,7 +33,9 @@ module fempar_names
   use stdio_names
   use hash_table_names
   use postpro_names
-  use environment_names
+  use environment_names 
+  use execution_context_names
+ 	use mpi_context_names
   use flap, only : command_line_interface
   use FPL
   use parameter_generator_names

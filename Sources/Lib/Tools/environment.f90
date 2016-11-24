@@ -93,6 +93,7 @@ module environment_names
      ! Getters
      procedure :: get_num_tasks                  => environment_get_num_tasks
      procedure :: get_next_level                 => environment_get_next_level
+     procedure :: get_w_context                  => environment_get_w_context
      procedure :: get_l1_context                 => environment_get_l1_context
      procedure :: get_l1_rank                    => environment_get_l1_rank
      procedure :: get_l1_size                    => environment_get_l1_size
@@ -192,52 +193,22 @@ contains
     ! Locals
     integer(ip)          :: nenvs
     integer(ip)          :: istat
-    logical              :: is_present
     character(len=:), allocatable :: dir_path
     character(len=:), allocatable :: prefix
     character(len=:), allocatable :: name, rename
     integer(ip)          :: lunio
     integer(ip)          :: i
-    logical              :: same_data_type
-    integer(ip), allocatable :: shape(:)
 
     nenvs = size(envs)
 
      ! Mandatory parameters
-    is_present         = parameter_list%isPresent(Key=dir_path_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key = dir_path_key, mold = dir_path)
-        istat          = parameter_list%getshape(Key=dir_path_key, shape=shape)
-        assert(istat == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            istat = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
-            check(istat==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    assert(parameter_list%isAssignable(dir_path_key, 'string'))
+    istat = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
+    assert(istat==0)
 
-
-    is_present         = parameter_list%isPresent(Key=prefix_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key = prefix_key, mold = prefix)
-        istat          = parameter_list%getshape(Key=prefix_key, shape=shape)
-        assert(istat == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            istat = parameter_list%GetAsString(key = prefix_key, string = prefix)
-            check(istat==0)
-#ifdef DEBUG
-        else
-            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    assert(parameter_list%isAssignable(prefix_key, 'string')) 
+    istat = parameter_list%GetAsString(key = prefix_key, string = prefix)
+    assert(istat==0)
 
     call environment_compose_name ( prefix, name )
 
@@ -288,12 +259,12 @@ contains
     ! from the rest of the mesh information.
     type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
-    integer(ip)          :: istat
-    logical              :: is_present
-    integer(ip)          :: environment_type
-    integer(ip)          :: execution_context
-    character(len=256)   :: dir_path
-    character(len=256)   :: prefix
+    integer(ip)                     :: istat
+    logical                         :: is_present
+    integer(ip)                     :: environment_type
+    integer(ip)                     :: execution_context
+    character(len=:), allocatable   :: dir_path
+    character(len=:), allocatable   :: prefix
     character(len=:), allocatable   :: name
     integer(ip)                     :: lunio
     integer(ip)               :: num_levels
@@ -303,13 +274,17 @@ contains
     call this%free()
 
     ! Optional parameters
-    if(parameters%isPresent(key = execution_context_key)) then
-       istat = parameters%get(key = execution_context_key, value = execution_context); check(istat==0)
+    if(parameters%isPresent(execution_context_key)) then
+       assert(parameters%isAssignable(execution_context_key, execution_context))
+       istat = parameters%get(key = execution_context_key, value = execution_context)
+       assert(istat==0)
     else
        execution_context = serial_context
     end if
-    if( parameters%isPresent(key = environment_type_key) ) then
-       istat = parameters%get(key = environment_type_key, value = environment_type); check(istat==0)
+    if( parameters%isPresent(environment_type_key)) then
+       assert(parameters%isAssignable(environment_type_key, environment_type))
+       istat = parameters%get(key = environment_type_key, value = environment_type)
+       assert(istat==0)
     else
        environment_type = unstructured
     end if
@@ -327,10 +302,13 @@ contains
 
        if(this%world_context%get_num_tasks()>1) then
           ! Mandatory parameters
-          is_present =  parameters%isPresent(key = dir_path_key)      ; assert(is_present)
-          is_present =  parameters%isPresent(key = prefix_key)        ; assert(is_present)
-          istat = parameters%get(key = dir_path_key, value = dir_path); check(istat==0)
-          istat = parameters%get(key = prefix_key  , value = prefix)  ; check(istat==0)
+          assert(parameters%isAssignable(dir_path_key, 'string'))
+          istat = parameters%GetAsString(key = dir_path_key, String = dir_path)
+          assert(istat==0)
+          
+          assert(parameters%isAssignable(prefix_key, 'string'))
+          istat = parameters%GetAsString(key = prefix_key  , String = prefix) 
+          assert(istat==0)
 
           call environment_compose_name(prefix, name )  
           call par_filename( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
@@ -386,6 +364,7 @@ contains
     class(environment_t), intent(inout) :: this
     integer                             :: my_color
     integer(ip)                         :: istat
+    type(environment_t), pointer        :: next_level
 
     assert ( this%num_levels >= 1 )
     assert ( allocated(this%world_context))
@@ -410,8 +389,9 @@ contains
     end if
 
     if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
-       allocate(this%next_level, stat=istat);check(istat == 0)
-       allocate(this%next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
+       allocate(next_level, stat=istat);check(istat == 0)
+       allocate(next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
+       this%next_level => next_level
        this%next_level%world_context = this%lgt1_context
        call this%next_level%assign_parts_to_tasks(this%num_levels-1, this%num_parts_per_level(2:),this%parts_mapping(2:))
        call this%next_level%fill_contexts()
@@ -960,5 +940,14 @@ contains
     assert( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%scatter_from_master (input_data, send_counts, displs, output_data_size, output_data )
   end subroutine environment_l2_to_l1_scatterv_rp_1D_array
-
+ !=============================================================================
+ 	function environment_get_w_context ( this ) result(w_context)
+ 	  implicit none 
+ 	  ! Parameters
+ 	  class(environment_t),       target, intent(in) :: this
+    class(execution_context_t), pointer            :: w_context
+ 	  w_context => this%world_context
+ 	end function environment_get_w_context
+  
+  
 end module environment_names

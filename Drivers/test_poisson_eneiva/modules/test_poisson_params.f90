@@ -42,9 +42,9 @@ module test_poisson_params_names
      type(Command_Line_Interface):: cli 
 
      ! IO parameters
-     character(len=256)            :: dir_path
-     character(len=256)            :: prefix
-     character(len=256)            :: dir_path_out
+     character(len=str_cla_len)             :: dir_path
+     character(len=str_cla_len)             :: prefix
+     character(len=str_cla_len)             :: dir_path_out
      
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -137,24 +137,24 @@ contains
   function get_dir_path(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
-    character(len=256) :: get_dir_path
-    get_dir_path = this%dir_path
+    character(len=:), allocatable :: get_dir_path
+    get_dir_path = trim(this%dir_path)
   end function get_dir_path
 
   !==================================================================================================
   function get_prefix(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
-    character(len=256) :: get_prefix
-    get_prefix = this%prefix
+    character(len=:), allocatable :: get_prefix
+    get_prefix = trim(this%prefix)
   end function get_prefix
 
   !==================================================================================================
   function get_dir_path_out(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
-    character(len=256) :: get_dir_path_out
-    get_dir_path_out = this%dir_path_out
+    character(len=:), allocatable :: get_dir_path_out
+    get_dir_path_out = trim(this%dir_path_out)
   end function get_dir_path_out
   
 end module test_poisson_params_names

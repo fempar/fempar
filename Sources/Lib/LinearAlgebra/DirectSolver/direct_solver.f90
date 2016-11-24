@@ -39,7 +39,7 @@ module direct_solver_names
     USE serial_scalar_array_names
     USE direct_solver_creational_methods_dictionary_names
     USE FPL
-
+    
 implicit none
 # include "debug.i90"
 
@@ -103,22 +103,11 @@ contains
         character(len=:), allocatable         :: name
         integer                               :: DataSizeInBytes
         integer                               :: FPLError
-#ifdef DEBUG
-        logical                               :: is_present
-        logical                               :: is_string
-        integer(ip), allocatable              :: shape(:)
     !-----------------------------------------------------------------
-        is_present = parameter_list%isPresent(Key=direct_solver_type)
-        is_string  = parameter_list%isOfDataType(Key=direct_solver_type, mold='string')
-        FPLError   = parameter_list%getshape(Key=direct_solver_type, shape=shape)
         ! check if DIRECT_SOLVER_TYPE is present and is a scalar string
         ! in the given parameter list,
-        assert(is_present .and. is_string .and. size(shape) == 0) 
-#endif
-        DataSizeInBytes = parameter_list%DataSizeInBytes(Key=direct_solver_type)
-        allocate(character(len=DataSizeInBytes) :: name, stat=FPLError)
-        assert(FPLError == 0)
-        FPLError = parameter_list%Get(Key=direct_solver_type, Value=name)
+        assert(parameter_list%isAssignable(direct_solver_type, 'string')) 
+        FPLError = parameter_list%GetAsString(Key=direct_solver_type, String=name)
         assert(FPLError == 0)
         call this%set_type(name)
     end subroutine direct_solver_set_type_from_pl

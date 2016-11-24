@@ -411,12 +411,16 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
+    character(len=:), allocatable            :: path
+    character(len=:), allocatable            :: prefix
     if(this%test_params%get_write_solution()) then
+        path = this%test_params%get_dir_path_out()
+        prefix = this%test_params%get_prefix()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-        call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
+        call oh%open(path, prefix)
         call oh%write()
         call oh%close()
         call oh%free()

@@ -182,71 +182,34 @@ contains
         type(ParameterList_t),               intent(in)    :: parameter_list
         integer(ip)                                        :: FPLError
         integer(ip)                                        :: matrix_type
-        logical                                            :: is_present
-        logical                                            :: same_data_type
-        integer(ip), allocatable                           :: shape(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL  
         ! Matrix type
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
-        if(is_present) then
-#ifdef DEBUG
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_matrix_type, mold=this%matrix_type)
-            FPLError       = parameter_list%getshape(Key=pardiso_mkl_matrix_type, shape=shape)
-            if(same_data_type .and. size(shape) == 0) then
-#endif
-                FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=matrix_type)
-                assert(FPLError == 0)
-                if(this%state_is_start()) then
-                    ! Matrix cannot change in symbolic to numeric transition
-                    this%matrix_type = matrix_type
-                    this%forced_matrix_type = .true.
-                else
-                    write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. It cannot be changed after analysis phase'
-                endif
-#ifdef DEBUG
+        if(parameter_list%isPresent(pardiso_mkl_matrix_type)) then
+            assert(parameter_list%isAssignable(pardiso_mkl_matrix_type, this%matrix_type))
+            FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=matrix_type)
+            assert(FPLError == 0)
+            if(this%state_is_start()) then
+                ! Matrix cannot change in symbolic to numeric transition
+                this%matrix_type = matrix_type
+                this%forced_matrix_type = .true.
             else
-                write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. Wrong data type or shape. '
+                write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. It cannot be changed after analysis phase'
             endif
-#endif
         endif
 
          ! iparm
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
-        if(is_present) then
-#ifdef DEBUG
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%pardiso_mkl_iparm)
-            FPLError       = parameter_list%getshape(Key=pardiso_mkl_iparm, shape=shape)
-            if(same_data_type .and. size(shape) == 1) then
-                if(shape(1) == 64) then
-#endif
-                    FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
-                    assert(FPLError == 0)
-#ifdef DEBUG
-                else
-                    write(*,'(a)') ' Warning! pardiso_mkl_iparm ignored. Expected size (64). '
-                endif
-            else
-                write(*,'(a)') ' Warning! pardiso_mkl_iparm ignored. Wrong data type or shape. '
-            endif
-#endif
+        if(parameter_list%isPresent(pardiso_mkl_iparm)) then
+            assert(parameter_list%isAssignable(pardiso_mkl_iparm, this%pardiso_mkl_iparm))
+            FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
+            assert(FPLError == 0)
         endif
 
          ! Message level
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
-        if(is_present) then
-#ifdef DEBUG
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_message_level, mold=this%message_level)
-            FPLError       = parameter_list%getshape(Key=pardiso_mkl_message_level, shape=shape)
-            if(same_data_type .and. size(shape) == 0) then
-#endif
-                FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
-                assert(FPLError == 0)
-#ifdef DEBUG
-            else
-                write(*,'(a)') ' Warning! pardiso_mkl_message_level ignored. Wrong data type or shape. '
-            endif
-#endif
+        if(parameter_list%isPresent(pardiso_mkl_message_level)) then
+            assert(parameter_list%isAssignable(pardiso_mkl_message_level, this%message_level))
+            FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
+            assert(FPLError == 0)
         endif
 #else
         call this%not_enabled_error()
@@ -278,7 +241,7 @@ contains
         select type (matrix)
             type is (csr_sparse_matrix_t)
                 if ( matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED ) then
-                  val => matrix%val
+                  val => matrix%get_val()
                 else
                   val => ddum
                 end if  
@@ -292,8 +255,8 @@ contains
                              phase  = this%phase,                  & !< Controls the execution of the solver (11 == Analysis)
                              n      = this%matrix%get_num_rows(),  & !< Number of equations in the sparse linear systems of equations
                              a      = val,                         & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%irp,                  & !< Pointers to columns in CSR format
-                             ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
+                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
+                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = this%pardiso_mkl_iparm,      & !< This array is used to pass various parameters to Intel MKL PARDISO 
@@ -348,9 +311,9 @@ contains
                              mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                              phase  = this%phase,                  & !< Controls the execution of the solver (22 == Numerical factorization)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%val,                  & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%irp,                  & !< Pointers to columns in CSR format
-                             ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
+                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
+                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = this%pardiso_mkl_iparm,      & !< This array is used to pass various parameters to Intel MKL PARDISO 
@@ -407,9 +370,9 @@ contains
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%val,                  & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%irp,                  & !< Pointers to columns in CSR format
-                             ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
+                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
+                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
@@ -464,9 +427,9 @@ contains
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%val,                  & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%irp,                  & !< Pointers to columns in CSR format
-                             ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
+                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
+                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = number_rhs,                  & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
