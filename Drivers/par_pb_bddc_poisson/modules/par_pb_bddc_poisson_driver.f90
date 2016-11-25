@@ -49,8 +49,8 @@ module par_pb_bddc_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(H1_l1_coarse_fe_handler_t)           :: l1_coarse_fe_handler
-     !type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     type(H1_l1_coarse_fe_handler_t)           :: H1_coarse_fe_handler
+     type(standard_l1_coarse_fe_handler_t)     :: standard_coarse_fe_handler
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -123,10 +123,14 @@ contains
        end do
     end if
 
-    call this%setup_cell_set_ids() 
+    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+      call this%setup_cell_set_ids() 
+    end if  
     call this%triangulation%setup_coarse_triangulation()
     write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
-    !call this%setup_cell_set_ids()
+    if ( this%test_params%get_coarse_fe_handler_type() == standard_bddc ) then
+      call this%setup_cell_set_ids() 
+    end if
 
   end subroutine setup_triangulation
 
@@ -143,7 +147,7 @@ contains
     integer(ip)   :: inode  
 
     this%poisson_integration%diffusion_inclusion = this%test_params%get_jump()    
-    !this%l1_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
+    this%H1_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
 
     if ( this%environment%am_i_l1_task() ) then
        call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
@@ -301,10 +305,19 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
-    call this%fe_space%create( triangulation       = this%triangulation, &
-         conditions          = this%poisson_conditions, &
-         reference_fes       = this%reference_fes, &
-         coarse_fe_handler   = this%l1_coarse_fe_handler)
+    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+       call this%fe_space%create( triangulation       = this%triangulation, &
+                                  conditions          = this%poisson_conditions, &
+                                  reference_fes       = this%reference_fes, &
+                                  coarse_fe_handler   = this%H1_coarse_fe_handler)
+    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
+       call this%fe_space%create( triangulation       = this%triangulation, &
+                                  conditions          = this%poisson_conditions, &
+                                  reference_fes       = this%reference_fes, &
+                                  coarse_fe_handler   = this%standard_coarse_fe_handler)
+    else
+      check(.false.)
+    end if
 
     call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)

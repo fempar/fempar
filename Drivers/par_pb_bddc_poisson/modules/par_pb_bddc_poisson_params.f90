@@ -9,7 +9,10 @@ module par_pb_bddc_poisson_params_names
   character(len=*), parameter :: write_solution_key         = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
   character(len=*), parameter :: jump_key                   = 'jump'    
-  character(len=*), parameter :: inclusion_key              = 'inclusion'    
+  character(len=*), parameter :: inclusion_key              = 'inclusion'  
+  character(len=*), parameter :: coarse_fe_handler_type_key = 'coarse_fe_handler_type_key' 
+  character(len=*), parameter :: standard_bddc              = 'standard_bddc' 
+  character(len=*), parameter :: pb_bddc                    = 'pb_bddc' 
 
   type, extends(parameter_generator_t) :: par_pb_bddc_poisson_params_t
      private
@@ -24,11 +27,12 @@ module par_pb_bddc_poisson_params_names
        procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_jump
        procedure, non_overridable             :: get_inclusion
+       procedure, non_overridable             :: get_coarse_fe_handler_type
        !procedure, non_overridable             :: get_num_dimensions
   end type par_pb_bddc_poisson_params_t
 
   ! Types
-  public :: par_pb_bddc_poisson_params_t
+  public :: par_pb_bddc_poisson_params_t, standard_bddc, pb_bddc
 
 contains
 
@@ -64,6 +68,7 @@ contains
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
+    error = list%set(key = coarse_fe_handler_type_key        , value =  pb_bddc)                      ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                ; check(error==0)
@@ -83,6 +88,8 @@ contains
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
+    error = switches%set(key = coarse_fe_handler_type_key    , value = '--coarse-fe-handler')        ; check(error==0)
+
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -101,6 +108,7 @@ contains
     error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
     error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
+    error = switches_ab%set(key = coarse_fe_handler_type_key    , value = '-coarse-handler')        ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')               ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                       ; check(error==0)
@@ -117,6 +125,7 @@ contains
     error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
     error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
+    error = helpers%set(key = coarse_fe_handler_type_key    , value  = 'Which coarse fe handler to use?')        ; check(error==0)
 
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -146,6 +155,8 @@ contains
     error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
+    error = required%set(key = coarse_fe_handler_type_key    , value = .false.) ; check(error==0)
+
 
   end subroutine par_pb_bddc_poisson_params_set_default
 
@@ -265,5 +276,18 @@ contains
     error = list%Get(key = inclusion_key, Value = get_inclusion)
     assert(error==0)
   end function get_inclusion
+  
+  function get_coarse_fe_handler_type(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    character(len=:),      allocatable            :: get_coarse_fe_handler_type
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_parameters()
+    assert(list%isAssignable(coarse_fe_handler_type_key, get_coarse_fe_handler_type))
+    error = list%GetAsString(key = coarse_fe_handler_type_key, string = get_coarse_fe_handler_type)
+    assert(error==0)
+  end function get_coarse_fe_handler_type 
+  
 
 end module par_pb_bddc_poisson_params_names

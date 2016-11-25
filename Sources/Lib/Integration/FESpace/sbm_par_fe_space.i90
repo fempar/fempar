@@ -953,15 +953,16 @@ subroutine par_fe_space_create_dof_values(this, dof_values)
   
 end subroutine par_fe_space_create_dof_values
 
-subroutine par_fe_space_interpolate_dirichlet_values(this, conditions, time)
+subroutine par_fe_space_interpolate_dirichlet_values(this, conditions, time, fields_to_interpolate)
   implicit none
   class(par_fe_space_t)     , intent(inout) :: this
   class(conditions_t)       , intent(in)    :: conditions 
   real(rp), optional        , intent(in)    :: time
+  integer(ip), optional     , intent(in)    :: fields_to_interpolate(:)
   type(environment_t), pointer :: par_environment
   par_environment => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
-    call this%serial_fe_space_t%interpolate_dirichlet_values(conditions,time)
+    call this%serial_fe_space_t%interpolate_dirichlet_values(conditions,time,fields_to_interpolate)
   end if
 end subroutine par_fe_space_interpolate_dirichlet_values
 

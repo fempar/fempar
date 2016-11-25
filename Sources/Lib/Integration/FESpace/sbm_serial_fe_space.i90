@@ -26,11 +26,11 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
-                                                                   triangulation, &
-                                                                   conditions, &
-                                                                   reference_fes, &
-                                                                   field_blocks, &
-                                                                   field_coupling )
+     triangulation, &
+     conditions, &
+     reference_fes, &
+     field_blocks, &
+     field_coupling )
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
@@ -232,7 +232,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
 
   allocate ( elem2dof(this%get_number_fields()), stat=istat ) 
   check ( istat == 0 )
-  
+
   call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
   visited_vef_to_fe_map = -1
 
@@ -241,11 +241,11 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
 
   call source_fe%create(1, this)
 
-  
+
   fe_iterator = this%create_fe_iterator()
   do while (.not. fe_iterator%has_finished() )
      call fe_iterator%current(fe)
-     
+
      if ( fe%is_local() ) then
 
         ! TO-DO: This call should ONLY be performed
@@ -253,65 +253,65 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
         !        type(fe_accessor_t) does NOT currently 
         !        provide any means to answer such a question.
         call fe%get_elem2dof(elem2dof)
-        
+
         do ivef = 1, fe%get_num_vefs()
            call fe%get_vef(ivef, vef)
-           
+
            ! Check whether a set_id different from 0 has been set for current vef. 
            ! TO-DO: Should we also ask whether current vef is at the boundary?
            !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
            if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )
-              
+
               ! Get components code corresponding to set_id assigned to current vef
               ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
               ! a more clever strategy. Does pay off to look carefully at this?
               call conditions%get_components_code( vef%get_set_id(), components_code )
-              
+
               offset_component = 0
               do field_id = 1, this%get_number_fields()
                  ! TO-DO: there is no need to call this function for each inner loop iteration.
                  !        We could use an allocatable array of type(p_reference_fe_t) items, and
                  !        allocate/initialize it from the beginning.
                  reference_fe => fe%get_reference_fe(field_id)
-                 
+
                  select type ( reference_fe )
-                 class is ( nedelec_reference_fe_t )
+                    class is ( nedelec_reference_fe_t )
                     component_id = offset_component + 1
                     if ( components_code(component_id) ) then
-                      if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-                        call fe%fill_own_strong_dirichlet_dofs_on_vef ( ivef, field_id, this%number_strong_dirichlet_dofs  ) 
-                      else
-                        call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
-                        call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
-                                                                      source_fe, &
-                                                                      visited_vef_to_fe_map(2,vef%get_lid()), &
-                                                                      field_id) 
-                      end if    
-                    end if   
-                 class is ( lagrangian_reference_fe_t )
+                       if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
+                          call fe%fill_own_strong_dirichlet_dofs_on_vef ( ivef, field_id, this%number_strong_dirichlet_dofs  ) 
+                       else
+                          call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
+                          call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                               source_fe, &
+                               visited_vef_to_fe_map(2,vef%get_lid()), &
+                               field_id) 
+                       end if
+                    end if
+                    class is ( lagrangian_reference_fe_t )
                     if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-                        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-                        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                       own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+                       do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                           local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
                           component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
                           if ( components_code(component_id) ) then 
-                            this%number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs+1 
-                            elem2dof(field_id)%p(local_within_ref_fe_dof_id) = -this%number_strong_dirichlet_dofs
-                            this%at_strong_dirichlet_boundary_per_fe(field_id,fe%get_lid()) = .true.
+                             this%number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs+1 
+                             elem2dof(field_id)%p(local_within_ref_fe_dof_id) = -this%number_strong_dirichlet_dofs
+                             this%at_strong_dirichlet_boundary_per_fe(field_id,fe%get_lid()) = .true.
                           end if
                           call own_dofs_on_vef_iterator%next()
-                        end do
+                       end do
                     else
-                        call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
-                        call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
-                                                                      source_fe, &
-                                                                      visited_vef_to_fe_map(2,vef%get_lid()), &
-                                                                      field_id)
+                       call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
+                       call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                            source_fe, &
+                            visited_vef_to_fe_map(2,vef%get_lid()), &
+                            field_id)
                     end if
-                 end select  
-                offset_component = offset_component + reference_fe%get_number_field_components()
+                 end select
+                 offset_component = offset_component + reference_fe%get_number_field_components()
               end do
-              
+
               if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
                  visited_vef_to_fe_map ( 1, vef%get_lid() ) = fe%get_lid()
                  visited_vef_to_fe_map ( 2, vef%get_lid() ) = ivef
@@ -321,26 +321,27 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
      end if
      call fe_iterator%next()
   end do
-  
+
   call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
   call this%strong_dirichlet_values%init(0.0_rp)
-  
+
   call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
   deallocate ( elem2dof, stat=istat ) 
   check ( istat == 0 )
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
 
-subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
+subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time, fields_to_interpolate)
   implicit none
   class(serial_fe_space_t), intent(inout)  :: this
   class(conditions_t)     , intent(in)     :: conditions
   real(rp)       , optional   , intent(in) :: time
+  integer(ip)    , optional   , intent(in) :: fields_to_interpolate(:)
 
   !  Locals
-  integer(ip)                                :: field_id, istat
+  integer(ip)                                :: field_id, istat, ifield, jfield
   integer(ip)                                :: icomp, component_id
-  integer(ip)                                :: offset_component
+  integer(ip)                  , allocatable :: offset_component(:)
   integer(ip)                                :: number_components
   integer(ip)                                :: number_fields
   integer(ip)                                :: reference_fe_id
@@ -357,6 +358,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   type(point_t)                , pointer     :: cell_coordinates(:)
   logical                      , allocatable :: components_code(:)
   logical                      , allocatable :: reference_fes_touched(:)
+  integer(ip)                  , allocatable :: fields_to_interpolate_(:)
 
 
   class(reference_fe_t)        , pointer     :: reference_fe
@@ -372,6 +374,37 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   number_components    = this%get_number_components()
   number_reference_fes = this%get_number_reference_fes()
   number_fields        = this%get_number_fields()
+
+  if ( present(fields_to_interpolate) ) then 
+     ! User specifies which fields will be interpolated
+     call memalloc ( size(fields_to_interpolate) , fields_to_interpolate_ , __FILE__, __LINE__ ) 
+     fields_to_interpolate_ = fields_to_interpolate
+  else  
+     ! By default, all fields will be interpolated
+     call memalloc ( number_fields , fields_to_interpolate_, __FILE__, __LINE__ )  
+     do field_id = 1,number_fields 
+        fields_to_interpolate_(field_id) = field_id  
+     end do
+  end if
+  
+  ! fields_to_interpolate_ consistency check (only in DEBUG mode)
+#ifdef DEBUG
+  do ifield = 1, size(fields_to_interpolate_) 
+    field_id = fields_to_interpolate_(ifield)
+    assert ( field_id >= 1 .and. field_id <= number_fields)
+    do jfield = ifield+1, size(fields_to_interpolate_)
+      assert ( fields_to_interpolate_(ifield) /= fields_to_interpolate_(jfield) )
+    end do
+  end do
+#endif
+
+  ! Build offset components 
+  call memalloc( this%get_number_fields(), offset_component, __FILE__, __LINE__ ) 
+  offset_component(1) = 0
+  do field_id = 2, this%get_number_fields() 
+     reference_fe                   => this%get_reference_fe(field_id-1)
+     offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_number_field_components() 
+  end do
 
   assert ( conditions%get_number_components() == number_components )
   call memalloc ( number_components, components_code, __FILE__, __LINE__ )
@@ -400,11 +433,9 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   fe_iterator = this%create_fe_iterator()
   do while (.not. fe_iterator%has_finished() )
      call fe_iterator%current(fe)
-     
      if ( fe%is_local() ) then 
-
-        offset_component = 0
-        do field_id = 1, fe%get_number_fields()
+        do ifield = 1, size(fields_to_interpolate_) 
+           field_id = fields_to_interpolate_(ifield) 
            reference_fe => fe%get_reference_fe(field_id)
 
            if ( fe%at_strong_dirichlet_boundary(field_id) ) then
@@ -416,7 +447,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
                       fe%get_reference_fe_geo())
 
                  do icomp=1, reference_fe%get_number_field_components()
-                    component_id = offset_component + icomp
+                    component_id = offset_component(field_id) + icomp
                     call values(component_id,reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p%get_number_quadrature_points(),1) 
                  end do
               end if
@@ -446,7 +477,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
                     call conditions%get_components_code( vef%get_set_id(), components_code )
 
                     do icomp=1, reference_fe%get_number_field_components()
-                       component_id = offset_component + icomp
+                       component_id = offset_component(field_id) + icomp
                        if (components_code(component_id)) then
                           call conditions%get_function( vef%get_set_id(), component_id, scalar_function )
                           assert(associated(scalar_function))
@@ -462,7 +493,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
                     own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                        local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
-                       component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
+                       component_id = offset_component(field_id) + reference_fe%get_component_node(local_within_ref_fe_dof_id)
                        if ( components_code(component_id) ) then 
                           ! Check if current node is subject to strong Dirichlet boundary conditions
                           if(elem2dof(field_id)%p(local_within_ref_fe_dof_id) < 0) then
@@ -476,7 +507,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
                  end if
               end do
            end if
-           offset_component = offset_component + reference_fe%get_number_field_components()
         end do
      end if
      call fe_iterator%next() 
@@ -494,6 +524,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
      end do
   end do
 
+  call memfree(offset_component, __FILE__, __LINE__) 
   deallocate(elem2dof, stat=istat ) 
   check (istat==0)
   deallocate(fe_maps, stat=istat)
@@ -502,19 +533,21 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   check(istat==0)
   deallocate(values, stat=istat)
   check(istat==0)
-
+  call memfree ( fields_to_interpolate_, __FILE__, __LINE__ ) 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
-subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time)
+subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time, fields_to_project)
   implicit none
   class(serial_fe_space_t), intent(inout)  :: this
   class(conditions_t)     , intent(in)     :: conditions
   real(rp)       , optional   , intent(in) :: time
+  integer(ip)    , optional   , intent(in) :: fields_to_project(:) 
 
   !  Locals
+  integer(ip)                  , allocatable :: fields_to_project_(:)  
   integer(ip)                                :: field_id, istat
   integer(ip)                                :: icomp, component_id
-  integer(ip)                                :: offset_component
+  integer(ip)                  , allocatable :: offset_component(:)
   integer(ip)                                :: number_components
   integer(ip)                                :: ivef
   real(rp)                                   :: time_(1)
@@ -532,13 +565,17 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
 
   type(sparse_matrix_t)       :: matrix
   type(serial_scalar_array_t) :: rhs
+  type(serial_scalar_array_t) :: projected_nodal_values
+  integer(ip), allocatable    :: subset2global_dirichlet_dofs(:) 
+  integer(ip), allocatable    :: global2subset_dirichlet_dofs(:) 
+  integer(ip), allocatable    :: subset_elem2dof(:) 
 #ifdef ENABLE_MKL  
   type(direct_solver_t)           :: direct_solver
 #else
   type(iterative_linear_solver_t) :: iterative_linear_solver
 #endif
   real(rp), allocatable       :: elmat(:,:)
-  real(rp), allocatable       :: elvec(:)
+  real(rp), allocatable       :: elvec(:) 
   integer(ip)                 :: qpoint, n_q_points, ishape, jshape
   type(point_t), pointer      :: quad_coords(:)
   real(rp)                    :: factor
@@ -555,14 +592,47 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   type(vector_field_t) :: normal 
   real(rp)             :: scalar_shape_test, scalar_shape_trial
   type(vector_field_t) :: vector_shape_test, vector_shape_trial
-  
-  type(parameterlist_t) :: parameter_list
+
+  type(parameterlist_t)  :: parameter_list
   integer(ip)            :: FPLError
   integer                :: iparm(64)
+  integer(ip)            :: ifield, jfield, idof
+  integer(ip)            :: number_subset_strong_dirichlet_dofs
 
   number_components = this%get_number_components()
   assert ( conditions%get_number_components() == number_components )
   call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+
+  if ( present(fields_to_project) ) then 
+     ! User specifies which fields will be projected 
+     call memalloc ( size(fields_to_project), fields_to_project_, __FILE__, __LINE__ ) 
+     fields_to_project_ = fields_to_project
+  else  
+     ! By default, all fields are projected ( i.e., 1-field case where no subset selection is needed) 
+     call memalloc ( this%get_number_fields() , fields_to_project_, __FILE__, __LINE__ )  
+     do field_id=1,this%get_number_fields() 
+        fields_to_project_(field_id) = field_id
+     end do
+  end if
+  
+  ! fields_to_project_ consistency check (only in DEBUG mode)
+#ifdef DEBUG
+  do ifield = 1, size(fields_to_project_) 
+    field_id = fields_to_project_(ifield)
+    assert ( field_id >= 1 .and. field_id <= this%get_number_fields() )
+    do jfield = ifield+1, size(fields_to_project_)
+      assert ( fields_to_project_(ifield) /= fields_to_project_(jfield) )
+    end do
+  end do
+#endif  
+
+  ! Build offset components 
+  call memalloc( this%get_number_fields(), offset_component, __FILE__, __LINE__ ) 
+  offset_component(1) = 0
+  do field_id = 2, this%get_number_fields() 
+     reference_fe                   => this%get_reference_fe(field_id-1)
+     offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_number_field_components() 
+  end do
 
   call memalloc ( this%get_max_number_shape_functions(), &
        this%get_max_number_shape_functions(), &
@@ -571,35 +641,65 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call memalloc ( this%get_max_number_shape_functions(), &
        elvec, __FILE__, __LINE__ )
 
-  ! Create linear system data structures
-  call matrix%create(num_rows_and_cols=this%number_strong_dirichlet_dofs, &
-       symmetric_storage=.false.,       &
-       is_symmetric=.false.,            &
-       sign=SPARSE_MATRIX_SIGN_UNKNOWN )
-
-  call rhs%create_and_allocate(this%number_strong_dirichlet_dofs) 
-  call rhs%init(0.0_rp)
+  call memalloc ( this%get_max_number_shape_functions(), subset_elem2dof, __FILE__, __LINE__ )
 
   allocate ( vector_function_values(this%get_max_number_face_quadrature_points(),1), & 
        stat=istat); check(istat==0);
-  
+
   allocate ( scalar_function_values(this%get_max_number_face_quadrature_points(),1), & 
        stat=istat); check(istat==0);
-  
+
   allocate ( function_scalar_components(this%triangulation%get_num_dimensions()), & 
        stat=istat); check(istat==0);
-  
+
   allocate( elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
 
 
   if ( present(time) ) time_(1) = time
-  
-  ! TO-DO: right before this loop starts we should determine how many
-  !        of the DoFs on the boundary which are subject to strong Dirichlet BCS 
-  !        are going to be evaluated by projection. We also need a consecutive
-  !        numbering of this (potential) subset of DoFs, and the translation among
-  !        both numberings. 
 
+  if ( present(fields_to_project) ) then 
+     call memalloc ( this%number_strong_dirichlet_dofs, global2subset_dirichlet_dofs, __FILE__, __LINE__ ) 
+     global2subset_dirichlet_dofs=0
+
+     ! Count number of Dirichlet DOFs to be projected
+     fe_iterator  = this%create_fe_iterator()
+     number_subset_strong_dirichlet_dofs = 0
+     do while ( .not. fe_iterator%has_finished() )
+        call fe_iterator%current(fe)
+        if ( fe%is_local() ) then
+           do ifield = 1, size(fields_to_project_) 
+              field_id = fields_to_project_(ifield) 
+              if ( fe%at_strong_dirichlet_boundary(field_id) ) then 
+                 call fe%get_elem2dof(elem2dof)
+                 do idof = 1,size(elem2dof(field_id)%p)
+                    if ( (elem2dof(field_id)%p(idof) < 0)) then 
+                       if (global2subset_dirichlet_dofs(-elem2dof(field_id)%p(idof))==0) then 
+                          number_subset_strong_dirichlet_dofs = number_subset_strong_dirichlet_dofs + 1
+                          global2subset_dirichlet_dofs(-elem2dof(field_id)%p(idof)) = number_subset_strong_dirichlet_dofs 
+                       end if
+                    end if
+                 end do
+              end if
+           end do
+        end if
+        call fe_iterator%next()
+     end do
+     call memalloc ( number_subset_strong_dirichlet_dofs, subset2global_dirichlet_dofs, __FILE__, __LINE__ ) 
+  else 
+     number_subset_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs
+  end if
+
+  ! Create linear system 
+  call matrix%create(num_rows_and_cols=number_subset_strong_dirichlet_dofs, &
+                     symmetric_storage=.false.,       &
+                     is_symmetric=.false.,            &
+                     sign=SPARSE_MATRIX_SIGN_UNKNOWN )
+
+  call rhs%create_and_allocate(number_subset_strong_dirichlet_dofs) 
+  call rhs%init(0.0_rp)
+
+  ! Create data structures
+  if ( present(fields_to_project) ) call projected_nodal_values%create_and_allocate(number_subset_strong_dirichlet_dofs)
   fe_face_iterator = this%create_fe_face_iterator()
   do while ( .not. fe_face_iterator%has_finished() )
      call fe_face_iterator%current(fe_face)
@@ -609,17 +709,19 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
            call fe_face%get_cell_around(1,fe)
            call fe%get_elem2dof(elem2dof)
            call conditions%get_components_code( fe_face%get_set_id(), components_code )
-           offset_component = 0
-           do field_id = 1, fe%get_number_fields() ! Should I merge all fields within the same variational problem??
-              component_id = offset_component + 1
+
+           do ifield = 1, size(fields_to_project_)    
+              field_id = fields_to_project_(ifield) 
+              component_id = offset_component(field_id) + 1
+
               if (components_code(component_id)) then
                  reference_fe => fe%get_reference_fe(field_id)
-                 
+
                  ! Retreive the scalar functions corresponding to the components of the function to be projected
                  do icomp=1, reference_fe%get_number_field_components()
-                   call conditions%get_function(fe_face%get_set_id(), &
-												component_id+icomp-1, &
-                                                function_scalar_components(icomp)%p)
+                    call conditions%get_function(fe_face%get_set_id(), &
+                                                 component_id+icomp-1, &
+                                                 function_scalar_components(icomp)%p)
                  end do
 
                  ! Evaluate function restricted to the boundary
@@ -630,80 +732,74 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                  quad_coords  => face_map%get_quadrature_coordinates()
                  select case(reference_fe%get_field_type())
                  case ( field_type_scalar )
-                   ! Curl-conforming projection does not make sense with scalar-valued fields
-                   assert ( .false. )
+                    ! Curl-conforming projection does not make sense with scalar-valued fields
+                    assert ( .false. )
                  case ( field_type_vector )
-                   do icomp=1, reference_fe%get_number_field_components()
-                     if(present(time)) then
-                       call function_scalar_components(icomp)%p%get_values_set_space_time(quad_coords,time_,scalar_function_values(1:n_q_points,:))
-                     else
-                       call function_scalar_components(icomp)%p%get_values_set_space(quad_coords,scalar_function_values(1:n_q_points,1))
-                     end if
-                     do qpoint = 1, n_q_points
-                       call vector_function_values(qpoint,1)%set(icomp,scalar_function_values(qpoint,1))
-                     end do
-                 end do
+                    do icomp=1, reference_fe%get_number_field_components()
+                       if(present(time)) then
+                          call function_scalar_components(icomp)%p%get_values_set_space_time(quad_coords,time_,scalar_function_values(1:n_q_points,:))
+                       else
+                          call function_scalar_components(icomp)%p%get_values_set_space(quad_coords,scalar_function_values(1:n_q_points,1))
+                       end if
+                       do qpoint = 1, n_q_points
+                          call vector_function_values(qpoint,1)%set(icomp,scalar_function_values(qpoint,1))
+                       end do
+                    end do
                  case ( field_type_tensor )
-                   ! Curl-conforming projection does not make sense with tensor-valued fields
-                   check(.false.)
+                    ! Curl-conforming projection does not make sense with tensor-valued fields
+                    check(.false.)
                  end select
-                 
+
                  face_int     => fe_face%get_face_integrator(field_id)
                  select case(reference_fe%get_field_type())
                  case ( field_type_scalar )
-                   ! Could this piece of code be part of a (reutilizable) TBP 
-                   ! (i.e., evaluate boundary_mass matrix face contribution) of e.g., type(face_accessor_t) ??
-                   ! Anyway, I think that we should have a way to evaluate boundary_mass_matrices, volume_mass_matrices,
-                   ! in a module of recurrently reutilizable set of subroutines ...
-                   elmat = 0.0_rp
-                   elvec = 0.0_rp
-                   do qpoint = 1, n_q_points
-                    factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-                    do ishape = 1, reference_fe%get_number_shape_functions() 
-                       call face_int%get_value(ishape,qpoint,1,scalar_shape_test)
-                       do jshape = 1, reference_fe%get_number_shape_functions()
-                          call face_int%get_value(jshape,qpoint,1,scalar_shape_trial)
-                          elmat(ishape,jshape) = elmat(ishape,jshape) + scalar_shape_test*scalar_shape_trial*factor
-                       end do
-                       elvec(ishape) = elvec(ishape) + scalar_function_values(qpoint,1)*scalar_shape_test*factor
-                    end do
-                   end do
+                    ! Curl-conforming projection does not make sense with tensor-valued fields
+                    check(.false.)
                  case ( field_type_vector )
-                   elmat = 0.0_rp
-                   elvec = 0.0_rp
-                   do qpoint = 1, n_q_points
-                      factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-                      call face_map_face_map%get_normal(qpoint, normal)
-                      do ishape = 1, reference_fe%get_number_shape_functions() 
-                         call face_int%get_value(ishape,qpoint,1,vector_shape_test)
-                         do jshape = 1, reference_fe%get_number_shape_functions()
-                            call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
-                            elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
-                         end do
-                         elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
-                      end do
-                   end do
+                    elmat = 0.0_rp
+                    elvec = 0.0_rp
+                    do qpoint = 1, n_q_points
+                       factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+                       call face_map_face_map%get_normal(qpoint, normal)
+                       do ishape = 1, reference_fe%get_number_shape_functions() 
+                          call face_int%get_value(ishape,qpoint,1,vector_shape_test)
+                          do jshape = 1, reference_fe%get_number_shape_functions()
+                             call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
+                             elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
+                          end do
+                          elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
+                       end do
+                    end do
                  case ( field_type_tensor )
-                   ! Not implemented !!!
-                   check(.false.)
+                    ! Curl-conforming projection does not make sense with tensor-valued fields
+                    check(.false.)
                  end select
-                 
-                 elem2dof(field_id)%p = -elem2dof(field_id)%p
-                 call matrix%insert(num_rows = reference_fe%get_number_shape_functions(),& 
-                      num_cols = reference_fe%get_number_shape_functions(),& 
-                      ia       = elem2dof(field_id)%p, &
-                      ja       = elem2dof(field_id)%p, &
-                      ioffset  = 0, &
-                      joffset  = 0, & 
-                      val      = elmat)
-                 call rhs%add(num_entries = reference_fe%get_number_shape_functions(),& 
-                      ia          = elem2dof(field_id)%p, &
-                      ioffset     = 0, &
-                      val         = elvec)
-                 elem2dof(field_id)%p = -elem2dof(field_id)%p
 
+                 ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
+                 subset_elem2dof = 0
+                 if (present(fields_to_project) ) then 
+                    do idof = 1, size(elem2dof(field_id)%p)
+                       if ( (elem2dof(field_id)%p(idof) < 0) ) then 
+                          subset2global_dirichlet_dofs(global2subset_dirichlet_dofs( -elem2dof(field_id)%p(idof))) = -elem2dof(field_id)%p(idof) 
+                          subset_elem2dof(idof) = global2subset_dirichlet_dofs( -elem2dof(field_id)%p(idof) )
+                       end if
+                    end do
+                 else 
+                    subset_elem2dof = -elem2dof(field_id)%p
+                 end if
+
+                 call matrix%insert(num_rows = reference_fe%get_number_shape_functions(),& 
+                                    num_cols = reference_fe%get_number_shape_functions(),& 
+                                    ia       = subset_elem2dof, &
+                                    ja       = subset_elem2dof, &
+                                    ioffset  = 0, &
+                                    joffset  = 0, & 
+                                    val      = elmat)
+                 call rhs%add(num_entries = reference_fe%get_number_shape_functions(),& 
+                              ia          = subset_elem2dof, &
+                              ioffset     = 0, &
+                              val         = elvec)
               end if
-              offset_component = offset_component + reference_fe%get_number_field_components()
            end do
         end if
      end if
@@ -720,12 +816,16 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   iparm = 0
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
   assert(FPLError == 0)
-    
+
   call direct_solver%set_type_from_pl(parameter_list)
   call direct_solver%set_parameters_from_pl(parameter_list)
   call direct_solver%set_matrix(matrix)
-  call direct_solver%numerical_setup()!
-  call direct_solver%solve(rhs,this%strong_dirichlet_values)
+  call direct_solver%numerical_setup()
+  if ( present(fields_to_project) ) then
+    call direct_solver%solve(rhs,projected_nodal_values)
+  else
+    call direct_solver%solve(rhs,this%strong_dirichlet_values)
+  end if
   call direct_solver%free()
 #else
   FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
@@ -735,19 +835,39 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call iterative_linear_solver%set_type_from_string(cg_name)
   call iterative_linear_solver%set_parameters_from_pl(parameter_list)
   call iterative_linear_solver%set_operators(matrix, .identity. matrix) 
-  call iterative_linear_solver%solve(rhs,this%strong_dirichlet_values)
+  if ( present(fields_to_project) then
+    call iterative_linear_solver%solve(rhs,projected_nodal_values)
+  else
+    call iterative_linear_solver%solve(rhs,this%strong_dirichlet_values)
+  end if
   call iterative_linear_solver%free()
 #endif
   call parameter_list%free()
-  
+
+  ! Insert projected nodal values into strong_dirichlet_values array 
+  if ( present(fields_to_project) ) then 
+     call this%strong_dirichlet_values%insert_subvector(iblock=1, &
+                                                        size_indices=number_subset_strong_dirichlet_dofs, &
+                                                        indices=subset2global_dirichlet_dofs,             &
+                                                        values=projected_nodal_values%get_entries())
+  end if
+
   call matrix%free()
   call rhs%free()
+  call projected_nodal_values%free()
   call memfree (elmat, __FILE__, __LINE__)
   call memfree (elvec, __FILE__, __LINE__)
+  call memfree (offset_component, __FILE__, __LINE__ )
   deallocate ( function_scalar_components, stat=istat); check(istat==0);
   deallocate ( vector_function_values, stat=istat); check(istat==0);
   deallocate ( scalar_function_values, stat=istat); check(istat==0);
   call memfree ( components_code, __FILE__, __LINE__ )
+  if (present(fields_to_project)) then 
+     call memfree ( subset2global_dirichlet_dofs, __FILE__, __LINE__ )
+     call memfree ( global2subset_dirichlet_dofs, __FILE__, __LINE__ ) 
+  end if
+  call memfree ( fields_to_project_, __FILE__, __LINE__ )
+  call memfree ( subset_elem2dof, __FILE__, __LINE__ )
   deallocate(elem2dof, stat=istat ); check (istat==0)
 end subroutine serial_fe_space_project_dirichlet_values_curl_conforming
 
@@ -854,27 +974,27 @@ end subroutine serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
 subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
   implicit none
   class(serial_fe_space_t)          , intent(in) :: this
-  
-  
+
+
   type(fe_iterator_t) :: fe_iterator
   type(fe_accessor_t) :: fe
   class(reference_fe_t), pointer :: reference_fe_unkno
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: field_id
-  
+
 #ifdef DEBUG
   fe_iterator = this%create_fe_iterator()
   do while ( .not. fe_iterator%has_finished() ) 
-    call fe_iterator%current(fe) 
-    reference_fe_geo => fe%get_reference_fe_geo()
-    do field_id = 1, fe%get_number_fields()  
-      reference_fe_unkno => fe%get_reference_fe(field_id)
-      assert ( reference_fe_unkno%get_topology() == reference_fe_geo%get_topology() )
-    end do
-    call fe_iterator%next()
+     call fe_iterator%current(fe) 
+     reference_fe_geo => fe%get_reference_fe_geo()
+     do field_id = 1, fe%get_number_fields()  
+        reference_fe_unkno => fe%get_reference_fe(field_id)
+        assert ( reference_fe_unkno%get_topology() == reference_fe_geo%get_topology() )
+     end do
+     call fe_iterator%next()
   end do
 #endif
- 
+
 end subroutine serial_fe_space_check_cell_vs_fe_topology_consistency
 
 subroutine serial_fe_space_initialize_fe_integration ( this )
@@ -937,7 +1057,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
 
      call fe_iterator%next()
   end do
-  
+
   allocate ( this%fe_quadratures(current_quadrature_and_map-1), stat=istat)
   check (istat==0)
 
@@ -999,7 +1119,7 @@ subroutine serial_fe_space_free_fe_integration ( this )
   integer(ip)         :: i, istat
 
   class(reference_fe_t), pointer :: reference_fe
-  
+
   if (allocated(this%max_order_per_fe)) call memfree ( this%max_order_per_fe, __FILE__, __LINE__ )
   call this%fe_quadratures_and_maps_position%free()
   call this%fe_volume_integrators_position%free()
@@ -1039,41 +1159,41 @@ function serial_fe_space_generate_fe_volume_integrators_position_key ( this, max
   integer(ip)                 , intent(in) :: reference_fe_id
   integer(ip) :: serial_fe_space_generate_fe_volume_integrators_position_key
   serial_fe_space_generate_fe_volume_integrators_position_key =  &
-    reference_fe_id + (max_order_within_fe)*this%reference_fes_size
+       reference_fe_id + (max_order_within_fe)*this%reference_fes_size
 end function serial_fe_space_generate_fe_volume_integrators_position_key
 
 subroutine serial_fe_space_initialize_fe_face_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  
+
   type(fe_face_iterator_t) :: fe_face_iterator
   type(fe_face_accessor_t) :: fe_face
   type(fe_accessor_t)      :: fe
-  
+
   integer(ip) :: current_fe_face_quadrature
   integer(ip) :: current_fe_face_map
   integer(ip) :: current_fe_face_integrator
-  
+
   integer(ip)            :: max_order_fes_around_fe_face
   integer(ip)            :: reference_fes_geo_id(2)
   type(p_lagrangian_reference_fe_t) :: reference_fes_geo(2)
-  
+
   integer(ip)            :: reference_fes_id(2)
   type(p_reference_fe_t) :: reference_fes(2)
-  
+
   integer(ip) :: fe_face_maps_position_key
   integer(ip) :: fe_face_integrators_position_key
-  
+
   integer(ip) :: field_id, istat, icell_around
-  
+
   class(reference_fe_t), pointer :: reference_fe
-  
+
   call this%free_fe_face_integration()
-  
+
   call memalloc ( this%triangulation%get_num_faces(), &
-                  this%max_order_per_fe_face, &
-                  __FILE__, __LINE__ )
-  
+       this%max_order_per_fe_face, &
+       __FILE__, __LINE__ )
+
   ! Determine the size of fe_face_quadratures, fe_face_maps, 
   ! and fe_face_integrators while filling the corresponding hash tables
   call this%fe_face_quadratures_position%init()
@@ -1082,190 +1202,190 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   current_fe_face_quadrature = 1
   current_fe_face_map = 1
   current_fe_face_integrator = 1
-  
+
   fe_face_iterator = this%create_fe_face_iterator()
   do while ( .not. fe_face_iterator%has_finished() ) 
-    call fe_face_iterator%current(fe_face)
-    
-    max_order_fes_around_fe_face = -1
-    reference_fes_geo_id(2) = 0 
-    do icell_around = 1, fe_face%get_num_cells_around()
-     call fe_face%get_cell_around(icell_around, fe)
-     reference_fes_geo_id(icell_around) = fe%get_reference_fe_geo_id()
-     do field_id=1, fe%get_number_fields()
-       if ( max_order_fes_around_fe_face < fe%get_max_order(field_id) ) then
-         max_order_fes_around_fe_face = fe%get_max_order(field_id)
-       end if
-     end do      
-    end do
-    
-    this%max_order_per_fe_face(fe_face%get_face_lid()) = max_order_fes_around_fe_face
-    call this%fe_face_quadratures_position%put(key  = max_order_fes_around_fe_face, &
-                                               val  = current_fe_face_quadrature, &
-                                               stat = istat)  
-    if (istat == now_stored) then
-      current_fe_face_quadrature = current_fe_face_quadrature + 1
-    end if
-    
-    fe_face_maps_position_key = &
-       this%generate_fe_face_maps_position_key(max_order_fes_around_fe_face, &
-                                               reference_fes_geo_id(1), &
-                                               reference_fes_geo_id(2) )
-       
-    call this%fe_face_maps_position%put(key=fe_face_maps_position_key, &
-                                        val=current_fe_face_map, &
-                                        stat=istat)   
-    
-    if (istat == now_stored) then
-      current_fe_face_map = current_fe_face_map + 1
-    end if
-    
-    do field_id=1, this%get_number_fields()
-      reference_fes_id(2) = 0  
-      do icell_around = 1, fe_face%get_num_cells_around()
+     call fe_face_iterator%current(fe_face)
+
+     max_order_fes_around_fe_face = -1
+     reference_fes_geo_id(2) = 0 
+     do icell_around = 1, fe_face%get_num_cells_around()
         call fe_face%get_cell_around(icell_around, fe)
-        reference_fes_id(icell_around) = this%reference_fe_id_per_fe(field_id, fe%get_lid())
-      end do
-      
-      fe_face_integrators_position_key = &
-       this%generate_fe_face_integrators_position_key(max_order_fes_around_fe_face, &
-                                                      reference_fes_id(1), &
-                                                      reference_fes_id(2) )
-       
-      call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
-                                                 val=current_fe_face_integrator, &
-                                                 stat=istat)
-      if (istat == now_stored) then
-        current_fe_face_integrator = current_fe_face_integrator + 1
-      end if
-    end do  
-    
-    call fe_face_iterator%next()
+        reference_fes_geo_id(icell_around) = fe%get_reference_fe_geo_id()
+        do field_id=1, fe%get_number_fields()
+           if ( max_order_fes_around_fe_face < fe%get_max_order(field_id) ) then
+              max_order_fes_around_fe_face = fe%get_max_order(field_id)
+           end if
+        end do
+     end do
+
+     this%max_order_per_fe_face(fe_face%get_face_lid()) = max_order_fes_around_fe_face
+     call this%fe_face_quadratures_position%put(key  = max_order_fes_around_fe_face, &
+          val  = current_fe_face_quadrature, &
+          stat = istat)  
+     if (istat == now_stored) then
+        current_fe_face_quadrature = current_fe_face_quadrature + 1
+     end if
+
+     fe_face_maps_position_key = &
+          this%generate_fe_face_maps_position_key(max_order_fes_around_fe_face, &
+          reference_fes_geo_id(1), &
+          reference_fes_geo_id(2) )
+
+     call this%fe_face_maps_position%put(key=fe_face_maps_position_key, &
+          val=current_fe_face_map, &
+          stat=istat)   
+
+     if (istat == now_stored) then
+        current_fe_face_map = current_fe_face_map + 1
+     end if
+
+     do field_id=1, this%get_number_fields()
+        reference_fes_id(2) = 0  
+        do icell_around = 1, fe_face%get_num_cells_around()
+           call fe_face%get_cell_around(icell_around, fe)
+           reference_fes_id(icell_around) = this%reference_fe_id_per_fe(field_id, fe%get_lid())
+        end do
+
+        fe_face_integrators_position_key = &
+             this%generate_fe_face_integrators_position_key(max_order_fes_around_fe_face, &
+             reference_fes_id(1), &
+             reference_fes_id(2) )
+
+        call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
+             val=current_fe_face_integrator, &
+             stat=istat)
+        if (istat == now_stored) then
+           current_fe_face_integrator = current_fe_face_integrator + 1
+        end if
+     end do
+
+     call fe_face_iterator%next()
   end do
-  
+
   allocate ( this%fe_face_quadratures(current_fe_face_quadrature-1), stat=istat)
   check (istat==0)
-  
+
   allocate ( this%fe_face_maps(current_fe_face_map-1), stat=istat)
   check (istat==0)
-  
+
   allocate ( this%fe_face_integrators(current_fe_face_integrator-1), stat=istat)
   check (istat==0)
-  
+
   call this%fe_face_quadratures_position%init()
   call this%fe_face_maps_position%init()
   call this%fe_face_integrators_position%init()
   current_fe_face_quadrature = 1
   current_fe_face_map = 1
   current_fe_face_integrator = 1
-  
+
   call fe_face_iterator%init()
   do while ( .not. fe_face_iterator%has_finished() ) 
-    call fe_face_iterator%current(fe_face)
-    max_order_fes_around_fe_face = -1
-    reference_fes_geo_id(2) = 0 
-    nullify(reference_fes_geo(2)%p)
-    do icell_around = 1, fe_face%get_num_cells_around()
-     call fe_face%get_cell_around(icell_around, fe)
-     reference_fes_geo_id(icell_around) =  fe%get_reference_fe_geo_id()
-     reference_fes_geo(icell_around)%p  => fe%get_reference_fe_geo()
-     do field_id=1, fe%get_number_fields()
-       if ( max_order_fes_around_fe_face < fe%get_max_order(field_id) ) then
-         max_order_fes_around_fe_face = fe%get_max_order(field_id)
-         reference_fe => fe%get_reference_fe(field_id)
-       end if
-     end do      
-    end do
-   
-    call this%fe_face_quadratures_position%put(key  = max_order_fes_around_fe_face, &
-                                               val  = current_fe_face_quadrature, &
-                                               stat = istat)  
-    if (istat == now_stored) then
-      call reference_fe%create_face_quadrature(this%fe_face_quadratures(current_fe_face_quadrature))
-      current_fe_face_quadrature = current_fe_face_quadrature + 1
-    end if
-    
-    fe_face_maps_position_key = &
-       this%generate_fe_face_maps_position_key(max_order_fes_around_fe_face, &
-                                               reference_fes_geo_id(1), &
-                                               reference_fes_geo_id(2) )
-       
-    call this%fe_face_maps_position%put(key=fe_face_maps_position_key, &
-                                        val=current_fe_face_map, &
-                                        stat=istat)   
-    
-    if (istat == now_stored) then
-      call this%fe_face_maps(current_fe_face_map)%create(fe_face%get_quadrature(), &
-                                                         reference_fes_geo(1)%p, &
-                                                         reference_fes_geo(2)%p )
-      current_fe_face_map = current_fe_face_map + 1
-    end if
-   
-
-    do field_id=1, this%get_number_fields()
-      reference_fes_id(2) = 0  
-      nullify(reference_fes(2)%p)
-      do icell_around = 1, fe_face%get_num_cells_around()
+     call fe_face_iterator%current(fe_face)
+     max_order_fes_around_fe_face = -1
+     reference_fes_geo_id(2) = 0 
+     nullify(reference_fes_geo(2)%p)
+     do icell_around = 1, fe_face%get_num_cells_around()
         call fe_face%get_cell_around(icell_around, fe)
-        reference_fes_id(icell_around) = this%reference_fe_id_per_fe(field_id, fe%get_lid())
-        reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
-      end do
-      
-      fe_face_integrators_position_key = &
-       this%generate_fe_face_integrators_position_key(max_order_fes_around_fe_face, &
-                                                      reference_fes_id(1), &
-                                                      reference_fes_id(2) )
-       
-      call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
-                                                 val=current_fe_face_integrator, &
-                                                 stat=istat)
-      if (istat == now_stored) then
-        call this%fe_face_integrators(current_fe_face_integrator)%create(fe_face%get_quadrature(), &
-                                                                         reference_fes(1)%p, &
-                                                                         reference_fes(2)%p )
-        current_fe_face_integrator = current_fe_face_integrator + 1
-      end if
-    end do  
+        reference_fes_geo_id(icell_around) =  fe%get_reference_fe_geo_id()
+        reference_fes_geo(icell_around)%p  => fe%get_reference_fe_geo()
+        do field_id=1, fe%get_number_fields()
+           if ( max_order_fes_around_fe_face < fe%get_max_order(field_id) ) then
+              max_order_fes_around_fe_face = fe%get_max_order(field_id)
+              reference_fe => fe%get_reference_fe(field_id)
+           end if
+        end do
+     end do
 
-    call fe_face_iterator%next()
+     call this%fe_face_quadratures_position%put(key  = max_order_fes_around_fe_face, &
+          val  = current_fe_face_quadrature, &
+          stat = istat)  
+     if (istat == now_stored) then
+        call reference_fe%create_face_quadrature(this%fe_face_quadratures(current_fe_face_quadrature))
+        current_fe_face_quadrature = current_fe_face_quadrature + 1
+     end if
+
+     fe_face_maps_position_key = &
+          this%generate_fe_face_maps_position_key(max_order_fes_around_fe_face, &
+          reference_fes_geo_id(1), &
+          reference_fes_geo_id(2) )
+
+     call this%fe_face_maps_position%put(key=fe_face_maps_position_key, &
+          val=current_fe_face_map, &
+          stat=istat)   
+
+     if (istat == now_stored) then
+        call this%fe_face_maps(current_fe_face_map)%create(fe_face%get_quadrature(), &
+             reference_fes_geo(1)%p, &
+             reference_fes_geo(2)%p )
+        current_fe_face_map = current_fe_face_map + 1
+     end if
+
+
+     do field_id=1, this%get_number_fields()
+        reference_fes_id(2) = 0  
+        nullify(reference_fes(2)%p)
+        do icell_around = 1, fe_face%get_num_cells_around()
+           call fe_face%get_cell_around(icell_around, fe)
+           reference_fes_id(icell_around) = this%reference_fe_id_per_fe(field_id, fe%get_lid())
+           reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
+        end do
+
+        fe_face_integrators_position_key = &
+             this%generate_fe_face_integrators_position_key(max_order_fes_around_fe_face, &
+             reference_fes_id(1), &
+             reference_fes_id(2) )
+
+        call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
+             val=current_fe_face_integrator, &
+             stat=istat)
+        if (istat == now_stored) then
+           call this%fe_face_integrators(current_fe_face_integrator)%create(fe_face%get_quadrature(), &
+                reference_fes(1)%p, &
+                reference_fes(2)%p )
+           current_fe_face_integrator = current_fe_face_integrator + 1
+        end if
+     end do
+
+     call fe_face_iterator%next()
   end do
-  
+
 end subroutine serial_fe_space_initialize_fe_face_integration
 
 subroutine serial_fe_space_free_fe_face_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   integer(ip) :: i, istat
-  
+
   if (allocated(this%max_order_per_fe_face)) call memfree ( this%max_order_per_fe_face, __FILE__, __LINE__ )
-  
+
   call this%fe_face_quadratures_position%free()
   call this%fe_face_maps_position%free()
   call this%fe_face_integrators_position%free()
-  
+
   if (allocated(this%fe_face_quadratures)) then
-    do i=1, size(this%fe_face_quadratures)
-      call this%fe_face_quadratures(i)%free()
-    end do
-    deallocate(this%fe_face_quadratures, stat=istat)
-    check(istat==0)
-  end if  
-    
+     do i=1, size(this%fe_face_quadratures)
+        call this%fe_face_quadratures(i)%free()
+     end do
+     deallocate(this%fe_face_quadratures, stat=istat)
+     check(istat==0)
+  end if
+
   if (allocated(this%fe_face_maps)) then
-    do i=1, size(this%fe_face_maps)
-      call this%fe_face_maps(i)%free()
-    end do
-    deallocate(this%fe_face_maps, stat=istat)
-    check(istat==0)
-  end if  
-  
+     do i=1, size(this%fe_face_maps)
+        call this%fe_face_maps(i)%free()
+     end do
+     deallocate(this%fe_face_maps, stat=istat)
+     check(istat==0)
+  end if
+
   if (allocated(this%fe_face_integrators)) then
-    do i=1, size(this%fe_face_integrators)
-      call this%fe_face_integrators(i)%free()
-    end do
-    deallocate(this%fe_face_integrators, stat=istat)
-    check(istat==0)
-  end if  
+     do i=1, size(this%fe_face_integrators)
+        call this%fe_face_integrators(i)%free()
+     end do
+     deallocate(this%fe_face_integrators, stat=istat)
+     check(istat==0)
+  end if
 end subroutine serial_fe_space_free_fe_face_integration
 
 ! Provided the identifiers of the reference_fes_geo corresponding 
@@ -1285,11 +1405,11 @@ function serial_fe_space_fe_face_maps_position_key ( this, max_order_fes_around_
   integer(ip)                 , intent(in) :: right_geo_reference_fe_id
   integer(ip) :: serial_fe_space_fe_face_maps_position_key
   integer(ip) :: num_reference_fes_geo
-  
+
   num_reference_fes_geo = this%triangulation%get_number_reference_fes_geo()
   serial_fe_space_fe_face_maps_position_key = left_geo_reference_fe_id + &
-                                              (num_reference_fes_geo)*(right_geo_reference_fe_id) + &
-                                              (num_reference_fes_geo)*(num_reference_fes_geo-1)*(max_order_fes_around_fe_face)
+       (num_reference_fes_geo)*(right_geo_reference_fe_id) + &
+       (num_reference_fes_geo)*(num_reference_fes_geo-1)*(max_order_fes_around_fe_face)
 end function serial_fe_space_fe_face_maps_position_key
 
 ! For a given field, provided the identifiers of the reference_fes corresponding 
@@ -1309,8 +1429,8 @@ function serial_fe_space_fe_face_integrators_position_key(this, max_order_fes_ar
   integer(ip)                 , intent(in) :: right_reference_fe_id
   integer(ip) :: serial_fe_space_fe_face_integrators_position_key
   serial_fe_space_fe_face_integrators_position_key = left_reference_fe_id + &
-                                                     (this%reference_fes_size)*(right_reference_fe_id) + &
-                                                     (this%reference_fes_size)*(this%reference_fes_size-1)*(max_order_fes_around_fe_face)
+       (this%reference_fes_size)*(right_reference_fe_id) + &
+       (this%reference_fes_size)*(this%reference_fes_size-1)*(max_order_fes_around_fe_face)
 end function serial_fe_space_fe_face_integrators_position_key
 
 function serial_fe_space_create_assembler(this, &
@@ -1405,12 +1525,12 @@ subroutine serial_fe_space_create_dof_values(this, dof_values)
   class(serial_fe_space_t)    , intent(in)    :: this
   class(vector_t), allocatable, intent(inout) :: dof_values
   integer(ip) :: istat
-  
+
   if (allocated(dof_values)) then
-    call dof_values%free()
-    deallocate(dof_values, stat=istat); check(istat==0);
+     call dof_values%free()
+     deallocate(dof_values, stat=istat); check(istat==0);
   end if
-  
+
   if (this%number_blocks == 1) then
      allocate ( serial_scalar_array_t  :: dof_values )
      select type(dof_values)
@@ -1428,7 +1548,7 @@ subroutine serial_fe_space_create_dof_values(this, dof_values)
         check(.false.)
      end select
   end if
-  
+
 end subroutine serial_fe_space_create_dof_values
 
 subroutine serial_fe_space_fill_dof_info( this )
@@ -1590,7 +1710,7 @@ function serial_fe_space_get_max_number_shape_functions( this )
   serial_fe_space_get_max_number_shape_functions = 0
   do irefe = 1, this%reference_fes_size
      serial_fe_space_get_max_number_shape_functions = max(serial_fe_space_get_max_number_shape_functions, &
-                                                this%reference_fes(irefe)%p%get_number_shape_functions())
+          this%reference_fes(irefe)%p%get_number_shape_functions())
   end do
 end function serial_fe_space_get_max_number_shape_functions
 
@@ -1602,8 +1722,8 @@ function serial_fe_space_get_max_number_quadrature_points( this )
   serial_fe_space_get_max_number_quadrature_points = 0
   do iquad = 1, size(this%fe_quadratures)
      serial_fe_space_get_max_number_quadrature_points =       & 
-        max(serial_fe_space_get_max_number_quadrature_points, &
-            this%fe_quadratures(iquad)%get_number_quadrature_points())
+          max(serial_fe_space_get_max_number_quadrature_points, &
+          this%fe_quadratures(iquad)%get_number_quadrature_points())
   end do
 end function serial_fe_space_get_max_number_quadrature_points
 
@@ -1613,15 +1733,15 @@ function serial_fe_space_get_max_number_nodal_quadrature_points( this )
   integer(ip) :: serial_fe_space_get_max_number_nodal_quadrature_points
   integer(ip) :: i
   type(quadrature_t), pointer :: nodal_quadrature
-  
+
   serial_fe_space_get_max_number_nodal_quadrature_points = 0
   do i= 1, this%reference_fes_size
      if (this%reference_fes(i)%p%has_nodal_quadrature()) then
-       nodal_quadrature => this%reference_fes(i)%p%get_nodal_quadrature()
-       serial_fe_space_get_max_number_nodal_quadrature_points =       & 
-         max(serial_fe_space_get_max_number_nodal_quadrature_points, &
+        nodal_quadrature => this%reference_fes(i)%p%get_nodal_quadrature()
+        serial_fe_space_get_max_number_nodal_quadrature_points =       & 
+             max(serial_fe_space_get_max_number_nodal_quadrature_points, &
              nodal_quadrature%get_number_quadrature_points())
-     end if   
+     end if
   end do
 end function serial_fe_space_get_max_number_nodal_quadrature_points
 
@@ -1633,8 +1753,8 @@ function serial_fe_space_get_max_number_face_quadrature_points( this )
   serial_fe_space_get_max_number_face_quadrature_points = 0
   do iquad = 1, size(this%fe_face_quadratures)
      serial_fe_space_get_max_number_face_quadrature_points =       & 
-        max(serial_fe_space_get_max_number_face_quadrature_points, &
-            this%fe_face_quadratures(iquad)%get_number_quadrature_points())
+          max(serial_fe_space_get_max_number_face_quadrature_points, &
+          this%fe_face_quadratures(iquad)%get_number_quadrature_points())
   end do
 end function serial_fe_space_get_max_number_face_quadrature_points
 
