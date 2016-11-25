@@ -54,6 +54,7 @@ module mesh_names
   integer(ip), target :: permu_3DQ1(8) = (/ 1, 2, 4, 3, 5, 6, 8, 7/)
   integer(ip), target :: permu_id  (8) = (/ 1, 2, 3, 4, 5, 6, 7, 8/)
 
+
   type mesh_t
      ! Sizes
      integer(ip)                :: &
@@ -1499,6 +1500,11 @@ contains
     type(list_t)                    , target, intent(inout) :: gp
     integer(ip)                     , target, intent(out):: iperm(gp%get_size())
     integer(ip)                     , target, intent(out):: lperm(gp%get_size())
+
+#ifdef ENABLE_METIS
+    integer(c_int),target :: options(0:METIS_NOPTIONS-1)
+    integer(c_int)        :: ierr
+#endif
     
     if ( gp%get_num_pointers() == 1 ) then
        lperm(1) = 1
@@ -1538,6 +1544,11 @@ contains
     integer(ip), allocatable :: lwork(:)
     integer(ip)              :: i, j, m, k, ipart
     integer(ip), allocatable :: iperm(:)
+#ifdef ENABLE_METIS
+    integer(c_int),target :: options(0:METIS_NOPTIONS-1)
+    integer(c_int),target :: ncon 
+    integer(c_int)        :: ierr
+#endif    
    
 #ifdef ENABLE_METIS
     ierr = metis_setdefaultoptions(c_loc(options))
