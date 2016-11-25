@@ -835,7 +835,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call iterative_linear_solver%set_type_from_string(cg_name)
   call iterative_linear_solver%set_parameters_from_pl(parameter_list)
   call iterative_linear_solver%set_operators(matrix, .identity. matrix) 
-  if ( present(fields_to_project) then
+  if ( present(fields_to_project) ) then
     call iterative_linear_solver%solve(rhs,projected_nodal_values)
   else
     call iterative_linear_solver%solve(rhs,this%strong_dirichlet_values)
