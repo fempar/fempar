@@ -615,13 +615,13 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
      end do
   end if
   
-  ! fields_to_interpolate_ consistency check (only in DEBUG mode)
+  ! fields_to_project_ consistency check (only in DEBUG mode)
 #ifdef DEBUG
-  do ifield = 1, size(fields_to_interpolate_) 
-    field_id = fields_to_interpolate_(ifield)
-    assert ( field_id >= 1 .and. field_id <= number_fields)
-    do jfield = ifield+1, size(fields_to_interpolate_)
-      assert ( fields_to_interpolate_(ifield) /= fields_to_interpolate_(jfield) )
+  do ifield = 1, size(fields_to_project_) 
+    field_id = fields_to_project_(ifield)
+    assert ( field_id >= 1 .and. field_id <= this%get_number_fields() )
+    do jfield = ifield+1, size(fields_to_project_)
+      assert ( fields_to_project_(ifield) /= fields_to_project_(jfield) )
     end do
   end do
 #endif  
