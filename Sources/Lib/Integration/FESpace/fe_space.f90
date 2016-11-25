@@ -99,7 +99,7 @@ module fe_space_names
     ! Pointer to data structure which is in charge of coarse DoF handling.
     ! It will be a nullified pointer on L1 tasks, and associated via target 
     ! allocation in the case of L2-Ln tasks.
-    type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
+    type(coarse_fe_space_t)       , pointer :: coarse_fe_space => NULL()
   contains 
     procedure, non_overridable                 :: get_number_fields                               => base_fe_space_get_number_fields
     procedure, non_overridable                 :: get_fe_space_type                               => base_fe_space_get_fe_space_type
@@ -437,6 +437,15 @@ module fe_space_names
   integer(ip), parameter :: cell_gid_shift              = 44
   integer(ip), parameter :: dofs_per_reference_fe_shift = 14
   integer(ip), parameter :: number_fields_shift         = igp*8-(cell_gid_shift+dofs_per_reference_fe_shift)-1
+  
+  ! These three parameter constants are thought be used as FPL keys. The corresponding pairs 
+  ! <XXXkey,.true.|.false.> in FPL let the user to control whether or not coarse vertex, edge, or 
+  ! face DoFs are to be included into coarse_fe_space_t. These parameters might be used during 
+  ! coarse_fe_space_t set-up, as well as by the deferred TBP methods corresponding to 
+  ! class(coarse_fe_handler_t).
+  character(len=*), parameter :: coarse_space_use_vertices_key = 'coarse_space_use_vertices_key'
+  character(len=*), parameter :: coarse_space_use_edges_key    = 'coarse_space_use_edges_key'
+  character(len=*), parameter :: coarse_space_use_faces_key    = 'coarse_space_use_faces_key'
 
   
  type, extends(serial_fe_space_t) :: par_fe_space_t
@@ -468,7 +477,6 @@ module fe_space_names
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
-   procedure                         , private :: renumber_dofs_block                             => par_fe_space_renumber_dofs_block
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
    procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
@@ -489,9 +497,9 @@ module fe_space_names
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
    procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    
-   procedure       , non_overridable           :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
+   procedure       , non_overridable, private  :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
    procedure       , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
-   procedure       , non_overridable, private  :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
+   procedure       , non_overridable           :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
    procedure       , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
    procedure       , non_overridable, private  :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
    procedure       , non_overridable, private  :: gather_ptr_dofs_per_fe_and_field                => par_fe_space_gather_ptr_dofs_per_fe_and_field
@@ -522,27 +530,27 @@ module fe_space_names
     ! Returns the number of coarse DoFs that the object customizing
     ! l1_coarse_fe_handler_t requires to introduce on the subdomain 
     ! interface
-    subroutine l1_get_num_coarse_dofs_interface(this, par_fe_space, num_coarse_dofs) 
-      import :: l1_coarse_fe_handler_t, par_fe_space_t, ip
-      implicit none
+    subroutine l1_get_num_coarse_dofs_interface(this, par_fe_space, parameter_list, num_coarse_dofs) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, ip
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       type(par_fe_space_t)         , intent(in)    :: par_fe_space 
+      type(parameterlist_t)        , intent(in)    :: parameter_list
       integer(ip)                  , intent(inout) :: num_coarse_dofs(:)
     end subroutine l1_get_num_coarse_dofs_interface
    
-    subroutine l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix) 
-      import :: l1_coarse_fe_handler_t, par_fe_space_t, coo_sparse_matrix_t
-	     implicit none
+    subroutine l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, coo_sparse_matrix_t
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       type(par_fe_space_t)         , intent(in)    :: par_fe_space
+      type(parameterlist_t)        , intent(in)    :: parameter_list
 	     type(coo_sparse_matrix_t)    , intent(inout) :: constraint_matrix
     end subroutine l1_setup_constraint_matrix
   
-    subroutine l1_setup_weighting_operator(this, par_fe_space, weighting_operator) 
-	     import :: l1_coarse_fe_handler_t, par_fe_space_t, operator_t, rp
-      implicit none
+    subroutine l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
+	     import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, operator_t, rp
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
       type(par_fe_space_t)          , intent(in)    :: par_fe_space
+      type(parameterlist_t)         , intent(in)    :: parameter_list
 	     real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
   end interface
@@ -550,9 +558,10 @@ module fe_space_names
   type, extends(l1_coarse_fe_handler_t) :: standard_l1_coarse_fe_handler_t
     private
   contains
-    procedure :: get_num_coarse_dofs      => standard_l1_get_num_coarse_dofs
-	   procedure :: setup_constraint_matrix  => standard_l1_setup_constraint_matrix
-	   procedure :: setup_weighting_operator => standard_l1_setup_weighting_operator
+    procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
+	   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
+	   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
+    procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
   end type standard_l1_coarse_fe_handler_t
   
   type, extends(standard_l1_coarse_fe_handler_t) :: H1_l1_coarse_fe_handler_t
@@ -788,6 +797,7 @@ module fe_space_names
  
  public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t
  public :: coarse_fe_object_accessor_t, coarse_dof_object_accessor_t, coarse_dof_object_iterator_t
+ public :: coarse_space_use_vertices_key, coarse_space_use_edges_key, coarse_space_use_faces_key
  
  type, abstract :: lgt1_coarse_fe_handler_t
   contains

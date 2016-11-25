@@ -241,7 +241,7 @@ contains
         select type (matrix)
             type is (csr_sparse_matrix_t)
                 if ( matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED ) then
-                  val => matrix%val
+                  val => matrix%get_val()
                 else
                   val => ddum
                 end if  
@@ -255,8 +255,8 @@ contains
                              phase  = this%phase,                  & !< Controls the execution of the solver (11 == Analysis)
                              n      = this%matrix%get_num_rows(),  & !< Number of equations in the sparse linear systems of equations
                              a      = val,                         & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%irp,                  & !< Pointers to columns in CSR format
-                             ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
+                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
+                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = this%pardiso_mkl_iparm,      & !< This array is used to pass various parameters to Intel MKL PARDISO 
@@ -311,9 +311,9 @@ contains
                              mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                              phase  = this%phase,                  & !< Controls the execution of the solver (22 == Numerical factorization)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%val,                  & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%irp,                  & !< Pointers to columns in CSR format
-                             ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
+                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
+                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = this%pardiso_mkl_iparm,      & !< This array is used to pass various parameters to Intel MKL PARDISO 
@@ -370,9 +370,9 @@ contains
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%val,                  & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%irp,                  & !< Pointers to columns in CSR format
-                             ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
+                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
+                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
@@ -427,9 +427,9 @@ contains
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%val,                  & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%irp,                  & !< Pointers to columns in CSR format
-                             ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
+                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
+                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = number_rhs,                  & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 

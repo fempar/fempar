@@ -284,7 +284,7 @@ module minres_names
   use environment_names
   use base_iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
-  use ParameterList
+  use FPL
 
   implicit none
 # include "debug.i90"

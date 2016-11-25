@@ -282,7 +282,7 @@ end subroutine bst_free_cells_set
     integer(ip)  , pointer     :: rcv_ptrs(:)
     integer(ip)  , pointer     :: rcv_leids(:)
     type(cell_accessor_t)      :: cell
-    integer(ip)                :: icell, first, last
+    integer(ip)                :: icell, first, last, extra_data_size_per_vef
     integer(ip)                :: start_buf, end_buf, current, i, j, number_neighbours
     
     assert ( associated ( this%p_env ) )
@@ -296,6 +296,11 @@ end subroutine bst_free_cells_set
                     __FILE__, &
                     __LINE__ )
 
+    first  = this%ptr_vefs_per_cell(1)
+    last   = this%ptr_vefs_per_cell(this%num_local_cells+1)-1
+    lst_vefs_gids_ghost_extended(first:last) = lst_vefs_gids(first:last)
+    extra_data_size_per_vef = 0
+
     if(present(lst_vefs_dimension)) then
        assert(present(lst_vefs_dimension_ghost_extended))
        if ( allocated (lst_vefs_dimension_ghost_extended) )  &
@@ -304,6 +309,8 @@ end subroutine bst_free_cells_set
                        lst_vefs_dimension_ghost_extended, &
                        __FILE__, &
                        __LINE__ )
+       lst_vefs_dimension_ghost_extended(first:last) = lst_vefs_dimension(first:last)  
+       extra_data_size_per_vef = size_of_ip
     end if
 
     ! We assume that coordinates are exchanged when the triangulation only contains vertices
@@ -315,6 +322,8 @@ end subroutine bst_free_cells_set
                             coordinates_ghost_extended, &
                             __FILE__, &
                             __LINE__ )
+       coordinates_ghost_extended(:,first:last) = coordinates(:,first:last)  
+       extra_data_size_per_vef = size_of_rp*SPACE_DIM
     end if
 
 
@@ -333,21 +342,13 @@ end subroutine bst_free_cells_set
     call memalloc ( number_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
     
     call cell%create(1, this)
-       
-    first  = this%ptr_vefs_per_cell(1)
-    last   = this%ptr_vefs_per_cell(this%num_local_cells+1)-1
-    lst_vefs_gids_ghost_extended(first:last) = lst_vefs_gids(first:last)
-    if(present(lst_vefs_dimension)) lst_vefs_dimension_ghost_extended(first:last) = lst_vefs_dimension(first:last)  
-    if(present(coordinates))        coordinates_ghost_extended(:,first:last)      = coordinates(:,first:last)  
     
     snd_ptrs_buf = 0
     do i=1, number_neighbours
      do j=snd_ptrs(i),snd_ptrs(i+1)-1
        icell = snd_leids(j)
        call cell%set_lid(icell)
-       cell_sizes(icell) = this%cell_size(cell)
-       if(present(lst_vefs_dimension))  cell_sizes(icell) = cell_sizes(icell) + size_of_ip*(cell%get_num_vefs())
-       if(present(coordinates))         cell_sizes(icell) = cell_sizes(icell) + size_of_rp*SPACE_DIM*(cell%get_num_vefs())
+       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_per_vef*(cell%get_num_vefs())
        snd_ptrs_buf(i+1) = snd_ptrs_buf(i+1) + cell_sizes(icell)
      end do
     end do
@@ -362,9 +363,7 @@ end subroutine bst_free_cells_set
       do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
        icell = rcv_leids(j)
        call cell%set_lid(icell)
-       cell_sizes(icell) = this%cell_size(cell)
-       if(present(lst_vefs_dimension))  cell_sizes(icell) = cell_sizes(icell) + size_of_ip*(cell%get_num_vefs())
-       if(present(coordinates))         cell_sizes(icell) = cell_sizes(icell) + size_of_rp*SPACE_DIM*(cell%get_num_vefs())
+       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_per_vef*(cell%get_num_vefs())
        rcv_ptrs_buf(i+1) = rcv_ptrs_buf(i+1) + cell_sizes(icell)
       end do
      end do
@@ -379,34 +378,57 @@ end subroutine bst_free_cells_set
       
      ! Pack data items into send buffer
      current = 1
-     do i=1, number_neighbours
-        current = snd_ptrs_buf(i)
-        do j=snd_ptrs(i),snd_ptrs(i+1)-1
-          icell = snd_leids(j)
-          call cell%set_lid(icell)
-          first     = this%ptr_vefs_per_cell(icell)
-          last      = this%ptr_vefs_per_cell(icell+1)-1
-          start_buf = current
-          end_buf   = current + cell_sizes(icell)-1
-          if(present(lst_vefs_dimension)) then ! vef_dimensions and coordinates are not present together
-             call this%cell_pack ( cell = cell, &
-                                   buffer = snd_buf(start_buf:end_buf), &
-                                   vef_gids = lst_vefs_gids_ghost_extended(first:last), &
-                                   vef_dimensions = lst_vefs_dimension_ghost_extended(first:last) )
-          else if(present(coordinates)) then
-             call this%cell_pack ( cell = cell, &
-                                   buffer = snd_buf(start_buf:end_buf), &
-                                   vef_gids = lst_vefs_gids_ghost_extended(first:last), &
-                                   coordinates = coordinates_ghost_extended(:,first:last) )
-          else
-             call this%cell_pack ( cell = cell, &
-                                   buffer = snd_buf(start_buf:end_buf), &
-                                   vef_gids = lst_vefs_gids_ghost_extended(first:last) )
-          end if
-
-          current = current + cell_sizes(icell)
-        end do
-     end do
+     if(present(lst_vefs_dimension)) then ! vef_dimensions and coordinates are not present together
+         do i=1, number_neighbours
+            current = snd_ptrs_buf(i)
+            do j=snd_ptrs(i),snd_ptrs(i+1)-1
+              icell = snd_leids(j)
+              call cell%set_lid(icell)
+              first     = this%ptr_vefs_per_cell(icell)
+              last      = this%ptr_vefs_per_cell(icell+1)-1
+              start_buf = current
+              end_buf   = current + cell_sizes(icell)-1
+              call this%cell_pack ( cell = cell, &
+                                    buffer = snd_buf(start_buf:end_buf), &
+                                    vef_gids = lst_vefs_gids_ghost_extended(first:last), &
+                                    vef_dimensions = lst_vefs_dimension_ghost_extended(first:last) )
+              current = current + cell_sizes(icell)
+            end do
+         end do
+     else if(present(coordinates)) then
+         do i=1, number_neighbours
+            current = snd_ptrs_buf(i)
+            do j=snd_ptrs(i),snd_ptrs(i+1)-1
+              icell = snd_leids(j)
+              call cell%set_lid(icell)
+              first     = this%ptr_vefs_per_cell(icell)
+              last      = this%ptr_vefs_per_cell(icell+1)-1
+              start_buf = current
+              end_buf   = current + cell_sizes(icell)-1
+              call this%cell_pack ( cell = cell, &
+                                    buffer = snd_buf(start_buf:end_buf), &
+                                    vef_gids = lst_vefs_gids_ghost_extended(first:last), &
+                                    coordinates = coordinates_ghost_extended(:,first:last) )
+              current = current + cell_sizes(icell)
+            end do
+         end do
+     else
+         do i=1, number_neighbours
+            current = snd_ptrs_buf(i)
+            do j=snd_ptrs(i),snd_ptrs(i+1)-1
+              icell = snd_leids(j)
+              call cell%set_lid(icell)
+              first     = this%ptr_vefs_per_cell(icell)
+              last      = this%ptr_vefs_per_cell(icell+1)-1
+              start_buf = current
+              end_buf   = current + cell_sizes(icell)-1
+              call this%cell_pack ( cell = cell, &
+                                    buffer = snd_buf(start_buf:end_buf), &
+                                    vef_gids = lst_vefs_gids_ghost_extended(first:last) )
+              current = current + cell_sizes(icell)
+            end do
+         end do
+     endif
      
      ! Exchange data with nearest neighbours
      call this%p_env%l1_neighbours_exchange ( number_neighbours,&
@@ -418,32 +440,54 @@ end subroutine bst_free_cells_set
           
      ! Unpack data items from recv buffer
      current = rcv_ptrs_buf(1)
-     do i=1, number_neighbours
-        do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
-          icell = rcv_leids(j)
-          call cell%set_lid(icell)
-          first     = this%ptr_vefs_per_cell(icell)
-          last       = this%ptr_vefs_per_cell(icell+1)-1
-          start_buf = current
-          end_buf   = current + cell_sizes(icell)-1
-          if(present(lst_vefs_dimension)) then
-             call this%cell_unpack ( cell = cell, &
-                                     buffer = rcv_buf(start_buf:end_buf), &
-                                     vef_gids = lst_vefs_gids_ghost_extended(first:last), &
-                                     vef_dimensions = lst_vefs_dimension_ghost_extended(first:last) )
-          else if(present(coordinates)) then
-             call this%cell_unpack ( cell = cell, &
-                                     buffer = rcv_buf(start_buf:end_buf), &
-                                     vef_gids = lst_vefs_gids_ghost_extended(first:last), &
-                                     coordinates = coordinates_ghost_extended(:,first:last) )
-          else
-             call this%cell_unpack ( cell = cell, &
-                                     buffer = rcv_buf(start_buf:end_buf), &
-                                     vef_gids = lst_vefs_gids_ghost_extended(first:last) )
-          end if
-          current = current + cell_sizes(icell)
-        end do
-     end do
+     if(present(lst_vefs_dimension)) then
+         do i=1, number_neighbours
+            do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
+              icell = rcv_leids(j)
+              call cell%set_lid(icell)
+              first     = this%ptr_vefs_per_cell(icell)
+              last       = this%ptr_vefs_per_cell(icell+1)-1
+              start_buf = current
+              end_buf   = current + cell_sizes(icell)-1
+              call this%cell_unpack ( cell = cell, &
+                                      buffer = rcv_buf(start_buf:end_buf), &
+                                      vef_gids = lst_vefs_gids_ghost_extended(first:last), &
+                                      vef_dimensions = lst_vefs_dimension_ghost_extended(first:last) )
+              current = current + cell_sizes(icell)
+            end do
+         end do
+     else if(present(coordinates)) then
+         do i=1, number_neighbours
+            do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
+              icell = rcv_leids(j)
+              call cell%set_lid(icell)
+              first     = this%ptr_vefs_per_cell(icell)
+              last       = this%ptr_vefs_per_cell(icell+1)-1
+              start_buf = current
+              end_buf   = current + cell_sizes(icell)-1
+              call this%cell_unpack ( cell = cell, &
+                                      buffer = rcv_buf(start_buf:end_buf), &
+                                      vef_gids = lst_vefs_gids_ghost_extended(first:last), &
+                                      coordinates = coordinates_ghost_extended(:,first:last) )
+              current = current + cell_sizes(icell)
+            end do
+         end do
+     else
+         do i=1, number_neighbours
+            do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
+              icell = rcv_leids(j)
+              call cell%set_lid(icell)
+              first     = this%ptr_vefs_per_cell(icell)
+              last       = this%ptr_vefs_per_cell(icell+1)-1
+              start_buf = current
+              end_buf   = current + cell_sizes(icell)-1
+              call this%cell_unpack ( cell = cell, &
+                                      buffer = rcv_buf(start_buf:end_buf), &
+                                      vef_gids = lst_vefs_gids_ghost_extended(first:last) )
+              current = current + cell_sizes(icell)
+            end do
+         end do
+     endif
      
      call memfree ( cell_sizes, __FILE__, __LINE__ )
      call memfree ( snd_ptrs_buf, __FILE__, __LINE__ )
@@ -460,47 +504,68 @@ end subroutine bst_free_cells_set
                                      size_of_igp*(cell%get_num_vefs()) ! + size_of_ip*(cell%get_num_vefs())
   end function bst_cell_size
   
-  subroutine bst_cell_pack (cell, buffer, vef_gids, vef_dimensions, coordinates)
+  subroutine bst_cell_pack_vef_gids (cell, buffer, vef_gids, buffer_offset)
     implicit none
     type(cell_accessor_t), intent(in)  :: cell
-    integer(igp)         , intent(in)  :: vef_gids(cell%get_num_vefs())
-    integer(ip), optional, intent(in)  :: vef_dimensions(cell%get_num_vefs())
-    real(rp)   , optional, intent(in)  :: coordinates(SPACE_DIM,cell%get_num_vefs())
+    integer(igp)         , intent(in)  :: vef_gids(:)
     integer(ieep)        , intent(out) :: buffer(:)
-    integer(ip)                        :: first, last, ivef
+    integer(ip), optional, intent(out) :: buffer_offset
+    integer(ip)                        :: first, last
         
     first = 1
     last   = first + size_of_igp -1
-    buffer(first:last) = transfer(cell%get_gid(),mold)
+    buffer(first:last) = transfer(cell%get_gid(),buffer(first:last))
     first = last + 1
     last   = first + size_of_ip -1
-    buffer(first:last) = transfer(cell%get_my_part(),mold)
+    buffer(first:last) = transfer(cell%get_my_part(),buffer(first:last))
     first = last + 1
     last   = first + cell%get_num_vefs()*size_of_igp - 1
-    buffer(first:last) = transfer(vef_gids,mold)
+    buffer(first:last) = transfer(vef_gids,buffer(first:last))
+    if(present(buffer_offset)) buffer_offset = last
 
-    if(present(vef_dimensions)) then
+  end subroutine bst_cell_pack_vef_gids
+
+
+  subroutine bst_cell_pack_vef_gids_and_dimension (cell, buffer, vef_gids, vef_dimensions)
+    implicit none
+    type(cell_accessor_t), intent(in)  :: cell
+    integer(igp)         , intent(in)  :: vef_gids(:)
+    integer(ip)          , intent(in)  :: vef_dimensions(:)
+    integer(ieep)        , intent(out) :: buffer(:)
+    integer(ip)                        :: first, last
+        
+    call bst_cell_pack_vef_gids(cell,buffer,vef_gids, buffer_offset=last)
+    first = last + 1
+    last  = first + cell%get_num_vefs()*size_of_ip - 1
+    buffer(first:last) = transfer(vef_dimensions,buffer(first:last))
+
+  end subroutine bst_cell_pack_vef_gids_and_dimension
+
+
+  subroutine bst_cell_pack_vef_gids_and_coordinates (cell, buffer, vef_gids, coordinates)
+    implicit none
+    type(cell_accessor_t), intent(in)  :: cell
+    integer(igp)         , intent(in)  :: vef_gids(:)
+    real(rp)             , intent(in)  :: coordinates(:,:)
+    integer(ieep)        , intent(out) :: buffer(:)
+    integer(ip)                        :: first, last, ivef
+        
+    call bst_cell_pack_vef_gids(cell,buffer,vef_gids, buffer_offset=last)
+    do ivef=1,cell%get_num_vefs()
        first = last + 1
-       last  = first + cell%get_num_vefs()*size_of_ip - 1
-       buffer(first:last) = transfer(vef_dimensions,mold)
-    else if(present(coordinates)) then
-       do ivef=1,cell%get_num_vefs()
-          first = last + 1
-          last  = first + SPACE_DIM*size_of_rp - 1
-          buffer(first:last) = transfer(coordinates(:,ivef),mold)
-       end do
-    end if
+       last  = first + SPACE_DIM*size_of_rp - 1
+       buffer(first:last) = transfer(coordinates(:,ivef),buffer(first:last))
+    end do
 
-  end subroutine bst_cell_pack
+  end subroutine bst_cell_pack_vef_gids_and_coordinates
   
-  subroutine bst_cell_unpack (cell, buffer, vef_gids, vef_dimensions, coordinates)
+  subroutine bst_cell_unpack_vef_gids (cell, buffer, vef_gids, buffer_offset)
     implicit none
     type(cell_accessor_t), intent(inout) :: cell
     integer(ieep)        , intent(in)    :: buffer(:)
-    integer(igp)         , intent(out)   :: vef_gids(cell%get_num_vefs())
-    integer(ip), optional, intent(out)   :: vef_dimensions(cell%get_num_vefs())
-    real(rp)   , optional, intent(out)   :: coordinates(SPACE_DIM,cell%get_num_vefs())
-    integer(ip)                          :: first, last, ivef
+    integer(igp)         , intent(out)   :: vef_gids(:)
+    integer(ip), optional, intent(out)   :: buffer_offset
+    integer(ip)                          :: first, last
     integer(igp)                         :: gid
     integer(ip)                          :: mypart
     
@@ -517,20 +582,45 @@ end subroutine bst_free_cells_set
     first = last + 1
     last = first + cell%get_num_vefs()*size_of_igp - 1
     vef_gids = transfer(buffer(first:last), vef_gids)
-        
-    if(present(vef_dimensions)) then
-       first = last + 1
-       last = first + cell%get_num_vefs()*size_of_ip - 1
-       vef_dimensions = transfer(buffer(first:last), vef_dimensions)
-    else if(present(coordinates)) then
-       do ivef=1,cell%get_num_vefs()
-          first = last + 1
-          last = first +SPACE_DIM*size_of_rp - 1
-          coordinates(:,ivef) = transfer(buffer(first:last), coordinates(:,ivef))
-       end do
-    end if
+
+    if(present(buffer_offset)) buffer_offset = last
+            
+  end subroutine bst_cell_unpack_vef_gids
+
+
+  subroutine bst_cell_unpack_vef_gids_and_dimension (cell, buffer, vef_gids, vef_dimensions)
+    implicit none
+    type(cell_accessor_t), intent(inout) :: cell
+    integer(ieep)        , intent(in)    :: buffer(:)
+    integer(igp)         , intent(out)   :: vef_gids(:)
+    integer(ip)          , intent(out)   :: vef_dimensions(:)
+    integer(ip)                          :: first, last, ivef
     
-  end subroutine bst_cell_unpack
+    call bst_cell_unpack_vef_gids(cell, buffer, vef_gids, buffer_offset=last)
+    first = last + 1
+    last = first + cell%get_num_vefs()*size_of_ip - 1
+    vef_dimensions = transfer(buffer(first:last), vef_dimensions)
+    
+  end subroutine bst_cell_unpack_vef_gids_and_dimension
+
+
+  subroutine bst_cell_unpack_vef_gids_and_coordinates (cell, buffer, vef_gids, coordinates)
+    implicit none
+    type(cell_accessor_t), intent(inout) :: cell
+    integer(ieep)        , intent(in)    :: buffer(:)
+    integer(igp)         , intent(out)   :: vef_gids(:)
+    real(rp)             , intent(out)   :: coordinates(:,:)
+    integer(ip)                          :: first, last, ivef
+    
+    call bst_cell_unpack_vef_gids(cell, buffer, vef_gids, buffer_offset=last)
+    do ivef=1,cell%get_num_vefs()
+       first = last + 1
+       last = first +SPACE_DIM*size_of_rp - 1
+       coordinates(:,ivef) = transfer(buffer(first:last), coordinates(:,ivef))
+    end do
+    
+  end subroutine bst_cell_unpack_vef_gids_and_coordinates
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
