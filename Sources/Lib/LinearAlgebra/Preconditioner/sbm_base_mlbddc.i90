@@ -663,7 +663,7 @@ recursive subroutine base_mlbddc_apply (op, x, y)
   call x%CleanTemp()
 end subroutine base_mlbddc_apply
 
-subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
+recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
   implicit none
   class(base_mlbddc_t)         , intent(in)    :: this
   type(par_scalar_array_t), intent(in)    :: x
