@@ -41,27 +41,31 @@ module hts_theta_method_names
      real(rp)    :: time_step
      real(rp)    :: max_time_step 
      real(rp)    :: min_time_step 
+     integer(ip) :: save_solution_every_n_steps 
      integer(ip) :: current_step      
+     real(rp)    :: next_time_to_be_printed  
      integer(ip) :: number_of_steps
    contains
-     procedure, non_overridable :: create              => theta_method_create
-     procedure, non_overridable :: update_solutions    => theta_method_update_solutions
-     procedure, non_overridable :: move_time_forward   => theta_method_move_time_forward
-     procedure, non_overridable :: move_time_backwards => theta_method_move_time_backwards
-     procedure, non_overridable :: print               => theta_method_print
-     procedure, non_overridable :: get_theta           => theta_method_get_theta
-     procedure, non_overridable :: get_initial_time    => theta_method_get_initial_time
-     procedure, non_overridable :: get_current_time    => theta_method_get_current_time
-     procedure, non_overridable :: get_final_time      => theta_method_get_final_time
-     procedure, non_overridable :: get_time_step       => theta_method_get_time_step
-     procedure, non_overridable :: finished            => theta_method_finished
+     procedure, non_overridable :: create                    => theta_method_create
+     procedure, non_overridable :: update_solutions          => theta_method_update_solutions
+     procedure, non_overridable :: move_time_forward         => theta_method_move_time_forward
+     procedure, non_overridable :: move_time_backwards       => theta_method_move_time_backwards
+     procedure, non_overridable :: print                     => theta_method_print
+     procedure, non_overridable :: print_this_step           => theta_method_print_this_step 
+     procedure, non_overridable :: update_time_to_be_printed => theta_method_update_time_to_be_printed   
+     procedure, non_overridable :: get_theta                 => theta_method_get_theta
+     procedure, non_overridable :: get_initial_time          => theta_method_get_initial_time
+     procedure, non_overridable :: get_current_time          => theta_method_get_current_time
+     procedure, non_overridable :: get_final_time            => theta_method_get_final_time
+     procedure, non_overridable :: get_time_step             => theta_method_get_time_step
+     procedure, non_overridable :: finished                  => theta_method_finished
   end type theta_method_t
   
   public :: theta_method_t
 
 contains
   !===============================================================================================
-  subroutine theta_method_create(this, theta, initial_time, final_time, number_time_steps, max_time_step, min_time_step )
+  subroutine theta_method_create(this, theta, initial_time, final_time, number_time_steps, max_time_step, min_time_step, save_every_n_steps )
     implicit none
     class(theta_method_t), intent(inout) :: this
     real(rp)             , intent(in)    :: theta
@@ -70,16 +74,19 @@ contains
     integer(ip)          , intent(in)    :: number_time_steps
     real(rp)             , intent(in)    :: max_time_step 
     real(rp)             , intent(in)    :: min_time_step 
+    integer(ip)          , intent(in)    :: save_every_n_steps 
     
-    this%theta           = theta
-    this%initial_time    = initial_time
-    this%final_time      = final_time
-    this%number_of_steps = number_time_steps
-    this%time_step       = ( this%final_time - this%initial_time ) / real(this%number_of_steps,rp)
-    this%current_time    = this%time_step
-    this%current_step    = 1
-    this%max_time_step   = max_time_step 
-    this%min_time_step   = min_time_step 
+    this%theta                       = theta
+    this%initial_time                = initial_time
+    this%final_time                  = final_time
+    this%number_of_steps             = number_time_steps
+    this%time_step                   = ( this%final_time - this%initial_time ) / real(this%number_of_steps,rp)
+    this%current_time                = this%time_step
+    this%current_step                = 1
+    this%max_time_step               = max_time_step 
+    this%min_time_step               = min_time_step 
+    this%save_solution_every_n_steps = save_every_n_steps  
+    this%next_time_to_be_printed     = final_time/real(save_every_n_steps) 
     
   end subroutine theta_method_create
 
@@ -114,7 +121,7 @@ contains
     integer(ip)          , intent(in)    :: ideal_num_iterations 
     
     ! Update time step with nonlinear convergence history 
-    this%time_step = real(ideal_num_iterations,rp)/real(num_iterations,rp)*this%time_step
+    this%time_step = min( real(ideal_num_iterations,rp)/real(num_iterations,rp), 5.0_rp )*this%time_step
     this%time_step = max(this%time_step, this%min_time_step) 
     this%time_step = min(this%time_step, this%max_time_step) 
     
@@ -159,6 +166,27 @@ contains
     write(luout,*) '========================================================================'
     write(luout,'(a10,i6,a20, e10.3,a12,e10.3)') 'Time step ', this%current_step, ': Solving for t=', this%current_time, 'with dt', this%time_step
   end subroutine theta_method_print
+  
+  !=============================================================================================== 
+    function theta_method_print_this_step(this)
+    implicit none
+    class(theta_method_t), intent(inout) :: this
+    logical :: theta_method_print_this_step 
+
+    theta_method_print_this_step = ( this%current_time .ge. this%next_time_to_be_printed )
+    
+  end function theta_method_print_this_step 
+  
+    !=============================================================================================== 
+   subroutine theta_method_update_time_to_be_printed(this)
+    implicit none
+    class(theta_method_t), intent(inout) :: this
+    logical :: theta_method_print_this_step 
+     
+    this%next_time_to_be_printed = this%next_time_to_be_printed + &
+                                   this%final_time/real(this%save_solution_every_n_steps,rp) 
+                                   
+  end subroutine theta_method_update_time_to_be_printed  
   
   !===============================================================================================
   function theta_method_get_theta(this)

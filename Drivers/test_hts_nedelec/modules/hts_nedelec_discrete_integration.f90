@@ -33,6 +33,10 @@ module hts_nedelec_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
+  
+  integer(ip), parameter :: hts = 1
+  integer(ip), parameter :: air = 2
+  
   type, extends(discrete_integration_t) :: hts_nedelec_discrete_integration_t
      private
      ! Physical parameters 
@@ -102,10 +106,11 @@ contains
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int_H
+    type(volume_integrator_t), pointer :: vol_int_H, vol_int_p
     type(vector_field_t)               :: H_shape_trial, H_shape_test
     type(vector_field_t)               :: curl_H_shape_trial, curl_H_shape_test
-    real(rp)                           :: div_H_shape_trial, div_H_shape_test
+    type(vector_field_t)               :: grad_p_shape_trial, grad_p_shape_test
+    real(rp)                           :: p_shape_trial, p_shape_test
     type(vector_field_t)               :: H_value_current, H_value_previous
     type(vector_field_t) , allocatable :: H_current_curl_values(:)  
     type(cell_fe_function_vector_t)    :: cell_fe_function_previous, cell_fe_function_current 
@@ -156,6 +161,7 @@ contains
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
     vol_int_H        => fe%get_volume_integrator(1)
+    vol_int_p        => fe%get_volume_integrator(2) 
     
     time_factor = this%theta_method%get_theta() * this%theta_method%get_time_step() 
     allocate (source_term_values(num_quad_points,1), stat=istat); check(istat==0)
@@ -191,24 +197,23 @@ contains
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! Compute nonlinear resistivity 
-          resistivity  = this%compute_resistivity(H_current_curl_values(qpoint), fe%get_set_id() )
+          resistivity  = this%compute_resistivity( H_current_curl_values(qpoint), fe%get_set_id() )
+          permeability = this%air_permeability
           
           ! Previous solution to integrate RHS contribution 
           call cell_fe_function_previous%get_value( qpoint, H_value_previous )
           
-          permeability = this%air_permeability
+          ! BLOCK [1,1] : mu_0 ( H,v ) + rho( curl(H), curl(v) )  
           do idof=1, num_dofs_per_field(1)
             call vol_int_H%get_value(idof, qpoint, H_shape_test)
             call vol_int_H%get_curl(idof, qpoint, curl_H_shape_test)
-            call vol_int_H%get_divergence(idof, qpoint, div_H_shape_test)
             do jdof=1, num_dofs_per_field(1)
               call vol_int_H%get_value(jdof, qpoint, H_shape_trial)
               call vol_int_H%get_curl(jdof, qpoint, curl_H_shape_trial)     
-              call vol_int_H%get_divergence(jdof, qpoint, div_H_shape_trial) 
               elmat(idof,jdof) = elmat(idof,jdof) + &
-              (permeability/time_factor*H_shape_trial*H_shape_test + resistivity*curl_H_shape_trial*curl_H_shape_test)*factor   
+              (permeability/time_factor*H_shape_trial*H_shape_test + resistivity*curl_H_shape_trial*curl_H_shape_test)*factor
                   
-                  if ( this%integration_type=='add_tangent_terms' .and. fe%get_set_id()==1 ) then 
+                  if ( this%integration_type=='add_tangent_terms' .and. fe%get_set_id()== hts ) then 
                    tangent_resistivity = this%compute_tangent_resistivity(H_current_curl_values(qpoint), curl_H_shape_trial) 
                    elmat(idof,jdof) = elmat(idof,jdof) + tangent_resistivity*curl_H_shape_test*H_current_curl_values(qpoint)*factor                    
                   end if       
@@ -216,8 +221,39 @@ contains
             end do            
             elvec(idof) = elvec(idof) + (source_term_values(qpoint,1)+permeability/time_factor*H_value_previous)*H_shape_test*factor
           end do
-       end do
        
+           ! BLOCK [1,2] : - ( v, grad(p) )
+          do idof=1, num_dofs_per_field(1)
+            call vol_int_H%get_value(idof, qpoint, H_shape_test)
+            do jdof=1, num_dofs_per_field(2)
+              call vol_int_p%get_gradient(jdof, qpoint, grad_p_shape_trial)   
+              elmat(idof,num_dofs_per_field(1)+jdof) = elmat(idof,num_dofs_per_field(1)+jdof)  &
+                                                       - (H_shape_test*grad_p_shape_trial)*factor                  
+            end do            
+          end do
+
+       ! BLOCK [2,1] :  ( H, grad(q) )
+          do idof=1, num_dofs_per_field(2)
+            call vol_int_p%get_gradient(idof, qpoint, grad_p_shape_test) 
+            do jdof=1, num_dofs_per_field(1)
+              call vol_int_H%get_value(jdof, qpoint, H_shape_trial)
+              elmat(num_dofs_per_field(1)+idof,jdof) = elmat(num_dofs_per_field(1)+idof,jdof)  &
+                                                       + (H_shape_trial*grad_p_shape_test)*factor                  
+            end do            
+          end do
+          
+           ! BLOCK [2,2] :  ( p,q )
+          do idof=1, num_dofs_per_field(2)
+            call vol_int_p%get_value(idof, qpoint, p_shape_test) 
+            do jdof=1, num_dofs_per_field(2)
+              call vol_int_p%get_value(jdof, qpoint, p_shape_trial)
+              elmat(num_dofs_per_field(1)+idof,num_dofs_per_field(1)+jdof) = elmat(num_dofs_per_field(1)+idof,num_dofs_per_field(1)+jdof)  &
+                                                       + 1.0_rp/permeability*p_shape_trial*p_shape_test*factor                  
+            end do            
+          end do
+
+      end do ! Qpoint loop 
+          
        ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
@@ -246,14 +282,13 @@ contains
   Jc = this%critical_current 
   n  = this%nonlinear_exponent 
   
-  
-  if ( material == 1) then ! HTS DOMAIN: Nonlinear resistivity = Ec/Jc*|| curl(H) / Jc ||**n 
+  if ( material == hts ) then ! HTS DOMAIN: Nonlinear resistivity = Ec/Jc*|| curl(H) / Jc ||**n 
      if (this%nonlinear_exponent .ge. 1 ) then 
         resistivity = Ec/Jc*(curl_H%nrm2()/Jc)**n + 1e-16_rp
      else
         resistivity = this%hts_resistivity
      end if
-  else if ( material == 2) then ! Air domain 
+  else if ( material == air ) then ! Air domain 
      resistivity = this%air_resistivity 
   else 
      assert(.false.) 
