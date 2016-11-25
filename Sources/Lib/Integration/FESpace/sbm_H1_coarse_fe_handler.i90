@@ -249,14 +249,11 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, weighting_operator
      if ( .not. touch_subpart(subpart)) then
         touch_subpart(subpart) = .true.
         is_subpart_local(subpart) = ( fe%get_my_part() == par_env%get_l1_rank() + 1 ) 
-        
         if ( fe%get_set_id() <= 1 ) then
              subpart_viscosity(subpart) = 1.0_rp
           else 
              subpart_viscosity(subpart) = this%diffusion_inclusion
         end if
-        
-        
      end if
      call fe_iterator%next()
   end do
