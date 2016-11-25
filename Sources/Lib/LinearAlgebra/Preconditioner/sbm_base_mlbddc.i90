@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine base_mlbddc_symbolic_setup ( this )
+recursive subroutine base_mlbddc_symbolic_setup ( this )
   implicit none
   class(base_mlbddc_t), intent(inout) :: this
   type(environment_t), pointer :: par_environment  
@@ -254,7 +254,7 @@ subroutine base_mlbddc_symbolic_setup_coarse_solver(this)
   call this%coarse_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_coarse_solver
 
-subroutine base_mlbddc_numerical_setup ( this )
+recursive subroutine base_mlbddc_numerical_setup ( this )
   implicit none
   class(base_mlbddc_t)        , intent(inout)   :: this
   type(environment_t), pointer         :: par_environment
@@ -644,7 +644,7 @@ subroutine base_mlbddc_numerical_setup_coarse_solver(this)
 end subroutine base_mlbddc_numerical_setup_coarse_solver
 
 !=============================================================================
-subroutine base_mlbddc_apply (op, x, y)
+recursive subroutine base_mlbddc_apply (op, x, y)
   implicit none
   ! Parameters
   class(base_mlbddc_t)   , intent(in)    :: op
