@@ -134,6 +134,10 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
+    !
+    !type(polytope_tree_t) :: poly, poly_old
+    !integer(ip) :: topology
+    
     ! Locals
     integer(ip) :: istat    
     logical                                   :: continuity
@@ -159,6 +163,20 @@ contains
     cell_iterator = this%triangulation%create_cell_iterator()
     call cell_iterator%current(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
+    
+    
+         
+    ! BEGIN Checking new polytope_tree_t
+    !if ( reference_fe_geo%get_topology() == topology_hex ) then
+    ! topology = 2**this%triangulation%get_num_dimensions()-1
+    !elseif ( reference_fe_geo%get_topology() == topology_tet ) then
+    ! topology = 0
+    !end if
+    !call poly_old%create_old(this%triangulation%get_num_dimensions(), topology )
+    !call poly%create(this%triangulation%get_num_dimensions(), topology )
+    !call poly_old%print()
+    !call poly%print()
+    ! END Checking ...
     
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &

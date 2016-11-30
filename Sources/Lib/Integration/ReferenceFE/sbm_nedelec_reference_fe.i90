@@ -254,7 +254,7 @@ subroutine nedelec_fill_vector (this)
      ! Number nodes
      this%number_shape_functions = this%number_shape_functions + this%node_array_vector(idime)%get_number_nodes()
      offset(idime+1) = offset(idime) + this%node_array_vector(idime)%get_number_nodes()
-  end do
+  end do 
 
   num_n_faces = this%polytope%get_number_n_faces()
   ! Number n-faces ( I don't like it, not volume included...)

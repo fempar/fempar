@@ -282,7 +282,7 @@ contains
 
     ones = 1
     topology = 2**this%number_of_dimensions-1  ! Hexahedral
-    call polytope_tree%create( this%number_of_dimensions, topology )  
+    call polytope_tree%create( this%number_of_dimensions, topology ) 
     !call node_array%create ( polytope_tree, ones*this%interpolation_order )
 
     ! PARTS
