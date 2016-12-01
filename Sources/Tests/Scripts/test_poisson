@@ -63,21 +63,21 @@ then
       done
 
       # Square +  Tetrahedra       
-      for gorder in 1 #2 3 4 5 6
-      do
-       for order in 1 2 3 #4 5 6
-        do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder"
-            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder
-            if [ $? -ne 0 ]
-            then
-             final_exit_code=1
-            fi
-          fi
-        done
-      done
+      # for gorder in 1 #2 3 4 5 6
+      # do
+      #  for order in 1 2 3 #4 5 6
+      #   do
+      #     if [ $order -ge $gorder ]
+      #     then
+      #       echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder"
+      #       $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder
+      #       if [ $? -ne 0 ]
+      #       then
+      #        final_exit_code=1
+      #       fi
+      #     fi
+      #   done
+      # done
 
       # Cube + Hexas       
       for gorder in 1 #2 3 4 5 6
@@ -114,21 +114,21 @@ then
       done
 
       # Cube + Tetrahedra
-      for gorder in 1 #2 3 4 5 6
-      do
-       for order in 1 2 #3 4 5 6
-        do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder"
-            $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder
-            if [ $? -ne 0 ]
-            then
-             final_exit_code=1
-            fi
-          fi
-        done
-      done
+      # for gorder in 1 #2 3 4 5 6
+      # do
+      #  for order in 1 2 #3 4 5 6
+      #   do
+      #     if [ $order -ge $gorder ]
+      #     then
+      #       echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder"
+      #       $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder
+      #       if [ $? -ne 0 ]
+      #       then
+      #        final_exit_code=1
+      #       fi
+      #     fi
+      #   done
+      # done
 
 
       ###############################################################################################################################
@@ -172,21 +172,21 @@ then
       done
 
       # Square +  Tetrahedra       
-      for gorder in 1 #2 3 4 5 6
-      do
-       for order in 1 2 3 #4 5 6
-        do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder  -lt vector"
-            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder  -lt vector
-            if [ $? -ne 0 ]
-            then
-             final_exit_code=1
-            fi
-          fi
-        done
-      done
+      # for gorder in 1 #2 3 4 5 6
+      # do
+      #  for order in 1 2 3 #4 5 6
+      #   do
+      #     if [ $order -ge $gorder ]
+      #     then
+      #       echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder  -lt vector"
+      #       $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder  -lt vector
+      #       if [ $? -ne 0 ]
+      #       then
+      #        final_exit_code=1
+      #       fi
+      #     fi
+      #   done
+      # done
 
       # Cube + Hexas       
       for gorder in 1 #2 3 4 5 6
@@ -206,21 +206,21 @@ then
       done
 
       # Cube + Tetrahedra
-      for gorder in 1 #2 3 4 5 6
-      do
-       for order in 1 2 #3 4 5 6
-        do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder  -lt vector"
-            $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder  -lt vector
-            if [ $? -ne 0 ]
-            then
-             final_exit_code=1
-            fi
-          fi
-        done
-      done
+      # for gorder in 1 #2 3 4 5 6
+      # do
+      #  for order in 1 2 #3 4 5 6
+      #   do
+      #     if [ $order -ge $gorder ]
+      #     then
+      #       echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder  -lt vector"
+      #       $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder  -lt vector
+      #       if [ $? -ne 0 ]
+      #       then
+      #        final_exit_code=1
+      #       fi
+      #     fi
+      #   done
+      # done
 
 
    else

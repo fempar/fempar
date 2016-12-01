@@ -239,6 +239,7 @@ module reference_fe_names
      procedure          :: n_face_coordinate        => polytope_tree_n_face_coordinate
      procedure          :: get_number_n_faces       => polytope_tree_get_number_n_faces
      procedure          :: get_ijk_to_index         => polytope_tree_get_ijk_to_index
+     procedure          :: print                    => polytope_tree_print
      procedure          :: free                     => polytope_tree_free
      procedure, private :: fill_cell_tree 
   end type polytope_tree_t
