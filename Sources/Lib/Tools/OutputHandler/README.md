@@ -31,7 +31,8 @@ Compilation system will automatically detect HDF5 configuration in order to set 
     ! Open                | close                 | Init
     !-----------------------------------------------------------------
     ! Fill                | free                  | Init
-    ! Fill                | close                 | Init```
+    ! Fill                | close                 | Init
+```
 
 # Output handler: Basic usage
 

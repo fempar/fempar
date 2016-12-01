@@ -25,8 +25,35 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Iterator over [[serial_fe_space_t(type)]]
+!
+! Contains the following public entities:
+! [[output_handler_fe_iterator_names(module)]]
+!
+!---------------------------------------------------------------------
 module output_handler_fe_iterator_names
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Iterator over [[serial_fe_space_t(type)]]
+!
+! Parent class for all custom iterator over [[serial_fe_space_t(type)]]
+!
+! Contains the following public entities:
+! [[output_handler_fe_iterator_t(type)]]
+!
+!---------------------------------------------------------------------
 
 use fe_space_names, only: fe_iterator_t, fe_accessor_t, serial_fe_space_t
 
@@ -35,6 +62,18 @@ implicit none
 private
 
     type output_handler_fe_iterator_t
+    !-----------------------------------------------------------------
+    !* Author: Víctor Sande Veiga
+    ! Date: 2016-11-29
+    ! Version: 0.0.1
+    ! Category: IO
+    !
+    !-----------------------------------------------------------------
+    !### Iterator over the finite elements in [[serial_fe_space_t(type)]]
+    !
+    ! Extending this class, allows the definition of custom loops
+    ! over the finite elements in [[serial_fe_space_t(type)]]
+    !-----------------------------------------------------------------
     private
         type(fe_iterator_t) :: fe_iterator
     contains
@@ -56,7 +95,7 @@ contains
 
     subroutine output_handler_fe_iterator_create(this, fe_space)
     !-----------------------------------------------------------------
-    !< Set fe iterator
+    !< Create the iterator from a given [[serial_fe_space_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(inout) :: this
         class(serial_fe_space_t)           , intent(in)    :: fe_space
@@ -68,7 +107,7 @@ contains
 
     function output_handler_fe_iterator_get_fe_iterator(this) result(fe_iterator)
     !-----------------------------------------------------------------
-    !< Get fe iterator pointer
+    !< Return a pointer to [[output_handler_fe_iterator_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), target, intent(in) :: this
         type(fe_iterator_t), pointer                            :: fe_iterator
@@ -79,7 +118,7 @@ contains
 
     subroutine output_handler_fe_iterator_free(this)
     !-----------------------------------------------------------------
-    !< Free
+    !< Free procedure
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -89,7 +128,7 @@ contains
 
     subroutine output_handler_fe_iterator_init(this)
     !-----------------------------------------------------------------
-    !< Init
+    !< Initialize the contained [[fe_iterator_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -99,7 +138,7 @@ contains
 
     subroutine output_handler_fe_iterator_next(this)
     !-----------------------------------------------------------------
-    !< Init
+    !< Jump to the next position of [[fe_iterator_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -109,7 +148,7 @@ contains
 
     function output_handler_fe_iterator_has_finished(this) result(has_finished)
     !-----------------------------------------------------------------
-    !< Has finished
+    !< Ask if [[fe_iterator_t(type)]] has reached the last position
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(inout) :: this
         logical                                            :: has_finished
@@ -120,7 +159,7 @@ contains
 
     subroutine output_handler_fe_iterator_current(this, fe_accessor) 
     !-----------------------------------------------------------------
-    !< Current
+    !< Return the [[fe_accessor_t(type)]] of the current position
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(in)    :: this
         type(fe_accessor_t),                 intent(inout) :: fe_accessor

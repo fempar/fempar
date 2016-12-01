@@ -25,8 +25,38 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Patch-related derived types
+!
+! Contains the following public entities:
+! [[output_handler_patch_names(module)]]
+!---------------------------------------------------------------------
 module output_handler_patch_names
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Patch-related derived types
+!
+! A **Patch** is and entity containing raw values (connectivities, 
+! coordinates, cell and nodal fields restricted to a single
+! finite element
+!
+! Contains the following public entities:
+! [[output_handler_patch_t(type)]], 
+! [[output_handler_patch_field_t(type)]], 
+! [[patch_subcell_iterator_t(type)]], 
+! [[patch_subcell_accessor_t(type)]]
+!---------------------------------------------------------------------
 
 USE types_names
 USE field_names
@@ -38,6 +68,18 @@ implicit none
 private
 
     type :: output_handler_patch_field_t
+    !-----------------------------------------------------------------
+    !* Author: Víctor Sande Veiga
+    ! Date: 2016-11-29
+    ! Version: 0.0.1
+    ! Category: IO
+    !
+    !-----------------------------------------------------------------
+    !### Patch-field derived type
+    !
+    ! A [[output_handler_patch_field_t(type)]] is and entity containing 
+    ! raw values (cell and nodal fields) restricted to a single finite element
+    !-----------------------------------------------------------------
     private
         character(len=:), allocatable          :: field_type
         type(allocatable_array_rp1_t)          :: nodal_values
@@ -57,6 +99,19 @@ private
     end type
 
     type :: output_handler_patch_t
+    !-----------------------------------------------------------------
+    !* Author: Víctor Sande Veiga
+    ! Date: 2016-11-29
+    ! Version: 0.0.1
+    ! Category: IO
+    !
+    !-----------------------------------------------------------------
+    !### Patch derived type
+    !
+    ! A [[output_handler_patch_t(type)]] is and entity containing raw values
+    ! (connectivities, coordinates, cell and nodal fields restricted 
+    ! to a single finite element
+    !-----------------------------------------------------------------
     private
         character(len=:), allocatable              :: cell_type
         integer(ip)                                :: number_dimensions           = 0
@@ -94,6 +149,15 @@ private
 
 
     type :: patch_subcell_accessor_t
+    !-----------------------------------------------------------------
+    !* Author: Víctor Sande Veiga
+    ! Date: 2016-11-29
+    ! Version: 0.0.1
+    ! Category: IO
+    !
+    !-----------------------------------------------------------------
+    !### Isolate a single linear subcell from a [[output_handler_patch_t(type)]]
+    !-----------------------------------------------------------------
     private
         type(output_handler_patch_t), pointer :: patch => NULL()
         integer(ip)                           :: current_subcell = 0
@@ -119,6 +183,15 @@ private
     end type
 
     type :: patch_subcell_iterator_t
+    !-----------------------------------------------------------------
+    !* Author: Víctor Sande Veiga
+    ! Date: 2016-11-29
+    ! Version: 0.0.1
+    ! Category: IO
+    !
+    !-----------------------------------------------------------------
+    !### Iterate over the linear subcells contained in a [[output_handler_patch_t(type)]]
+    !-----------------------------------------------------------------
     private
         type(output_handler_patch_t), pointer :: patch => NULL()
         integer(ip)                           :: current_subcell = 0
@@ -141,7 +214,7 @@ public :: patch_subcell_accessor_t
 contains
 
 !---------------------------------------------------------------------
-!< output_handler_PATCH_FIELD_T PROCEDURES
+! output_handler_PATCH_FIELD_T PROCEDURES
 !---------------------------------------------------------------------
 
 
@@ -248,7 +321,7 @@ contains
 
 
 !---------------------------------------------------------------------
-!< output_handler_PATCH_T PROCEDURES
+! output_handler_PATCH_T PROCEDURES
 !---------------------------------------------------------------------
 
     subroutine output_handler_patch_create(this, number_fields, number_cell_vectors)
@@ -299,7 +372,7 @@ contains
 
     subroutine output_handler_patch_set_cell_type(this, cell_type)
     !-----------------------------------------------------------------
-    !< Set the field type
+    !< Set the cell type of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(inout) :: this
         character(len=*),              intent(in)    :: cell_type
@@ -310,7 +383,7 @@ contains
 
     subroutine output_handler_patch_set_number_dimensions(this, number_dimensions)
     !-----------------------------------------------------------------
-    !< Set the number of points of the patch
+    !< Set the number of dimensions of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(inout) :: this
         integer(ip),                   intent(in)    :: number_dimensions
@@ -321,7 +394,7 @@ contains
 
     subroutine output_handler_patch_set_number_points(this, number_points)
     !-----------------------------------------------------------------
-    !< Set the number of points of the patch
+    !< Set the number of points of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(inout) :: this
         integer(ip),                   intent(in)    :: number_points
@@ -332,7 +405,7 @@ contains
 
     subroutine output_handler_patch_set_number_subcells(this, number_subcells)
     !-----------------------------------------------------------------
-    !< Set the number of points of the patch
+    !< Set the number of subcells of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(inout) :: this
         integer(ip),                   intent(in)    :: number_subcells
@@ -343,7 +416,7 @@ contains
 
     subroutine output_handler_patch_set_number_vertices_per_subcell(this, number_vertices_per_subcell)
     !-----------------------------------------------------------------
-    !< Set the number of points of the patch
+    !< Set the number of vertices per subcell of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(inout) :: this
         integer(ip),                   intent(in)    :: number_vertices_per_subcell
@@ -354,7 +427,7 @@ contains
 
     subroutine output_handler_patch_set_coordinates(this, coordinates)
     !-----------------------------------------------------------------
-    !< Set the number of points of the patch
+    !< Set the coordinates of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(inout) :: this
         type(point_t), pointer,        intent(in)    :: coordinates(:)
@@ -366,7 +439,7 @@ contains
 
     function output_handler_patch_get_cell_type(this) result(cell_type)
     !-----------------------------------------------------------------
-    !< Return the field type
+    !< Return the cell type of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(in) :: this
         character(len=:), allocatable             :: cell_type
@@ -377,7 +450,7 @@ contains
 
     pure function output_handler_patch_get_number_dimensions(this) result(number_dimensions)
     !-----------------------------------------------------------------
-    !< Return the number of dimensions of the patch
+    !< Return the number of dimensions of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(in) :: this
         integer(ip)                               :: number_dimensions
@@ -388,7 +461,7 @@ contains
 
     function output_handler_patch_get_number_subcells(this) result(number_subcells)
     !-----------------------------------------------------------------
-    !< Return the number of subcells in the patch
+    !< Return the number of subcells contained in the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(in) :: this
         integer(ip)                               :: number_subcells
@@ -399,7 +472,7 @@ contains
 
     pure function output_handler_patch_get_number_vertices_per_subcell(this) result(number_vertices_per_subcell)
     !-----------------------------------------------------------------
-    !< Return the number of subcells in the patch
+    !< Return the number of vertices per subcell in the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(in) :: this
         integer(ip)                               :: number_vertices_per_subcell
@@ -410,7 +483,7 @@ contains
 
     function output_handler_patch_get_number_fields(this) result(number_fields)
     !-----------------------------------------------------------------
-    !< Return the number of fields handled by the patch
+    !< Return the number of fields handled by the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(in) :: this
         integer(ip)                               :: number_fields
@@ -421,7 +494,7 @@ contains
 
     function output_handler_patch_get_number_cell_vectors(this) result(number_cell_vectors)
     !-----------------------------------------------------------------
-    !< Return the number of cell vectors handled by the patch
+    !< Return the number of cell vectors handled by the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(in) :: this
         integer(ip)                               :: number_cell_vectors
@@ -432,7 +505,7 @@ contains
 
     function output_handler_patch_get_field(this, number_field) result(field)
     !-----------------------------------------------------------------
-    !< Return a fields handled by the patch
+    !< Return a fields handled by the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t),      target, intent(in) :: this
         integer(ip),                                intent(in) :: number_field
@@ -445,7 +518,7 @@ contains
 
     function output_handler_patch_get_cell_vector(this, number_cell_vector) result(cell_vector)
     !-----------------------------------------------------------------
-    !< Return a cell vector handled by the patch
+    !< Return a cell vector handled by the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t),      target, intent(in) :: this
         integer(ip),                                intent(in) :: number_cell_vector
@@ -469,7 +542,7 @@ contains
 
     function output_handler_patch_get_coordinates(this) result(coordinates)
     !-----------------------------------------------------------------
-    !< Set the number of points of the patch
+    !< Set the number of points of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(inout) :: this
         type(point_t), pointer                       :: coordinates(:)
@@ -481,7 +554,7 @@ contains
 
     function output_handler_patch_get_subcells_iterator(this) result(iterator)
     !-----------------------------------------------------------------
-    !< Set the number of points of the patch
+    !< Set the number of points of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(in)     :: this
         type(patch_subcell_iterator_t) :: iterator
@@ -490,12 +563,12 @@ contains
     end function output_handler_patch_get_subcells_iterator
 
 !---------------------------------------------------------------------
-!< patch_subcell_iterator_T PROCEDURES
+! patch_subcell_iterator_T PROCEDURES
 !---------------------------------------------------------------------
 
     subroutine patch_subcell_iterator_free(this)
     !-----------------------------------------------------------------
-    !< Free a patch subcell iterator
+    !< Free the [[patch_subcell_iterator_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_iterator_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -507,7 +580,7 @@ contains
 
     subroutine patch_subcell_iterator_create(this, patch)
     !-----------------------------------------------------------------
-    !< Create a patch subcell iterator
+    !< Create a [[patch_subcell_iterator_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_iterator_t),      intent(inout) :: this
         type(output_handler_patch_t), target, intent(in)    :: patch
@@ -520,7 +593,7 @@ contains
 
     subroutine patch_subcell_iterator_begin(this)
     !-----------------------------------------------------------------
-    !< Rewind patch subcell iterator
+    !< Rewind [[patch_subcell_iterator_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_iterator_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -531,7 +604,7 @@ contains
 
     subroutine patch_subcell_iterator_next(this)
     !-----------------------------------------------------------------
-    !< Next subcell
+    !< Jump to the next subcell
     !-----------------------------------------------------------------
         class(patch_subcell_iterator_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -542,7 +615,7 @@ contains
 
     function patch_subcell_iterator_has_finished(this) result(has_finished)
     !-----------------------------------------------------------------
-    !< Rewind patch subcell iterator
+    !< Ask if the [[patch_subcell_iterator_t(type)]] has reached the last position
     !-----------------------------------------------------------------
         class(patch_subcell_iterator_t), intent(inout) :: this
         logical                                        :: has_finished
@@ -554,7 +627,7 @@ contains
 
     function patch_subcell_iterator_get_accessor(this) result(accessor)
     !-----------------------------------------------------------------
-    !< Rewind patch subcell iterator
+    !< Return the [[patch_subcell_accessor_t(type)]] for the current position
     !-----------------------------------------------------------------
         class(patch_subcell_iterator_t), intent(inout) :: this
         type(patch_subcell_accessor_t)                 :: accessor
@@ -565,13 +638,13 @@ contains
 
 
 !---------------------------------------------------------------------
-!< patch_subcell_accessor_t PROCEDURES
+! patch_subcell_accessor_t PROCEDURES
 !---------------------------------------------------------------------
 
 
     subroutine patch_subcell_accessor_free(this, patch, current_subcell)
     !-----------------------------------------------------------------
-    !< Create a patch subcell accessor
+    !< Create a [[patch_subcell_accessor_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),      intent(inout) :: this
         type(output_handler_patch_t), target, intent(in)    :: patch
@@ -584,7 +657,7 @@ contains
 
     subroutine patch_subcell_accessor_create(this, patch, current_subcell)
     !-----------------------------------------------------------------
-    !< Create a patch subcell accessor
+    !< Create a [[patch_subcell_accessor_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),      intent(inout) :: this
         type(output_handler_patch_t), target, intent(in)    :: patch
@@ -597,7 +670,7 @@ contains
 
     function patch_subcell_accessor_get_cell_type(this) result(cell_type)
     !-----------------------------------------------------------------
-    !< Return subcell topology type
+    !< Return the topology type of the current [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t), intent(in) :: this
         character(len=:), allocatable               :: cell_type
@@ -608,7 +681,7 @@ contains
 
     pure function patch_subcell_accessor_get_number_dimensions(this) result(number_dimensions)
     !-----------------------------------------------------------------
-    !< Return subcell number of vertices
+    !< Return the number of dimensions of the current [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t), intent(in) :: this
         integer(ip)                                 :: number_dimensions
@@ -619,7 +692,7 @@ contains
 
     pure function patch_subcell_accessor_get_number_vertices(this) result(number_vertices)
     !-----------------------------------------------------------------
-    !< Return subcell number of vertices
+    !< Return number of vertices per subcell of the current [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t), intent(in)    :: this
         integer(ip)                                    :: number_vertices
@@ -630,7 +703,7 @@ contains
 
     subroutine patch_subcell_accessor_get_coordinates_X_Y_Z(this, X, Y, Z)
     !-----------------------------------------------------------------
-    !< Return subcell coordinates
+    !< Return [[patch_subcell_accessor_t(type)]] coordinates
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),        intent(in)    :: this
         real(rp),                               intent(inout) :: X(this%patch%get_number_vertices_per_subcell())
@@ -656,7 +729,7 @@ contains
 
     subroutine patch_subcell_accessor_get_coordinates_XYZ(this, XYZ)
     !-----------------------------------------------------------------
-    !< Return subcell coordinates (x1,y1,z1,x2,y2,z2,...)
+    !< Return [[patch_subcell_accessor_t(type)]] coordinates (x1,y1,z1,x2,y2,z2,...)
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),        intent(in)    :: this
         real(rp),                               intent(inout) :: XYZ(this%patch%get_number_vertices_per_subcell()*this%patch%get_number_dimensions())
@@ -682,7 +755,7 @@ contains
 
     subroutine patch_subcell_accessor_get_connectivity(this, connectivity)
     !-----------------------------------------------------------------
-    !< Return subcell connectivity
+    !< Return [[patch_subcell_accessor_t(type)]] connectivity
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),        intent(in)    :: this
         integer(ip),                            intent(inout) :: connectivity(this%patch%get_number_vertices_per_subcell())
@@ -697,7 +770,7 @@ contains
 
     function patch_subcell_accessor_get_number_fields(this) result(number_fields)
     !-----------------------------------------------------------------
-    !< Return subcell number of fields
+    !< Return the number of fields of [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t), intent(in) :: this
         integer(ip)                                 :: number_fields
@@ -708,7 +781,8 @@ contains
 
     function patch_subcell_accessor_get_number_field_components(this, field_id) result(number_components)
     !-----------------------------------------------------------------
-    !< Return subcell number of fields
+    !< Return the number of field components of [[output_handler_patch_t(type)]]
+    !< given its **field_id**
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),             intent(in) :: this
         integer(ip),                                 intent(in) :: field_id
@@ -722,7 +796,8 @@ contains
 
     subroutine patch_subcell_accessor_get_cell_vector(this, cell_vector_id, cell_vector)
     !-----------------------------------------------------------------
-    !< Return subcell field corresponding to the field_id as a vector
+    !< Return a cell field of the current [[patch_subcell_accessor_t(type)]] 
+    !< given its **cell_vector_id**
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),             intent(in)    :: this
         integer(ip),                                 intent(in)    :: cell_vector_id
@@ -741,7 +816,8 @@ contains
 
     subroutine patch_subcell_accessor_get_field_1D(this, field_id, field)
     !-----------------------------------------------------------------
-    !< Return subcell field corresponding to the field_id as a vector
+    !< Return a *nodal field* of the current [[patch_subcell_accessor_t(type)]] 
+    !< given its **field_id**
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),             intent(in)    :: this
         integer(ip),                                 intent(in)    :: field_id
@@ -800,7 +876,7 @@ contains
 
     subroutine patch_subcell_accessor_get_field_2D(this, field_id, LDA, field)
     !-----------------------------------------------------------------
-    !< Return subcell field corresponding to the field_id as a 2D matrix
+    !< Return a *field* corresponding with the given **field_id** as a 2D matrix
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),             intent(in)    :: this
         integer(ip),                                 intent(in)    :: field_id

@@ -25,8 +25,38 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Public procedures used by [[vtk_output_handler_t(type)]] type
+!
+! Contains the following public entities:
+! [[vtk_utils_names(module)]]
+!--------------------------------------------------------------------- 
 module vtk_utils_names
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Public procedures used by [[vtk_output_handler_t(type)]] type
+! 
+! Contains the following public procedures:
+! [[create_directory(function)]], 
+! [[topology_to_vtk_celltype(function)]], 
+! [[get_vtk_output_directory_name(function)]], 
+! [[get_vtk_output_path(function)]], 
+! [[get_pvd_output_path(function)]], 
+! [[get_vtk_filename(function)]], 
+! [[get_pvtu_filename(function)]], 
+! [[get_pvd_filename(function)]]
+!--------------------------------------------------------------------- 
 
 USE types_names
 USE IR_Precision,       only: str, I1P

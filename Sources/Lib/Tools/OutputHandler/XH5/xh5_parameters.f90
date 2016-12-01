@@ -26,9 +26,37 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Public parameters of the [[xh5_output_handler_names(module)]] module
+!
+! Contains the following public entities:
+! [[xh5_parameters_names(module)]]
+!---------------------------------------------------------------------
 module xh5_parameters_names
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Public parameters of the [[xh5_output_handler_names(module)]] module
+!
+! Contains the following public parameters:
+! [[xh5_parameters_names(module):xh5_default_StaticGrid(variable)]], 
+! [[xh5_parameters_names(module):xh5_default_Strategy(variable)]], 
+! [[xh5_parameters_names(module):xh5_default_GridType(variable)]], 
+! [[xh5_parameters_names(module):xh5_default_Action(variable)]], 
+! [[xh5_parameters_names(module):xh5_default_Info(variable)]], 
+! [[xh5_parameters_names(module):xh5_default_Comm(variable)]]
+! and also several XH5For parameters
+!--------------------------------------------------------------------- 
 USE types_names
 USE xh5for, only: XDMF_GRID_TYPE_CURVILINEAR, XDMF_GRID_TYPE_RECTILINEAR,               &
                   XDMF_GRID_TYPE_REGULAR, XDMF_GRID_TYPE_UNSTRUCTURED,                  &

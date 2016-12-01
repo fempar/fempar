@@ -25,9 +25,35 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!*Author: Víctor Sande
+! Date: 2016-11-28
+! Version: 0.0.1
+! Category: IO
+!
+!---------------------------------------------------------------------
+!### Software subsystem implementing the VTK IO layer.
+!
+! Contains the following public entities:
+! [[vtk_output_handler_names(module)]]
+! 
+! @note Look at [[base_output_handler_names(module)]] to see the
+! *state transition diagram*
+!---------------------------------------------------------------------
 module vtk_output_handler_names
-
+!---------------------------------------------------------------------
+!*Author: Víctor Sande
+! Date: 2016-11-28
+! Version: 0.0.1
+! Category: IO
+!
+!---------------------------------------------------------------------
+!### Software subsystem implementing the VTK IO layer.
+!
+! Contains the following public entities:
+! [[vtk_output_handler_t(type)]]
+! 
+!---------------------------------------------------------------------
 USE types_names
 USE memor_names
 USE lib_vtk_io
@@ -48,6 +74,25 @@ implicit none
 private
 
     type, extends(base_output_handler_t) :: vtk_output_handler_t
+    !-----------------------------------------------------------------
+    !*Author: Víctor Sande
+    ! Date: 2016-11-28
+    ! Version: 0.0.1
+    ! Category: IO
+    ! 
+    !-----------------------------------------------------------------
+    !### Read/write VTK mesh files and results
+    !
+    ! [[vtk_output_handler_t(type)]] is a fully functional
+    ! entity which extends from [[base_output_handler_t(type)]] and 
+    ! implements its deferred procedures.
+    !
+    ! This data type uses LibVTKIO in order to perform VTK IO.
+    !
+    ! @note It's desirable to manage the state transition only from
+    !       [[base_output_handler_t(type)]] type.
+    ! 
+    !-----------------------------------------------------------------
     private 
         character(:), allocatable                             :: FilePrefix
         character(:), allocatable                             :: Path
