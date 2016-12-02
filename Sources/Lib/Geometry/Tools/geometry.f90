@@ -7,6 +7,7 @@ module geometry_names
   use sisl_names
   use field_names
   use FPL
+  use PENF
   implicit none
   private
 #include "debug.i90"
@@ -16,7 +17,8 @@ module geometry_names
      integer(ip) :: id
      real(rp)    :: coord(SPACE_DIM)
    contains
-     procedure, non_overridable :: read => point_read
+     procedure, non_overridable :: read  => point_read
+     procedure, non_overridable :: print => point_print
   end type geometric_point_t 
 
   type line_t
@@ -33,6 +35,7 @@ module geometry_names
      type(geometry_t), pointer :: geometry
    contains
      procedure, non_overridable :: read => line_read
+     procedure, non_overridable :: print => line_print
      procedure, non_overridable :: set_geometry_pointer_to => line_set_geometry_pointer_to
      procedure, non_overridable :: init => line_init
      procedure, non_overridable :: get_parameter => line_get_parameter
@@ -45,6 +48,7 @@ module geometry_names
      ! Composition (orientation?)
      integer(ip) :: num_lines
      integer(ip), allocatable :: lines_ids(:)
+     integer(ip), allocatable :: lines_orientation(:)
      ! Nurbs description
      integer(ip) :: nu=0
      integer(ip) :: nv=0
@@ -55,7 +59,8 @@ module geometry_names
      real(rp), allocatable :: v_knots(:)          ! nv+pv+1
      type(c_ptr) :: sisl_ptr = c_null_ptr
    contains
-     procedure, non_overridable :: read => surface_read
+     procedure, non_overridable :: read  => surface_read
+     procedure, non_overridable :: print => surface_print
   end type surface_t
 
   type volume_t
@@ -64,8 +69,10 @@ module geometry_names
      ! Composition (orientation?)
      integer(ip) :: num_surfaces
      integer(ip), allocatable :: surfaces_ids(:)
+     integer(ip), allocatable :: surfaces_orientation(:)
    contains
-     procedure, non_overridable :: read => volume_read
+     procedure, non_overridable :: read  => volume_read
+     procedure, non_overridable :: print => volume_print
   end type volume_t
 
   type geometry_t
@@ -96,96 +103,160 @@ module geometry_names
 
 contains
 
+    subroutine move_forward_to_find_string(unit, string, stopstring, line, position)
+    !-----------------------------------------------------------------
+    !< Move forward line by line in order to find the given string
+    !< and return the position of the string in the line
+    !-----------------------------------------------------------------
+        integer(ip),    intent(in)    :: unit
+        character(*),   intent(in)    :: string
+        character(*),   intent(in)    :: stopstring
+        character(256), intent(inout) :: line
+        integer(ip),    intent(out)   :: position
+        integer(ip)                   :: error
+    !-----------------------------------------------------------------
+        position = index(string=line, substring=string, back=.false., kind=ip)
+        do while(position==0 .and. index(string=line, substring=stopstring, back=.false., kind=ip)==0)
+            read(unit=unit,fmt='(a)',iostat=error) line
+            if(IS_IOSTAT_END(error) .or. IS_IOSTAT_EOR(error)) exit
+            position = index(string=line, substring=string, back=.false., kind=ip)
+        end do
+    end subroutine
+
   !=============================================================================
-  !
-  ! Point TBP
-  !
+  ! Point TBP's
   !=============================================================================
-  subroutine point_read(point,unit)
-    implicit none
-    class(geometric_point_t), intent(inout) :: point
-    integer(ip)             , intent(in)    :: unit
-    integer(ip)     :: i 
-    character(256)  :: tel
-    read(unit,'(a)') tel
-    do while(tel(1:5)/='Coord')
-       read(unit,'(a)') tel
-    end do
-    read(tel(7:),*) (point%coord(i),i=1,SPACE_DIM)
-   
+
+    subroutine point_read(point,unit)
+    !-----------------------------------------------------------------
+    !< Read a point
+    !-----------------------------------------------------------------
+        class(geometric_point_t), intent(inout) :: point
+        integer(ip)             , intent(in)    :: unit
+        integer(ip)                             :: i, pos
+        character(256)                          :: string
+    !-----------------------------------------------------------------
+        read(unit,'(a)') string
+        ! Read point ID
+        call move_forward_to_find_string(unit,'Num:', 'END', string, pos); assert(pos/=0)
+        read(string(pos+4:),*) point%id
+        ! Read point coordinates
+        call move_forward_to_find_string(unit, 'Coord:', 'END', string, pos); assert(pos/=0)
+        read(string(pos+6:),*) (point%coord(i),i=1,SPACE_DIM)
     end subroutine point_read
 
-  !=============================================================================
-  !
-  ! Line TBP
-  !
-  !=============================================================================
-  subroutine line_read(line,unit)
-    implicit none
-    class(line_t), intent(inout) :: line
-    integer(ip)  , intent(in)  :: unit
-    character(256)  :: tel
-    character(7)    :: dum
-    integer(ip)     :: i,j
 
-    ! Line end points
-    read(unit,'(a)') tel
-    do while(tel(1:6)/='Points')
-       read(unit,'(a)') tel
-    end do
-    read(tel(8:),*) line%point(1),line%point(2)
+    subroutine point_print(point,unit)
+    !-----------------------------------------------------------------
+    !< Print a point
+    !-----------------------------------------------------------------
+        class(geometric_point_t), intent(inout) :: point
+        integer(ip), optional,    intent(in)    :: unit
+        integer(ip)                             :: i , the_unit
+    !-----------------------------------------------------------------
+        the_unit = stdout
+        if(present(unit)) the_unit = unit
+        write(the_unit,fmt='(A)') 'Point ID: '//trim(adjustl(str(point%Id)))//&
+                                  ' Coords: '//trim(adjustl(str(point%coord)))
+    end subroutine point_print
 
-    ! Control points
-    read(unit,'(a)') tel
-    do while(tel(1:25)/='Number of Control Points=')
-       if(tel(1:3)=='END') return
-       read(unit,'(a)') tel
-    end do
-    read(tel(26:),*) line%n,dum,line%p
-    allocate(line%control_points(line%n*(SPACE_DIM+1)),stat=i)
-    !if(i/=0) check(.false.)
+    !=============================================================================
+    ! Line TBP's
+    !=============================================================================
 
-    do i=1,line%n
-       read(unit,'(a)') tel
-       read(tel(16:),*) (line%control_points((SPACE_DIM+1)*(i-1)+j),j=1,SPACE_DIM)
-       !read(tel(16:),*) line%control_points((number_space_dimensions+1)*(i-1)+1), &
-       !     &           line%control_points((number_space_dimensions+1)*(i-1)+2), &
-       !     &           line%control_points((number_space_dimensions+1)*(i-1)+3)
-    end do
+    subroutine line_read(line,unit)
+    !-----------------------------------------------------------------
+    !< Read a line
+    !-----------------------------------------------------------------
+        class(line_t), intent(inout) :: line
+        integer(ip)  , intent(in)    :: unit
+        character(256)               :: string
+        integer(ip)                  :: i, j, pos, n, error
+    !-----------------------------------------------------------------
+        read(unit,'(a)') string
+        ! Read line ID
+        call move_forward_to_find_string(unit, 'Num:', 'END', string, pos); assert(pos/=0)
+        read(string(pos+4:),*) line%id
+        ! Read line points
+        call move_forward_to_find_string(unit, 'Points:', 'END', string, pos); assert(pos/=0)
+        read(string(pos+7:),*) line%point(1),line%point(2)
+        ! Read number of control points
+        call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
+        if(pos /= 0) then ! if has control points is a NURBS
+            read(string(pos+25:),*) line%n
+            allocate(line%control_points(line%n*(SPACE_DIM+1)), stat=error); assert(error==0)
 
-    ! knots
-    read(unit,'(a)') tel
-    read(tel(17:),*) i ! Number of knots
-    assert(i==line%n+line%p+1)
-    allocate(line%knots(line%n+line%p+1),stat=i)
-    do i=1,line%n+line%p+1
-       read(unit,'(a)') tel
-       if(i<10) then
-          read(tel(14:),*) line%knots(i)
-       else
-          read(tel(15:),*) line%knots(i)
-       end if
-    end do
+            ! Read NURBS degree
+            call move_forward_to_find_string(unit, 'Degree=', 'END', string, pos); assert(pos/=0)
+            read(string(pos+7:),*) line%p
 
-    ! Weights
-    read(unit,'(a)') tel
-    do while(tel(1:17)/='Rational weights:')
-       if(tel(1:3)=='END') return
-       read(unit,'(a)') tel
-    end do
-    do i=1,line%n
-       read(unit,'(a)') tel
-       read(tel,*) line%control_points(4*i)
-    end do
+            ! Read NURBS control points coords
+            do i=1,line%n
+                read(unit,'(a)') string
+                call move_forward_to_find_string(unit, 'Point', 'END', string, pos); assert(pos/=0)
+                read(string(pos+5:),*) n
+                call move_forward_to_find_string(unit, 'coords:', 'END', string, pos); assert(pos/=0)
+                read(string(pos+7:),*) (line%control_points((SPACE_DIM+1)*(n-1)+j),j=1,SPACE_DIM)
+            end do
 
-    ! Define 4D control poitns (i.e. multiply by weights)
-    do i=1,line%n
-       do j=1,SPACE_DIM
-          line%control_points((SPACE_DIM+1)*(i-1)+j) = line%control_points((SPACE_DIM+1)*(i-1)+j) * line%control_points((SPACE_DIM+1)*i)
-       end do
-    end do
+            ! Read NURBS number of knots
+            call move_forward_to_find_string(unit, 'Number of knots=', 'END', string, pos); assert(pos/=0)
+            read(string(pos+16:),*) i
+            assert(i==line%n+line%p+1)
 
-  end subroutine line_read
+            ! Read NURBS knots
+            allocate(line%knots(line%n+line%p+1), stat=error); assert(error==0)
+            do i=1,line%n+line%p+1
+                read(unit,'(a)') string
+                call move_forward_to_find_string(unit, 'knot', 'END', string, pos); assert(pos/=0)
+                read(string(pos+4:),*) n
+                call move_forward_to_find_string(unit, 'value=', 'END', string, pos); assert(pos/=0)
+                read(string(pos+6:),*) line%knots(n)
+            end do
+
+            ! Read NURBS Weights
+            call move_forward_to_find_string(unit, 'Rational weights:', 'END', string, pos); assert(pos/=0)
+            do i=1,line%n
+                read(unit,'(a)') string
+                read(string,*) line%control_points(4*i)
+            end do
+
+            ! Define 4D control points (i.e. multiply by weights)
+            do i=1,line%n
+                do j=1,SPACE_DIM
+                    line%control_points((SPACE_DIM+1)*(i-1)+j) = line%control_points((SPACE_DIM+1)*(i-1)+j) * line%control_points((SPACE_DIM+1)*i)
+                end do
+            end do
+        endif
+
+    end subroutine line_read
+
+
+    subroutine line_print(line,unit)
+    !-----------------------------------------------------------------
+    !< Print a line
+    !-----------------------------------------------------------------
+        class(line_t),          intent(inout) :: line
+        integer(ip), optional,  intent(in)    :: unit
+        integer(ip)                           :: i , the_unit
+    !-----------------------------------------------------------------
+        the_unit = stdout
+        if(present(unit)) the_unit = unit
+
+        write(the_unit,fmt='(A)') 'Line ID: '//trim(adjustl(str(line%Id)))//&
+                                   ' Points: '//trim(adjustl(str(line%point)))//&
+                                   ' Degree: '//trim(adjustl(str(line%p)))
+        if(line%p>0) then
+            write(the_unit,fmt='(A)') '    Control points: '
+            do i=1, line%n
+                write(the_unit,fmt='(A)') '        '//trim(adjustl(str(n=i,no_sign=.true.)))//' '//trim(adjustl(str(line%control_points((i-1)*SPACE_DIM+1:i*SPACE_DIM))))
+            enddo
+            write(the_unit,fmt='(A)') '    Knots: '
+            do i=1, line%n+line%p+1
+                write(the_unit,fmt='(A)') '        '//trim(adjustl(str(n=i,no_sign=.true.)))//' '//trim(adjustl(str(line%knots(i))))
+            enddo
+        endif
+  end subroutine line_print
 
   !=============================================================================
   subroutine line_set_geometry_pointer_to(line,geometry)
@@ -282,28 +353,197 @@ contains
   ! Surface TBP
   ! 
   !=============================================================================
-  subroutine surface_read(surface,unit)
-    implicit none
-    class(surface_t), intent(inout) :: surface
-    integer(ip)     , intent(in)  :: unit
-  end subroutine surface_read
+
+    subroutine surface_read(surface,unit)
+    !-----------------------------------------------------------------
+    !< Read a surface
+    !-----------------------------------------------------------------
+        class(surface_t), intent(inout) :: surface
+        integer(ip)  ,    intent(in)    :: unit
+        character(256)                  :: string
+        character(256)                  :: tmpstring
+        integer(ip)                     :: i, j, k, pos, number_knots, error, nu, nv, counter
+    !-----------------------------------------------------------------
+        read(unit,'(a)') string
+        ! Read surface ID
+        call move_forward_to_find_string(unit, 'Num:', 'END', string, pos); assert(pos/=0)
+        read(string(pos+4:),*) surface%id
+        ! Read surface number of lines
+        call move_forward_to_find_string(unit, 'NumLines:', 'END', string, pos); assert(pos/=0)
+        read(string(pos+9:),*) surface%num_lines
+        allocate(surface%lines_ids(surface%num_lines),stat=error); assert(error==0)
+        allocate(surface%lines_orientation(surface%num_lines),stat=error); assert(error==0)
+
+        ! Read surface lines ID's
+        do i=1, surface%num_lines
+            read(unit, '(a)') string
+            call move_forward_to_find_string(unit, 'Line:', 'END', string, pos); assert(pos/=0)
+            read(string(pos+5:),*) surface%lines_ids(i)
+            call move_forward_to_find_string(unit, 'Orientation:', 'END', string, pos); assert(pos/=0)
+            read(string(pos+12:),*) tmpstring
+            if(trim(adjustl(tmpString)) == 'SAME1ST') then
+                surface%lines_orientation(i) = 1
+            elseif(trim(adjustl(tmpString)) == 'DIFF1ST') then
+                surface%lines_orientation(i) = -1
+            else
+                assert(.false.)
+            endif
+        enddo
+
+        ! Read number of control points
+        call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
+        if(pos /= 0) then ! if it has control points is a NURBS
+            read(string(pos+25:),*) surface%nu, surface%nv
+            allocate(surface%control_points(surface%nu*surface%nv*(SPACE_DIM+1)),stat=error); assert(error==0)
+            call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
+            ! Read NURBS degree
+            call move_forward_to_find_string(unit, 'Degree=', 'END', string, pos); assert(pos/=0)
+            read(string(pos+7:),*) surface%pu, surface%pv
+
+            counter = 0
+            do i=1, surface%nu
+                do j=1, surface%nv
+                    read(unit, '(a)') string
+                    call move_forward_to_find_string(unit, 'Point', 'END', string, pos)
+                    read(string(pos+5:),*) nu, nv
+                    call move_forward_to_find_string(unit, 'coords:', 'END', string, pos); assert(pos/=0)
+                    read(string(pos+7:),*) (surface%control_points(counter*SPACE_DIM+k),k=1,SPACE_DIM)
+                    counter = counter + 1
+                enddo
+            enddo
+
+            call move_forward_to_find_string(unit, 'Number of knots in U=', 'END', string, pos)
+            read(string(pos+21:),*) number_knots
+            assert(number_knots == surface%nu+surface%pu+1)
+
+            ! Read NURBS knots
+            allocate(surface%u_knots(surface%nu+surface%pu+1), stat=error); assert(error==0)
+            do i=1, surface%nu+surface%pu+1
+                read(unit,'(a)') string
+                call move_forward_to_find_string(unit, 'knot', 'END', string, pos); assert(pos/=0)
+                read(string(pos+4:),*) k
+                call move_forward_to_find_string(unit, 'value=', 'END', string, pos); assert(pos/=0)
+                read(string(pos+6:),*) surface%u_knots(k)
+            end do
+
+            call move_forward_to_find_string(unit, 'Number of knots in V=', 'END', string, pos)
+            read(string(pos+21:),*) number_knots
+            assert(number_knots == surface%nv+surface%pv+1)
+
+            ! Read NURBS knots
+            allocate(surface%v_knots(surface%nv+surface%pv+1), stat=error); assert(error==0)
+            do i=1, surface%nv+surface%pv+1
+                read(unit,'(a)') string
+                call move_forward_to_find_string(unit, 'knot', 'END', string, pos); assert(pos/=0)
+                read(string(pos+4:),*) k
+                call move_forward_to_find_string(unit, 'value=', 'END', string, pos); assert(pos/=0)
+                read(string(pos+6:),*) surface%v_knots(k)
+            end do
+
+        endif
+
+    end subroutine surface_read
+
+
+    subroutine surface_print(surface,unit)
+    !-----------------------------------------------------------------
+    !< Print a surface
+    !-----------------------------------------------------------------
+        class(surface_t),       intent(inout) :: surface
+        integer(ip), optional,  intent(in)    :: unit
+        integer(ip)                           :: i, j, counter, the_unit
+    !-----------------------------------------------------------------
+        the_unit = stdout
+        if(present(unit)) the_unit = unit
+
+        write(the_unit,fmt='(A)') 'Surface ID: '//trim(adjustl(str(Surface%Id)))//&
+                                   ' Lines: '//trim(adjustl(str(surface%lines_ids)))//&
+                                   ' Orientation: '//trim(adjustl(str(surface%lines_orientation)))//&
+                                   ' Degree: '//trim(adjustl(str([surface%pu,surface%pv])))
+        if(surface%pu>0 .or. surface%pv>0) then
+            write(the_unit,fmt='(A)') '    Control points: '
+            counter = 0
+            do i=1, surface%nu
+                do j=1, surface%nv
+                    write(the_unit,fmt='(A)') '        '//trim(adjustl(str(n=[i,j],no_sign=.true.)))//' '//&
+                                    trim(adjustl(str(surface%control_points(counter*SPACE_DIM+1:(counter+1)*SPACE_DIM))))
+                    counter = counter + 1
+                enddo
+            enddo
+            write(the_unit,fmt='(A)') '    U_Knots: '
+            do i=1, surface%nu+surface%pu+1
+                write(the_unit,fmt='(A)') '        '//trim(adjustl(str(n=i,no_sign=.true.)))//' '//trim(adjustl(str(surface%u_knots(i))))
+            enddo
+            write(the_unit,fmt='(A)') '    V_Knots: '
+            do i=1, surface%nu+surface%pu+1
+                write(the_unit,fmt='(A)') '        '//trim(adjustl(str(n=i,no_sign=.true.)))//' '//trim(adjustl(str(surface%u_knots(i))))
+            enddo
+        endif
+  end subroutine surface_print
+
 
   !=============================================================================
-  ! 
   ! Volume TBP
-  ! 
   !=============================================================================
-  subroutine volume_read(volume,unit)
-    implicit none
-    class(volume_t), intent(inout) :: volume
-    integer(ip)    , intent(in)  :: unit
-  end subroutine volume_read
+
+    subroutine volume_read(volume,unit)
+    !-----------------------------------------------------------------
+    !< Read a volume
+    !-----------------------------------------------------------------
+        class(volume_t), intent(inout) :: volume
+        integer(ip)  ,    intent(in)    :: unit
+        character(256)                  :: string
+        character(256)                  :: tmpstring
+        integer(ip)                     :: i, j, k, pos, number_knots, error, nu, nv, counter
+    !-----------------------------------------------------------------
+        read(unit,'(a)') string
+        ! Read volume ID
+        call move_forward_to_find_string(unit, 'Num:', 'END', string, pos); assert(pos/=0)
+        read(string(pos+4:),*) volume%id
+        ! Read volume number of surfaces
+        call move_forward_to_find_string(unit, 'NumSurfaces:', 'END', string, pos); assert(pos/=0)
+        read(string(pos+12:),*) volume%num_surfaces
+        allocate(volume%surfaces_ids(volume%num_surfaces),stat=error); assert(error==0)
+        allocate(volume%surfaces_orientation(volume%num_surfaces),stat=error); assert(error==0)
+
+        ! Read volume surfaces ID's
+        do i=1, volume%num_surfaces
+            read(unit, '(a)') string
+            call move_forward_to_find_string(unit, 'Surface:', 'END', string, pos); assert(pos/=0)
+            read(string(pos+8:),*) volume%surfaces_ids(i)
+            call move_forward_to_find_string(unit, 'Orientation:', 'END', string, pos); assert(pos/=0)
+            read(string(pos+12:),*) tmpstring
+            if(trim(adjustl(tmpString)) == 'SAME1ST') then
+                volume%surfaces_orientation(i) = 1
+            elseif(trim(adjustl(tmpString)) == 'DIFF1ST') then
+                volume%surfaces_orientation(i) = -1
+            else
+                assert(.false.)
+            endif
+        enddo
+    end subroutine volume_read
+
+
+    subroutine volume_print(volume,unit)
+    !-----------------------------------------------------------------
+    !< Print a volume
+    !-----------------------------------------------------------------
+        class(volume_t),       intent(inout) :: volume
+        integer(ip), optional,  intent(in)    :: unit
+        integer(ip)                           :: i, j, counter, the_unit
+    !-----------------------------------------------------------------
+        the_unit = stdout
+        if(present(unit)) the_unit = unit
+
+        write(the_unit,fmt='(A)') 'Volume ID: '//trim(adjustl(str(volume%Id)))//&
+                                   ' Surfaces: '//trim(adjustl(str(volume%surfaces_ids)))//&
+                                   ' Orientation: '//trim(adjustl(str(volume%surfaces_orientation)))
+  end subroutine volume_print
 
   !=============================================================================
-  ! 
   ! Geometry TBP
-  ! 
   !=============================================================================
+
   function geometry_get_point(geometry,id)
     implicit none
     class(geometry_t), target, intent(in) :: geometry
@@ -350,6 +590,7 @@ contains
     assert(istat==was_stored)
     geometry_get_volume => geometry%volumes(index)
   end function geometry_get_volume
+
   !=============================================================================
   subroutine geometry_compose_name ( prefix, name ) 
     implicit none
@@ -357,6 +598,7 @@ contains
     character(len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.txt'
   end subroutine geometry_compose_name
+
   !=============================================================================
   subroutine geometry_read_from_file (geometry, parameter_list) ! dir_path, prefix )
      implicit none 
@@ -394,9 +636,7 @@ contains
   !=============================================================================
   subroutine geometry_read_from_unit(geometry,unit)
     !------------------------------------------------------------------------
-    !
-    ! This routine reads a geometry writen by GiD using data report.
-    !
+    !< This routine reads a geometry writen by GiD using data report.
     !------------------------------------------------------------------------
     implicit none
     integer(ip)      , intent(in)  :: unit
@@ -443,35 +683,26 @@ contains
        read(unit,'(a)') tel
        if(tel(1:5)=='POINT') then
           geometry%num_points   = geometry%num_points+1
-          read(unit,'(a)') tel
-          read(tel,*) dum1,geometry%points(geometry%num_points)%id
-          !write(*,*) 'Read point', geometry%points(geometry%num_points)%id, geometry%num_points
+          call geometry%points(geometry%num_points)%read(unit)
           call geometry%point_index%put(key=geometry%points(geometry%num_points)%id, &
                &                        val=geometry%num_points,stat=istat)
-          call geometry%points(geometry%num_points)%read(unit)
        else if(tel(1:6)=='STLINE'.or.tel(1:8)=='NURBLINE') then
           geometry%num_lines    = geometry%num_lines+1
-          read(unit,'(a)') tel
-          read(tel,*) dum1,geometry%lines(geometry%num_lines)%id
           !write(*,*) 'Read line', geometry%lines(geometry%num_lines)%id, geometry%num_lines
-          call geometry%line_index%put(key=geometry%lines(geometry%num_lines)%id, &
-               &                       val=geometry%num_lines,stat=istat)
           call geometry%lines(geometry%num_lines)%set_geometry_pointer_to(geometry)
           call geometry%lines(geometry%num_lines)%read(unit)
+          call geometry%line_index%put(key=geometry%lines(geometry%num_lines)%id, &
+               &                       val=geometry%num_lines,stat=istat)
        else if(tel(1:11)=='NURBSURFACE') then
           geometry%num_surfaces = geometry%num_surfaces+1
-          read(unit,'(a)') tel
-          read(tel,*) dum1,geometry%surfaces(geometry%num_surfaces)%id
+          call geometry%surfaces(geometry%num_surfaces)%read(unit)
           call geometry%surface_index%put(key=geometry%surfaces(geometry%num_surfaces)%id, &
                &                          val=geometry%num_surfaces,stat=istat)
-          call geometry%surfaces(geometry%num_surfaces)%read(unit)
        else if(tel(1:6)=='VOLUME')       then
           geometry%num_volumes  = geometry%num_volumes+1
-          read(unit,'(a)') tel
-          read(tel,*) dum1,geometry%volumes(geometry%num_volumes)%id
+          call geometry%volumes(geometry%num_volumes)%read(unit)
           call geometry%volume_index%put(key=geometry%volumes(geometry%num_volumes)%id, &
                &                         val=geometry%num_volumes,stat=istat)
-          call geometry%volumes(geometry%num_volumes)%read(unit)
        end if
     end do
 
