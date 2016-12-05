@@ -47,7 +47,48 @@ implicit none
 
     call test_params%create()
     parameterlist => test_params%get_parameters()
-    call geometry%read(parameterlist)
+!    call geometry%read(parameterlist)
+!    call geometry%free()
+
+    !-----------------------------------------------------------------
+    !< Create a hexa
+    !<     7-------8
+    !<    /       /|
+    !<   /       / |
+    !<  /       /  |
+    !< 5---3---6___4       Y   z
+    !< |  /    |  /        |  /
+    !  | /     | /         | /
+    !< |/      |/          |/ 
+    !< 1-------2           +----- X
+    !-----------------------------------------------------------------
+    call geometry%init(num_points=17, num_lines=18, num_surfaces=7, num_volumes=1)
+
+    call geometry%create_point(coord=[0._rp,0._rp,0._rp])
+
+    call geometry%create_line(coord1=[0._rp,0._rp,0._rp], &
+                              coord2=[1._rp,0._rp,0._rp])
+
+    call geometry%create_line(coord1=[0._rp,0._rp,0._rp], &
+                              coord2=[1._rp,0._rp,0._rp])
+
+    call geometry%create_quad(coord1=[0._rp,0._rp,0._rp], &
+                              coord2=[1._rp,0._rp,0._rp], &
+                              coord3=[0._rp,0._rp,1._rp], &
+                              coord4=[1._rp,0._rp,1._rp])
+
+    call geometry%create_hexa(coord1=[0._rp,0._rp,0._rp], &
+                              coord2=[1._rp,0._rp,0._rp], &
+                              coord3=[0._rp,0._rp,1._rp], &
+                              coord4=[1._rp,0._rp,1._rp], &
+                              coord5=[0._rp,1._rp,0._rp], &
+                              coord6=[1._rp,1._rp,0._rp], &
+                              coord7=[0._rp,1._rp,1._rp], &
+                              coord8=[1._rp,1._rp,1._rp])
+
+
+    call geometry%free()
+
 
     call FEMPAR_FINALIZE()
 

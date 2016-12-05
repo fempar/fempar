@@ -12,6 +12,10 @@ module geometry_names
   private
 #include "debug.i90"
 
+  integer(ip), parameter, private :: hexa_num_points = 8
+  integer(ip), parameter, private :: hexa_num_lines  = 12
+  integer(ip), parameter, private :: hexa_num_faces  = 6
+
   type geometric_point_t
      private
      integer(ip) :: id
@@ -42,6 +46,7 @@ module geometry_names
      procedure, non_overridable :: init                    => line_init
      procedure, non_overridable :: get_parameter           => line_get_parameter
      procedure, non_overridable :: evaluate                => line_evaluate
+     procedure, non_overridable :: free                    => line_free
   end type line_t
 
   type surface_t
@@ -61,8 +66,10 @@ module geometry_names
      real(rp), allocatable :: v_knots(:)          ! nv+pv+1
      type(c_ptr) :: sisl_ptr = c_null_ptr
    contains
-     procedure, non_overridable :: read  => surface_read
-     procedure, non_overridable :: print => surface_print
+     procedure, non_overridable :: create_quad => surface_create_quad
+     procedure, non_overridable :: read        => surface_read
+     procedure, non_overridable :: print       => surface_print
+     procedure, non_overridable :: free        => surface_free
   end type surface_t
 
   type volume_t
@@ -73,8 +80,10 @@ module geometry_names
      integer(ip), allocatable :: surfaces_ids(:)
      integer(ip), allocatable :: surfaces_orientation(:)
    contains
-     procedure, non_overridable :: read  => volume_read
-     procedure, non_overridable :: print => volume_print
+     procedure, non_overridable :: create_hexa => volume_create_hexa
+     procedure, non_overridable :: read        => volume_read
+     procedure, non_overridable :: print       => volume_print
+     procedure, non_overridable :: free        => volume_free
   end type volume_t
 
   type geometry_t
@@ -92,13 +101,21 @@ module geometry_names
      type(surface_t)   , allocatable :: surfaces(:)
      type(volume_t)    , allocatable :: volumes(:)
    contains
-     procedure, non_overridable :: read_from_file  =>  geometry_read_from_file
-     procedure, non_overridable :: read_from_unit  =>  geometry_read_from_unit
+     procedure, non_overridable          :: init                       => geometry_init
+     procedure, non_overridable          :: create_point               => geometry_create_point
+     procedure, non_overridable          :: create_line                => geometry_create_line
+     procedure, non_overridable          :: create_quad                => geometry_create_quad
+     procedure, non_overridable          :: create_hexa                => geometry_create_hexa
+     procedure, non_overridable, private :: create_line_from_point_ids => geometry_create_line_from_point_ids
+     procedure, non_overridable, private :: create_quad_from_line_ids  => geometry_create_quad_from_line_ids
+     procedure, non_overridable          :: read_from_file             => geometry_read_from_file
+     procedure, non_overridable          :: read_from_unit             => geometry_read_from_unit
+     procedure, non_overridable          :: get_point                  => geometry_get_point
+     procedure, non_overridable          :: get_line                   => geometry_get_line
+     procedure, non_overridable          :: get_surface                => geometry_get_surface
+     procedure, non_overridable          :: get_volume                 => geometry_get_volume
+     procedure, non_overridable          :: free                       => geometry_free
      generic :: read => read_from_file, read_from_unit
-     procedure, non_overridable :: get_point   => geometry_get_point
-     procedure, non_overridable :: get_line    => geometry_get_line
-     procedure, non_overridable :: get_surface => geometry_get_surface
-     procedure, non_overridable :: get_volume  => geometry_get_volume
   end type geometry_t
 
   public :: geometry_t, geometric_point_t, line_t, surface_t, volume_t
@@ -129,16 +146,16 @@ contains
   ! Point TBP's
   !=============================================================================
 
-    subroutine point_create(this,id, coords)
+    subroutine point_create(this,id, coord)
     !-----------------------------------------------------------------
     !< Read a point
     !-----------------------------------------------------------------
         class(geometric_point_t), intent(inout) :: this
         integer(ip)             , intent(in)    :: id
-        real(rp)                , intent(in)    :: coords(SPACE_DIM)
+        real(rp)                , intent(in)    :: coord(SPACE_DIM)
     !-----------------------------------------------------------------
         this%id = id
-        this%coord = coords
+        this%coord = coord
     end subroutine point_create
 
 
@@ -179,20 +196,33 @@ contains
     ! Line TBP's
     !=============================================================================
 
-    subroutine line_create(this, id, first_coord, last_coord)
+    subroutine line_free(this)
+    !-----------------------------------------------------------------
+    !< Free a line
+    !-----------------------------------------------------------------
+        class(line_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        if(allocated(this%control_points)) call memfree(this%control_points, __FILE__, __LINE__)
+        if(allocated(this%knots))          call memfree(this%knots, __FILE__, __LINE__)
+        this%sisl_ptr = c_null_ptr
+        nullify(this%geometry)
+        this%id = 0
+        this%point = 0
+        this%n=0
+        this%p=0
+    end subroutine line_free
+
+    subroutine line_create(this, line_id, point_ids)
     !-----------------------------------------------------------------
     !< Create a line
     !-----------------------------------------------------------------
         class(line_t), intent(inout) :: this
-        integer(ip),   intent(in)    :: id
-        real(rp),      intent(in)    :: first_coord(SPACE_DIM)
-        real(rp),      intent(in)    :: last_coord(SPACE_DIM)
+        integer(ip),   intent(in)    :: line_id
+        integer(ip),   intent(in)    :: point_ids(2)
     !-----------------------------------------------------------------
-        this%id = id
-        this%point(1) = 2*(id-1)+1
-        this%point(2) = 2*(id-1)+2
-        this%n = 0
-        this%p = 0
+        call this%free()
+        this%id = line_id
+        this%point = point_ids
     end subroutine line_create
 
 
@@ -205,6 +235,7 @@ contains
         character(256)               :: string
         integer(ip)                  :: i, j, pos, n, error
     !-----------------------------------------------------------------
+        call this%free()
         read(unit,'(a)') string
         ! Read line ID
         call move_forward_to_find_string(unit, 'Num:', 'END', string, pos); assert(pos/=0)
@@ -216,7 +247,7 @@ contains
         call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
         if(pos /= 0) then ! if has control points is a NURBS
             read(string(pos+25:),*) this%n
-            allocate(this%control_points(this%n*(SPACE_DIM+1)), stat=error); assert(error==0)
+            call memalloc(this%n*(SPACE_DIM+1), this%control_points, __FILE__, __LINE__)
 
             ! Read NURBS degree
             call move_forward_to_find_string(unit, 'Degree=', 'END', string, pos); assert(pos/=0)
@@ -237,7 +268,7 @@ contains
             assert(i==this%n+this%p+1)
 
             ! Read NURBS knots
-            allocate(this%knots(this%n+this%p+1), stat=error); assert(error==0)
+            call memalloc(this%n+this%p+1, this%knots, __FILE__, __LINE__)
             do i=1,this%n+this%p+1
                 read(unit,'(a)') string
                 call move_forward_to_find_string(unit, 'knot', 'END', string, pos); assert(pos/=0)
@@ -311,8 +342,8 @@ contains
     else              ! It is a STLINE, create a linear spline using extremes
        this%n = 2
        this%p = 1
-       allocate(this%control_points(this%n*SPACE_DIM),stat=i)
-       allocate(this%knots(this%n+this%p+1),stat=i)
+       call memalloc(this%n*SPACE_DIM, this%control_points, __FILE__, __LINE__)
+       call memalloc(this%n+this%p+1, this%knots, __FILE__, __LINE__)
        this%knots = (/0.0,0.0,1.0,1.0/)
        point => this%geometry%get_point(this%point(1))
        this%control_points(1:SPACE_DIM) =  point%coord
@@ -380,10 +411,48 @@ contains
   end subroutine line_evaluate
 
   !=============================================================================
-  ! 
   ! Surface TBP
-  ! 
   !=============================================================================
+
+    subroutine surface_free(this)
+    !-----------------------------------------------------------------
+    !< Create a line
+    !-----------------------------------------------------------------
+        class(surface_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        if(allocated(this%lines_ids))         call memfree(this%lines_ids, __FILE__, __LINE__)
+        if(allocated(this%lines_orientation)) call memfree(this%lines_orientation, __FILE__, __LINE__)
+        if(allocated(this%control_points))    call memfree(this%control_points, __FILE__, __LINE__)
+        if(allocated(this%u_knots))           call memfree(this%u_knots, __FILE__, __LINE__)
+        if(allocated(this%v_knots))           call memfree(this%v_knots, __FILE__, __LINE__)
+        this%sisl_ptr  = c_null_ptr
+        this%id        = 0
+        this%num_lines = 0
+        this%nu        = 0
+        this%nv        = 0
+        this%pu        = 0
+        this%pv        = 0
+    end subroutine surface_free
+
+
+    subroutine surface_create_quad(this, surface_id, lines_ids, lines_orientation)
+    !-----------------------------------------------------------------
+    !< Create a line
+    !-----------------------------------------------------------------
+        class(surface_t), intent(inout) :: this
+        integer(ip),      intent(in)    :: surface_id
+        integer(ip),      intent(in)    :: lines_ids(4)
+        integer(ip),      intent(in)    :: lines_orientation(4)
+    !-----------------------------------------------------------------
+        call this%free()
+        this%id        = surface_id
+        this%num_lines = 4
+        call memalloc(this%num_lines, this%lines_ids, __FILE__, __LINE__)
+        call memalloc(this%num_lines, this%lines_orientation, __FILE__, __LINE__)
+        this%lines_ids = lines_ids
+        this%lines_orientation = lines_orientation
+    end subroutine surface_create_quad
+
 
     subroutine surface_read(this, unit)
     !-----------------------------------------------------------------
@@ -395,6 +464,7 @@ contains
         character(256)                  :: tmpstring
         integer(ip)                     :: i, j, k, pos, number_knots, error, nu, nv, counter
     !-----------------------------------------------------------------
+        call this%free()
         read(unit,'(a)') string
         ! Read surface ID
         call move_forward_to_find_string(unit, 'Num:', 'END', string, pos); assert(pos/=0)
@@ -402,8 +472,8 @@ contains
         ! Read surface number of lines
         call move_forward_to_find_string(unit, 'NumLines:', 'END', string, pos); assert(pos/=0)
         read(string(pos+9:),*) this%num_lines
-        allocate(this%lines_ids(this%num_lines),stat=error); assert(error==0)
-        allocate(this%lines_orientation(this%num_lines),stat=error); assert(error==0)
+        call memalloc(this%num_lines, this%lines_ids, __FILE__, __LINE__)
+        call memalloc(this%num_lines, this%lines_orientation, __FILE__, __LINE__)
 
         ! Read surface lines ID's
         do i=1, this%num_lines
@@ -425,7 +495,7 @@ contains
         call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
         if(pos /= 0) then ! if it has control points is a NURBS
             read(string(pos+25:),*) this%nu, this%nv
-            allocate(this%control_points(this%nu*this%nv*(SPACE_DIM+1)),stat=error); assert(error==0)
+            call memalloc(this%nu*this%nv*(SPACE_DIM+1), this%control_points, __FILE__, __LINE__)
             call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
             ! Read NURBS degree
             call move_forward_to_find_string(unit, 'Degree=', 'END', string, pos); assert(pos/=0)
@@ -448,7 +518,7 @@ contains
             assert(number_knots == this%nu+this%pu+1)
 
             ! Read NURBS knots
-            allocate(this%u_knots(this%nu+this%pu+1), stat=error); assert(error==0)
+            call memalloc(this%nu+this%pu+1, this%u_knots, __FILE__, __LINE__)
             do i=1, this%nu+this%pu+1
                 read(unit,'(a)') string
                 call move_forward_to_find_string(unit, 'knot', 'END', string, pos); assert(pos/=0)
@@ -462,7 +532,7 @@ contains
             assert(number_knots == this%nv+this%pv+1)
 
             ! Read NURBS knots
-            allocate(this%v_knots(this%nv+this%pv+1), stat=error); assert(error==0)
+            call memalloc(this%nv+this%pv+1, this%v_knots, __FILE__, __LINE__)
             do i=1, this%nv+this%pv+1
                 read(unit,'(a)') string
                 call move_forward_to_find_string(unit, 'knot', 'END', string, pos); assert(pos/=0)
@@ -517,6 +587,37 @@ contains
   ! Volume TBP
   !=============================================================================
 
+    subroutine volume_free(this)
+    !-----------------------------------------------------------------
+    !< Free a volume
+    !-----------------------------------------------------------------
+        class(volume_t),  intent(inout) :: this
+    !-----------------------------------------------------------------
+        if(allocated(this%surfaces_ids)) call memfree(this%surfaces_ids, __FILE__, __LINE__)
+        if(allocated(this%surfaces_orientation)) call memfree(this%surfaces_orientation, __FILE__, __LINE__)
+        this%id           = 0
+        this%num_surfaces = 0
+    end subroutine volume_free
+
+
+    subroutine volume_create_hexa(this, volume_id, surface_ids)
+    !-----------------------------------------------------------------
+    !< Create a valume
+    !-----------------------------------------------------------------
+        class(volume_t),  intent(inout) :: this
+        integer(ip),      intent(in)    :: volume_id
+        integer(ip),      intent(in)    :: surface_ids(6)
+    !-----------------------------------------------------------------
+        call this%free()
+        this%id = volume_id
+        this%num_surfaces = 6
+        call memalloc(this%num_surfaces, this%surfaces_ids, __FILE__, __LINE__)
+        call memalloc(this%num_surfaces, this%surfaces_orientation, __FILE__, __LINE__)
+        this%surfaces_ids = surface_ids
+        this%surfaces_orientation = 1
+    end subroutine volume_create_hexa
+
+
     subroutine volume_read(this, unit)
     !-----------------------------------------------------------------
     !< Read a volume
@@ -527,6 +628,7 @@ contains
         character(256)                  :: tmpstring
         integer(ip)                     :: i, j, k, pos, number_knots, error, nu, nv, counter
     !-----------------------------------------------------------------
+        call this%free()
         read(unit,'(a)') string
         ! Read volume ID
         call move_forward_to_find_string(unit, 'Num:', 'END', string, pos); assert(pos/=0)
@@ -534,8 +636,8 @@ contains
         ! Read volume number of surfaces
         call move_forward_to_find_string(unit, 'NumSurfaces:', 'END', string, pos); assert(pos/=0)
         read(string(pos+12:),*) this%num_surfaces
-        allocate(this%surfaces_ids(this%num_surfaces),stat=error); assert(error==0)
-        allocate(this%surfaces_orientation(this%num_surfaces),stat=error); assert(error==0)
+        call memalloc(this%num_surfaces, this%surfaces_ids, __FILE__, __LINE__)
+        call memalloc(this%num_surfaces, this%surfaces_orientation, __FILE__, __LINE__)
 
         ! Read volume surfaces ID's
         do i=1, this%num_surfaces
@@ -574,6 +676,287 @@ contains
   !=============================================================================
   ! Geometry TBP
   !=============================================================================
+
+    subroutine geometry_free(this)
+    !-----------------------------------------------------------------
+    !< Free the geometry
+    !-----------------------------------------------------------------
+        class(geometry_t),        intent(inout) :: this
+        integer(ip)                             :: i
+    !-----------------------------------------------------------------
+
+        if(allocated(this%points)) deallocate(this%points)
+
+        if(allocated(this%lines)) then
+            do i=1, size(this%lines)
+                call this%lines(i)%free()
+            enddo
+            deallocate(this%lines)
+        endif
+
+        if(allocated(this%surfaces)) then
+            do i=1, size(this%surfaces)
+                call this%surfaces(i)%free()
+            enddo
+            deallocate(this%surfaces)
+        endif
+
+        if(allocated(this%volumes)) then
+            do i=1, size(this%volumes)
+                call this%volumes(i)%free()
+            enddo
+            deallocate(this%volumes)
+        endif
+
+        call this%point_index%free()
+        call this%line_index%free()
+        call this%surface_index%free()
+        call this%volume_index%free()
+
+        this%num_points   = 0
+        this%num_lines    = 0
+        this%num_surfaces = 0
+        this%num_volumes  = 0
+    end subroutine geometry_free
+
+
+    subroutine geometry_init(this, num_points, num_lines, num_surfaces, num_volumes)
+    !-----------------------------------------------------------------
+    !< Initialize the geometry
+    !-----------------------------------------------------------------
+        class(geometry_t),        intent(inout) :: this
+        integer(ip),              intent(in)    :: num_points
+        integer(ip),              intent(in)    :: num_lines
+        integer(ip),              intent(in)    :: num_surfaces
+        integer(ip),              intent(in)    :: num_volumes
+        integer(ip)                             :: error
+    !-----------------------------------------------------------------
+        call this%free()
+
+        allocate(this%points  (num_points  ) ,stat=error)
+        allocate(this%lines   (num_lines   ) ,stat=error)
+        allocate(this%surfaces(num_surfaces) ,stat=error)
+        allocate(this%volumes (num_volumes ) ,stat=error)
+
+        call this%point_index%init(num_points)
+        call this%line_index%init(num_lines)
+        call this%surface_index%init(num_surfaces)
+        call this%volume_index%init(num_volumes)
+    end subroutine geometry_init
+
+    subroutine geometry_create_point(this, coord)
+    !-----------------------------------------------------------------
+    !< Create a point
+    !-----------------------------------------------------------------
+        class(geometry_t),        intent(inout) :: this
+        real(rp)                , intent(in)    :: coord(SPACE_DIM)
+        integer(ip)                             :: i
+        integer(ip)                             :: error
+    !-----------------------------------------------------------------
+        assert(allocated(this%points) .and. size(this%points)>= this%num_points+1)
+        this%num_points = this%num_points+1
+        call this%points(this%num_points)%create(id=this%num_points, coord=coord)
+        call this%point_index%put(key=this%points(this%num_points)%id, val=this%num_points,stat=error)
+    end subroutine geometry_create_point
+
+
+    subroutine geometry_create_line(this, coord1, coord2)
+    !-----------------------------------------------------------------
+    !< Create a line
+    !-----------------------------------------------------------------
+        class(geometry_t),         intent(inout) :: this
+        real(rp),                  intent(in)    :: coord1(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord2(SPACE_DIM)
+        integer(ip)                              :: i
+        integer(ip)                              :: pid1, pid2
+        integer(ip)                              :: error
+    !-----------------------------------------------------------------
+        call this%create_point(coord1); pid1 = this%points(this%num_points)%id
+        call this%create_point(coord2); pid2 = this%points(this%num_points)%id
+        call this%create_line_from_point_ids([pid1,pid2])
+    end subroutine geometry_create_line
+
+
+    subroutine geometry_create_line_from_point_ids(this, point_ids)
+    !-----------------------------------------------------------------
+    !< Create a line
+    !-----------------------------------------------------------------
+        class(geometry_t),         intent(inout) :: this
+        integer(ip),               intent(in)    :: point_ids(2)
+        integer(ip)                              :: i
+        type(line_t), allocatable                :: tmplines(:)
+        integer(ip)                              :: error
+    !-----------------------------------------------------------------
+        assert(allocated(this%lines) .and. size(this%lines)>= this%num_lines+1)
+        this%num_lines = this%num_lines+1
+        call this%lines(this%num_lines)%create(line_id=this%num_lines, point_ids=point_ids)
+        call this%line_index%put(key=this%lines(this%num_lines)%id, val=this%num_lines,stat=error)
+    end subroutine geometry_create_line_from_point_ids
+
+
+    subroutine geometry_create_quad(this, coord1, coord2, coord3, coord4)
+    !-----------------------------------------------------------------
+    !< Create a quad
+    !< 3-------4     .---2---.
+    !< |       |     |       |
+    !< |       |     3       4
+    !< |       |     |       |
+    !< 1-------2     .---1---.
+    !-----------------------------------------------------------------
+        class(geometry_t),         intent(inout) :: this
+        real(rp),                  intent(in)    :: coord1(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord2(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord3(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord4(SPACE_DIM)
+        integer(ip)                              :: i
+        integer(ip)                              :: pid1, pid2, pid3, pid4
+        integer(ip)                              :: lid1, lid2, lid3, lid4
+        type(surface_t), allocatable             :: tmpsurfaces(:)
+        integer(ip)                              :: error
+    !-----------------------------------------------------------------
+        ! Create points
+        !< 3-------4 
+        !< |       | 
+        !< |       | 
+        !< |       | 
+        !< 1-------2 
+        call this%create_point(coord1); pid1 = this%points(this%num_points)%id
+        call this%create_point(coord2); pid2 = this%points(this%num_points)%id
+        call this%create_point(coord3); pid3 = this%points(this%num_points)%id
+        call this%create_point(coord4); pid4 = this%points(this%num_points)%id
+        ! Create lines
+        !< .---2---.
+        !< |       |
+        !< 3       4
+        !< |       |
+        !< .---1---.
+        call this%create_line_from_point_ids(point_ids=[pid1, pid2]); lid1 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid3, pid4]); lid2 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid1, pid3]); lid3 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid2, pid4]); lid4 = this%lines(this%num_lines)%id
+        ! Create quad
+        call this%create_quad_from_line_ids(lines_ids=[lid1, lid2, lid3, lid4], &
+                                            lines_orientation=[1,1,1,1])
+    end subroutine geometry_create_quad
+
+
+    subroutine geometry_create_quad_from_line_ids(this, lines_ids, lines_orientation)
+    !-----------------------------------------------------------------
+    !< Create a quad
+    !-----------------------------------------------------------------
+        class(geometry_t),         intent(inout) :: this
+        integer(ip),               intent(in)    :: lines_ids(4)
+        integer(ip),               intent(in)    :: lines_orientation(4)
+        integer(ip)                              :: i
+        type(surface_t), allocatable             :: tmpsurfaces(:)
+        integer(ip)                              :: error
+    !-----------------------------------------------------------------
+        assert(allocated(this%surfaces) .and. size(this%surfaces)>= this%num_surfaces+1)
+        this%num_surfaces = this%num_surfaces+1
+        call this%surfaces(this%num_surfaces)%create_quad(surface_id=this%num_surfaces, &
+                                                          lines_ids=lines_ids,          &
+                                                          lines_orientation=lines_orientation)
+        call this%surface_index%put(key=this%surfaces(this%num_surfaces)%id, val=this%num_surfaces,stat=error)
+    end subroutine geometry_create_quad_from_line_ids
+
+
+    subroutine geometry_create_hexa(this, coord1, coord2, coord3, coord4, coord5, coord6, coord7, coord8)
+    !-----------------------------------------------------------------
+    !< Create a hexa
+    !<     7-------8       .---4---.         .-------.
+    !<    /       /|      /|      /|        /|      /|
+    !<   /       / |     7 11    8 12      / | 2   / |<6
+    !<  /       /  |    /  |    /  |    3>/  |    /  |
+    !< 5---3---6___4   .---3---.___.     .-------. 4 .
+    !< |  /    |  /    |  /    |  /      |  /    |  /
+    !  | /     | /     9 5    10 6       | / 5   | /
+    !< |/      |/      |/      |/        |/      |/
+    !< 1-------2       .---1---.         .-------.                    
+    !<                                       ^ 
+    !<                                       1
+    !-----------------------------------------------------------------
+        class(geometry_t),         intent(inout) :: this
+        real(rp),                  intent(in)    :: coord1(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord2(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord3(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord4(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord5(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord6(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord7(SPACE_DIM)
+        real(rp),                  intent(in)    :: coord8(SPACE_DIM)
+        integer(ip)                              :: pid1, pid2, pid3, pid4, pid5, pid6, pid7, pid8
+        integer(ip)                              :: lid1, lid2, lid3, lid4, lid5, lid6
+        integer(ip)                              :: lid7, lid8, lid9, lid10, lid11, lid12
+        integer(ip)                              :: sid1, sid2, sid3, sid4, sid5, sid6
+        integer(ip)                              :: i
+        type(volume_t), allocatable              :: tmpvolumes(:)
+        integer(ip)                              :: error
+    !-----------------------------------------------------------------
+        assert(allocated(this%volumes) .and. size(this%volumes)>= this%num_volumes+1)
+        ! Create 8xpoints
+        !<     7-------8
+        !<    /       /|
+        !<   /       / |
+        !<  /       /  |
+        !< 5---3---6___4
+        !< |  /    |  / 
+        !< | /     | / 
+        !< |/      |/ 
+        !< 1-------2 
+        call this%create_point(coord1); pid1 = this%points(this%num_points)%id
+        call this%create_point(coord2); pid2 = this%points(this%num_points)%id
+        call this%create_point(coord3); pid3 = this%points(this%num_points)%id
+        call this%create_point(coord4); pid4 = this%points(this%num_points)%id
+        call this%create_point(coord5); pid5 = this%points(this%num_points)%id
+        call this%create_point(coord6); pid6 = this%points(this%num_points)%id
+        call this%create_point(coord7); pid7 = this%points(this%num_points)%id
+        call this%create_point(coord8); pid8 = this%points(this%num_points)%id
+        ! Create 12xline
+        !<     .---4---.     
+        !<    /|      /|     
+        !<   7 11    8 12    
+        !<  /  |    /  |     
+        !< .---3---.___.     
+        !< |  /    |  /      
+        !< 9 5    10 6       
+        !< |/      |/        
+        !< .---1---.          
+        call this%create_line_from_point_ids(point_ids=[pid1, pid2]); lid1 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid3, pid4]); lid2 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid5, pid6]); lid3 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid7, pid8]); lid4 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid1, pid3]); lid5 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid2, pid4]); lid6 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid5, pid7]); lid7 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid6, pid8]); lid8 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid1, pid5]); lid9 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid2, pid6]); lid10 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid3, pid7]); lid11 = this%lines(this%num_lines)%id
+        call this%create_line_from_point_ids(point_ids=[pid4, pid8]); lid12 = this%lines(this%num_lines)%id
+        ! Create 6xquads
+        !<      .-------.
+        !<     /|      /|
+        !<    / | 2   / |<6
+        !< 3>/  |    /  |
+        !<  .-------. 4 .
+        !<  |  /    |  /
+        !   | / 5   | /
+        !<  |/      |/
+        !<  .-------.                    
+        !<      ^ 
+        !<      1
+        call this%create_quad_from_line_ids([lid1, lid2, lid5, lid6], [1,1,1,1]);  sid1 = this%surfaces(this%num_surfaces)%id
+        call this%create_quad_from_line_ids([lid3, lid4, lid7, lid8], [1,1,1,1]);  sid2 = this%surfaces(this%num_surfaces)%id
+        call this%create_quad_from_line_ids([lid5, lid6, lid9, lid11], [1,1,1,1]); sid3 = this%surfaces(this%num_surfaces)%id
+        call this%create_quad_from_line_ids([lid6, lid8, lid10,lid12], [1,1,1,1]); sid4 = this%surfaces(this%num_surfaces)%id
+        call this%create_quad_from_line_ids([lid1, lid3, lid9, lid10], [1,1,1,1]); sid5 = this%surfaces(this%num_surfaces)%id
+        call this%create_quad_from_line_ids([lid2, lid4, lid11,lid12], [1,1,1,1]); sid6 = this%surfaces(this%num_surfaces)%id
+        ! Create hexa
+        this%num_volumes = this%num_volumes+1
+        call this%volumes(this%num_volumes)%create_hexa(volume_id=this%num_volumes, surface_ids=(/sid1,sid2,sid3,sid4,sid5,sid6/))
+        call this%volume_index%put(key=this%volumes(this%num_volumes)%id, val=this%num_volumes,stat=error)
+    end subroutine geometry_create_hexa
+
 
   function geometry_get_point(this,id)
     implicit none
@@ -675,40 +1058,32 @@ contains
     class(geometry_t), intent(out) :: this
     character(4)    :: dum1
     character(256)  :: tel
+    integer(ip)     :: num_points, num_lines, num_surfaces, num_volumes
     integer(ip)     :: i,istat
 
     !write(*,*) 'Read geometry:'
-
+    call this%free()
+    num_points   = 0
+    num_lines    = 0
+    num_surfaces = 0
+    num_volumes  = 0
     ! Count points, lines, surfaces and volumes
     read(unit,'(a)') tel
     do while(tel(1:12)/='END ENTITIES')
        read(unit,'(a)') tel
        if(tel(1:5)=='POINT') then
-          this%num_points   = this%num_points+1
+          num_points   = num_points+1
        else if(tel(1:6)=='STLINE'.or.tel(1:8)=='NURBLINE') then
-          this%num_lines    = this%num_lines+1
+          num_lines    = num_lines+1
        else if(tel(1:11)=='NURBSURFACE') then
-          this%num_surfaces = this%num_surfaces+1
+          num_surfaces = num_surfaces+1
        else if(tel(1:6)=='VOLUME')       then
-          this%num_volumes  = this%num_volumes+1
+          num_volumes  = num_volumes+1
        end if
     end do
     call io_rewind(unit)
 
-    allocate(this%points  (this%num_points  ) ,stat=istat)
-    allocate(this%lines   (this%num_lines   ) ,stat=istat)
-    allocate(this%surfaces(this%num_surfaces) ,stat=istat)
-    allocate(this%volumes (this%num_volumes ) ,stat=istat)
-
-    call this%point_index%init(this%num_points)
-    call this%line_index%init(this%num_lines)
-    call this%surface_index%init(this%num_surfaces)
-    call this%volume_index%init(this%num_volumes)
-
-    this%num_points  =0
-    this%num_lines   =0
-    this%num_surfaces=0
-    this%num_volumes =0
+    call this%init(num_points, num_lines, num_surfaces, num_volumes)
 
     read(unit,'(a)') tel
     do while(tel(1:12)/='END ENTITIES')
@@ -721,8 +1096,8 @@ contains
        else if(tel(1:6)=='STLINE'.or.tel(1:8)=='NURBLINE') then
           this%num_lines    = this%num_lines+1
           !write(*,*) 'Read line', geometry%lines(geometry%num_lines)%id, geometry%num_lines
-          call this%lines(this%num_lines)%set_geometry_pointer_to(this)
           call this%lines(this%num_lines)%read(unit)
+          call this%lines(this%num_lines)%set_geometry_pointer_to(this)
           call this%line_index%put(key=this%lines(this%num_lines)%id, &
                &                       val=this%num_lines,stat=istat)
        else if(tel(1:11)=='NURBSURFACE') then
