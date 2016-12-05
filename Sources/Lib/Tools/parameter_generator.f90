@@ -47,16 +47,18 @@ module parameter_generator_names
      type(ParameterList_t)         :: helpers
      type(ParameterList_t)         :: required
    contains
-     procedure, non_overridable    :: create          => parameter_generator_create
-     procedure                     :: set_default     => parameter_generator_set_default
-     procedure, non_overridable    :: add_to_cli      => parameter_generator_add_to_cli
-     procedure, non_overridable    :: parse           => parameter_generator_parse
-     procedure, non_overridable    :: free            => parameter_generator_free
-     procedure, non_overridable    :: get_parameters  => parameter_generator_get_parameters 
-     procedure, non_overridable    :: get_switches    => parameter_generator_get_switches   
-     procedure, non_overridable    :: get_switches_ab => parameter_generator_get_switches_ab
-     procedure, non_overridable    :: get_helpers     => parameter_generator_get_helpers    
-     procedure, non_overridable    :: get_required    => parameter_generator_get_required   
+     procedure                     :: create           => parameter_generator_create
+     procedure                     :: set_default      => parameter_generator_set_default
+     procedure, non_overridable    :: add_to_cli       => parameter_generator_add_to_cli
+     procedure, non_overridable    :: add_to_cli_group => parameter_generator_add_to_cli_group
+     procedure, non_overridable    :: parse            => parameter_generator_parse
+     procedure, non_overridable    :: parse_group      => parameter_generator_parse_group
+     procedure, non_overridable    :: free             => parameter_generator_free
+     procedure, non_overridable    :: get_parameters   => parameter_generator_get_parameters 
+     procedure, non_overridable    :: get_switches     => parameter_generator_get_switches   
+     procedure, non_overridable    :: get_switches_ab  => parameter_generator_get_switches_ab
+     procedure, non_overridable    :: get_helpers      => parameter_generator_get_helpers    
+     procedure, non_overridable    :: get_required     => parameter_generator_get_required   
   end type parameter_generator_t
 
   public :: parameter_generator_t
@@ -204,6 +206,44 @@ contains
     enddo
 
   end subroutine parameter_generator_add_to_cli
+  
+  !==================================================================================================
+  subroutine parameter_generator_add_to_cli_group(this,group)
+    implicit none
+    class(parameter_generator_t) , intent(inout) :: this
+    character(*)                 , intent(in)    :: group
+    integer(ip)                   :: error
+    character(len=:), allocatable :: switch, switch_ab, help ! , cvalue
+    logical                       :: required
+    integer(ip)                   :: ivalue
+    character(len=:), allocatable :: key, cvalue !, switch, switch_ab, help
+    type(ParameterListIterator_t) :: Iterator
+
+    error = 0
+    Iterator = this%switches%GetIterator()
+    do while (.not. Iterator%HasFinished())
+       key = Iterator%GetKey()
+       error = error + Iterator%GetAsString (switch)
+       error = error + this%switches_ab%GetAsString (key = key , String = switch_ab)
+       error = error + this%helpers%GetAsString     (key = key , String = help)
+       error = error + this%required%Get            (key = key , value = required)
+       error = error + this%list%GetAsString        (key = key , string = cvalue, separator=" ")
+
+       if(this%list%GetDimensions(Key=Iterator%GetKey()) == 0) then 
+          call this%cli%add(group=trim(group),switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+            &               required=required,act='store',def=trim(cvalue),error=error)
+       else if(this%list%GetDimensions(Key=Iterator%GetKey()) == 1) then 
+          call this%cli%add(group=trim(group),switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+            &               required=required,act='store',def=trim(cvalue),error=error,nargs='+')
+       else
+          write(*,*) 'Rank >1 arrays not supported by CLI'
+          check(.false.)
+       end if
+          check(error==0)
+       call Iterator%Next()
+    enddo
+
+  end subroutine parameter_generator_add_to_cli_group
 
   !==================================================================================================
   subroutine parameter_generator_parse(this)
@@ -255,5 +295,58 @@ contains
     enddo
 
   end subroutine parameter_generator_parse  
+
+  !==================================================================================================
+  subroutine parameter_generator_parse_group(this,group)
+    implicit none
+    class(parameter_generator_t), intent(inout) :: this
+    character(*)                , intent(in)    :: group
+    integer(ip)                :: istat, error
+    character(len=str_cla_len) :: switch ! , cvalue
+    integer(ip)                :: ivalue
+
+    character(len=:), allocatable :: key
+    type(ParameterListIterator_t) :: Iterator
+    class(*), pointer :: val0
+    class(*), pointer :: val1(:)
+    integer(ip), allocatable :: val_ip(:)
+    real(rp)   , allocatable :: val_rp(:)
+    character(512)           :: val_ch
+    
+    call this%cli%parse(error=error); check(error==0)
+    check(this%cli%run_command(trim(group)))
+
+    Iterator = this%switches%GetIterator()
+    do while (.not. Iterator%HasFinished())
+       key = Iterator%GetKey()
+       error = Iterator%Get(switch); check(error==0)
+       if (this%cli%is_passed(group=trim(group),switch=switch)) then
+          if(this%list%GetDimensions(key = key)==0) then
+             error = this%list%GetPointer(key = key, value=val0); check(error==0)
+             select type(val0)
+             type is(character(*))
+                 call this%cli%get(group=trim(group),switch=switch, val=val_ch, error=error)
+                 error = this%list%Set(key = key, value=trim(val_ch)); check(error==0)
+             class default
+                call this%cli%get(group=trim(group),switch=switch, val=val0, error=error)
+             end select
+          else if(this%list%GetDimensions(key = key)==1) then
+             error = this%list%GetPointer(key = key, value=val1); check(error==0)
+             select type(val1)
+             type is(integer(ip))
+                call this%cli%get_varying(group=trim(group),switch=switch, val=val_ip, error=error); check(error==0)
+                error = this%list%set(key = key, value = val_ip); check(error==0)
+             type is(real(rp))
+                call this%cli%get_varying(group=trim(group),switch=switch, val=val_rp, error=error); check(error==0)
+                error = this%list%set(key = key, value = val_rp); check(error==0)
+             class default
+                check(.false.)
+             end select
+          end if
+       end if
+       call Iterator%Next()
+    enddo
+
+  end subroutine parameter_generator_parse_group
 
 end module parameter_generator_names 
