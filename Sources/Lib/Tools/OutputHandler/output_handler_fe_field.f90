@@ -25,8 +25,33 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Some helper derived types
+!
+! Contains the following public entities:
+! [[output_handler_fe_field_names(module)]]
+!---------------------------------------------------------------------
 module output_handler_fe_field_names
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Some helper derived types
+!
+! Contains some helper derived types to handle some intermediate
+! steps while converting [[serial_fe_space_t(type)]], 
+! [[fe_function_t(type)]] and **cell_vector** data to a cell based
+! view.
+!---------------------------------------------------------------------
 
 USE types_names
 USE memor_names
@@ -38,6 +63,17 @@ implicit none
 private
 
     type :: output_handler_fe_field_t
+    !-----------------------------------------------------------------
+    !* Author: Víctor Sande Veiga
+    ! Date: 2016-11-29
+    ! Version: 0.0.1
+    ! Category: IO
+    !
+    !-----------------------------------------------------------------
+    !### Associate field info when adding a [[fe_function_t(type)]]
+    !
+    ! Associate the info related with a nodal field contained in a [[fe_function_t(type)]]
+    !-----------------------------------------------------------------
     private
         character(len=:),  allocatable :: name
         integer(ip)                    :: field_id = 0
@@ -57,6 +93,17 @@ private
 
 
     type :: output_handler_cell_vector_t
+    !-----------------------------------------------------------------
+    !* Author: Víctor Sande Veiga
+    ! Date: 2016-11-29
+    ! Version: 0.0.1
+    ! Category: IO
+    !
+    !-----------------------------------------------------------------
+    !### Associate field info when adding a **cell_vector**
+    !
+    ! Associate the info related with a cell field contained in a **cell_vector**
+    !-----------------------------------------------------------------
     private
         character(len=:),  allocatable :: name
         real(rp), pointer              :: cell_vector(:) => NULL()
@@ -71,6 +118,15 @@ private
     end type
 
     type :: output_handler_fe_field_1D_value_t
+    !-----------------------------------------------------------------
+    !* Author: Víctor Sande Veiga
+    ! Date: 2016-11-29
+    ! Version: 0.0.1
+    ! Category: IO
+    !
+    !-----------------------------------------------------------------
+    !### Stores raw values of a field in a 1D real array
+    !-----------------------------------------------------------------
     private
         integer(ip)                    :: number_components = 0
         real(rp), allocatable          :: value(:)
@@ -84,6 +140,15 @@ private
     end type
 
     type :: output_handler_fe_field_2D_value_t
+    !-----------------------------------------------------------------
+    !* Author: Víctor Sande Veiga
+    ! Date: 2016-11-29
+    ! Version: 0.0.1
+    ! Category: IO
+    !
+    !-----------------------------------------------------------------
+    !### Stores raw values of a field in a 2D real array
+    !-----------------------------------------------------------------
     private
         integer(ip)                    :: number_components = 0
         real(rp), allocatable          :: value(:,:)
@@ -206,7 +271,7 @@ contains
 
 
 !---------------------------------------------------------------------
-!< output_handler_CELL_VECTOR_t PROCEDURES
+! output_handler_CELL_VECTOR_t PROCEDURES
 !---------------------------------------------------------------------
 
     subroutine output_handler_cell_vector_free(this)
@@ -275,7 +340,7 @@ contains
 
 
 !---------------------------------------------------------------------
-!< output_handler_fe_field_1D_value_t PROCEDURES
+! output_handler_fe_field_1D_value_t PROCEDURES
 !---------------------------------------------------------------------
 
 
@@ -339,7 +404,7 @@ contains
 
 
 !---------------------------------------------------------------------
-!< output_handler_fe_field_2D_value_t PROCEDURES
+! output_handler_fe_field_2D_value_t PROCEDURES
 !---------------------------------------------------------------------
 
 

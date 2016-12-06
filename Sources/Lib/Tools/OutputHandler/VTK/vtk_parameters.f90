@@ -26,9 +26,40 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Public parameters of the [[vtk_output_handler_names(module)]] module
+!
+! Contains the following public entities:
+! [[vtk_parameters_names(module)]]
+!---------------------------------------------------------------------
 module vtk_parameters_names
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+! Contains the following public parameters:
+! [[vtk_parameters_names(module):vtk_format(variable]], 
+! [[vtk_parameters_names(module):vtk_format_ascii(variable]], 
+! [[vtk_parameters_names(module):vtk_format_raw(variable]], 
+! [[vtk_parameters_names(module):vtk_format_binary_appended(variable]], 
+! [[vtk_parameters_names(module):vtk_format_binary(variable]], 
+! [[vtk_parameters_names(module):vtk_default_root_task(variable]], 
+! [[vtk_parameters_names(module):vtk_default_number_of_tasks(variable]], 
+! [[vtk_parameters_names(module):vtk_default_guess_number_of_steps(variable]], 
+! [[vtk_parameters_names(module):vtk_default_step_value(variable]], 
+! [[vtk_parameters_names(module):vtk_default_format(variable]], 
+! [[vtk_parameters_names(module):vtk_default_StaticGrid(variable]]
+! and also several VTK parameters
+!--------------------------------------------------------------------- 
+!### Public parameters of the [[vtk_output_handler_names(module)]] module
 USE types_names
 USE IR_Precision, only: I1P
 

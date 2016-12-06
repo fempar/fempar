@@ -25,9 +25,35 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!*Author: Víctor Sande
+! Date: 2016-11-28
+! Version: 0.0.1
+! Category: IO
+!
+!---------------------------------------------------------------------
+!### Software subsystem implementing the XDMF/HDF5 IO layer.
+!
+! Contains the following public entities:
+! [[xh5_output_handler_names(module)]]
+! 
+! @note Look at [[base_output_handler_names(module)]] to see the
+! *state transition diagram*
+!---------------------------------------------------------------------
 module xh5_output_handler_names
-
+!---------------------------------------------------------------------
+!*Author: Víctor Sande
+! Date: 2016-11-28
+! Version: 0.0.1
+! Category: IO
+!
+!---------------------------------------------------------------------
+!### Software subsystem implementing the VTK IO layer.
+!
+! Contains the following public entities:
+! [[xh5_output_handler_t(type)]]
+! 
+!---------------------------------------------------------------------
 USE types_names
 USE memor_names
 USE xh5for
@@ -50,6 +76,25 @@ implicit none
 private
 
     type, extends(base_output_handler_t) :: xh5_output_handler_t
+    !-----------------------------------------------------------------
+    !*Author: Víctor Sande
+    ! Date: 2016-11-28
+    ! Version: 0.0.1
+    ! Category: IO
+    ! 
+    !-----------------------------------------------------------------
+    !### Read/write XDMF/HDF5 mesh files and results
+    !
+    ! [[xh5_output_handler_t(type)]] is a fully functional
+    ! entity which extends from [[base_output_handler_t(type)]] and 
+    ! implements its deferred procedures.
+    !
+    ! This data type uses XH5For in order to perform XDMF/HDF5 parallel IO.
+    !
+    ! @note It's desirable to manage the state transition only from
+    !       [[base_output_handler_t(type)]] type.
+    ! 
+    !-----------------------------------------------------------------
     private 
         type(xh5for_t)                                        :: xh5
         character(:), allocatable                             :: FilePrefix

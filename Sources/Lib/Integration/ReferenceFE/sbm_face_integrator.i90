@@ -432,6 +432,25 @@ subroutine face_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, ve
 end subroutine face_integrator_get_gradient_scalar
 
 !=================================================================================================
+subroutine face_integrator_get_curl_vector (this, ishape, qpoint, ineigh, vector_field)
+  implicit none
+  class(face_integrator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: ishape
+  integer(ip)             , intent(in)    :: qpoint
+  integer(ip)             , intent(in)    :: ineigh
+  type(vector_field_t)    , intent(out)   :: vector_field
+  
+  integer(ip) :: active_face_id, actual_qpoint
+  assert( this%reference_fe(ineigh)%p%field_type == field_type_vector )
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
+
+  actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(ineigh))
+  active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
+  call this%reference_fe(ineigh)%p%get_curl(this%interpolation_face_restriction(ineigh)%interpolation_o_map(active_face_id),   &
+       &                                        ishape,actual_qpoint,vector_field)
+end subroutine face_integrator_get_curl_vector
+
+!=================================================================================================
 function face_integrator_get_current_qpoints_perm ( this, neighbour_id )
   implicit none
   class(face_integrator_t), target, intent(in)    :: this

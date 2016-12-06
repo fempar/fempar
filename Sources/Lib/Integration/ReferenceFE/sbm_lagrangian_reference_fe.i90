@@ -854,7 +854,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout)    :: this 
   type(node_iterator_t) :: node_iterator
-  type(n_face_iterator_t) :: facet_iterator
+  type(facet_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
   integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
   ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)

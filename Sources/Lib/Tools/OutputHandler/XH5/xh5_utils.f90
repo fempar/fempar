@@ -25,9 +25,34 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Public procedures used by [[xh5_output_handler_t(type)]] type
+!
+! Contains the following public entities:
+! [[xh5_utils_names(module)]]
+!--------------------------------------------------------------------- 
 module xh5_utils_names
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Public procedures used by [[xh5_output_handler_t(type)]] type
+! 
+! Contains the following public procedures:
+! [[topology_to_xh5_celltype(function)]], 
+! [[topology_to_xh5_topologytype(function)]], 
+! [[dimensions_to_xh5_unstructured_GeometryType(function)]], 
+! [[number_components_to_xh5_AttributeType(function)]]
+!--------------------------------------------------------------------- 
 USE types_names
 USE xh5_parameters_names
 USE reference_fe_names, only: topology_hex, topology_tet

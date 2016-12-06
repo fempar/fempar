@@ -35,5 +35,5 @@ program test_poisson
   call fempar_init()
   call test_driver%run_simulation()
   call fempar_finalize()
-contains
+  write(*,*) 'XXX'
 end program test_poisson

@@ -60,26 +60,46 @@ module hts_nedelec_analytical_functions_names
   end type base_scalar_function_t
 
   type, extends(base_scalar_function_t) :: boundary_function_Hx_t
-     private 
+   private 
+     real(rp) :: amplitude
+     real(rp) :: frequency 
    contains
      procedure :: get_value_space        => boundary_function_Hx_get_value_space
      procedure :: get_value_space_time   => boundary_function_Hx_get_value_space_time
   end type boundary_function_Hx_t
 
   type, extends(base_scalar_function_t) :: boundary_function_Hy_t
-     private 
+    private
+     real(rp) :: amplitude
+     real(rp) :: frequency  
    contains
      procedure :: get_value_space        => boundary_function_Hy_get_value_space
      procedure :: get_value_space_time   => boundary_function_Hy_get_value_space_time
   end type boundary_function_Hy_t
 
   type, extends(base_scalar_function_t) :: boundary_function_Hz_t
-     private 
+    private 
+     real(rp) :: amplitude 
+     real(rp) :: frequency 
    contains
      procedure :: get_value_space        => boundary_function_Hz_get_value_space
      procedure :: get_value_space_time   => boundary_function_Hz_get_value_space_time
   end type boundary_function_Hz_t
+  
+    type, extends(base_scalar_function_t) :: boundary_function_p_t
+     private 
+   contains
+     procedure :: get_value_space        => boundary_function_p_get_value_space
+     procedure :: get_value_space_time   => boundary_function_p_get_value_space_time
+  end type boundary_function_p_t
 
+   type, extends(base_scalar_function_t) :: constraint_value_t 
+    private 
+     real(rp)  :: amplitude 
+     real(rp)  :: frequency 
+   contains
+     procedure :: get_constraint_value  => constraint_value_get_constraint_value
+  end type constraint_value_t
 
   type hts_nedelec_analytical_functions_t
      private
@@ -88,16 +108,21 @@ module hts_nedelec_analytical_functions_names
      type(boundary_function_Hx_t)            :: boundary_function_Hx
      type(boundary_function_Hy_t)            :: boundary_function_Hy
      type(boundary_function_Hz_t)            :: boundary_function_Hz 
+     type(boundary_function_p_t)             :: boundary_function_p
+     type(constraint_value_t)                :: constraint_value 
    contains
      procedure :: set_num_dimensions               => mn_set_num_dimensions
+     procedure :: initialize                       => mn_initialize 
      procedure :: get_source_term                  => mn_get_source_term
      procedure :: get_solution                     => mn_get_solution
      procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
      procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
      procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
+     procedure :: get_boundary_function_p          => mn_get_boundary_function_p
+     procedure :: get_constraint_value             => mn_get_constraint_value 
   end type hts_nedelec_analytical_functions_t
 
-  public :: hts_nedelec_analytical_functions_t
+  public :: hts_nedelec_analytical_functions_t, constraint_value_t
 
 contains  
 
@@ -108,7 +133,7 @@ contains
     integer(ip), intent(in) ::  num_dimensions
     this%num_dimensions = num_dimensions
   end subroutine base_vector_function_set_num_dimensions
-
+  
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
@@ -122,9 +147,9 @@ contains
     n = 3.0_rp 
     
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    call result%set(1, 0.0_rp) 
-    call result%set(2, -(n+1.0_rp)*((3.0_rp*x*x)**n)*6.0_rp*x + x*x*x )
-    call result%set(3, 0.0_rp) 
+    !call result%set(1, 0.0_rp) 
+    !call result%set(2, -(n+1.0_rp)*((3.0_rp*x*x)**n)*6.0_rp*x + x*x*x )
+    !call result%set(3, 0.0_rp) 
   end subroutine source_term_get_value_space
   
     !===============================================================================================
@@ -140,10 +165,12 @@ contains
     y = point%get(2) 
     n = 3.0_rp 
     
+    call result%init(0.0_rp) 
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    call result%set(1, 0.0_rp) 
-    call result%set(2, -(n+1.0_rp)*((time*3.0_rp*x*x)**n)*(time*6.0_rp*x) + x*x*x )
-    call result%set(3, 0.0_rp) 
+    !call result%set(1, 0.0_rp ) 
+    !call result%set(2, -(n+1.0_rp)*((time*3.0_rp*x*x)**n)*(time*6.0_rp*x) + x*x*x )
+    !call result%set(3, 0.0_rp) 
+
   end subroutine source_term_get_value_space_time 
 
   !===============================================================================================
@@ -166,7 +193,7 @@ contains
     x = point%get(1)
     y = point%get(2) 
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    call result%set(1, 0.0_rp) 
+    call result%set(1, 0.0_rp ) 
     call result%set(2,  x*x*x  ) 
     call result%set(3, 0.0_rp) 
  
@@ -184,8 +211,8 @@ contains
     x = point%get(1)
     y = point%get(2) 
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    call result%set(1, 0.0_rp) 
-    call result%set(2,  time*x*x*x  ) 
+    call result%set(1,  0.0_rp ) 
+    call result%set(2,  time*x*x*x ) 
     call result%set(3, 0.0_rp) 
  
   end subroutine solution_get_value_space_time
@@ -218,7 +245,7 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3) 
-    
+
     call result%set(1,2, time*3.0_rp*x*x) 
 
   end subroutine solution_get_gradient_space_time
@@ -234,9 +261,9 @@ contains
     x = point%get(1)
     y = point%get(2) 
 
-    call result%set(1, 0.0_rp) 
-    call result%set(2, 0.0_rp) 
-    call result%set(3, 3.0_rp*x*x ) 
+    !call result%set(1, 0.0_rp) 
+    !call result%set(2, 0.0_rp) 
+    !call result%set(3, 3.0_rp*x*x ) 
     
   end subroutine solution_get_curl_space
   
@@ -251,9 +278,9 @@ contains
     x = point%get(1)
     y = point%get(2) 
 
-    call result%set(1, 0.0_rp) 
-    call result%set(2, 0.0_rp) 
-    call result%set(3, time*3.0_rp*x*x ) 
+    !call result%set(1, 0.0_rp) 
+    !call result%set(2, 0.0_rp) 
+    !call result%set(3, time*3.0_rp*x*x ) 
     
   end subroutine solution_get_curl_space_time
     
@@ -286,7 +313,7 @@ contains
     y = point%get(2) 
     z = point%get(3) 
     result = 0.0_rp
-    
+
   end subroutine boundary_function_Hx_get_value_space_time 
 
   !===============================================================================================
@@ -300,8 +327,7 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3)
-    result = x*x*x 
-    ! result = 0.0_rp 
+     result = 0.0_rp 
 
   end subroutine boundary_function_Hy_get_value_space
   
@@ -318,8 +344,9 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3)
-    result = time*x*x*x 
-    !result = 1e6_rp*sin(100.0_rp*pi*time) 
+    !result = time*x*x*x 
+
+    result = this%amplitude*sin(2.0_rp*this%frequency*pi*time) 
     
   end subroutine boundary_function_Hy_get_value_space_time
 
@@ -330,11 +357,6 @@ contains
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result    
 
-    ! Locals 
-    real(rp)  :: x,y,z 
-    x = point%get(1) 
-    y = point%get(2) 
-    z = point%get(3) 
     result = 0.0_rp 
     
   end subroutine boundary_function_Hz_get_value_space
@@ -347,14 +369,41 @@ contains
     real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result    
 
-    ! Locals 
-    real(rp)  :: x,y,z 
-    x = point%get(1) 
-    y = point%get(2) 
-    z = point%get(3) 
     result = 0.0_rp 
     
   end subroutine boundary_function_Hz_get_value_space_time
+  
+      ! ============================================================================================
+  subroutine boundary_function_p_get_value_space( this, point, result )
+    implicit none 
+    class(boundary_function_p_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+    real(rp)                       , intent(inout) :: result    
+
+    result = 0.0_rp    
+  end subroutine boundary_function_p_get_value_space
+  
+    ! ============================================================================================
+  subroutine boundary_function_p_get_value_space_time( this, point, time, result )
+    implicit none 
+    class(boundary_function_p_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+    real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(inout) :: result    
+
+    result = 0.0_rp    
+  end subroutine boundary_function_p_get_value_space_time
+  
+      ! ============================================================================================
+  subroutine constraint_value_get_constraint_value( this, time, result )
+    implicit none 
+    class(constraint_value_t)      , intent(in)    :: this 
+    real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(inout) :: result    
+
+    result = this%amplitude*sin(2.0_rp*pi*this%frequency*time) 
+
+  end subroutine constraint_value_get_constraint_value
   
   !===============================================================================================
   subroutine mn_set_num_dimensions ( this, num_dimensions )
@@ -364,6 +413,25 @@ contains
     call this%source_term%set_num_dimensions(num_dimensions)
     call this%solution%set_num_dimensions(num_dimensions)
   end subroutine mn_set_num_dimensions
+  
+    !===============================================================================================
+  subroutine mn_initialize ( this, H, wH, J, wJ )
+    implicit none
+    class(hts_nedelec_analytical_functions_t), intent(inout)    :: this
+    real(rp)      , intent(in)   :: H(0:SPACE_DIM-1), J(0:SPACE_DIM-1) 
+    real(rp)      , intent(in)   :: wH, wJ 
+    
+    this%boundary_function_Hx%amplitude = H(0) 
+    this%boundary_function_Hx%frequency = wH
+    this%boundary_function_Hy%amplitude = H(1) 
+    this%boundary_function_Hy%frequency = wH
+    this%boundary_function_Hz%amplitude = H(2) 
+    this%boundary_function_Hz%frequency = wH
+   
+    this%constraint_value%amplitude = J(2) 
+    this%constraint_value%frequency = wJ 
+
+  end subroutine mn_initialize 
 
   !===============================================================================================
   function mn_get_solution ( this )
@@ -404,6 +472,22 @@ contains
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hz
     mn_get_boundary_function_Hz => this%boundary_function_Hz
   end function mn_get_boundary_function_Hz
+  
+    !===============================================================================================
+  function mn_get_boundary_function_p ( this )
+    implicit none
+    class(hts_nedelec_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: mn_get_boundary_function_p
+    mn_get_boundary_function_p => this%boundary_function_p
+  end function mn_get_boundary_function_p
+  
+     !===============================================================================================
+  function mn_get_constraint_value ( this )
+    implicit none
+    class(hts_nedelec_analytical_functions_t), target, intent(in)    :: this
+    class(constraint_value_t), pointer :: mn_get_constraint_value
+    mn_get_constraint_value=> this%constraint_value
+  end function mn_get_constraint_value
 
 end module hts_nedelec_analytical_functions_names
 !***************************************************************************************************

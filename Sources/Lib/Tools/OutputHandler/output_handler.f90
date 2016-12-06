@@ -1,3 +1,4 @@
+!   Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
 !
 ! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
 !
@@ -24,8 +25,41 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!*Author: Víctor Sande
+! Date: 2016-11-28
+! Version: 0.0.1
+! Category: IO
+!
+!---------------------------------------------------------------------
+!### Software subsystem implementing the OO IO layer.
+!
+! Contains the following public entities:
+! [[output_handler_names(module)]]
+! 
+! @note Look at [[base_output_handler_names(module)]] to see the
+! *state transition diagram*
+!---------------------------------------------------------------------
 module output_handler_names
+!---------------------------------------------------------------------
+!*Author: Víctor Sande
+! Date: 2016-11-28
+! Version: 0.0.1
+! Category: IO
+!
+!---------------------------------------------------------------------
+!### Software subsystem implementing the OO IO layer.
+!
+! Contains the following public entities:
+! [[output_handler_t(type)]], 
+! [[output_handler_prototype_reset(subroutine)]], 
+! [[output_handler_prototype_free(subroutine)]], 
+! [[output_handler_names(module):VTK(variable)]] and  
+! [[output_handler_names(module):XH5(variable)]]
+! 
+! @note Look at [[base_output_handler_t(type)]] to see the
+! *state transition diagram*
+!---------------------------------------------------------------------
 
 USE FPL
 USE types_names
@@ -44,6 +78,37 @@ private
     character(len=*), parameter :: XH5 = 'XH5'
 
     type :: output_handler_t
+    !-----------------------------------------------------------------
+    !*Author: Víctor Sande
+    ! Date: 2016-11-28
+    ! Version: 0.0.1
+    ! Category: IO
+    ! 
+    !-----------------------------------------------------------------
+    !### Reading/writting mesh files and results
+    !
+    ! The main task of this container is to host the chosen IO *strategy*
+    ! as the current **state**.
+    !
+    ! Container of a polymorphic entity of type [[base_output_handler_t(type)]].
+    ! 
+    !-----------------------------------------------------------------
+    !### Usage
+    !```fortran
+    !...
+    !    type(output_handler_t) :: oh
+    !...
+    !    call oh%create()
+    !    call oh%attach_fe_space(fe_space)
+    !    call oh%add_fe_function(fe_function, field_id, 'field_name')
+    !    call oh%add_fe_function(fe_function, field_id, 'grad_field_name', grad_diff_operator)
+    !    call oh%open(Path, Prefix)
+    !    call oh%write()
+    !    call oh%close()
+    !    call oh%free()
+    !...
+    !```
+    !-----------------------------------------------------------------
     private
         class(base_output_handler_t), allocatable :: state
     contains
@@ -76,6 +141,18 @@ public :: XH5
 contains
 
     subroutine output_handler_prototype_reset(output_handler)
+    !-----------------------------------------------------------------
+    !< Stand-alone subroutine to initialize the default output format used
+    !<  in the prototype pattern. 
+    !< 
+    !< This subroutine is beeing called from [[FEMPAR_INIT(subroutine)]] subroutine,
+    !< user doesn't have to be aware of its existence
+    !<  
+    !< The default output format switches at compile time between
+    !< VTK and XDMF depending on the detection of the HDF5 library by 
+    !< the CMake compilation system. User can choose an alternative 
+    !< format by means of the [[output_handler_t(type):Create(bound)]] TBP.
+    !-----------------------------------------------------------------
         class(base_output_handler_t), optional, intent(in) :: output_handler
         integer                                  :: error
         call output_handler_prototype_free()
@@ -92,6 +169,11 @@ contains
 
 
     subroutine output_handler_prototype_free()
+    !-----------------------------------------------------------------
+    !< Stand-alone subroutine to deallocate the default output handler. 
+    !< This subroutine is beeing called from [[FEMPAR_FINALIZE(subroutine)]],
+    !< user doesn't have to be aware of its existence
+    !-----------------------------------------------------------------
        integer(ip) :: error
        if (allocated(output_handler_prototype)) then 
           deallocate(output_handler_prototype, stat=error); check(error==0)
@@ -100,7 +182,7 @@ contains
 
     subroutine output_handler_create(this)
     !-----------------------------------------------------------------
-    !< Create the state output handler by means of the default output handler
+    !< Create the output handler **state** by means of the default output handler
     !-----------------------------------------------------------------
         class(output_handler_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -112,7 +194,7 @@ contains
 
     subroutine output_handler_create_string(this, descriptor)
     !-----------------------------------------------------------------
-    !< Create the state output handler given its descriptor string
+    !< Create the output handler **state** given its descriptor string
     !-----------------------------------------------------------------
         class(output_handler_t), intent(inout) :: this
         character(len=*),        intent(in)    :: descriptor
@@ -128,9 +210,10 @@ contains
         end select
     end subroutine output_handler_create_string
     
+
     subroutine output_handler_create_mold(this, mold)
     !-----------------------------------------------------------------
-    !< Create the state output handler by means of the default output handler
+    !< Create the output handler **state** by means of the default output handler
     !-----------------------------------------------------------------
         class(output_handler_t)     , intent(inout) :: this
         class(base_output_handler_t), intent(in)    :: mold
@@ -139,9 +222,10 @@ contains
         allocate(this%state, mold=mold)
     end subroutine output_handler_create_mold
 
+
     subroutine output_handler_set_iterator(this, iterator)
     !-----------------------------------------------------------------
-    !< Set output handler fe_iterator
+    !< Set a customized output handler **fe_iterator**
     !-----------------------------------------------------------------
         class(output_handler_t),          intent(inout) :: this
         class(output_handler_fe_iterator_t), intent(in) :: iterator
@@ -150,9 +234,13 @@ contains
         call this%state%set_iterator(iterator)
     end subroutine output_handler_set_iterator
 
+
     subroutine output_handler_attach_fe_space(this, fe_space)
     !-----------------------------------------------------------------
-    !< Attach a fe_space 
+    !< Attach a **fe_space** to work with. 
+    !< The user is responsible for ensuring compatibility 
+    !< between the [[serial_fe_space_t(type)]] attached and the 
+    !< [[fe_function_t(type)]] and **cell_vector_t** added.
     !-----------------------------------------------------------------
         class(output_handler_t),          intent(inout) :: this
         class(serial_fe_space_t), target, intent(in)    :: fe_space
@@ -164,7 +252,11 @@ contains
 
     subroutine output_handler_add_fe_function(this, fe_function, field_id, name, diff_operator)
     !-----------------------------------------------------------------
-    !< Add fe function
+    !< Add [[fe_function_t(type)]].
+    !<
+    !< The user is responsible for ensuring compatibility 
+    !< between the [[serial_fe_space_t(type)]] attached and the 
+    !< [[fe_function_t(type)]] added.
     !-----------------------------------------------------------------
         class(output_handler_t),    intent(inout) :: this
         type(fe_function_t),        intent(in)    :: fe_function
@@ -179,7 +271,10 @@ contains
 
     subroutine output_handler_add_cell_vector(this, cell_vector, name)
     !-----------------------------------------------------------------
-    !< Add fe function
+    !< Add **cell_vector**.
+    !< The user is responsible for ensuring compatibility 
+    !< between the [[serial_fe_space_t(type)]] attached and the 
+    !< **cell_vector_t** added.
     !-----------------------------------------------------------------
         class(output_handler_t),    intent(inout) :: this
         real(rp), allocatable,      intent(in)    :: cell_vector(:)
@@ -192,7 +287,12 @@ contains
 
     subroutine output_handler_open(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
-    !< Open procedure
+    !< Open procedure. 
+    !< First procedure to be called after attaching 
+    !< the [[serial_fe_space_t(type)]] and adding [[fe_function_t(type)]] and 
+    !< **cell_vector** and before starting to write data to disk.
+    !< This procedure must be called only once and out-of-the-loop
+    !< in transient simulations
     !-----------------------------------------------------------------
         class(output_handler_t),         intent(inout) :: this
         character(len=*),                intent(in)    :: dir_path
@@ -206,7 +306,7 @@ contains
 
     subroutine output_handler_append_time_step(this, value)
     !-----------------------------------------------------------------
-    !< Open procedure
+    !< Set the current time step value and append it to a vector.
     !-----------------------------------------------------------------
         class(output_handler_t), intent(inout) :: this
         real(rp),                intent(in)    :: value
@@ -218,7 +318,11 @@ contains
 
     subroutine output_handler_write(this)
     !-----------------------------------------------------------------
-    !< Write procedure
+    !< Converts and writes to a mesh file the attached/added data.
+    !< [[serial_fe_space_t(type)]] to mesh file, 
+    !< the added [[fe_function_T(type)]] to nodal fields and 
+    !< the added **cell_vector** as cell fields.
+    !< This procedure must be called one time each time step
     !-----------------------------------------------------------------
         class(output_handler_t),          intent(inout) :: this
     !-----------------------------------------------------------------
@@ -229,7 +333,10 @@ contains
 
     subroutine output_handler_close(this)
     !-----------------------------------------------------------------
-    !< Close procedure
+    !< Close procedure. Last procedure to call when finished the data
+    !< writing to write.
+    !< This procedure must be called only once and out-of-the-loop
+    !< in transient simulations
     !-----------------------------------------------------------------
         class(output_handler_t),          intent(inout) :: this
     !-----------------------------------------------------------------
@@ -240,7 +347,7 @@ contains
 
     subroutine output_handler_free(this)
     !-----------------------------------------------------------------
-    !< Free procedure
+    !< Free and deallocate the **State**
     !-----------------------------------------------------------------
         class(output_handler_t),          intent(inout) :: this
     !-----------------------------------------------------------------

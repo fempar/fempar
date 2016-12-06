@@ -25,8 +25,32 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!---------------------------------------------------------------------
+!*Author: Víctor Sande
+! Date: 2016-11-28
+! Version: 0.0.1
+! Category: IO
+!
+!---------------------------------------------------------------------
+!### Abstract base class implementing IO operations.
+!
+! Contains the following public entities: 
+! [[base_output_handler_names(module)]]
+!---------------------------------------------------------------------
 
 module base_output_handler_names
+!---------------------------------------------------------------------
+!*Author: Víctor Sande
+! Date: 2016-11-28
+! Version: 0.0.1
+! Category: IO
+!
+!---------------------------------------------------------------------
+!### Abstract base class implementing IO operations.
+!
+! Contains the following public entities: 
+! [[base_output_handler_t(type)]]
+!---------------------------------------------------------------------
 
 USE FPL
 USE types_names
@@ -48,32 +72,41 @@ private
     integer(ip), parameter :: BASE_OUTPUT_HANDLER_STATE_OPEN   = 1
     integer(ip), parameter :: BASE_OUTPUT_HANDLER_STATE_FILL   = 2
 
+    type, abstract :: base_output_handler_t
     !-----------------------------------------------------------------
-    ! State transition diagram for type(base_output_handler_t)
+    !*Author: Víctor Sande
+    ! Date: 2016-11-28
+    ! Version: 0.0.1
+    ! Category: IO
+    ! 
     !-----------------------------------------------------------------
-    ! Note: it is desirable that the state management occurs only
+    !### Base class to perform mesh and fields IO.
+    !
+    ! Abstract entity [[base_output_handler_t(type)]] defines the common
+    ! variables and procedures for all classes extending it.
+    ! 
+    ! ----------------------------------------------------------------
+    ! **State transition diagram for [[base_output_handler_t(type)]] **
+    ! --------------------------------------------------------------------------------------------
+    ! Input State         | Action                                           | Output State 
+    ! :------------------:|:------------------------------------------------:|:------------------:
+    ! Init                | [[base_output_handler_t(type):Free(bound)]]      | Init
+    ! Init                | [[base_output_handler_t(type):Open(bound)]]      | Open
+    ! Open                | [[base_output_handler_t(type):Free(bound)]]      | Init
+    ! Open                | [[base_output_handler_t(type):Fill_data(bound)]] | Fill
+    ! Open                | [[base_output_handler_t(type):Close(bound)]]     | Init
+    ! Fill                | [[base_output_handler_t(type):Free(bound)]]      | Init
+    ! Fill                | [[base_output_handler_t(type):Close(bound)]]     | Init
+    ! 
+    ! @note it is desirable that the state management occurs only
     !       inside this class to get a cleaner implementation
     !       of the son classes
+    ! 
+    ! @note
+    ! All setters must be called before OPEN.
+    ! All getters (except get_fe_space) must be called after OPEN.
+    ! FILLED occurs when metadata is filled from [[output_handler_cell_fe_function_t(type)]].
     !-----------------------------------------------------------------
-    ! Note: 
-    !       * All setters must be called before OPEN
-    !       * All getters (except get_fe_space) must be called
-    !         after OPEN
-    !       * FILLED occurs when metadata is filled from ohcff.
-    !-----------------------------------------------------------------
-    ! Input State         | Action                | Output State 
-    !-----------------------------------------------------------------
-    ! Init                | free                  | Init
-    ! Init                | Open                  | Open
-    !-----------------------------------------------------------------
-    ! Open                | free                  | Init
-    ! Open                | fill_data             | Fill
-    ! Open                | close                 | Init
-    !-----------------------------------------------------------------
-    ! Fill                | free                  | Init
-    ! Fill                | close                 | Init
-
-    type, abstract :: base_output_handler_t
     private
         class(serial_fe_space_t),            pointer    :: fe_space => NULL()
         class(output_handler_fe_iterator_t), pointer    :: iterator => NULL()
@@ -164,12 +197,12 @@ public :: base_output_handler_t
 contains
 
 !---------------------------------------------------------------------
-!< base_output_handler_T PROCEDURES
+! base_output_handler_t PROCEDURES
 !---------------------------------------------------------------------
 
     subroutine base_output_handler_free(this)
     !-----------------------------------------------------------------
-    !< Free base_output_handler_t derived type
+    !< Free [[base_output_handler_t(type)]] derived type
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(inout) :: this
         integer(ip)                                 :: i
@@ -192,7 +225,7 @@ contains
 
     subroutine base_output_handler_set_iterator(this, iterator)
     !-----------------------------------------------------------------
-    !< Set output handler fe_iterator
+    !< Set output handler **fe_iterator**
     !-----------------------------------------------------------------
         class(base_output_handler_t),                intent(inout) :: this
         class(output_handler_fe_iterator_t), target, intent(in)  :: iterator
@@ -204,7 +237,7 @@ contains
 
     function base_output_handler_get_number_nodes(this) result(number_nodes)
     !-----------------------------------------------------------------
-    !< Return the number of nodes
+    !< Return the number of visualization nodes
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_nodes
@@ -216,7 +249,7 @@ contains
 
     function base_output_handler_get_number_cells(this) result(number_cells)
     !-----------------------------------------------------------------
-    !< Return the number of cells
+    !< Return the number of visualization cells
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
         integer(ip)                              :: number_cells
@@ -278,7 +311,7 @@ contains
 
     function base_output_handler_get_fe_field(this, field_id) result(field)
     !-----------------------------------------------------------------
-    !< Return a fe field given its id
+    !< Return a [[output_handler_fe_field_t(type)]] given its **ID**
     !-----------------------------------------------------------------
         class(base_output_handler_t),    target, intent(in) :: this
         integer(ip),                             intent(in) :: field_id
@@ -292,7 +325,7 @@ contains
 
     function base_output_handler_get_cell_vector(this, cell_vector_id) result(cell_vector)
     !-----------------------------------------------------------------
-    !< Return a cell vector given its id
+    !< Return a cell [[output_handler_cell_vector_t(type)]] given its **ID*
     !-----------------------------------------------------------------
         class(base_output_handler_t),       target, intent(in) :: this
         integer(ip),                                intent(in) :: cell_vector_id
@@ -305,7 +338,10 @@ contains
 
     subroutine base_output_handler_attach_fe_space(this, fe_space)
     !-----------------------------------------------------------------
-    !< Attach a fe_space to the base_output_handler_t derived type
+    !< Attach a [[serial_fe_space_t(type)]]. 
+    !< Only a single [[serial_fe_space_t(type)]] is managed by the handler.
+    !< The attached [[serial_fe_space_t(type)]] must agree with
+    !< all [[fe_function_t(type)]] and **cell_vector** added.
     !-----------------------------------------------------------------
         class(base_output_handler_t),          intent(inout) :: this
         class(serial_fe_space_t), target,      intent(in)    :: fe_space
@@ -317,7 +353,7 @@ contains
 
     function base_output_handler_get_fe_space(this) result(fe_space)
     !-----------------------------------------------------------------
-    !< Return a fe_space pointer
+    !< Return a [[serial_fe_space_t(type)]] pointer.
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
         class(serial_fe_space_t), pointer        :: fe_space
@@ -328,7 +364,8 @@ contains
 
     subroutine base_output_handler_resize_fe_fields_if_needed(this, number_fields)
     !-----------------------------------------------------------------
-    !< Attach a fe_space to the base_output_handler_t derived type
+    !< Resize the array of added [[output_handler_fe_field_t(type)]]
+    !< only if it's needed
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
         integer(ip),                        intent(in)    :: number_fields
@@ -350,7 +387,7 @@ contains
 
     subroutine base_output_handler_resize_cell_vectors_if_needed(this, number_fields)
     !-----------------------------------------------------------------
-    !< Attach a fe_space to the base_output_handler_t derived type
+    !< Resize the array of added **cell_vector** only if it's needed
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
         integer(ip),                        intent(in)    :: number_fields
@@ -372,7 +409,10 @@ contains
 
     subroutine base_output_handler_add_fe_function(this, fe_function, field_id, name, diff_operator)
     !-----------------------------------------------------------------
-    !< Add a fe_function to the base_output_handler_t derived type
+    !< Add the field stored in the [[fe_function_t(type)]] with the
+    !< given **field_id**
+    !< The attached [[serial_fe_space_t(type)]] must agree with
+    !< all [[fe_function_t(type)]] added.
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
         type(fe_function_t),                intent(in)    :: fe_function
@@ -389,7 +429,9 @@ contains
 
     subroutine base_output_handler_add_cell_vector(this, cell_vector, name)
     !-----------------------------------------------------------------
-    !< Add a fe_function to the base_output_handler_t derived type
+    !< Add a **cell_vector**. 
+    !< The attached [[serial_fe_space_t(type)]] must agree with
+    !< all **cell_vector** added.
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
         real(rp), allocatable,              intent(in)    :: cell_vector(:)
@@ -404,7 +446,10 @@ contains
 
     subroutine base_output_handler_open(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
-    !< Open procedure. State diagram transition management
+    !< Open procedure. 
+    !< Only manages the *State transition diagram* and
+    !< call [[base_output_handler_t(type):Open_body(bound)]] of the
+    !< concrete object
     !-----------------------------------------------------------------
         class(base_output_handler_t),    intent(inout) :: this
         character(len=*),                intent(in)    :: dir_path
@@ -419,7 +464,10 @@ contains
 
     subroutine base_output_handler_close(this)
     !-----------------------------------------------------------------
-    !< Close procedure. State diagram transition management
+    !< Close procedure. 
+    !< Only manages the *State transition diagram* and
+    !< call [[base_output_handler_t(type):Close_body(bound)]] of the
+    !< concrete object
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -431,7 +479,14 @@ contains
 
     subroutine base_output_handler_fill_data(this, update_mesh)
     !-----------------------------------------------------------------
-    !< Attach a fe_space to the base_output_handler_t derived type
+    !< Translation of the data contained in [[serial_fe_space_t(type)]],
+    !< [[fe_function_t(type)]] and **cell_vector**.
+    !< This is the kernel of the implemented strategy for writting to disk. 
+    !< It uses [[output_handler_cell_fe_function_t(type)]] in order to fill
+    !< the [[output_handler_patch_t(type)]] with local view of the data delimited 
+    !< in each cell. 
+    !< This procedure is supported by the deferred **append_cell**
+    !< procedure implemented in all extended classes.
     !-----------------------------------------------------------------
         class(base_output_handler_t), target, intent(inout) :: this
         logical,                              intent(in)    :: update_mesh

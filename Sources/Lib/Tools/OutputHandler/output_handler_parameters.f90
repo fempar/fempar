@@ -25,9 +25,36 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Public parameters of the [[output_handler_names(module)]] module
+!
+! Contains the following public entities:
+! [[output_handler_parameters_names(module)]]
+!
+!---------------------------------------------------------------------
 module output_handler_parameters_names
-
+!---------------------------------------------------------------------
+!* Author: Víctor Sande Veiga
+! Date: 2016-11-29
+! Version: 0.0.1
+! Category: IO
+!
+!--------------------------------------------------------------------- 
+!### Public parameters of the [[output_handler_names(module)]] module
+!
+! Contains the following public parameters:
+! [[output_handler_parameters_names(module):oh_staticgrid(variable)]], 
+! [[output_handler_parameters_names(module):no_diff_operator(variable)]], 
+! [[output_handler_parameters_names(module):grad_diff_operator(variable)]], 
+! [[output_handler_parameters_names(module):div_diff_operator(variable)]], 
+! [[output_handler_parameters_names(module):curl_diff_operator(variable)]], 
+!---------------------------------------------------------------------
 
 implicit none
 private
