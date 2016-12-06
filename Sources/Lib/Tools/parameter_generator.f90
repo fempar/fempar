@@ -59,6 +59,8 @@ module parameter_generator_names
      procedure, non_overridable    :: get_switches_ab  => parameter_generator_get_switches_ab
      procedure, non_overridable    :: get_helpers      => parameter_generator_get_helpers    
      procedure, non_overridable    :: get_required     => parameter_generator_get_required   
+     procedure, non_overridable    :: get_cli          => parameter_generator_get_cli   
+     procedure, non_overridable    :: initialize_lists => parameter_generator_initialize_lists  
   end type parameter_generator_t
 
   public :: parameter_generator_t
@@ -157,6 +159,14 @@ contains
     type(ParameterList_t)  , pointer    :: parameter_generator_get_required
     parameter_generator_get_required => this%required
   end function parameter_generator_get_required
+
+  !==================================================================================================
+  function parameter_generator_get_cli(this)
+    implicit none
+    class(parameter_generator_t), target , intent(in) :: this
+    type(Command_Line_Interface), pointer    :: parameter_generator_get_cli
+    parameter_generator_get_cli => this%cli
+  end function parameter_generator_get_cli
 
   !==================================================================================================
   subroutine parameter_generator_free(this)
@@ -348,5 +358,16 @@ contains
     enddo
 
   end subroutine parameter_generator_parse_group
+
+  !==================================================================================================
+  subroutine parameter_generator_initialize_lists(this)
+    implicit none
+    class(parameter_generator_t), intent(inout) :: this
+    call this%list%init()
+    call this%switches%init()
+    call this%switches_ab%init()
+    call this%helpers%init()
+    call this%required%init()
+  end subroutine parameter_generator_initialize_lists
 
 end module parameter_generator_names 
