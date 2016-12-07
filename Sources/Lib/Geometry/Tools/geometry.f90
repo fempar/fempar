@@ -28,16 +28,16 @@ module geometry_names
 
   type line_t
      private
-     integer(ip) :: id
-     integer(ip) :: point(2)
+     integer(ip)               :: id
+     integer(ip)               :: point(2)
      ! Nurbs description not available for stlines
      ! which is detected checking when n==0
-     integer(ip) :: n=0
-     integer(ip) :: p=0                           ! p as in sisl=order+1
-     real(rp), allocatable :: control_points(:)   ! (number_space_dimensions+1)*n, including weights
-     real(rp), allocatable :: knots(:)            ! nu+pu+1
+     integer(ip)               :: n = 0
+     integer(ip)               :: p = 0               ! p as in sisl=order+1
+     real(rp), allocatable     :: control_points(:)   ! (number_space_dimensions+1)*n, including weights
+     real(rp), allocatable     :: knots(:)            ! nu+pu+1
      type(c_ptr)               :: sisl_ptr = c_null_ptr
-     type(geometry_t), pointer :: geometry
+     type(geometry_t), pointer :: geometry => null()
    contains
      procedure, non_overridable :: create                  => line_create
      procedure, non_overridable :: read                    => line_read
@@ -51,34 +51,39 @@ module geometry_names
 
   type surface_t
      private
-     integer(ip) :: id
+     integer(ip)               :: id
      ! Composition (orientation?)
-     integer(ip) :: num_lines
-     integer(ip), allocatable :: lines_ids(:)
-     integer(ip), allocatable :: lines_orientation(:)
+     integer(ip)               :: num_lines
+     integer(ip), allocatable  :: lines_ids(:)
+     integer(ip), allocatable  :: lines_orientation(:)
      ! Nurbs description
-     integer(ip) :: nu=0
-     integer(ip) :: nv=0
-     integer(ip) :: pu=0                          ! p as in sisl=order+1
-     integer(ip) :: pv=0
-     real(rp), allocatable :: control_points(:)   ! (ndime+1)*nu*nv, including weights
-     real(rp), allocatable :: u_knots(:)          ! nu+pu+1
-     real(rp), allocatable :: v_knots(:)          ! nv+pv+1
-     type(c_ptr) :: sisl_ptr = c_null_ptr
+     integer(ip)               :: nu=0
+     integer(ip)               :: nv=0
+     integer(ip)               :: pu=0                ! p as in sisl=order+1
+     integer(ip)               :: pv=0
+     real(rp), allocatable     :: control_points(:)   ! (ndime+1)*nu*nv, including weights
+     real(rp), allocatable     :: u_knots(:)          ! nu+pu+1
+     real(rp), allocatable     :: v_knots(:)          ! nv+pv+1
+     type(geometry_t), pointer :: geometry => null()
+     type(c_ptr)               :: sisl_ptr = c_null_ptr
    contains
-     procedure, non_overridable :: create_quad => surface_create_quad
-     procedure, non_overridable :: read        => surface_read
-     procedure, non_overridable :: print       => surface_print
-     procedure, non_overridable :: free        => surface_free
+     procedure, non_overridable :: create_quad             => surface_create_quad
+     procedure, non_overridable :: read                    => surface_read
+     procedure, non_overridable :: init                    => surface_init
+     procedure, non_overridable :: print                   => surface_print
+     procedure, non_overridable :: set_geometry_pointer_to => surface_set_geometry_pointer_to
+     procedure, non_overridable :: get_parameter           => surface_get_parameter
+     procedure, non_overridable :: evaluate                => surface_evaluate
+     procedure, non_overridable :: free                    => surface_free
   end type surface_t
 
   type volume_t
      private
-     integer(ip) :: id
+     integer(ip)                :: id
      ! Composition (orientation?)
-     integer(ip) :: num_surfaces
-     integer(ip), allocatable :: surfaces_ids(:)
-     integer(ip), allocatable :: surfaces_orientation(:)
+     integer(ip)                :: num_surfaces
+     integer(ip), allocatable   :: surfaces_ids(:)
+     integer(ip), allocatable   :: surfaces_orientation(:)
    contains
      procedure, non_overridable :: create_hexa => volume_create_hexa
      procedure, non_overridable :: read        => volume_read
@@ -101,20 +106,21 @@ module geometry_names
      type(surface_t)   , allocatable :: surfaces(:)
      type(volume_t)    , allocatable :: volumes(:)
    contains
-     procedure, non_overridable          :: init                       => geometry_init
-     procedure, non_overridable          :: create_point               => geometry_create_point
-     procedure, non_overridable          :: create_line                => geometry_create_line
-     procedure, non_overridable          :: create_quad                => geometry_create_quad
-     procedure, non_overridable          :: create_hexa                => geometry_create_hexa
-     procedure, non_overridable, private :: create_line_from_point_ids => geometry_create_line_from_point_ids
-     procedure, non_overridable, private :: create_quad_from_line_ids  => geometry_create_quad_from_line_ids
-     procedure, non_overridable          :: read_from_file             => geometry_read_from_file
-     procedure, non_overridable          :: read_from_unit             => geometry_read_from_unit
-     procedure, non_overridable          :: get_point                  => geometry_get_point
-     procedure, non_overridable          :: get_line                   => geometry_get_line
-     procedure, non_overridable          :: get_surface                => geometry_get_surface
-     procedure, non_overridable          :: get_volume                 => geometry_get_volume
-     procedure, non_overridable          :: free                       => geometry_free
+     procedure, non_overridable          :: init                    => geometry_init
+     procedure, non_overridable          :: create                  => geometry_create
+     procedure, non_overridable          :: add_point               => geometry_add_point
+     procedure, non_overridable          :: add_line                => geometry_add_line
+     procedure, non_overridable          :: add_quad                => geometry_add_quad
+     procedure, non_overridable          :: add_hexa                => geometry_add_hexa
+     procedure, non_overridable, private :: add_line_from_point_ids => geometry_add_line_from_point_ids
+     procedure, non_overridable, private :: add_quad_from_line_ids  => geometry_add_quad_from_line_ids
+     procedure, non_overridable          :: read_from_file          => geometry_read_from_file
+     procedure, non_overridable          :: read_from_unit          => geometry_read_from_unit
+     procedure, non_overridable          :: get_point               => geometry_get_point
+     procedure, non_overridable          :: get_line                => geometry_get_line
+     procedure, non_overridable          :: get_surface             => geometry_get_surface
+     procedure, non_overridable          :: get_volume              => geometry_get_volume
+     procedure, non_overridable          :: free                    => geometry_free
      generic :: read => read_from_file, read_from_unit
   end type geometry_t
 
@@ -338,7 +344,7 @@ contains
 
     ! The magic constants: 2 means nurbs, always in 3D and 0 means point (not copy).
     if(this%n>0) then ! It is a nurbs
-       this%sisl_ptr = new_curve(this%n,this%p+1,this%knots,this%control_points,2,SPACE_DIM,0)
+!       this%sisl_ptr = new_curve(this%n,this%p+1,this%knots,this%control_points,2,SPACE_DIM,0)
     else              ! It is a STLINE, create a linear spline using extremes
        this%n = 2
        this%p = 1
@@ -369,8 +375,8 @@ contains
     type(c_ptr)       :: wcurve
 
     !point_coords = point%get_value()
-    !call point_intersection(line%sisl_ptr, point_coords, number_space_dimensions, tol, num_int, p_param, num_curves, wcurve, istat)
-    call point_intersection(this%sisl_ptr, point%get_value(), SPACE_DIM, tol, num_int, p_param, num_curves, wcurve, istat)
+    !call curve_point_intersection(line%sisl_ptr, point_coords, number_space_dimensions, tol, num_int, p_param, num_curves, wcurve, istat)
+    call curve_point_intersection(this%sisl_ptr, point%get_value(), SPACE_DIM, tol, num_int, p_param, num_curves, wcurve, istat)
     !write(*,*) num_int, istat
     assert(istat==0)
     assert(num_int==1)
@@ -495,7 +501,7 @@ contains
         call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
         if(pos /= 0) then ! if it has control points is a NURBS
             read(string(pos+25:),*) this%nu, this%nv
-            call memalloc(this%nu*this%nv*(SPACE_DIM+1), this%control_points, __FILE__, __LINE__)
+            call memalloc(this%nu*this%nv*SPACE_DIM, this%control_points, __FILE__, __LINE__)
             call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
             ! Read NURBS degree
             call move_forward_to_find_string(unit, 'Degree=', 'END', string, pos); assert(pos/=0)
@@ -546,6 +552,97 @@ contains
     end subroutine surface_read
 
 
+    subroutine surface_init(this)
+    !-----------------------------------------------------------------
+    !< Initialize a surface
+    !-----------------------------------------------------------------
+        class(surface_t), intent(inout)  :: this
+        type(line_t),            pointer :: line
+        type(geometric_point_t), pointer :: point
+        integer(ip)                      :: i
+    !-----------------------------------------------------------------
+        ! The magic constants: 2 means nurbs, always in 3D and 0 means point (not copy).
+        if(this%nu>0 .or. this%nv>0) then ! It is a nurbs
+            this%sisl_ptr = new_surface(this%nu, this%nv, this%pu+1, this%pv+1, this%u_knots, this%v_knots, this%control_points, 2, SPACE_DIM, 0)
+        else              ! It is a STLINE, create a linear spline using extremes
+            this%nu = 2
+            this%nv = 2
+            this%pu = 1
+            this%pv = 1
+            call memalloc(this%nu*this%nv*SPACE_DIM, this%control_points, __FILE__, __LINE__)
+            call memalloc(this%nu+this%pu+1, this%u_knots, __FILE__, __LINE__)
+            call memalloc(this%nv+this%pv+1, this%v_knots, __FILE__, __LINE__)
+            this%u_knots = (/0.0,0.0,1.0,1.0/)
+            this%v_knots = (/0.0,0.0,1.0,1.0/)
+            do i=1, this%num_lines
+                line => this%geometry%get_line(this%lines_ids(i))
+                if(this%lines_orientation(i) == 1) then
+                    point => this%geometry%get_point(line%point(1))
+                else
+                    point => this%geometry%get_point(line%point(2))
+                endif
+                this%control_points((i-1)*SPACE_DIM+1:i*SPACE_DIM) = point%coord
+            enddo
+            this%sisl_ptr = new_surface(this%nu, this%nv, this%pu+1, this%pv+1, this%u_knots, this%v_knots, this%control_points, 1, SPACE_DIM, 0)
+        end if
+    end subroutine surface_init
+
+
+    function surface_get_parameter(this, point, tol)
+    !-----------------------------------------------------------------
+    !< Surface get parameter
+    !-----------------------------------------------------------------
+        class(surface_t), intent(in) :: this
+        type(point_t),    intent(in) :: point
+        real(rp),         intent(in) :: tol
+        real(rp)                     :: surface_get_parameter
+        integer(ip)                  :: p_shape(1)
+        real(rp), pointer            :: param(:)
+        type(c_ptr)                  :: p_param
+        integer(ip)                  :: istat,num_int,num_curves
+        type(c_ptr)                  :: wcurve
+    !-----------------------------------------------------------------
+        call surface_point_intersection(this%sisl_ptr, point%get_value(), SPACE_DIM, tol, num_int, p_param, num_curves, wcurve, istat)
+        assert(istat==0)
+        assert(num_int==1)
+        assert(num_curves==0)
+        p_shape(1) = num_int
+        call c_f_pointer(p_param,param,p_shape)
+
+        surface_get_parameter = param(1)
+    end function surface_get_parameter
+
+
+    subroutine surface_evaluate(this, param, point, tangent)
+    !-----------------------------------------------------------------
+    !< Surface evaluation
+    !-----------------------------------------------------------------
+        class(surface_t),               intent(in)    :: this
+        real(rp),                       intent(in)    :: param(2)
+        type(point_t),                  intent(inout) :: point
+        type(vector_field_t), optional, intent(inout) :: tangent
+        real(rp)                                      :: values(6)
+        real(rp)                                      :: normal(3)
+        integer(ip)                                   :: leftknot1
+        integer(ip)                                   :: leftknot2
+        integer(ip)                                   :: stat
+        integer(ip)                                   :: number_of_derivatives_to_compute
+    !-----------------------------------------------------------------
+        leftknot1 = 0
+        leftknot2 = 0
+        number_of_derivatives_to_compute = 0
+        if(present(tangent)) number_of_derivatives_to_compute=1
+
+        call surface_left_evaluation(this%sisl_ptr, number_of_derivatives_to_compute, param, leftknot1, leftknot2, values, normal, stat) 
+
+        assert(stat==0)
+        call point%init(values(1:SPACE_DIM))
+        if(present(tangent)) then
+           call tangent%init(values(SPACE_DIM+1:2*SPACE_DIM))
+        end if
+    end subroutine surface_evaluate
+
+
     subroutine surface_print(this,unit)
     !-----------------------------------------------------------------
     !< Print a surface
@@ -580,7 +677,18 @@ contains
                 write(the_unit,fmt='(A)') '        '//trim(adjustl(str(n=i,no_sign=.true.)))//' '//trim(adjustl(str(this%u_knots(i))))
             enddo
         endif
-  end subroutine surface_print
+    end subroutine surface_print
+
+
+    subroutine surface_set_geometry_pointer_to(this,geometry)
+    !-----------------------------------------------------------------
+    !< Set a pointer to the geometry
+    !-----------------------------------------------------------------
+        class(surface_t),            intent(inout) :: this
+        type(geometry_t), target, intent(in)    :: geometry
+    !-----------------------------------------------------------------
+        this%geometry => geometry
+    end subroutine surface_set_geometry_pointer_to
 
 
   !=============================================================================
@@ -720,9 +828,9 @@ contains
     end subroutine geometry_free
 
 
-    subroutine geometry_init(this, num_points, num_lines, num_surfaces, num_volumes)
+    subroutine geometry_create(this, num_points, num_lines, num_surfaces, num_volumes)
     !-----------------------------------------------------------------
-    !< Initialize the geometry
+    !< Create the geometry and allocate its members
     !-----------------------------------------------------------------
         class(geometry_t),        intent(inout) :: this
         integer(ip),              intent(in)    :: num_points
@@ -742,9 +850,25 @@ contains
         call this%line_index%init(num_lines)
         call this%surface_index%init(num_surfaces)
         call this%volume_index%init(num_volumes)
+    end subroutine geometry_create
+
+    subroutine geometry_init(this)
+    !-----------------------------------------------------------------
+    !< Initialize SISL nubs
+    !-----------------------------------------------------------------
+        class(geometry_t),        intent(inout) :: this
+        integer(ip)                             :: i
+    !-----------------------------------------------------------------
+        do i=1,this%num_lines
+            call this%lines(i)%init()
+        end do
+        do i=1,this%num_surfaces
+            call this%surfaces(i)%init()
+        end do
     end subroutine geometry_init
 
-    subroutine geometry_create_point(this, coord)
+
+    subroutine geometry_add_point(this, coord)
     !-----------------------------------------------------------------
     !< Create a point
     !-----------------------------------------------------------------
@@ -757,10 +881,10 @@ contains
         this%num_points = this%num_points+1
         call this%points(this%num_points)%create(id=this%num_points, coord=coord)
         call this%point_index%put(key=this%points(this%num_points)%id, val=this%num_points,stat=error)
-    end subroutine geometry_create_point
+    end subroutine geometry_add_point
 
 
-    subroutine geometry_create_line(this, coord1, coord2)
+    subroutine geometry_add_line(this, coord1, coord2)
     !-----------------------------------------------------------------
     !< Create a line
     !-----------------------------------------------------------------
@@ -771,13 +895,13 @@ contains
         integer(ip)                              :: pid1, pid2
         integer(ip)                              :: error
     !-----------------------------------------------------------------
-        call this%create_point(coord1); pid1 = this%points(this%num_points)%id
-        call this%create_point(coord2); pid2 = this%points(this%num_points)%id
-        call this%create_line_from_point_ids([pid1,pid2])
-    end subroutine geometry_create_line
+        call this%add_point(coord1); pid1 = this%points(this%num_points)%id
+        call this%add_point(coord2); pid2 = this%points(this%num_points)%id
+        call this%add_line_from_point_ids([pid1,pid2])
+    end subroutine geometry_add_line
 
 
-    subroutine geometry_create_line_from_point_ids(this, point_ids)
+    subroutine geometry_add_line_from_point_ids(this, point_ids)
     !-----------------------------------------------------------------
     !< Create a line
     !-----------------------------------------------------------------
@@ -790,11 +914,12 @@ contains
         assert(allocated(this%lines) .and. size(this%lines)>= this%num_lines+1)
         this%num_lines = this%num_lines+1
         call this%lines(this%num_lines)%create(line_id=this%num_lines, point_ids=point_ids)
+        call this%lines(this%num_lines)%set_geometry_pointer_to(this)
         call this%line_index%put(key=this%lines(this%num_lines)%id, val=this%num_lines,stat=error)
-    end subroutine geometry_create_line_from_point_ids
+    end subroutine geometry_add_line_from_point_ids
 
 
-    subroutine geometry_create_quad(this, coord1, coord2, coord3, coord4)
+    subroutine geometry_add_quad(this, coord1, coord2, coord3, coord4)
     !-----------------------------------------------------------------
     !< Create a quad
     !< 3-------4     .---2---.
@@ -820,27 +945,27 @@ contains
         !< |       | 
         !< |       | 
         !< 1-------2 
-        call this%create_point(coord1); pid1 = this%points(this%num_points)%id
-        call this%create_point(coord2); pid2 = this%points(this%num_points)%id
-        call this%create_point(coord3); pid3 = this%points(this%num_points)%id
-        call this%create_point(coord4); pid4 = this%points(this%num_points)%id
+        call this%add_point(coord1); pid1 = this%points(this%num_points)%id
+        call this%add_point(coord2); pid2 = this%points(this%num_points)%id
+        call this%add_point(coord3); pid3 = this%points(this%num_points)%id
+        call this%add_point(coord4); pid4 = this%points(this%num_points)%id
         ! Create lines
         !< .---2---.
         !< |       |
         !< 3       4
         !< |       |
         !< .---1---.
-        call this%create_line_from_point_ids(point_ids=[pid1, pid2]); lid1 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid3, pid4]); lid2 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid1, pid3]); lid3 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid2, pid4]); lid4 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid1, pid2]); lid1 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid3, pid4]); lid2 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid1, pid3]); lid3 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid2, pid4]); lid4 = this%lines(this%num_lines)%id
         ! Create quad
-        call this%create_quad_from_line_ids(lines_ids=[lid1, lid2, lid3, lid4], &
+        call this%add_quad_from_line_ids(lines_ids=[lid1, lid2, lid3, lid4], &
                                             lines_orientation=[1,1,1,1])
-    end subroutine geometry_create_quad
+    end subroutine geometry_add_quad
 
 
-    subroutine geometry_create_quad_from_line_ids(this, lines_ids, lines_orientation)
+    subroutine geometry_add_quad_from_line_ids(this, lines_ids, lines_orientation)
     !-----------------------------------------------------------------
     !< Create a quad
     !-----------------------------------------------------------------
@@ -856,11 +981,12 @@ contains
         call this%surfaces(this%num_surfaces)%create_quad(surface_id=this%num_surfaces, &
                                                           lines_ids=lines_ids,          &
                                                           lines_orientation=lines_orientation)
+        call this%surfaces(this%num_surfaces)%set_geometry_pointer_to(this)
         call this%surface_index%put(key=this%surfaces(this%num_surfaces)%id, val=this%num_surfaces,stat=error)
-    end subroutine geometry_create_quad_from_line_ids
+    end subroutine geometry_add_quad_from_line_ids
 
 
-    subroutine geometry_create_hexa(this, coord1, coord2, coord3, coord4, coord5, coord6, coord7, coord8)
+    subroutine geometry_add_hexa(this, coord1, coord2, coord3, coord4, coord5, coord6, coord7, coord8)
     !-----------------------------------------------------------------
     !< Create a hexa
     !<     7-------8       .---4---.         .-------.
@@ -903,14 +1029,14 @@ contains
         !< | /     | / 
         !< |/      |/ 
         !< 1-------2 
-        call this%create_point(coord1); pid1 = this%points(this%num_points)%id
-        call this%create_point(coord2); pid2 = this%points(this%num_points)%id
-        call this%create_point(coord3); pid3 = this%points(this%num_points)%id
-        call this%create_point(coord4); pid4 = this%points(this%num_points)%id
-        call this%create_point(coord5); pid5 = this%points(this%num_points)%id
-        call this%create_point(coord6); pid6 = this%points(this%num_points)%id
-        call this%create_point(coord7); pid7 = this%points(this%num_points)%id
-        call this%create_point(coord8); pid8 = this%points(this%num_points)%id
+        call this%add_point(coord1); pid1 = this%points(this%num_points)%id
+        call this%add_point(coord2); pid2 = this%points(this%num_points)%id
+        call this%add_point(coord3); pid3 = this%points(this%num_points)%id
+        call this%add_point(coord4); pid4 = this%points(this%num_points)%id
+        call this%add_point(coord5); pid5 = this%points(this%num_points)%id
+        call this%add_point(coord6); pid6 = this%points(this%num_points)%id
+        call this%add_point(coord7); pid7 = this%points(this%num_points)%id
+        call this%add_point(coord8); pid8 = this%points(this%num_points)%id
         ! Create 12xline
         !<     .---4---.     
         !<    /|      /|     
@@ -921,18 +1047,18 @@ contains
         !< 9 5    10 6       
         !< |/      |/        
         !< .---1---.          
-        call this%create_line_from_point_ids(point_ids=[pid1, pid2]); lid1 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid3, pid4]); lid2 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid5, pid6]); lid3 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid7, pid8]); lid4 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid1, pid3]); lid5 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid2, pid4]); lid6 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid5, pid7]); lid7 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid6, pid8]); lid8 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid1, pid5]); lid9 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid2, pid6]); lid10 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid3, pid7]); lid11 = this%lines(this%num_lines)%id
-        call this%create_line_from_point_ids(point_ids=[pid4, pid8]); lid12 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid1, pid2]); lid1 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid3, pid4]); lid2 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid5, pid6]); lid3 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid7, pid8]); lid4 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid1, pid3]); lid5 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid2, pid4]); lid6 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid5, pid7]); lid7 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid6, pid8]); lid8 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid1, pid5]); lid9 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid2, pid6]); lid10 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid3, pid7]); lid11 = this%lines(this%num_lines)%id
+        call this%add_line_from_point_ids(point_ids=[pid4, pid8]); lid12 = this%lines(this%num_lines)%id
         ! Create 6xquads
         !<      .-------.
         !<     /|      /|
@@ -945,17 +1071,17 @@ contains
         !<  .-------.                    
         !<      ^ 
         !<      1
-        call this%create_quad_from_line_ids([lid1, lid2, lid5, lid6], [1,1,1,1]);  sid1 = this%surfaces(this%num_surfaces)%id
-        call this%create_quad_from_line_ids([lid3, lid4, lid7, lid8], [1,1,1,1]);  sid2 = this%surfaces(this%num_surfaces)%id
-        call this%create_quad_from_line_ids([lid5, lid6, lid9, lid11], [1,1,1,1]); sid3 = this%surfaces(this%num_surfaces)%id
-        call this%create_quad_from_line_ids([lid6, lid8, lid10,lid12], [1,1,1,1]); sid4 = this%surfaces(this%num_surfaces)%id
-        call this%create_quad_from_line_ids([lid1, lid3, lid9, lid10], [1,1,1,1]); sid5 = this%surfaces(this%num_surfaces)%id
-        call this%create_quad_from_line_ids([lid2, lid4, lid11,lid12], [1,1,1,1]); sid6 = this%surfaces(this%num_surfaces)%id
+        call this%add_quad_from_line_ids([lid1, lid2, lid5, lid6], [1,1,1,1]);  sid1 = this%surfaces(this%num_surfaces)%id
+        call this%add_quad_from_line_ids([lid3, lid4, lid7, lid8], [1,1,1,1]);  sid2 = this%surfaces(this%num_surfaces)%id
+        call this%add_quad_from_line_ids([lid5, lid6, lid9, lid11], [1,1,1,1]); sid3 = this%surfaces(this%num_surfaces)%id
+        call this%add_quad_from_line_ids([lid6, lid8, lid10,lid12], [1,1,1,1]); sid4 = this%surfaces(this%num_surfaces)%id
+        call this%add_quad_from_line_ids([lid1, lid3, lid9, lid10], [1,1,1,1]); sid5 = this%surfaces(this%num_surfaces)%id
+        call this%add_quad_from_line_ids([lid2, lid4, lid11,lid12], [1,1,1,1]); sid6 = this%surfaces(this%num_surfaces)%id
         ! Create hexa
         this%num_volumes = this%num_volumes+1
         call this%volumes(this%num_volumes)%create_hexa(volume_id=this%num_volumes, surface_ids=(/sid1,sid2,sid3,sid4,sid5,sid6/))
         call this%volume_index%put(key=this%volumes(this%num_volumes)%id, val=this%num_volumes,stat=error)
-    end subroutine geometry_create_hexa
+    end subroutine geometry_add_hexa
 
 
   function geometry_get_point(this,id)
@@ -1019,8 +1145,8 @@ contains
      ! Parameters
      !character (*)    , intent(in)  :: dir_path
      !character (*)    , intent(in)  :: prefix
-     type(ParameterList_t), intent(in)  :: parameter_list
-     class(geometry_t),     intent(out) :: this
+     type(ParameterList_t), intent(in)    :: parameter_list
+     class(geometry_t),     intent(inout) :: this
      ! Locals
      !integer(ip)                    :: lunio
      !character(len=:), allocatable  :: name
@@ -1054,8 +1180,8 @@ contains
     !< This routine reads a geometry writen by GiD using data report.
     !------------------------------------------------------------------------
     implicit none
-    integer(ip)      , intent(in)  :: unit
-    class(geometry_t), intent(out) :: this
+    integer(ip)      , intent(in)    :: unit
+    class(geometry_t), intent(inout) :: this
     character(4)    :: dum1
     character(256)  :: tel
     integer(ip)     :: num_points, num_lines, num_surfaces, num_volumes
@@ -1083,7 +1209,7 @@ contains
     end do
     call io_rewind(unit)
 
-    call this%init(num_points, num_lines, num_surfaces, num_volumes)
+    call this%create(num_points, num_lines, num_surfaces, num_volumes)
 
     read(unit,'(a)') tel
     do while(tel(1:12)/='END ENTITIES')
@@ -1103,6 +1229,7 @@ contains
        else if(tel(1:11)=='NURBSURFACE') then
           this%num_surfaces = this%num_surfaces+1
           call this%surfaces(this%num_surfaces)%read(unit)
+          call this%surfaces(this%num_surfaces)%set_geometry_pointer_to(this)
           call this%surface_index%put(key=this%surfaces(this%num_surfaces)%id, &
                &                          val=this%num_surfaces,stat=istat)
        else if(tel(1:6)=='VOLUME')       then
@@ -1113,11 +1240,7 @@ contains
        end if
     end do
 
-    do i=1,this%num_lines
-       call this%lines(i)%init()
-    end do
-    !do i=1,geometry%num_surfaces
-    !end do
+    call this%init()
 
     !if(geometry%num_points>0)   write(*,*) 'Finally read points:'  , geometry%num_points
     !if(geometry%num_lines>0)    write(*,*) 'Finally read lines:'   , geometry%num_lines   
