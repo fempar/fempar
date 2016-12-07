@@ -39,14 +39,16 @@ module geometry_names
      type(c_ptr)               :: sisl_ptr = c_null_ptr
      type(geometry_t), pointer :: geometry => null()
    contains
-     procedure, non_overridable :: create                  => line_create
-     procedure, non_overridable :: read                    => line_read
-     procedure, non_overridable :: print                   => line_print
-     procedure, non_overridable :: set_geometry_pointer_to => line_set_geometry_pointer_to
-     procedure, non_overridable :: init                    => line_init
-     procedure, non_overridable :: get_parameter           => line_get_parameter
-     procedure, non_overridable :: evaluate                => line_evaluate
-     procedure, non_overridable :: free                    => line_free
+     procedure, non_overridable, private :: create_linear           => line_create_linear
+     procedure, non_overridable, private :: create_nurbs            => line_create_nurbs
+     procedure, non_overridable          :: read                    => line_read
+     procedure, non_overridable          :: print                   => line_print
+     procedure, non_overridable          :: set_geometry_pointer_to => line_set_geometry_pointer_to
+     procedure, non_overridable          :: init                    => line_init
+     procedure, non_overridable          :: get_parameter           => line_get_parameter
+     procedure, non_overridable          :: evaluate                => line_evaluate
+     procedure, non_overridable          :: free                    => line_free
+     generic                             :: create                  => create_linear, create_nurbs
   end type line_t
 
   type surface_t
@@ -67,14 +69,16 @@ module geometry_names
      type(geometry_t), pointer :: geometry => null()
      type(c_ptr)               :: sisl_ptr = c_null_ptr
    contains
-     procedure, non_overridable :: create_quad             => surface_create_quad
-     procedure, non_overridable :: read                    => surface_read
-     procedure, non_overridable :: init                    => surface_init
-     procedure, non_overridable :: print                   => surface_print
-     procedure, non_overridable :: set_geometry_pointer_to => surface_set_geometry_pointer_to
-     procedure, non_overridable :: get_parameter           => surface_get_parameter
-     procedure, non_overridable :: evaluate                => surface_evaluate
-     procedure, non_overridable :: free                    => surface_free
+     procedure, non_overridable, private :: create_linear_quad      => surface_create_linear_quad
+     procedure, non_overridable, private :: create_nurbs_quad       => surface_create_nurbs_quad
+     procedure, non_overridable          :: read                    => surface_read
+     procedure, non_overridable          :: init                    => surface_init
+     procedure, non_overridable          :: print                   => surface_print
+     procedure, non_overridable          :: set_geometry_pointer_to => surface_set_geometry_pointer_to
+     procedure, non_overridable          :: get_parameter           => surface_get_parameter
+     procedure, non_overridable          :: evaluate                => surface_evaluate
+     procedure, non_overridable          :: free                    => surface_free
+     generic                             :: create                  => create_linear_quad, create_nurbs_quad
   end type surface_t
 
   type volume_t
@@ -85,10 +89,11 @@ module geometry_names
      integer(ip), allocatable   :: surfaces_ids(:)
      integer(ip), allocatable   :: surfaces_orientation(:)
    contains
-     procedure, non_overridable :: create_hexa => volume_create_hexa
-     procedure, non_overridable :: read        => volume_read
-     procedure, non_overridable :: print       => volume_print
-     procedure, non_overridable :: free        => volume_free
+     procedure, non_overridable, private :: create_linear_hexa => volume_create_linear_hexa
+     procedure, non_overridable          :: read               => volume_read
+     procedure, non_overridable          :: print              => volume_print
+     procedure, non_overridable          :: free               => volume_free
+     generic                             :: create             => create_linear_hexa
   end type volume_t
 
   type geometry_t
@@ -218,9 +223,9 @@ contains
         this%p=0
     end subroutine line_free
 
-    subroutine line_create(this, line_id, point_ids)
+    subroutine line_create_linear(this, line_id, point_ids)
     !-----------------------------------------------------------------
-    !< Create a line
+    !< Create a straight line
     !-----------------------------------------------------------------
         class(line_t), intent(inout) :: this
         integer(ip),   intent(in)    :: line_id
@@ -229,7 +234,29 @@ contains
         call this%free()
         this%id = line_id
         this%point = point_ids
-    end subroutine line_create
+    end subroutine line_create_linear
+
+
+    subroutine line_create_nurbs(this, line_id, point_ids, n, p, control_points, knots)
+    !-----------------------------------------------------------------
+    !< Create a NURBS line
+    !-----------------------------------------------------------------
+        class(line_t), intent(inout) :: this
+        integer(ip),   intent(in)    :: line_id
+        integer(ip),   intent(in)    :: point_ids(2)
+        integer(ip),   intent(in)    :: n
+        integer(ip),   intent(in)    :: p
+        real(rp),      intent(IN)    :: control_points(n*(SPACE_DIM+1))
+        real(rp),      intent(IN)    :: knots(n+p+1)
+    !-----------------------------------------------------------------
+        call this%create(line_id, point_ids)
+        this%n = n
+        this%p = p
+        call memalloc(this%n*SPACE_DIM, this%control_points, __FILE__, __LINE__)
+        call memalloc(this%n+this%p+1, this%knots, __FILE__, __LINE__)
+        this%control_points = control_points
+        this%knots = knots
+    end subroutine line_create_nurbs
 
 
     subroutine line_read(this,unit)
@@ -441,9 +468,9 @@ contains
     end subroutine surface_free
 
 
-    subroutine surface_create_quad(this, surface_id, lines_ids, lines_orientation)
+    subroutine surface_create_linear_quad(this, surface_id, lines_ids, lines_orientation)
     !-----------------------------------------------------------------
-    !< Create a line
+    !< Create a linear quad
     !-----------------------------------------------------------------
         class(surface_t), intent(inout) :: this
         integer(ip),      intent(in)    :: surface_id
@@ -457,7 +484,38 @@ contains
         call memalloc(this%num_lines, this%lines_orientation, __FILE__, __LINE__)
         this%lines_ids = lines_ids
         this%lines_orientation = lines_orientation
-    end subroutine surface_create_quad
+    end subroutine surface_create_linear_quad
+
+
+
+    subroutine surface_create_nurbs_quad(this, surface_id, lines_ids, lines_orientation, nu, nv, pu, pv, control_points, u_knots, v_knots)
+    !-----------------------------------------------------------------
+    !< Create a nurbs quad
+    !-----------------------------------------------------------------
+        class(surface_t), intent(inout) :: this
+        integer(ip),      intent(in)    :: surface_id
+        integer(ip),      intent(in)    :: lines_ids(4)
+        integer(ip),      intent(in)    :: lines_orientation(4)
+        integer(ip),      intent(in)    :: nu
+        integer(ip),      intent(in)    :: nv
+        integer(ip),      intent(in)    :: pu
+        integer(ip),      intent(in)    :: pv
+        real(rp),         intent(in)    :: control_points(nu*nv*SPACE_DIM)
+        real(rp),         intent(in)    :: u_knots(this%nu+this%pu+1)
+        real(rp),         intent(in)    :: v_knots(this%nv+this%pv+1)
+    !-----------------------------------------------------------------
+        call this%create(surface_id, lines_ids, lines_orientation)
+        this%nu = nu
+        this%nv = nv
+        this%pu = pu
+        this%pv = pv
+        call memalloc(this%nu*this%nv*SPACE_DIM, this%control_points, __FILE__, __LINE__)
+        call memalloc(this%nu+this%pu+1, this%u_knots, __FILE__, __LINE__)
+        call memalloc(this%nv+this%pv+1, this%v_knots, __FILE__, __LINE__)
+        this%control_points = control_points
+        this%u_knots = u_knots
+        this%v_knots = v_knots
+    end subroutine surface_create_nurbs_quad
 
 
     subroutine surface_read(this, unit)
@@ -708,7 +766,7 @@ contains
     end subroutine volume_free
 
 
-    subroutine volume_create_hexa(this, volume_id, surface_ids)
+    subroutine volume_create_linear_hexa(this, volume_id, surface_ids)
     !-----------------------------------------------------------------
     !< Create a valume
     !-----------------------------------------------------------------
@@ -723,7 +781,7 @@ contains
         call memalloc(this%num_surfaces, this%surfaces_orientation, __FILE__, __LINE__)
         this%surfaces_ids = surface_ids
         this%surfaces_orientation = 1
-    end subroutine volume_create_hexa
+    end subroutine volume_create_linear_hexa
 
 
     subroutine volume_read(this, unit)
@@ -978,9 +1036,9 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%surfaces) .and. size(this%surfaces)>= this%num_surfaces+1)
         this%num_surfaces = this%num_surfaces+1
-        call this%surfaces(this%num_surfaces)%create_quad(surface_id=this%num_surfaces, &
-                                                          lines_ids=lines_ids,          &
-                                                          lines_orientation=lines_orientation)
+        call this%surfaces(this%num_surfaces)%create(surface_id=this%num_surfaces, &
+                                                     lines_ids=lines_ids,          &
+                                                     lines_orientation=lines_orientation)
         call this%surfaces(this%num_surfaces)%set_geometry_pointer_to(this)
         call this%surface_index%put(key=this%surfaces(this%num_surfaces)%id, val=this%num_surfaces,stat=error)
     end subroutine geometry_add_quad_from_line_ids
@@ -1079,7 +1137,7 @@ contains
         call this%add_quad_from_line_ids([lid2, lid4, lid11,lid12], [1,1,1,1]); sid6 = this%surfaces(this%num_surfaces)%id
         ! Create hexa
         this%num_volumes = this%num_volumes+1
-        call this%volumes(this%num_volumes)%create_hexa(volume_id=this%num_volumes, surface_ids=(/sid1,sid2,sid3,sid4,sid5,sid6/))
+        call this%volumes(this%num_volumes)%create(volume_id=this%num_volumes, surface_ids=(/sid1,sid2,sid3,sid4,sid5,sid6/))
         call this%volume_index%put(key=this%volumes(this%num_volumes)%id, val=this%num_volumes,stat=error)
     end subroutine geometry_add_hexa
 
