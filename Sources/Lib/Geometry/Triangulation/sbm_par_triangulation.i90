@@ -69,47 +69,15 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   integer(ip)                     :: geometry_interpolation_order
   integer(ip)                     :: lunio
   integer(ip)                     :: istat
-  logical                         :: is_present
-  logical                         :: same_data_type
-  integer(ip),      allocatable   :: shape(:)
 
-     ! Mandatory parameters
-    is_present         = parameters%isPresent(Key=dir_path_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameters%isOfDataType(Key = dir_path_key, mold = dir_path)
-        istat          = parameters%getshape(Key=dir_path_key, shape=shape)
-        assert(istat == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            istat = parameters%GetAsString(key = dir_path_key, string = dir_path)
-            check(istat==0)
-#ifdef DEBUG
-        else
-            !$ write(*,*) 'Thread: ', omp_get_thread_num()
-            write(*,'(a)') ' Warning! '//trim(dir_path_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    ! Mandatory parameters
+    assert(parameters%isAssignable(dir_path_key, 'string'))
+    istat = parameters%GetAsString(key = dir_path_key, string = dir_path)
+    assert(istat==0)
 
-
-    is_present         = parameters%isPresent(Key=prefix_key)
-    if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameters%isOfDataType(Key = prefix_key, mold = prefix)
-        istat          = parameters%getshape(Key=prefix_key, shape=shape)
-        assert(istat == 0)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
-            istat = parameters%GetAsString(key = prefix_key, string = prefix)
-            check(istat==0)
-#ifdef DEBUG
-        else
-            !$ write(*,*) 'Thread: ', omp_get_thread_num()
-            write(*,'(a)') ' Warning! '//trim(prefix_key)//' ignored. Wrong data type or shape. '
-        endif
-#endif
-    endif
+    assert(parameters%isAssignable(prefix_key, 'string'))
+    istat = parameters%GetAsString(key = prefix_key, string = prefix)
+    assert(istat==0)
 
   ! Optional parameters
   if( parameters%isPresent(triangulation_generate_key) ) then

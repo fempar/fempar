@@ -42,9 +42,9 @@ contains
     helpers     => this%get_helpers()
     required    => this%get_required()
 
-    tmp = '.'           ; error = list%set(key = dir_path_key            , value = tmp) ; check(error==0)
-    tmp = 'square_quads'; error = list%set(key = prefix_key              , value = tmp) ; check(error==0)
-    tmp = '.'           ; error = list%set(key = dir_path_out_key        , value = tmp) ; check(error==0)
+    error = list%set(key = dir_path_key            , value = '.') ; check(error==0)
+    error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
+    error = list%set(key = dir_path_out_key        , value = '.') ; check(error==0)
     error = list%set(key = number_of_dimensions_key          , value =  2)                   ; check(error==0)
     error = list%set(key = number_of_cells_per_dir_key       , value =  [12,12,12])          ; check(error==0)
     error = list%set(key = is_dir_periodic_key               , value =  [0,0,0])             ; check(error==0)
