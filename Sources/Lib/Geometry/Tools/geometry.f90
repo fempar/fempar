@@ -69,8 +69,8 @@ module geometry_names
      type(geometry_t), pointer :: geometry => null()
      type(c_ptr)               :: sisl_ptr = c_null_ptr
    contains
-     procedure, non_overridable, private :: create_linear_quad      => surface_create_linear_quad
-     procedure, non_overridable, private :: create_nurbs_quad       => surface_create_nurbs_quad
+     procedure, non_overridable, private :: create_linear           => surface_create_linear
+     procedure, non_overridable, private :: create_nurbs            => surface_create_nurbs
      procedure, non_overridable          :: read                    => surface_read
      procedure, non_overridable          :: init                    => surface_init
      procedure, non_overridable          :: print                   => surface_print
@@ -78,7 +78,7 @@ module geometry_names
      procedure, non_overridable          :: get_parameter           => surface_get_parameter
      procedure, non_overridable          :: evaluate                => surface_evaluate
      procedure, non_overridable          :: free                    => surface_free
-     generic                             :: create                  => create_linear_quad, create_nurbs_quad
+     generic                             :: create                  => create_linear, create_nurbs
   end type surface_t
 
   type volume_t
@@ -89,11 +89,11 @@ module geometry_names
      integer(ip), allocatable   :: surfaces_ids(:)
      integer(ip), allocatable   :: surfaces_orientation(:)
    contains
-     procedure, non_overridable, private :: create_linear_hexa => volume_create_linear_hexa
+     procedure, non_overridable, private :: create_linear      => volume_create_linear
      procedure, non_overridable          :: read               => volume_read
      procedure, non_overridable          :: print              => volume_print
      procedure, non_overridable          :: free               => volume_free
-     generic                             :: create             => create_linear_hexa
+     generic                             :: create             => create_linear
   end type volume_t
 
   type geometry_t
@@ -118,7 +118,7 @@ module geometry_names
      procedure, non_overridable          :: add_quad                => geometry_add_quad
      procedure, non_overridable          :: add_hexa                => geometry_add_hexa
      procedure, non_overridable, private :: add_line_from_point_ids => geometry_add_line_from_point_ids
-     procedure, non_overridable, private :: add_quad_from_line_ids  => geometry_add_quad_from_line_ids
+     procedure, non_overridable, private :: add_surf_from_line_ids  => geometry_add_surf_from_line_ids
      procedure, non_overridable          :: read_from_file          => geometry_read_from_file
      procedure, non_overridable          :: read_from_unit          => geometry_read_from_unit
      procedure, non_overridable          :: get_point               => geometry_get_point
@@ -178,14 +178,17 @@ contains
         integer(ip)             , intent(in)    :: unit
         integer(ip)                             :: i, pos
         character(256)                          :: string
+        integer(ip)                             :: id
+        real(rp)                                :: coord(SPACE_DIM)
     !-----------------------------------------------------------------
         read(unit,'(a)') string
         ! Read point ID
         call move_forward_to_find_string(unit,'Num:', 'END', string, pos); assert(pos/=0)
-        read(string(pos+4:),*) this%id
+        read(string(pos+4:),*) id
         ! Read point coordinates
         call move_forward_to_find_string(unit, 'Coord:', 'END', string, pos); assert(pos/=0)
-        read(string(pos+6:),*) (this%coord(i),i=1,SPACE_DIM)
+        read(string(pos+6:),*) (coord(i),i=1,SPACE_DIM)
+        call this%create(id, coord)
     end subroutine point_read
 
 
@@ -266,63 +269,74 @@ contains
         class(line_t), intent(inout) :: this
         integer(ip)  , intent(in)    :: unit
         character(256)               :: string
-        integer(ip)                  :: i, j, pos, n, error
+        integer(ip)                  :: id
+        integer(ip)                  :: point(2)
+        integer(ip)                  :: n
+        integer(ip)                  :: p
+        real(rp), allocatable        :: control_points(:)
+        real(rp), allocatable        :: knots(:)
+        integer(ip)                  :: i, j, pos, num, error
     !-----------------------------------------------------------------
         call this%free()
         read(unit,'(a)') string
         ! Read line ID
         call move_forward_to_find_string(unit, 'Num:', 'END', string, pos); assert(pos/=0)
-        read(string(pos+4:),*) this%id
+        read(string(pos+4:),*) id
         ! Read line points
         call move_forward_to_find_string(unit, 'Points:', 'END', string, pos); assert(pos/=0)
-        read(string(pos+7:),*) this%point(1),this%point(2)
+        read(string(pos+7:),*) point(1), point(2)
         ! Read number of control points
         call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
-        if(pos /= 0) then ! if has control points is a NURBS
-            read(string(pos+25:),*) this%n
-            call memalloc(this%n*(SPACE_DIM+1), this%control_points, __FILE__, __LINE__)
+        if(pos == 0) then ! if has not control points is a STLINE
+            call this%create(id, point)
+        else              ! if has not control points is a STLINE
+            read(string(pos+25:),*) n
+            call memalloc(n*(SPACE_DIM+1), control_points, __FILE__, __LINE__)
 
             ! Read NURBS degree
             call move_forward_to_find_string(unit, 'Degree=', 'END', string, pos); assert(pos/=0)
-            read(string(pos+7:),*) this%p
+            read(string(pos+7:),*) p
 
             ! Read NURBS control points coords
-            do i=1,this%n
+            do i=1, n
                 read(unit,'(a)') string
                 call move_forward_to_find_string(unit, 'Point', 'END', string, pos); assert(pos/=0)
-                read(string(pos+5:),*) n
+                read(string(pos+5:),*) num
                 call move_forward_to_find_string(unit, 'coords:', 'END', string, pos); assert(pos/=0)
-                read(string(pos+7:),*) (this%control_points((SPACE_DIM+1)*(n-1)+j),j=1,SPACE_DIM)
+                read(string(pos+7:),*) (control_points((SPACE_DIM+1)*(num-1)+j), j=1, SPACE_DIM)
             end do
 
             ! Read NURBS number of knots
             call move_forward_to_find_string(unit, 'Number of knots=', 'END', string, pos); assert(pos/=0)
             read(string(pos+16:),*) i
-            assert(i==this%n+this%p+1)
+            assert(i==n+p+1)
 
             ! Read NURBS knots
-            call memalloc(this%n+this%p+1, this%knots, __FILE__, __LINE__)
-            do i=1,this%n+this%p+1
+            call memalloc(n+p+1, knots, __FILE__, __LINE__)
+            do i=1, n+p+1
                 read(unit,'(a)') string
                 call move_forward_to_find_string(unit, 'knot', 'END', string, pos); assert(pos/=0)
-                read(string(pos+4:),*) n
+                read(string(pos+4:),*) num
                 call move_forward_to_find_string(unit, 'value=', 'END', string, pos); assert(pos/=0)
-                read(string(pos+6:),*) this%knots(n)
+                read(string(pos+6:),*) knots(num)
             end do
 
             ! Read NURBS Weights
             call move_forward_to_find_string(unit, 'Rational weights:', 'END', string, pos); assert(pos/=0)
-            do i=1,this%n
+            do i=1, n
                 read(unit,'(a)') string
-                read(string,*) this%control_points(4*i)
+                read(string,*) control_points((SPACE_DIM+1)*i)
             end do
 
             ! Define 4D control points (i.e. multiply by weights)
-            do i=1,this%n
+            do i=1, n
                 do j=1,SPACE_DIM
-                    this%control_points((SPACE_DIM+1)*(i-1)+j) = this%control_points((SPACE_DIM+1)*(i-1)+j) * this%control_points((SPACE_DIM+1)*i)
+                    control_points((SPACE_DIM+1)*(i-1)+j) = control_points((SPACE_DIM+1)*(i-1)+j) * control_points((SPACE_DIM+1)*i)
                 end do
             end do
+            call this%create(id, point, n, p, control_points, knots)
+            call memfree(control_points, __FILE__, __LINE__)
+            call memfree(knots, __FILE__, __LINE__)
         endif
 
     end subroutine line_read
@@ -346,6 +360,10 @@ contains
             write(the_unit,fmt='(A)') '    Control points: '
             do i=1, this%n
                 write(the_unit,fmt='(A)') '        '//trim(adjustl(str(n=i,no_sign=.true.)))//' '//trim(adjustl(str(this%control_points((i-1)*SPACE_DIM+1:i*SPACE_DIM))))
+            enddo
+            write(the_unit,fmt='(A)') '    Rational weights: '
+            do i=this%n*SPACE_DIM+1, this%n*(SPACE_DIM+1)
+                write(the_unit,fmt='(A)') '        '//trim(adjustl(str(this%control_points(i))))
             enddo
             write(the_unit,fmt='(A)') '    Knots: '
             do i=1, this%n+this%p+1
@@ -377,7 +395,7 @@ contains
        this%p = 1
        call memalloc(this%n*SPACE_DIM, this%control_points, __FILE__, __LINE__)
        call memalloc(this%n+this%p+1, this%knots, __FILE__, __LINE__)
-       this%knots = (/0.0,0.0,1.0,1.0/)
+       this%knots = [0.0,0.0,1.0,1.0]
        point => this%geometry%get_point(this%point(1))
        this%control_points(1:SPACE_DIM) =  point%coord
        point => this%geometry%get_point(this%point(2))
@@ -468,54 +486,56 @@ contains
     end subroutine surface_free
 
 
-    subroutine surface_create_linear_quad(this, surface_id, lines_ids, lines_orientation)
+    subroutine surface_create_linear(this, surface_id, number_lines, lines_ids, lines_orientation)
     !-----------------------------------------------------------------
     !< Create a linear quad
     !-----------------------------------------------------------------
         class(surface_t), intent(inout) :: this
         integer(ip),      intent(in)    :: surface_id
-        integer(ip),      intent(in)    :: lines_ids(4)
-        integer(ip),      intent(in)    :: lines_orientation(4)
+        integer(ip),      intent(in)    :: number_lines
+        integer(ip),      intent(in)    :: lines_ids(number_lines)
+        integer(ip),      intent(in)    :: lines_orientation(number_lines)
     !-----------------------------------------------------------------
         call this%free()
         this%id        = surface_id
-        this%num_lines = 4
+        this%num_lines = number_lines
         call memalloc(this%num_lines, this%lines_ids, __FILE__, __LINE__)
         call memalloc(this%num_lines, this%lines_orientation, __FILE__, __LINE__)
         this%lines_ids = lines_ids
         this%lines_orientation = lines_orientation
-    end subroutine surface_create_linear_quad
+    end subroutine surface_create_linear
 
 
 
-    subroutine surface_create_nurbs_quad(this, surface_id, lines_ids, lines_orientation, nu, nv, pu, pv, control_points, u_knots, v_knots)
+    subroutine surface_create_nurbs(this, surface_id, number_lines, lines_ids, lines_orientation, nu, nv, pu, pv, control_points, u_knots, v_knots)
     !-----------------------------------------------------------------
     !< Create a nurbs quad
     !-----------------------------------------------------------------
         class(surface_t), intent(inout) :: this
         integer(ip),      intent(in)    :: surface_id
-        integer(ip),      intent(in)    :: lines_ids(4)
-        integer(ip),      intent(in)    :: lines_orientation(4)
+        integer(ip),      intent(in)    :: number_lines
+        integer(ip),      intent(in)    :: lines_ids(number_lines)
+        integer(ip),      intent(in)    :: lines_orientation(number_lines)
         integer(ip),      intent(in)    :: nu
         integer(ip),      intent(in)    :: nv
         integer(ip),      intent(in)    :: pu
         integer(ip),      intent(in)    :: pv
-        real(rp),         intent(in)    :: control_points(nu*nv*SPACE_DIM)
-        real(rp),         intent(in)    :: u_knots(this%nu+this%pu+1)
-        real(rp),         intent(in)    :: v_knots(this%nv+this%pv+1)
+        real(rp),         intent(in)    :: control_points(nu*nv*(SPACE_DIM+1))
+        real(rp),         intent(in)    :: u_knots(nu+pu+1)
+        real(rp),         intent(in)    :: v_knots(nv+pv+1)
     !-----------------------------------------------------------------
-        call this%create(surface_id, lines_ids, lines_orientation)
+        call this%create(surface_id, number_lines, lines_ids, lines_orientation)
         this%nu = nu
         this%nv = nv
         this%pu = pu
         this%pv = pv
-        call memalloc(this%nu*this%nv*SPACE_DIM, this%control_points, __FILE__, __LINE__)
+        call memalloc(this%nu*this%nv*(SPACE_DIM+1), this%control_points, __FILE__, __LINE__)
         call memalloc(this%nu+this%pu+1, this%u_knots, __FILE__, __LINE__)
         call memalloc(this%nv+this%pv+1, this%v_knots, __FILE__, __LINE__)
         this%control_points = control_points
         this%u_knots = u_knots
         this%v_knots = v_knots
-    end subroutine surface_create_nurbs_quad
+    end subroutine surface_create_nurbs
 
 
     subroutine surface_read(this, unit)
@@ -524,32 +544,43 @@ contains
     !-----------------------------------------------------------------
         class(surface_t), intent(inout) :: this
         integer(ip)  ,    intent(in)    :: unit
+        integer(ip)                     :: id
+        integer(ip)                     :: num_lines
+        integer(ip), allocatable        :: lines_ids(:)
+        integer(ip), allocatable        :: lines_orientation(:)
+        integer(ip)                     :: nu
+        integer(ip)                     :: nv
+        integer(ip)                     :: pu
+        integer(ip)                     :: pv
+        real(rp),    allocatable        :: control_points(:)
+        real(rp),    allocatable        :: u_knots(:)
+        real(rp),    allocatable        :: v_knots(:)
         character(256)                  :: string
         character(256)                  :: tmpstring
-        integer(ip)                     :: i, j, k, pos, number_knots, error, nu, nv, counter
+        integer(ip)                     :: i, j, k, pos, number_knots, error, idu, idv, counter
     !-----------------------------------------------------------------
         call this%free()
         read(unit,'(a)') string
         ! Read surface ID
         call move_forward_to_find_string(unit, 'Num:', 'END', string, pos); assert(pos/=0)
-        read(string(pos+4:),*) this%id
+        read(string(pos+4:),*) id
         ! Read surface number of lines
         call move_forward_to_find_string(unit, 'NumLines:', 'END', string, pos); assert(pos/=0)
-        read(string(pos+9:),*) this%num_lines
-        call memalloc(this%num_lines, this%lines_ids, __FILE__, __LINE__)
-        call memalloc(this%num_lines, this%lines_orientation, __FILE__, __LINE__)
+        read(string(pos+9:),*) num_lines
+        call memalloc(num_lines, lines_ids, __FILE__, __LINE__)
+        call memalloc(num_lines, lines_orientation, __FILE__, __LINE__)
 
         ! Read surface lines ID's
-        do i=1, this%num_lines
+        do i=1, num_lines
             read(unit, '(a)') string
             call move_forward_to_find_string(unit, 'Line:', 'END', string, pos); assert(pos/=0)
-            read(string(pos+5:),*) this%lines_ids(i)
+            read(string(pos+5:),*) lines_ids(i)
             call move_forward_to_find_string(unit, 'Orientation:', 'END', string, pos); assert(pos/=0)
             read(string(pos+12:),*) tmpstring
             if(trim(adjustl(tmpString)) == 'SAME1ST') then
-                this%lines_orientation(i) = 1
+                lines_orientation(i) = 1
             elseif(trim(adjustl(tmpString)) == 'DIFF1ST') then
-                this%lines_orientation(i) = -1
+                lines_orientation(i) = -1
             else
                 assert(.false.)
             endif
@@ -557,55 +588,75 @@ contains
 
         ! Read number of control points
         call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
-        if(pos /= 0) then ! if it has control points is a NURBS
-            read(string(pos+25:),*) this%nu, this%nv
-            call memalloc(this%nu*this%nv*SPACE_DIM, this%control_points, __FILE__, __LINE__)
+        if(pos == 0) then ! if it has NOT control points is a STSURFACE
+            call this%create(id, num_lines, lines_ids, lines_orientation)
+        else              ! if it has control points is a NURBS SURFACE
+            read(string(pos+25:),*) nu, nv
+            call memalloc(nu*nv*(SPACE_DIM+1), control_points, __FILE__, __LINE__)
             call move_forward_to_find_string(unit, 'Number of Control Points=', 'END', string, pos)
             ! Read NURBS degree
             call move_forward_to_find_string(unit, 'Degree=', 'END', string, pos); assert(pos/=0)
-            read(string(pos+7:),*) this%pu, this%pv
+            read(string(pos+7:),*) pu, pv
 
             counter = 0
-            do i=1, this%nu
-                do j=1, this%nv
+            do i=1, nu
+                do j=1, nv
                     read(unit, '(a)') string
                     call move_forward_to_find_string(unit, 'Point', 'END', string, pos)
-                    read(string(pos+5:),*) nu, nv
+                    read(string(pos+5:),*) idu, idv
                     call move_forward_to_find_string(unit, 'coords:', 'END', string, pos); assert(pos/=0)
-                    read(string(pos+7:),*) (this%control_points(counter*SPACE_DIM+k),k=1,SPACE_DIM)
+                    read(string(pos+7:),*) (control_points(counter*(SPACE_DIM+1)+k),k=1,SPACE_DIM)
                     counter = counter + 1
                 enddo
             enddo
 
             call move_forward_to_find_string(unit, 'Number of knots in U=', 'END', string, pos)
             read(string(pos+21:),*) number_knots
-            assert(number_knots == this%nu+this%pu+1)
+            assert(number_knots == nu+pu+1)
 
             ! Read NURBS knots
-            call memalloc(this%nu+this%pu+1, this%u_knots, __FILE__, __LINE__)
-            do i=1, this%nu+this%pu+1
+            call memalloc(nu+pu+1, u_knots, __FILE__, __LINE__)
+            do i=1, nu+pu+1
                 read(unit,'(a)') string
                 call move_forward_to_find_string(unit, 'knot', 'END', string, pos); assert(pos/=0)
                 read(string(pos+4:),*) k
                 call move_forward_to_find_string(unit, 'value=', 'END', string, pos); assert(pos/=0)
-                read(string(pos+6:),*) this%u_knots(k)
+                read(string(pos+6:),*) u_knots(k)
             end do
 
             call move_forward_to_find_string(unit, 'Number of knots in V=', 'END', string, pos)
             read(string(pos+21:),*) number_knots
-            assert(number_knots == this%nv+this%pv+1)
+            assert(number_knots == nv+pv+1)
 
             ! Read NURBS knots
-            call memalloc(this%nv+this%pv+1, this%v_knots, __FILE__, __LINE__)
-            do i=1, this%nv+this%pv+1
+            call memalloc(nv+pv+1, v_knots, __FILE__, __LINE__)
+            do i=1, nv+pv+1
                 read(unit,'(a)') string
                 call move_forward_to_find_string(unit, 'knot', 'END', string, pos); assert(pos/=0)
                 read(string(pos+4:),*) k
                 call move_forward_to_find_string(unit, 'value=', 'END', string, pos); assert(pos/=0)
-                read(string(pos+6:),*) this%v_knots(k)
+                read(string(pos+6:),*) v_knots(k)
             end do
 
+            ! Read NURBS Weights
+            call move_forward_to_find_string(unit, 'Rational weights:', 'END', string, pos)
+            if(pos == 0) then ! B-Spline Rational weights by default
+                do i=1, nu*nv
+                    control_points((SPACE_DIM+1)*i) = 1.0_rp 
+                enddo
+            else
+                do i=1, nu*nv
+                    read(unit,'(a)') string
+                    read(string,*) control_points((SPACE_DIM+1)*i)
+                end do
+            ENDIF
+            call this%create(id, num_lines, lines_ids, lines_orientation, nu, nv, pu, pv, control_points, u_knots, v_knots)
+            call memfree(control_points, __FILE__, __LINE__)
+            call memfree(u_knots, __FILE__, __LINE__)
+            call memfree(v_knots, __FILE__, __LINE__)
         endif
+        call memfree(lines_ids, __FILE__, __LINE__)
+        call memfree(lines_orientation, __FILE__, __LINE__)
 
     end subroutine surface_read
 
@@ -630,8 +681,8 @@ contains
             call memalloc(this%nu*this%nv*SPACE_DIM, this%control_points, __FILE__, __LINE__)
             call memalloc(this%nu+this%pu+1, this%u_knots, __FILE__, __LINE__)
             call memalloc(this%nv+this%pv+1, this%v_knots, __FILE__, __LINE__)
-            this%u_knots = (/0.0,0.0,1.0,1.0/)
-            this%v_knots = (/0.0,0.0,1.0,1.0/)
+            this%u_knots = [0.0,0.0,1.0,1.0]
+            this%v_knots = [0.0,0.0,1.0,1.0]
             do i=1, this%num_lines
                 line => this%geometry%get_line(this%lines_ids(i))
                 if(this%lines_orientation(i) == 1) then
@@ -722,9 +773,13 @@ contains
             do i=1, this%nu
                 do j=1, this%nv
                     write(the_unit,fmt='(A)') '        '//trim(adjustl(str(n=[i,j],no_sign=.true.)))//' '//&
-                                    trim(adjustl(str(this%control_points(counter*SPACE_DIM+1:(counter+1)*SPACE_DIM))))
+                                    trim(adjustl(str(this%control_points(counter*(SPACE_DIM+1)+1:(counter+1)*(SPACE_DIM+1)-1))))
                     counter = counter + 1
                 enddo
+            enddo
+            write(the_unit,fmt='(A)') '    Rational wights: '
+            do i=1, this%nu*this%nv
+                write(the_unit,fmt='(A)') '        '//trim(adjustl(str(this%control_points(i*SPACE_DIM+1))))
             enddo
             write(the_unit,fmt='(A)') '    U_Knots: '
             do i=1, this%nu+this%pu+1
@@ -766,22 +821,24 @@ contains
     end subroutine volume_free
 
 
-    subroutine volume_create_linear_hexa(this, volume_id, surface_ids)
+    subroutine volume_create_linear(this, volume_id, number_surfaces, surfaces_ids, surfaces_orientation)
     !-----------------------------------------------------------------
     !< Create a valume
     !-----------------------------------------------------------------
         class(volume_t),  intent(inout) :: this
         integer(ip),      intent(in)    :: volume_id
-        integer(ip),      intent(in)    :: surface_ids(6)
+        integer(ip),      intent(in)    :: number_surfaces
+        integer(ip),      intent(in)    :: surfaces_ids(number_surfaces)
+        integer(ip),      intent(in)    :: surfaces_orientation(number_surfaces)
     !-----------------------------------------------------------------
         call this%free()
         this%id = volume_id
-        this%num_surfaces = 6
+        this%num_surfaces = number_surfaces
         call memalloc(this%num_surfaces, this%surfaces_ids, __FILE__, __LINE__)
         call memalloc(this%num_surfaces, this%surfaces_orientation, __FILE__, __LINE__)
-        this%surfaces_ids = surface_ids
-        this%surfaces_orientation = 1
-    end subroutine volume_create_linear_hexa
+        this%surfaces_ids = surfaces_ids
+        this%surfaces_orientation = surfaces_orientation
+    end subroutine volume_create_linear
 
 
     subroutine volume_read(this, unit)
@@ -790,6 +847,10 @@ contains
     !-----------------------------------------------------------------
         class(volume_t), intent(inout) :: this
         integer(ip)  ,    intent(in)    :: unit
+        integer(ip)                     :: id
+        integer(ip)                     :: num_surfaces
+        integer(ip), allocatable        :: surfaces_ids(:)
+        integer(ip), allocatable        :: surfaces_orientation(:)
         character(256)                  :: string
         character(256)                  :: tmpstring
         integer(ip)                     :: i, j, k, pos, number_knots, error, nu, nv, counter
@@ -798,28 +859,32 @@ contains
         read(unit,'(a)') string
         ! Read volume ID
         call move_forward_to_find_string(unit, 'Num:', 'END', string, pos); assert(pos/=0)
-        read(string(pos+4:),*) this%id
+        read(string(pos+4:),*) id
         ! Read volume number of surfaces
         call move_forward_to_find_string(unit, 'NumSurfaces:', 'END', string, pos); assert(pos/=0)
-        read(string(pos+12:),*) this%num_surfaces
-        call memalloc(this%num_surfaces, this%surfaces_ids, __FILE__, __LINE__)
-        call memalloc(this%num_surfaces, this%surfaces_orientation, __FILE__, __LINE__)
+        read(string(pos+12:),*) num_surfaces
+        call memalloc(num_surfaces, surfaces_ids, __FILE__, __LINE__)
+        call memalloc(num_surfaces, surfaces_orientation, __FILE__, __LINE__)
 
         ! Read volume surfaces ID's
-        do i=1, this%num_surfaces
+        do i=1, num_surfaces
             read(unit, '(a)') string
             call move_forward_to_find_string(unit, 'Surface:', 'END', string, pos); assert(pos/=0)
-            read(string(pos+8:),*) this%surfaces_ids(i)
+            read(string(pos+8:),*) surfaces_ids(i)
             call move_forward_to_find_string(unit, 'Orientation:', 'END', string, pos); assert(pos/=0)
             read(string(pos+12:),*) tmpstring
             if(trim(adjustl(tmpString)) == 'SAME1ST') then
-                this%surfaces_orientation(i) = 1
+                surfaces_orientation(i) = 1
             elseif(trim(adjustl(tmpString)) == 'DIFF1ST') then
-                this%surfaces_orientation(i) = -1
+                surfaces_orientation(i) = -1
             else
                 assert(.false.)
             endif
         enddo
+
+        call this%create(id, num_surfaces, surfaces_ids, surfaces_orientation)
+        call memfree(surfaces_ids, __FILE__, __LINE__)
+        call memfree(surfaces_orientation, __FILE__, __LINE__)
     end subroutine volume_read
 
 
@@ -1018,18 +1083,20 @@ contains
         call this%add_line_from_point_ids(point_ids=[pid1, pid3]); lid3 = this%lines(this%num_lines)%id
         call this%add_line_from_point_ids(point_ids=[pid2, pid4]); lid4 = this%lines(this%num_lines)%id
         ! Create quad
-        call this%add_quad_from_line_ids(lines_ids=[lid1, lid2, lid3, lid4], &
-                                            lines_orientation=[1,1,1,1])
+        call this%add_surf_from_line_ids(lines_ids=[lid1, lid2, lid3, lid4], &
+                                         number_lines=4,                     &
+                                         lines_orientation=[1,1,1,1])
     end subroutine geometry_add_quad
 
 
-    subroutine geometry_add_quad_from_line_ids(this, lines_ids, lines_orientation)
+    subroutine geometry_add_surf_from_line_ids(this, number_lines, lines_ids, lines_orientation)
     !-----------------------------------------------------------------
     !< Create a quad
     !-----------------------------------------------------------------
         class(geometry_t),         intent(inout) :: this
-        integer(ip),               intent(in)    :: lines_ids(4)
-        integer(ip),               intent(in)    :: lines_orientation(4)
+        integer(ip),               intent(in)    :: number_lines
+        integer(ip),               intent(in)    :: lines_ids(number_lines)
+        integer(ip),               intent(in)    :: lines_orientation(number_lines)
         integer(ip)                              :: i
         type(surface_t), allocatable             :: tmpsurfaces(:)
         integer(ip)                              :: error
@@ -1037,11 +1104,12 @@ contains
         assert(allocated(this%surfaces) .and. size(this%surfaces)>= this%num_surfaces+1)
         this%num_surfaces = this%num_surfaces+1
         call this%surfaces(this%num_surfaces)%create(surface_id=this%num_surfaces, &
+                                                     number_lines=number_lines,    &
                                                      lines_ids=lines_ids,          &
                                                      lines_orientation=lines_orientation)
         call this%surfaces(this%num_surfaces)%set_geometry_pointer_to(this)
         call this%surface_index%put(key=this%surfaces(this%num_surfaces)%id, val=this%num_surfaces,stat=error)
-    end subroutine geometry_add_quad_from_line_ids
+    end subroutine geometry_add_surf_from_line_ids
 
 
     subroutine geometry_add_hexa(this, coord1, coord2, coord3, coord4, coord5, coord6, coord7, coord8)
@@ -1129,15 +1197,18 @@ contains
         !<  .-------.                    
         !<      ^ 
         !<      1
-        call this%add_quad_from_line_ids([lid1, lid2, lid5, lid6], [1,1,1,1]);  sid1 = this%surfaces(this%num_surfaces)%id
-        call this%add_quad_from_line_ids([lid3, lid4, lid7, lid8], [1,1,1,1]);  sid2 = this%surfaces(this%num_surfaces)%id
-        call this%add_quad_from_line_ids([lid5, lid6, lid9, lid11], [1,1,1,1]); sid3 = this%surfaces(this%num_surfaces)%id
-        call this%add_quad_from_line_ids([lid6, lid8, lid10,lid12], [1,1,1,1]); sid4 = this%surfaces(this%num_surfaces)%id
-        call this%add_quad_from_line_ids([lid1, lid3, lid9, lid10], [1,1,1,1]); sid5 = this%surfaces(this%num_surfaces)%id
-        call this%add_quad_from_line_ids([lid2, lid4, lid11,lid12], [1,1,1,1]); sid6 = this%surfaces(this%num_surfaces)%id
+        call this%add_surf_from_line_ids(4, [lid1, lid2, lid5, lid6], [1,1,1,1]);  sid1 = this%surfaces(this%num_surfaces)%id
+        call this%add_surf_from_line_ids(4, [lid3, lid4, lid7, lid8], [1,1,1,1]);  sid2 = this%surfaces(this%num_surfaces)%id
+        call this%add_surf_from_line_ids(4, [lid5, lid6, lid9, lid11], [1,1,1,1]); sid3 = this%surfaces(this%num_surfaces)%id
+        call this%add_surf_from_line_ids(4, [lid6, lid8, lid10,lid12], [1,1,1,1]); sid4 = this%surfaces(this%num_surfaces)%id
+        call this%add_surf_from_line_ids(4, [lid1, lid3, lid9, lid10], [1,1,1,1]); sid5 = this%surfaces(this%num_surfaces)%id
+        call this%add_surf_from_line_ids(4, [lid2, lid4, lid11,lid12], [1,1,1,1]); sid6 = this%surfaces(this%num_surfaces)%id
         ! Create hexa
         this%num_volumes = this%num_volumes+1
-        call this%volumes(this%num_volumes)%create(volume_id=this%num_volumes, surface_ids=(/sid1,sid2,sid3,sid4,sid5,sid6/))
+        call this%volumes(this%num_volumes)%create(volume_id=this%num_volumes,                   &
+                                                   number_surfaces=6,                            &
+                                                   surfaces_ids=[sid1,sid2,sid3,sid4,sid5,sid6], &
+                                                   surfaces_orientation=[1,1,1,1,1,1])
         call this%volume_index%put(key=this%volumes(this%num_volumes)%id, val=this%num_volumes,stat=error)
     end subroutine geometry_add_hexa
 
@@ -1279,7 +1350,6 @@ contains
                &                        val=this%num_points,stat=istat)
        else if(tel(1:6)=='STLINE'.or.tel(1:8)=='NURBLINE') then
           this%num_lines    = this%num_lines+1
-          !write(*,*) 'Read line', geometry%lines(geometry%num_lines)%id, geometry%num_lines
           call this%lines(this%num_lines)%read(unit)
           call this%lines(this%num_lines)%set_geometry_pointer_to(this)
           call this%line_index%put(key=this%lines(this%num_lines)%id, &
@@ -1299,11 +1369,6 @@ contains
     end do
 
     call this%init()
-
-    !if(geometry%num_points>0)   write(*,*) 'Finally read points:'  , geometry%num_points
-    !if(geometry%num_lines>0)    write(*,*) 'Finally read lines:'   , geometry%num_lines   
-    !if(geometry%num_surfaces>0) write(*,*) 'Finally read surfaces:', geometry%num_surfaces
-    !if(geometry%num_volumes>0)  write(*,*) 'Finally read volumes:' , geometry%num_volumes 
 
   end subroutine geometry_read_from_unit
 
