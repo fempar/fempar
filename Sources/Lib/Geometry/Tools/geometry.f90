@@ -252,7 +252,7 @@ contains
         call this%create(line_id, point_ids)
         this%n = n
         this%p = p
-        call memalloc(this%n*SPACE_DIM, this%control_points, __FILE__, __LINE__)
+        call memalloc(this%n*(SPACE_DIM+1), this%control_points, __FILE__, __LINE__)
         call memalloc(this%n+this%p+1, this%knots, __FILE__, __LINE__)
         this%control_points = control_points
         this%knots = knots
@@ -332,9 +332,9 @@ contains
     !-----------------------------------------------------------------
     !< Print a line
     !-----------------------------------------------------------------
-        class(line_t),          intent(inout) :: this
-        integer(ip), optional,  intent(in)    :: unit
-        integer(ip)                           :: i , the_unit
+        class(line_t),          intent(in) :: this
+        integer(ip), optional,  intent(in) :: unit
+        integer(ip)                        :: i , the_unit
     !-----------------------------------------------------------------
         the_unit = stdout
         if(present(unit)) the_unit = unit
@@ -371,7 +371,7 @@ contains
 
     ! The magic constants: 2 means nurbs, always in 3D and 0 means point (not copy).
     if(this%n>0) then ! It is a nurbs
-!       this%sisl_ptr = new_curve(this%n,this%p+1,this%knots,this%control_points,2,SPACE_DIM,0)
+       this%sisl_ptr = new_curve(this%n,this%p+1,this%knots,this%control_points,2,SPACE_DIM,0)
     else              ! It is a STLINE, create a linear spline using extremes
        this%n = 2
        this%p = 1
@@ -392,7 +392,7 @@ contains
     class(line_t), intent(in) :: this
     type(point_t), intent(in) :: point
     real(rp)     , intent(in) :: tol
-    real(rp)     line_get_parameter
+    real(rp)                  :: line_get_parameter
 
     !real(rp)          :: point_coords(number_space_dimensions)
     integer(ip)       :: p_shape(1)
