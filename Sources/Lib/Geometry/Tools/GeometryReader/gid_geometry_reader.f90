@@ -4,7 +4,6 @@ module gid_geometry_reader_names
     use stdio_names
     use memor_names
     use geometry_names
-    use base_geometry_reader_names
     use FPL
 
 implicit none
