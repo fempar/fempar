@@ -15,11 +15,15 @@ private
     type :: gid_geometry_reader_t
     contains
     private
-        procedure, non_overridable         :: read_and_fill => gid_geometry_reader_read_and_fill
-        procedure, non_overridable         :: read_point    => gid_geometry_reader_read_point
-        procedure, non_overridable         :: read_line     => gid_geometry_reader_read_line
-        procedure, non_overridable         :: read_surface  => gid_geometry_reader_read_surface
-        procedure, non_overridable         :: read_volume   => gid_geometry_reader_read_volume
+        procedure, non_overridable         :: read_and_fill            => gid_geometry_reader_read_and_fill
+        procedure, non_overridable         :: read_point               => gid_geometry_reader_read_point
+        procedure, non_overridable         :: read_line                => gid_geometry_reader_read_line
+        procedure, non_overridable         :: read_surface             => gid_geometry_reader_read_surface
+        procedure, non_overridable         :: read_volume              => gid_geometry_reader_read_volume
+        procedure, non_overridable         :: read_point_conditions    => gid_geometry_reader_read_point_conditions
+        procedure, non_overridable         :: read_line_conditions     => gid_geometry_reader_read_line_conditions
+        procedure, non_overridable         :: read_surface_conditions  => gid_geometry_reader_read_surface_conditions
+        procedure, non_overridable         :: read_volume_conditions   => gid_geometry_reader_read_volume_conditions
         procedure,                  public :: fill_geometry => gid_geometry_reader_fill_geometry
     end type
 
@@ -340,6 +344,110 @@ contains
     end subroutine gid_geometry_reader_read_volume
 
 
+    subroutine gid_geometry_reader_read_point_conditions(this, unit, geometry)
+    !-----------------------------------------------------------------
+    !< Read point conditions
+    !-----------------------------------------------------------------
+        class(gid_geometry_reader_t), intent(in)    :: this
+        integer(ip),                  intent(in)    :: unit
+        type(geometry_t),             intent(inout) :: geometry
+        type(geometric_point_t), pointer            :: point 
+        integer(ip)                                 :: i, pos
+        character(gid_line_len)                     :: string
+        integer(ip)                                 :: id, set_id
+    !-----------------------------------------------------------------
+        call move_forward_to_find_string(unit,'END CONDITION', 'END INTERVAL DATA', string, pos); assert(pos/=0)
+        call move_forward_to_find_string(unit,'Geometry Entities', 'END INTERVAL DATA', string, pos); assert(pos/=0)
+        do while(.true.)
+            read(unit, '(a)') string
+            call move_forward_to_find_string(unit,'Conds:', 'End Geometry Entities', string, pos)
+            if(pos == 0) exit
+            read(string(:pos),*) id
+            read(string(pos+6:),*) set_id
+            point => geometry%get_point(id)
+            call point%set_condition(set_id)
+        enddo
+    end subroutine gid_geometry_reader_read_point_conditions
+
+
+    subroutine gid_geometry_reader_read_line_conditions(this, unit, geometry)
+    !-----------------------------------------------------------------
+    !< Read point conditions
+    !-----------------------------------------------------------------
+        class(gid_geometry_reader_t), intent(in)    :: this
+        integer(ip),                  intent(in)    :: unit
+        type(geometry_t),             intent(inout) :: geometry
+        type(line_t), pointer                       :: line
+        integer(ip)                                 :: i, pos
+        character(gid_line_len)                     :: string
+        integer(ip)                                 :: id, set_id
+    !-----------------------------------------------------------------
+        call move_forward_to_find_string(unit,'END CONDITION', 'END INTERVAL DATA', string, pos); assert(pos/=0)
+        call move_forward_to_find_string(unit,'Geometry Entities', 'END INTERVAL DATA', string, pos); assert(pos/=0)
+        do while(.true.)
+            read(unit, '(a)') string
+            call move_forward_to_find_string(unit,'Conds:', 'End Geometry Entities', string, pos)
+            if(pos == 0) exit
+            read(string(:pos),*) id
+            read(string(pos+6:),*) set_id
+            line => geometry%get_line(id)
+            call line%set_condition(set_id)
+        enddo
+    end subroutine gid_geometry_reader_read_line_conditions
+
+
+    subroutine gid_geometry_reader_read_surface_conditions(this, unit, geometry)
+    !-----------------------------------------------------------------
+    !< Read point conditions
+    !-----------------------------------------------------------------
+        class(gid_geometry_reader_t), intent(in)    :: this
+        integer(ip),                  intent(in)    :: unit
+        type(geometry_t),             intent(inout) :: geometry
+        type(surface_t), pointer                    :: surface
+        integer(ip)                                 :: i, pos
+        character(gid_line_len)                     :: string
+        integer(ip)                                 :: id, set_id
+    !-----------------------------------------------------------------
+        call move_forward_to_find_string(unit,'END CONDITION', 'END INTERVAL DATA', string, pos); assert(pos/=0)
+        call move_forward_to_find_string(unit,'Geometry Entities', 'END INTERVAL DATA', string, pos); assert(pos/=0)
+        do while(.true.)
+            read(unit, '(a)') string
+            call move_forward_to_find_string(unit,'Conds:', 'End Geometry Entities', string, pos)
+            if(pos == 0) exit
+            read(string(:pos),*) id
+            read(string(pos+6:),*) set_id
+            surface => geometry%get_surface(id)
+            call surface%set_condition(set_id)
+        enddo
+    end subroutine gid_geometry_reader_read_surface_conditions
+
+
+    subroutine gid_geometry_reader_read_volume_conditions(this, unit, geometry)
+    !-----------------------------------------------------------------
+    !< Read point conditions
+    !-----------------------------------------------------------------
+        class(gid_geometry_reader_t), intent(in)    :: this
+        integer(ip),                  intent(in)    :: unit
+        type(geometry_t),             intent(inout) :: geometry
+        type(volume_t), pointer                     :: volume
+        integer(ip)                                 :: i, pos
+        character(gid_line_len)                     :: string
+        integer(ip)                                 :: id, set_id
+    !-----------------------------------------------------------------
+        call move_forward_to_find_string(unit,'END CONDITION', 'END INTERVAL DATA', string, pos); assert(pos/=0)
+        call move_forward_to_find_string(unit,'Geometry Entities', 'END INTERVAL DATA', string, pos); assert(pos/=0)
+        do while(.true.)
+            read(unit, '(a)') string
+            call move_forward_to_find_string(unit,'Conds:', 'End Geometry Entities', string, pos)
+            if(pos == 0) exit
+            read(string(:pos),*) id
+            read(string(pos+6:),*) set_id
+            volume => geometry%get_volume(id)
+            call volume%set_condition(set_id)
+        enddo
+    end subroutine gid_geometry_reader_read_volume_conditions
+
+
     subroutine gid_geometry_reader_fill_geometry(this, parameter_list, geometry)
     !------------------------------------------------------------------------
     !< Open the unit of the GiD file and fill the geometry
@@ -379,7 +487,7 @@ contains
         type(geometry_t),             intent(inout) :: geometry
         character(gid_line_len)                     :: string
         integer(ip)                                 :: num_points, num_lines, num_surfaces, num_volumes
-        integer(ip)                                 :: i,istat
+        integer(ip)                                 :: i, pos, istat
     !------------------------------------------------------------------------
         call geometry%free()
         num_points   = 0
@@ -416,6 +524,23 @@ contains
            else if(string(1:6)=='VOLUME')       then
               call this%read_volume(unit, geometry)
            end if
+        end do
+
+        read(unit,'(a)') string
+       call move_forward_to_find_string(unit,'CONDITION:', 'END INTERVAL DATA', string, pos)
+        do while(pos/=0)
+           read(unit,'(a)') string
+           call move_forward_to_find_string(unit,'CONDTYPE:', 'END INTERVAL DATA', string, pos)
+           if(trim(adjustl(string(pos+9:)))=='over points') then
+               call this%read_point_conditions(unit, geometry)
+           else if(trim(adjustl(string(pos+9:)))=='over lines') then
+               call this%read_line_conditions(unit, geometry)
+           else if(trim(adjustl(string(pos+9:)))=='over surfaces') then
+               call this%read_surface_conditions(unit, geometry)
+           else if(trim(adjustl(string(pos+9:)))=='over volumes')       then
+               call this%read_volume_conditions(unit, geometry)
+           end if
+           call move_forward_to_find_string(unit,'CONDITION:', 'END INTERVAL DATA', string, pos)
         end do
 
         call geometry%init()

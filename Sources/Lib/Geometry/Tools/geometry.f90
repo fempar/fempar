@@ -18,16 +18,19 @@ module geometry_names
 
   type geometric_point_t
      private
-     integer(ip) :: id
+     integer(ip) :: id = 0
+     integer(ip) :: set_id = 0
      real(rp)    :: coord(SPACE_DIM)
    contains
-     procedure, non_overridable :: create => point_create
-     procedure, non_overridable :: print  => point_print
+     procedure, non_overridable :: create        => point_create
+     procedure, non_overridable :: set_condition => point_set_condition
+     procedure, non_overridable :: print         => point_print
   end type geometric_point_t 
 
   type line_t
      private
-     integer(ip)               :: id
+     integer(ip)               :: id = 0
+     integer(ip)               :: set_id = 0
      integer(ip)               :: point(2)
      ! Nurbs description not available for stlines
      ! which is detected checking when n==0
@@ -43,6 +46,7 @@ module geometry_names
      procedure, non_overridable          :: print                   => line_print
      procedure, non_overridable          :: set_geometry_pointer_to => line_set_geometry_pointer_to
      procedure, non_overridable          :: init                    => line_init
+     procedure, non_overridable          :: set_condition           => line_set_condition
      procedure, non_overridable          :: get_parameter           => line_get_parameter
      procedure, non_overridable          :: evaluate                => line_evaluate
      procedure, non_overridable          :: free                    => line_free
@@ -51,7 +55,8 @@ module geometry_names
 
   type surface_t
      private
-     integer(ip)               :: id
+     integer(ip)               :: id = 0
+     integer(ip)               :: set_id = 0
      ! Composition (orientation?)
      integer(ip)               :: num_lines
      integer(ip), allocatable  :: lines_ids(:)
@@ -72,6 +77,7 @@ module geometry_names
      procedure, non_overridable          :: init                    => surface_init
      procedure, non_overridable          :: print                   => surface_print
      procedure, non_overridable          :: set_geometry_pointer_to => surface_set_geometry_pointer_to
+     procedure, non_overridable          :: set_condition           => surface_set_condition
      procedure, non_overridable          :: get_parameter           => surface_get_parameter
      procedure, non_overridable          :: evaluate                => surface_evaluate
      procedure, non_overridable          :: free                    => surface_free
@@ -80,13 +86,15 @@ module geometry_names
 
   type volume_t
      private
-     integer(ip)                :: id
+     integer(ip)                :: id = 0
+     integer(ip)                :: set_id = 0
      ! Composition (orientation?)
      integer(ip)                :: num_surfaces
      integer(ip), allocatable   :: surfaces_ids(:)
      integer(ip), allocatable   :: surfaces_orientation(:)
    contains
      procedure, non_overridable, private :: create_linear      => volume_create_linear
+     procedure, non_overridable          :: set_condition      => volume_set_condition
      procedure, non_overridable          :: print              => volume_print
      procedure, non_overridable          :: free               => volume_free
      generic                             :: create             => create_linear
@@ -161,7 +169,7 @@ contains
   ! Point TBP's
   !=============================================================================
 
-    subroutine point_create(this,id, coord)
+    subroutine point_create(this, id, coord)
     !-----------------------------------------------------------------
     !< Read a point
     !-----------------------------------------------------------------
@@ -172,6 +180,17 @@ contains
         this%id = id
         this%coord = coord
     end subroutine point_create
+
+
+    subroutine point_set_condition(this, set_id)
+    !-----------------------------------------------------------------
+    !< Set condition reference to this point
+    !-----------------------------------------------------------------
+        class(geometric_point_t), intent(inout) :: this
+        integer(ip)             , intent(in)    :: set_id
+    !-----------------------------------------------------------------
+        this%set_id = set_id
+    end subroutine point_set_condition
 
 
     subroutine point_print(this,unit)
@@ -185,6 +204,7 @@ contains
         the_unit = stdout
         if(present(unit)) the_unit = unit
         write(the_unit,fmt='(A)') 'Point ID: '//trim(adjustl(str(this%Id)))//&
+                                  ' Set ID: '//trim(adjustl(str(this%set_id)))//&
                                   ' Coords: '//trim(adjustl(str(this%coord)))
     end subroutine point_print
 
@@ -203,6 +223,7 @@ contains
         this%sisl_ptr = c_null_ptr
         nullify(this%geometry)
         this%id = 0
+        this%set_id = 0
         this%point = 0
         this%n=0
         this%p=0
@@ -244,6 +265,17 @@ contains
     end subroutine line_create_nurbs
 
 
+    subroutine line_set_condition(this, set_id)
+    !-----------------------------------------------------------------
+    !< Set condition reference to this line
+    !-----------------------------------------------------------------
+        class(line_t), intent(inout) :: this
+        integer(ip),   intent(in)    :: set_id
+    !-----------------------------------------------------------------
+        this%set_id = set_id
+    end subroutine line_set_condition
+
+
     subroutine line_print(this,unit)
     !-----------------------------------------------------------------
     !< Print a line
@@ -256,6 +288,7 @@ contains
         if(present(unit)) the_unit = unit
 
         write(the_unit,fmt='(A)') 'Line ID: '//trim(adjustl(str(this%Id)))//&
+                                   ' Set ID: '//trim(adjustl(str(this%set_id)))//&
                                    ' Points: '//trim(adjustl(str(this%point)))//&
                                    ' Degree: '//trim(adjustl(str(this%p)))
         if(this%p>0) then
@@ -380,6 +413,7 @@ contains
         if(allocated(this%v_knots))           call memfree(this%v_knots, __FILE__, __LINE__)
         this%sisl_ptr  = c_null_ptr
         this%id        = 0
+        this%set_id    = 0
         this%num_lines = 0
         this%nu        = 0
         this%nv        = 0
@@ -438,6 +472,17 @@ contains
         this%u_knots = u_knots
         this%v_knots = v_knots
     end subroutine surface_create_nurbs
+
+
+    subroutine surface_set_condition(this, set_id)
+    !-----------------------------------------------------------------
+    !< Set condition reference to this point
+    !-----------------------------------------------------------------
+        class(surface_t), intent(inout) :: this
+        integer(ip),      intent(in)    :: set_id
+    !-----------------------------------------------------------------
+        this%set_id = set_id
+    end subroutine surface_set_condition
 
 
     subroutine surface_init(this)
@@ -556,6 +601,7 @@ contains
         if(present(unit)) the_unit = unit
 
         write(the_unit,fmt='(A)') 'Surface ID: '//trim(adjustl(str(this%Id)))//&
+                                   ' Set ID: '//trim(adjustl(str(this%set_id)))//&
                                    ' Lines: '//trim(adjustl(str(this%lines_ids)))//&
                                    ' Orientation: '//trim(adjustl(str(this%lines_orientation)))//&
                                    ' Degree: '//trim(adjustl(str([this%pu,this%pv])))
@@ -609,6 +655,7 @@ contains
         if(allocated(this%surfaces_ids)) call memfree(this%surfaces_ids, __FILE__, __LINE__)
         if(allocated(this%surfaces_orientation)) call memfree(this%surfaces_orientation, __FILE__, __LINE__)
         this%id           = 0
+        this%set_id       = 0
         this%num_surfaces = 0
     end subroutine volume_free
 
@@ -633,6 +680,17 @@ contains
     end subroutine volume_create_linear
 
 
+    subroutine volume_set_condition(this, set_id)
+    !-----------------------------------------------------------------
+    !< Set condition reference to this volume
+    !-----------------------------------------------------------------
+        class(volume_t), intent(inout) :: this
+        integer(ip),     intent(in)    :: set_id
+    !-----------------------------------------------------------------
+        this%set_id = set_id
+    end subroutine volume_set_condition
+
+
     subroutine volume_print(this, unit)
     !-----------------------------------------------------------------
     !< Print a volume
@@ -645,6 +703,7 @@ contains
         if(present(unit)) the_unit = unit
 
         write(the_unit,fmt='(A)') 'Volume ID: '//trim(adjustl(str(this%Id)))//&
+                                  ' Set ID: '//trim(adjustl(str(this%set_id)))//&
                                   ' Surfaces: '//trim(adjustl(str(this%surfaces_ids)))//&
                                   ' Orientation: '//trim(adjustl(str(this%surfaces_orientation)))
   end subroutine volume_print
@@ -1053,13 +1112,13 @@ contains
         integer(ip)                              :: i
         integer(ip)                              :: error
     !-----------------------------------------------------------------
-        assert(allocated(this%surfaces) .and. size(this%surfaces)>= this%num_surfaces+1)
+        assert(allocated(this%volumes) .and. size(this%volumes)>= this%num_volumes+1)
         this%num_volumes = this%num_volumes+1
         call this%volumes(this%num_volumes)%create(volume_id=volume_id,          &
                                                    number_surfaces=number_faces, &
                                                    surfaces_ids=surfaces_ids,    &
                                                    surfaces_orientation=surfaces_orientation)
-        call this%volume_index%put(key=this%volumes(this%num_volumes)%id, val=volume_id,stat=error)
+        call this%volume_index%put(key=this%volumes(this%num_volumes)%id, val=this%num_volumes,stat=error)
     end subroutine geometry_add_linear_vol_from_surf_ids
 
 
@@ -1106,7 +1165,7 @@ contains
     type(volume_t) , pointer :: geometry_get_volume
     integer(ip) :: index,istat
     call this%volume_index%get(key=id,val=index,stat=istat)
-    assert(istat==was_stored)
+    assert(istat==key_found)
     geometry_get_volume => this%volumes(index)
   end function geometry_get_volume
 
