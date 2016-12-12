@@ -29,6 +29,7 @@ program test_geometry
 
 use fempar_names
 use test_geometry_params
+use gid_geometry_reader_names
 
 implicit none
     type(geometry_t)      :: geometry
@@ -64,13 +65,13 @@ implicit none
     !-----------------------------------------------------------------
     call geometry%create(num_points=17, num_lines=18, num_surfaces=7, num_volumes=1)
 
-    call geometry%add_point(coord=[0._rp,0._rp,0._rp])
+    call geometry%add_point(point_id=1, coord=[0._rp,0._rp,0._rp])
 
-    call geometry%add_line(coord1=[0._rp,0._rp,0._rp], &
-                           coord2=[1._rp,0._rp,0._rp])
+    call geometry%add_line(line_id=1, coord1=[0._rp,0._rp,0._rp], &
+                                      coord2=[1._rp,0._rp,0._rp])
 
-    call geometry%add_line(coord1=[0._rp,0._rp,0._rp], &
-                           coord2=[1._rp,0._rp,0._rp])
+    call geometry%add_line(line_id=2, coord1=[0._rp,0._rp,0._rp], &
+                                      coord2=[1._rp,0._rp,0._rp])
 
     call geometry%add_quad(coord1=[0._rp,0._rp,0._rp], &
                            coord2=[1._rp,0._rp,0._rp], &
@@ -90,6 +91,9 @@ implicit none
     call geometry%init()
     call geometry%free()
 
+    
+    call the_gid_geometry_reader%fill_geometry(parameterlist, geometry)
+    call geometry%free()
 
     call FEMPAR_FINALIZE()
 

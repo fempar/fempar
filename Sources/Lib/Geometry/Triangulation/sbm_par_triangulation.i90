@@ -120,7 +120,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
      ! Generate triangulation
      if(triangulation_generate==triangulation_generate_from_mesh) then
 
-        if(geometry_interpolation_order>1) call this%geometry%read(parameters)
+        if(geometry_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
         ! Read mesh
         call mesh%compose_name ( prefix, name )
@@ -222,7 +222,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         call uniform_hex_mesh%get_data_from_parameter_list(parameters)
 
-        if(geometry_interpolation_order>1) call this%geometry%read(parameters)
+        if(geometry_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
         call uniform_hex_mesh%generate_connectivities(this%num_local_cells,   &
              &                                        this%num_vefs,          & ! All n_faces
