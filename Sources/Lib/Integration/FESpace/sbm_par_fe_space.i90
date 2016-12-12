@@ -322,7 +322,8 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   do field_id = 1, this%number_fields
      if ( this%field_blocks(field_id) == iblock ) then
         if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
-           ubound_num_itfc_couplings (i) = this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
+           ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
+                                           this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
         else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
            ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
                 this%compute_ubound_num_itfc_couplings_by_face_integ(field_id)
@@ -386,7 +387,6 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
 
   integer(ip)                            :: result
   logical, allocatable                   :: touched_neighbours(:)
-  logical                                :: vef_active
 
   type(environment_t)      , pointer :: par_environment
   class(base_static_triangulation_t), pointer :: triangulation
@@ -407,46 +407,27 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
                   touched_neighbours, &
                   __FILE__, __LINE__ )
 
-  
   itfc_vef_iterator = this%create_itfc_fe_vef_iterator()
-  
   result = 0 
   ! Traverse vefs on the interface
   do while ( .not. itfc_vef_iterator%has_finished() )
      call itfc_vef_iterator%current(vef)
      touched_neighbours = .false.
-     vef_active = .false. 
 
      do ielem=1, vef%get_num_cells_around()
         call vef%get_cell_around(ielem,fe)
-        !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
-        ! alert: something has to be done for null FEs
-        ! if ( .not.finite_element%is_void ) 
         part_id = fe%get_my_part()
-        if ( part_id == mypart_id ) then
-           vef_active = .true.
-           exit
+        if ( part_id /= mypart_id ) then
+           local_part_id = cell_import%get_local_neighbour_id(part_id)
+           if (.not. touched_neighbours (local_part_id)) then
+              touched_neighbours (local_part_id) = .true.
+              ivef = fe%find_lpos_vef_lid(vef%get_lid())
+              reference_fe => fe%get_reference_fe(field_id)
+              result = result + reference_fe%get_number_own_nodes_n_face(ivef)
+           end if
         end if
      end do
 
-     if ( vef_active ) then
-        do ielem=1, vef%get_num_cells_around()
-           call vef%get_cell_around(ielem,fe)
-           !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
-           part_id = fe%get_my_part()
-           if ( part_id /= mypart_id ) then
-              local_part_id = cell_import%get_local_neighbour_id(part_id)
-              if (.not. touched_neighbours (local_part_id)) then
-                 touched_neighbours (local_part_id) = .true.
-                 ivef = fe%find_lpos_vef_lid(vef%get_lid())
-                 reference_fe => fe%get_reference_fe(field_id)
-                 result = result + reference_fe%get_number_own_nodes_n_face(ivef)
-              end if
-           end if
-           !end if
-        end do
-     end if
-     
      call itfc_vef_iterator%next()
   end do
   pfs_compute_ubound_num_itfc_couplings_by_continuity = result
@@ -504,6 +485,324 @@ function par_fe_space_generate_non_consecutive_dof_gid (cell_gid, lpos_dof_elem2
             ISHFT(int(lpos_dof_elem2dof-1,igp),int(cell_gid_shift,igp)) + &
             ISHFT(int(field_id-1,igp),int(cell_gid_shift+dofs_per_reference_fe_shift,igp))
 end function par_fe_space_generate_non_consecutive_dof_gid
+
+
+subroutine par_fe_space_compute_boundary_dof_import ( this, &
+                                                      fields_to_project, &
+                                                      number_subset_strong_dirichlet_dofs, &
+                                                      global2subset_strong_dirichlet_dofs, &
+                                                      dof_import )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: fields_to_project(:)
+  integer(ip)          , intent(in)    :: number_subset_strong_dirichlet_dofs
+  integer(ip)          , intent(in)    :: global2subset_strong_dirichlet_dofs(this%number_strong_dirichlet_dofs)
+  type(dof_import_t)   , intent(inout) :: dof_import
+
+  ! Local raw data
+  integer(igp), allocatable    :: raw_interface_data(:,:)
+  integer(ip) , allocatable    :: dofs_lid(:)
+  integer(ip)                  :: total_ubound_boundary_num_itfc_couplings
+  integer(ip)                  :: total_boundary_num_itfc_couplings
+  integer(ip), allocatable     :: ubound_boundary_num_itfc_couplings(:)
+  integer(ip)                  :: num_fe_spaces_in_subset
+  integer(ip)                  :: ifield, field_id
+  type(environment_t), pointer :: par_environment
+  
+  assert ( size(fields_to_project) >= 1 .and. size(fields_to_project) <= this%get_number_fields() )
+  
+  par_environment => this%get_par_environment()
+  assert ( par_environment%am_i_l1_task() )
+  
+  num_fe_spaces_in_subset = size(fields_to_project)
+  
+  call memalloc ( num_fe_spaces_in_subset, ubound_boundary_num_itfc_couplings, __FILE__, __LINE__ )
+  total_ubound_boundary_num_itfc_couplings = 0 
+  ubound_boundary_num_itfc_couplings = 0
+  do ifield = 1, num_fe_spaces_in_subset
+    field_id = fields_to_project(ifield)
+    if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+        ubound_boundary_num_itfc_couplings (ifield) = ubound_boundary_num_itfc_couplings (ifield) + &
+                                             this%compute_ubound_boundary_num_itfc_couplings_by_continuity(field_id)
+    else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
+        check(.false.) ! Not implemented yet
+        !ubound_boundary_num_itfc_couplings (ifield) = ubound_boundary_num_itfc_couplings (ifield) + &
+        !        this%compute_ubound_boundary_num_itfc_couplings_by_face_integ(field_id)
+    end if
+    total_ubound_boundary_num_itfc_couplings = total_ubound_boundary_num_itfc_couplings + ubound_boundary_num_itfc_couplings (ifield)
+  end do
+
+  call memalloc ( num_rows_raw_interface_data, &
+                  total_ubound_boundary_num_itfc_couplings, &
+                  raw_interface_data, __FILE__, __LINE__ )
+
+  call memalloc ( total_ubound_boundary_num_itfc_couplings, dofs_lid, __FILE__, __LINE__)
+
+  total_boundary_num_itfc_couplings = 0
+  do ifield = 1, num_fe_spaces_in_subset
+      field_id = fields_to_project(ifield)
+        if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+           total_boundary_num_itfc_couplings = total_boundary_num_itfc_couplings + & 
+                this%compute_boundary_raw_interface_data_by_continuity(field_id, &
+                                                                       total_boundary_num_itfc_couplings, &
+                                                                       ubound_boundary_num_itfc_couplings(field_id),&
+                                                                       number_subset_strong_dirichlet_dofs, &
+                                                                       global2subset_strong_dirichlet_dofs, &
+                                                                       dofs_lid,&
+                                                                       raw_interface_data )
+        else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
+          check(.false.) ! Not implemented yet 
+          !total_boundary_num_itfc_couplings = total_boundary_num_itfc_couplings + & 
+                ! this%compute_raw_interface_data_by_face_integ(field_id, &
+                !                                              total_boundary_num_itfc_couplings, &
+                !                                              ubound_boundary_num_itfc_couplings(field_id),&
+                !                                              dofs_lid,&
+                !                                              raw_interface_data )      
+        end if
+  end do
+
+  par_environment => this%get_par_environment()
+  call dof_import%create(par_environment%get_l1_rank()+1, &
+                         par_environment%get_l1_size(), &
+                         number_subset_strong_dirichlet_dofs, &
+                         total_boundary_num_itfc_couplings, &
+                         dofs_lid, &
+                         raw_interface_data )
+
+  call memfree ( ubound_boundary_num_itfc_couplings, __FILE__, __LINE__ )                
+  call memfree ( raw_interface_data, __FILE__, __LINE__ )
+  call memfree ( dofs_lid, __FILE__, __LINE__ )
+end subroutine par_fe_space_compute_boundary_dof_import
+
+function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity( this, field_id )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)                          :: pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity
+
+  integer(ip)  :: mypart_id, part_id, local_part_id
+  integer(ip)  :: ivef, ielem
+
+  integer(ip)                            :: result
+  logical, allocatable                   :: touched_neighbours(:)
+  logical                                :: vef_active
+
+  type(environment_t)      , pointer :: par_environment
+  class(base_static_triangulation_t), pointer :: triangulation
+  type(cell_import_t)       , pointer :: cell_import
+  class(reference_fe_t)        , pointer :: reference_fe
+  type(itfc_fe_vef_iterator_t) :: itfc_vef_iterator
+  type(fe_vef_accessor_t)      :: vef
+  type(fe_accessor_t)          :: fe
+  
+  par_environment   => this%get_par_environment()
+  triangulation => this%get_triangulation()
+  cell_import       => triangulation%get_cell_import()
+  assert ( par_environment%am_i_l1_task() )
+
+  mypart_id = par_environment%get_l1_rank() + 1 
+
+  call memalloc ( cell_import%get_number_neighbours(), &
+                  touched_neighbours, &
+                  __FILE__, __LINE__ )
+  
+  itfc_vef_iterator = this%create_itfc_fe_vef_iterator()
+  
+  result = 0 
+  ! Traverse vefs on the interface
+  do while ( .not. itfc_vef_iterator%has_finished() )
+     call itfc_vef_iterator%current(vef)
+     if ( vef%is_at_boundary() .and. vef%is_at_interface() ) then
+        touched_neighbours = .false.
+        do ielem=1, vef%get_num_cells_around()
+           call vef%get_cell_around(ielem,fe)
+           part_id = fe%get_my_part()
+           if ( part_id /= mypart_id ) then
+              local_part_id = cell_import%get_local_neighbour_id(part_id)
+              if (.not. touched_neighbours (local_part_id)) then
+                 touched_neighbours (local_part_id) = .true.
+                 ivef = fe%find_lpos_vef_lid(vef%get_lid())
+                 reference_fe => fe%get_reference_fe(field_id)
+                 result = result + reference_fe%get_number_own_nodes_n_face(ivef)
+              end if
+           end if
+        end do
+     end if
+     call itfc_vef_iterator%next()
+  end do
+  pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity = result
+
+  call memfree ( touched_neighbours, __FILE__, __LINE__ )
+end function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity
+
+function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this, &
+                                                                           field_id, &
+                                                                           offset, &
+                                                                           ubound_num_itfc_couplings, &
+                                                                           number_subset_strong_dirichlet_dofs, &
+                                                                           global2subset_strong_dirichlet_dofs, &
+                                                                           dofs_lid, &
+                                                                           raw_interface_data ) result(num_itfc_couplings)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(in)    :: offset
+  integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
+  integer(ip)          , intent(in)    :: number_subset_strong_dirichlet_dofs
+  integer(ip)          , intent(in)    :: global2subset_strong_dirichlet_dofs(this%number_strong_dirichlet_dofs)
+  integer(ip)          , intent(inout) :: dofs_lid(:)
+  integer(igp)         , intent(inout) :: raw_interface_data(:, :)
+  integer(ip)                          :: num_itfc_couplings
+
+  ! Locals
+  integer(ip)  :: istat
+  integer(ip)  :: ivef, ivef_itfc, ielem, vef_lid
+  integer(igp) :: elem_gid
+  integer(ip)  :: mypart_id, part_id
+  integer(ip)  :: ivef_in_elem_id, elem_lid, max_elem_lid
+  integer(ip)  :: idof, idof_interior, dof_lid
+  integer(ip)  :: num_dofs_current_vef
+  integer(ip)  :: col, init_col, current_col
+  integer(ip)  :: num_parts, local_part_id, ipart
+
+  integer(igp)              :: max_elem_gid
+  integer(ip)               :: max_part_id
+  integer(ip) , allocatable :: local_idof(:)  
+  integer(ip) , allocatable :: lst_dofs_current_vef(:)
+  integer(ip) , allocatable :: dofs_max_part_id(:)
+  logical     , allocatable :: touched_neighbours(:)
+  integer(ip), allocatable  :: parts_visited(:)
+
+  type(environment_t)      , pointer :: par_environment
+  class(base_static_triangulation_t), pointer :: triangulation
+  type(cell_import_t)       , pointer :: cell_import
+  class(reference_fe_t)        , pointer :: reference_fe
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
+  type(itfc_fe_vef_iterator_t)           :: itfc_vef_iterator
+  type(fe_vef_accessor_t)                :: vef
+  type(fe_accessor_t)                    :: fe
+  type(i1p_t)              , allocatable :: elem2dof(:)
+
+
+  par_environment   => this%get_par_environment()
+  triangulation     => this%get_triangulation()
+  cell_import       => triangulation%get_cell_import()
+  assert ( par_environment%am_i_l1_task() )
+
+  ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
+  call memalloc ( number_subset_strong_dirichlet_dofs, local_idof, __FILE__, __LINE__ )
+  call memalloc ( number_subset_strong_dirichlet_dofs, lst_dofs_current_vef, __FILE__, __LINE__ )
+  call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, __FILE__, __LINE__ )
+
+  call memalloc ( cell_import%get_number_neighbours(), &
+                  touched_neighbours, &
+                  __FILE__, __LINE__ )
+
+  call memalloc ( cell_import%get_number_neighbours(), &
+                  parts_visited, &
+                  __FILE__, __LINE__ )
+  
+  allocate ( elem2dof(this%number_fields), stat=istat ) 
+  check (istat==0)
+  
+  mypart_id = par_environment%get_l1_rank() + 1
+  
+  current_col  = offset + 1
+  local_idof   = 0
+  
+  itfc_vef_iterator = this%create_itfc_fe_vef_iterator()
+
+  ! Traverse vefs on the interface
+  do while ( .not. itfc_vef_iterator%has_finished() )
+     call itfc_vef_iterator%current(vef)
+     if ( vef%is_at_boundary() .and. vef%is_at_interface() ) then
+
+        touched_neighbours = .false.
+        num_parts = 0
+        max_part_id = mypart_id
+        max_elem_gid = 0
+
+        num_dofs_current_vef = 0
+        ! Identify the total set of dofs in current vef
+        do ielem=1, vef%get_num_cells_around()
+           call vef%get_cell_around(ielem,fe)
+           !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+           part_id = fe%get_my_part()
+           elem_gid = fe%get_gid()
+           ivef = fe%find_lpos_vef_lid(vef%get_lid())
+           call fe%get_elem2dof( elem2dof )
+           reference_fe => fe%get_reference_fe(field_id)
+           own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+              idof =  own_dofs_on_vef_iterator%get_current()
+              dof_lid = elem2dof(field_id)%p(idof)
+              if ( dof_lid >= 0 ) then
+                 call own_dofs_on_vef_iterator%next()
+                 cycle
+              end if
+              dof_lid = global2subset_strong_dirichlet_dofs(-dof_lid)
+              assert ( dof_lid > 0 )
+              if ( elem_gid >= max_elem_gid ) then
+                 max_elem_gid = elem_gid
+                 if ( local_idof(dof_lid) == 0 ) then
+                    num_dofs_current_vef = num_dofs_current_vef + 1    
+                    lst_dofs_current_vef (num_dofs_current_vef) = dof_lid
+                 end if
+                 local_idof(dof_lid) = idof
+              end if
+              if ( part_id /= mypart_id ) then 
+                 local_part_id = cell_import%get_local_neighbour_id(part_id)
+                 if ( .not. touched_neighbours(local_part_id) ) then
+                    touched_neighbours (local_part_id) = .true.
+                    num_parts = num_parts + 1
+                    parts_visited (num_parts) = part_id
+                    max_part_id = max(part_id, max_part_id)
+                 end if
+              end if
+              call own_dofs_on_vef_iterator%next()
+           end do
+           !end if
+        end do
+
+        init_col = current_col
+        do idof=1, num_dofs_current_vef
+           dof_lid = lst_dofs_current_vef(idof)
+           do ipart=1, num_parts
+              part_id = parts_visited(ipart)
+              dofs_lid ( current_col ) = dof_lid 
+              dofs_max_part_id ( current_col-offset ) = max_part_id
+              raw_interface_data(neighbor_part_id_row, current_col) = part_id
+              raw_interface_data(dof_gid_row, current_col) = this%generate_non_consecutive_dof_gid(max_elem_gid, &
+                                                                                                   local_idof(dof_lid), &
+                                                                                                   field_id)
+              raw_interface_data(owner_flag_row, current_col) = num_parts + 1
+              current_col = current_col + 1
+           end do
+        end do
+     end if
+     call itfc_vef_iterator%next()
+  end do
+
+  deallocate(elem2dof, stat=istat ) 
+  check (istat==0)
+  
+  ! Free touch arrays
+  call memfree ( local_idof, __FILE__, __LINE__ )
+  call memfree ( lst_dofs_current_vef, __FILE__, __LINE__ )
+  call memfree ( parts_visited, __FILE__, __LINE__ )
+  call memfree ( touched_neighbours, __FILE__, __LINE__ )
+
+  call this%raw_interface_data_by_continuity_decide_owner (offset, &
+                                                           current_col-1, &
+                                                           raw_interface_data,&
+                                                           dofs_max_part_id,&
+                                                           dofs_lid)
+
+  call memfree ( dofs_max_part_id, __FILE__, __LINE__ )
+
+  num_itfc_couplings = current_col-1 
+end function par_fe_space_compute_boundary_raw_interface_data_by_continuity
+
 
 function par_fe_space_get_num_dimensions ( this )
   implicit none
@@ -965,6 +1264,215 @@ subroutine par_fe_space_interpolate_dirichlet_values(this, conditions, time, fie
     call this%serial_fe_space_t%interpolate_dirichlet_values(conditions,time,fields_to_interpolate)
   end if
 end subroutine par_fe_space_interpolate_dirichlet_values
+
+subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time, fields_to_project)
+  implicit none
+  class(par_fe_space_t)       , intent(inout)  :: this
+  class(conditions_t)         , intent(in)     :: conditions
+  real(rp)       , optional   , intent(in)     :: time
+  integer(ip)    , optional   , intent(in)     :: fields_to_project(:) 
+
+  !  Locals
+  integer(ip)                  , allocatable :: fields_to_project_(:)  
+  integer(ip)                                :: field_id, istat
+  integer(ip)                                :: component_id
+  integer(ip)                  , allocatable :: offset_component(:)
+  integer(ip)                                :: number_components
+  logical                      , allocatable :: components_code(:)
+
+  class(reference_fe_t)        , pointer     :: reference_fe
+
+  type(fe_iterator_t)      :: fe_iterator
+  type(fe_accessor_t)      :: fe
+
+  type(fe_face_iterator_t) :: fe_face_iterator
+  type(fe_face_accessor_t) :: fe_face
+
+  type(i1p_t), allocatable :: elem2dof(:)
+
+  type(par_sparse_matrix_t)            :: matrix
+  type(par_scalar_array_t)             :: rhs
+  type(par_scalar_array_t)             :: projected_nodal_values
+  type(serial_scalar_array_t), pointer :: projected_nodal_values_serial_scalar_array
+  integer(ip), allocatable             :: subset2global_dirichlet_dofs(:) 
+  integer(ip), allocatable             :: global2subset_dirichlet_dofs(:) 
+  integer(ip), allocatable             :: subset_elem2dof(:) 
+  type(iterative_linear_solver_t)      :: iterative_linear_solver
+
+  real(rp), allocatable       :: elmat(:,:)
+  real(rp), allocatable       :: elvec(:) 
+  integer(ip)                 :: qpoint, n_q_points, ishape, jshape
+
+
+  type(p_scalar_function_t), allocatable :: function_scalar_components(:)
+  real(rp)                 , allocatable :: scalar_function_values(:,:)
+  type(vector_field_t)     , allocatable :: vector_function_values(:,:)
+
+  type(parameterlist_t)  :: parameter_list
+  integer(ip)            :: FPLError
+  integer                :: iparm(64)
+  integer(ip)            :: ifield, jfield, idof, idof_subset, idof_global
+  integer(ip)            :: number_subset_strong_dirichlet_dofs
+  
+  type(environment_t), pointer :: par_environment
+  type(dof_import_t) :: dof_import
+  
+  par_environment => this%get_par_environment()
+  if ( par_environment%am_i_l1_task() ) then
+  
+  
+     number_components = this%get_number_components()
+     assert ( conditions%get_number_components() == number_components )
+     call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+
+     call this%allocate_and_fill_fields_to_project_(fields_to_project_, &
+                                                    fields_to_project)
+  
+     call this%allocate_and_fill_offset_component(offset_component)
+  
+     call memalloc ( this%get_max_number_shape_functions(), &
+                     this%get_max_number_shape_functions(), &
+                     elmat, __FILE__, __LINE__ )
+
+     call memalloc ( this%get_max_number_shape_functions(), &
+                     elvec, __FILE__, __LINE__ )
+
+     call memalloc ( this%get_max_number_shape_functions(), subset_elem2dof, __FILE__, __LINE__ )
+
+     allocate ( vector_function_values(this%get_max_number_face_quadrature_points(),1), & 
+                stat=istat); check(istat==0);
+
+     allocate ( scalar_function_values(this%get_max_number_face_quadrature_points(),1), & 
+                stat=istat); check(istat==0);
+
+     allocate ( function_scalar_components(this%triangulation%get_num_dimensions()), & 
+                stat=istat); check(istat==0);
+  
+     allocate( elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
+
+     number_subset_strong_dirichlet_dofs = this%allocate_and_fill_global2subset_and_inverse(fields_to_project_, &
+                                                                                            global2subset_dirichlet_dofs, &
+                                                                                            subset2global_dirichlet_dofs)
+
+     call this%compute_boundary_dof_import( fields_to_project_, &
+                                            number_subset_strong_dirichlet_dofs, &
+                                            global2subset_dirichlet_dofs, &
+                                            dof_import)
+  
+     ! Create linear system 
+     call matrix%create(par_environment, &
+                        dof_import, &
+                        symmetric_storage=.false.,       &
+                        is_symmetric=.false.,            &
+                        sign=SPARSE_MATRIX_SIGN_UNKNOWN )
+
+     call rhs%create_and_allocate(par_environment, dof_import) 
+     call rhs%init(0.0_rp)
+
+     ! Create data structures
+     call projected_nodal_values%create_and_allocate(par_environment, dof_import)
+     fe_face_iterator = this%create_fe_face_iterator()
+     do while ( .not. fe_face_iterator%has_finished() )
+        call fe_face_iterator%current(fe_face)
+        if ( fe_face%is_at_boundary() ) then
+           if ( fe_face%get_set_id() /= 0 ) then
+              call fe_face%update_integration() 
+              call fe_face%get_cell_around(1,fe)
+              call fe%get_elem2dof(elem2dof)
+              call conditions%get_components_code( fe_face%get_set_id(), components_code )
+              
+              do ifield = 1, size(fields_to_project_)    
+                 field_id = fields_to_project_(ifield) 
+                 component_id = offset_component(field_id) + 1
+                 if (components_code(component_id)) then
+                    
+                    call this%get_function_scalar_components(fe_face, &
+                                                             field_id, &
+                                                             component_id, &
+                                                             conditions, &
+                                                             function_scalar_components)
+                 
+                    call this%evaluate_vector_function_scalar_components(fe_face, &
+                                                                         field_id, &
+                                                                         function_scalar_components, &
+                                                                         scalar_function_values, &
+                                                                         vector_function_values, &
+                                                                         time)
+                 
+                    call this%project_curl_conforming_compute_elmat_elvec(fe_face, &
+                                                                          field_id, &
+                                                                          vector_function_values, &
+                                                                          elmat, &
+                                                                          elvec)
+              
+              
+                    ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
+                    subset_elem2dof = 0
+                    do idof = 1, size(elem2dof(field_id)%p)
+                       if ( (elem2dof(field_id)%p(idof) < 0) ) then 
+                          subset_elem2dof(idof) = global2subset_dirichlet_dofs( -elem2dof(field_id)%p(idof) )
+                       end if
+                    end do
+                 
+                    reference_fe => fe%get_reference_fe(field_id)
+                    call matrix%insert(num_rows = reference_fe%get_number_shape_functions(),& 
+                                      num_cols = reference_fe%get_number_shape_functions(),& 
+                                      ia       = subset_elem2dof, &
+                                      ja       = subset_elem2dof, &
+                                      ioffset  = 0, &
+                                      joffset  = 0, & 
+                                      val      = elmat)
+                    call rhs%add(num_entries = reference_fe%get_number_shape_functions(),& 
+                                 ia          = subset_elem2dof, &
+                                 ioffset     = 0, &
+                                 val         = elvec)
+                 end if
+              end do
+           end if
+        end if
+        call fe_face_iterator%next()
+     end do
+
+     call matrix%convert(csr_format)
+
+     call parameter_list%init()
+     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+     FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
+     assert(FPLError == 0)
+     call iterative_linear_solver%create(this%get_environment())
+     call iterative_linear_solver%set_type_from_string(cg_name)
+     call iterative_linear_solver%set_parameters_from_pl(parameter_list)
+     call iterative_linear_solver%set_operators(matrix, .identity. matrix) 
+     call iterative_linear_solver%solve(rhs,projected_nodal_values)
+     call iterative_linear_solver%free()
+     call parameter_list%free()
+     
+     projected_nodal_values_serial_scalar_array => projected_nodal_values%get_serial_scalar_array()
+     
+     ! Insert projected nodal values into strong_dirichlet_values array 
+     call this%strong_dirichlet_values%insert_subvector(iblock=1, &
+                                                        size_indices=number_subset_strong_dirichlet_dofs, &
+                                                        indices=subset2global_dirichlet_dofs,             &
+                                                        values=projected_nodal_values_serial_scalar_array%get_entries())
+
+     call matrix%free()
+     call rhs%free()
+     call projected_nodal_values%free()
+     call dof_import%free()
+     call memfree (elmat, __FILE__, __LINE__)
+     call memfree (elvec, __FILE__, __LINE__)
+     call memfree (offset_component, __FILE__, __LINE__ )
+     deallocate ( function_scalar_components, stat=istat); check(istat==0);
+     deallocate ( vector_function_values, stat=istat); check(istat==0);
+     deallocate ( scalar_function_values, stat=istat); check(istat==0);
+     call memfree ( components_code, __FILE__, __LINE__ )
+     call memfree ( subset2global_dirichlet_dofs, __FILE__, __LINE__ )
+     call memfree ( global2subset_dirichlet_dofs, __FILE__, __LINE__ ) 
+     call memfree ( fields_to_project_, __FILE__, __LINE__ )
+     call memfree ( subset_elem2dof, __FILE__, __LINE__ )
+     deallocate(elem2dof, stat=istat ); check (istat==0)
+  end if
+end subroutine par_fe_space_project_dirichlet_values_curl_conforming 
 
  subroutine par_fe_space_setup_coarse_dofs ( this, parameter_list )
   implicit none

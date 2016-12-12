@@ -224,8 +224,8 @@ module reference_fe_names
      private
      integer(ip)              :: number_dimensions
      integer(ip)              :: topology
-     integer(ip)              :: number_n_faces 
      integer(ip)              :: root
+     integer(ip)              :: number_n_faces 
      integer(ip), allocatable :: n_face_array(:)     
      integer(ip), allocatable :: ijk_to_index(:)
    contains
@@ -241,7 +241,7 @@ module reference_fe_names
      procedure          :: get_ijk_to_index         => polytope_tree_get_ijk_to_index
      procedure          :: print                    => polytope_tree_print
      procedure          :: free                     => polytope_tree_free
-     procedure, private :: fill_cell_tree 
+     procedure, private :: fill_polytope_chain 
   end type polytope_tree_t
 
   public :: polytope_tree_t
@@ -269,24 +269,24 @@ module reference_fe_names
   public :: node_array_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type n_face_iterator_t
+  type facet_iterator_t
      private 
      type(polytope_tree_t), pointer :: polytope_tree
-     integer(ip)                  :: parent
+     integer(ip)                  :: root
      integer(ip)                  :: component
      integer(ip)                  :: coordinate
    contains
-     procedure :: create        => n_face_iterator_create     
-     procedure :: current       => n_face_iterator_current
-     procedure :: init          => n_face_iterator_init
-     procedure :: next          => n_face_iterator_next
-     procedure :: has_finished  => n_face_iterator_has_finished
-     procedure :: print         => n_face_iterator_print
-     procedure, private :: current_ijk   => n_face_iterator_current_ijk 
-     procedure, private :: is_admissible => n_face_iterator_is_admissible   
-  end type n_face_iterator_t
+     procedure :: create        => facet_iterator_create     
+     procedure :: current       => facet_iterator_current
+     procedure :: init          => facet_iterator_init
+     procedure :: next          => facet_iterator_next
+     procedure :: has_finished  => facet_iterator_has_finished
+     procedure :: print         => facet_iterator_print
+     procedure, private :: current_ijk   => facet_iterator_current_ijk 
+     procedure, private :: is_admissible => facet_iterator_is_admissible   
+  end type facet_iterator_t
 
-  public :: n_face_iterator_t
+  public :: facet_iterator_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type node_iterator_t
