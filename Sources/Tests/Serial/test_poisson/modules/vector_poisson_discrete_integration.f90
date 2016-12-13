@@ -65,8 +65,9 @@ contains
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(volume_integrator_t), pointer :: vol_int
-    type(vector_field_t)               :: shape_trial
-    type(tensor_field_t)               :: grad_test, grad_trial
+    type(vector_field_t), allocatable  :: shape_values(:,:)
+    type(tensor_field_t), allocatable  :: shape_gradients(:,:)
+
     
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -120,25 +121,24 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
+       call vol_int%get_gradients(shape_gradients)
+       call vol_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
        
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! Diffusive term
           do idof = 1, num_dofs
-             call vol_int%get_gradient(idof, qpoint, grad_trial)
              do jdof = 1, num_dofs
-                call vol_int%get_gradient(jdof, qpoint, grad_test)
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * double_contract(grad_test,grad_trial)
+                elmat(idof,jdof) = elmat(idof,jdof) + factor * double_contract(shape_gradients(jdof,qpoint),shape_gradients(idof,qpoint))
              end do
           end do
           
           ! Source term
           call this%source_term%get_value_space(quad_coords(qpoint),source_term)
           do idof = 1, num_dofs
-             call vol_int%get_value(idof, qpoint, shape_trial)
-             elvec(idof) = elvec(idof) + factor * source_term * shape_trial
+             elvec(idof) = elvec(idof) + factor * source_term * shape_values(idof,qpoint)
           end do 
           
        end do
@@ -148,6 +148,8 @@ contains
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe_iterator%next()
     end do
+    deallocate(shape_values, stat=istat); check(istat==0);
+    deallocate(shape_gradients, stat=istat); check(istat==0);
     deallocate (elem2dof, stat=istat); check(istat==0);
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )

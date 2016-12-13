@@ -66,9 +66,8 @@ contains
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(volume_integrator_t), pointer :: vol_int
-    type(vector_field_t)               :: grad_test, grad_trial
-    real(rp)                           :: shape_trial
-
+    type(vector_field_t), allocatable  :: shape_gradients(:,:)
+    real(rp)            , allocatable  :: shape_values(:,:)
 
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -124,22 +123,21 @@ contains
           ! Compute element matrix and vector
           elmat = 0.0_rp
           elvec = 0.0_rp
+          call vol_int%get_gradients(shape_gradients)
+          call vol_int%get_values(shape_values)
           do qpoint = 1, num_quad_points
              factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
              do idof = 1, num_dofs
-                call vol_int%get_gradient(idof, qpoint, grad_trial)
                 do jdof = 1, num_dofs
-                   call vol_int%get_gradient(jdof, qpoint, grad_test)
                    ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial 
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
                 end do
              end do
              
              ! Source term
              call source_term%get_value(quad_coords(qpoint),source_term_value)
              do idof = 1, num_dofs
-                call vol_int%get_value(idof, qpoint, shape_trial)
-                elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial 
+                elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint) 
              end do
           end do
           
