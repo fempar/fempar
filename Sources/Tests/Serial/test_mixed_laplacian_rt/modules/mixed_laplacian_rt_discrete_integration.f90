@@ -79,9 +79,9 @@ contains
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(volume_integrator_t), pointer :: vol_int_velocity, vol_int_pressure
-    type(vector_field_t)               :: velocity_shape_trial, velocity_shape_test
-    real(rp)                           :: div_velocity_shape_test, pressure_shape_trial
-    real(rp)                           :: div_velocity_shape_trial, pressure_shape_test
+    type(vector_field_t), allocatable  :: velocity_shape_values(:,:)
+    real(rp)            , allocatable  :: velocity_shape_divs(:,:)
+    real(rp)            , allocatable  :: pressure_shape_values(:,:)
     
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -144,43 +144,39 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
+       call vol_int_velocity%get_values(velocity_shape_values)
+       call vol_int_velocity%get_divergences(velocity_shape_divs)
+       call vol_int_pressure%get_values(pressure_shape_values)
        do qpoint = 1, num_quad_points
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! \int_(v.u)
           do idof=1, num_dofs_per_field(1)
-            call vol_int_velocity%get_value(idof, qpoint, velocity_shape_test)
             do jdof=1, num_dofs_per_field(1)
-              call vol_int_velocity%get_value(jdof, qpoint, velocity_shape_trial)
               elmat(idof,jdof) = elmat(idof,jdof) + &
-                                 velocity_shape_trial*velocity_shape_test*factor
+                                 velocity_shape_values(jdof,qpoint)*velocity_shape_values(idof,qpoint)*factor
             end do
           end do
           
           ! \int_(div(v)*p)
           do idof=1, num_dofs_per_field(1)
-            call vol_int_velocity%get_divergence(idof, qpoint, div_velocity_shape_test)
             do jdof=1, num_dofs_per_field(2)
-              call vol_int_pressure%get_value(jdof, qpoint, pressure_shape_trial)
               elmat(idof,jdof+num_dofs_per_field(1)) = elmat(idof,jdof+num_dofs_per_field(1)) &
-                                                     - div_velocity_shape_test*pressure_shape_trial*factor
+                                                     - velocity_shape_divs(idof,qpoint)*pressure_shape_values(jdof,qpoint)*factor
             end do
           end do
           
           ! \int_(q*div(u))
           do idof=1, num_dofs_per_field(2)
-            call vol_int_pressure%get_value(idof, qpoint, pressure_shape_test)
             do jdof=1, num_dofs_per_field(1)
-              call vol_int_velocity%get_divergence(jdof, qpoint, div_velocity_shape_trial)
               elmat(idof+num_dofs_per_field(1),jdof) = elmat(idof+num_dofs_per_field(1),jdof) &
-                                                     - pressure_shape_test*div_velocity_shape_trial*factor
+                                                     - pressure_shape_values(idof,qpoint)*velocity_shape_divs(jdof,qpoint)*factor
             end do
           end do
 
           do idof=1, num_dofs_per_field(2)
-            call vol_int_pressure%get_value(idof, qpoint, pressure_shape_test)
             elvec(idof+num_dofs_per_field(1)) = elvec(idof+num_dofs_per_field(1)) - &
-                                                pressure_shape_test * pressure_source_term_values(qpoint)*factor
+                                                pressure_shape_values(idof,qpoint) * pressure_source_term_values(qpoint)*factor
           end do
        end do
        
@@ -217,13 +213,13 @@ contains
          call fe_face%update_integration() 
          quad_coords => face_map%get_quadrature_coordinates()
          call this%pressure_boundary_function%get_values_set(quad_coords, pressure_boundary_function_values)
+         call face_int_velocity%get_values(1,velocity_shape_values)
          do qpoint = 1, num_quad_points
             factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call face_map%get_normals(qpoint,normals)
             do idof = 1, num_dofs_per_field(1)
-              call face_int_velocity%get_value(idof,qpoint,1,velocity_shape_test)
               elvec(idof) = elvec(idof) - &
-                              pressure_boundary_function_values(qpoint)*velocity_shape_test*normals(1)*factor
+                              pressure_boundary_function_values(qpoint)*velocity_shape_values(idof,qpoint)*normals(1)*factor
             end do   
          end do
          call fe_face%get_elem2dof(1, elem2dof)

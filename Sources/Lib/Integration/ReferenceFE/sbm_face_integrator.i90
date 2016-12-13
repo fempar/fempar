@@ -411,6 +411,35 @@ subroutine face_integrator_get_value_vector (this, ishape, qpoint, ineigh, vecto
        &                                     ishape,actual_qpoint,vector_field)
 end subroutine face_integrator_get_value_vector
 
+!==================================================================================================
+subroutine face_integrator_get_values_scalar (this, ineigh, values)
+  implicit none
+  class(face_integrator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: ineigh
+  real(rp), allocatable   , intent(inout) :: values(:,:)
+
+  integer(ip) :: active_face_id
+  assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
+  active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
+  call this%reference_fe(ineigh)%p%get_values(this%interpolation_face_restriction(ineigh)%interpolation_o_map(active_face_id),   &
+       &                                     values,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+end subroutine face_integrator_get_values_scalar
+
+!==================================================================================================
+subroutine face_integrator_get_values_vector (this, ineigh, values)
+  implicit none
+  class(face_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: ineigh
+  type(vector_field_t), allocatable, intent(inout) :: values(:,:)
+
+  integer(ip) :: active_face_id
+  assert( this%reference_fe(ineigh)%p%field_type == field_type_vector )
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
+
+  active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
+  call this%reference_fe(ineigh)%p%get_values(this%interpolation_face_restriction(ineigh)%interpolation_o_map(active_face_id),   &
+       &                                      values, this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+end subroutine face_integrator_get_values_vector
 
 !=================================================================================================
 subroutine face_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, vector_field)
@@ -432,6 +461,20 @@ subroutine face_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, ve
 end subroutine face_integrator_get_gradient_scalar
 
 !=================================================================================================
+subroutine face_integrator_get_gradients_scalar (this, ineigh, gradients)
+  implicit none
+  class(face_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: ineigh
+  type(vector_field_t), allocatable, intent(inout) :: gradients(:,:)
+  integer(ip) :: active_face_id
+  assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
+  active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
+  call this%reference_fe(ineigh)%p%get_gradients(this%interpolation_face_restriction(ineigh)%interpolation_o_map(active_face_id),   &
+       &                                         gradients, this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+end subroutine face_integrator_get_gradients_scalar
+
+!=================================================================================================
 subroutine face_integrator_get_curl_vector (this, ishape, qpoint, ineigh, vector_field)
   implicit none
   class(face_integrator_t), intent(in)    :: this
@@ -449,6 +492,21 @@ subroutine face_integrator_get_curl_vector (this, ishape, qpoint, ineigh, vector
   call this%reference_fe(ineigh)%p%get_curl(this%interpolation_face_restriction(ineigh)%interpolation_o_map(active_face_id),   &
        &                                        ishape,actual_qpoint,vector_field)
 end subroutine face_integrator_get_curl_vector
+
+!=================================================================================================
+subroutine face_integrator_get_curls_vector (this, ineigh, curls)
+  implicit none
+  class(face_integrator_t)             , intent(in)    :: this
+  integer(ip)                          , intent(in)    :: ineigh
+  type(vector_field_t)    , allocatable, intent(inout) :: curls(:,:)
+  
+  integer(ip) :: active_face_id
+  assert( this%reference_fe(ineigh)%p%field_type == field_type_vector )
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
+  active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
+  call this%reference_fe(ineigh)%p%get_curls(this%interpolation_face_restriction(ineigh)%interpolation_o_map(active_face_id),   &
+       &                                     curls,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+end subroutine face_integrator_get_curls_vector
 
 !=================================================================================================
 function face_integrator_get_current_qpoints_perm ( this, neighbour_id )
