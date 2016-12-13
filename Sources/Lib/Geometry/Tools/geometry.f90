@@ -145,33 +145,13 @@ module geometry_names
 
 contains
 
-    subroutine move_forward_to_find_string(unit, string, stopstring, line, position)
-    !-----------------------------------------------------------------
-    !< Move forward line by line in order to find the given string
-    !< and return the position of the string in the line
-    !-----------------------------------------------------------------
-        integer(ip),    intent(in)    :: unit
-        character(*),   intent(in)    :: string
-        character(*),   intent(in)    :: stopstring
-        character(256), intent(inout) :: line
-        integer(ip),    intent(out)   :: position
-        integer(ip)                   :: error
-    !-----------------------------------------------------------------
-        position = index(string=line, substring=string, back=.false., kind=ip)
-        do while(position==0 .and. index(string=line, substring=stopstring, back=.false., kind=ip)==0)
-            read(unit=unit,fmt='(a)',iostat=error) line
-            if(IS_IOSTAT_END(error) .or. IS_IOSTAT_EOR(error)) exit
-            position = index(string=line, substring=string, back=.false., kind=ip)
-        end do
-    end subroutine
-
   !=============================================================================
   ! Point TBP's
   !=============================================================================
 
     subroutine point_create(this, id, coord)
     !-----------------------------------------------------------------
-    !< Read a point
+    !< Create a point
     !-----------------------------------------------------------------
         class(geometric_point_t), intent(inout) :: this
         integer(ip)             , intent(in)    :: id
@@ -913,6 +893,8 @@ contains
         integer(ip)                              :: i, num_points, num_lines
         integer(ip)                              :: error
     !-----------------------------------------------------------------
+        assert(allocated(this%surfaces) .and. size(this%surfaces)>= this%num_surfaces+1)
+        assert(all(coord1<=coord2) .and. all(coord3<=coord4) .and. all(coord1<=coord3))
         ! Create points
         !< 3-------4 
         !< |       | 
@@ -1029,6 +1011,7 @@ contains
         integer(ip)                              :: error
     !-----------------------------------------------------------------
         assert(allocated(this%volumes) .and. size(this%volumes)>= this%num_volumes+1)
+        assert(all(coord1<=coord2) .and. all(coord3<=coord4) .and. all(coord5<=coord6) .and. all(coord7<=coord8) .and. all(coord1<=coord3) .and. all(coord1<=coord5) .and. all(coord5<=coord7))
         ! Create 8xpoints
         !<     7-------8
         !<    /       /|
