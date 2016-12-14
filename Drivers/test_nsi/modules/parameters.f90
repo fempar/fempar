@@ -148,7 +148,7 @@ contains
     integer(ip)                    :: error = 0
 
     ! Point lists
-    list => this%get_parameters()
+    list => this%get_values()
 
     ! IO parameters
     ! -------------
@@ -613,7 +613,7 @@ contains
     character(len=:), allocatable  :: get_dir_path
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list  => this%get_parameters()
+    list  => this%get_values()
     assert(list%isAssignable(dir_path_key, 'string'))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
@@ -630,7 +630,7 @@ contains
     integer(ip)                    :: get_triangulation_type
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list  => this%get_parameters()
+    list  => this%get_values()
     assert(list%isAssignable(triangulation_generate_key, get_triangulation_type))
     error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
     assert(error==0)
@@ -647,7 +647,7 @@ contains
     integer(ip)                    :: get_velocity_order
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list => this%get_parameters()
+    list => this%get_values()
     assert(list%isAssignable(velocity_reference_fe_order_key, get_velocity_order))
     error = list%get(key = velocity_reference_fe_order_key, value = get_velocity_order)
     assert(error==0)
@@ -664,7 +664,7 @@ contains
     integer(ip)                    :: get_pressure_order
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list => this%get_parameters()
+    list => this%get_values()
     assert(list%isAssignable(pressure_reference_fe_order_key, get_pressure_order))
     error = list%get(key = pressure_reference_fe_order_key, value = get_pressure_order)
     assert(error==0)
@@ -681,7 +681,7 @@ contains
     character(len=2048)            :: get_vms_method_type
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list => this%get_parameters()
+    list => this%get_values()
     assert(list%isAssignable(vms_method_key, get_vms_method_type))
     error = list%get(key = vms_method_key, value = get_vms_method_type)
     assert(error==0)
@@ -698,7 +698,7 @@ contains
     character(len=2048)            :: get_time_integrator_type
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list => this%get_parameters()
+    list => this%get_values()
     assert(list%isAssignable(time_integrator_type_key, get_time_integrator_type))
     error = list%get(key = time_integrator_type_key, value = get_time_integrator_type)
     assert(error==0)
@@ -715,7 +715,7 @@ contains
     character(len=2048)            :: get_solver_type
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list => this%get_parameters()
+    list => this%get_values()
     assert(list%isAssignable(solver_type_key, get_solver_type))
     error = list%get(key = solver_type_key, value = get_solver_type)
     assert(error==0)
@@ -732,7 +732,7 @@ contains
     real(rp)                       :: get_solver_rtol
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list => this%get_parameters()
+    list => this%get_values()
     assert(list%isAssignable(solver_rtol_key, get_solver_rtol))
     error = list%get(key = solver_rtol_key, value = get_solver_rtol)
     assert(error==0)
@@ -749,7 +749,7 @@ contains
     integer(ip)                    :: get_solver_trace
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list => this%get_parameters()
+    list => this%get_values()
     assert(list%isAssignable(solver_trace_key, get_solver_trace))
     error = list%get(key = solver_trace_key, value = get_solver_trace)
     assert(error==0)
@@ -766,7 +766,7 @@ contains
     character(len=2048)            :: get_nonlinear_solver_type
     type(ParameterList_t), pointer :: list
     integer(ip)                    :: error
-    list => this%get_parameters()
+    list => this%get_values()
     assert(list%isAssignable(nonlinear_solver_type_key, get_nonlinear_solver_type))
     error = list%get(key = nonlinear_solver_type_key, value = get_nonlinear_solver_type)
     assert(error==0)

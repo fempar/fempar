@@ -47,7 +47,7 @@ contains
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip) :: error
 
-    list        => this%get_parameters()
+    list        => this%get_values()
     switches    => this%get_switches()
     switches_ab => this%get_switches_ab()
     helpers     => this%get_helpers()
@@ -117,7 +117,7 @@ program partitioner
 
   call fempar_init()
   call input%create()
-  parameters => input%get_parameters()
+  parameters => input%get_values()
 
   ! Read and partition gmesh into lmesh
   call gmesh%read(parameters)
