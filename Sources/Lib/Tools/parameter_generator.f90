@@ -169,19 +169,19 @@ contains
      implicit none
      class(parameter_generator_t), intent(in) :: this
      logical :: has_groups
-     character(len=:), allocatable :: key
+     character(len=:), allocatable  :: key
      type(ParameterListIterator_t)  :: Iterator
      type(ParameterListIterator_t)  :: Sublist_Iterator
-     class(ParameterList_t), pointer :: switches_sublist
-     class(ParameterList_t), pointer :: switches_ab_sublist
-     class(ParameterList_t), pointer :: helpers_sublist
-     class(ParameterList_t), pointer :: required_sublist
-     class(ParameterList_t), pointer :: values_sublist
+     type(ParameterList_t), pointer :: switches_sublist
+     type(ParameterList_t), pointer :: switches_ab_sublist
+     type(ParameterList_t), pointer :: helpers_sublist
+     type(ParameterList_t), pointer :: required_sublist
+     type(ParameterList_t), pointer :: values_sublist
      
      assert(this%switches%length() == this%switches_ab%length())
      assert(this%switches%length() == this%helpers%length())
      assert(this%switches%length() == this%required%length())
-     assert(this%switches%length() == this%values%length())
+!     assert(this%switches%length() == this%values%length())
      
      Iterator = this%switches%GetIterator()
      has_groups =  Iterator%isSubList()
@@ -233,11 +233,11 @@ contains
     character(len=:), allocatable :: key, cvalue !, switch, switch_ab, help
     type(ParameterListIterator_t) :: Iterator
 
-    class(ParameterList_t), pointer :: switches_sublist
-    class(ParameterList_t), pointer :: switches_ab_sublist
-    class(ParameterList_t), pointer :: helpers_sublist
-    class(ParameterList_t), pointer :: required_sublist
-    class(ParameterList_t), pointer :: values_sublist
+    type(ParameterList_t), pointer :: switches_sublist
+    type(ParameterList_t), pointer :: switches_ab_sublist
+    type(ParameterList_t), pointer :: helpers_sublist
+    type(ParameterList_t), pointer :: required_sublist
+    type(ParameterList_t), pointer :: values_sublist
     
     error = 0
     Iterator = this%switches%GetIterator()
@@ -309,19 +309,13 @@ contains
   subroutine parameter_generator_parse(this)
     implicit none
     class(parameter_generator_t), intent(inout) :: this
-    class(parameterlist_t), pointer       :: switches_sublist
-    class(parameterlist_t), pointer       :: values_sublist
+    type(parameterlist_t), pointer       :: switches_sublist
+    type(parameterlist_t), pointer       :: values_sublist
     integer(ip)                :: istat, error
     character(len=str_cla_len) :: switch ! , cvalue
     integer(ip)                :: ivalue
-
     character(len=:), allocatable :: key
     type(ParameterListIterator_t) :: Iterator
-    class(*), pointer :: val0
-    class(*), pointer :: val1(:)
-    integer(ip), allocatable :: val_ip(:)
-    real(rp)   , allocatable :: val_rp(:)
-    character(512)           :: val_ch
     
     call this%cli%parse(error=error); assert(error==0)
 
@@ -360,7 +354,7 @@ contains
     class(*), pointer :: val1(:)
     integer(ip), allocatable :: val_ip(:)
     real(rp)   , allocatable :: val_rp(:)
-    character(512)           :: val_ch
+    character(str_cla_len)   :: val_ch
 
     Iterator = switches%GetIterator()
     do while (.not. Iterator%HasFinished())
