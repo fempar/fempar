@@ -331,7 +331,7 @@ contains
     call this%free_vector_spaces()
   end subroutine binary_operator_free
 
-  subroutine binary_operator_create(op1,op2,res) 
+  recursive subroutine binary_operator_create(op1,op2,res) 
     implicit none
     class(operator_t)  , intent(in)    :: op1, op2
     class(binary_operator_t), intent(inout) :: res
@@ -379,7 +379,7 @@ contains
     call op2%CleanTemp()
   end subroutine binary_operator_create
   
-    subroutine binary_operator_assign(this,rvalue)
+    recursive subroutine binary_operator_assign(this,rvalue)
     implicit none
     class(binary_operator_t), intent(inout) :: this
     class(operator_t)  , intent(in)    :: rvalue 
@@ -416,7 +416,7 @@ contains
     call this%free_vector_spaces()
   end subroutine unary_operator_free
 
-  subroutine unary_operator_assign(this,rvalue)
+  recursive subroutine unary_operator_assign(this,rvalue)
     implicit none
     class(unary_operator_t), intent(inout) :: this
     class(operator_t)  , intent(in)    :: rvalue
@@ -431,7 +431,7 @@ contains
     end select
   end subroutine unary_operator_assign
 
-  subroutine unary_operator_create(op,res) 
+  recursive subroutine unary_operator_create(op,res) 
     implicit none
     class(operator_t)  , intent(in)    :: op
     class(unary_operator_t), intent(inout) :: res
@@ -539,7 +539,7 @@ contains
     end if
   end subroutine lvalue_operator_free
 
-  function minus_operator_create(op) result (res)
+  recursive function minus_operator_create(op) result (res)
     implicit none
     class(operator_t)    , intent(in)  :: op
     type(minus_operator_t) :: res
@@ -559,7 +559,7 @@ contains
     call domain_op%clone(domain_res)
   end function minus_operator_create
   
-  function identity_operator_create(op) result (res)
+  recursive function identity_operator_create(op) result (res)
     implicit none
     class(operator_t)    , intent(in)  :: op
     type(identity_operator_t) :: res
@@ -583,7 +583,7 @@ contains
 !!$  ! Construction and deallocation functions/subroutines of the nodes of! 
 !!$  ! the tree that represents an expression among matrix operators      !
 !!$  ! -------------------------------------------------------------------!
-  function sum_operator_create(op1,op2) result (res)
+  recursive function sum_operator_create(op1,op2) result (res)
     implicit none
     class(operator_t), intent(in)  :: op1, op2
     type(sum_operator_t)  :: res
@@ -622,7 +622,7 @@ contains
     call domain_op1%clone(domain_res)
   end function sum_operator_create
 
-  function sub_operator_create(op1,op2) result (res)
+  recursive function sub_operator_create(op1,op2) result (res)
     implicit none
     class(operator_t), intent(in)  :: op1, op2
     type(sub_operator_t)  :: res
@@ -655,7 +655,7 @@ contains
     call domain_op1%clone(domain_res)
   end function sub_operator_create
   
-  function mult_operator_create(op1,op2) result (res)
+  recursive function mult_operator_create(op1,op2) result (res)
     implicit none
     class(operator_t), intent(in)  :: op1, op2
     type(mult_operator_t) :: res
@@ -683,7 +683,7 @@ contains
     call domain_op2%clone(domain_res)
   end function mult_operator_create
 
-  function scal_left_operator_create(alpha, op_left) result (res)
+  recursive function scal_left_operator_create(alpha, op_left) result (res)
     implicit none
     class(operator_t)    , intent(in)  :: op_left
     real(rp)             , intent(in)  :: alpha
@@ -707,7 +707,7 @@ contains
     call domain_op_left%clone(domain_res)
   end function scal_left_operator_create
 
-  function scal_right_operator_create(op_right, alpha) result (res)
+  recursive function scal_right_operator_create(op_right, alpha) result (res)
     implicit none
     class(operator_t)       , intent(in)  :: op_right
     real(rp)                , intent(in)  :: alpha
@@ -729,7 +729,7 @@ contains
     call domain_op_right%clone(domain_res)
   end function scal_right_operator_create
   
-    subroutine scal_operator_assign(this,rvalue)
+  recursive subroutine scal_operator_assign(this,rvalue)
     implicit none
     class(scal_operator_t), intent(inout) :: this
     class(operator_t)       , intent(in)    :: rvalue
@@ -749,7 +749,7 @@ contains
   !-------------------------------------!
   ! apply implementations               !
   !-------------------------------------!
-  subroutine identity_operator_apply(this,x,y)
+  recursive subroutine identity_operator_apply(this,x,y)
     implicit none
     class(identity_operator_t), intent(in) :: this
     class(vector_t), intent(in)    :: x
@@ -764,7 +764,7 @@ contains
     call this%CleanTemp()
   end subroutine identity_operator_apply
   
-  subroutine sum_operator_apply(this,x,y)
+  recursive subroutine sum_operator_apply(this,x,y)
     implicit none
     class(sum_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
@@ -788,7 +788,7 @@ contains
     deallocate(w)
   end subroutine sum_operator_apply
 
-  subroutine sub_operator_apply(this,x,y)
+  recursive subroutine sub_operator_apply(this,x,y)
     implicit none
     class(sub_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
@@ -812,7 +812,7 @@ contains
     deallocate(w)
   end subroutine sub_operator_apply
   
-  subroutine mult_operator_apply(this,x,y)
+  recursive subroutine mult_operator_apply(this,x,y)
     implicit none
     class(mult_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
@@ -831,7 +831,7 @@ contains
     deallocate(w)
   end subroutine mult_operator_apply
 
-  subroutine scal_operator_apply(this,x,y)
+  recursive subroutine scal_operator_apply(this,x,y)
     implicit none
     class(scal_operator_t), intent(in)   :: this
     class(vector_t), intent(in)    :: x
@@ -846,7 +846,7 @@ contains
     call this%CleanTemp()
   end subroutine scal_operator_apply
 
-  subroutine minus_operator_apply(this,x,y)
+  recursive subroutine minus_operator_apply(this,x,y)
     implicit none
     class(minus_operator_t), intent(in)  :: this
     class(vector_t), intent(in)    :: x
@@ -860,7 +860,7 @@ contains
   end subroutine minus_operator_apply
 
 
-  subroutine lvalue_operator_apply(this,x,y)
+  recursive subroutine lvalue_operator_apply(this,x,y)
     implicit none
     class(lvalue_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
