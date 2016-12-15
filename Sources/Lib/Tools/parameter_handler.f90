@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module parameter_generator_names
+module parameter_handler_names
   use types_names
   use flap, only : Command_Line_Interface
   use FPL
@@ -33,12 +33,14 @@ module parameter_generator_names
   implicit none
   private
 
-  ! This type implements the coupling between FPL and the cli. From a user point
-  ! of view it is only necessary to extend it implementing set_default(), where the 
-  ! parameters required by the user have to be registered with a default value
-  ! and for those that could be read from the command line register the switches,
-  ! abbreviated_switches, helpers and whether they are mandatory or not.
-  type, abstract :: parameter_generator_t 
+  type, abstract :: parameter_handler_t 
+  !------------------------------------------------------------------
+  !< This type implements the coupling between FPL and the cli. From a user point
+  !< of view it is only necessary to extend it implementing set_default(), where the 
+  !< parameters required by the user have to be registered with a default value
+  !< and for those that could be read from the command line register the switches,
+  !< abbreviated_switches, helpers and whether they are mandatory or not.
+  !------------------------------------------------------------------
      private 
      type(Command_Line_Interface)  :: cli 
      type(ParameterList_t)         :: values
@@ -47,45 +49,47 @@ module parameter_generator_names
      type(ParameterList_t)         :: helpers
      type(ParameterList_t)         :: required
    contains
-     procedure                                  :: create                   => parameter_generator_create
-     procedure(set_default_interface), deferred :: set_default 
-     procedure, non_overridable, private        :: assert_lists_consistency => parameter_generator_assert_lists_consistency
-     procedure, non_overridable, private        :: add_to_cli               => parameter_generator_add_to_cli
-     procedure, non_overridable, private        :: add_to_cli_group         => parameter_generator_add_to_cli_group
-     procedure, non_overridable, private        :: parse                    => parameter_generator_parse
-     procedure, non_overridable, private        :: parse_group              => parameter_generator_parse_group
-     procedure, non_overridable                 :: free                     => parameter_generator_free
-     procedure, non_overridable                 :: get_values               => parameter_generator_get_values 
-     procedure, non_overridable                 :: get_switches             => parameter_generator_get_switches   
-     procedure, non_overridable                 :: get_switches_ab          => parameter_generator_get_switches_ab
-     procedure, non_overridable                 :: get_helpers              => parameter_generator_get_helpers    
-     procedure, non_overridable                 :: get_required             => parameter_generator_get_required   
-     procedure, non_overridable, private        :: initialize_lists         => parameter_generator_initialize_lists  
-  end type parameter_generator_t
+     procedure                                  :: create                   => parameter_handler_create
+     procedure(define_parameters_interface), deferred :: define_parameters 
+     procedure, non_overridable, private        :: assert_lists_consistency => parameter_handler_assert_lists_consistency
+     procedure, non_overridable, private        :: add_to_cli               => parameter_handler_add_to_cli
+     procedure, non_overridable, private        :: add_to_cli_group         => parameter_handler_add_to_cli_group
+     procedure, non_overridable, private        :: parse                    => parameter_handler_parse
+     procedure, non_overridable, private        :: parse_group              => parameter_handler_parse_group
+     procedure, non_overridable                 :: free                     => parameter_handler_free
+     procedure, non_overridable                 :: get_values               => parameter_handler_get_values 
+     procedure, non_overridable                 :: get_switches             => parameter_handler_get_switches   
+     procedure, non_overridable                 :: get_switches_ab          => parameter_handler_get_switches_ab
+     procedure, non_overridable                 :: get_helpers              => parameter_handler_get_helpers    
+     procedure, non_overridable                 :: get_required             => parameter_handler_get_required   
+     procedure, non_overridable, private        :: initialize_lists         => parameter_handler_initialize_lists  
+  end type parameter_handler_t
 
-  public :: parameter_generator_t
+  public :: parameter_handler_t
   
   
   abstract interface
-    ! Deferred binding that all subclasses are forced to implement.
-    ! Subclasses have to (consistently) set-up the type(ParameterList_t)
-    ! member variables above s.t. they can be transferred to the cli
-    ! instance by means of the parse binding (see the code of 
-    ! parameter_generator_assert_lists_consistency)
-    subroutine set_default_interface(this)
-      import :: parameter_generator_t
+    subroutine define_parameters_interface(this)
+    !------------------------------------------------------------------
+    !< Deferred binding that all subclasses are forced to implement.
+    !< Subclasses have to (consistently) set-up the type(ParameterList_t)
+    !< member variables above s.t. they can be transferred to the cli
+    !< instance by means of the parse binding (see the code of 
+    !< parameter_generator_assert_lists_consistency)
+    !------------------------------------------------------------------
+      import :: parameter_handler_t
       implicit none
-      class(parameter_generator_t), intent(inout) :: this
-    end subroutine set_default_interface
+      class(parameter_handler_t), intent(inout) :: this
+    end subroutine define_parameters_interface
   end interface
 
 contains
 
-  subroutine parameter_generator_create(this, progname, version, help, description, &
+  subroutine parameter_handler_create(this, progname, version, help, description, &
                                         license, authors, examples, epilog, disable_hv, &
                                         usage_lun, error_lun, version_lun)
     implicit none
-    class(parameter_generator_t), intent(inout) :: this
+    class(parameter_handler_t), intent(inout) :: this
     character(*),       optional, intent(in)    :: progname          !< Program name.
     character(*),       optional, intent(in)    :: version           !< Program version.
     character(*),       optional, intent(in)    :: help              !< Help message introducing the CLI usage.
@@ -106,56 +110,56 @@ contains
                        usage_lun, error_lun, version_lun)
     
     call this%initialize_lists()
-    call this%set_default()
+    call this%define_parameters()
 #ifdef DEBUG
     call this%assert_lists_consistency()
 #endif
     call this%add_to_cli()
     call this%parse()
-  end subroutine parameter_generator_create
+  end subroutine parameter_handler_create
 
   !==================================================================================================
-  function parameter_generator_get_values(this)
+  function parameter_handler_get_values(this)
     implicit none
-    class(parameter_generator_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: parameter_generator_get_values
-    parameter_generator_get_values => this%values
-  end function parameter_generator_get_values
+    class(parameter_handler_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_handler_get_values
+    parameter_handler_get_values => this%values
+  end function parameter_handler_get_values
 
   !==================================================================================================
-  function parameter_generator_get_switches(this)
+  function parameter_handler_get_switches(this)
     implicit none
-    class(parameter_generator_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: parameter_generator_get_switches
-    parameter_generator_get_switches => this%switches
-  end function parameter_generator_get_switches
+    class(parameter_handler_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_handler_get_switches
+    parameter_handler_get_switches => this%switches
+  end function parameter_handler_get_switches
   !==================================================================================================
-  function parameter_generator_get_switches_ab(this)
+  function parameter_handler_get_switches_ab(this)
     implicit none
-    class(parameter_generator_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: parameter_generator_get_switches_ab
-    parameter_generator_get_switches_ab => this%switches_ab
-  end function parameter_generator_get_switches_ab
+    class(parameter_handler_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_handler_get_switches_ab
+    parameter_handler_get_switches_ab => this%switches_ab
+  end function parameter_handler_get_switches_ab
   !==================================================================================================
-  function parameter_generator_get_helpers(this)
+  function parameter_handler_get_helpers(this)
     implicit none
-    class(parameter_generator_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: parameter_generator_get_helpers
-    parameter_generator_get_helpers => this%helpers
-  end function parameter_generator_get_helpers
+    class(parameter_handler_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_handler_get_helpers
+    parameter_handler_get_helpers => this%helpers
+  end function parameter_handler_get_helpers
 
   !==================================================================================================
-  function parameter_generator_get_required(this)
+  function parameter_handler_get_required(this)
     implicit none
-    class(parameter_generator_t), target , intent(in) :: this
-    type(ParameterList_t)  , pointer    :: parameter_generator_get_required
-    parameter_generator_get_required => this%required
-  end function parameter_generator_get_required
+    class(parameter_handler_t), target , intent(in) :: this
+    type(ParameterList_t)  , pointer    :: parameter_handler_get_required
+    parameter_handler_get_required => this%required
+  end function parameter_handler_get_required
 
   !==================================================================================================
-  subroutine parameter_generator_free(this)
+  subroutine parameter_handler_free(this)
     implicit none
-    class(parameter_generator_t), intent(inout) :: this
+    class(parameter_handler_t), intent(inout) :: this
     call this%values%free()
     call this%switches%free()
     call this%switches_ab%free()
@@ -163,11 +167,11 @@ contains
     call this%required%free()
     call this%helpers%free()
     call this%cli%free()
-   end subroutine parameter_generator_free
+   end subroutine parameter_handler_free
    
-   subroutine parameter_generator_assert_lists_consistency(this)
+   subroutine parameter_handler_assert_lists_consistency(this)
      implicit none
-     class(parameter_generator_t), intent(in) :: this
+     class(parameter_handler_t), intent(in) :: this
      logical :: has_groups
      character(len=:), allocatable  :: key
      type(ParameterListIterator_t)  :: Iterator
@@ -219,13 +223,13 @@ contains
           end if
           call Iterator%Next()
      end do
-   end subroutine parameter_generator_assert_lists_consistency
+   end subroutine parameter_handler_assert_lists_consistency
    
    
   !==================================================================================================
-  subroutine parameter_generator_add_to_cli(this)
+  subroutine parameter_handler_add_to_cli(this)
     implicit none
-    class(parameter_generator_t) , intent(inout) :: this
+    class(parameter_handler_t) , intent(inout) :: this
     integer(ip)                   :: error
     character(len=:), allocatable :: switch, switch_ab, help ! , cvalue
     logical                       :: required
@@ -261,12 +265,12 @@ contains
       call this%add_to_cli_group(this%switches,this%switches_ab,this%helpers,this%required,this%values)
     end if  
 
-  end subroutine parameter_generator_add_to_cli
+  end subroutine parameter_handler_add_to_cli
   
   !==================================================================================================
-  subroutine parameter_generator_add_to_cli_group(this,switches,switches_ab,helpers,required,values,group)
+  subroutine parameter_handler_add_to_cli_group(this,switches,switches_ab,helpers,required,values,group)
     implicit none
-    class(parameter_generator_t) , intent(inout) :: this
+    class(parameter_handler_t) , intent(inout) :: this
     type(parameterlist_t)       , intent(in)    :: switches
     type(parameterlist_t)       , intent(in)    :: switches_ab
     type(parameterlist_t)       , intent(in)    :: helpers
@@ -303,12 +307,12 @@ contains
        assert(error==0)
        call Iterator%Next()
     end do
-  end subroutine parameter_generator_add_to_cli_group
+  end subroutine parameter_handler_add_to_cli_group
 
   !==================================================================================================
-  subroutine parameter_generator_parse(this)
+  subroutine parameter_handler_parse(this)
     implicit none
-    class(parameter_generator_t), intent(inout) :: this
+    class(parameter_handler_t), intent(inout) :: this
     type(parameterlist_t), pointer       :: switches_sublist
     type(parameterlist_t), pointer       :: values_sublist
     integer(ip)                :: istat, error
@@ -335,12 +339,12 @@ contains
       call this%parse_group(this%switches, this%values)
     endif
 
-  end subroutine parameter_generator_parse  
+  end subroutine parameter_handler_parse  
 
   
-  subroutine parameter_generator_parse_group(this,switches,values,group)
+  subroutine parameter_handler_parse_group(this,switches,values,group)
     implicit none
-    class(parameter_generator_t) , intent(inout) :: this
+    class(parameter_handler_t) , intent(inout) :: this
     type(parameterlist_t)       , intent(inout)    :: switches
     type(parameterlist_t)       , intent(inout)    :: values
     character(*), optional, intent(in)    :: group
@@ -387,17 +391,17 @@ contains
        call Iterator%Next()
     enddo
 
-  end subroutine parameter_generator_parse_group
+  end subroutine parameter_handler_parse_group
 
   !==================================================================================================
-  subroutine parameter_generator_initialize_lists(this)
+  subroutine parameter_handler_initialize_lists(this)
     implicit none
-    class(parameter_generator_t), intent(inout) :: this
+    class(parameter_handler_t), intent(inout) :: this
     call this%values%init()
     call this%switches%init()
     call this%switches_ab%init()
     call this%helpers%init()
     call this%required%init()
-  end subroutine parameter_generator_initialize_lists
+  end subroutine parameter_handler_initialize_lists
 
-end module parameter_generator_names 
+end module parameter_handler_names 

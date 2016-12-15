@@ -48,10 +48,10 @@ module hts_nedelec_params_names
     character(len=*), parameter :: relative_nonlinear_tolerance_key    = 'relative_nonlinear_tolerance' 
     character(len=*), parameter :: max_nonlinear_iterations_key        = 'max_nonlinear_iterations' 
        
-  type, extends(parameter_generator_t) :: hts_nedelec_params_t
+  type, extends(parameter_handler_t) :: hts_nedelec_params_t
      private
      contains
-       procedure                              :: set_default  => hts_nedelec_params_set_default
+       procedure                              :: define_parameters  => hts_nedelec_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_dir_path_out
@@ -62,7 +62,7 @@ module hts_nedelec_params_names
        procedure, non_overridable             :: get_magnetic_field_reference_fe_order
        procedure, non_overridable             :: get_magnetic_pressure_reference_fe_order
        procedure, non_overridable             :: get_external_magnetic_field_amplitude
-       procedure, non_overridable             :: get_external_magnetic_field_frequency
+       procedure, non_overridable             :: get_external_magnetic_field_frequencys
        procedure, non_overridable             :: get_external_current_amplitude
        procedure, non_overridable             :: get_external_current_frequency
        procedure, non_overridable             :: get_apply_current_density_constraint
@@ -94,7 +94,7 @@ module hts_nedelec_params_names
 contains
 
   !==================================================================================================
-  subroutine hts_nedelec_params_set_default(this)
+  subroutine hts_nedelec_params_define_parameters(this)
     implicit none
     class(hts_nedelec_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
@@ -382,7 +382,7 @@ contains
     error = required%set(key = relative_nonlinear_tolerance_key   , value = .false.)  ;check(error==0)
     error = required%set(key = max_nonlinear_iterations_key       , value = .false.)  ;check(error==0)
 
-  end subroutine hts_nedelec_params_set_default
+  end subroutine hts_nedelec_params_define_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)

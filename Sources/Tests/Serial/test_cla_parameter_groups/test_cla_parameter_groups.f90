@@ -5,16 +5,16 @@ module custom_parameter_generator_names
 implicit none
 #include "debug.i90"
 
-    type, extends(parameter_generator_t) :: cla_parameter_groups_t
+    type, extends(parameter_handler_t) :: cla_parameter_groups_t
     contains
-        procedure, public :: set_default  => cla_parameter_groups_set_default
-        procedure, public :: add_to_group => cla_parameter_groups_add_to_group
-        procedure, public :: print       => cla_parameter_groups_print
+        procedure, public :: define_parameters  => cla_parameter_groups_define_parameters
+        procedure, public :: add_to_group       => cla_parameter_groups_add_to_group
+        procedure, public :: print              => cla_parameter_groups_print
     end type
 
 contains
 
-    subroutine cla_parameter_groups_set_default(this)
+    subroutine cla_parameter_groups_define_parameters(this)
         class(cla_parameter_groups_t), intent(inout) :: this
         type(ParameterList_t), pointer               :: switches
         type(ParameterList_t), pointer               :: switches_ab

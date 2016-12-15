@@ -14,10 +14,10 @@ module par_pb_bddc_poisson_params_names
   character(len=*), parameter :: standard_bddc              = 'standard_bddc' 
   character(len=*), parameter :: pb_bddc                    = 'pb_bddc' 
 
-  type, extends(parameter_generator_t) :: par_pb_bddc_poisson_params_t
+  type, extends(parameter_handler_t) :: par_pb_bddc_poisson_params_t
      private
      contains
-       procedure                              :: set_default  => par_pb_bddc_poisson_params_set_default
+       procedure                              :: define_parameters  => par_pb_bddc_poisson_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_dir_path_out
        procedure, non_overridable             :: get_prefix
@@ -37,7 +37,7 @@ module par_pb_bddc_poisson_params_names
 contains
 
   !==================================================================================================
-  subroutine par_pb_bddc_poisson_params_set_default(this)
+  subroutine par_pb_bddc_poisson_params_define_parameters(this)
     implicit none
     class(par_pb_bddc_poisson_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
@@ -158,7 +158,7 @@ contains
     error = required%set(key = coarse_fe_handler_type_key    , value = .false.) ; check(error==0)
 
 
-  end subroutine par_pb_bddc_poisson_params_set_default
+  end subroutine par_pb_bddc_poisson_params_define_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)

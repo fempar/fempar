@@ -31,17 +31,17 @@ module partitioner_input_names
   implicit none
   private
 
-  type, extends(parameter_generator_t) ::  partitioner_input_t 
+  type, extends(parameter_handler_t) ::  partitioner_input_t 
      private 
    contains
-     procedure :: set_default    => partitioner_input_set_default
+     procedure :: define_parameters    => partitioner_input_define_parameters
   end type partitioner_input_t
 
   public :: partitioner_input_t
 
 contains
 
-  subroutine partitioner_input_set_default(this)
+  subroutine partitioner_input_define_parameters(this)
     implicit none
     class(partitioner_input_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
@@ -97,7 +97,7 @@ contains
     error = required%set(key = num_levels_key  , value = .false.)           ; check(error==0)
     error = required%set(key = num_parts_per_level_key  , value = .false.)  ; check(error==0)
 
-  end subroutine partitioner_input_set_default
+  end subroutine partitioner_input_define_parameters
 
 end module partitioner_input_names
 !==================================================================================================
@@ -117,7 +117,7 @@ program partitioner
 
   call fempar_init()
   call input%create()
-  parameters => input%get_parameters()
+  parameters => input%get_values()
 
   ! Read and partition gmesh into lmesh
   call gmesh%read(parameters)

@@ -26,7 +26,7 @@ module test_nsi_parameters_names
   !>
   !> Currently, the following CLI group are implemented:
   !>   - analytical (Default values are defined assuming 'analytical' group)
-  type, extends(parameter_generator_t), public :: test_nsi_parameters_t
+  type, extends(parameter_handler_t), public :: test_nsi_parameters_t
      private
    contains 
      procedure                  :: create                    !< Create CLI

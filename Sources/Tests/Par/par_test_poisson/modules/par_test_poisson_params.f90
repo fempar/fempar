@@ -10,10 +10,10 @@ module par_test_poisson_params_names
   character(len=*), parameter :: write_solution_key         = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
 
-  type, extends(parameter_generator_t) :: par_test_poisson_params_t
+  type, extends(parameter_handler_t) :: par_test_poisson_params_t
      private
      contains
-       procedure :: set_default  => par_test_poisson_params_set_default
+       procedure :: define_parameters  => par_test_poisson_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
@@ -29,7 +29,7 @@ module par_test_poisson_params_names
 contains
 
   !==================================================================================================
-  subroutine par_test_poisson_params_set_default(this)
+  subroutine par_test_poisson_params_define_parameters(this)
     implicit none
     class(par_test_poisson_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
@@ -133,7 +133,7 @@ contains
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
 
-  end subroutine par_test_poisson_params_set_default
+  end subroutine par_test_poisson_params_define_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
