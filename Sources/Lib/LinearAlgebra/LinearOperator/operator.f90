@@ -95,7 +95,7 @@ module operator_names
   end type binary_operator_t
 
   type, abstract, extends(expression_operator_t) :: unary_operator_t
-     class(operator_t), pointer :: op_referenced => null()
+     class(operator_t), pointer :: op => null()
    contains
      procedure :: default_initialization => unary_operator_default_init
      procedure :: free    => unary_operator_free
@@ -396,7 +396,7 @@ contains
   subroutine unary_operator_default_init(this)
     implicit none
     class(unary_operator_t), intent(inout) :: this
-    nullify(this%op_referenced)
+    nullify(this%op)
     call this%NullifyTemporary()
   end subroutine unary_operator_default_init
 
@@ -404,7 +404,7 @@ contains
     implicit none
     class(unary_operator_t), intent(inout) :: this
 
-    select type(that => this%op_referenced)
+    select type(that => this%op)
        class is(expression_operator_t)
        call that%CleanTemp()
        class is(lvalue_operator_t)
@@ -412,7 +412,7 @@ contains
        class default
        check(1==0)
     end select
-    deallocate(this%op_referenced)
+    deallocate(this%op)
     call this%free_vector_spaces()
   end subroutine unary_operator_free
 
@@ -423,9 +423,9 @@ contains
 
     select type(rvalue)
        class is(unary_operator_t)
-       call rvalue%op_referenced%domain_vector_space%clone(this%domain_vector_space)
-       call rvalue%op_referenced%range_vector_space%clone(this%range_vector_space)
-       call unary_operator_create(rvalue%op_referenced,this)
+       call rvalue%op%domain_vector_space%clone(this%domain_vector_space)
+       call rvalue%op%range_vector_space%clone(this%range_vector_space)
+       call unary_operator_create(rvalue%op,this)
        class default
        check(1==0)
     end select
@@ -441,13 +441,13 @@ contains
     ! Allocate op1
     select type(op)
        class is(expression_operator_t)
-       allocate(res%op_referenced,mold=op); call res%op_referenced%default_initialization()
+       allocate(res%op,mold=op); call res%op%default_initialization()
        class default
-       allocate(lvalue_operator_t::res%op_referenced)
+       allocate(lvalue_operator_t::res%op)
     end select
 
     ! Assign op1
-    select type(this => res%op_referenced)
+    select type(this => res%op)
        class is(expression_operator_t)
        this = op ! Here = is overloaded (and potentially recursive)
        call this%GuardTemp()
@@ -469,54 +469,54 @@ contains
     call this%NullifyTemporary()
   end subroutine lvalue_operator_default_init
 
-  recursive subroutine lvalue_operator_create(op1,op2)
+  recursive subroutine lvalue_operator_create(this,op)
     implicit none
-    class(lvalue_operator_t) , intent(inout) :: op1
-    class(operator_t), intent(in), target  :: op2
+    class(lvalue_operator_t) , intent(inout) :: this
+    class(operator_t), intent(in), target  :: op
     
-    call op1%free()
-    call op2%GuardTemp()
-    select type(op2)
+    call this%free()
+    call op%GuardTemp()
+    select type(op)
        class is(lvalue_operator_t) ! Can be temporary (or not)
-       if(associated(op2%op_stored)) then
-          assert(.not.associated(op2%op_referenced))
-          allocate(op1%op_stored, mold = op2%op_stored); call op1%op_stored%default_initialization()
-          select type(this => op1%op_stored)
+       if(associated(op%op_stored)) then
+          assert(.not. associated(op%op_referenced))
+          allocate(this%op_stored, mold = op%op_stored); call this%op_stored%default_initialization()
+          select type(this => this%op_stored)
              class is(expression_operator_t)
-             this = op2%op_stored
+             this = op%op_stored
              class is(lvalue_operator_t)
-             this = op2%op_stored
+             this = op%op_stored
              class default
              check(1==0)
           end select
-          call op1%op_stored%GuardTemp()
-       else if(associated(op2%op_referenced)) then
-          assert(.not.associated(op2%op_stored))
-          op1%op_referenced => op2%op_referenced
-          call op1%op_referenced%GuardTemp()
+          call this%op_stored%GuardTemp()
+       else if(associated(op%op_referenced)) then
+          assert(.not. associated(op%op_stored))
+          this%op_referenced => op%op_referenced
+          call this%op_referenced%GuardTemp()
        else
           check(1==0)
        end if
        class is(expression_operator_t) ! Temporary
-       allocate(op1%op_stored,mold=op2); call op1%op_stored%default_initialization()
-       select type(this => op1%op_stored)
+       allocate(this%op_stored,mold=op); call this%op_stored%default_initialization()
+       select type(this => this%op_stored)
           class is(expression_operator_t)
-          this = op2              ! Here = overloaded
+          this = op              ! Here = overloaded
        end select
-       call op1%op_stored%GuardTemp()
+       call this%op_stored%GuardTemp()
        class default                 ! Cannot be temporary (I don't know how to copy it!)
        
-       op1%op_referenced => op2
-       call op1%op_referenced%GuardTemp()
+       this%op_referenced => op
+       call this%op_referenced%GuardTemp()
     end select
-    call op2%CleanTemp()
+    call op%CleanTemp()
     
-    if ( associated(op1%op_referenced) ) then
-      call op1%op_referenced%domain_vector_space%clone(op1%domain_vector_space)
-      call op1%op_referenced%range_vector_space%clone(op1%range_vector_space)
-    else if ( associated(op1%op_stored) ) then
-      call op1%op_stored%domain_vector_space%clone(op1%domain_vector_space)
-      call op1%op_stored%range_vector_space%clone(op1%range_vector_space)
+    if ( associated(this%op_referenced) ) then
+      call this%op_referenced%domain_vector_space%clone(this%domain_vector_space)
+      call this%op_referenced%range_vector_space%clone(this%range_vector_space)
+    else if ( associated(this%op_stored) ) then
+      call this%op_stored%domain_vector_space%clone(this%domain_vector_space)
+      call this%op_stored%range_vector_space%clone(this%range_vector_space)
     else
       check(.false.)
     end if
@@ -737,9 +737,9 @@ contains
     select type(rvalue)
        class is(scal_operator_t)
        this%alpha = rvalue%alpha
-       call rvalue%op_referenced%domain_vector_space%clone(this%domain_vector_space)
-       call rvalue%op_referenced%range_vector_space%clone(this%range_vector_space)
-       call unary_operator_create(rvalue%op_referenced,this)
+       call rvalue%op%domain_vector_space%clone(this%domain_vector_space)
+       call rvalue%op%range_vector_space%clone(this%range_vector_space)
+       call unary_operator_create(rvalue%op,this)
        class default
        check(1==0)
     end select
@@ -840,7 +840,7 @@ contains
     call this%abort_if_not_in_range(y)
     call this%GuardTemp()
     call x%GuardTemp()
-    call this%op_referenced%apply(x,y)
+    call this%op%apply(x,y)
     call y%scal( this%alpha, y )
     call x%CleanTemp()
     call this%CleanTemp()
@@ -853,7 +853,7 @@ contains
     class(vector_t), intent(inout) :: y 
     call this%GuardTemp()
     call x%GuardTemp()
-    call this%op_referenced%apply(x,y)
+    call this%op%apply(x,y)
     call y%scal( -1.0, y )
     call x%CleanTemp()
     call this%CleanTemp()
