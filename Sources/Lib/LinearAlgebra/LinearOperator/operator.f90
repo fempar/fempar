@@ -91,7 +91,7 @@ module operator_names
    contains
      procedure :: default_initialization => binary_operator_default_init
      procedure :: free    => binary_operator_destructor
-     procedure :: assign  => binary_operator_copy
+     procedure :: assign  => binary_operator_assign
   end type binary_operator_t
 
   type, abstract, extends(expression_operator_t) :: unary_operator_t
@@ -99,7 +99,7 @@ module operator_names
    contains
      procedure :: default_initialization => unary_operator_default_init
      procedure :: free    => unary_operator_destructor
-     procedure :: assign  => unary_operator_copy
+     procedure :: assign  => unary_operator_assign
   end type unary_operator_t
 
   type, extends(operator_t) :: dynamic_state_operator_t
@@ -139,7 +139,7 @@ module operator_names
      procedure  :: is_linear => scal_operator_is_linear
      ! scal_operator must overwrite assign for unary_operator_t
      ! as it adds a new member variable "alpha" to unary_operator_t
-     procedure  :: assign => scal_operator_copy
+     procedure  :: assign => scal_operator_assign
   end type scal_operator_t
   
   type, extends(unary_operator_t) :: minus_operator_t
@@ -379,7 +379,7 @@ contains
     call op2%CleanTemp()
   end subroutine binary_operator_constructor
   
-    subroutine binary_operator_copy(op1,op2)
+    subroutine binary_operator_assign(op1,op2)
     implicit none
     class(binary_operator_t), intent(inout) :: op1
     class(operator_t)  , intent(in)    :: op2 
@@ -391,7 +391,7 @@ contains
        class default
        check(1==0)
     end select
-  end subroutine binary_operator_copy
+  end subroutine binary_operator_assign
 
   subroutine unary_operator_default_init(this)
     implicit none
@@ -416,7 +416,7 @@ contains
     call this%free_vector_spaces()
   end subroutine unary_operator_destructor
 
-  subroutine unary_operator_copy(op1,op2)
+  subroutine unary_operator_assign(op1,op2)
     implicit none
     class(unary_operator_t), intent(inout) :: op1
     class(operator_t)  , intent(in)    :: op2
@@ -429,7 +429,7 @@ contains
        class default
        check(1==0)
     end select
-  end subroutine unary_operator_copy
+  end subroutine unary_operator_assign
 
   subroutine unary_operator_constructor(op,res) 
     implicit none
@@ -729,7 +729,7 @@ contains
     call domain_op_right%clone(domain_res)
   end function scal_right_operator_constructor
   
-    subroutine scal_operator_copy(op1,op2)
+    subroutine scal_operator_assign(op1,op2)
     implicit none
     class(scal_operator_t), intent(inout) :: op1
     class(operator_t)       , intent(in)    :: op2
@@ -743,7 +743,7 @@ contains
        class default
        check(1==0)
     end select
-  end subroutine scal_operator_copy
+  end subroutine scal_operator_assign
 
 
   !-------------------------------------!
