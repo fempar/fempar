@@ -91,6 +91,7 @@ module operator_names
    contains
      procedure :: default_initialization => binary_operator_default_init
      procedure :: free    => binary_operator_destructor
+     procedure :: assign  => binary_operator_copy
   end type binary_operator_t
 
   type, abstract, extends(expression_operator_t) :: unary_operator_t
@@ -117,21 +118,18 @@ module operator_names
    contains
      procedure  :: apply     => sum_operator_apply
      procedure  :: is_linear => sum_operator_is_linear
-     procedure  :: assign => sum_operator_copy
   end type sum_operator_t
 
   type, extends(binary_operator_t) :: sub_operator_t
    contains
      procedure  :: apply => sub_operator_apply
      procedure  :: is_linear => sub_operator_is_linear
-     procedure  :: assign => sub_operator_copy
   end type sub_operator_t
 
   type, extends(binary_operator_t) :: mult_operator_t
    contains
      procedure  :: apply => mult_operator_apply
      procedure  :: is_linear => mult_operator_is_linear
-     procedure  :: assign => mult_operator_copy
   end type mult_operator_t
 
   type, extends(unary_operator_t) :: scal_operator_t
@@ -380,6 +378,20 @@ contains
     call op1%CleanTemp()
     call op2%CleanTemp()
   end subroutine binary_operator_constructor
+  
+    subroutine binary_operator_copy(op1,op2)
+    implicit none
+    class(binary_operator_t), intent(inout) :: op1
+    class(operator_t)  , intent(in)    :: op2 
+    select type(op2)
+       class is(binary_operator_t)
+       call op2%op1%domain_vector_space%clone(op1%domain_vector_space)
+       call op2%op1%range_vector_space%clone(op1%range_vector_space)
+       call binary_operator_constructor(op2%op1,op2%op2,op1)
+       class default
+       check(1==0)
+    end select
+  end subroutine binary_operator_copy
 
   subroutine unary_operator_default_init(this)
     implicit none
@@ -609,20 +621,6 @@ contains
     call range_op1%clone(range_res)
     call domain_op1%clone(domain_res)
   end function sum_operator_constructor
-  
-  subroutine sum_operator_copy(op1,op2)
-    implicit none
-    class(sum_operator_t), intent(inout) :: op1
-    class(operator_t)  , intent(in)    :: op2 
-    select type(op2)
-       class is(sum_operator_t)
-       call op2%op1%domain_vector_space%clone(op1%domain_vector_space)
-       call op2%op1%range_vector_space%clone(op1%range_vector_space)
-       call binary_operator_constructor(op2%op1,op2%op2,op1)
-       class default
-       check(1==0)
-    end select
-  end subroutine sum_operator_copy
 
   function sub_operator_constructor(op1,op2) result (res)
     implicit none
@@ -656,20 +654,6 @@ contains
     call range_op1%clone(range_res)
     call domain_op1%clone(domain_res)
   end function sub_operator_constructor
-
-  subroutine sub_operator_copy(op1,op2)
-    implicit none
-    class(sub_operator_t), intent(inout) :: op1
-    class(operator_t)  , intent(in)    :: op2 
-    select type(op2)
-       class is(sub_operator_t)
-       call op2%op1%domain_vector_space%clone(op1%domain_vector_space)
-       call op2%op1%range_vector_space%clone(op1%range_vector_space)
-       call binary_operator_constructor(op2%op1,op2%op2,op1)
-       class default
-       check(1==0)
-    end select
-  end subroutine sub_operator_copy
   
   function mult_operator_constructor(op1,op2) result (res)
     implicit none
@@ -698,20 +682,6 @@ contains
     call range_op1%clone(range_res)
     call domain_op2%clone(domain_res)
   end function mult_operator_constructor
-  
-   subroutine mult_operator_copy(op1,op2)
-    implicit none
-    class(mult_operator_t), intent(inout) :: op1
-    class(operator_t)     , intent(in)    :: op2 
-    select type(op2)
-       class is(mult_operator_t)
-       call op2%op1%range_vector_space%clone(op1%range_vector_space)
-       call op2%op2%domain_vector_space%clone(op1%domain_vector_space)
-       call binary_operator_constructor(op2%op1,op2%op2,op1)
-       class default
-       check(1==0)
-    end select
-  end subroutine mult_operator_copy
 
   function scal_left_operator_constructor(alpha, op_left) result (res)
     implicit none
