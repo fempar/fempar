@@ -52,7 +52,7 @@ use iso_c_binding
 
   ! Pointer to operator
   type p_abs_operator_t
-     type(dynamic_state_operator_t), pointer :: p_op => null()
+     type(lvalue_operator_t), pointer :: p_op => null()
   end type p_abs_operator_t
 
 
@@ -82,9 +82,9 @@ contains
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
-  subroutine block_operator_apply (op,x,y)
+  subroutine block_operator_apply (this,x,y)
     implicit none
-    class(block_operator_t)     , intent(in)   :: op
+    class(block_operator_t)     , intent(in)   :: this
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
 
@@ -92,8 +92,8 @@ contains
     integer(ip) :: iblk, jblk
     class(vector_t), allocatable :: aux
 
-    call op%abort_if_not_in_domain(x)
-    call op%abort_if_not_in_range(y)
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
     
     call x%GuardTemp()
     select type(x)
@@ -101,12 +101,12 @@ contains
        select type(y)
        class is(block_vector_t)
           allocate(aux, mold=y%blocks(1)%vector); call aux%default_initialization()
-          do iblk=1, op%mblocks
+          do iblk=1, this%mblocks
              call y%blocks(iblk)%vector%init(0.0_rp)
              call aux%clone(y%blocks(iblk)%vector)
-             do jblk=1, op%nblocks
-                if (associated(op%blocks(iblk,jblk)%p_op)) then
-                    call op%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%vector,aux)
+             do jblk=1, this%nblocks
+                if (associated(this%blocks(iblk,jblk)%p_op)) then
+                    call this%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%vector,aux)
                     call y%blocks(iblk)%vector%axpby(1.0,aux,1.0)
                  end if
               end do
@@ -118,9 +118,9 @@ contains
     call x%CleanTemp()
   end subroutine block_operator_apply
   
-  function block_operator_is_linear(op)
+  function block_operator_is_linear(this)
     implicit none
-    class(block_operator_t), intent(in) :: op
+    class(block_operator_t), intent(in) :: this
     logical :: block_operator_is_linear
     block_operator_is_linear = .false.
   end function block_operator_is_linear

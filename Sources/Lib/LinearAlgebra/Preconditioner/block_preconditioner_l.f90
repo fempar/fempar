@@ -43,7 +43,7 @@ use iso_c_binding
 
   ! Pointer to operator
   type p_abs_operator_t
-     type(dynamic_state_operator_t), pointer :: p_op => null()
+     type(lvalue_operator_t), pointer :: p_op => null()
   end type p_abs_operator_t
 
   ! Lower block triangular preconditioner 
@@ -72,9 +72,9 @@ contains
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
-  subroutine block_preconditioner_l_apply (op,x,y)
+  subroutine block_preconditioner_l_apply (this,x,y)
     implicit none
-    class(block_preconditioner_l_t)     , intent(in)   :: op
+    class(block_preconditioner_l_t)     , intent(in)   :: this
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
 
@@ -82,8 +82,8 @@ contains
     integer(ip) :: iblk, jblk
     class(vector_t), allocatable :: aux1, aux2
 
-    call op%abort_if_not_in_domain(x)
-    call op%abort_if_not_in_range(y)
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
     
     call x%GuardTemp()
     select type(x)
@@ -92,17 +92,17 @@ contains
        class is(block_vector_t)
           allocate(aux1, mold=x%blocks(1)%vector); call aux1%default_initialization()
           allocate(aux2, mold=x%blocks(1)%vector); call aux2%default_initialization()
-          do iblk=1, op%nblocks
+          do iblk=1, this%nblocks
              call aux1%clone(x%blocks(iblk)%vector)
              call aux1%copy(x%blocks(iblk)%vector)
              call aux2%clone(x%blocks(iblk)%vector)
              do jblk=1, iblk-1
-                if (associated(op%blocks(iblk,jblk)%p_op)) then
-                   call op%blocks(iblk,jblk)%p_op%apply(y%blocks(jblk)%vector,aux2)
+                if (associated(this%blocks(iblk,jblk)%p_op)) then
+                   call this%blocks(iblk,jblk)%p_op%apply(y%blocks(jblk)%vector,aux2)
                    call aux1%axpby(-1.0,aux2,1.0)
                 end if
              end do
-             call op%blocks(iblk,iblk)%p_op%apply(aux1,y%blocks(iblk)%vector)
+             call this%blocks(iblk,iblk)%p_op%apply(aux1,y%blocks(iblk)%vector)
              call aux1%free()
              call aux2%free()
           end do
@@ -112,9 +112,9 @@ contains
     call x%CleanTemp()
   end subroutine block_preconditioner_l_apply
   
-  function block_preconditioner_l_is_linear(op)
+  function block_preconditioner_l_is_linear(this)
     implicit none
-    class(block_preconditioner_l_t), intent(in) :: op
+    class(block_preconditioner_l_t), intent(in) :: this
     logical :: block_preconditioner_l_is_linear
     block_preconditioner_l_is_linear = .false.
   end function block_preconditioner_l_is_linear

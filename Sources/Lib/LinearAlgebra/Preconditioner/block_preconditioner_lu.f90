@@ -48,7 +48,7 @@ use iso_c_binding
 
   ! Pointer to operator
   type p_abs_operator_t
-     type(dynamic_state_operator_t), pointer :: p_op => null()
+     type(lvalue_operator_t), pointer :: p_op => null()
   end type p_abs_operator_t
 
   ! Lower block triangular preconditioner 
@@ -76,9 +76,9 @@ use iso_c_binding
 
 contains
 
-  function block_preconditioner_lu_is_linear(op)
+  function block_preconditioner_lu_is_linear(this)
     implicit none
-    class(block_preconditioner_lu_t), intent(in) :: op
+    class(block_preconditioner_lu_t), intent(in) :: this
     logical :: block_preconditioner_lu_is_linear
     block_preconditioner_lu_is_linear = .false.
   end function block_preconditioner_lu_is_linear
@@ -86,20 +86,20 @@ contains
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
-  subroutine block_preconditioner_lu_apply (op,x,y)
+  subroutine block_preconditioner_lu_apply (this,x,y)
     implicit none
-    class(block_preconditioner_lu_t)     , intent(in)   :: op
+    class(block_preconditioner_lu_t)     , intent(in)   :: this
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
     class(vector_t), allocatable :: z
     class(vector_space_t), pointer :: range_vector_space_L
-    call op%abort_if_not_in_domain(x)
-    call op%abort_if_not_in_range(y)
-    range_vector_space_L => op%L%get_range_vector_space()
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    range_vector_space_L => this%L%get_range_vector_space()
     call range_vector_space_L%create_vector(z)
     call x%GuardTemp()
-    call op%L%apply(x,z)
-    call op%U%apply(z,y)
+    call this%L%apply(x,z)
+    call this%U%apply(z,y)
     call x%CleanTemp()
     call z%free()
     deallocate(z)

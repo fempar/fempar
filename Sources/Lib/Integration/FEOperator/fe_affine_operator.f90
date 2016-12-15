@@ -322,47 +322,47 @@ end function fe_affine_operator_get_fe_space
 
 ! op%apply(x,y) <=> y <- op*x
 ! Implicitly assumes that y is already allocated
-subroutine fe_affine_operator_apply(op,x,y) 
+subroutine fe_affine_operator_apply(this,x,y) 
  implicit none
- class(fe_affine_operator_t), intent(in)    :: op
+ class(fe_affine_operator_t), intent(in)    :: this
  class(vector_t) , intent(in)    :: x
  class(vector_t) , intent(inout) :: y 
  class(matrix_t) , pointer       :: matrix
  class(array_t)  , pointer       :: array
- call op%fe_affine_operator_setup()
- call op%abort_if_not_in_domain(x)
- call op%abort_if_not_in_range(y)
+ call this%fe_affine_operator_setup()
+ call this%abort_if_not_in_domain(x)
+ call this%abort_if_not_in_range(y)
  call x%GuardTemp()
- matrix => op%matrix_array_assembler%get_matrix()
+ matrix => this%matrix_array_assembler%get_matrix()
  call matrix%apply(x,y)
- array => op%matrix_array_assembler%get_array()
+ array => this%matrix_array_assembler%get_array()
  call y%axpby( -1.0_rp, array, 1.0_rp )
  call x%CleanTemp()
 end subroutine fe_affine_operator_apply
 
-function fe_affine_operator_is_linear(op)
+function fe_affine_operator_is_linear(this)
  implicit none
- class(fe_affine_operator_t), intent(in) :: op
+ class(fe_affine_operator_t), intent(in) :: this
  logical :: fe_affine_operator_is_linear
  fe_affine_operator_is_linear = .false.
 end function fe_affine_operator_is_linear
 
-function fe_affine_operator_get_tangent(op,x) result(tangent)
+function fe_affine_operator_get_tangent(this,x) result(tangent)
  implicit none
- class(fe_affine_operator_t), intent(in) :: op
+ class(fe_affine_operator_t), intent(in) :: this
  class(vector_t), optional  , intent(in) :: x
- type(dynamic_state_operator_t)          :: tangent
- call op%fe_affine_operator_setup()
- tangent = op%get_matrix()
+ type(lvalue_operator_t)          :: tangent
+ call this%fe_affine_operator_setup()
+ tangent = this%get_matrix()
  call tangent%SetTemp()
 end function fe_affine_operator_get_tangent
 
-function fe_affine_operator_get_translation(op) result(translation)
+function fe_affine_operator_get_translation(this) result(translation)
  implicit none
- class(fe_affine_operator_t), intent(in) :: op
+ class(fe_affine_operator_t), intent(in) :: this
  class(vector_t), pointer                :: translation
- call op%fe_affine_operator_setup()
- translation => op%get_array()
+ call this%fe_affine_operator_setup()
+ translation => this%get_array()
 end function fe_affine_operator_get_translation
 
 subroutine fe_affine_operator_abort_if_not_in_domain ( this, vector )

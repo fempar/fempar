@@ -256,23 +256,23 @@ contains
     end subroutine direct_solver_solve_several_rhs
 
 
-    subroutine direct_solver_apply(op, x, y)
+    subroutine direct_solver_apply(this, x, y)
     !-----------------------------------------------------------------
     !< Call to Solve (Computes y <- A^-1 * x)
     !-----------------------------------------------------------------
-        class(direct_solver_t), intent(in)    :: op
+        class(direct_solver_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y
     !-----------------------------------------------------------------
-        call op%solve(x,y)
+        call this%solve(x,y)
     end subroutine direct_solver_apply
 
 
-    function direct_solver_is_linear(op) result(is_linear)
+    function direct_solver_is_linear(this) result(is_linear)
     !-----------------------------------------------------------------
     !< Return .false.
     !-----------------------------------------------------------------
-        class(direct_solver_t), intent(in) :: op
+        class(direct_solver_t), intent(in) :: this
         logical                            :: is_linear
     !-----------------------------------------------------------------
         is_linear = .true.

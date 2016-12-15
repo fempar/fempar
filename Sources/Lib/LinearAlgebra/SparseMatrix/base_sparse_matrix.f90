@@ -2365,25 +2365,25 @@ contains
     end subroutine base_sparse_matrix_allocate_values
 
 
-    subroutine base_sparse_matrix_apply(op, x, y)
+    subroutine base_sparse_matrix_apply(this, x, y)
     !-----------------------------------------------------------------
     !< Matrix vector product
     !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(in)    :: op
+        class(base_sparse_matrix_t), intent(in)    :: this
         class(vector_t),             intent(in)    :: x
         class(vector_t),             intent(inout) :: y
     !-----------------------------------------------------------------
-        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED)
-        call op%apply_body(x, y)
+        assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
+        call this%apply_body(x, y)
     end subroutine base_sparse_matrix_apply
 
 
-    subroutine base_sparse_matrix_apply_body(op, x, y)
+    subroutine base_sparse_matrix_apply_body(this, x, y)
     !-----------------------------------------------------------------
     !< Allocate arrays
     !< Must be overloaded 
     !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(in)    :: op
+        class(base_sparse_matrix_t), intent(in)    :: this
         class(vector_t),             intent(in)    :: x
         class(vector_t),             intent(inout) :: y
     !-----------------------------------------------------------------
@@ -2391,25 +2391,25 @@ contains
     end subroutine base_sparse_matrix_apply_body
 
 
-    subroutine base_sparse_matrix_apply_transpose(op, x, y)
+    subroutine base_sparse_matrix_apply_transpose(this, x, y)
     !-----------------------------------------------------------------
     !< Matrix vector product
     !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(in)    :: op
+        class(base_sparse_matrix_t), intent(in)    :: this
         class(vector_t),             intent(in)    :: x
         class(vector_t),             intent(inout) :: y
     !-----------------------------------------------------------------
-        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED)
-        call op%apply_transpose_body(x, y)
+        assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
+        call this%apply_transpose_body(x, y)
     end subroutine base_sparse_matrix_apply_transpose
 
 
-    subroutine base_sparse_matrix_apply_transpose_body(op, x, y)
+    subroutine base_sparse_matrix_apply_transpose_body(this, x, y)
     !-----------------------------------------------------------------
     !< Allocate arrays
     !< Must be overloaded 
     !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(in)    :: op
+        class(base_sparse_matrix_t), intent(in)    :: this
         class(vector_t),             intent(in)    :: x
         class(vector_t),             intent(inout) :: y
     !-----------------------------------------------------------------
@@ -2417,11 +2417,11 @@ contains
     end subroutine base_sparse_matrix_apply_transpose_body
 
 
-    subroutine base_sparse_matrix_apply_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine base_sparse_matrix_apply_to_dense_matrix(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply matrix matrix product y = alpha*op*b + beta*c
     !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(in)    :: op                   ! Sparse matrix
+        class(base_sparse_matrix_t), intent(in)    :: this                 ! Sparse matrix
         integer(ip),                 intent(in)    :: n                    ! Number of columns of B and C dense arrays
         real(rp),                    intent(in)    :: alpha                ! Scalar alpha
         integer(ip),                 intent(in)    :: LDB                  ! Leading dimensions of B matrix
@@ -2430,16 +2430,16 @@ contains
         integer(ip),                 intent(in)    :: LDC                  ! Leading dimension of C matrix
         real(rp),                    intent(inout) :: c(LDC, n)            ! Matrix C
     !-----------------------------------------------------------------
-        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED)
-        call op%apply_to_dense_matrix_body(n, alpha, LDB, b, beta, LDC, c) 
+        assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
+        call this%apply_to_dense_matrix_body(n, alpha, LDB, b, beta, LDC, c) 
     end subroutine base_sparse_matrix_apply_to_dense_matrix
 
 
-    subroutine base_sparse_matrix_apply_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine base_sparse_matrix_apply_to_dense_matrix_body(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply matrix matrix product y = alpha*op*b + beta*c
     !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(in)    :: op              ! Sparse matrix
+        class(base_sparse_matrix_t), intent(in)    :: this            ! Sparse matrix
         integer(ip),                 intent(in)    :: n               ! Number of columns of B and C dense arrays
         real(rp),                    intent(in)    :: alpha           ! Scalar alpha
         integer(ip),                 intent(in)    :: LDB             ! Leading dimensions of B matrix
@@ -2452,11 +2452,11 @@ contains
     end subroutine base_sparse_matrix_apply_to_dense_matrix_body
 
 
-    subroutine base_sparse_matrix_apply_transpose_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine base_sparse_matrix_apply_transpose_to_dense_matrix(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply matrix matrix product y = alpha*op*b + beta*c
     !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(in)    :: op                   ! Sparse matrix
+        class(base_sparse_matrix_t), intent(in)    :: this                 ! Sparse matrix
         integer(ip),                 intent(in)    :: n                    ! Number of columns of B and C dense arrays
         real(rp),                    intent(in)    :: alpha                ! Scalar alpha
         integer(ip),                 intent(in)    :: LDB                  ! Leading dimensions of B matrix
@@ -2465,16 +2465,16 @@ contains
         integer(ip),                 intent(in)    :: LDC                  ! Leading dimension of C matrix
         real(rp),                    intent(inout) :: c(LDC, n)            ! Matrix C
     !-----------------------------------------------------------------
-        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED)
-        call op%apply_transpose_to_dense_matrix_body(n, alpha, LDB, b, beta, LDC, c) 
+        assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
+        call this%apply_transpose_to_dense_matrix_body(n, alpha, LDB, b, beta, LDC, c) 
     end subroutine base_sparse_matrix_apply_transpose_to_dense_matrix
 
 
-    subroutine base_sparse_matrix_apply_transpose_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine base_sparse_matrix_apply_transpose_to_dense_matrix_body(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply tranpose matrix matrix product y = alpha*op'*b + beta*c
     !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(in)    :: op              ! Sparse matrix
+        class(base_sparse_matrix_t), intent(in)    :: this            ! Sparse matrix
         integer(ip),                 intent(in)    :: n               ! Number of columns of B and C dense arrays
         real(rp),                    intent(in)    :: alpha           ! Scalar alpha
         integer(ip),                 intent(in)    :: LDB             ! Leading dimensions of B matrix
@@ -5095,11 +5095,11 @@ contains
     end subroutine coo_sparse_matrix_free_val
 
 
-    subroutine coo_sparse_matrix_apply_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine coo_sparse_matrix_apply_to_dense_matrix_body(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply matrix matrix product y = alpha*op*b + beta*c
     !-----------------------------------------------------------------
-        class(coo_sparse_matrix_t),  intent(in)    :: op              ! Sparse matrix
+        class(coo_sparse_matrix_t),  intent(in)    :: this            ! Sparse matrix
         integer(ip),                 intent(in)    :: n               ! Number of columns of B and C dense arrays
         real(rp),                    intent(in)    :: alpha           ! Scalar alpha
         integer(ip),                 intent(in)    :: LDB             ! Leading dimensions of B matrix
@@ -5109,38 +5109,38 @@ contains
         real(rp),                    intent(inout) :: c(LDC, n)       ! Matrix C
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        assert (op%is_by_rows())
-        if (op%get_symmetric_storage()) then
-            call mkl_dcoomm(transa    = 'N',               & ! Non transposed
-                            m         = op%get_num_rows(), &
-                            n         = n,                 &
-                            k         = op%get_num_cols(), &
-                            alpha     = alpha,             &
-                            matdescra = 'SUNF',            & ! (Symmetric, Upper, Non-unit, Fortran)
-                            val       = op%val,            &
-                            rowind    = op%ia,             &
-                            colind    = op%ja,             &
-                            nnz       = op%nnz,            &
-                            b         = b,                 &
-                            ldb       = LDB,               &
-                            beta      = beta,              &
-                            c         = c,                 &
+        assert (this%is_by_rows())
+        if (this%get_symmetric_storage()) then
+            call mkl_dcoomm(transa    = 'N',                 & ! Non transposed
+                            m         = this%get_num_rows(), &
+                            n         = n,                   &
+                            k         = this%get_num_cols(), &
+                            alpha     = alpha,               &
+                            matdescra = 'SUNF',              & ! (Symmetric, Upper, Non-unit, Fortran)
+                            val       = this%val,            &
+                            rowind    = this%ia,             &
+                            colind    = this%ja,             &
+                            nnz       = this%nnz,            &
+                            b         = b,                   &
+                            ldb       = LDB,                 &
+                            beta      = beta,                &
+                            c         = c,                   &
                             ldc       = LDC )
         else
-            call mkl_dcoomm(transa    = 'N',               & ! Non transposed
-                            m         = op%get_num_rows(), &
-                            n         = n,                 &
-                            k         = op%get_num_cols(), &
-                            alpha     = alpha,             &
-                            matdescra = 'GXXF',            & ! General, X, X, Fortran)
-                            val       = op%val,            &
-                            rowind    = op%ia,             &
-                            colind    = op%ja,             &
-                            nnz       = op%nnz,            &
-                            b         = b,                 &
-                            ldb       = LDB,               &
-                            beta      = beta,              &
-                            c         = c,                 &
+            call mkl_dcoomm(transa    = 'N',                 & ! Non transposed
+                            m         = this%get_num_rows(), &
+                            n         = n,                   &
+                            k         = this%get_num_cols(), &
+                            alpha     = alpha,               &
+                            matdescra = 'GXXF',              & ! General, X, X, Fortran)
+                            val       = this%val,            &
+                            rowind    = this%ia,             &
+                            colind    = this%ja,             &
+                            nnz       = this%nnz,            &
+                            b         = b,                   &
+                            ldb       = LDB,                 &
+                            beta      = beta,                &
+                            c         = c,                   &
                             ldc       = LDC )
         endif
 #else
@@ -5149,11 +5149,11 @@ contains
     end subroutine coo_sparse_matrix_apply_to_dense_matrix_body
 
 
-    subroutine coo_sparse_matrix_apply_transpose_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine coo_sparse_matrix_apply_transpose_to_dense_matrix_body(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply matrix matrix product y = alpha*op*b + beta*c
     !-----------------------------------------------------------------
-        class(coo_sparse_matrix_t),  intent(in)    :: op              ! Sparse matrix
+        class(coo_sparse_matrix_t),  intent(in)    :: this              ! Sparse matrix
         integer(ip),                 intent(in)    :: n               ! Number of columns of B and C dense arrays
         real(rp),                    intent(in)    :: alpha           ! Scalar alpha
         integer(ip),                 intent(in)    :: LDB             ! Leading dimensions of B matrix
@@ -5163,38 +5163,38 @@ contains
         real(rp),                    intent(inout) :: c(LDC, n)       ! Matrix C
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        assert (op%is_by_rows())
-        if (op%get_symmetric_storage()) then
-            call mkl_dcoomm(transa    = 'T',               & ! Transposed
-                            m         = op%get_num_rows(), &
-                            n         = n,                 &
-                            k         = op%get_num_cols(), &
-                            alpha     = alpha,             &
-                            matdescra = 'SUNF',            & ! (Symmetric, Upper, Non-unit, Fortran)
-                            val       = op%val,            &
-                            rowind    = op%ia,             &
-                            colind    = op%ja,             &
-                            nnz       = op%nnz,            &
-                            b         = b,                 &
-                            ldb       = LDB,               &
-                            beta      = beta,              &
-                            c         = c,                 &
+        assert (this%is_by_rows())
+        if (this%get_symmetric_storage()) then
+            call mkl_dcoomm(transa    = 'T',                 & ! Transposed
+                            m         = this%get_num_rows(), &
+                            n         = n,                   &
+                            k         = this%get_num_cols(), &
+                            alpha     = alpha,               &
+                            matdescra = 'SUNF',              & ! (Symmetric, Upper, Non-unit, Fortran)
+                            val       = this%val,            &
+                            rowind    = this%ia,             &
+                            colind    = this%ja,             &
+                            nnz       = this%nnz,            &
+                            b         = b,                   &
+                            ldb       = LDB,                 &
+                            beta      = beta,                &
+                            c         = c,                   &
                             ldc       = LDC )
         else
-            call mkl_dcoomm(transa    = 'T',               & ! Transposed
-                            m         = op%get_num_rows(), &
-                            n         = n,                 &
-                            k         = op%get_num_cols(), &
-                            alpha     = alpha,             &
-                            matdescra = 'GXXF',            & ! General, X, X, Fortran)
-                            val       = op%val,            &
-                            rowind    = op%ia,             &
-                            colind    = op%ja,             &
-                            nnz       = op%nnz,            &
-                            b         = b,                 &
-                            ldb       = LDB,               &
-                            beta      = beta,              &
-                            c         = c,                 &
+            call mkl_dcoomm(transa    = 'T',                 & ! Transposed
+                            m         = this%get_num_rows(), &
+                            n         = n,                   &
+                            k         = this%get_num_cols(), &
+                            alpha     = alpha,               &
+                            matdescra = 'GXXF',              & ! General, X, X, Fortran)
+                            val       = this%val,            &
+                            rowind    = this%ia,             &
+                            colind    = this%ja,             &
+                            nnz       = this%nnz,            &
+                            b         = b,                   &
+                            ldb       = LDB,                 &
+                            beta      = beta,                &
+                            c         = c,                   &
                             ldc       = LDC )
         endif
 #else

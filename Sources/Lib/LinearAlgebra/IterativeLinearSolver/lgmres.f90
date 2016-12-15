@@ -75,7 +75,7 @@ contains
     implicit none
     class(lgmres_t), intent(inout) :: this
     type(vector_space_t), pointer :: range
-    type(dynamic_state_operator_t), pointer :: A, M
+    type(lvalue_operator_t), pointer :: A, M
     class(environment_t), pointer :: environment
     integer(ip)                   :: stopping_criteria
 

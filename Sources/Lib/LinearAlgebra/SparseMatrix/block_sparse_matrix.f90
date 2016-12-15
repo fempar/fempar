@@ -235,9 +235,9 @@ contains
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
-  subroutine block_sparse_matrix_apply(op,x,y)
+  subroutine block_sparse_matrix_apply(this,x,y)
     implicit none
-    class(block_sparse_matrix_t), intent(in)    :: op
+    class(block_sparse_matrix_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     ! Locals
@@ -245,8 +245,8 @@ contains
     type(serial_scalar_array_t)          :: aux
     type(serial_scalar_array_t), pointer :: y_block
 
-    call op%abort_if_not_in_domain(x)
-    call op%abort_if_not_in_range(y)
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
     
     call x%GuardTemp()
     call y%init(0.0_rp)
@@ -254,13 +254,13 @@ contains
        class is (serial_block_array_t)
        select type(y)
           class is(serial_block_array_t)
-          do ib=1,op%nblocks
+          do ib=1,this%nblocks
              call aux%clone(y%get_block(ib))
              y_block => y%get_block(ib)
-             do jb=1,op%nblocks
-                if ( associated(op%blocks(ib,jb)%sparse_matrix) ) then
+             do jb=1,this%nblocks
+                if ( associated(this%blocks(ib,jb)%sparse_matrix) ) then
                    ! aux <- A(ib,jb) * x(jb)
-                   call op%blocks(ib,jb)%sparse_matrix%apply(x%get_block(jb),aux)
+                   call this%blocks(ib,jb)%sparse_matrix%apply(x%get_block(jb),aux)
                    ! y(ib) <- y(ib) + aux
                    call y_block%axpby(1.0_rp,aux,1.0_rp)
                 end if

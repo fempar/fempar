@@ -680,25 +680,25 @@ contains
     end subroutine par_sparse_matrix_extract_diagonal
 
 
-    subroutine par_sparse_matrix_apply(op,x,y) 
+    subroutine par_sparse_matrix_apply(this,x,y) 
     !-----------------------------------------------------------------
     !< Apply matrix vector product y=op*x
     !-----------------------------------------------------------------
-        class(par_sparse_matrix_t), intent(in)    :: op
+        class(par_sparse_matrix_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y 
     !-----------------------------------------------------------------
         type(serial_scalar_array_t), pointer :: y_serial
-        call op%abort_if_not_in_domain(x)
-        call op%abort_if_not_in_range(y)
+        call this%abort_if_not_in_domain(x)
+        call this%abort_if_not_in_range(y)
         call x%GuardTemp()
         select type(x)
           class is (par_scalar_array_t)
           select type(y)
             class is(par_scalar_array_t)
-               if(.not. op%p_env%am_i_l1_task()) return
+               if(.not. this%p_env%am_i_l1_task()) return
                y_serial=> y%get_serial_scalar_array()
-               call op%sparse_matrix%apply(x%get_serial_scalar_array(), y_serial)
+               call this%sparse_matrix%apply(x%get_serial_scalar_array(), y_serial)
                call y%comm()
            end select
         end select
