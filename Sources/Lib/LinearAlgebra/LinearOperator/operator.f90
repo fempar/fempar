@@ -308,6 +308,7 @@ contains
   subroutine binary_operator_free(this)
     implicit none
     class(binary_operator_t), intent(inout) :: this
+    integer(ip)                             :: istat
 
     select type(that => this%op1)
        class is(expression_operator_t)
@@ -317,7 +318,7 @@ contains
        class default
        check(1==0)
     end select
-    deallocate(this%op1)
+    deallocate(this%op1, stat=istat); check(istat==0)
 
     select type(that => this%op2)
        class is(expression_operator_t)
@@ -327,7 +328,7 @@ contains
        class default
        check(1==0)
     end select
-    deallocate(this%op2)
+    deallocate(this%op2, stat=istat); check(istat==0)
     call this%free_vector_spaces()
   end subroutine binary_operator_free
 
@@ -335,6 +336,7 @@ contains
     implicit none
     class(operator_t)  , intent(in)    :: op1, op2
     class(binary_operator_t), intent(inout) :: res
+    integer(ip)                             :: istat
 
     call op1%GuardTemp()
     call op2%GuardTemp()
@@ -342,9 +344,10 @@ contains
     ! Allocate op1
     select type(op1)
        class is(expression_operator_t)
-       allocate(res%op1,mold=op1); call res%op1%default_initialization()
+       allocate(res%op1,mold=op1, stat=istat); check(istat==0)
+       call res%op1%default_initialization()
        class default
-       allocate(lvalue_operator_t::res%op1)
+       allocate(lvalue_operator_t::res%op1, stat=istat); check(istat==0)
     end select
     ! Assign op1
     select type(this => res%op1)
@@ -360,9 +363,10 @@ contains
     ! Allocate op2
     select type(op2)
        class is(expression_operator_t)
-       allocate(res%op2,mold=op2); call res%op2%default_initialization()
+       allocate(res%op2,mold=op2, stat=istat); check(istat==0)
+       call res%op2%default_initialization()
        class default
-       allocate(lvalue_operator_t::res%op2)
+       allocate(lvalue_operator_t::res%op2, stat=istat); check(istat==0)
     end select
     ! Assign op2
     select type(that => res%op2)
@@ -403,6 +407,7 @@ contains
   subroutine unary_operator_free(this)
     implicit none
     class(unary_operator_t), intent(inout) :: this
+    integer(ip)                            :: istat
 
     select type(that => this%op)
        class is(expression_operator_t)
@@ -412,7 +417,7 @@ contains
        class default
        check(1==0)
     end select
-    deallocate(this%op)
+    deallocate(this%op, stat=istat); check(istat==0)
     call this%free_vector_spaces()
   end subroutine unary_operator_free
 
@@ -435,15 +440,17 @@ contains
     implicit none
     class(operator_t)  , intent(in)    :: op
     class(unary_operator_t), intent(inout) :: res
+    integer(ip)                            :: istat
 
     call op%GuardTemp()
 
     ! Allocate op1
     select type(op)
        class is(expression_operator_t)
-       allocate(res%op,mold=op); call res%op%default_initialization()
+       allocate(res%op,mold=op, stat=istat); check(istat==0)
+       call res%op%default_initialization()
        class default
-       allocate(lvalue_operator_t::res%op)
+       allocate(lvalue_operator_t::res%op, stat=istat); check(istat==0)
     end select
 
     ! Assign op1
@@ -472,7 +479,8 @@ contains
   recursive subroutine lvalue_operator_create(this,op)
     implicit none
     class(lvalue_operator_t) , intent(inout) :: this
-    class(operator_t), intent(in), target  :: op
+    class(operator_t), intent(in), target    :: op
+    integer(ip)                              :: istat
     
     call this%free()
     call op%GuardTemp()
@@ -480,7 +488,8 @@ contains
        class is(lvalue_operator_t) ! Can be temporary (or not)
        if(associated(op%op_stored)) then
           assert(.not. associated(op%op_referenced))
-          allocate(this%op_stored, mold = op%op_stored); call this%op_stored%default_initialization()
+          allocate(this%op_stored, mold = op%op_stored, stat=istat); check(istat==0)
+          call this%op_stored%default_initialization()
           select type(this => this%op_stored)
              class is(expression_operator_t)
              this = op%op_stored
@@ -498,7 +507,8 @@ contains
           check(1==0)
        end if
        class is(expression_operator_t) ! Temporary
-       allocate(this%op_stored,mold=op); call this%op_stored%default_initialization()
+       allocate(this%op_stored,mold=op, stat=istat); check(istat==0)
+       call this%op_stored%default_initialization()
        select type(this => this%op_stored)
           class is(expression_operator_t)
           this = op              ! Here = overloaded
@@ -525,6 +535,7 @@ contains
   subroutine lvalue_operator_free(this)
     implicit none
     class(lvalue_operator_t), intent(inout) :: this
+    integer(ip)                             :: istat
 
     if(associated(this%op_referenced)) then
        assert(.not.associated(this%op_stored))
@@ -534,7 +545,7 @@ contains
     else if(associated(this%op_stored)) then
        assert(.not.associated(this%op_referenced))
        call this%op_stored%CleanTemp()
-       deallocate(this%op_stored)
+       deallocate(this%op_stored, stat=istat); check(istat==0)
        call this%free_vector_spaces()
     end if
   end subroutine lvalue_operator_free
@@ -769,7 +780,8 @@ contains
     class(sum_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
-    class(vector_t), allocatable :: w
+    class(vector_t), allocatable   :: w
+    integer(ip)                    :: istat
 
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
@@ -785,7 +797,7 @@ contains
     call x%CleanTemp()
     call this%CleanTemp()
     call w%free()
-    deallocate(w)
+    deallocate(w, stat=istat); check(istat==0)
   end subroutine sum_operator_apply
 
   recursive subroutine sub_operator_apply(this,x,y)
@@ -793,7 +805,8 @@ contains
     class(sub_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
-    class(vector_t), allocatable :: w
+    class(vector_t), allocatable   :: w
+    integer(ip)                    :: istat
     
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
@@ -809,7 +822,7 @@ contains
     call x%CleanTemp()
     call this%CleanTemp()
     call w%free()
-    deallocate(w)
+    deallocate(w, stat=istat); check(istat==0)
   end subroutine sub_operator_apply
   
   recursive subroutine mult_operator_apply(this,x,y)
@@ -817,7 +830,8 @@ contains
     class(mult_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
-    class(vector_t), allocatable :: w
+    class(vector_t), allocatable   :: w
+    integer(ip)                    :: istat
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
     call this%GuardTemp()
@@ -828,7 +842,7 @@ contains
     call x%CleanTemp()
     call this%CleanTemp()
     call w%free()
-    deallocate(w)
+    deallocate(w, stat=istat); check(istat==0)
   end subroutine mult_operator_apply
 
   recursive subroutine scal_operator_apply(this,x,y)
