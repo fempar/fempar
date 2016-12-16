@@ -188,15 +188,13 @@ contains
 !     assert(this%switches%length() == this%values%length())
      
      Iterator = this%switches%GetIterator()
-     has_groups =  Iterator%isSubList()
      do while (.not. Iterator%HasFinished())
           key = Iterator%GetKey()
-          assert ( has_groups .eqv. Iterator%isSubList() )
           assert(this%switches_ab%isPresent(key))
           assert(this%helpers%isPresent(key))
           assert(this%required%isPresent(key))
           assert(this%values%isPresent(key))
-          if (has_groups) then
+          if (Iterator%isSubList()) then
             assert(Iterator%GetSublist(switches_sublist)==0)
             assert(this%switches_ab%GetSubList(key,switches_ab_sublist)==0)
             assert(this%helpers%GetSubList(key,helpers_sublist)==0)
@@ -244,26 +242,27 @@ contains
     type(ParameterList_t), pointer :: values_sublist
     
     error = 0
+    call this%add_to_cli_group(this%switches,this%switches_ab,this%helpers,this%required,this%values)
     Iterator = this%switches%GetIterator()
-    if ( Iterator%isSublist() ) then ! Groups itinerary
-      do while (.not. Iterator%HasFinished())
-         key = Iterator%GetKey()
-         error = Iterator%GetSublist(switches_sublist); assert(error==0);
-         error = this%switches_ab%GetSubList(key,switches_ab_sublist); assert(error==0);
-         error = this%helpers%GetSubList(key,helpers_sublist); assert(error==0);
-         error = this%required%GetSubList(key,required_sublist); assert(error==0);
-         error = this%values%GetSubList(key,values_sublist); assert(error==0);
-         call this%add_to_cli_group(switches_sublist, &
-                                    switches_ab_sublist,&
-                                    helpers_sublist, &
-                                    required_sublist, &
-                                    values_sublist, &
-                                    key)
-         call Iterator%Next()
-      enddo
-    else  ! No groups itinerary
-      call this%add_to_cli_group(this%switches,this%switches_ab,this%helpers,this%required,this%values)
-    end if  
+    do while (.not. Iterator%HasFinished())
+       if(.not. Iterator%isSublist()) then
+          call Iterator%Next()
+          cycle
+       endif
+       key = Iterator%GetKey()
+       error = Iterator%GetSublist(switches_sublist); assert(error==0);
+       error = this%switches_ab%GetSubList(key,switches_ab_sublist); assert(error==0);
+       error = this%helpers%GetSubList(key,helpers_sublist); assert(error==0);
+       error = this%required%GetSubList(key,required_sublist); assert(error==0);
+       error = this%values%GetSubList(key,values_sublist); assert(error==0);
+       call this%add_to_cli_group(switches_sublist, &
+                                  switches_ab_sublist,&
+                                  helpers_sublist, &
+                                  required_sublist, &
+                                  values_sublist, &
+                                  key)
+       call Iterator%Next()
+    enddo
 
   end subroutine parameter_handler_add_to_cli
   
@@ -271,12 +270,12 @@ contains
   subroutine parameter_handler_add_to_cli_group(this,switches,switches_ab,helpers,required,values,group)
     implicit none
     class(parameter_handler_t) , intent(inout) :: this
-    type(parameterlist_t)       , intent(in)    :: switches
-    type(parameterlist_t)       , intent(in)    :: switches_ab
-    type(parameterlist_t)       , intent(in)    :: helpers
-    type(parameterlist_t)        , intent(in)    :: required
-    type(parameterlist_t)       , intent(in)    :: values
-    character(*), optional       , intent(in)    :: group
+    type(parameterlist_t)       , intent(in)   :: switches
+    type(parameterlist_t)       , intent(in)   :: switches_ab
+    type(parameterlist_t)       , intent(in)   :: helpers
+    type(parameterlist_t)        , intent(in)  :: required
+    type(parameterlist_t)       , intent(in)   :: values
+    character(*), optional       , intent(in)  :: group
     
     integer(ip)                   :: error
     character(len=:), allocatable :: switch, switch_ab, help
@@ -288,12 +287,16 @@ contains
     error = 0
     Iterator = switches%GetIterator()
     do while (.not. Iterator%HasFinished())
+       if(Iterator%isSublist()) then
+          call Iterator%Next()
+          cycle
+       endif
        key = Iterator%GetKey()
-       error = error + Iterator%GetAsString (switch)
-       error = error + switches_ab%GetAsString (key = key , String = switch_ab)
-       error = error + helpers%GetAsString     (key = key , String = help)
+       error = error + Iterator%GetAsString   (switch)
+       error = error + switches_ab%GetAsString(key = key , String = switch_ab)
+       error = error + helpers%GetAsString    (key = key , String = help)
        error = error + required%Get           (key = key , value = is_required)
-       error = error + values%GetAsString      (key = key , string = cvalue, separator=" ")
+       error = error + values%GetAsString     (key = key , string = cvalue, separator=" ")
        if(values%GetDimensions(Key=Iterator%GetKey()) == 0) then 
         call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
            &               required=is_required,act='store',def=cvalue,error=error)
@@ -323,21 +326,21 @@ contains
     
     call this%cli%parse(error=error); assert(error==0)
 
+    call this%parse_group(this%switches, this%values)
     Iterator = this%switches%GetIterator()
-    if ( Iterator%isSublist() ) then ! Groups itinerary
-       do while (.not. Iterator%HasFinished())
-          key = Iterator%GetKey()
-          if(this%cli%run_command(key)) then
-             error = Iterator%GetSublist(switches_sublist); assert(error==0);
-             error = this%values%GetSubList(key,values_sublist); assert(error==0);
-             call this%parse_group(switches_sublist, values_sublist)
-             exit
-          endif
-            call Iterator%Next()
-       enddo
-    else
-      call this%parse_group(this%switches, this%values)
-    endif
+    do while (.not. Iterator%HasFinished())
+        if(.not. Iterator%isSublist()) then
+           call Iterator%Next()
+           cycle
+        endif
+        key = Iterator%GetKey()
+        if(this%cli%run_command(key)) then
+           error = Iterator%GetSublist(switches_sublist); assert(error==0);
+           error = this%values%GetSubList(key,values_sublist); assert(error==0);
+           call this%parse_group(switches_sublist, values_sublist, key)
+        endif
+          call Iterator%Next()
+    enddo
 
   end subroutine parameter_handler_parse  
 
@@ -362,6 +365,10 @@ contains
 
     Iterator = switches%GetIterator()
     do while (.not. Iterator%HasFinished())
+       if(Iterator%isSublist()) then
+          call Iterator%Next()
+          cycle
+       endif
        key = Iterator%GetKey()
        error = Iterator%Get(switch); assert(error==0)
        if (this%cli%is_passed(group=group,switch=switch)) then

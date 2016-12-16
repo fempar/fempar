@@ -23,6 +23,18 @@ contains
         type(ParameterList_t), pointer               :: values
         integer(ip)                                  :: error
 
+        switches    => this%get_switches()
+        switches_ab => this%get_switches_ab()
+        helpers     => this%get_helpers()
+        required    => this%get_required()
+        values      => this%get_values()
+
+        error = switches%set(   key='commonswitch', value='--commonswitch'); assert(error == 0)
+        error = switches_ab%set(key='commonswitch', value='-cs');            assert(error == 0)
+        error = helpers%set(    key='commonswitch', value='common switch');  assert(error == 0)
+        error = required%set(   key='commonswitch', value=.false.);          assert(error == 0)
+        error = values%set(     key='commonswitch', value=1);                assert(error == 0)
+
         call this%add_to_group('group1')
         call this%add_to_group('group2')
         call this%add_to_group('group3')
@@ -123,7 +135,7 @@ implicit none
 
     call FEMPAR_INIT()
 
-    call my_parameters%create()
+    call my_parameters%create(examples=['test_cla_parameter_groups -cs 7 group1 -s1 8 group2 -s2 9'])
     call my_parameters%print()
 
 
