@@ -469,38 +469,35 @@ contains
     call op%GuardTemp()
     select type(op)
        class is(lvalue_operator_t) ! Can be temporary (or not)
-       if(associated(op%op_stored)) then
-          assert(.not. associated(op%op_referenced))
-          allocate(this%op_stored, mold = op%op_stored, stat=istat); check(istat==0)
+          if(associated(op%op_stored)) then
+             assert(.not. associated(op%op_referenced))
+             allocate(this%op_stored, mold = op%op_stored, stat=istat); check(istat==0)
+             call this%op_stored%default_initialization()
+             select type(this => this%op_stored)
+                class is(expression_operator_t)
+                   this = op%op_stored
+                class is(lvalue_operator_t)
+                   this = op%op_stored
+                class default
+                   check(1==0)
+             end select
+             call this%op_stored%GuardTemp()
+          else if(associated(op%op_referenced)) then
+             assert(.not. associated(op%op_stored))
+             this%op_referenced => op%op_referenced
+          else
+             check(1==0)
+          end if
+       class is(expression_operator_t) ! Temporary
+          allocate(this%op_stored,mold=op, stat=istat); check(istat==0)
           call this%op_stored%default_initialization()
           select type(this => this%op_stored)
              class is(expression_operator_t)
-             this = op%op_stored
-             class is(lvalue_operator_t)
-             this = op%op_stored
-             class default
-             check(1==0)
+                this = op              ! Here = overloaded
           end select
           call this%op_stored%GuardTemp()
-       else if(associated(op%op_referenced)) then
-          assert(.not. associated(op%op_stored))
-          this%op_referenced => op%op_referenced
-          call this%op_referenced%GuardTemp()
-       else
-          check(1==0)
-       end if
-       class is(expression_operator_t) ! Temporary
-       allocate(this%op_stored,mold=op, stat=istat); check(istat==0)
-       call this%op_stored%default_initialization()
-       select type(this => this%op_stored)
-          class is(expression_operator_t)
-          this = op              ! Here = overloaded
-       end select
-       call this%op_stored%GuardTemp()
        class default                 ! Cannot be temporary (I don't know how to copy it!)
-       
-       this%op_referenced => op
-       call this%op_referenced%GuardTemp()
+          this%op_referenced => op
     end select
     call op%CleanTemp()
     
