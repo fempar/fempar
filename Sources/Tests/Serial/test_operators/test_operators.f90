@@ -33,69 +33,88 @@ implicit none
     type(serial_scalar_array_t)      :: Vec1
     type(serial_scalar_array_t)      :: Vec2
     type(lvalue_operator_t)          :: Op
+    type(serial_scalar_array_t)      :: op_result
     real(rp)                         :: vector_values(3)
-    integer                          :: i, iters = 999
+    integer                          :: tam = 3
+    integer                          :: iters = 999
+    integer                          :: i
 
     call FEMPAR_INIT()
 
-    call Mat%create(num_rows_and_cols=3, symmetric_storage=.false., is_symmetric=.false., sign=SPARSE_MATRIX_SIGN_UNKNOWN, nz=6)
+    call Mat%create(num_rows_and_cols=tam, symmetric_storage=.false., is_symmetric=.false., sign=SPARSE_MATRIX_SIGN_UNKNOWN, nz=6)
     call Mat%insert(nz=6, ia=[1,1,2,2,3,3], ja=[1,3,1,2,1,3], val=[1.0,3.0,1.0,2.0,1.0,3.0])
     call Mat%convert('CSR')
 
-    call Vec1%create_and_allocate(3)
-    call Vec2%create_and_allocate(3)
+    call Vec1%create_and_allocate(tam)
+    call Vec2%create_and_allocate(tam)
     call Vec1%init(1.0_rp)
 
     vector_values = [4._rp, 3._rp,4._rp] 
 
+    call op_result%create(3)
+    call op_result%allocate()
+
     do i=1, iters
         Op = Mat
         call Op%apply(Vec1,Vec2)
-        call check_vector_value(Vec2, vector_values)
+        call op_result%insert_subvector(1, tam, [1,2,3], vector_values)
+        call check_vector_value(Vec2, op_result)
 
         Op = Mat + Mat
         call Op%apply(Vec1,Vec2)
-        call check_vector_value(Vec2, 2*vector_values)
+        call op_result%insert_subvector(1, tam, [1,2,3], 2.0*vector_values)
+        call check_vector_value(Vec2, op_result)
 
         Op = Mat - Mat
         call Op%apply(Vec1,Vec2)
-        call check_vector_value(Vec2, 0*vector_values)
+        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
+        call check_vector_value(Vec2, op_result)
 
         Op = Mat * Mat 
         call Op%apply(Vec1,Vec2)
-        call check_vector_value(Vec2, [16._rp, 10._rp, 16._rp])
+        call op_result%insert_subvector(1, tam, [1,2,3], [16._rp, 10._rp, 16._rp])
 
         Op = .minus. Mat
         call Op%apply(Vec1,Vec2)
-        call check_vector_value(Vec2, -vector_values)
+        call op_result%insert_subvector(1, tam, [1,2,3], -vector_values)
+        call check_vector_value(Vec2, op_result)
+
+        Op = .identity. Mat
+        call Op%apply(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values-1.0)
+        call check_vector_value(Vec2, op_result)
 
         Op = 3.0*Mat
         call Op%apply(Vec1,Vec2)
-        call check_vector_value(Vec2, 3*vector_values)
+        call op_result%insert_subvector(1, tam, [1,2,3], 3.0*vector_values)
+        call check_vector_value(Vec2, op_result)
 
         Op = Mat*3.0 
         call Op%apply(Vec1,Vec2)
-        call check_vector_value(Vec2, 3*vector_values)
+        call op_result%insert_subvector(1, tam, [1,2,3], 3.0*vector_values)
+        call check_vector_value(Vec2, op_result)
+
+        Op =  .minus. Mat + Mat * .identity. Mat * 2.0 - Mat
+        call Op%apply(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
+        call check_vector_value(Vec2, op_result)
+
     enddo
 
     call Mat%free()
     call Vec1%free()
     call Vec2%free()
     call Op%free()
+    call Op_result%free()
 
     call FEMPAR_FINALIZE()
 
 contains
 
-    subroutine check_vector_value(vector, values)
-        class(serial_scalar_array_t), intent(in) :: vector
-        real(rp),                     intent(in) :: values(:)
-        real(rp), pointer                        :: vector_entries(:)
-        nullify(vector_entries)
-        vector_entries => vector%get_entries()
-        check(associated(vector_entries))
-        check(size(vector_entries) == size(values))
-        check(all(vector_entries == values))
+    subroutine check_vector_value(vector, result_vector)
+        type(serial_scalar_array_t), intent(in) :: vector
+        type(serial_scalar_array_t), intent(in) :: result_vector
+        check(vector%nrm2()-result_vector%nrm2()<EPSILON(1.0_rp)*1.e3)
     end subroutine
   
 end program test_operators

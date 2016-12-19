@@ -411,6 +411,7 @@ contains
 
     select type(rvalue)
        class is(unary_operator_t)
+       assert(same_type_as(this, rvalue))
        call rvalue%op%domain_vector_space%clone(this%domain_vector_space)
        call rvalue%op%range_vector_space%clone(this%range_vector_space)
        call unary_operator_create(rvalue%op,this)
@@ -541,6 +542,8 @@ contains
     type(vector_space_t), pointer :: range_op
     type(vector_space_t), pointer :: range_res
     
+    call op%GuardTemp()
+    
     domain_op => op%get_domain_vector_space()
     domain_res => res%get_domain_vector_space()
     range_op => op%get_range_vector_space()
@@ -548,6 +551,9 @@ contains
     call unary_operator_create(op,res)
     call range_op%clone(range_res)
     call domain_op%clone(domain_res)
+    
+    call op%CleanTemp()
+
   end function minus_operator_create
   
   recursive function identity_operator_create(op) result (res)
@@ -561,6 +567,8 @@ contains
     type(vector_space_t), pointer :: range_op
     type(vector_space_t), pointer :: range_res
     
+    call op%GuardTemp()
+    
     domain_op => op%get_domain_vector_space()
     domain_res => res%get_domain_vector_space()
     range_op => op%get_range_vector_space()
@@ -568,6 +576,9 @@ contains
     call unary_operator_create(op,res)
     call range_op%clone(range_res)
     call domain_op%clone(domain_res)
+    
+    call op%CleanTemp()
+    
   end function identity_operator_create
 
 !!$  !--------------------------------------------------------------------!
@@ -588,7 +599,10 @@ contains
     type(vector_space_t), pointer :: range_op1
     type(vector_space_t), pointer :: range_op2
     type(vector_space_t), pointer :: range_res
-        
+    
+    call op1%GuardTemp()
+    call op2%GuardTemp()
+    
     domain_op1 => op1%get_domain_vector_space()
     domain_op2 => op2%get_domain_vector_space()
     domain_res => res%get_domain_vector_space()
@@ -626,6 +640,9 @@ contains
     type(vector_space_t), pointer :: range_op2
     type(vector_space_t), pointer :: range_res
     
+    call op1%GuardTemp()
+    call op2%GuardTemp()
+    
     domain_op1 => op1%get_domain_vector_space()
     domain_op2 => op2%get_domain_vector_space()
     domain_res => res%get_domain_vector_space()
@@ -644,6 +661,10 @@ contains
     call binary_operator_create(op1,op2,res)
     call range_op1%clone(range_res)
     call domain_op1%clone(domain_res)
+    
+    call op1%CleanTemp()
+    call op2%CleanTemp()
+    
   end function sub_operator_create
   
   recursive function mult_operator_create(op1,op2) result (res)
@@ -659,6 +680,9 @@ contains
     type(vector_space_t), pointer :: range_op2
     type(vector_space_t), pointer :: range_res
     
+    call op1%GuardTemp()
+    call op2%GuardTemp()
+    
     domain_op1 => op1%get_domain_vector_space()
     domain_op2 => op2%get_domain_vector_space()
     domain_res => res%get_domain_vector_space()
@@ -672,6 +696,10 @@ contains
     call binary_operator_create(op1,op2,res)
     call range_op1%clone(range_res)
     call domain_op2%clone(domain_res)
+    
+    call op1%CleanTemp()
+    call op2%CleanTemp()
+    
   end function mult_operator_create
 
   recursive function scal_left_operator_create(alpha, op_left) result (res)
@@ -688,6 +716,8 @@ contains
     type(vector_space_t), pointer :: range_op_left
     type(vector_space_t), pointer :: range_res
     
+    call op_left%GuardTemp()
+    
     domain_op_left => op_left%get_domain_vector_space()
     domain_res => res%get_domain_vector_space()
     range_op_left => op_left%get_range_vector_space()
@@ -696,6 +726,9 @@ contains
     call unary_operator_create(op_left,res)
     call range_op_left%clone(range_res)
     call domain_op_left%clone(domain_res)
+    
+    call op_left%CleanTemp()
+
   end function scal_left_operator_create
 
   recursive function scal_right_operator_create(op_right, alpha) result (res)
@@ -710,6 +743,8 @@ contains
     type(vector_space_t), pointer :: range_op_right
     type(vector_space_t), pointer :: range_res
     
+    call op_right%GuardTemp()
+    
     domain_op_right => op_right%get_domain_vector_space()
     domain_res => res%get_domain_vector_space()
     range_op_right => op_right%get_range_vector_space()
@@ -718,6 +753,9 @@ contains
     call unary_operator_create(op_right,res)
     call range_op_right%clone(range_res)
     call domain_op_right%clone(domain_res)
+    
+    call op_right%CleanTemp()
+
   end function scal_right_operator_create
   
   recursive subroutine scal_operator_assign(this,rvalue)
