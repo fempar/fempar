@@ -535,22 +535,12 @@ contains
     implicit none
     class(operator_t)    , intent(in)  :: op
     type(minus_operator_t) :: res
-    ! Pointers to domain vector spaces
-    type(vector_space_t), pointer :: domain_op
-    type(vector_space_t), pointer :: domain_res
-    ! Pointers to range vector spaces
-    type(vector_space_t), pointer :: range_op
-    type(vector_space_t), pointer :: range_res
     
     call op%GuardTemp()
     
-    domain_op => op%get_domain_vector_space()
-    domain_res => res%get_domain_vector_space()
-    range_op => op%get_range_vector_space()
-    range_res => res%get_range_vector_space()
     call unary_operator_create(op,res)
-    call range_op%clone(range_res)
-    call domain_op%clone(domain_res)
+    call op%range_vector_space%clone(res%range_vector_space)
+    call op%domain_vector_space%clone(res%domain_vector_space)
     
     call op%CleanTemp()
 
@@ -560,22 +550,12 @@ contains
     implicit none
     class(operator_t)    , intent(in)  :: op
     type(identity_operator_t) :: res
-    ! Pointers to domain vector spaces
-    type(vector_space_t), pointer :: domain_op
-    type(vector_space_t), pointer :: domain_res
-    ! Pointers to range vector spaces
-    type(vector_space_t), pointer :: range_op
-    type(vector_space_t), pointer :: range_res
     
     call op%GuardTemp()
     
-    domain_op => op%get_domain_vector_space()
-    domain_res => res%get_domain_vector_space()
-    range_op => op%get_range_vector_space()
-    range_res => res%get_range_vector_space()
     call unary_operator_create(op,res)
-    call range_op%clone(range_res)
-    call domain_op%clone(domain_res)
+    call op%range_vector_space%clone(res%range_vector_space)
+    call op%domain_vector_space%clone(res%domain_vector_space)
     
     call op%CleanTemp()
     
@@ -590,77 +570,45 @@ contains
     class(operator_t), intent(in)  :: op1, op2
     type(sum_operator_t)  :: res
     
-    ! Pointers to domain vector spaces
-    type(vector_space_t), pointer :: domain_op1
-    type(vector_space_t), pointer :: domain_op2
-    type(vector_space_t), pointer :: domain_res
-    
-    ! Pointers to range vector spaces
-    type(vector_space_t), pointer :: range_op1
-    type(vector_space_t), pointer :: range_op2
-    type(vector_space_t), pointer :: range_res
-    
     call op1%GuardTemp()
     call op2%GuardTemp()
     
-    domain_op1 => op1%get_domain_vector_space()
-    domain_op2 => op2%get_domain_vector_space()
-    domain_res => res%get_domain_vector_space()
-
-    range_op1 => op1%get_range_vector_space()
-    range_op2 => op2%get_range_vector_space()
-    range_res => res%get_range_vector_space()
-    
-    if ( .not. domain_op1%equal_to(domain_op2) ) then
+    if ( .not. op1%domain_vector_space%equal_to(op2%domain_vector_space) ) then
        write(0,'(a)') 'sum_operator_t%create: domain(op1)/=domain(op2)'
        check(.false.)
     end if
         
-    if ( .not. range_op1%equal_to(range_op2) ) then
+    if ( .not. op1%range_vector_space%equal_to(op2%range_vector_space) ) then
        write(0,'(a)') 'sum_operator_t%create: range(op1)/=range(op2)'
        check(.false.)
     end if
      
     call binary_operator_create(op1,op2,res) 
     
-    call range_op1%clone(range_res)
-    call domain_op1%clone(domain_res)
+    call op1%range_vector_space%clone(res%range_vector_space)
+    call op1%domain_vector_space%clone(res%domain_vector_space)
   end function sum_operator_create
 
   recursive function sub_operator_create(op1,op2) result (res)
     implicit none
     class(operator_t), intent(in)  :: op1, op2
     type(sub_operator_t)  :: res
-    ! Pointers to domain vector spaces
-    type(vector_space_t), pointer :: domain_op1
-    type(vector_space_t), pointer :: domain_op2
-    type(vector_space_t), pointer :: domain_res
-    ! Pointers to range vector spaces
-    type(vector_space_t), pointer :: range_op1
-    type(vector_space_t), pointer :: range_op2
-    type(vector_space_t), pointer :: range_res
     
     call op1%GuardTemp()
     call op2%GuardTemp()
-    
-    domain_op1 => op1%get_domain_vector_space()
-    domain_op2 => op2%get_domain_vector_space()
-    domain_res => res%get_domain_vector_space()
-    range_op1 => op1%get_range_vector_space()
-    range_op2 => op2%get_range_vector_space()
-    range_res => res%get_range_vector_space()
-    if ( .not. domain_op1%equal_to(domain_op2) ) then
+
+    if ( .not. op1%domain_vector_space%equal_to(op2%domain_vector_space) ) then
        write(0,'(a)') 'sub_operator_t%create: domain(op1)/=domain(op2)'
        check(.false.)
     end if
         
-    if ( .not. range_op1%equal_to(range_op2) ) then
+    if ( .not. op1%range_vector_space%equal_to(op2%range_vector_space) ) then
        write(0,'(a)') 'sub_operator_t%create: range(op1)/=range(op2)'
        check(.false.)
     end if
     call binary_operator_create(op1,op2,res)
-    call range_op1%clone(range_res)
-    call domain_op1%clone(domain_res)
+    call op1%range_vector_space%clone(res%range_vector_space)
+    call op1%domain_vector_space%clone(res%domain_vector_space)
     
     call op1%CleanTemp()
     call op2%CleanTemp()
@@ -671,31 +619,17 @@ contains
     implicit none
     class(operator_t), intent(in)  :: op1, op2
     type(mult_operator_t) :: res
-    ! Pointers to domain vector spaces
-    type(vector_space_t), pointer :: domain_op1
-    type(vector_space_t), pointer :: domain_op2
-    type(vector_space_t), pointer :: domain_res
-    ! Pointers to range vector spaces
-    type(vector_space_t), pointer :: range_op1
-    type(vector_space_t), pointer :: range_op2
-    type(vector_space_t), pointer :: range_res
     
     call op1%GuardTemp()
     call op2%GuardTemp()
     
-    domain_op1 => op1%get_domain_vector_space()
-    domain_op2 => op2%get_domain_vector_space()
-    domain_res => res%get_domain_vector_space()
-    range_op1 => op1%get_range_vector_space()
-    range_op2 => op2%get_range_vector_space()
-    range_res => res%get_range_vector_space()
-    if ( .not. domain_op1%equal_to(range_op2) ) then
+    if ( .not. op1%domain_vector_space%equal_to(op2%range_vector_space) ) then
        write(0,'(a)') 'mult_operator_t%create: domain(op1)/=range(op2)'
        check(.false.)
     end if
     call binary_operator_create(op1,op2,res)
-    call range_op1%clone(range_res)
-    call domain_op2%clone(domain_res)
+    call op1%range_vector_space%clone(res%range_vector_space)
+    call op2%domain_vector_space%clone(res%domain_vector_space)
     
     call op1%CleanTemp()
     call op2%CleanTemp()
@@ -707,25 +641,13 @@ contains
     class(operator_t)    , intent(in)  :: op_left
     real(rp)             , intent(in)  :: alpha
     type(scal_operator_t)              :: res
-    
-    ! Pointers to domain vector spaces
-    type(vector_space_t), pointer :: domain_op_left
-    type(vector_space_t), pointer :: domain_res
-    
-    ! Pointers to range vector spaces
-    type(vector_space_t), pointer :: range_op_left
-    type(vector_space_t), pointer :: range_res
-    
+
     call op_left%GuardTemp()
-    
-    domain_op_left => op_left%get_domain_vector_space()
-    domain_res => res%get_domain_vector_space()
-    range_op_left => op_left%get_range_vector_space()
-    range_res => res%get_range_vector_space()
+
     res%alpha=alpha
     call unary_operator_create(op_left,res)
-    call range_op_left%clone(range_res)
-    call domain_op_left%clone(domain_res)
+    call op_left%range_vector_space%clone(res%range_vector_space)
+    call op_left%domain_vector_space%clone(res%domain_vector_space)
     
     call op_left%CleanTemp()
 
@@ -736,23 +658,13 @@ contains
     class(operator_t)       , intent(in)  :: op_right
     real(rp)                , intent(in)  :: alpha
     type(scal_operator_t)                 :: res
-    ! Pointers to domain vector spaces
-    type(vector_space_t), pointer :: domain_op_right
-    type(vector_space_t), pointer :: domain_res
-    ! Pointers to range vector spaces
-    type(vector_space_t), pointer :: range_op_right
-    type(vector_space_t), pointer :: range_res
-    
+
     call op_right%GuardTemp()
-    
-    domain_op_right => op_right%get_domain_vector_space()
-    domain_res => res%get_domain_vector_space()
-    range_op_right => op_right%get_range_vector_space()
-    range_res => res%get_range_vector_space()    
+  
     res%alpha=alpha
     call unary_operator_create(op_right,res)
-    call range_op_right%clone(range_res)
-    call domain_op_right%clone(domain_res)
+    call op_right%range_vector_space%clone(res%range_vector_space)
+    call op_right%domain_vector_space%clone(res%domain_vector_space)
     
     call op_right%CleanTemp()
 
