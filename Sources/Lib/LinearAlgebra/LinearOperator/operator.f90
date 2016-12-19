@@ -375,6 +375,7 @@ contains
     implicit none
     class(binary_operator_t), intent(inout) :: this
     class(operator_t)  , intent(in)    :: rvalue 
+    assert(same_type_as(this, rvalue))
     select type(rvalue)
        class is(binary_operator_t)
        call rvalue%op1%domain_vector_space%clone(this%domain_vector_space)
@@ -408,10 +409,9 @@ contains
     implicit none
     class(unary_operator_t), intent(inout) :: this
     class(operator_t)  , intent(in)    :: rvalue
-
+    assert(same_type_as(this, rvalue))
     select type(rvalue)
        class is(unary_operator_t)
-       assert(same_type_as(this, rvalue))
        call rvalue%op%domain_vector_space%clone(this%domain_vector_space)
        call rvalue%op%range_vector_space%clone(this%range_vector_space)
        call unary_operator_create(rvalue%op,this)
@@ -674,7 +674,7 @@ contains
     implicit none
     class(scal_operator_t), intent(inout) :: this
     class(operator_t)       , intent(in)    :: rvalue
-
+    assert(same_type_as(this, rvalue))
     select type(rvalue)
        class is(scal_operator_t)
        this%alpha = rvalue%alpha
