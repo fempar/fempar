@@ -67,8 +67,8 @@ contains
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(volume_integrator_t), pointer :: vol_int_H
-    type(vector_field_t)               :: H_shape_trial, H_shape_test
-    type(vector_field_t)               :: curl_H_shape_trial, curl_H_shape_test
+    type(vector_field_t), allocatable  :: H_shape_values(:,:)
+    type(vector_field_t), allocatable  :: H_shape_curls(:,:)
     
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -107,7 +107,6 @@ contains
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
     vol_int_H => fe%get_volume_integrator(1)
-    
     allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
@@ -128,21 +127,18 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
+       call vol_int_H%get_values(H_shape_values)
+       call vol_int_H%get_curls(H_shape_curls)
        do qpoint = 1, num_quad_points
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           ! \int_(curl(v).curl(u))
           do idof=1, num_dofs_per_field(1)
-            call vol_int_H%get_value(idof, qpoint, H_shape_test)
-            call vol_int_H%get_curl(idof, qpoint, curl_H_shape_test)
             do jdof=1, num_dofs_per_field(1)
-              call vol_int_H%get_value(jdof, qpoint, H_shape_trial)
-              call vol_int_H%get_curl(jdof, qpoint, curl_H_shape_trial)
               elmat(idof,jdof) = elmat(idof,jdof) + &
-                                 (H_shape_trial*H_shape_test + curl_H_shape_trial*curl_H_shape_test)*factor
-                                 !(H_shape_trial*H_shape_test)*factor 
+                                 (H_shape_values(idof,qpoint)*H_shape_values(jdof,qpoint) + H_shape_curls(jdof,qpoint)*H_shape_curls(idof,qpoint))*factor
             end do
             ! \int_(curl(v).f)
-            elvec(idof) = elvec(idof) + H_shape_test * source_term_values(qpoint) * factor
+            elvec(idof) = elvec(idof) + H_shape_values(idof,qpoint) * source_term_values(qpoint) * factor
           end do
        end do
        
@@ -151,6 +147,8 @@ contains
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe_iterator%next()
     end do
+    deallocate(H_shape_curls, stat=istat); check(istat==0);
+    deallocate(H_shape_values, stat=istat); check(istat==0);
     deallocate (source_term_values, stat=istat); check(istat==0);
     deallocate (elem2dof, stat=istat); check(istat==0);
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )

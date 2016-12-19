@@ -23,7 +23,6 @@ module test_nsi_parameters_names
   !>
   !> Currently, the following CLI group are implemented:
   !>   - analytical (Default values are defined assuming 'analytical' group)
-  !> @todo Adapt to the new approach of parameter_generator_t to work with CLI groups
   type, extends(parameter_handler_t), public :: test_nsi_parameters_t
      private
    contains 
