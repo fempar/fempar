@@ -309,26 +309,14 @@ contains
     implicit none
     class(binary_operator_t), intent(inout) :: this
     integer(ip)                             :: istat
-
-    select type(that => this%op1)
-       class is(expression_operator_t)
-       call that%CleanTemp()
-       class is(lvalue_operator_t)
-       call that%CleanTemp()
-       class default
-       check(1==0)
-    end select
-    deallocate(this%op1, stat=istat); check(istat==0)
-
-    select type(that => this%op2)
-       class is(expression_operator_t)
-       call that%CleanTemp()
-       class is(lvalue_operator_t)
-       call that%CleanTemp()
-       class default
-       check(1==0)
-    end select
-    deallocate(this%op2, stat=istat); check(istat==0)
+    if(associated(this%op1)) then
+      call this%op1%CleanTemp()
+      deallocate(this%op1, stat=istat); check(istat==0)
+    endif
+    if(associated(this%op2)) then
+      call this%op2%CleanTemp()
+      deallocate(this%op2, stat=istat); check(istat==0)
+    endif
     call this%free_vector_spaces()
   end subroutine binary_operator_free
 
@@ -409,15 +397,10 @@ contains
     class(unary_operator_t), intent(inout) :: this
     integer(ip)                            :: istat
 
-    select type(that => this%op)
-       class is(expression_operator_t)
-       call that%CleanTemp()
-       class is(lvalue_operator_t)
-       call that%CleanTemp()
-       class default
-       check(1==0)
-    end select
-    deallocate(this%op, stat=istat); check(istat==0)
+    if(associated(this%op)) then
+       call this%op%CleanTemp()
+       deallocate(this%op, stat=istat); check(istat==0)
+    end if
     call this%free_vector_spaces()
   end subroutine unary_operator_free
 
