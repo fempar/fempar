@@ -66,7 +66,7 @@ implicit none
         call check_vector_value(Vec2, op_result)
 
         Op = Mat - Mat
-        call Op%apply(Vec1,Vec2)
+        Vec2 = Op * Vec1
         call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
         call check_vector_value(Vec2, op_result)
 
@@ -99,6 +99,12 @@ implicit none
         call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
         call check_vector_value(Vec2, op_result)
 
+        Op = Mat * .identity. Mat * 2.0 - Mat
+        Op = .minus. Mat + Op
+        call Op%apply(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
+        call check_vector_value(Vec2, op_result)
+
     enddo
 
     call Mat%free()
@@ -114,7 +120,7 @@ contains
     subroutine check_vector_value(vector, result_vector)
         type(serial_scalar_array_t), intent(in) :: vector
         type(serial_scalar_array_t), intent(in) :: result_vector
-        check(vector%nrm2()-result_vector%nrm2()<EPSILON(1.0_rp)*1.e3)
+        check(abs(vector%nrm2()-result_vector%nrm2())<EPSILON(1.0_rp)*1.e3)
     end subroutine
   
 end program test_operators
