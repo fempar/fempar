@@ -62,6 +62,7 @@ use iso_c_binding
      procedure  :: set_block_to_zero  => block_preconditioner_lu_set_block_to_zero
      procedure  :: free               => block_preconditioner_lu_free
      procedure  :: apply              => block_preconditioner_lu_apply
+     procedure  :: apply_add          => block_preconditioner_lu_apply_add
      procedure  :: is_linear          => block_preconditioner_lu_is_linear
   end type block_preconditioner_lu_t
 
@@ -104,6 +105,21 @@ contains
     call z%free()
     deallocate(z)
   end subroutine block_preconditioner_lu_apply
+  
+  ! op%apply_add(x,y) <=> y <- op*x + y
+  ! Implicitly assumes that y is already allocated
+  subroutine block_preconditioner_lu_apply_add (this,x,y)
+    implicit none
+    class(block_preconditioner_lu_t)     , intent(in)   :: this
+    class(vector_t)      , intent(in)    :: x
+    class(vector_t)      , intent(inout) :: y
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    call x%GuardTemp()
+    call this%L%apply_add(x,y)
+    call this%U%apply_add(x,y)
+    call x%CleanTemp()
+  end subroutine block_preconditioner_lu_apply_add
 
   subroutine block_preconditioner_lu_create (bop, nblocks)
     implicit none

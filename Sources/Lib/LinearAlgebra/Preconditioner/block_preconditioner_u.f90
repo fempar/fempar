@@ -60,6 +60,7 @@ use iso_c_binding
      procedure  :: free               => block_preconditioner_u_free
      procedure  :: get_block          => block_preconditioner_u_get_block
      procedure  :: apply              => block_preconditioner_u_apply
+     procedure  :: apply_add          => block_preconditioner_u_apply_add
      procedure  :: is_linear          => block_preconditioner_u_is_linear
    end type block_preconditioner_u_t
 
@@ -112,6 +113,48 @@ contains
     end select
     call x%CleanTemp()
   end subroutine block_preconditioner_u_apply
+  
+  ! op%apply_add(x,y) <=> y <- op*x + y
+  ! Implicitly assumes that y is already allocated
+  subroutine block_preconditioner_u_apply_add (this,x,y)
+    implicit none
+    class(block_preconditioner_u_t)     , intent(in)   :: this
+    class(vector_t)      , intent(in)    :: x
+    class(vector_t)      , intent(inout) :: y
+
+    ! Locals
+    integer(ip) :: iblk, jblk
+    class(vector_t), allocatable :: aux1, aux2
+
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    call x%GuardTemp()
+    select type(x)
+    class is (block_vector_t)
+       select type(y)
+       class is(block_vector_t)
+          allocate(aux1, mold=x%blocks(1)%vector); call aux1%default_initialization()
+          allocate(aux2, mold=x%blocks(1)%vector); call aux2%default_initialization()
+          do iblk=this%nblocks, 1, -1
+             call aux1%clone(x%blocks(iblk)%vector)
+             call aux1%copy(x%blocks(iblk)%vector)
+             call aux2%clone(x%blocks(iblk)%vector)
+             call aux2%init(0.0_rp)
+             do jblk=this%nblocks, iblk+1,-1
+                if (associated(this%blocks(iblk,jblk)%p_op)) then
+                   call this%blocks(iblk,jblk)%p_op%apply_add(y%blocks(jblk)%vector,aux2)
+                end if
+             end do
+             call aux1%axpby(-1.0,aux2,1.0)
+             call this%blocks(iblk,iblk)%p_op%apply_add(aux1,y%blocks(iblk)%vector)
+             call aux1%free()
+             call aux2%free()
+          end do
+          deallocate(aux1, aux2)
+       end select
+    end select
+    call x%CleanTemp()
+  end subroutine block_preconditioner_u_apply_add
   
   function block_preconditioner_u_is_linear(this)
     implicit none

@@ -48,6 +48,7 @@ module operator_names
    contains
      ! Deferred methods
      procedure (apply_interface)    , deferred :: apply
+     procedure (apply_add_interface), deferred :: apply_add
      procedure (is_linear_interface), deferred :: is_linear 
      
      procedure :: get_tangent                             => operator_get_tangent
@@ -108,6 +109,7 @@ module operator_names
    contains
      procedure  :: default_initialization => lvalue_operator_default_init
      procedure  :: apply     => lvalue_operator_apply
+     procedure  :: apply_add => lvalue_operator_apply_add
      procedure  :: is_linear => lvalue_operator_is_linear
      procedure  :: free      => lvalue_operator_free
      procedure  :: assign    => lvalue_operator_create
@@ -117,25 +119,29 @@ module operator_names
   type, extends(binary_operator_t) :: sum_operator_t
    contains
      procedure  :: apply     => sum_operator_apply
+     procedure  :: apply_add => sum_operator_apply_add
      procedure  :: is_linear => sum_operator_is_linear
   end type sum_operator_t
 
   type, extends(binary_operator_t) :: sub_operator_t
    contains
-     procedure  :: apply => sub_operator_apply
+     procedure  :: apply     => sub_operator_apply
+     procedure  :: apply_add => sub_operator_apply_add
      procedure  :: is_linear => sub_operator_is_linear
   end type sub_operator_t
 
   type, extends(binary_operator_t) :: mult_operator_t
    contains
-     procedure  :: apply => mult_operator_apply
+     procedure  :: apply     => mult_operator_apply
+     procedure  :: apply_add => mult_operator_apply_add
      procedure  :: is_linear => mult_operator_is_linear
   end type mult_operator_t
 
   type, extends(unary_operator_t) :: scal_operator_t
      real(rp) :: alpha
    contains
-     procedure  :: apply => scal_operator_apply
+     procedure  :: apply     => scal_operator_apply
+     procedure  :: apply_Add => scal_operator_apply_add
      procedure  :: is_linear => scal_operator_is_linear
      ! scal_operator must overwrite assign for unary_operator_t
      ! as it adds a new member variable "alpha" to unary_operator_t
@@ -144,13 +150,15 @@ module operator_names
   
   type, extends(unary_operator_t) :: minus_operator_t
    contains
-     procedure  :: apply => minus_operator_apply
+     procedure  :: apply     => minus_operator_apply
+     procedure  :: apply_add => minus_operator_apply_add
      procedure  :: is_linear => minus_operator_is_linear
   end type minus_operator_t
     
   type, extends(unary_operator_t) :: identity_operator_t
   contains
      procedure :: apply     => identity_operator_apply
+     procedure :: apply_add => identity_operator_apply_add
      procedure :: is_linear => identity_operator_is_linear
   end type
 
@@ -164,6 +172,16 @@ module operator_names
        class(vector_t) , intent(in)    :: x
        class(vector_t) , intent(inout) :: y 
      end subroutine apply_interface 
+     
+     ! op%apply_add(x,y) <=> y <- op*x+y
+     ! Implicitly assumes that y is already allocated
+     subroutine apply_add_interface(this,x,y) 
+       import :: operator_t, vector_t
+       implicit none
+       class(operator_t), intent(in)    :: this
+       class(vector_t) , intent(in)    :: x
+       class(vector_t) , intent(inout) :: y 
+     end subroutine apply_add_interface 
 
      subroutine expression_operator_assign_interface(this,rvalue)
        import :: operator_t, expression_operator_t
@@ -710,7 +728,6 @@ contains
     class(sum_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
-    class(vector_t), allocatable   :: w
     integer(ip)                    :: istat
 
     call this%abort_if_not_in_domain(x)
@@ -718,16 +735,10 @@ contains
     
     call this%GuardTemp()
     call x%GuardTemp()
-    ! y <- op2*x
     call this%op2%apply(x,y)
-    call this%op1%range_vector_space%create_vector(w)
-    call this%op1%apply(x,w)
-    ! y <- 1.0 * op1*x + 1.0*y
-    call y%axpby( 1.0, w, 1.0 )
+    call this%op1%apply_add(x,y)
     call x%CleanTemp()
     call this%CleanTemp()
-    call w%free()
-    deallocate(w, stat=istat); check(istat==0)
   end subroutine sum_operator_apply
 
   recursive subroutine sub_operator_apply(this,x,y)
@@ -827,6 +838,151 @@ contains
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine lvalue_operator_apply
+  
+  !-------------------------------------!
+  ! apply_add implementations           !
+  !-------------------------------------!
+  recursive subroutine identity_operator_apply_add(this,x,y)
+    implicit none
+    class(identity_operator_t), intent(in) :: this
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y
+
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    call this%GuardTemp()
+    call x%GuardTemp()
+    call y%axpby( 1.0, x, 1.0 )
+    call x%CleanTemp()
+    call this%CleanTemp()
+  end subroutine identity_operator_apply_add
+  
+  recursive subroutine sum_operator_apply_add(this,x,y)
+    implicit none
+    class(sum_operator_t), intent(in)    :: this
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y
+
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    
+    call this%GuardTemp()
+    call x%GuardTemp()
+    ! y <- 1.0 * op21*x + 1.0*y
+    call this%op2%apply_add(x,y)
+    ! y <- 1.0 * op2*x + 1.0*y
+    call this%op1%apply_add(x,y)
+    call x%CleanTemp()
+    call this%CleanTemp()
+  end subroutine sum_operator_apply_add
+
+  recursive subroutine sub_operator_apply_add(this,x,y)
+    implicit none
+    class(sub_operator_t), intent(in)    :: this
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y 
+    class(vector_t), allocatable   :: w
+    integer(ip)                    :: istat
+    
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    
+    call this%GuardTemp()
+    call x%GuardTemp()
+    call this%op1%range_vector_space%create_vector(w)
+    ! y <- op2*x
+    call this%op2%apply(x,w)
+    ! y <- -1.0 * op2*x + 1.0*y
+    call y%axpby( -1.0, w, 1.0 )
+    ! y <- 1.0 * op1*x + 1.0*y
+    call this%op1%apply_add(x,y)
+    call x%CleanTemp()
+    call this%CleanTemp()
+    call w%free()
+    deallocate(w, stat=istat); check(istat==0)
+  end subroutine sub_operator_apply_add
+  
+  recursive subroutine mult_operator_apply_add(this,x,y)
+    implicit none
+    class(mult_operator_t), intent(in)    :: this
+    class(vector_t), intent(in)    :: x
+    class(vector_t), intent(inout) :: y
+    class(vector_t), allocatable   :: w
+    integer(ip)                    :: istat
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    call this%GuardTemp()
+    call x%GuardTemp()
+    call this%op1%range_vector_space%create_vector(w)
+    call this%op1%apply(x,w)
+    call this%op2%apply_add(w,y)
+    call x%CleanTemp()
+    call this%CleanTemp()
+    call w%free()
+    deallocate(w, stat=istat); check(istat==0)
+  end subroutine mult_operator_apply_add
+
+  recursive subroutine scal_operator_apply_add(this,x,y)
+    implicit none
+    class(scal_operator_t), intent(in)    :: this
+    class(vector_t),        intent(in)    :: x
+    class(vector_t),        intent(inout) :: y 
+    class(vector_t),        allocatable   :: w
+    integer(ip)                           :: istat
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    call this%GuardTemp()
+    call x%GuardTemp()
+    call this%op%range_vector_space%create_vector(w)
+    call this%op%apply(x,w)
+    call y%axpby( this%alpha, w, 1.0 )
+    call x%CleanTemp()
+    call this%CleanTemp()
+    call w%free()
+    deallocate(w, stat=istat); check(istat==0)
+  end subroutine scal_operator_apply_add
+
+  recursive subroutine minus_operator_apply_add(this,x,y)
+    implicit none
+    class(minus_operator_t), intent(in)    :: this
+    class(vector_t),         intent(in)    :: x
+    class(vector_t),         intent(inout) :: y 
+    class(vector_t),         allocatable   :: w
+    integer(ip)                            :: istat
+    call this%GuardTemp()
+    call x%GuardTemp()
+    call this%op%range_vector_space%create_vector(w)
+    call this%op%apply(x,w)
+    call y%axpby( -1.0, w, 1.0 )
+    call x%CleanTemp()
+    call this%CleanTemp()
+    call w%free()
+    deallocate(w, stat=istat); check(istat==0)
+  end subroutine minus_operator_apply_add
+
+  recursive subroutine lvalue_operator_apply_add(this,x,y)
+    implicit none
+    class(lvalue_operator_t), intent(in)    :: this
+    class(vector_t),          intent(in)    :: x
+    class(vector_t),          intent(inout) :: y 
+    
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    
+    call this%GuardTemp()
+    call x%GuardTemp()
+    if(associated(this%op_stored)) then
+       assert(.not. associated(this%op_referenced))
+       call this%op_stored%apply_add(x,y)
+    else if(associated(this%op_referenced)) then
+       assert(.not. associated(this%op_stored))
+       call this%op_referenced%apply_add(x,y)
+    else
+       check(1==0)
+    end if
+    call x%CleanTemp()
+    call this%CleanTemp()
+  end subroutine lvalue_operator_apply_add  
   
   !-------------------------------------!
   ! is_linear implementations           !

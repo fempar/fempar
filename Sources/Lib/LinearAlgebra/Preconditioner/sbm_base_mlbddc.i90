@@ -663,6 +663,28 @@ recursive subroutine base_mlbddc_apply (this, x, y)
   call x%CleanTemp()
 end subroutine base_mlbddc_apply
 
+!=============================================================================
+recursive subroutine base_mlbddc_apply_Add(this, x, y)
+  implicit none
+  ! Parameters
+  class(base_mlbddc_t)   , intent(in)    :: this
+  class(vector_t)   , intent(in)    :: x
+  class(vector_t)   , intent(inout) :: y
+  class(vector_t), allocatable      :: w
+  type(vector_space_t), pointer     :: range_vector_space
+  integer(ip)                       :: istat
+  call this%abort_if_not_in_domain(x)
+  call this%abort_if_not_in_range(y)
+  call x%GuardTemp()
+  range_vector_space => this%get_range_vector_space()
+  call range_vector_space%create_vector(w)
+  call this%apply(x,w)
+  call y%axpby(1.0, w, 1.0)
+  call x%CleanTemp()
+  call w%free()
+  deallocate(w, stat=istat); check(istat==0)
+end subroutine base_mlbddc_apply_add
+
 recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
   implicit none
   class(base_mlbddc_t)         , intent(in)    :: this

@@ -128,6 +128,7 @@ private
         procedure,                  public :: extract_diagonal                 => sparse_matrix_extract_diagonal
         procedure,                  public :: free                             => sparse_matrix_free
         procedure,                  public :: apply                            => sparse_matrix_apply
+        procedure,                  public :: apply_add                        => sparse_matrix_apply_add
         procedure,                  public :: apply_transpose                  => sparse_matrix_apply_transpose
         procedure,                  public :: apply_to_dense_matrix            => sparse_matrix_apply_to_dense_matrix
         procedure,                  public :: apply_transpose_to_dense_matrix  => sparse_matrix_apply_transpose_to_dense_matrix
@@ -1215,6 +1216,28 @@ contains
         call this%abort_if_not_in_range(y)
         call this%State%apply(x,y)
     end subroutine sparse_matrix_apply
+    
+        subroutine sparse_matrix_apply_add(this,x,y) 
+    !-----------------------------------------------------------------
+    !< Apply matrix vector product y=op*x + y
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in)    :: this
+        class(vector_t),        intent(in)    :: x
+        class(vector_t),        intent(inout) :: y 
+        class(vector_t),  allocatable         :: w
+        type(vector_space_t), pointer         :: range_vector_space
+        integer(ip)                           :: istat
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%abort_if_not_in_domain(x)
+        call this%abort_if_not_in_range(y)
+        range_vector_space => this%get_range_vector_space()
+        call range_vector_space%create_vector(w)
+        call this%apply(x,w)
+        call y%axpby(1.0, w, 1.0)
+        call w%free()
+        deallocate(w, stat=istat); check(istat==0)
+    end subroutine sparse_matrix_apply_add
 
 
     subroutine sparse_matrix_apply_transpose(this,x,y) 
