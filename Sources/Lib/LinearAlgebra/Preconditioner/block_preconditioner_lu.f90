@@ -92,8 +92,8 @@ contains
     class(block_preconditioner_lu_t)     , intent(in)   :: this
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
-    class(vector_t), allocatable :: z
-    class(vector_space_t), pointer :: range_vector_space_L
+    class(vector_t), allocatable         :: z
+    class(vector_space_t), pointer       :: range_vector_space_L
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
     range_vector_space_L => this%L%get_range_vector_space()
@@ -113,12 +113,18 @@ contains
     class(block_preconditioner_lu_t)     , intent(in)   :: this
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
+    class(vector_t), allocatable         :: z
+    class(vector_space_t), pointer       :: range_vector_space_L
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
+    range_vector_space_L => this%L%get_range_vector_space()
+    call range_vector_space_L%create_vector(z)
     call x%GuardTemp()
-    call this%L%apply_add(x,y)
-    call this%U%apply_add(x,y)
+    call this%L%apply(x,z)
+    call this%U%apply_add(z,y)
     call x%CleanTemp()
+    call z%free()
+    deallocate(z)
   end subroutine block_preconditioner_lu_apply_add
 
   subroutine block_preconditioner_lu_create (bop, nblocks)

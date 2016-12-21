@@ -65,10 +65,10 @@ implicit none
         call op_result%insert_subvector(1, tam, [1,2,3], 2.0*vector_values)
         call check_vector_value(Vec2, op_result)
 
-        Op = Mat - Mat
-        Vec2 = Op * Vec1
-        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
-        call check_vector_value(Vec2, op_result)
+!        Op = Mat - Mat
+!        Vec2 = Op * Vec1
+!        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
+!        call check_vector_value(Vec2, op_result)
 
         Op = Mat * Mat 
         call Op%apply(Vec1,Vec2)
@@ -89,6 +89,11 @@ implicit none
         call op_result%insert_subvector(1, tam, [1,2,3], 3.0*vector_values)
         call check_vector_value(Vec2, op_result)
 
+        Op = 0.0*Mat
+        call Op%apply(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
+        call check_vector_value(Vec2, op_result)
+
         Op = Mat*3.0 
         call Op%apply(Vec1,Vec2)
         call op_result%insert_subvector(1, tam, [1,2,3], 3.0*vector_values)
@@ -104,7 +109,66 @@ implicit none
         call Op%apply(Vec1,Vec2)
         call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
         call check_vector_value(Vec2, op_result)
+    enddo
 
+
+    do i=1, iters
+        call Vec2%init(0.0_rp)
+
+        Op = 0.0*Mat
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
+        call check_vector_value(Vec2, op_result)
+
+        Op = Mat
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 1.0*vector_values)
+        call check_vector_value(Vec2, op_result)
+
+        Op = Mat + Mat
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 3.0*vector_values)
+        call check_vector_value(Vec2, op_result)
+
+        Op = Mat - Mat
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 3.0*vector_values)
+        call check_vector_value(Vec2, op_result)
+
+        Op = Mat * Mat 
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 3.0*vector_values+[16._rp, 10._rp, 16._rp])
+
+        Op = .minus. Mat
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 2.0*vector_values+[16._rp, 10._rp, 16._rp])
+        call check_vector_value(Vec2, op_result)
+
+        Op = .identity. Mat
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 2.0*vector_values+[16._rp, 10._rp, 16._rp]+1)
+        call check_vector_value(Vec2, op_result)
+
+        Op = 3.0*Mat
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 5.0*vector_values+[16._rp, 10._rp, 16._rp]+1)
+        call check_vector_value(Vec2, op_result)
+
+        Op = Mat*3.0 
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 8.0*vector_values+[16._rp, 10._rp, 16._rp]+1)
+        call check_vector_value(Vec2, op_result)
+
+        Op =  .minus. Mat + Mat * .identity. Mat * 2.0 - Mat
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 8.0*vector_values+[16._rp, 10._rp, 16._rp]+1)
+        call check_vector_value(Vec2, op_result)
+
+        Op = Mat * .identity. Mat * 2.0 - Mat
+        Op = .minus. Mat + Op
+        call Op%apply_add(Vec1,Vec2)
+        call op_result%insert_subvector(1, tam, [1,2,3], 8.0*vector_values+[16._rp, 10._rp, 16._rp]+1)
+        call check_vector_value(Vec2, op_result)
     enddo
 
     call Mat%free()

@@ -744,26 +744,19 @@ contains
   recursive subroutine sub_operator_apply(this,x,y)
     implicit none
     class(sub_operator_t), intent(in)    :: this
-    class(vector_t), intent(in)    :: x
-    class(vector_t), intent(inout) :: y 
-    class(vector_t), allocatable   :: w
-    integer(ip)                    :: istat
-    
+    class(vector_t),       intent(in)    :: x
+    class(vector_t),       intent(inout) :: y 
+    type(lvalue_operator_t)              :: op
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
-    
     call this%GuardTemp()
     call x%GuardTemp()
-    ! y <- op2*x
-    call this%op2%apply(x,y)
-    call this%op1%range_vector_space%create_vector(w)
-    call this%op1%apply(x,w)
-    ! y <- 1.0 * op1*x - 1.0*y
-    call y%axpby( 1.0, w, -1.0 )
+    call this%op1%apply(x,y)
+    op = .minus. this%op2
+    call op%apply_add(x,y)
+    call op%free()
     call x%CleanTemp()
     call this%CleanTemp()
-    call w%free()
-    deallocate(w, stat=istat); check(istat==0)
   end subroutine sub_operator_apply
   
   recursive subroutine mult_operator_apply(this,x,y)
@@ -779,7 +772,7 @@ contains
     call x%GuardTemp()
     call this%op1%range_vector_space%create_vector(w)
     call this%op1%apply(x,w)
-    call this%op2%apply(w, y )
+    call this%op2%apply(w,y)
     call x%CleanTemp()
     call this%CleanTemp()
     call w%free()
@@ -813,7 +806,6 @@ contains
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine minus_operator_apply
-
 
   recursive subroutine lvalue_operator_apply(this,x,y)
     implicit none
@@ -862,15 +854,11 @@ contains
     class(sum_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
-
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
-    
     call this%GuardTemp()
     call x%GuardTemp()
-    ! y <- 1.0 * op21*x + 1.0*y
     call this%op2%apply_add(x,y)
-    ! y <- 1.0 * op2*x + 1.0*y
     call this%op1%apply_add(x,y)
     call x%CleanTemp()
     call this%CleanTemp()
@@ -881,25 +869,17 @@ contains
     class(sub_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
-    class(vector_t), allocatable   :: w
-    integer(ip)                    :: istat
-    
+    type(lvalue_operator_t)        :: op
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
-    
     call this%GuardTemp()
     call x%GuardTemp()
-    call this%op1%range_vector_space%create_vector(w)
-    ! y <- op2*x
-    call this%op2%apply(x,w)
-    ! y <- -1.0 * op2*x + 1.0*y
-    call y%axpby( -1.0, w, 1.0 )
-    ! y <- 1.0 * op1*x + 1.0*y
     call this%op1%apply_add(x,y)
+    op = .minus. this%op2
+    call op%apply_add(x,y)
+    call op%free()
     call x%CleanTemp()
     call this%CleanTemp()
-    call w%free()
-    deallocate(w, stat=istat); check(istat==0)
   end subroutine sub_operator_apply_add
   
   recursive subroutine mult_operator_apply_add(this,x,y)
@@ -927,19 +907,18 @@ contains
     class(scal_operator_t), intent(in)    :: this
     class(vector_t),        intent(in)    :: x
     class(vector_t),        intent(inout) :: y 
-    class(vector_t),        allocatable   :: w
-    integer(ip)                           :: istat
+    
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
     call this%GuardTemp()
     call x%GuardTemp()
-    call this%op%range_vector_space%create_vector(w)
-    call this%op%apply(x,w)
-    call y%axpby( this%alpha, w, 1.0 )
+    if(this%alpha /= 0.0_rp) then
+       call y%scal( 1.0/this%alpha, y )
+       call this%op%apply_add(x,y)
+       call y%scal( this%alpha, y )
+    endif
     call x%CleanTemp()
     call this%CleanTemp()
-    call w%free()
-    deallocate(w, stat=istat); check(istat==0)
   end subroutine scal_operator_apply_add
 
   recursive subroutine minus_operator_apply_add(this,x,y)
@@ -947,17 +926,13 @@ contains
     class(minus_operator_t), intent(in)    :: this
     class(vector_t),         intent(in)    :: x
     class(vector_t),         intent(inout) :: y 
-    class(vector_t),         allocatable   :: w
-    integer(ip)                            :: istat
     call this%GuardTemp()
     call x%GuardTemp()
-    call this%op%range_vector_space%create_vector(w)
-    call this%op%apply(x,w)
-    call y%axpby( -1.0, w, 1.0 )
+    call y%scal(-1.0, y)
+    call this%op%apply_add(x,y)
+    call y%scal(-1.0, y)
     call x%CleanTemp()
     call this%CleanTemp()
-    call w%free()
-    deallocate(w, stat=istat); check(istat==0)
   end subroutine minus_operator_apply_add
 
   recursive subroutine lvalue_operator_apply_add(this,x,y)

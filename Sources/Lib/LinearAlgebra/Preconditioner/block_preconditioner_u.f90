@@ -98,12 +98,13 @@ contains
              call aux1%clone(x%blocks(iblk)%vector)
              call aux1%copy(x%blocks(iblk)%vector)
              call aux2%clone(x%blocks(iblk)%vector)
+             call aux2%init(0.0_rp)
              do jblk=this%nblocks, iblk+1,-1
                 if (associated(this%blocks(iblk,jblk)%p_op)) then
-                   call this%blocks(iblk,jblk)%p_op%apply(y%blocks(jblk)%vector,aux2)
-                   call aux1%axpby(-1.0,aux2,1.0)
+                   call this%blocks(iblk,jblk)%p_op%apply_add(y%blocks(jblk)%vector,aux2)
                 end if
              end do
+             call aux1%axpby(-1.0,aux2,1.0)
              call this%blocks(iblk,iblk)%p_op%apply(aux1,y%blocks(iblk)%vector)
              call aux1%free()
              call aux2%free()

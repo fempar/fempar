@@ -91,7 +91,6 @@ contains
 
     ! Locals
     integer(ip) :: iblk, jblk
-    class(vector_t), allocatable :: aux
 
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
@@ -101,19 +100,14 @@ contains
     class is (block_vector_t)
        select type(y)
        class is(block_vector_t)
-          allocate(aux, mold=y%blocks(1)%vector); call aux%default_initialization()
           do iblk=1, this%mblocks
              call y%blocks(iblk)%vector%init(0.0_rp)
-             call aux%clone(y%blocks(iblk)%vector)
              do jblk=1, this%nblocks
                 if (associated(this%blocks(iblk,jblk)%p_op)) then
-                    call this%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%vector,aux)
-                    call y%blocks(iblk)%vector%axpby(1.0,aux,1.0)
+                    call this%blocks(iblk,jblk)%p_op%apply_add(x%blocks(jblk)%vector,y%blocks(iblk)%vector)
                  end if
               end do
-             call aux%free()
           end do
-          deallocate(aux)
        end select
     end select
     call x%CleanTemp()

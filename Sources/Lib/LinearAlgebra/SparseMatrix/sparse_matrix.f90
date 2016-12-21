@@ -1224,19 +1224,11 @@ contains
         class(sparse_matrix_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y 
-        class(vector_t),  allocatable         :: w
-        type(vector_space_t), pointer         :: range_vector_space
-        integer(ip)                           :: istat
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         call this%abort_if_not_in_domain(x)
         call this%abort_if_not_in_range(y)
-        range_vector_space => this%get_range_vector_space()
-        call range_vector_space%create_vector(w)
-        call this%apply(x,w)
-        call y%axpby(1.0, w, 1.0)
-        call w%free()
-        deallocate(w, stat=istat); check(istat==0)
+        call this%State%apply_add(x,y)
     end subroutine sparse_matrix_apply_add
 
 

@@ -664,7 +664,7 @@ recursive subroutine base_mlbddc_apply (this, x, y)
 end subroutine base_mlbddc_apply
 
 !=============================================================================
-recursive subroutine base_mlbddc_apply_Add(this, x, y)
+recursive subroutine base_mlbddc_apply_add(this, x, y)
   implicit none
   ! Parameters
   class(base_mlbddc_t)   , intent(in)    :: this
