@@ -624,7 +624,7 @@ contains
        write(0,'(a)') 'sub_operator_t%create: range(op1)/=range(op2)'
        check(.false.)
     end if
-    call binary_operator_create(op1,op2,res)
+    call binary_operator_create(op1,.minus. op2,res)
     call op1%range_vector_space%clone(res%range_vector_space)
     call op1%domain_vector_space%clone(res%domain_vector_space)
     
@@ -746,15 +746,12 @@ contains
     class(sub_operator_t), intent(in)    :: this
     class(vector_t),       intent(in)    :: x
     class(vector_t),       intent(inout) :: y 
-    type(lvalue_operator_t)              :: op
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
     call this%GuardTemp()
     call x%GuardTemp()
     call this%op1%apply(x,y)
-    op = .minus. this%op2
-    call op%apply_add(x,y)
-    call op%free()
+    call this%op2%apply_add(x,y)
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine sub_operator_apply
@@ -802,7 +799,7 @@ contains
     call this%GuardTemp()
     call x%GuardTemp()
     call this%op%apply(x,y)
-    call y%scal( -1.0, y )
+    call y%scal( -1.0_rp, y )
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine minus_operator_apply
@@ -844,7 +841,7 @@ contains
     call this%abort_if_not_in_range(y)
     call this%GuardTemp()
     call x%GuardTemp()
-    call y%axpby( 1.0, x, 1.0 )
+    call y%axpby( 1.0_rp, x, 1.0_rp )
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine identity_operator_apply_add
@@ -869,15 +866,12 @@ contains
     class(sub_operator_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
-    type(lvalue_operator_t)        :: op
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
     call this%GuardTemp()
     call x%GuardTemp()
     call this%op1%apply_add(x,y)
-    op = .minus. this%op2
-    call op%apply_add(x,y)
-    call op%free()
+    call this%op2%apply_add(x,y)
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine sub_operator_apply_add
@@ -913,7 +907,7 @@ contains
     call this%GuardTemp()
     call x%GuardTemp()
     if(this%alpha /= 0.0_rp) then
-       call y%scal( 1.0/this%alpha, y )
+       call y%scal( 1.0_rp/this%alpha, y )
        call this%op%apply_add(x,y)
        call y%scal( this%alpha, y )
     endif
@@ -928,9 +922,9 @@ contains
     class(vector_t),         intent(inout) :: y 
     call this%GuardTemp()
     call x%GuardTemp()
-    call y%scal(-1.0, y)
+    call y%scal(-1.0_rp, y)
     call this%op%apply_add(x,y)
-    call y%scal(-1.0, y)
+    call y%scal(-1.0_rp, y)
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine minus_operator_apply_add
