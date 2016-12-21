@@ -38,8 +38,8 @@ module fempar_names
  	use mpi_context_names
   use flap, only : command_line_interface
   use FPL
-  use parameter_generator_names
   use timer_names
+  use parameter_handler_names
   use output_handler_names
   use output_handler_parameters_names
   use vtk_parameters_names

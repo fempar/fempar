@@ -10,10 +10,10 @@ module par_test_poisson_params_names
   character(len=*), parameter :: write_solution_key         = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
 
-  type, extends(parameter_generator_t) :: par_test_poisson_params_t
+  type, extends(parameter_handler_t) :: par_test_poisson_params_t
      private
      contains
-       procedure :: set_default  => par_test_poisson_params_set_default
+       procedure :: define_parameters  => par_test_poisson_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
@@ -29,14 +29,14 @@ module par_test_poisson_params_names
 contains
 
   !==================================================================================================
-  subroutine par_test_poisson_params_set_default(this)
+  subroutine par_test_poisson_params_define_parameters(this)
     implicit none
     class(par_test_poisson_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip)    :: error
     character(len=:), allocatable            :: msg
 
-    list        => this%get_parameters()
+    list        => this%get_values()
     switches    => this%get_switches()
     switches_ab => this%get_switches_ab()
     helpers     => this%get_helpers()
@@ -133,7 +133,7 @@ contains
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
 
-  end subroutine par_test_poisson_params_set_default
+  end subroutine par_test_poisson_params_define_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
@@ -142,7 +142,7 @@ contains
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_parameters()
+    list  => this%get_values()
     assert(list%isAssignable(dir_path_key, 'string'))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
@@ -155,7 +155,7 @@ contains
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_parameters()
+    list  => this%get_values()
     assert(list%isAssignable(prefix_key, 'string'))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
@@ -168,7 +168,7 @@ contains
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_parameters()
+    list  => this%get_values()
     assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
     assert(error==0)
@@ -181,7 +181,7 @@ contains
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_parameters()
+    list  => this%get_values()
     assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
     error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
     assert(error==0)
@@ -197,7 +197,7 @@ contains
     logical                                       :: is_present
     logical                                       :: same_data_type
     integer(ip), allocatable                      :: shape(:)
-    list  => this%get_parameters()
+    list  => this%get_values()
     assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key = write_solution_key, Value = get_write_solution)
     assert(error==0)
@@ -210,7 +210,7 @@ contains
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_parameters()
+    list  => this%get_values()
     assert(list%isAssignable(triangulation_generate_key, get_triangulation_type))
     error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
     assert(error==0)

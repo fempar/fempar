@@ -336,7 +336,15 @@ module fe_space_names
      procedure, non_overridable, private :: free_at_strong_dirichlet_bound               => serial_fe_space_free_at_strong_dirichlet_bound
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs                  => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
+     
      procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
+     procedure, non_overridable, private :: allocate_and_fill_fields_to_project_         => serial_fe_space_allocate_and_fill_fields_to_project_
+     procedure, non_overridable, private :: allocate_and_fill_offset_component           => serial_fe_space_allocate_and_fill_offset_component
+     procedure, non_overridable, private :: allocate_and_fill_global2subset_and_inverse  => serial_fe_space_allocate_and_fill_global2subset_and_inverse 
+     procedure, non_overridable, private :: get_function_scalar_components               => serial_fe_space_get_function_scalar_components
+     procedure, non_overridable, private :: evaluate_vector_function_scalar_components   => serial_fe_space_evaluate_vector_function_scalar_components
+     procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec
+     
      procedure, non_overridable          :: initialize_fe_integration                    => serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
      procedure, non_overridable, private :: generate_fe_volume_integrators_position_key  => serial_fe_space_generate_fe_volume_integrators_position_key
@@ -477,6 +485,7 @@ module fe_space_names
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
+
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
    procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
@@ -485,6 +494,12 @@ module fe_space_names
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => pfs_compute_ubound_num_itfc_couplings_by_continuity
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => pfs_compute_ubound_num_itfc_couplings_by_face_integ
    procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => par_fe_space_generate_non_consecutive_dof_gid
+   
+   ! These set of three subroutines are in charge of generating a dof_import for the distributed-memory solution of boundary mass matrices
+   procedure        , non_overridable, private :: compute_boundary_dof_import                              => par_fe_space_compute_boundary_dof_import
+   procedure        , non_overridable, private :: compute_ubound_boundary_num_itfc_couplings_by_continuity => pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity
+   procedure        , non_overridable, private :: compute_boundary_raw_interface_data_by_continuity        => par_fe_space_compute_boundary_raw_interface_data_by_continuity
+
 
    procedure        , non_overridable          :: get_number_fe_objects                           => par_fe_space_get_number_fe_objects
    procedure                                   :: get_par_environment                             => par_fe_space_get_par_environment
@@ -496,6 +511,7 @@ module fe_space_names
    procedure                                   :: symbolic_setup_assembler                        => par_fe_space_symbolic_setup_assembler
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
    procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
+   procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
    procedure       , non_overridable, private  :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
    procedure       , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs

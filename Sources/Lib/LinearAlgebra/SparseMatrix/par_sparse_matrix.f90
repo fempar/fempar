@@ -20,7 +20,7 @@ private
     type, extends(matrix_t) :: par_sparse_matrix_t
       private
       type(sparse_matrix_t)            :: sparse_matrix
-      type(environment_t), pointer :: p_env             => NULL()
+      type(environment_t)    , pointer :: p_env             => NULL()
       type(dof_import_t)     , pointer :: dof_import_domain => NULL()
       type(dof_import_t)     , pointer :: dof_import_range  => NULL()
     contains
