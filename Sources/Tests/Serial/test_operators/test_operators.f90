@@ -55,7 +55,7 @@ implicit none
     call op_result%allocate()
 
     do i=1, iters
-        Op = Mat
+        call Op%assign(Mat)
         call Op%apply(Vec1,Vec2)
         call op_result%insert_subvector(1, tam, [1,2,3], vector_values)
         call check_vector_value(Vec2, op_result)
@@ -65,10 +65,10 @@ implicit none
         call op_result%insert_subvector(1, tam, [1,2,3], 2.0*vector_values)
         call check_vector_value(Vec2, op_result)
 
-!        Op = Mat - Mat
-!        Vec2 = Op * Vec1
-!        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
-!        call check_vector_value(Vec2, op_result)
+        Op = Mat - Mat
+        Vec2 = Op * Vec1
+        call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
+        call check_vector_value(Vec2, op_result)
 
         Op = Mat * Mat 
         call Op%apply(Vec1,Vec2)
@@ -120,7 +120,7 @@ implicit none
         call op_result%insert_subvector(1, tam, [1,2,3], 0.0*vector_values)
         call check_vector_value(Vec2, op_result)
 
-        Op = Mat
+        call Op%assign(Mat)
         call Op%apply_add(Vec1,Vec2)
         call op_result%insert_subvector(1, tam, [1,2,3], 1.0*vector_values)
         call check_vector_value(Vec2, op_result)
