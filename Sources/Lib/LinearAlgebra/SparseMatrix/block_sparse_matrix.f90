@@ -306,8 +306,10 @@ contains
     end do
     if (action == free_clean) then
        this%nblocks = 0
-       deallocate (this%blocks, stat=istat)
-       check(istat==0)
+       if(allocated(this%blocks)) then
+          deallocate (this%blocks, stat=istat)
+          check(istat==0)
+       endif
        call this%free_vector_spaces()
     end if
   end subroutine block_sparse_matrix_free_in_stages
