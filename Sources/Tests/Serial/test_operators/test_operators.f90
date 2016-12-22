@@ -91,8 +91,12 @@ contains
     subroutine check_vector_value(vector, result_vector)
         class(vector_t), intent(in) :: vector
         class(vector_t), intent(in) :: result_vector
-        class(vector_t), pointer     :: block
-        check(abs(vector%nrm2()-result_vector%nrm2())<EPSILON(1.0_rp)*1.e3)
+        class(vector_t), allocatable :: error
+        allocate(error,mold=vector)
+        error = vector-result_vector
+        check(error%nrm2()<=EPSILON(1.0_rp)*1.e3*result_vector%nrm2())
+        call error%free()
+        deallocate(error) 
     end subroutine
 
     subroutine test_operators_apply(Mat, x, y, iters)
