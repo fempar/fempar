@@ -83,7 +83,7 @@ contains
 
     ! Locals
     integer(ip) :: iblk, jblk
-    class(vector_t), allocatable :: aux1, aux2
+    class(vector_t), allocatable :: aux
 
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
@@ -91,25 +91,20 @@ contains
     select type(x)
     class is (block_vector_t)
        select type(y)
-       class is(block_vector_t)
-          allocate(aux1, mold=x%blocks(1)%vector); call aux1%default_initialization()
-          allocate(aux2, mold=x%blocks(1)%vector); call aux2%default_initialization()
+       class is(block_vector_t)          
+          allocate(aux, mold=x%blocks(1)%vector); call aux%default_initialization()
           do iblk=this%nblocks, 1, -1
-             call aux1%clone(x%blocks(iblk)%vector)
-             call aux1%copy(x%blocks(iblk)%vector)
-             call aux2%clone(x%blocks(iblk)%vector)
-             call aux2%init(0.0_rp)
+             call aux%clone(x%blocks(iblk)%vector)
+             call aux%scal(-1.0_rp,x%blocks(iblk)%vector)
              do jblk=this%nblocks, iblk+1,-1
                 if (associated(this%blocks(iblk,jblk)%p_op)) then
-                   call this%blocks(iblk,jblk)%p_op%apply_add(y%blocks(jblk)%vector,aux2)
+                   call this%blocks(iblk,jblk)%p_op%apply_add(y%blocks(jblk)%vector,aux)
                 end if
              end do
-             call aux1%axpby(-1.0,aux2,1.0)
-             call this%blocks(iblk,iblk)%p_op%apply(aux1,y%blocks(iblk)%vector)
-             call aux1%free()
-             call aux2%free()
+             call aux%scal(-1.0_rp,aux)
+             call this%blocks(iblk,iblk)%p_op%apply(aux,y%blocks(iblk)%vector)
           end do
-          deallocate(aux1, aux2)
+          deallocate(aux)
        end select
     end select
     call x%CleanTemp()
@@ -125,7 +120,7 @@ contains
 
     ! Locals
     integer(ip) :: iblk, jblk
-    class(vector_t), allocatable :: aux1, aux2
+    class(vector_t), allocatable :: aux
 
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
@@ -134,24 +129,19 @@ contains
     class is (block_vector_t)
        select type(y)
        class is(block_vector_t)
-          allocate(aux1, mold=x%blocks(1)%vector); call aux1%default_initialization()
-          allocate(aux2, mold=x%blocks(1)%vector); call aux2%default_initialization()
+          allocate(aux, mold=x%blocks(1)%vector); call aux%default_initialization()
           do iblk=this%nblocks, 1, -1
-             call aux1%clone(x%blocks(iblk)%vector)
-             call aux1%copy(x%blocks(iblk)%vector)
-             call aux2%clone(x%blocks(iblk)%vector)
-             call aux2%init(0.0_rp)
+             call aux%clone(x%blocks(iblk)%vector)
+             call aux%scal(-1.0_rp,x%blocks(iblk)%vector)
              do jblk=this%nblocks, iblk+1,-1
                 if (associated(this%blocks(iblk,jblk)%p_op)) then
-                   call this%blocks(iblk,jblk)%p_op%apply_add(y%blocks(jblk)%vector,aux2)
+                   call this%blocks(iblk,jblk)%p_op%apply_add(y%blocks(jblk)%vector,aux)
                 end if
              end do
-             call aux1%axpby(-1.0,aux2,1.0)
-             call this%blocks(iblk,iblk)%p_op%apply_add(aux1,y%blocks(iblk)%vector)
-             call aux1%free()
-             call aux2%free()
+             call aux%scal(-1.0_rp,aux)
+             call this%blocks(iblk,iblk)%p_op%apply_add(aux,y%blocks(iblk)%vector)
           end do
-          deallocate(aux1, aux2)
+          deallocate(aux)
        end select
     end select
     call x%CleanTemp()
