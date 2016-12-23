@@ -139,6 +139,7 @@ module mlbddc_names
 
     ! Apply related TBPs
     procedure                           :: apply                                           => base_mlbddc_apply
+    procedure                           :: apply_add                                       => base_mlbddc_apply_add
     procedure, non_overridable, private :: apply_par_scalar_array                          => base_mlbddc_apply_par_scalar_array
     procedure, non_overridable, private :: solve_coarse_problem                            => base_mlbddc_solve_coarse_problem
     procedure, non_overridable, private :: compute_coarse_correction                       => base_mlbddc_compute_coarse_correction

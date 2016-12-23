@@ -114,6 +114,7 @@ contains
   procedure          :: symbolic_setup              => fe_affine_operator_symbolic_setup
   procedure          :: numerical_setup             => fe_affine_operator_numerical_setup
   procedure          :: apply                       => fe_affine_operator_apply
+  procedure          :: apply_add                   => fe_affine_operator_apply_add
   procedure          :: is_linear                   => fe_affine_operator_is_linear
   procedure          :: get_tangent                 => fe_affine_operator_get_tangent
   procedure          :: get_translation             => fe_affine_operator_get_translation
@@ -339,6 +340,26 @@ subroutine fe_affine_operator_apply(this,x,y)
  call y%axpby( -1.0_rp, array, 1.0_rp )
  call x%CleanTemp()
 end subroutine fe_affine_operator_apply
+
+! op%apply(x,y) <=> y <- op*x+y
+! Implicitly assumes that y is already allocated
+subroutine fe_affine_operator_apply_add(this,x,y) 
+ implicit none
+ class(fe_affine_operator_t), intent(in)    :: this
+ class(vector_t) , intent(in)    :: x
+ class(vector_t) , intent(inout) :: y 
+ class(matrix_t) , pointer       :: matrix
+ class(array_t)  , pointer       :: array
+ call this%fe_affine_operator_setup()
+ call this%abort_if_not_in_domain(x)
+ call this%abort_if_not_in_range(y)
+ call x%GuardTemp()
+ matrix => this%matrix_array_assembler%get_matrix()
+ call matrix%apply_add(x,y)
+ array => this%matrix_array_assembler%get_array()
+ call y%axpby( -1.0_rp, array, 1.0_rp )
+ call x%CleanTemp()
+end subroutine fe_affine_operator_apply_add
 
 function fe_affine_operator_is_linear(this)
  implicit none

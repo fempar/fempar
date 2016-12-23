@@ -62,6 +62,7 @@ private
         procedure, non_overridable         :: solve_single_rhs        => direct_solver_solve_single_rhs
         procedure, non_overridable         :: solve_several_rhs       => direct_solver_solve_several_rhs
         procedure,                  public :: apply                   => direct_solver_apply
+        procedure,                  public :: apply_add               => direct_solver_apply_add
         procedure, non_overridable, public :: is_linear               => direct_solver_is_linear
         procedure, non_overridable, public :: free_in_stages          => direct_solver_free_in_stages
         procedure, non_overridable, public :: free                    => direct_solver_free
@@ -266,7 +267,27 @@ contains
     !-----------------------------------------------------------------
         call this%solve(x,y)
     end subroutine direct_solver_apply
-
+    
+    
+    subroutine direct_solver_apply_add(this, x, y)
+    !-----------------------------------------------------------------
+    !< Call to Solve (Computes y <- A^-1 * x + y)
+    !-----------------------------------------------------------------
+        class(direct_solver_t), intent(in)    :: this
+        class(vector_t),        intent(in)    :: x
+        class(vector_t),        intent(inout) :: y
+        class(vector_t), allocatable          :: w
+        type(vector_space_t), pointer         :: range_vector_space
+        integer(ip)                           :: istat
+    !-----------------------------------------------------------------
+        range_vector_space => this%get_range_vector_space()
+        call range_vector_space%create_vector(w)
+        call this%solve(x,w)
+        call y%axpby(1.0, w, 1.0)
+        call w%free()
+        deallocate(w, stat=istat); check(istat==0)
+    end subroutine direct_solver_apply_add
+    
 
     function direct_solver_is_linear(this) result(is_linear)
     !-----------------------------------------------------------------

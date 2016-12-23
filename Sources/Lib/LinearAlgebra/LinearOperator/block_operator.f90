@@ -68,6 +68,7 @@ use iso_c_binding
      procedure  :: free               => block_operator_free
      procedure  :: get_block          => block_operator_get_block
      procedure  :: apply              => block_operator_apply
+     procedure  :: apply_add          => block_operator_apply_add
      procedure  :: is_linear          => block_operator_is_linear
   end type block_operator_t
 
@@ -90,7 +91,6 @@ contains
 
     ! Locals
     integer(ip) :: iblk, jblk
-    class(vector_t), allocatable :: aux
 
     call this%abort_if_not_in_domain(x)
     call this%abort_if_not_in_range(y)
@@ -100,23 +100,49 @@ contains
     class is (block_vector_t)
        select type(y)
        class is(block_vector_t)
-          allocate(aux, mold=y%blocks(1)%vector); call aux%default_initialization()
           do iblk=1, this%mblocks
              call y%blocks(iblk)%vector%init(0.0_rp)
-             call aux%clone(y%blocks(iblk)%vector)
              do jblk=1, this%nblocks
                 if (associated(this%blocks(iblk,jblk)%p_op)) then
-                    call this%blocks(iblk,jblk)%p_op%apply(x%blocks(jblk)%vector,aux)
-                    call y%blocks(iblk)%vector%axpby(1.0,aux,1.0)
+                    call this%blocks(iblk,jblk)%p_op%apply_add(x%blocks(jblk)%vector,y%blocks(iblk)%vector)
                  end if
               end do
-             call aux%free()
           end do
-          deallocate(aux)
        end select
     end select
     call x%CleanTemp()
   end subroutine block_operator_apply
+  
+  ! op%apply_add(x,y) <=> y <- op*x + y
+  ! Implicitly assumes that y is already allocated
+  subroutine block_operator_apply_add (this,x,y)
+    implicit none
+    class(block_operator_t), intent(in)    :: this
+    class(vector_t),         intent(in)    :: x
+    class(vector_t),         intent(inout) :: y
+
+    ! Locals
+    integer(ip) :: iblk, jblk
+
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    
+    call x%GuardTemp()
+    select type(x)
+    class is (block_vector_t)
+       select type(y)
+       class is(block_vector_t)
+          do iblk=1, this%mblocks
+             do jblk=1, this%nblocks
+                if (associated(this%blocks(iblk,jblk)%p_op)) then
+                    call this%blocks(iblk,jblk)%p_op%apply_add(x%blocks(jblk)%vector,y%blocks(iblk)%vector)
+                 end if
+              end do
+          end do
+       end select
+    end select
+    call x%CleanTemp()
+  end subroutine block_operator_apply_add
   
   function block_operator_is_linear(this)
     implicit none

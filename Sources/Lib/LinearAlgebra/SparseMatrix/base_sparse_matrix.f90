@@ -210,6 +210,7 @@ module base_sparse_matrix_names
      procedure         :: append_single_value_body         => base_sparse_matrix_append_single_value_body
      procedure         :: is_valid_sign                    => base_sparse_matrix_is_valid_sign
      procedure         :: apply_body                       => base_sparse_matrix_apply_body
+     procedure         :: apply_add_body                   => base_sparse_matrix_apply_add_body
      procedure         :: apply_transpose_body             => base_sparse_matrix_apply_transpose_body
      procedure         :: apply_to_dense_matrix_body       => base_sparse_matrix_apply_to_dense_matrix_body
      procedure         :: apply_transpose_to_dense_matrix_body => base_sparse_matrix_apply_transpose_to_dense_matrix_body
@@ -260,6 +261,7 @@ module base_sparse_matrix_names
      procedure, public :: allocate_values                  => base_sparse_matrix_allocate_values
      procedure, public :: convert_body                     => base_sparse_matrix_convert_body
      procedure, public :: apply                            => base_sparse_matrix_apply
+     procedure, public :: apply_add                        => base_sparse_matrix_apply_add
      procedure, public :: apply_transpose                  => base_sparse_matrix_apply_transpose
      procedure, public :: apply_to_dense_matrix            => base_sparse_matrix_apply_to_dense_matrix
      procedure, public :: apply_transpose_to_dense_matrix  => base_sparse_matrix_apply_transpose_to_dense_matrix
@@ -2376,11 +2378,23 @@ contains
         assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
         call this%apply_body(x, y)
     end subroutine base_sparse_matrix_apply
+    
+    
+    subroutine base_sparse_matrix_apply_add(this, x, y)
+    !-----------------------------------------------------------------
+    !< Increase Y with Matrix vector product
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in)    :: this
+        class(vector_t),             intent(in)    :: x
+        class(vector_t),             intent(inout) :: y
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
+        call this%apply_add_body(x, y)
+    end subroutine base_sparse_matrix_apply_add
 
 
     subroutine base_sparse_matrix_apply_body(this, x, y)
     !-----------------------------------------------------------------
-    !< Allocate arrays
     !< Must be overloaded 
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(in)    :: this
@@ -2389,6 +2403,18 @@ contains
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine base_sparse_matrix_apply_body
+    
+    
+    subroutine base_sparse_matrix_apply_add_body(this, x, y)
+    !-----------------------------------------------------------------
+    !< Must be overloaded 
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in)    :: this
+        class(vector_t),             intent(in)    :: x
+        class(vector_t),             intent(inout) :: y
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_apply_add_body
 
 
     subroutine base_sparse_matrix_apply_transpose(this, x, y)
