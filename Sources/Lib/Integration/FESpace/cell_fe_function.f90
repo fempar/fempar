@@ -88,6 +88,7 @@ module cell_fe_function_names
      procedure, non_overridable :: get_value                             => cell_fe_function_vector_get_value
      procedure, non_overridable :: get_gradient                          => cell_fe_function_vector_get_gradient 
      procedure, non_overridable :: compute_curl                          => cell_fe_function_vector_compute_curl 
+     procedure, non_overridable :: compute_divergence                    => cell_fe_function_vector_compute_divergence 
      procedure, non_overridable :: set_current_number_nodes              => cell_fe_function_vector_set_current_number_nodes
      procedure, non_overridable :: set_current_number_quadrature_points  => cell_fe_function_vector_set_current_number_quadrature_points
      procedure, non_overridable :: free                                  => cell_fe_function_vector_free
