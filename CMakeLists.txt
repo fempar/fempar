@@ -326,7 +326,9 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 # STATIC LIBRARIES
 #################################################################
 
-IF(NOT ${BUILD_SHARED_LIBS}) # If shared libs not forced, prepend ".a" extension to library suffixes. Useful for future call to FIND_PACKAGE
+# If shared libs not forced, prepend ".a" extension to library suffixes. 
+# Useful to find first static libraries in future calls to FIND_PACKAGE
+IF(NOT ${BUILD_SHARED_LIBS})
     SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a ${CMAKE_FIND_LIBRARY_SUFFIXES}")
 ENDIF()
 
