@@ -47,7 +47,7 @@ GNU_RELEASE:
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR $ROOT_DIR
-    - ctest -j8 -V -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck
+    - ctest -j8 -V -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalMemCheck
   #artifacts:
   #  paths:
   #    - mybinary
