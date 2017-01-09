@@ -2,20 +2,52 @@
 # use the official gcc image, based on debian
 # can use verions as well, like gcc:5.2
 # see https://hub.docker.com/_/gcc/
-image: gcc
+image: gcc:6.3.0
 
-build:
+before_script: 
+  - ROOT_DIR=$PWD
+  - BUILD_DIR=$ROOT_DIR/BUILD
+  - DOC_DIR=$ROOT_DIR/DOC
+  - FORD_DIR=$ROOT_DIR/FORD
+  - FEMPAR_DIR=$BUILD_DIR/FEMPAR
+  - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
+  - mkdir -p $FEMPAR_DIR
+  - mkdir -p $THIRDPARTY_DIR
+  - apt update
+  - apt -y install cmake
+  - apt -y install libblas-dev liblapack-dev
+  - apt -y install libmetis-dev libmetis5
+  - apt -y install valgrind
+  - apt -y install libopenmpi-dev openmpi-bin
+  - cmake --version
+  - gfortran --version
+  - mpif90 --version
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+
+stages:
+  - build
+  - doc
+
+GNU_DEBUG:
   stage: build
-  # instead of calling g++ directly you can also use some build toolkit like make
-  # install the necessary build tools when needed
-  before_script: 
-    - apt update && apt -y install cmake
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
   script: 
-    - mkdir build
-    - cd build
-    - cmake ..
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_THIRDPARTY_ENABLE_TESTS=ON $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR $ROOT_DIR
+    - ctest -j8 -V -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck
+    
+GNU_RELEASE:
+  stage: build
+  script: 
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_THIRDPARTY_ENABLE_TESTS=ON $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR $ROOT_DIR
+    - ctest -j8 -V -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck
   #artifacts:
   #  paths:
   #    - mybinary
@@ -24,6 +56,16 @@ build:
   #   paths:
   #     - "*.o"
 
+DOCUMENTATION:
+  stage: doc
+  script: 
+    - apt -y install python-pip python-dev build-essential
+    - pip install ford
+    # Clone fempar doc repository
+    - cd $ROOT_DIR
+    - ford fempar_ford.md
+  only:
+    - experimental
 # run tests using the binary built before
 #test:
 #  stage: test
