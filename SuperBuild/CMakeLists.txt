@@ -18,7 +18,7 @@ SET(SRC_PATH ${CMAKE_SOURCE_DIR}/..)
 SET(ROOT_PATH ${SRC_PATH})
 SET(SRC_PATH ${SRC_PATH}/Sources)
 SET(TESTS_PATH ${SRC_PATH}/Tests)
-SET(DRIVERS_PATH ${ROOT_PATH}/Drivers)
+SET(DRIVERS_PATH /Users/ocolomes/Progs/Fempar_GitLab/NSI-fempar/src/Drivers)
 SET(THIRDPARTY_PATH ${ROOT_PATH}/ThirdParty)
 
 #################################################################
