@@ -219,19 +219,8 @@ ENDIF()
 # SET BUILD NAME (Before enable testing)
 #################################################################
 
-FIND_PACKAGE( Git )
-IF(${GIT_FOUND})
-    # Get the current working branch
-    EXECUTE_PROCESS(
-        COMMAND git rev-parse --short HEAD
-        WORKING_DIRECTORY ${ROOT_PATH}
-        OUTPUT_VARIABLE GIT_COMMIT
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-ENDIF()
-
 # Append the commit ID to the BUILDNAME if Git is found
-SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL}@${GIT_COMMIT} CACHE STRING "" )
+SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL} CACHE STRING "" )
 
 #################################################################
 # ENABLE TESTING
