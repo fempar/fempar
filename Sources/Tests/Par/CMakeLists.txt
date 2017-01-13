@@ -8,6 +8,9 @@ IF(MPI_FOUND)
         MESSAGE(WARNING "MPIEXEC was not found. Parallel TESTS will not be performed!")
     ENDIF()
 
+    IF(NOT MPIEXEC_PREFLAGS)
+        SET(MPIEXEC_PREFLAGS -v)
+    ENDIF()
 
     # Search all files and directories in the top directory
     FILE(GLOB DIRECTORIES *)
@@ -40,7 +43,7 @@ IF(MPI_FOUND)
             IF(MPIEXEC)
                 IF(EXISTS ${SCRIPTS_TESTS_PATH}/${EXE_NAME})
                 # If there is an script with the name of the executable, add the current target to the Cmake-CTest system
-                    ADD_TEST(${EXE_NAME}_TEST ${SCRIPTS_TESTS_PATH}/${EXE_NAME} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${DATA_TESTS_PATH}/${EXE_NAME})
+                     ADD_TEST(${EXE_NAME}_TEST ${SCRIPTS_TESTS_PATH}/${EXE_NAME} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_PREFLAGS} ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${DATA_TESTS_PATH}/${EXE_NAME})
                 ENDIF()
             ENDIF()
         ENDFOREACH()
