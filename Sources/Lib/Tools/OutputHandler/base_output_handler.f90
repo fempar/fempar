@@ -55,12 +55,14 @@ module base_output_handler_names
 USE FPL
 USE types_names
 USE memor_names
+USE reference_fe_names,          only: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
 USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t, fe_accessor_t
 USE fe_function_names,           only: fe_function_t
 USE output_handler_fe_field_names
 USE output_handler_patch_names
 USE output_handler_cell_fe_function_names
 USE output_handler_fe_iterator_names
+USE output_handler_parameters_names
 
 implicit none
 #include "debug.i90"
@@ -127,17 +129,18 @@ private
         procedure, non_overridable, public :: get_number_fields            => base_output_handler_get_number_fields
         procedure, non_overridable, public :: get_number_cell_vectors      => base_output_handler_get_number_cell_vectors
         procedure, non_overridable, public :: get_fe_field                 => base_output_handler_get_fe_field
-        procedure, non_overridable, public :: get_cell_vector              => base_output_handler_get_cell_vector
-        procedure, non_overridable, public :: get_fe_space                 => base_output_handler_get_fe_space
-        procedure, non_overridable, public :: set_iterator                 => base_output_handler_set_iterator
-        procedure, non_overridable         :: resize_fe_fields_if_needed   => base_output_handler_resize_fe_fields_if_needed
-        procedure, non_overridable         :: resize_cell_vectors_if_needed=> base_output_handler_resize_cell_vectors_if_needed
-        procedure, non_overridable, public :: attach_fe_space              => base_output_handler_attach_fe_space
-        procedure, non_overridable, public :: add_fe_function              => base_output_handler_add_fe_function
-        procedure, non_overridable, public :: add_cell_vector              => base_output_handler_add_cell_vector
-        procedure, non_overridable, public :: fill_data                    => base_output_handler_fill_data
-        procedure, non_overridable, public :: open                         => base_output_handler_open
-        procedure, non_overridable, public :: close                        => base_output_handler_close
+        procedure, non_overridable, public :: get_fe_field_num_components  => base_output_handler_get_fe_field_num_components
+        procedure, non_overridable, public :: get_cell_vector                     => base_output_handler_get_cell_vector
+        procedure, non_overridable, public :: get_fe_space                        => base_output_handler_get_fe_space
+        procedure, non_overridable, public :: set_iterator                        => base_output_handler_set_iterator
+        procedure, non_overridable         :: resize_fe_fields_if_needed          => base_output_handler_resize_fe_fields_if_needed
+        procedure, non_overridable         :: resize_cell_vectors_if_needed       => base_output_handler_resize_cell_vectors_if_needed
+        procedure, non_overridable, public :: attach_fe_space                     => base_output_handler_attach_fe_space
+        procedure, non_overridable, public :: add_fe_function                     => base_output_handler_add_fe_function
+        procedure, non_overridable, public :: add_cell_vector                     => base_output_handler_add_cell_vector
+        procedure, non_overridable, public :: fill_data                           => base_output_handler_fill_data
+        procedure, non_overridable, public :: open                                => base_output_handler_open
+        procedure, non_overridable, public :: close                               => base_output_handler_close
         procedure(base_output_handler_open_body),                      public, deferred :: open_body
         procedure(base_output_handler_append_time_step),               public, deferred :: append_time_step
         procedure(base_output_handler_allocate_cell_and_nodal_arrays),         deferred :: allocate_cell_and_nodal_arrays
@@ -321,6 +324,64 @@ contains
         assert(field_id <= this%number_fields)
         field => this%fe_fields(field_id)
     end function base_output_handler_get_fe_field
+    
+   function base_output_handler_get_fe_field_num_components(this, field_id) result(number_components)
+    !-----------------------------------------------------------------
+    !< 
+    !-----------------------------------------------------------------
+        class(base_output_handler_t),    target, intent(in) :: this
+        integer(ip),                             intent(in) :: field_id
+        integer(ip)                                         :: number_components
+        character(:), allocatable :: field_type, diff_operator
+    !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
+        assert(field_id >=1 .and. field_id <= this%number_fields)
+        field_type    = this%fe_space%get_field_type(this%fe_fields(field_id)%get_field_id())
+        diff_operator = this%fe_fields(field_id)%get_diff_operator()
+        select case(field_type)
+            ! Select procedures to fill patch field from a scalar field  (Value or Grad)
+            case ( field_type_scalar )
+                select case (diff_operator)
+                    case (no_diff_operator)
+                      ! Scalar-valued
+                      number_components = 1
+                    case (grad_diff_operator)
+                      ! Vector-valued  
+                      number_components = SPACE_DIM
+                    case DEFAULT
+                        check(.false.)
+                end select
+            ! Select procedures to fill patch field from a vector field (Value or Grad or Div or Curl)
+            case ( field_type_vector )
+                select case (diff_operator)
+                    case (no_diff_operator)
+                      ! Vector-valued
+                      number_components = SPACE_DIM
+                    case (grad_diff_operator)
+                      ! Tensor-valued
+                      number_components = SPACE_DIM*SPACE_DIM
+                    case (div_diff_operator)
+                      ! Scalar-valued
+                      number_components = 1
+                    case (curl_diff_operator)
+                      ! Vector-valued
+                      number_components = SPACE_DIM
+                    case DEFAULT
+                        check(.false.)
+                end select
+            ! Select procedures to fill patch field from a tensor field (only Value)
+            case ( field_type_tensor )
+                select case (diff_operator)
+                    case (no_diff_operator)
+                       ! Tensor-valued  
+                       number_components = SPACE_DIM*SPACE_DIM
+                    case DEFAULT
+                        check(.false.)
+                end select
+        end select
+        
+    end function base_output_handler_get_fe_field_num_components
+    
 
 
     function base_output_handler_get_cell_vector(this, cell_vector_id) result(cell_vector)

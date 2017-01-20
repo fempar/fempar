@@ -254,6 +254,10 @@ contains
         class(vtk_output_handler_t), intent(inout) :: this
         integer(ip)                                :: number_nodes
         integer(ip)                                :: number_cells
+        integer(ip)                                :: i
+        integer(ip)                                :: number_cell_vectors
+        integer(ip)                                :: number_fields
+        integer(ip)                                :: number_components
     !-----------------------------------------------------------------
         number_nodes = this%get_number_nodes()
         number_cells = this%get_number_cells()
@@ -288,6 +292,17 @@ contains
         else
             call memalloc(  number_nodes, this%Connectivities, __FILE__, __LINE__)
         endif
+        number_cell_vectors = this%get_number_cell_vectors()
+        do i=1, number_cell_vectors
+            call this%CellValues(i)%allocate_value(1, this%get_number_cells())
+        enddo
+        
+        do i=1, this%get_number_fields()
+            call this%FieldValues(i)%allocate_value(this%get_fe_field_num_components(i), this%get_number_nodes())
+        end do
+        do i=1, this%get_number_cell_vectors()
+            call this%CellValues(i)%allocate_value(1, this%get_number_cells())
+        enddo
     end subroutine vtk_output_handler_allocate_cell_and_nodal_arrays
 
 
@@ -324,7 +339,6 @@ contains
 
         do i=1, number_fields
             number_components = subcell_accessor%get_number_field_components(i)
-            if(.not. this%FieldValues(i)%value_is_allocated()) call this%FieldValues(i)%allocate_value(number_components, this%get_number_nodes())
             FieldValue => this%FieldValues(i)%get_value()
             call subcell_accessor%get_field(i, number_components, FieldValue(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
         enddo
@@ -333,7 +347,6 @@ contains
         this%cell_offset = this%cell_offset + 1
 
         do i=1, number_cell_vectors
-            if(.not. this%CellValues(i)%value_is_allocated()) call this%CellValues(i)%allocate_value(1, this%get_number_cells())
             CellValue => this%CellValues(i)%get_value()
             call subcell_accessor%get_cell_vector(i, CellValue(this%cell_offset:this%cell_offset))
         enddo

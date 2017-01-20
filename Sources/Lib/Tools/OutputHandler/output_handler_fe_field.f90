@@ -375,7 +375,7 @@ contains
         integer(ip)                                              :: number_components
         integer(ip)                                              :: number_nodes
     !-----------------------------------------------------------------
-        assert(.not. allocated(this%value))
+        call this%free()
         call memalloc(number_components*number_nodes, this%value, __FILE__, __LINE__)
         this%number_components = number_components
     end subroutine output_handler_fe_field_1D_value_allocate_value
@@ -439,7 +439,7 @@ contains
         integer(ip)                                              :: number_components
         integer(ip)                                              :: number_nodes
     !-----------------------------------------------------------------
-        assert(.not. allocated(this%value))
+        call this%free()
         call memalloc(number_components, number_nodes, this%value, __FILE__, __LINE__)
         this%number_components = number_components
     end subroutine output_handler_fe_field_2D_value_allocate_value
