@@ -158,11 +158,11 @@ contains
         if (present(output_handler)) then
           allocate(output_handler_prototype, mold=output_handler, stat=error); check(error==0)
         else
-#ifdef ENABLE_HDF5
-          allocate(xh5_output_handler_t :: output_handler_prototype)
-#else
+! #ifdef ENABLE_HDF5
+!          allocate(xh5_output_handler_t :: output_handler_prototype)
+!#else
           allocate(vtk_output_handler_t :: output_handler_prototype)
-#endif          
+!#endif          
         end if
     end subroutine output_handler_prototype_reset
 
