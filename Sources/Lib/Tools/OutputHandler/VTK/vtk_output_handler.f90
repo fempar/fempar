@@ -292,10 +292,10 @@ contains
         endif
         do i=1, this%get_number_fields()
             field => this%get_fe_field(i)
-            call this%FieldValues(i)%allocate_value(field%get_number_components(), this%get_number_nodes())
+            call this%FieldValues(i)%create(field%get_number_components(), this%get_number_nodes())
         end do
         do i=1, this%get_number_cell_vectors()
-            call this%CellValues(i)%allocate_value(1, this%get_number_cells())
+            call this%CellValues(i)%create(1, this%get_number_cells())
         enddo
     end subroutine vtk_output_handler_allocate_cell_and_nodal_arrays
 

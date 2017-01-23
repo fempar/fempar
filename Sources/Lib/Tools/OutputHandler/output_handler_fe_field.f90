@@ -137,7 +137,7 @@ private
     contains
     private
         procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_1D_value_value_is_allocated
-        procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_1D_value_allocate_value
+        procedure, non_overridable, public :: create                => output_handler_fe_field_1D_value_create
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_1D_value_get_value
         procedure, non_overridable, public :: get_number_components => output_handler_fe_field_1D_value_get_number_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_1D_value_free
@@ -159,7 +159,7 @@ private
     contains
     private
         procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_2D_value_value_is_allocated
-        procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_2D_value_allocate_value
+        procedure, non_overridable, public :: create                => output_handler_fe_field_2D_value_create
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_2D_value_get_value
         procedure, non_overridable, public :: get_number_components => output_handler_fe_field_2D_value_get_number_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_2D_value_free
@@ -434,7 +434,7 @@ contains
     end function output_handler_fe_field_1D_value_value_is_allocated
 
 
-    subroutine output_handler_fe_field_1D_value_allocate_value(this, number_components, number_nodes) 
+    subroutine output_handler_fe_field_1D_value_create(this, number_components, number_nodes) 
     !-----------------------------------------------------------------
     !< Allocate value
     !-----------------------------------------------------------------
@@ -445,7 +445,7 @@ contains
         call this%free()
         call memalloc(number_components*number_nodes, this%value, __FILE__, __LINE__)
         this%number_components = number_components
-    end subroutine output_handler_fe_field_1D_value_allocate_value
+    end subroutine output_handler_fe_field_1D_value_create
 
 
     function output_handler_fe_field_1D_value_get_value(this) result(value)
@@ -498,7 +498,7 @@ contains
     end function output_handler_fe_field_2D_value_value_is_allocated
 
 
-    subroutine output_handler_fe_field_2D_value_allocate_value(this, number_components, number_nodes) 
+    subroutine output_handler_fe_field_2D_value_create(this, number_components, number_nodes) 
     !-----------------------------------------------------------------
     !< Allocate value
     !-----------------------------------------------------------------
@@ -509,7 +509,7 @@ contains
         call this%free()
         call memalloc(number_components, number_nodes, this%value, __FILE__, __LINE__)
         this%number_components = number_components
-    end subroutine output_handler_fe_field_2D_value_allocate_value
+    end subroutine output_handler_fe_field_2D_value_create
 
 
     function output_handler_fe_field_2D_value_get_value(this) result(value)
