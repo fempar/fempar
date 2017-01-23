@@ -858,14 +858,13 @@ contains
     end subroutine patch_subcell_accessor_get_field_1D
 
 
-    subroutine patch_subcell_accessor_get_field_2D(this, field_id, LDA, field)
+    subroutine patch_subcell_accessor_get_field_2D(this, field_id, field)
     !-----------------------------------------------------------------
     !< Return a *field* corresponding with the given **field_id** as a 2D matrix
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),             intent(in)    :: this
         integer(ip),                                 intent(in)    :: field_id
-        integer(ip),                                 intent(in)    :: LDA
-        real(rp),                                    intent(inout) :: field(LDA,this%patch%get_number_vertices_per_subcell())
+        real(rp),                                    intent(inout) :: field(:,:)
         type(output_handler_patch_field_t),     pointer            :: patch_field
         type(allocatable_array_ip2_t),          pointer            :: subcells_connectivity
         type(allocatable_array_rp1_t),          pointer            :: scalar_function_values
@@ -882,8 +881,9 @@ contains
         number_vertices   =  this%get_number_vertices()
         number_components =  patch_field%get_number_components()
         subcells_connectivity => this%patch%get_subcells_connectivity()
-
-        assert(LDA == number_components)
+        
+        assert(size(field,1)==number_components)
+        assert(size(field,2)==number_vertices)
         
         select case(patch_field%get_field_type())
             case (field_type_scalar)

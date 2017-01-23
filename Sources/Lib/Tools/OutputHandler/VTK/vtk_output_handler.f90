@@ -334,7 +334,7 @@ contains
         do i=1, number_fields
             number_components = this%FieldValues(i)%get_number_components()
             FieldValue => this%FieldValues(i)%get_value()
-            call subcell_accessor%get_field(i, number_components, FieldValue(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
+            call subcell_accessor%get_field(i, FieldValue(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
         enddo
 
         this%node_offset = this%node_offset + number_vertices

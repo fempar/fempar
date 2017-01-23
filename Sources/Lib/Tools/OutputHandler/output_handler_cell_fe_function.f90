@@ -272,7 +272,7 @@ contains
             allocate(this%fill_patch_field(number_fields))
 
             do number_field = 1, number_fields
-                field_type    = fe_space%get_field_type(fe_fields(number_field)%get_field_id())
+                field_type    = fe_fields(number_field)%get_field_type()
                 diff_operator = fe_fields(number_field)%get_diff_operator()
                 call this%apply_fill_patch_field_strategy(field_type, diff_operator, this%fill_patch_field(number_field)%p)
             end do
