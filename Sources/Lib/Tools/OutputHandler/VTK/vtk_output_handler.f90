@@ -254,10 +254,8 @@ contains
         class(vtk_output_handler_t), intent(inout) :: this
         integer(ip)                                :: number_nodes
         integer(ip)                                :: number_cells
+        type(output_handler_fe_field_t), pointer   :: field
         integer(ip)                                :: i
-        integer(ip)                                :: number_cell_vectors
-        integer(ip)                                :: number_fields
-        integer(ip)                                :: number_components
     !-----------------------------------------------------------------
         number_nodes = this%get_number_nodes()
         number_cells = this%get_number_cells()
@@ -292,13 +290,9 @@ contains
         else
             call memalloc(  number_nodes, this%Connectivities, __FILE__, __LINE__)
         endif
-        number_cell_vectors = this%get_number_cell_vectors()
-        do i=1, number_cell_vectors
-            call this%CellValues(i)%allocate_value(1, this%get_number_cells())
-        enddo
-        
         do i=1, this%get_number_fields()
-            call this%FieldValues(i)%allocate_value(this%get_fe_field_num_components(i), this%get_number_nodes())
+            field => this%get_fe_field(i)
+            call this%FieldValues(i)%allocate_value(field%get_number_components(), this%get_number_nodes())
         end do
         do i=1, this%get_number_cell_vectors()
             call this%CellValues(i)%allocate_value(1, this%get_number_cells())
@@ -338,7 +332,7 @@ contains
         endif
 
         do i=1, number_fields
-            number_components = subcell_accessor%get_number_field_components(i)
+            number_components = this%FieldValues(i)%get_number_components()
             FieldValue => this%FieldValues(i)%get_value()
             call subcell_accessor%get_field(i, number_components, FieldValue(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
         enddo
