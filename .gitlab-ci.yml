@@ -1,73 +1,87 @@
-# This file is a template, and might need editing before it works on your project.
-# use the official gcc image, based on debian
-# can use verions as well, like gcc:5.2
-# see https://hub.docker.com/_/gcc/
-image: gcc:6.3.0
-
-before_script: 
-  - ROOT_DIR=$PWD
-  - BUILD_DIR=$ROOT_DIR/BUILD
-  - DOC_DIR=$ROOT_DIR/DOC
-  - FORD_DIR=$ROOT_DIR/FORD
-  - FEMPAR_DIR=$BUILD_DIR/FEMPAR
-  - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
-  - mkdir -p $FEMPAR_DIR
-  - mkdir -p $THIRDPARTY_DIR
-  - apt update
-  - apt -y install cmake
-  - apt -y install libblas-dev liblapack-dev
-  - apt -y install libmetis-dev libmetis5
-  - apt -y install valgrind
-  - apt -y install libopenmpi-dev openmpi-bin
-  - cmake --version
-  - gfortran --version
-  - mpif90 --version
-  - git submodule sync --recursive
-  - git submodule update --init --recursive
 
 stages:
   - build
   - doc
 
-GNU_DEBUG:
-  stage: build
-  script: 
-    - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_THIRDPARTY_ENABLE_TESTS=ON $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
-    - cd $FEMPAR_DIR
-    - cmake -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR $ROOT_DIR
-    - ctest -j8 -V -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck
-    
 GNU_RELEASE:
+
+  image: registry.gitlab.com/fempar/fempar:latest
+
   stage: build
+  
+  before_script: 
+    - ROOT_DIR=$CI_PROJECT_DIR
+    - BUILD_DIR=$ROOT_DIR/BUILD
+    - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
+    - FEMPAR_DIR=$BUILD_DIR/FEMPAR
+    - mkdir -p $THIRDPARTY_DIR
+    - mkdir -p $FEMPAR_DIR
+    - cd $ROOT_DIR
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+  
   script: 
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_THIRDPARTY_ENABLE_TESTS=ON $ROOT_DIR/ThirdParty
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR $ROOT_DIR
-    - ctest -j8 -V -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalMemCheck
-  #artifacts:
-  #  paths:
-  #    - mybinary
-  # depending on your build setup it's most likely a good idea to cache outputs to reduce the build time
-  # cache:
-  #   paths:
-  #     - "*.o"
-
-DOCUMENTATION:
-  stage: doc
-  script: 
-    - apt -y install python-pip python-dev build-essential
-    - pip install ford
-    # Clone fempar doc repository
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS=--allow-run-as-root $ROOT_DIR
+    - ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalMemCheck -D ExperimentalSubmit
     - cd $ROOT_DIR
-    - ford fempar_ford.md
+
+GNU_DEBUG:
+
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
+  
+  before_script: 
+    - ROOT_DIR=$CI_PROJECT_DIR
+    - BUILD_DIR=$ROOT_DIR/BUILD
+    - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
+    - FEMPAR_DIR=$BUILD_DIR/FEMPAR
+    - mkdir -p $THIRDPARTY_DIR
+    - mkdir -p $FEMPAR_DIR
+    - cmake --version
+    - gfortran --version
+    - mpif90 --version
+    - cd $ROOT_DIR
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+  
+  script: 
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS=--allow-run-as-root $ROOT_DIR
+    - ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - cd $ROOT_DIR
+
+FORD_DOC:
+
+  image: registry.gitlab.com/fempar/fempar:documentation
+
+  stage: doc
+
+  before_script: 
+    - ROOT_DIR=$PWD
+    - DOC_DIR=$ROOT_DIR/DOC
+    - mkdir -p $DOC_DIR
+    - python --version
+    - pip install ford
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+
+  script: 
+    - git clone git@gitlab.com:fempar/documentation $DOC_DIR
+    - cd $ROOT_DIR
+    - ford -o $DOC_DIR/html ford.md
+    - cd $DOC_DIR
+    - git add -A
+    - git commit -m "Fempar automatic generated documentation from commit $CI_BUILD_REF"
+    - git push origin master
+    - cd $ROOT_DIR
+
   only:
     - experimental
-# run tests using the binary built before
-#test:
-#  stage: test
-#  script:
-#    - ctest

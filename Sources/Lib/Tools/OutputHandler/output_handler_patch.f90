@@ -170,7 +170,6 @@ private
         procedure, non_overridable, public :: get_number_vertices         => patch_subcell_accessor_get_number_vertices
         procedure, non_overridable, public :: get_connectivity            => patch_subcell_accessor_get_connectivity
         procedure, non_overridable, public :: get_number_fields           => patch_subcell_accessor_get_number_fields
-        procedure, non_overridable, public :: get_number_field_components => patch_subcell_accessor_get_number_field_components
         procedure, non_overridable, public :: get_cell_vector             => patch_subcell_accessor_get_cell_vector
         procedure, non_overridable         ::                                patch_subcell_accessor_get_coordinates_X_Y_Z
         procedure, non_overridable         ::                                patch_subcell_accessor_get_coordinates_XYZ
@@ -779,21 +778,6 @@ contains
     end function patch_subcell_accessor_get_number_fields
 
 
-    function patch_subcell_accessor_get_number_field_components(this, field_id) result(number_components)
-    !-----------------------------------------------------------------
-    !< Return the number of field components of [[output_handler_patch_t(type)]]
-    !< given its **field_id**
-    !-----------------------------------------------------------------
-        class(patch_subcell_accessor_t),             intent(in) :: this
-        integer(ip),                                 intent(in) :: field_id
-        type(output_handler_patch_field_t), pointer             :: patch_field
-        integer(ip)                                             :: number_components
-    !-----------------------------------------------------------------
-        patch_field       => this%patch%get_field(field_id)
-        number_components =  patch_field%get_number_components()
-    end function patch_subcell_accessor_get_number_field_components
-
-
     subroutine patch_subcell_accessor_get_cell_vector(this, cell_vector_id, cell_vector)
     !-----------------------------------------------------------------
     !< Return a cell field of the current [[patch_subcell_accessor_t(type)]] 
@@ -874,14 +858,13 @@ contains
     end subroutine patch_subcell_accessor_get_field_1D
 
 
-    subroutine patch_subcell_accessor_get_field_2D(this, field_id, LDA, field)
+    subroutine patch_subcell_accessor_get_field_2D(this, field_id, field)
     !-----------------------------------------------------------------
     !< Return a *field* corresponding with the given **field_id** as a 2D matrix
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),             intent(in)    :: this
         integer(ip),                                 intent(in)    :: field_id
-        integer(ip),                                 intent(in)    :: LDA
-        real(rp),                                    intent(inout) :: field(LDA,this%patch%get_number_vertices_per_subcell())
+        real(rp),                                    intent(inout) :: field(:,:)
         type(output_handler_patch_field_t),     pointer            :: patch_field
         type(allocatable_array_ip2_t),          pointer            :: subcells_connectivity
         type(allocatable_array_rp1_t),          pointer            :: scalar_function_values
@@ -898,7 +881,10 @@ contains
         number_vertices   =  this%get_number_vertices()
         number_components =  patch_field%get_number_components()
         subcells_connectivity => this%patch%get_subcells_connectivity()
-
+        
+        assert(size(field,1)==number_components)
+        assert(size(field,2)==number_vertices)
+        
         select case(patch_field%get_field_type())
             case (field_type_scalar)
                 scalar_function_values => patch_field%get_scalar_function_values()
