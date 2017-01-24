@@ -262,6 +262,8 @@ contains
         integer(ip)                                :: number_nodes
         integer(ip)                                :: number_cells
         integer(ip)                                :: number_dimensions
+        type(output_handler_fe_field_t), pointer   :: field
+        integer(ip)                                :: i
     !-----------------------------------------------------------------
         number_nodes      = this%get_number_nodes()
         number_cells      = this%get_number_cells()
@@ -284,6 +286,14 @@ contains
                 call memalloc(  number_nodes,               this%Connectivities, __FILE__, __LINE__)
             endif
         endif
+        do i=1, this%get_number_fields()
+            field => this%get_fe_field(i)
+            call this%FieldValues(i)%create(field%get_number_components(), this%get_number_nodes())
+        end do
+        do i=1, this%get_number_cell_vectors()
+            call this%CellValues(i)%create(1, this%get_number_cells())
+	
+        enddo
     end subroutine xh5_output_handler_allocate_cell_and_nodal_arrays
 
 
@@ -345,8 +355,7 @@ contains
         endif
 
         do i=1, number_fields
-            number_components = subcell_accessor%get_number_field_components(i)
-            if(.not. this%FieldValues(i)%value_is_allocated()) call this%FieldValues(i)%allocate_value(number_components, this%get_number_nodes())
+            number_components = this%FieldValues(i)%get_number_components()
             Value => this%FieldValues(i)%get_value()
             call subcell_accessor%get_field(i, Value((number_components*this%node_offset)+1:number_components*(this%node_offset+number_vertices)))
         enddo
@@ -355,7 +364,6 @@ contains
         this%cell_offset = this%cell_offset + 1
 
         do i=1, number_cell_vectors
-            if(.not. this%CellValues(i)%value_is_allocated()) call this%CellValues(i)%allocate_value(1, this%get_number_cells())
             Value => this%CellValues(i)%get_value()
             call subcell_accessor%get_cell_vector(i, Value(this%cell_offset:this%cell_offset))
         enddo
