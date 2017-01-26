@@ -5,6 +5,8 @@ program par_test_poisson
   implicit none
   type(par_test_poisson_fe_driver_t), save :: test_driver 
   !$OMP THREADPRIVATE(test_driver)
+
+  call sleep(30)  
   !$OMP PARALLEL 
   !!!$OMP PARALLEL PRIVATE(test_driver) 
   !$ write(*,*) 'Begining with',omp_get_num_threads(),'threads'
