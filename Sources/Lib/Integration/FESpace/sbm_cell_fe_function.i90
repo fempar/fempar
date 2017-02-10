@@ -407,6 +407,19 @@ subroutine cell_fe_function_vector_compute_curl ( this, point, value )
 end subroutine cell_fe_function_vector_compute_curl
 
 !===============================================================================================
+subroutine cell_fe_function_vector_compute_divergence ( this, point, value )
+  implicit none
+  class(cell_fe_function_vector_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: point
+  real(rp)                        , intent(inout) :: value
+  assert ( point <= this%current_number_quadrature_points )
+  ! Build divergence values from gradients
+  value = this%quadrature_points_gradients(point)%get(1,1) + &
+       &  this%quadrature_points_gradients(point)%get(2,2) + &
+       &  this%quadrature_points_gradients(point)%get(3,3)
+end subroutine cell_fe_function_vector_compute_divergence
+
+!===============================================================================================
 subroutine cell_fe_function_vector_set_current_number_nodes ( this, value )
   implicit none
   class(cell_fe_function_vector_t), intent(inout) :: this 

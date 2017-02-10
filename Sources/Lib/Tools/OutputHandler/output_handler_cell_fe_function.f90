@@ -272,7 +272,7 @@ contains
             allocate(this%fill_patch_field(number_fields))
 
             do number_field = 1, number_fields
-                field_type    = fe_space%get_field_type(fe_fields(number_field)%get_field_id())
+                field_type    = fe_fields(number_field)%get_field_type()
                 diff_operator = fe_fields(number_field)%get_diff_operator()
                 call this%apply_fill_patch_field_strategy(field_type, diff_operator, this%fill_patch_field(number_field)%p)
             end do
@@ -386,9 +386,6 @@ contains
 
             ! Fill patch fe field data
             do idx = 1, number_fields
-                field_type    = fe_space%get_field_type(fe_fields(idx)%get_field_id())
-                diff_operator = fe_fields(idx)%get_diff_operator()
-
                 fe_function  => fe_fields(idx)%get_fe_function()
                 field_id     =  fe_fields(idx)%get_field_id()
                 patch_field  => patch%get_field(idx)
@@ -463,7 +460,6 @@ contains
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
-        integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
         type(volume_integrator_t),                pointer       :: volume_integrator
@@ -473,7 +469,6 @@ contains
     !-----------------------------------------------------------------
         ! Get reference_Fe
         reference_fe => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
         assert(reference_fe%get_field_type() == field_type_scalar)
 
         ! Get and Update volume integrator
@@ -504,7 +499,6 @@ contains
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
-        integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
         type(volume_integrator_t),                pointer       :: volume_integrator
@@ -514,7 +508,6 @@ contains
     !-----------------------------------------------------------------
         ! Get reference_Fe
         reference_fe => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
         assert(reference_fe%get_field_type() == field_type_scalar)
 
         ! Get and Update volume integrator
@@ -545,7 +538,6 @@ contains
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
-        integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
         type(volume_integrator_t),                pointer       :: volume_integrator
@@ -555,7 +547,6 @@ contains
     !-----------------------------------------------------------------
         ! Get reference_Fe
         reference_fe => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
         assert(reference_fe%get_field_type() == field_type_vector)
 
         ! Get and Update volume integrator
@@ -586,7 +577,6 @@ contains
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
-        integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
         type(volume_integrator_t),                pointer       :: volume_integrator
@@ -596,7 +586,6 @@ contains
     !-----------------------------------------------------------------
         ! Get reference_Fe
         reference_fe => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
         assert(reference_fe%get_field_type() == field_type_vector)
 
         ! Get and Update volume integrator
@@ -627,7 +616,6 @@ contains
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
-        integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
         type(quadrature_t),                       pointer       :: quadrature
         type(fe_map_t),                           pointer       :: fe_map
@@ -642,7 +630,6 @@ contains
     !-----------------------------------------------------------------
         ! Get reference_Fe
         reference_fe    => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id =  this%current_fe%get_reference_fe_id(field_id)
         quadrature      => this%get_quadrature()
         assert(reference_fe%get_field_type() == field_type_vector)
 
@@ -697,7 +684,6 @@ contains
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
-        integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
         type(quadrature_t),                       pointer       :: quadrature
         type(fe_map_t),                           pointer       :: fe_map
@@ -714,7 +700,6 @@ contains
     !-----------------------------------------------------------------
         ! Get reference_Fe
         reference_fe    => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id =  this%current_fe%get_reference_fe_id(field_id)
         quadrature      => this%get_quadrature()
         assert(reference_fe%get_field_type() == field_type_vector)
 
@@ -790,7 +775,6 @@ contains
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
-        integer(ip)                                             :: reference_fe_id
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
         type(volume_integrator_t),                pointer       :: volume_integrator
@@ -800,7 +784,6 @@ contains
     !-----------------------------------------------------------------
         ! Get reference_Fe
         reference_fe => this%current_fe%get_reference_fe(field_id)
-        reference_fe_id = this%current_fe%get_reference_fe_id(field_id)
         assert(reference_fe%get_field_type() == field_type_tensor)
 
         ! Get and Update volume integrator
