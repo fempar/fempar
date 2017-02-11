@@ -103,7 +103,9 @@ contains
     real(rp) :: C_IP        ! Interior Penalty constant
     
     class(scalar_function_t), pointer :: source_term, boundary_function
-    real(rp) :: source_term_value, boundary_value  
+    type(fe_function_t)               :: boundary_fe_function
+    type(face_fe_function_scalar_t)   :: boundary_face_fe_function
+    real(rp) :: source_term_value, boundary_value, boundary_fe_function_value
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
@@ -123,6 +125,10 @@ contains
     
     source_term => this%analytical_functions%get_source_term()
     call this%poisson_conditions%get_function(1,1,boundary_function)
+    
+    call boundary_fe_function%create(fe_space)
+    call boundary_fe_function%interpolate_function(fe_space,1,boundary_function)
+    call boundary_face_fe_function%create(fe_space,1)
 
     number_fields = fe_space%get_number_fields()
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
@@ -301,7 +307,8 @@ contains
          facemat = 0.0_rp
          facevec = 0.0_rp
          assert( fe_face%get_set_id() == 1 )
-         call fe_face%update_integration() 
+         call fe_face%update_integration()
+         call boundary_face_fe_function%update(fe_face,boundary_fe_function)
          quad_coords => face_map%get_quadrature_coordinates()
          call face_int%get_values(1,shape_values_first)
          call face_int%get_gradients(1,shape_gradients_first)
@@ -310,6 +317,8 @@ contains
             h_length = face_map%compute_characteristic_length(qpoint)
             factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
+            call boundary_face_fe_function%get_value(qpoint,1,boundary_fe_function_value)
+            boundary_value = 2*boundary_value - boundary_fe_function_value
             do idof = 1, num_dofs_per_field(1)
               !call face_int%get_value(idof,qpoint,1,shape_trial)
               !call face_int%get_gradient(idof,qpoint,1,grad_trial)   
@@ -341,6 +350,8 @@ contains
        call fe_face_iterator%next()
     end do
     
+    call boundary_fe_function%free()
+    call boundary_face_fe_function%free()
     call memfree(shape_values_first, __FILE__, __LINE__) 
     call memfree(shape_values_second, __FILE__, __LINE__) 
     deallocate(shape_gradients_first, stat=istat); check(istat==0);
