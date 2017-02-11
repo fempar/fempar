@@ -106,4 +106,3 @@ subroutine vector_function_get_gradients_set_space_time( this, point, time, resu
      end do
   end do
 end subroutine vector_function_get_gradients_set_space_time
-

@@ -1,0 +1,147 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine mlbddc_coarse_create ( this, fe_space, par_sparse_matrix )
+  implicit none
+  class(mlbddc_coarse_t)           , intent(inout) :: this
+  type(coarse_fe_space_t)  , target, intent(in)    :: fe_space
+  type(par_sparse_matrix_t), target, intent(in)    :: par_sparse_matrix
+  call this%free()
+  this%fe_space => fe_space
+  this%par_sparse_matrix => par_sparse_matrix
+  call this%create_vector_spaces()
+end subroutine mlbddc_coarse_create
+
+subroutine mlbddc_coarse_create_vector_spaces (this)
+  implicit none
+  class(mlbddc_coarse_t), intent(inout)  :: this
+  type(vector_space_t), pointer :: par_sparse_matrix_domain_vector_space
+  type(vector_space_t), pointer :: par_sparse_matrix_range_vector_space
+  type(vector_space_t), pointer :: mlbddc_coarse_domain_vector_space
+  type(vector_space_t), pointer :: mlbddc_coarse_range_vector_space
+  par_sparse_matrix_domain_vector_space => this%par_sparse_matrix%get_domain_vector_space()
+  par_sparse_matrix_range_vector_space => this%par_sparse_matrix%get_range_vector_space()
+  mlbddc_coarse_domain_vector_space => this%get_domain_vector_space()
+  mlbddc_coarse_range_vector_space => this%get_range_vector_space()
+  call par_sparse_matrix_domain_vector_space%clone(mlbddc_coarse_domain_vector_space)
+  call par_sparse_matrix_range_vector_space%clone(mlbddc_coarse_range_vector_space)
+end subroutine mlbddc_coarse_create_vector_spaces
+
+subroutine mlbddc_coarse_setup_constraint_matrix (this)
+  implicit none
+  class(mlbddc_coarse_t), intent(inout) :: this
+  type(coarse_fe_space_t)   , pointer :: fe_space
+  assert ( this%am_i_l1_task() )
+  fe_space => this%get_coarse_fe_space()
+  call fe_space%setup_constraint_matrix(block_id=1, constraint_matrix=this%constraint_matrix)
+end subroutine mlbddc_coarse_setup_constraint_matrix
+
+subroutine mlbddc_coarse_setup_weighting_operator(this)
+  implicit none
+  class(mlbddc_coarse_t), intent(inout) :: this
+  type(coarse_dof_object_iterator_t) :: coarse_dofs_object_iterator
+  type(coarse_dof_object_accessor_t) :: coarse_dof_object
+  type(list_iterator_t) :: dofs_on_object
+  type(coarse_fe_space_t), pointer :: fe_space
+  fe_space => this%get_coarse_fe_space()
+  
+  assert ( this%am_i_l1_task() ) 
+  
+  call memalloc(fe_space%get_block_number_dofs(1), this%W, __FILE__, __LINE__ )
+  this%W = 1.0_rp
+  
+  coarse_dofs_object_iterator = fe_space%create_field_dofs_object_iterator(1)
+  do while ( .not. coarse_dofs_object_iterator%has_finished() ) 
+    call coarse_dofs_object_iterator%current(coarse_dof_object)
+    dofs_on_object = coarse_dof_object%get_dofs_on_object_iterator()
+    do while ( .not. dofs_on_object%is_upper_bound() )
+      this%W(dofs_on_object%get_current()) = &
+                this%W(dofs_on_object%get_current())/coarse_dof_object%get_number_parts_around()
+      call dofs_on_object%next()
+    end do
+    call coarse_dofs_object_iterator%next()
+  end do
+end subroutine mlbddc_coarse_setup_weighting_operator
+
+! Helper function that extracts a run-time polymorphic class(matrix_t)
+! from XXX, and dynamically casts it into  
+! type(par_sparse_matrix_t). If the dynamic cast cannot be performed 
+! [because class(matrix_t) is NOT of type(par_sparse_matrix_t)], then it 
+! aborts the execution of the program.
+function mlbddc_coarse_get_par_sparse_matrix(this)
+  implicit none
+  class(mlbddc_coarse_t)   , intent(in) :: this
+  type(par_sparse_matrix_t), pointer    :: mlbddc_coarse_get_par_sparse_matrix
+  mlbddc_coarse_get_par_sparse_matrix => this%par_sparse_matrix
+end function mlbddc_coarse_get_par_sparse_matrix
+
+function mlbddc_coarse_get_fe_space(this)
+  implicit none
+  class(mlbddc_coarse_t)   , intent(in) :: this
+  class(base_fe_space_t)  , pointer     :: mlbddc_coarse_get_fe_space
+  mlbddc_coarse_get_fe_space => this%fe_space
+end function mlbddc_coarse_get_fe_space
+
+! Helper function that extracts type(coarse_fe_space_t) from XXX
+function mlbddc_coarse_get_coarse_fe_space(this)
+  implicit none
+  class(mlbddc_coarse_t)   , intent(in) :: this
+  type(coarse_fe_space_t)  , pointer    :: mlbddc_coarse_get_coarse_fe_space
+  mlbddc_coarse_get_coarse_fe_space => this%fe_space
+end function mlbddc_coarse_get_coarse_fe_space
+
+function mlbddc_coarse_get_par_environment(this)
+  implicit none
+  class(mlbddc_coarse_t)   , intent(in) :: this
+  type(environment_t)  , pointer    :: mlbddc_coarse_get_par_environment
+  type(coarse_fe_space_t)  , pointer    :: fe_space
+  fe_space => this%get_coarse_fe_space()
+  mlbddc_coarse_get_par_environment => fe_space%get_par_environment()
+end function mlbddc_coarse_get_par_environment
+
+function mlbddc_coarse_am_i_l1_task(this)
+  implicit none
+  class(mlbddc_coarse_t)   , intent(in) :: this
+  logical                               :: mlbddc_coarse_am_i_l1_task
+  type(environment_t)   , pointer   :: par_environment
+  par_environment => this%get_par_environment()
+  mlbddc_coarse_am_i_l1_task = par_environment%am_i_l1_task()
+end function mlbddc_coarse_am_i_l1_task
+
+function mlbddc_coarse_is_operator_associated( this )
+  implicit none
+  class(mlbddc_coarse_t)          , intent(in) :: this
+  logical :: mlbddc_coarse_is_operator_associated
+  mlbddc_coarse_is_operator_associated = associated(this%fe_space) .and. associated(this%par_sparse_matrix) 
+end function mlbddc_coarse_is_operator_associated
+
+subroutine mlbddc_coarse_nullify_operator ( this )
+  implicit none
+  class(mlbddc_coarse_t), intent(inout) :: this
+  nullify(this%par_sparse_matrix)
+  nullify(this%fe_space)
+end subroutine mlbddc_coarse_nullify_operator 

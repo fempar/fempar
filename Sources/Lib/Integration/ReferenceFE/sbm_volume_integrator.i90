@@ -700,6 +700,21 @@ subroutine volume_integrator_create( this, quadrature, reference_fe )
   call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
 end subroutine volume_integrator_create
 
+subroutine volume_integrator_create_on_face( this, quadrature, reference_fe, face_lid )
+  implicit none
+  ! Parameters
+  class(volume_integrator_t)    , intent(inout) :: this 
+  type(quadrature_t)            , intent(in)    :: quadrature
+  class(reference_fe_t), target , intent(in)    :: reference_fe  
+  integer(ip)                   , intent(in)    :: face_lid
+  call this%free()
+  this%number_quadrature_points = quadrature%number_quadrature_points
+  this%number_shape_functions   = reference_fe%number_shape_functions
+  this%reference_fe             => reference_fe
+  call reference_fe%create_face_interpolation( face_lid, quadrature, this%interpolation )
+  call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
+end subroutine volume_integrator_create_on_face
+
 subroutine volume_integrator_free( this )
   implicit none
   class(volume_integrator_t), intent(inout) :: this
@@ -775,6 +790,7 @@ subroutine volume_integrator_get_value_tensor (this, ishape, qpoint, tensor_fiel
   integer(ip)                  , intent(in)    :: qpoint
   type(tensor_field_t)         , intent(out)   :: tensor_field
   assert( this%reference_fe%field_type == field_type_tensor )
+  check(.false.)
 end subroutine volume_integrator_get_value_tensor
 
 subroutine volume_integrator_get_value_symmetric_tensor (this, ishape, qpoint, symmetric_tensor_field)
@@ -784,7 +800,27 @@ subroutine volume_integrator_get_value_symmetric_tensor (this, ishape, qpoint, s
   integer(ip)                    , intent(in)    :: qpoint
   type(symmetric_tensor_field_t) , intent(out)   :: symmetric_tensor_field
   assert( this%reference_fe%field_type == field_type_tensor )
+  check(.false.)
 end subroutine volume_integrator_get_value_symmetric_tensor
+
+subroutine volume_integrator_get_values_scalar (this, values, qpoints_perm)
+  implicit none
+  class(volume_integrator_t)   , intent(in)    :: this
+  real(rp), allocatable        , intent(inout) :: values(:,:)
+  integer(ip)     , optional   , intent(in)    :: qpoints_perm(:)
+
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_values(this%interpolation_o_map,values,qpoints_perm)
+end subroutine volume_integrator_get_values_scalar
+
+subroutine volume_integrator_get_values_vector (this, values, qpoints_perm)
+  implicit none
+  class(volume_integrator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: values(:,:)
+  integer(ip)     , optional       , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_values(this%interpolation_o_map,values,qpoints_perm)
+end subroutine volume_integrator_get_values_vector
 
 subroutine volume_integrator_get_gradient_scalar (this, ishape, qpoint, vector_field)
   implicit none
@@ -806,6 +842,24 @@ subroutine volume_integrator_get_gradient_vector (this, ishape, qpoint, tensor_f
   call this%reference_fe%get_gradient(this%interpolation_o_map,ishape,qpoint,tensor_field)
 end subroutine volume_integrator_get_gradient_vector
 
+subroutine volume_integrator_get_gradients_scalar (this, gradients, qpoints_perm)
+  implicit none
+  class(volume_integrator_t)              , intent(in)    :: this
+  type(vector_field_t),        allocatable, intent(inout) :: gradients(:,:)
+  integer(ip)     , optional              , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_gradients(this%interpolation_o_map,gradients,qpoints_perm)
+end subroutine volume_integrator_get_gradients_scalar
+
+subroutine volume_integrator_get_gradients_vector (this, gradients, qpoints_perm)
+  implicit none
+  class(volume_integrator_t)           , intent(in)     :: this
+  type(tensor_field_t),     allocatable, intent(inout)  :: gradients(:,:)
+  integer(ip)     , optional           , intent(in)     :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_gradients(this%interpolation_o_map,gradients,qpoints_perm)
+end subroutine volume_integrator_get_gradients_vector
+
 subroutine volume_integrator_get_symmetric_gradient_vector (this, ishape, qpoint, tensor_field)
   implicit none
   class(volume_integrator_t), intent(in)    :: this
@@ -813,6 +867,7 @@ subroutine volume_integrator_get_symmetric_gradient_vector (this, ishape, qpoint
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: tensor_field
   assert( this%reference_fe%field_type == field_type_vector )  
+  check(.false.)
 end subroutine volume_integrator_get_symmetric_gradient_vector
 
 subroutine volume_integrator_get_divergence_vector (this, ishape, qpoint, scalar_field)
@@ -832,7 +887,17 @@ subroutine volume_integrator_get_divergence_tensor (this, ishape, qpoint, vector
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
   assert( this%reference_fe%field_type == field_type_tensor .or. this%reference_fe%field_type == field_type_symmetric_tensor  )
+  check(.false.)
 end subroutine volume_integrator_get_divergence_tensor
+
+subroutine volume_integrator_get_divergences_vector (this, divergences, qpoints_perm)
+  implicit none
+  class(volume_integrator_t), intent(in)    :: this
+  real(rp), allocatable     , intent(inout) :: divergences(:,:)
+  integer(ip)  , optional   , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector ) 
+  call this%reference_fe%get_divergences(this%interpolation_o_map,divergences,qpoints_perm)
+end subroutine volume_integrator_get_divergences_vector
 
 subroutine volume_integrator_get_curl_vector (this, ishape, qpoint, vector_field)
   implicit none
@@ -844,6 +909,14 @@ subroutine volume_integrator_get_curl_vector (this, ishape, qpoint, vector_field
   call this%reference_fe%get_curl(this%interpolation_o_map,ishape,qpoint,vector_field)
 end subroutine volume_integrator_get_curl_vector
 
+subroutine volume_integrator_get_curls_vector (this, curls, qpoints_perm)
+  implicit none
+  class(volume_integrator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: curls(:,:)
+  integer(ip)     , optional       , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_curls(this%interpolation_o_map,curls,qpoints_perm)
+end subroutine volume_integrator_get_curls_vector
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! procedures to evaluate the fe_function at the quadrature points

@@ -33,15 +33,17 @@ module fempar_names
   use stdio_names
   use hash_table_names
   use postpro_names
-  use environment_names
-  use serial_environment_names
+  use environment_names 
+  use execution_context_names
+ 	use mpi_context_names
   use flap, only : command_line_interface
   use FPL
-  use vtk_handler_names
-  
-  use par_context_names
+  use parameter_handler_names
   use par_timer_names
-  use par_environment_names
+  use output_handler_names
+  use output_handler_parameters_names
+  use vtk_parameters_names
+  use xh5_parameters_names
 
   ! Geometry
   use metis_interface_names
@@ -103,6 +105,8 @@ contains
     call FPL_Init()                                                       ! FPL Wrapper factory list initialization
     call the_direct_solver_creational_methods_dictionary%Init()           ! Direct solver creational methods dictionary initialization
     call the_iterative_linear_solver_creational_methods_dictionary%Init() ! Iterative linear solver creational methods dictionary initialization
+    call sparse_matrix_prototype_reset()                                  ! Set to default type the sparse matrix prototype
+    call output_handler_prototype_reset()                                 ! Set to default type the output prototype
   end subroutine
 
 
@@ -110,6 +114,8 @@ contains
     call FPL_Finalize()                                                   ! Free FPL Wrapper factory list
     call the_direct_solver_creational_methods_dictionary%Free()           ! Free Direct solver creational methods dictionary
     call the_iterative_linear_solver_creational_methods_dictionary%Free() ! Free Iterative linear solver creational methods dictionary
+    call sparse_matrix_prototype_free()                                   ! Free the sparse matrix prototype
+    call output_handler_prototype_free()                                  ! Free the output handler prototype
     call memstatus()
   end subroutine
 

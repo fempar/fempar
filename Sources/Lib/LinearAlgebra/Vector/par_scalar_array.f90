@@ -41,8 +41,7 @@ module par_scalar_array_names
 #endif
 
   ! Parallel modules
-  use par_environment_names
-  use par_context_names
+  use environment_names
   use dof_import_names
 
   ! Abstract types
@@ -57,7 +56,7 @@ module par_scalar_array_names
   type, extends(array_t) :: par_scalar_array_t
      private
      type ( serial_scalar_array_t )        :: serial_scalar_array
-     type ( par_environment_t ) , pointer  :: p_env      => NULL()     
+     type ( environment_t ) , pointer  :: p_env      => NULL()     
      type ( dof_import_t )      , pointer  :: dof_import => NULL()
    contains
      procedure :: create_and_allocate     => par_scalar_array_create_and_allocate
@@ -140,7 +139,7 @@ contains
     implicit none
     ! Parameters
     class(par_scalar_array_t), intent(inout) :: this
-    type(par_environment_t)  , intent(in)    :: p_env
+    type(environment_t)  , intent(in)    :: p_env
     type(dof_import_t)       , intent(in)    :: dof_import
     call this%free()
     call this%create(p_env, dof_import)
@@ -152,7 +151,7 @@ contains
     implicit none
     ! Parameters
     class(par_scalar_array_t)       , intent(inout) :: this
-    type(par_environment_t) , target, intent(in)    :: p_env
+    type(environment_t) , target, intent(in)    :: p_env
     type(dof_import_t)      , target, intent(in)    :: dof_import
     call this%free()
     assert ( p_env%created() ) 
@@ -205,7 +204,7 @@ contains
   function par_scalar_array_get_par_environment( this )
    implicit none
    class(par_scalar_array_t), target, intent(in) :: this 
-   type(par_environment_t)  , pointer            :: par_scalar_array_get_par_environment
+   type(environment_t)  , pointer            :: par_scalar_array_get_par_environment
    par_scalar_array_get_par_environment => this%p_env
   end function par_scalar_array_get_par_environment
   

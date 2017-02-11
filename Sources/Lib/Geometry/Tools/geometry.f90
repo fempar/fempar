@@ -371,22 +371,19 @@ contains
 
      ! Locals
      integer(ip)          :: istat
-     logical              :: is_present
-     character(len=256)   :: dir_path
-     character(len=256)   :: prefix
+     character(len=:), allocatable   :: dir_path
+     character(len=:), allocatable   :: prefix
      character(len=:), allocatable   :: name
      integer(ip)                    :: lunio
 
      ! Mandatory parameters
-     is_present = .true.
-     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_key)
-     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-     assert(is_present)
+     assert(parameter_list%isAssignable(dir_path_key, 'string'))
+     istat = parameter_list%getAsString(key = dir_path_key, string = dir_path)
+     assert(istat == 0)
      
-     istat = 0
-     istat = istat + parameter_list%get(key = dir_path_key, value = dir_path)
-     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-     check(istat==0)
+     assert(parameter_list%isAssignable(prefix_key, 'string'))
+     istat = parameter_list%getAsString(key = prefix_key  , string = prefix)
+     assert(istat==0)
      
      ! Read geometry
      call geometry_compose_name ( prefix, name )

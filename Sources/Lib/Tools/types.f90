@@ -91,14 +91,14 @@ module types_names
   ! Number of space dimensions for statically allocated data types (see, e.g., field.f90)
   integer(ip), parameter :: SPACE_DIM = 3
   
-  integer(ieep), parameter :: mold(1) = [0_ieep]
-  integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
-  integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
+  integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, [0_ieep]))
+  integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,[0_ieep]))
+  integer(ip)  , parameter :: size_of_rp = size(transfer(1.0_rp, [0_ieep]))
 
-  
-  character(len=*), parameter :: dir_path_key     = 'dir_path'
-  character(len=*), parameter :: prefix_key       = 'prefix'
-  character(len=*), parameter :: dir_path_out_key = 'dir_path_out'
+  character(len=*), parameter :: dir_path_key           = 'dir_path'
+  character(len=*), parameter :: prefix_key             = 'prefix'
+  character(len=*), parameter :: dir_path_out_key       = 'dir_path_out'
+  integer(ip)  ,    parameter :: str_cla_len                = 512 ! String Command line argument lenght
 
   interface
      subroutine runend

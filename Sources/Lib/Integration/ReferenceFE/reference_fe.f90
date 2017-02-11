@@ -125,23 +125,6 @@ module reference_fe_names
   public :: interpolation_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-  type interpolation_face_restriction_t
-     private
-     integer(ip)                           :: number_shape_functions
-     integer(ip)                           :: number_quadrature_points
-     integer(ip)                           :: number_faces
-     integer(ip)                           :: active_face_id
-     type(interpolation_t), allocatable    :: interpolation(:)
-     type(interpolation_t), allocatable    :: interpolation_o_map(:)
-   contains
-     procedure, non_overridable :: create => interpolation_face_restriction_create
-     procedure, non_overridable :: free   => interpolation_face_restriction_free
-  end type interpolation_face_restriction_t
-
-  public :: interpolation_face_restriction_t
-
-  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type fe_map_t
      private
      ! Map's Jacobian (number_dimensions,number_dimensions,number_quadrature_points)
@@ -210,13 +193,14 @@ module reference_fe_names
   type fe_map_face_restriction_t
      private
      integer(ip)                 :: number_faces = 0
-     integer(ip)                 :: active_face_id
+     integer(ip)                 :: active_face_lid
      type(fe_map_t), allocatable :: fe_map(:)
    contains
-     procedure, non_overridable :: create          => fe_map_face_restriction_create
-     procedure, non_overridable :: update          => fe_map_face_restriction_update
-     procedure, non_overridable :: free            => fe_map_face_restriction_free
-     procedure, non_overridable :: get_coordinates => fe_map_face_restriction_get_coordinates
+     procedure, non_overridable :: create            => fe_map_face_restriction_create
+     procedure, non_overridable :: update            => fe_map_face_restriction_update
+     procedure, non_overridable :: free              => fe_map_face_restriction_free
+     procedure, non_overridable :: get_coordinates   => fe_map_face_restriction_get_coordinates
+     procedure, non_overridable :: get_active_fe_map => fe_map_face_restriction_get_active_fe_map 
   end type fe_map_face_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
@@ -224,8 +208,8 @@ module reference_fe_names
      private
      integer(ip)              :: number_dimensions
      integer(ip)              :: topology
-     integer(ip)              :: number_n_faces 
      integer(ip)              :: root
+     integer(ip)              :: number_n_faces 
      integer(ip), allocatable :: n_face_array(:)     
      integer(ip), allocatable :: ijk_to_index(:)
    contains
@@ -239,8 +223,9 @@ module reference_fe_names
      procedure          :: n_face_coordinate        => polytope_tree_n_face_coordinate
      procedure          :: get_number_n_faces       => polytope_tree_get_number_n_faces
      procedure          :: get_ijk_to_index         => polytope_tree_get_ijk_to_index
+     procedure          :: print                    => polytope_tree_print
      procedure          :: free                     => polytope_tree_free
-     procedure, private :: fill_cell_tree 
+     procedure, private :: fill_polytope_chain 
   end type polytope_tree_t
 
   public :: polytope_tree_t
@@ -268,24 +253,24 @@ module reference_fe_names
   public :: node_array_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type n_face_iterator_t
+  type facet_iterator_t
      private 
      type(polytope_tree_t), pointer :: polytope_tree
-     integer(ip)                  :: parent
+     integer(ip)                  :: root
      integer(ip)                  :: component
      integer(ip)                  :: coordinate
    contains
-     procedure :: create        => n_face_iterator_create     
-     procedure :: current       => n_face_iterator_current
-     procedure :: init          => n_face_iterator_init
-     procedure :: next          => n_face_iterator_next
-     procedure :: has_finished  => n_face_iterator_has_finished
-     procedure :: print         => n_face_iterator_print
-     procedure, private :: current_ijk   => n_face_iterator_current_ijk 
-     procedure, private :: is_admissible => n_face_iterator_is_admissible   
-  end type n_face_iterator_t
+     procedure :: create        => facet_iterator_create     
+     procedure :: current       => facet_iterator_current
+     procedure :: init          => facet_iterator_init
+     procedure :: next          => facet_iterator_next
+     procedure :: has_finished  => facet_iterator_has_finished
+     procedure :: print         => facet_iterator_print
+     procedure, private :: current_ijk   => facet_iterator_current_ijk 
+     procedure, private :: is_admissible => facet_iterator_is_admissible   
+  end type facet_iterator_t
 
-  public :: n_face_iterator_t
+  public :: facet_iterator_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type node_iterator_t
@@ -378,7 +363,6 @@ module reference_fe_names
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
      procedure(create_face_interpolation_interface)     , deferred :: create_face_interpolation
      procedure(update_interpolation_interface)          , deferred :: update_interpolation
-     procedure(update_interpolation_face_interface)     , deferred :: update_interpolation_face
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
      
@@ -391,22 +375,43 @@ module reference_fe_names
      !procedure(get_value_symmetric_tensor_interface)   , deferred :: get_value_symmetric_tensor ! Pending
      generic :: get_value => get_value_scalar,get_value_vector!                                      &
      !          &                !,get_value_tensor,get_value_symmetric_tensor
+     
+     procedure(get_values_scalar_interface)              , deferred :: get_values_scalar
+     procedure(get_values_vector_interface)              , deferred :: get_values_vector
+     !procedure(get_value_tensor_interface)             , deferred :: get_value_tensor           ! Pending
+     !procedure(get_value_symmetric_tensor_interface)   , deferred :: get_value_symmetric_tensor ! Pending
+     generic :: get_values => get_values_scalar,get_values_vector!                                      &
+     !          &                !,get_value_tensor,get_value_symmetric_tensor
 
      procedure(get_gradient_scalar_interface)          , deferred :: get_gradient_scalar
      procedure(get_gradient_vector_interface)          , deferred :: get_gradient_vector
      !procedure(get_gradient_tensor_interface)          , deferred :: get_gradient_tensor ! Pending
      generic :: get_gradient => get_gradient_scalar,get_gradient_vector!                             &
      !          &                   !,get_value_tensor,get_value_symmetric_tensor
+     
+     procedure(get_gradients_scalar_interface)          , deferred :: get_gradients_scalar
+     procedure(get_gradients_vector_interface)          , deferred :: get_gradients_vector
+     !procedure(get_gradient_tensor_interface)          , deferred :: get_gradient_tensor ! Pending
+     generic :: get_gradients => get_gradients_scalar, get_gradients_vector!                             &
+     !          &                   !,get_value_tensor,get_value_symmetric_tensor
+     
 
      !procedure(get_symmetric_gradient_vector_interface), deferred :: get_symmetric_gradient_vector ! Pending
      !generic :: get_symmetric_gradient => get_symmetric_gradient_scalar
 
-     procedure(get_divergence_vector_interface)        , deferred :: get_divergence_vector ! Pending
+     procedure(get_divergence_vector_interface)        , deferred :: get_divergence_vector
      !  procedure(get_divergence_tensor_interface)        , deferred :: get_divergence_tensor ! Pending
      generic :: get_divergence => get_divergence_vector !, get_divergence_tensor
+     
+     procedure(get_divergences_vector_interface)        , deferred :: get_divergences_vector
+     !  procedure(get_divergence_tensor_interface)        , deferred :: get_divergence_tensor ! Pending
+     generic :: get_divergences => get_divergences_vector !, get_divergence_tensor
 
-     procedure(get_curl_vector_interface)              , deferred :: get_curl_vector ! Pending
+     procedure(get_curl_vector_interface)              , deferred :: get_curl_vector
      generic :: get_curl => get_curl_vector
+     
+     procedure(get_curls_vector_interface)              , deferred :: get_curls_vector
+     generic :: get_curls => get_curls_vector
 
      procedure(evaluate_fe_function_scalar_interface), deferred :: evaluate_fe_function_scalar
      procedure(evaluate_fe_function_vector_interface), deferred :: evaluate_fe_function_vector
@@ -419,7 +424,7 @@ module reference_fe_names
      procedure(evaluate_gradient_fe_function_vector_interface), deferred :: evaluate_gradient_fe_function_vector
      generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
           & evaluate_gradient_fe_function_vector
-
+		  
      ! This subroutine gives the reodering (o2n) of the nodes of an n-face given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same n-face.
      procedure (check_compatibility_of_n_faces_interface), deferred :: &
@@ -584,6 +589,24 @@ module reference_fe_names
        integer(ip)          , intent(in)    :: qpoint
        type(vector_field_t) , intent(inout) :: vector_field
      end subroutine get_value_vector_interface
+     
+     subroutine get_values_scalar_interface( this, actual_cell_interpolation, values, qpoints_perm )
+       import :: reference_fe_t, interpolation_t, rp, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp), allocatable, intent(inout) :: values(:,:)
+       integer(ip), optional, intent(in)    :: qpoints_perm(:)
+     end subroutine get_values_scalar_interface
+
+     subroutine get_values_vector_interface( this, actual_cell_interpolation, values, qpoints_perm )
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
+       implicit none
+       class(reference_fe_t)            , intent(in)    :: this 
+       type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+       type(vector_field_t), allocatable, intent(inout) :: values(:,:)
+       integer(ip), optional, intent(in)    :: qpoints_perm(:)
+     end subroutine get_values_vector_interface
 
      subroutine get_gradient_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,     &
           &                                    vector_field )
@@ -606,7 +629,25 @@ module reference_fe_names
        integer(ip)          , intent(in)    :: qpoint
        type(tensor_field_t) , intent(inout) :: tensor_field
      end subroutine get_gradient_vector_interface
+     
+     subroutine get_gradients_scalar_interface( this, actual_cell_interpolation, gradients, qpoints_perm )
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
+       implicit none
+       class(reference_fe_t)             , intent(in)    :: this 
+       type(interpolation_t)             , intent(in)    :: actual_cell_interpolation
+       type(vector_field_t) , allocatable, intent(inout) :: gradients(:,:)
+       integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
+     end subroutine get_gradients_scalar_interface
 
+     subroutine get_gradients_vector_interface( this, actual_cell_interpolation, gradients, qpoints_perm )
+       import :: reference_fe_t, interpolation_t, tensor_field_t, ip
+       implicit none
+       class(reference_fe_t)             , intent(in)    :: this 
+       type(interpolation_t)             , intent(in)    :: actual_cell_interpolation
+       type(tensor_field_t) , allocatable, intent(inout) :: gradients(:,:)
+       integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
+     end subroutine get_gradients_vector_interface
+     
      subroutine get_divergence_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 scalar_field )
        import :: reference_fe_t, interpolation_t, ip, rp
@@ -617,17 +658,33 @@ module reference_fe_names
        integer(ip)          , intent(in)    :: qpoint
        real(rp)             , intent(inout) :: scalar_field
      end subroutine get_divergence_vector_interface
-
-     subroutine get_curl_vector_interface( this, actual_cell_interpolation, ishape, qpoint,     &
-          &                                    vector_field )
-       import :: reference_fe_t, interpolation_t, vector_field_t, ip
+     
+     subroutine get_divergences_vector_interface( this, actual_cell_interpolation, divergences, qpoints_perm  )
+       import :: reference_fe_t, interpolation_t, rp, ip
        implicit none
        class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp), allocatable, intent(inout) :: divergences(:,:)
+       integer(ip), optional, intent(in)    :: qpoints_perm(:)
+     end subroutine get_divergences_vector_interface
+     
+     subroutine get_curl_vector_interface( this, actual_cell_interpolation, ishape, qpoint, vector_field )
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation
        integer(ip)          , intent(in)    :: ishape
        integer(ip)          , intent(in)    :: qpoint
        type(vector_field_t) , intent(inout) :: vector_field
      end subroutine get_curl_vector_interface
+       
+     subroutine get_curls_vector_interface( this, actual_cell_interpolation, curls, qpoints_perm )
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
+       implicit none
+       class(reference_fe_t)             , intent(in)    :: this 
+       type(interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+       type(vector_field_t) , allocatable, intent(inout) :: curls(:,:)
+       integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
+     end subroutine get_curls_vector_interface
 
      subroutine evaluate_fe_function_scalar_interface( this,                      &
                                                        actual_cell_interpolation, &
@@ -688,7 +745,7 @@ module reference_fe_names
        real(rp)                          , intent(in)    :: nodal_values(:)
        type(tensor_field_t) , allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
-
+	 
      function check_compatibility_of_n_faces_interface(target_reference_fe, &
           &                       source_reference_fe, source_n_face_id,target_n_face_id)
        import :: reference_fe_t, ip
@@ -716,16 +773,6 @@ module reference_fe_names
        type(interpolation_t), intent(in)    :: interpolation_reference_cell
        type(interpolation_t), intent(inout) :: interpolation_real_cell
      end subroutine update_interpolation_interface
-
-     subroutine update_interpolation_face_interface ( this, local_face_id,fe_map_face_restriction,  &
-          &                                           interpolation_face_restriction)
-       import :: reference_fe_t, ip, fe_map_face_restriction_t,  interpolation_face_restriction_t
-       implicit none 
-       class(reference_fe_t)                 , intent(in)    :: this 
-       integer(ip)                           , intent(in)    :: local_face_id
-       type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
-       type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
-     end subroutine update_interpolation_face_interface
 
      subroutine create_nodal_quadrature_interface ( this )
        import :: reference_fe_t
@@ -774,16 +821,21 @@ contains
   procedure :: create_face_local_interpolation  => lagrangian_reference_fe_create_face_local_interpolation
   procedure :: create_edge_local_interpolation  => lagrangian_reference_fe_create_edge_local_interpolation
   procedure :: update_interpolation      => lagrangian_reference_fe_update_interpolation
-  procedure :: update_interpolation_face => lagrangian_reference_fe_update_interpolation_face
   procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node  => lagrangian_reference_fe_get_scalar_from_vector_node
   procedure :: get_max_order             => lagrangian_reference_fe_get_max_order
   procedure :: get_value_scalar          => lagrangian_reference_fe_get_value_scalar
   procedure :: get_value_vector          => lagrangian_reference_fe_get_value_vector
+  procedure :: get_values_scalar         => lagrangian_reference_fe_get_values_scalar
+  procedure :: get_values_vector         => lagrangian_reference_fe_get_values_vector
   procedure :: get_gradient_scalar       => lagrangian_reference_fe_get_gradient_scalar
   procedure :: get_gradient_vector       => lagrangian_reference_fe_get_gradient_vector
+  procedure :: get_gradients_scalar      => lagrangian_reference_fe_get_gradients_scalar
+  procedure :: get_gradients_vector      => lagrangian_reference_fe_get_gradients_vector
   procedure :: get_divergence_vector     => lagrangian_reference_fe_get_divergence_vector
+  procedure :: get_divergences_vector    => lagrangian_reference_fe_get_divergences_vector
   procedure :: get_curl_vector           => lagrangian_reference_fe_get_curl_vector
+  procedure :: get_curls_vector          => lagrangian_reference_fe_get_curls_vector
   procedure :: create_nodal_quadrature   => lagrangian_reference_fe_create_nodal_quadrature
   procedure :: has_nodal_quadrature      => lagrangian_reference_fe_has_nodal_quadrature
   procedure :: get_nodal_quadrature      => lagrangian_reference_fe_get_nodal_quadrature
@@ -919,10 +971,16 @@ procedure :: has_nodal_quadrature             => raviart_thomas_has_nodal_quadra
 procedure :: get_nodal_quadrature             => raviart_thomas_get_nodal_quadrature    
 procedure :: get_value_scalar                 => raviart_thomas_get_value_scalar
 procedure :: get_value_vector                 => raviart_thomas_get_value_vector
+procedure :: get_values_scalar                => raviart_thomas_get_values_scalar
+procedure :: get_values_vector                => raviart_thomas_get_values_vector
 procedure :: get_gradient_scalar              => raviart_thomas_get_gradient_scalar
 procedure :: get_gradient_vector              => raviart_thomas_get_gradient_vector
+procedure :: get_gradients_scalar             => raviart_thomas_get_gradients_scalar
+procedure :: get_gradients_vector             => raviart_thomas_get_gradients_vector
 procedure :: get_divergence_vector            => raviart_thomas_get_divergence_vector
+procedure :: get_divergences_vector           => raviart_thomas_get_divergences_vector
 procedure :: get_curl_vector                  => raviart_thomas_get_curl_vector
+procedure :: get_curls_vector                  => raviart_thomas_get_curls_vector
 procedure :: create_interpolation             => raviart_thomas_create_interpolation
 procedure :: create_face_interpolation        => raviart_thomas_create_face_interpolation
 procedure :: evaluate_fe_function_scalar          &
@@ -981,10 +1039,16 @@ procedure :: has_nodal_quadrature            => nedelec_has_nodal_quadrature
 procedure :: get_nodal_quadrature            => nedelec_get_nodal_quadrature 
 procedure :: get_value_scalar                => nedelec_get_value_scalar
 procedure :: get_value_vector                => nedelec_get_value_vector
+procedure :: get_values_scalar               => nedelec_get_values_scalar
+procedure :: get_values_vector               => nedelec_get_values_vector
 procedure :: get_gradient_scalar             => nedelec_get_gradient_scalar
 procedure :: get_gradient_vector             => nedelec_get_gradient_vector
+procedure :: get_gradients_scalar            => nedelec_get_gradients_scalar
+procedure :: get_gradients_vector            => nedelec_get_gradients_vector
 procedure :: get_divergence_vector           => nedelec_get_divergence_vector
+procedure :: get_divergences_vector          => nedelec_get_divergences_vector
 procedure :: get_curl_vector                 => nedelec_get_curl_vector
+procedure :: get_curls_vector                => nedelec_get_curls_vector
 procedure :: create_interpolation            => nedelec_create_interpolation
 procedure :: create_face_interpolation       => nedelec_create_face_interpolation
 procedure :: create_edge_interpolation       => nedelec_create_edge_interpolation
@@ -1230,10 +1294,11 @@ type(interpolation_t)          :: interpolation      ! Unknown interpolation_t i
 type(interpolation_t)          :: interpolation_o_map! Unknown interpolation_t in the physical element domain
 contains
 
-procedure, non_overridable :: create => volume_integrator_create
-procedure, non_overridable :: free   => volume_integrator_free
-procedure, non_overridable :: update => volume_integrator_update
-procedure, non_overridable :: print  => volume_integrator_print
+procedure, non_overridable :: create         => volume_integrator_create
+procedure, non_overridable :: create_on_face => volume_integrator_create_on_face
+procedure, non_overridable :: free           => volume_integrator_free
+procedure, non_overridable :: update         => volume_integrator_update
+procedure, non_overridable :: print          => volume_integrator_print
 
 procedure, non_overridable :: get_interpolation_reference_cell =>                               &
 &                                   volume_integrator_get_interpolation_reference_cell
@@ -1246,14 +1311,27 @@ procedure, non_overridable, private :: get_value_vector           => volume_inte
 procedure, non_overridable, private :: get_value_tensor           => volume_integrator_get_value_tensor
 procedure, non_overridable, private :: get_value_symmetric_tensor => volume_integrator_get_value_symmetric_tensor
 generic            :: get_value => get_value_scalar, &
-get_value_vector, &
-get_value_tensor, &
-get_value_symmetric_tensor
-
+                                   get_value_vector, &
+                                   get_value_tensor, &
+                                   get_value_symmetric_tensor
+                                   
+procedure, non_overridable, private :: get_values_scalar           => volume_integrator_get_values_scalar
+procedure, non_overridable, private :: get_values_vector           => volume_integrator_get_values_vector
+!procedure, non_overridable, private :: get_value_tensor           => volume_integrator_get_value_tensor
+!procedure, non_overridable, private :: get_value_symmetric_tensor => volume_integrator_get_value_symmetric_tensor
+generic            :: get_values => get_values_scalar, &
+                                    get_values_vector !, &
+                                   !get_value_tensor, &
+                                   !get_value_symmetric_tensor
 procedure, non_overridable, private :: get_gradient_scalar => volume_integrator_get_gradient_scalar
 procedure, non_overridable, private :: get_gradient_vector => volume_integrator_get_gradient_vector
 generic                             :: get_gradient => get_gradient_scalar, &
-get_gradient_vector 
+                                                       get_gradient_vector 
+
+procedure, non_overridable, private :: get_gradients_scalar => volume_integrator_get_gradients_scalar
+procedure, non_overridable, private :: get_gradients_vector => volume_integrator_get_gradients_vector
+generic                             :: get_gradients => get_gradients_scalar, &
+                                                        get_gradients_vector 
 
 procedure, non_overridable, private :: get_symmetric_gradient_vector => volume_integrator_get_symmetric_gradient_vector
 generic                             :: get_symmetric_gradient => get_symmetric_gradient_vector
@@ -1261,10 +1339,17 @@ generic                             :: get_symmetric_gradient => get_symmetric_g
 procedure, non_overridable, private :: get_divergence_vector => volume_integrator_get_divergence_vector
 procedure, non_overridable, private :: get_divergence_tensor => volume_integrator_get_divergence_tensor
 generic                             :: get_divergence => get_divergence_vector, &
-get_divergence_tensor
+                                                         get_divergence_tensor
+procedure, non_overridable, private :: get_divergences_vector => volume_integrator_get_divergences_vector
+!procedure, non_overridable, private :: get_divergences_tensor => volume_integrator_get_divergences_tensor
+generic                             :: get_divergences => get_divergences_vector!, &
+                                                         !get_divergence_tensor
 
 procedure, non_overridable, private :: get_curl_vector => volume_integrator_get_curl_vector
 generic                             :: get_curl => get_curl_vector
+
+procedure, non_overridable, private :: get_curls_vector => volume_integrator_get_curls_vector
+generic                             :: get_curls => get_curls_vector
 
 ! We might want to have the following in the future:
 !  (x) get_hessian (scalar,vector)
@@ -1295,65 +1380,84 @@ end type p_volume_integrator_t
 
 public :: volume_integrator_t, p_volume_integrator_t
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type volume_integrator_face_restriction_t
+     private
+     integer(ip)                            :: number_faces
+     integer(ip)                            :: active_face_lid
+     type(volume_integrator_t), allocatable :: volume_integrator(:) 
+   contains
+     procedure, non_overridable :: create  => volume_integrator_face_restriction_create
+     procedure, non_overridable :: update  => volume_integrator_face_restriction_update
+     procedure, non_overridable :: free    => volume_integrator_face_restriction_free
+     procedure, non_overridable :: get_active_volume_integrator => volume_integrator_face_restriction_get_active_volume_integrator
+  end type volume_integrator_face_restriction_t
 
+  public :: volume_integrator_face_restriction_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type face_map_t
-private
-logical                         :: is_boundary
-type(fe_map_t)                  :: face_map
-type(fe_map_face_restriction_t) :: fe_maps(2)
-integer(ip)                     :: number_dimensions
+  private
+  logical                         :: is_boundary
+  type(fe_map_t)                  :: face_map
+  type(fe_map_face_restriction_t) :: fe_maps(2)
+  integer(ip)                     :: number_dimensions
 contains
-procedure, non_overridable :: create               => face_map_create
-procedure, non_overridable :: free                 => face_map_free
-procedure, non_overridable :: update               => face_map_update
-procedure, non_overridable :: compute_characteristic_length                                      &
-&                                             => face_map_compute_characteristic_length
-procedure, non_overridable :: get_quadrature_coordinates                                         &
-&                                             => face_map_get_quadrature_coordinates
-procedure, non_overridable :: get_face_coordinates => face_map_get_face_coordinates
-procedure, non_overridable :: get_coordinates_neighbour                                          &
-&                                             => face_map_get_coordinates_neighbour
-procedure, non_overridable :: get_neighbour_fe_map => face_map_get_neighbour_fe_map
-procedure, non_overridable :: get_normals          => face_map_get_normals
-procedure, non_overridable :: get_det_jacobian     => face_map_get_det_jacobian
-procedure, non_overridable :: get_face_map         => face_map_get_face_map
+  procedure, non_overridable :: create               => face_map_create
+  procedure, non_overridable :: free                 => face_map_free
+  procedure, non_overridable :: update               => face_map_update
+  procedure, non_overridable :: compute_characteristic_length                                      &
+  &                                             => face_map_compute_characteristic_length
+  procedure, non_overridable :: get_quadrature_coordinates                                         &
+  &                                             => face_map_get_quadrature_coordinates
+  procedure, non_overridable :: get_face_coordinates => face_map_get_face_coordinates
+  procedure, non_overridable :: get_coordinates_neighbour                                          &
+  &                                             => face_map_get_coordinates_neighbour
+  procedure, non_overridable :: get_neighbour_fe_map => face_map_get_neighbour_fe_map
+  procedure, non_overridable :: get_normals          => face_map_get_normals
+  procedure, non_overridable :: get_det_jacobian     => face_map_get_det_jacobian
+  procedure, non_overridable :: get_face_map         => face_map_get_face_map
 end type face_map_t
 
 public :: face_map_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 type face_integrator_t
-private
-logical                                :: is_boundary
-type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
-type(p_reference_fe_t)                 :: reference_fe(2)
-integer(ip)                            :: current_qpoints_perm_cols(2)
-type(allocatable_array_ip2_t)          :: qpoints_perm
+  private
+  logical                                    :: is_boundary
+  type(volume_integrator_face_restriction_t) :: volume_integrator_face_restriction(2)
+  type(p_reference_fe_t)                     :: reference_fe(2)
+  integer(ip)                                :: current_qpoints_perm_cols(2)
+  type(allocatable_array_ip2_t)              :: qpoints_perm
 contains
-procedure, non_overridable :: create            => face_integrator_create
-procedure, non_overridable :: update            => face_integrator_update
-procedure, non_overridable :: free              => face_integrator_free
-procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
-procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
-generic                    :: get_value         => get_value_scalar, get_value_vector
-procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
-generic                    :: get_gradient => get_gradient_scalar
-procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
+  procedure, non_overridable :: create            => face_integrator_create
+  procedure, non_overridable :: update            => face_integrator_update
+  procedure, non_overridable :: free              => face_integrator_free
+  procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
+  procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
+  generic                    :: get_value         => get_value_scalar, get_value_vector
+  procedure, non_overridable :: get_values_scalar => face_integrator_get_values_scalar
+  procedure, non_overridable :: get_values_vector => face_integrator_get_values_vector
+  generic                    :: get_values        => get_values_scalar, get_values_vector
+  procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
+  generic                    :: get_gradient => get_gradient_scalar
+  procedure, non_overridable :: get_gradients_scalar  => face_integrator_get_gradients_scalar
+  generic                    :: get_gradients => get_gradients_scalar
+  procedure, non_overridable :: get_curl          => face_integrator_get_curl_vector 
+  procedure, non_overridable :: get_curls         => face_integrator_get_curls_vector 
+  procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
 
-procedure, non_overridable, private :: face_integrator_evaluate_fe_function_scalar
-procedure, non_overridable, private :: face_integrator_evaluate_fe_function_vector
-procedure, non_overridable, private :: face_integrator_evaluate_fe_function_tensor
-generic :: evaluate_fe_function => face_integrator_evaluate_fe_function_scalar, &
-& face_integrator_evaluate_fe_function_vector, &
-& face_integrator_evaluate_fe_function_tensor
+  procedure, non_overridable, private :: face_integrator_evaluate_fe_function_scalar
+  procedure, non_overridable, private :: face_integrator_evaluate_fe_function_vector
+  procedure, non_overridable, private :: face_integrator_evaluate_fe_function_tensor
+  generic :: evaluate_fe_function => face_integrator_evaluate_fe_function_scalar, &
+  & face_integrator_evaluate_fe_function_vector, &
+  & face_integrator_evaluate_fe_function_tensor
 
-procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_scalar
-procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_vector
-generic :: evaluate_gradient_fe_function => face_integrator_evaluate_gradient_fe_function_scalar, &
-& face_integrator_evaluate_gradient_fe_function_vector
-
+  procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_scalar
+  procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_vector
+  generic :: evaluate_gradient_fe_function => face_integrator_evaluate_gradient_fe_function_scalar, &
+  & face_integrator_evaluate_gradient_fe_function_vector
 end type face_integrator_t
 
 type p_face_integrator_t

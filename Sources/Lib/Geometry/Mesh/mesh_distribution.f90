@@ -35,7 +35,9 @@ module mesh_distribution_names
 # include "debug.i90"
   private
 
-  character(len=*), parameter :: num_parts_key = 'num_parts'
+  character(len=*), parameter :: num_parts_key  = 'num_parts'
+  character(len=*), parameter :: num_levels_key = 'num_levels'
+  character(len=*), parameter :: num_parts_per_level_key = 'num_parts_per_level'
   character(len=*), parameter :: debug_key     = 'debug'
   character(len=*), parameter :: strategy_key  = 'strategy'
   character(len=*), parameter :: metis_option_debug_key   = 'metis_option_debug'
@@ -49,7 +51,12 @@ module mesh_distribution_names
   type mesh_distribution_t
      integer(ip) ::                &
         ipart  = 1,                &    ! Part identifier
-        nparts = 1                      ! Number of parts
+        nparts = 1,                &    ! Number of parts
+        num_levels = 1     
+
+     integer(ip), allocatable ::   &
+        num_parts_per_level(:),    &
+        parts_mapping(:)
 
      integer(ip), allocatable ::   &
         pextn(:),                  &    ! Pointers to the lext*
@@ -58,8 +65,9 @@ module mesh_distribution_names
      integer(igp), allocatable ::  &
         lextn(:)                        ! List of (GIDs of) external neighbors
 
-     integer(ip) ::  nebou,        &    ! Number of boundary elements
-                     nnbou              ! Number of boundary nodes 
+     integer(ip) ::                &
+        nebou=0,                   &    ! Number of boundary elements
+        nnbou=0                         ! Number of boundary nodes 
 
      integer(ip), allocatable  ::  & 
         lebou(:),                  &  ! List of boundary elements 
@@ -84,9 +92,10 @@ module mesh_distribution_names
      procedure, non_overridable :: print => mesh_distribution_print
      procedure, non_overridable :: read  => mesh_distribution_read
      procedure, non_overridable :: write => mesh_distribution_write
-     procedure, non_overridable :: read_file => mesh_distribution_read_file
-     procedure, non_overridable :: get_sizes => mesh_distribution_get_sizes
-     procedure, non_overridable :: move_gids => mesh_distribution_move_gids
+     procedure, non_overridable :: read_file    => mesh_distribution_read_file
+     procedure, non_overridable :: create_empty => mesh_distribution_create_empty
+     procedure, non_overridable :: get_sizes    => mesh_distribution_get_sizes
+     procedure, non_overridable :: move_gids    => mesh_distribution_move_gids
      procedure, non_overridable :: move_external_elements_info => mesh_distribution_move_external_elements_info
   end type mesh_distribution_t
 
@@ -97,7 +106,10 @@ module mesh_distribution_names
   integer(ip), parameter :: part_rcm_strip = 3
 
   type mesh_distribution_params_t
-     integer(ip) :: nparts      = 2    ! nparts
+     integer(ip) :: nparts         = 2    ! nparts
+     integer(ip) :: num_levels     = 1    ! nlevels
+     integer(ip), allocatable :: num_parts_per_level (:)
+
      integer(ip) :: debug       = 1    ! Print info partition
 
      integer(ip) :: strat = part_kway  ! Partitioning algorithm (part_kway,
@@ -119,7 +131,8 @@ module mesh_distribution_names
      ! Applicable to both metis 4.0 and metis 5.0
      integer(ip) :: metis_option_debug  =  0 
      contains
-       procedure, non_overridable ::get_parameters_from_fpl =>  mesh_distribution_get_parameters_from_fpl
+       procedure, non_overridable :: get_parameters_from_fpl =>  mesh_distribution_get_parameters_from_fpl
+       procedure, non_overridable :: free => mesh_distribution_parameters_free
   end type mesh_distribution_params_t
 
   ! Types
@@ -127,6 +140,8 @@ module mesh_distribution_names
 
   ! Constants
   public :: num_parts_key
+  public :: num_levels_key
+  public :: num_parts_per_level_key
   public :: debug_key
   public :: strategy_key
   public :: metis_option_debug_key
@@ -144,7 +159,6 @@ module mesh_distribution_names
 
 contains
 
-
   subroutine mesh_distribution_get_parameters_from_fpl(this,parameter_list)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates geometry data to construct a structured mesh                      !
@@ -153,54 +167,94 @@ contains
     class(mesh_distribution_params_t), intent(inout) :: this
     type(ParameterList_t)            , intent(in)    :: parameter_list
     ! Locals
-    integer(ip)          :: istat
-    logical              :: is_present
+    integer(ip)              :: istat
+    integer(ip), allocatable :: param_size(:), param(:)
 
-    ! Mandatory parameters
-    is_present =  parameter_list%isPresent(key = num_parts_key )
-    assert(is_present)
-    istat = parameter_list%get(key = num_parts_key , value = this%nparts)
-    check(istat==0)
+    ! Mandatory parameters: either nparts or num_levels
+    assert(parameter_list%isPresent(key = num_parts_key).or.parameter_list%isPresent(key = num_levels_key))
+    if( parameter_list%isPresent(num_parts_key)) then
+       assert(parameter_list%isAssignable(num_parts_key, this%nparts))
+       istat = parameter_list%get(key = num_parts_key , value = this%nparts)
+       assert(istat==0)
+    end if
+    if( parameter_list%isPresent(num_levels_key) ) then
+       assert(parameter_list%isAssignable(num_levels_key, this%num_levels))
+       istat = parameter_list%get(key = num_levels_key  , value = this%num_levels)
+       assert(istat==0)
+       
+       assert(parameter_list%isPresent(key = num_parts_per_level_key ))
+       assert( parameter_list%GetDimensions(key = num_parts_per_level_key) == 1)
 
-    ! Optional parameters
-    if( parameter_list%isPresent(key = debug_key) ) then
-       istat = parameter_list%get(key = debug_key  , value = this%debug)
-       check(istat==0)
+       ! Get the array using the local variable
+       istat =  parameter_list%GetShape(key = num_parts_per_level_key, shape = param_size ); check(istat==0)
+       call memalloc(param_size(1), param,__FILE__,__LINE__)
+       assert(parameter_list%isAssignable(num_parts_per_level_key, param))
+       istat = parameter_list%get(key = num_parts_per_level_key, value = param)
+       assert(istat==0)
+
+       call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__)
+       this%num_parts_per_level = param(1:this%num_levels)
+       call memfree(param,__FILE__,__LINE__)
+
+       this%nparts = this%num_parts_per_level(1)
+    else
+       this%num_levels=1
+       call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__)
+       this%num_parts_per_level(1)=this%nparts
     end if
 
-    if( parameter_list%isPresent(key = strategy_key) ) then
+    ! Optional paramters
+    if( parameter_list%isPresent(debug_key) ) then
+       assert(parameter_list%isAssignable(debug_key, this%debug))
+       istat = parameter_list%get(key = debug_key  , value = this%debug)
+       assert(istat==0)
+    end if
+
+    if( parameter_list%isPresent(strategy_key) ) then
+       assert(parameter_list%isAssignable(strategy_key, this%strat))
        istat = parameter_list%get(key = strategy_key  , value = this%strat)
-       check(istat==0)
+       assert(istat==0)
        assert(this%strat==part_kway.or.this%strat==part_recursive.or.this%strat==part_strip.or.this%strat==part_rcm_strip)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_debug_key) ) then
+    if( parameter_list%isPresent(metis_option_debug_key) ) then
+       assert(parameter_list%isAssignable(metis_option_debug_key, this%metis_option_debug))
        istat = parameter_list%get(key = metis_option_debug_key  , value = this%metis_option_debug)
        check(istat==0)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_ufactor_key) ) then
+    if( parameter_list%isPresent(metis_option_ufactor_key) ) then
+       assert(parameter_list%isAssignable(metis_option_ufactor_key, this%metis_option_ufactor))
        istat = parameter_list%get(key = metis_option_ufactor_key, value = this%metis_option_ufactor)
-       check(istat==0)
+       assert(istat==0)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_minconn_key) ) then
+    if( parameter_list%isPresent(metis_option_minconn_key) ) then
+       assert(parameter_list%isAssignable(metis_option_minconn_key, this%metis_option_minconn))
        istat = parameter_list%get(key = metis_option_minconn_key, value = this%metis_option_minconn)
        check(istat==0)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_contig_key) ) then
+    if( parameter_list%isPresent(metis_option_contig_key) ) then
+       assert(parameter_list%isAssignable(metis_option_contig_key, this%metis_option_contig))
        istat = parameter_list%get(key = metis_option_contig_key , value = this%metis_option_contig)
-       check(istat==0)
+       assert(istat==0)
     end if
 
-    if( parameter_list%isPresent(key = metis_option_ctype_key) ) then
+    if( parameter_list%isPresent(metis_option_ctype_key) ) then
+       assert(parameter_list%isAssignable(metis_option_ctype_key, this%metis_option_ctype))
        istat = parameter_list%get(key = metis_option_ctype_key  , value = this%metis_option_ctype)
-       check(istat==0)
+       assert(istat==0)
     end if
 
   end subroutine mesh_distribution_get_parameters_from_fpl
 
+  !=============================================================================
+  subroutine mesh_distribution_parameters_free(this)
+    implicit none
+    class(mesh_distribution_params_t), intent(inout) :: this
+    call memfree(this%num_parts_per_level,__FILE__,__LINE__)
+  end subroutine mesh_distribution_parameters_free
 
   !=============================================================================
   subroutine mesh_distribution_get_sizes(this,ipart,nparts)
@@ -231,7 +285,12 @@ contains
     call memmovealloc(this%lextn,lextn,__FILE__,__LINE__)
     call memmovealloc(this%lextp,lextp,__FILE__,__LINE__)
   end subroutine mesh_distribution_move_external_elements_info
-
+  !=============================================================================
+  subroutine mesh_distribution_create_empty(this)
+    class(mesh_distribution_t), intent(inout) :: this
+    call memalloc ( 1, this%pextn ,__FILE__,__LINE__  )
+    this%pextn(1) = 1
+  end subroutine mesh_distribution_create_empty
   !=============================================================================
   subroutine mesh_distribution_free (f_msh_dist)
     !-----------------------------------------------------------------------
@@ -249,6 +308,10 @@ contains
     if(allocated(f_msh_dist%lextp)) call memfree ( f_msh_dist%lextp ,__FILE__,__LINE__)
     if(allocated(f_msh_dist%l2g_vertices)) call memfree ( f_msh_dist%l2g_vertices, __FILE__,__LINE__)
     if(allocated(f_msh_dist%l2g_cells)) call memfree ( f_msh_dist%l2g_cells, __FILE__,__LINE__)
+
+    if(allocated(f_msh_dist%num_parts_per_level))  call memfree(f_msh_dist%num_parts_per_level,__FILE__,__LINE__)
+    if(allocated(f_msh_dist%parts_mapping))  call memfree(f_msh_dist%parts_mapping,__FILE__,__LINE__)
+
   end subroutine mesh_distribution_free
 
   !=============================================================================
@@ -270,7 +333,7 @@ contains
        write(lu_out,'(a)') '*** begin mesh_distribution data structure ***'
 
        write(lu_out,'(a,i10)') 'Number of parts:', &
-          &  msh_dist%nparts
+           &  msh_dist%nparts
 
        write(lu_out,'(a,i10)') 'Number of elements on the boundary:', &
           &  msh_dist%nebou
@@ -299,6 +362,7 @@ contains
  
   end subroutine mesh_distribution_print
 
+  !=============================================================================
   subroutine mesh_distribution_write (f_msh_dist, lunio)
     ! Parameters
     integer                  , intent(in) :: lunio
@@ -308,6 +372,7 @@ contains
     !-----------------------------------------------------------------------
 
     write ( lunio, '(10i10)' ) f_msh_dist%ipart, f_msh_dist%nparts
+
     write ( lunio, '(10i10)' ) f_msh_dist%nebou
     write ( lunio, '(10i10)' ) f_msh_dist%lebou
     write ( lunio, '(10i10)' ) f_msh_dist%nnbou
@@ -418,27 +483,25 @@ contains
     type(mesh_distribution_t), intent(in)  :: parts(:)
 
     ! Locals
-    integer(ip)          :: nparts
-    integer(ip)          :: istat
-    logical              :: is_present
-    character(len=256)   :: dir_path
-    character(len=256)   :: prefix
+    integer(ip)                   :: nparts
+    integer(ip)                   :: istat
+    logical                       :: is_present
+    character(len=:), allocatable :: dir_path
+    character(len=:), allocatable :: prefix
     character(len=:), allocatable :: name, rename
-    integer(ip)          :: lunio
-    integer(ip)          :: i
+    integer(ip)                   :: lunio
+    integer(ip)                   :: i
 
     nparts = size(parts)
 
     ! Mandatory parameters
-    is_present = .true.
-    is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
-    is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
-    assert(is_present)
-     
-    istat = 0
-    istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
-    istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
-    check(istat==0)
+    assert(parameter_list%isAssignable(dir_path_out_key, 'string'))
+    istat = parameter_list%GetAsString(key = dir_path_out_key, String = dir_path)
+    assert(istat == 0)
+    
+    assert(parameter_list%isAssignable(prefix_key, 'string'))
+    istat = istat + parameter_list%GetAsString(key = prefix_key, String = prefix)
+    assert(istat==0)
 
     call mesh_distribution_compose_name ( prefix, name )
     

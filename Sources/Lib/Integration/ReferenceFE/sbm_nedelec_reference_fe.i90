@@ -231,7 +231,7 @@ subroutine nedelec_fill_vector (this)
   implicit none
   class(nedelec_reference_fe_t), intent(inout)    :: this 
   type(node_iterator_t) :: node_iterator
-  type(n_face_iterator_t) :: facet_iterator
+  type(facet_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
   integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM), idime, perm(SPACE_DIM), offset(SPACE_DIM+1)
 
@@ -254,7 +254,7 @@ subroutine nedelec_fill_vector (this)
      ! Number nodes
      this%number_shape_functions = this%number_shape_functions + this%node_array_vector(idime)%get_number_nodes()
      offset(idime+1) = offset(idime) + this%node_array_vector(idime)%get_number_nodes()
-  end do
+  end do 
 
   num_n_faces = this%polytope%get_number_n_faces()
   ! Number n-faces ( I don't like it, not volume included...)
@@ -437,10 +437,9 @@ function nedelec_get_nodal_quadrature(this)
 end function nedelec_get_nodal_quadrature
 
 !==================================================================================================
-subroutine nedelec_get_value_scalar( this, actual_cell_interpolation, & 
-     & ishape, qpoint, scalar_field )
+subroutine nedelec_get_value_scalar( this, actual_cell_interpolation, ishape, qpoint, scalar_field )
   implicit none
-  class(nedelec_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t)   , intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -449,6 +448,18 @@ subroutine nedelec_get_value_scalar( this, actual_cell_interpolation, &
   write(*,*) ' Subroutine not implemented for vector-based FE spaces'
   check( .false. )
 end subroutine nedelec_get_value_scalar
+
+!==================================================================================================
+subroutine nedelec_get_values_scalar( this, actual_cell_interpolation, values, qpoints_perm )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)               , intent(in)    :: actual_cell_interpolation 
+  real(rp), allocatable               , intent(inout) :: values(:,:)
+  integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for vector-based FE spaces'
+  check( .false. )
+end subroutine nedelec_get_values_scalar
 
 !==================================================================================================
 subroutine nedelec_get_value_vector( this, actual_cell_interpolation, & 
@@ -465,6 +476,42 @@ subroutine nedelec_get_value_vector( this, actual_cell_interpolation, &
   call vector_field%init(actual_cell_interpolation%shape_functions(:,ishape,qpoint))
 end subroutine nedelec_get_value_vector
 
+!==================================================================================================
+subroutine nedelec_get_values_vector( this, actual_cell_interpolation, values, qpoints_perm)
+  implicit none
+  class(nedelec_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)               , intent(in)    :: actual_cell_interpolation 
+  type(vector_field_t), allocatable   , intent(inout) :: values(:,:)
+  integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
+  integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
+  logical     :: reallocate
+  assert( this%field_type == field_type_vector )
+  
+  reallocate = .false.
+  if (allocated(values)) reallocate = (size(values,1) < this%number_shape_functions) .or. &
+                                      (size(values,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if ((.not. allocated(values)) .or. reallocate) then
+     if (allocated(values)) then 
+        deallocate(values, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(values(this%number_shape_functions, &
+              actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions
+        call values(ishape,qpoint)%init(actual_cell_interpolation%shape_functions(:,ishape,actual_qpoint))
+     end do
+  end do  
+end subroutine nedelec_get_values_vector
+
 !!==================================================================================================
 subroutine nedelec_get_gradient_scalar( this, actual_cell_interpolation, & 
      & ishape, qpoint, vector_field )
@@ -479,6 +526,18 @@ subroutine nedelec_get_gradient_scalar( this, actual_cell_interpolation, &
   write(*,*) ' Subroutine not implemented for vector-based FE spaces'
   check( .false. )
 end subroutine nedelec_get_gradient_scalar
+
+!==================================================================================================
+subroutine nedelec_get_gradients_scalar( this, actual_cell_interpolation, gradients, qpoints_perm )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in)    :: this
+  type(interpolation_t)               , intent(in)    :: actual_cell_interpolation
+  type(vector_field_t), allocatable   , intent(inout) :: gradients(:,:)
+  integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for vector-based FE spaces'
+  check( .false. )
+end subroutine nedelec_get_gradients_scalar
 
 !==================================================================================================
 subroutine nedelec_get_gradient_vector( this, actual_cell_interpolation, & 
@@ -501,6 +560,46 @@ subroutine nedelec_get_gradient_vector( this, actual_cell_interpolation, &
     end do
   end do
 end subroutine nedelec_get_gradient_vector
+
+subroutine nedelec_get_gradients_vector( this, actual_cell_interpolation, gradients, qpoints_perm )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)               , intent(in)    :: actual_cell_interpolation 
+  type(tensor_field_t), allocatable   , intent(inout) :: gradients(:,:)
+  integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
+  integer(ip) :: i,j,ishape,qpoint,istat,actual_qpoint
+  logical     :: reallocate
+  
+  assert( this%field_type == field_type_vector )
+  
+  reallocate = .false.
+  if (allocated(gradients)) reallocate = (size(gradients,1) < this%number_shape_functions) .or. &
+                                          (size(gradients,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if ((.not. allocated(gradients)) .or. reallocate) then
+     if (allocated(gradients)) then 
+        deallocate(gradients, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(gradients(this%number_shape_functions, &
+                        actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);      
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions
+        do i=1, this%number_dimensions
+          do j=1, this%number_dimensions
+            call gradients(ishape,qpoint)%set(i,j,actual_cell_interpolation%shape_derivatives(j,i,ishape,actual_qpoint))
+          end do
+        end do
+     end do
+  end do
+end subroutine nedelec_get_gradients_vector
 
 !==================================================================================================
 subroutine nedelec_get_divergence_vector( this, actual_cell_interpolation, & 
@@ -525,6 +624,44 @@ subroutine nedelec_get_divergence_vector( this, actual_cell_interpolation, &
   end do
 
 end subroutine nedelec_get_divergence_vector
+
+subroutine nedelec_get_divergences_vector( this, actual_cell_interpolation, divergences, qpoints_perm )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)               , intent(in)    :: actual_cell_interpolation 
+  real(rp), allocatable               , intent(inout) :: divergences(:,:)
+  integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
+  ! Locals 
+  integer(ip) :: idime, ishape, qpoint, actual_qpoint
+  logical     :: reallocate
+  assert( this%field_type == field_type_vector )
+  
+  reallocate = .false.
+  if (allocated(divergences)) reallocate = (size(divergences,1) < this%number_shape_functions) .or. &
+                                           (size(divergences,2) < actual_cell_interpolation%number_quadrature_points)
+                                          
+  if ((.not. allocated(divergences)) .or. reallocate) then
+     if (allocated(divergences)) then 
+        call memfree(divergences, __FILE__,__LINE__); 
+     end if
+     call memalloc(this%number_shape_functions, &
+                   actual_cell_interpolation%number_quadrature_points, &
+                   divergences, __FILE__,__LINE__);
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions
+        divergences(ishape,qpoint) = 0.0_rp
+        do idime = 1, this%number_dimensions
+           divergences(ishape,qpoint) = divergences(ishape,qpoint) + actual_cell_interpolation%shape_derivatives(idime,idime,ishape,actual_qpoint)
+        end do
+     end do
+  end do
+end subroutine nedelec_get_divergences_vector
 
 !==================================================================================================
 subroutine nedelec_get_curl_vector( this, actual_cell_interpolation, &
@@ -560,6 +697,57 @@ subroutine nedelec_get_curl_vector( this, actual_cell_interpolation, &
                              actual_cell_interpolation%shape_derivatives(1,2,ishape,qpoint) )
   end if
 end subroutine nedelec_get_curl_vector
+
+!==================================================================================================
+subroutine nedelec_get_curls_vector( this, actual_cell_interpolation, curls, qpoints_perm )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)               , intent(in)    :: actual_cell_interpolation
+  type(vector_field_t), allocatable   , intent(inout) :: curls(:,:)
+  integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
+  integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
+  logical     :: reallocate
+  integer(ip)   :: icomp, ishape_scalar 
+  assert( this%field_type == field_type_vector )
+  reallocate = .false.
+  if (allocated(curls)) reallocate = (size(curls,1) < this%number_shape_functions) .or. &
+                                      (size(curls,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if ((.not. allocated(curls)) .or. reallocate) then
+     if (allocated(curls)) then 
+        deallocate(curls, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(curls(this%number_shape_functions, &
+                    actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions   
+        call curls(ishape,qpoint)%init(0.0_rp)
+        if (this%number_dimensions == 2) then 
+           ! d_x u_y - d_y u_x
+           call curls(ishape,qpoint)%set(3, actual_cell_interpolation%shape_derivatives(2,1,ishape,actual_qpoint)- &
+                actual_cell_interpolation%shape_derivatives(1,2,ishape,actual_qpoint) )
+        else if ( this%number_dimensions == 3) then
+           ! d_y u_z - d_z u_y
+           call curls(ishape,qpoint)%set(1, actual_cell_interpolation%shape_derivatives(3,2,ishape,actual_qpoint)- &
+                actual_cell_interpolation%shape_derivatives(2,3,ishape,actual_qpoint) )
+           ! d_z u_x - d_x u_z
+           call curls(ishape,qpoint)%set(2, actual_cell_interpolation%shape_derivatives(1,3,ishape,actual_qpoint)- &
+                actual_cell_interpolation%shape_derivatives(3,1,ishape,actual_qpoint) )
+           ! d_x u_y - d_y u_x
+           call curls(ishape,qpoint)%set(3, actual_cell_interpolation%shape_derivatives(2,1,ishape,actual_qpoint)- &
+                actual_cell_interpolation%shape_derivatives(1,2,ishape,actual_qpoint) )
+        end if
+     end do
+  end do
+end subroutine nedelec_get_curls_vector
 
 !==================================================================================================
 subroutine nedelec_evaluate_fe_function_scalar( this,                      &
@@ -600,7 +788,6 @@ subroutine nedelec_evaluate_fe_function_vector( this,                      &
     allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
   end if
   
-  
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_shape_functions
@@ -628,6 +815,7 @@ subroutine nedelec_evaluate_fe_function_tensor( this,                      &
 
 end subroutine nedelec_evaluate_fe_function_tensor
 
+! ===========================================================================================================
 subroutine nedelec_blending(this,values)
   implicit none
   class(nedelec_reference_fe_t), intent(in)    :: this
@@ -770,6 +958,7 @@ subroutine nedelec_invert_change_basis_matrix(this)
                error )
   check ( error == 0 )
   
+  if ( allocated(this%change_basis_matrix) ) call memfree (  this%change_basis_matrix, __FILE__, __LINE__  )
   
  call memmovealloc(inverse_change_basis_matrix, &
                    this%change_basis_matrix, __FILE__, __LINE__ )

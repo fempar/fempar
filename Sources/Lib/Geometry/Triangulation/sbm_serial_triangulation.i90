@@ -25,137 +25,136 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine serial_triangulation_create ( this, parameters) ! dir_path, prefix, geometry_interpolation_order)
-    implicit none
-    class(serial_triangulation_t), intent(inout) :: this
-    type(ParameterList_t)        , intent(in)    :: parameters
 
-    type(mesh_t)           :: mesh
-    type(list_t), pointer  :: given_vefs
-    integer(ip) , pointer  :: lst_vefs_geo(:), lst_vefs_set(:)
-    real(rp)    , pointer  :: coordinates(:,:) => NULL()
-    integer(ip)            :: triangulation_generate
-    integer(ip)            :: istat
-    logical                :: is_present
-    integer(ip)            :: geometry_interpolation_order
-    type(p_reference_fe_t) :: reference_fe_geo_list(1)
-    integer(ip) :: ivef ! Temporal
-    
-    ! Optional parameters
-    if( parameters%isPresent(key = triangulation_generate_key) ) then
-       istat = parameters%get(key = triangulation_generate_key, value = triangulation_generate)
-       check(istat==0)
-    else
-       triangulation_generate = triangulation_generate_from_mesh
-    end if
+subroutine serial_triangulation_create ( this, parameters)
+  implicit none
+  class(serial_triangulation_t), target, intent(inout) :: this
+  type(ParameterList_t)        , intent(inout)    :: parameters
 
-    if( parameters%isPresent(key = geometry_interpolation_order_key) ) then
-       istat = parameters%get(key = geometry_interpolation_order_key , value = geometry_interpolation_order)
-       check(istat==0)
-    else
-       geometry_interpolation_order = 1
-    end if
- 
-    call this%free()
+  type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
-    if(geometry_interpolation_order>1) call this%geometry%read(parameters)
+  type(mesh_t)              :: mesh
+  type(list_t), pointer     :: given_vefs
+  integer(ip) , pointer     :: lst_vefs_geo(:), lst_vefs_set(:)
+  real(rp)    , allocatable :: coordinates(:,:)
+  integer(ip)               :: triangulation_generate
+  integer(ip)               :: execution_context
+  integer(ip)               :: istat
+  integer(ip)               :: geometry_interpolation_order
+  type(p_reference_fe_t)    :: reference_fe_geo_list(1)
+  integer(ip)               :: ivef 
+  integer(ip), allocatable  :: cells_set(:)
 
-    if(triangulation_generate==triangulation_generate_from_mesh) then
-       call mesh%read(parameters)
-       !call mesh%read(dir_path, prefix)
-       !call mesh%to_dual()
-       !call mesh%generate_vefs()
-       
-       ! Extract data from mesh
-       call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
-       this%num_vefs=this%num_vertices
-       this%num_ghost_cells=0
-       !write(*,*) this%num_dimensions,this%num_vertices,this%num_vefs,this%max_vefs_per_cell,this%num_local_cells
-       call mesh%move_cells(this%ptr_vefs_per_cell,this%lst_vefs_lids)
-       !write(*,*) this%ptr_vefs_per_cell
-       !write(*,*) this%lst_vefs_lids
-       !call mesh%move_coordinates(this%coordinates)
-       !write(*,*) this%coordinates
-       call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
-       !write(*,*) boundary%p,boundary%l
+  ! Optional parameters
+  if( parameters%isPresent(triangulation_generate_key) ) then
+     assert(parameters%isAssignable(triangulation_generate_key, triangulation_generate))
+     istat = parameters%get(key = triangulation_generate_key, value = triangulation_generate)
+     assert(istat==0)
+  else
+     triangulation_generate = triangulation_generate_from_mesh
+  end if
 
-       coordinates => mesh%get_coordinates()
+  if( parameters%isPresent(geometry_interpolation_order_key) ) then
+     assert(parameters%isAssignable(geometry_interpolation_order_key, geometry_interpolation_order))
+     istat = parameters%get(key = geometry_interpolation_order_key , value = geometry_interpolation_order)
+     assert(istat==0)
+  else
+     geometry_interpolation_order = 1
+  end if
 
-       ! Generate dual mesh (at this point around vertices only)
-       call this%allocate_and_fill_cells_around()
-       !write(*,*) this%ptrs_cells_around
-       !write(*,*) this%lst_cells_around
-       !write(*,*) 'Dual mesh ready'
+  call this%free()
 
-       call this%generate_vefs(geometry_interpolation_order)
-       call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
-       !call this%generate_vefs()
-       !write(*,*) 'Generating vefs done'
+  ! Verify (and eventually set) execution type and create serial environment
+  if( parameters%isPresent(execution_context_key) ) then
+     assert(parameters%isAssignable(execution_context_key, execution_context))
+     istat = parameters%get(key = execution_context_key, value = execution_context)
+     assert(istat==0)
+     check(execution_context==serial_context)
+  else
+     istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
+  end if
+  call this%par_environment%create (parameters)
+  this%p_env => this%par_environment
 
-    else if(triangulation_generate==triangulation_generate_structured) then
+  if(geometry_interpolation_order>1) call this%geometry%read(parameters)
 
-       this%num_ghost_cells=0
+  if(triangulation_generate==triangulation_generate_from_mesh) then
+     call mesh%read(parameters)
 
-       ! Get num_dimensions from FPL
-       is_present = parameters%isPresent(key = number_of_dimensions_key ) 
-       assert(is_present)
-       istat = parameters%get(key = number_of_dimensions_key   , value = this%num_dimensions)
-       check(istat==0)
+     ! Extract data from mesh
+     call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
+     this%num_vefs=this%num_vertices
+     this%num_ghost_cells=0
+     call mesh%move_cells(this%ptr_vefs_per_cell,this%lst_vefs_lids, cells_set)
+     call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
 
-       call uniform_hex_mesh_generator_generate_connectivities(parameters,             &
-            &                                                  this%num_local_cells,   &
-            &                                                  this%num_vefs,          & ! All n_faces
-            &                                                  this%num_vertices,      & ! All dim 0 n_faces
-            &                                                  this%num_edges,         & ! All faces with 0<dim<n-1
-            &                                                  this%num_faces,         & ! All dim n-1 n_faces
-            &                                                  this%ptr_vefs_per_cell, &
-            &                                                  this%lst_vefs_lids,     &
-            &                                                  this%vefs_set,          &
-            &                                                  coordinates)
+     call mesh%move_coordinates(coordinates)
 
-       call this%reference_fe_geo_index%init(1)
-       if(this%num_dimensions==2) then
-          call this%reference_fe_geo_index%put(key=8,val=1,stat=istat)
-          reference_fe_geo_list(1) = &
-               &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-               &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
-               &                        field_type = field_type_scalar, continuity = .true. )
-       else
-          call this%reference_fe_geo_index%put(key=26,val=1,stat=istat)
-          reference_fe_geo_list(1) = &
-               &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-               &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
-               &                        field_type = field_type_scalar, continuity = .true. )
-       end if
-       ! Transfer allocated target from local variable to member variable of base_static_triangulation
-       select type(reference_fe => reference_fe_geo_list(1)%p)
-       class is(lagrangian_reference_fe_t)
-          this%reference_fe_geo_list(1)%p => reference_fe
-       end select
+     ! Generate dual mesh (at this point around vertices only)
+     call this%allocate_and_fill_cells_around()
+     call this%generate_vefs(geometry_interpolation_order)
+     call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
+     call mesh%free()
 
-    end if
-    
-    ! Generate dual mesh (around all vefs now)
-    call this%allocate_and_fill_cells_around()
-    !write(*,*) this%ptrs_cells_around
-    !write(*,*) this%lst_cells_around
-    !write(*,*) 'Dual mesh ready'
+  else if(triangulation_generate==triangulation_generate_structured) then
 
-    call this%compute_vefs_dimension()
-    call this%find_vefs_at_boundary()
-    call this%find_and_list_vefs_at_interfaces() ! Is this needed?
-    !call this%allocate_and_fill_vef_type()
-    
-    call this%allocate_and_fill_face_orientation_rotation()
+     this%num_ghost_cells=0
 
-    !write(*,*) 'Numbering nodes and filling coordinates'
-    call this%allocate_and_fill_nodes()
-    !write(*,*) 'List of nodes (ptr):'
-    !write(*,*) this%ptr_nodes_per_cell
-    !write(*,*) 'List of nodes (lst):'
-    !write(*,*) this%lst_nodes
-    call this%allocate_and_fill_coordinates(coordinates)
+     ! Get num_dimensions from FPL
+     assert(parameters%isAssignable(number_of_dimensions_key, this%num_dimensions ))
+     istat = parameters%get(key = number_of_dimensions_key, value = this%num_dimensions)
+     assert(istat==0)
 
-    call mesh%free()
-  end subroutine serial_triangulation_create
-  
+     call uniform_hex_mesh%get_data_from_parameter_list(parameters)
+
+     call uniform_hex_mesh%generate_connectivities(this%num_local_cells,   &
+          &                                        this%num_vefs,          & ! All n_faces
+          &                                        this%num_vertices,      & ! All dim 0 n_faces
+          &                                        this%num_edges,         & ! All faces with 0<dim<n-1
+          &                                        this%num_faces,         & ! All dim n-1 n_faces
+          &                                        this%ptr_vefs_per_cell, &
+          &                                        this%lst_vefs_lids,     &
+          &                                        this%vefs_set,          &
+          &                                        coordinates)
+
+     ! Allocate and fill to default values cells_set==1 local variable
+     call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
+     cells_set = 1
+
+     call this%reference_fe_geo_index%init(1)
+     if(this%num_dimensions==2) then
+        call this%reference_fe_geo_index%put(key=8,val=1,stat=istat)
+        reference_fe_geo_list(1) = &
+             &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
+             &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
+             &                        field_type = field_type_scalar, continuity = .true. )
+     else
+        call this%reference_fe_geo_index%put(key=26,val=1,stat=istat)
+        reference_fe_geo_list(1) = &
+             &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
+             &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
+             &                        field_type = field_type_scalar, continuity = .true. )
+     end if
+     ! Transfer allocated target from local variable to member variable of base_static_triangulation
+     select type(reference_fe => reference_fe_geo_list(1)%p)
+        class is(lagrangian_reference_fe_t)
+        this%reference_fe_geo_list(1)%p => reference_fe
+     end select
+     call uniform_hex_mesh%free()
+  end if
+
+  ! Allocate and fill this%cells_set from cells_set member variable
+  call this%allocate_cells_set()
+  call this%fill_cells_set(cells_set)
+
+  ! Generate dual mesh (around all vefs now)
+  call this%allocate_and_fill_cells_around()
+  call this%compute_vefs_dimension()
+  call this%find_vefs_at_boundary()
+  call this%find_and_list_vefs_at_interfaces()
+  call this%allocate_and_fill_face_orientation_rotation()
+  call this%allocate_and_fill_nodes()
+  call this%allocate_and_fill_coordinates(coordinates)
+  call memfree(cells_set, __FILE__, __LINE__)
+  call memfree(coordinates, __FILE__, __LINE__)
+end subroutine serial_triangulation_create

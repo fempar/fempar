@@ -91,7 +91,6 @@ module function_names
      procedure                  :: get_gradients_set_space      => vector_function_get_gradients_set_space
      procedure                  :: get_gradients_set_space_time => vector_function_get_gradients_set_space_time
      generic                    :: get_gradients_set            => get_gradients_set_space, get_gradients_set_space_time     
-     
   end type vector_function_t
 
   type :: tensor_function_t

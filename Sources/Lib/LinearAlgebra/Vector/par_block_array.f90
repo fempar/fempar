@@ -34,7 +34,7 @@ module par_block_array_names
   use vector_names
   
   ! Parallel modules
-  use par_environment_names
+  use environment_names
   use par_scalar_array_names
 
   implicit none
@@ -199,7 +199,7 @@ contains
     class(vector_t)         , intent(in)  :: op2
     real(rp)                              :: alpha
     
-    type(par_environment_t), pointer      :: p_env
+    type(environment_t), pointer      :: p_env
 
     ! Locals
     real(rp)    :: aux

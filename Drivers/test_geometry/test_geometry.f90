@@ -105,8 +105,8 @@ program test_geometry
   real(rp)              :: param
   !real(rp)              :: point(3),param
 
-  character(len=256)       :: dir_path, dir_path_out
-  character(len=256)       :: prefix, filename
+  character(len=str_cla_len)       :: dir_path, dir_path_out
+  character(len=str_cla_len)       :: prefix, filename
   integer(ip) :: lunio, istat
   type(Command_Line_Interface):: cli 
   type(test_geometry_params_t)     :: test_params

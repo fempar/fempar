@@ -131,7 +131,7 @@ contains
        implicit none
        class(vector_space_t), intent(in) :: this
        class(vector_t)      , intent(in) :: vector
-       logical vector_space_belongs_to
+       logical :: vector_space_belongs_to
        vector_space_belongs_to = this%vector%same_vector_space(vector)
      end function vector_space_belongs_to
      

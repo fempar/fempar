@@ -36,7 +36,7 @@ module base_iterative_linear_solver_names
   use operator_names
   use environment_names
   use iterative_linear_solver_parameters_names
-  use ParameterList
+  use FPL
 
   implicit none
 # include "debug.i90"
@@ -563,11 +563,8 @@ contains
       character(len=*), parameter   :: fmt1='(a,1x,i4,3(2x,es16.9))'
       character(len=*), parameter   :: fmt2='(a,1x,i4,3(2x,es16.9),3(2x,es16.9))'
       character(len=:), allocatable :: outname
-      integer(ip)                   :: me, np
     
-      call this%environment%info(me,np) 
-      if ( this%environment%am_i_l1_task() ) then
-        if ( ((me == 0).and.(this%output_frequency/=0)) ) then
+       if( this%environment%am_i_l1_root().and.(this%output_frequency/=0)) then
           outname = this%name // ':' // '  '
           if ( (mod(this%num_iterations,this%output_frequency) == 0).or.this%did_converge.or.(this%num_iterations>=this%max_num_iterations)) then
              outname = this%name // ':' // '  '
@@ -583,9 +580,7 @@ contains
                ! Write an error message and stop ?
              end select
           end if
-        endif
-     end if
-
+       endif
     end subroutine print_convergence_history_new_line 
 
     subroutine print_convergence_history_header( this, luout )
@@ -598,11 +593,8 @@ contains
       character(len=*), parameter    :: fmt1='(a,1x,a4,3(2x,a15))'
       character(len=*), parameter    :: fmt2='(a,1x,a4,3(2x,a15),3(2x,a15))'
       character(len=:), allocatable  :: outname
-      integer(ip)                    :: me, np
-
-      call this%environment%info(me,np) 
-      if ( this%environment%am_i_l1_task() ) then
-        if ( ((me == 0).and.(this%output_frequency/=0)) ) then
+     
+      if( this%environment%am_i_l1_root().and.(this%output_frequency/=0)) then
           outname = this%name // ':' // '  '
           select case(this%stopping_criteria)
           case ( delta_rhs, delta_delta, res_res, res_rhs, res_nrmgiven_rhs_nrmgiven, &
@@ -616,7 +608,6 @@ contains
              ! Write an error message and stop ?      
           end select
         endif
-      end if
     end subroutine print_convergence_history_header 
 
     subroutine print_convergence_history_footer ( this, luout )
@@ -628,12 +619,10 @@ contains
       character(len=*), parameter  :: fmt12='(a,3(2x,es16.9))'
       character(len=*), parameter  :: fmt21='(a,2x,es16.9,1x,es16.9,1x,a,1x,i4,1x,a)'
       character(len=*), parameter  :: fmt22='(a,3(2x,es16.9),3(2x,es16.9))'
-      integer(ip)                             :: me, np
       
-      call this%environment%info(me,np) 
-      if ( this%environment%am_i_l1_task() ) then
-        if ( ((me == 0).and.(this%output_frequency/=0)) ) then
-           select case( this%stopping_criteria )
+      if( this%environment%am_i_l1_root().and.(this%output_frequency/=0)) then
+
+        select case( this%stopping_criteria )
            case ( delta_rhs,delta_delta,res_res,res_rhs,&
                 & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven)
              if ( this%did_converge ) then
@@ -660,7 +649,6 @@ contains
              ! Write an error message and stop ?      
            end select
          end if
-      end if
     end subroutine print_convergence_history_footer 
     
     subroutine allocate_convergence_history (this)
@@ -715,104 +703,41 @@ contains
       class(base_iterative_linear_solver_t), intent(inout) :: this
       type(ParameterList_t),                 intent(in)    :: parameter_list
       integer(ip)                                          :: FPLError
-      logical                                              :: is_present
-      logical                                              :: same_data_type
-      integer(ip), allocatable                             :: shape(:)
       ! Rtol
-      is_present     = parameter_list%isPresent(Key=ils_rtol)
-      if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key=ils_rtol, mold=this%rtol)
-        FPLError       = parameter_list%getshape(Key=ils_rtol, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
+      if(parameter_list%isPresent(ils_rtol)) then
+          assert(parameter_list%isAssignable(ils_rtol, this%rtol))
           FPLError   = parameter_list%Get(Key=ils_rtol, Value=this%rtol)
           assert(FPLError == 0)
-#ifdef DEBUG
-        else
-          write(*,'(a)') ' Warning! ils_rtol ignored. Wrong data type or shape. '
-        endif
-#endif
       endif
       ! Atol
-      is_present     = parameter_list%isPresent(Key=ils_atol)
-      if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key=ils_atol, mold=this%atol)
-        FPLError       = parameter_list%getshape(Key=ils_atol, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
+      if(parameter_list%isPresent(ils_atol)) then
+          assert(parameter_list%isAssignable(ils_atol, this%atol))
           FPLError   = parameter_list%Get(Key=ils_atol, Value=this%atol)
           assert(FPLError == 0)
-#ifdef DEBUG
-        else
-          write(*,'(a)') ' Warning! ils_atol ignored. Wrong data type or shape. '
-        endif
-#endif
       endif
       ! Stopping criterias
-      is_present     = parameter_list%isPresent(Key=ils_stopping_criteria)
-      if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key=ils_stopping_criteria, mold=this%stopping_criteria)
-        FPLError       = parameter_list%getshape(Key=ils_stopping_criteria, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
+      if(parameter_list%isPresent(ils_stopping_criteria)) then
+          assert(parameter_list%isAssignable(ils_stopping_criteria, this%stopping_criteria))
           FPLError   = parameter_list%Get(Key=ils_stopping_criteria, Value=this%stopping_criteria)
           assert(FPLError == 0)
-#ifdef DEBUG
-        else
-          write(*,'(a)') ' Warning! ils_stopping_criteria ignored. Wrong data type or shape. '
-        endif
-#endif
       endif
       ! Output frequency
-      is_present     = parameter_list%isPresent(Key=ils_output_frequency)
-      if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key=ils_output_frequency, mold=this%output_frequency)
-        FPLError       = parameter_list%getshape(Key=ils_output_frequency, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
+      if(parameter_list%isPresent(ils_output_frequency)) then
+          assert(parameter_list%isAssignable(ils_output_frequency, this%output_frequency))
           FPLError   = parameter_list%Get(Key=ils_output_frequency, Value=this%output_frequency)
           assert(FPLError == 0)
-#ifdef DEBUG
-        else
-          write(*,'(a)') ' Warning! ils_output_frequency ignored. Wrong data type or shape. '
-        endif
-#endif
       endif
       ! Max num iterations
-      is_present     = parameter_list%isPresent(Key=ils_max_num_iterations)
-      if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key=ils_max_num_iterations, mold=this%max_num_iterations)
-        FPLError       = parameter_list%getshape(Key=ils_max_num_iterations, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
+      if(parameter_list%isPresent(ils_max_num_iterations)) then
+          assert(parameter_list%isAssignable(ils_max_num_iterations, this%max_num_iterations))
           FPLError   = parameter_list%Get(Key=ils_max_num_iterations, Value=this%max_num_iterations)
           assert(FPLError == 0)
-#ifdef DEBUG
-        else
-          write(*,'(a)') ' Warning! ils_max_num_iterations ignored. Wrong data type or shape. '
-        endif
-#endif
       endif
       ! Track convergence history
-      is_present     = parameter_list%isPresent(Key=ils_track_convergence_history)
-      if(is_present) then
-#ifdef DEBUG
-        same_data_type = parameter_list%isOfDataType(Key=ils_track_convergence_history, mold=this%track_convergence_history)
-        FPLError       = parameter_list%getshape(Key=ils_track_convergence_history, shape=shape)
-        if(same_data_type .and. size(shape) == 0) then
-#endif
+      if(parameter_list%isPresent(ils_track_convergence_history)) then
+          assert(parameter_list%isAssignable(ils_track_convergence_history, this%track_convergence_history))
           FPLError   = parameter_list%Get(Key=ils_track_convergence_history, Value=this%track_convergence_history)
           assert(FPLError == 0)
-#ifdef DEBUG
-        else
-          write(*,'(a)') ' Warning! ils_track_convergence_history ignored. Wrong data type or shape. '
-        endif
-#endif
       endif
     end subroutine base_iterative_linear_solver_set_parameters_from_pl
     
