@@ -644,24 +644,46 @@ subroutine base_mlbddc_numerical_setup_coarse_solver(this)
 end subroutine base_mlbddc_numerical_setup_coarse_solver
 
 !=============================================================================
-recursive subroutine base_mlbddc_apply (op, x, y)
+recursive subroutine base_mlbddc_apply (this, x, y)
   implicit none
   ! Parameters
-  class(base_mlbddc_t)   , intent(in)    :: op
+  class(base_mlbddc_t)   , intent(in)    :: this
   class(vector_t)   , intent(in)    :: x
   class(vector_t)   , intent(inout) :: y
-  call op%abort_if_not_in_domain(x)
-  call op%abort_if_not_in_range(y)
+  call this%abort_if_not_in_domain(x)
+  call this%abort_if_not_in_range(y)
   call x%GuardTemp()
   select type(x)
      class is (par_scalar_array_t)
      select type(y)
         class is(par_scalar_array_t)
-        call op%apply_par_scalar_array( x, y )
+        call this%apply_par_scalar_array( x, y )
      end select
   end select
   call x%CleanTemp()
 end subroutine base_mlbddc_apply
+
+!=============================================================================
+recursive subroutine base_mlbddc_apply_add(this, x, y)
+  implicit none
+  ! Parameters
+  class(base_mlbddc_t)   , intent(in)    :: this
+  class(vector_t)   , intent(in)    :: x
+  class(vector_t)   , intent(inout) :: y
+  class(vector_t), allocatable      :: w
+  type(vector_space_t), pointer     :: range_vector_space
+  integer(ip)                       :: istat
+  call this%abort_if_not_in_domain(x)
+  call this%abort_if_not_in_range(y)
+  call x%GuardTemp()
+  range_vector_space => this%get_range_vector_space()
+  call range_vector_space%create_vector(w)
+  call this%apply(x,w)
+  call y%axpby(1.0, w, 1.0)
+  call x%CleanTemp()
+  call w%free()
+  deallocate(w, stat=istat); check(istat==0)
+end subroutine base_mlbddc_apply_add
 
 recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
   implicit none
@@ -1493,9 +1515,9 @@ function base_mlbddc_am_i_l1_task(this)
   base_mlbddc_am_i_l1_task = par_environment%am_i_l1_task()
 end function base_mlbddc_am_i_l1_task
 
-function base_mlbddc_is_linear( op )
+function base_mlbddc_is_linear( this )
   implicit none
-  class(base_mlbddc_t)          , intent(in) :: op
+  class(base_mlbddc_t)          , intent(in) :: this
   logical :: base_mlbddc_is_linear
   base_mlbddc_is_linear = .true.
 end function base_mlbddc_is_linear

@@ -170,9 +170,9 @@ module matrix_names
   public :: matrix_iterator_t
 
 contains
-  function matrix_is_linear ( op )
+  function matrix_is_linear ( this )
     implicit none
-    class(matrix_t), intent(in) :: op
+    class(matrix_t), intent(in) :: this
     logical :: matrix_is_linear
     matrix_is_linear = .true. 
   end function matrix_is_linear

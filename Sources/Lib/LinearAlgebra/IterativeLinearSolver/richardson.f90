@@ -68,7 +68,7 @@ contains
     implicit none
     class(richardson_t), intent(inout) :: this
     type(vector_space_t), pointer :: range
-    class(dynamic_state_operator_t), pointer :: A, M
+    class(lvalue_operator_t), pointer :: A, M
     
     A => this%get_A()
     range  => A%get_range_vector_space()

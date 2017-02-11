@@ -83,8 +83,8 @@ module base_iterative_linear_solver_names
     integer(ip)                       :: state 
   
     ! Matrix and preconditioner
-    type(dynamic_state_operator_t) :: A 
-    type(dynamic_state_operator_t) :: M 
+    type(lvalue_operator_t) :: A 
+    type(lvalue_operator_t) :: M 
     
     ! Initial solution
     class(vector_t), allocatable :: initial_solution
@@ -343,14 +343,14 @@ contains
     function get_A(this)
       implicit none
       class(base_iterative_linear_solver_t), target, intent(in) :: this
-      type(dynamic_state_operator_t), pointer         :: get_A
+      type(lvalue_operator_t), pointer         :: get_A
       get_A => this%A
     end function get_A
     
     function get_M(this)
       implicit none
       class(base_iterative_linear_solver_t), target, intent(in) :: this
-      class(dynamic_state_operator_t), pointer        :: get_M
+      class(lvalue_operator_t), pointer        :: get_M
       get_M => this%M
     end function get_M
     
