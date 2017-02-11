@@ -125,23 +125,6 @@ module reference_fe_names
   public :: interpolation_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-  type interpolation_face_restriction_t
-     private
-     integer(ip)                           :: number_shape_functions
-     integer(ip)                           :: number_quadrature_points
-     integer(ip)                           :: number_faces
-     integer(ip)                           :: active_face_id
-     type(interpolation_t), allocatable    :: interpolation(:)
-     type(interpolation_t), allocatable    :: interpolation_o_map(:)
-   contains
-     procedure, non_overridable :: create => interpolation_face_restriction_create
-     procedure, non_overridable :: free   => interpolation_face_restriction_free
-  end type interpolation_face_restriction_t
-
-  public :: interpolation_face_restriction_t
-
-  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type fe_map_t
      private
      ! Map's Jacobian (number_dimensions,number_dimensions,number_quadrature_points)
@@ -210,13 +193,14 @@ module reference_fe_names
   type fe_map_face_restriction_t
      private
      integer(ip)                 :: number_faces = 0
-     integer(ip)                 :: active_face_id
+     integer(ip)                 :: active_face_lid
      type(fe_map_t), allocatable :: fe_map(:)
    contains
-     procedure, non_overridable :: create          => fe_map_face_restriction_create
-     procedure, non_overridable :: update          => fe_map_face_restriction_update
-     procedure, non_overridable :: free            => fe_map_face_restriction_free
-     procedure, non_overridable :: get_coordinates => fe_map_face_restriction_get_coordinates
+     procedure, non_overridable :: create            => fe_map_face_restriction_create
+     procedure, non_overridable :: update            => fe_map_face_restriction_update
+     procedure, non_overridable :: free              => fe_map_face_restriction_free
+     procedure, non_overridable :: get_coordinates   => fe_map_face_restriction_get_coordinates
+     procedure, non_overridable :: get_active_fe_map => fe_map_face_restriction_get_active_fe_map 
   end type fe_map_face_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
@@ -379,7 +363,6 @@ module reference_fe_names
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
      procedure(create_face_interpolation_interface)     , deferred :: create_face_interpolation
      procedure(update_interpolation_interface)          , deferred :: update_interpolation
-     procedure(update_interpolation_face_interface)     , deferred :: update_interpolation_face
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
      
@@ -791,16 +774,6 @@ module reference_fe_names
        type(interpolation_t), intent(inout) :: interpolation_real_cell
      end subroutine update_interpolation_interface
 
-     subroutine update_interpolation_face_interface ( this, local_face_id,fe_map_face_restriction,  &
-          &                                           interpolation_face_restriction)
-       import :: reference_fe_t, ip, fe_map_face_restriction_t,  interpolation_face_restriction_t
-       implicit none 
-       class(reference_fe_t)                 , intent(in)    :: this 
-       integer(ip)                           , intent(in)    :: local_face_id
-       type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
-       type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
-     end subroutine update_interpolation_face_interface
-
      subroutine create_nodal_quadrature_interface ( this )
        import :: reference_fe_t
        implicit none
@@ -848,7 +821,6 @@ contains
   procedure :: create_face_local_interpolation  => lagrangian_reference_fe_create_face_local_interpolation
   procedure :: create_edge_local_interpolation  => lagrangian_reference_fe_create_edge_local_interpolation
   procedure :: update_interpolation      => lagrangian_reference_fe_update_interpolation
-  procedure :: update_interpolation_face => lagrangian_reference_fe_update_interpolation_face
   procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node  => lagrangian_reference_fe_get_scalar_from_vector_node
   procedure :: get_max_order             => lagrangian_reference_fe_get_max_order
@@ -1322,10 +1294,11 @@ type(interpolation_t)          :: interpolation      ! Unknown interpolation_t i
 type(interpolation_t)          :: interpolation_o_map! Unknown interpolation_t in the physical element domain
 contains
 
-procedure, non_overridable :: create => volume_integrator_create
-procedure, non_overridable :: free   => volume_integrator_free
-procedure, non_overridable :: update => volume_integrator_update
-procedure, non_overridable :: print  => volume_integrator_print
+procedure, non_overridable :: create         => volume_integrator_create
+procedure, non_overridable :: create_on_face => volume_integrator_create_on_face
+procedure, non_overridable :: free           => volume_integrator_free
+procedure, non_overridable :: update         => volume_integrator_update
+procedure, non_overridable :: print          => volume_integrator_print
 
 procedure, non_overridable :: get_interpolation_reference_cell =>                               &
 &                                   volume_integrator_get_interpolation_reference_cell
@@ -1407,73 +1380,84 @@ end type p_volume_integrator_t
 
 public :: volume_integrator_t, p_volume_integrator_t
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type volume_integrator_face_restriction_t
+     private
+     integer(ip)                            :: number_faces
+     integer(ip)                            :: active_face_lid
+     type(volume_integrator_t), allocatable :: volume_integrator(:) 
+   contains
+     procedure, non_overridable :: create  => volume_integrator_face_restriction_create
+     procedure, non_overridable :: update  => volume_integrator_face_restriction_update
+     procedure, non_overridable :: free    => volume_integrator_face_restriction_free
+     procedure, non_overridable :: get_active_volume_integrator => volume_integrator_face_restriction_get_active_volume_integrator
+  end type volume_integrator_face_restriction_t
 
+  public :: volume_integrator_face_restriction_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type face_map_t
-private
-logical                         :: is_boundary
-type(fe_map_t)                  :: face_map
-type(fe_map_face_restriction_t) :: fe_maps(2)
-integer(ip)                     :: number_dimensions
+  private
+  logical                         :: is_boundary
+  type(fe_map_t)                  :: face_map
+  type(fe_map_face_restriction_t) :: fe_maps(2)
+  integer(ip)                     :: number_dimensions
 contains
-procedure, non_overridable :: create               => face_map_create
-procedure, non_overridable :: free                 => face_map_free
-procedure, non_overridable :: update               => face_map_update
-procedure, non_overridable :: compute_characteristic_length                                      &
-&                                             => face_map_compute_characteristic_length
-procedure, non_overridable :: get_quadrature_coordinates                                         &
-&                                             => face_map_get_quadrature_coordinates
-procedure, non_overridable :: get_face_coordinates => face_map_get_face_coordinates
-procedure, non_overridable :: get_coordinates_neighbour                                          &
-&                                             => face_map_get_coordinates_neighbour
-procedure, non_overridable :: get_neighbour_fe_map => face_map_get_neighbour_fe_map
-procedure, non_overridable :: get_normals          => face_map_get_normals
-procedure, non_overridable :: get_det_jacobian     => face_map_get_det_jacobian
-procedure, non_overridable :: get_face_map         => face_map_get_face_map
+  procedure, non_overridable :: create               => face_map_create
+  procedure, non_overridable :: free                 => face_map_free
+  procedure, non_overridable :: update               => face_map_update
+  procedure, non_overridable :: compute_characteristic_length                                      &
+  &                                             => face_map_compute_characteristic_length
+  procedure, non_overridable :: get_quadrature_coordinates                                         &
+  &                                             => face_map_get_quadrature_coordinates
+  procedure, non_overridable :: get_face_coordinates => face_map_get_face_coordinates
+  procedure, non_overridable :: get_coordinates_neighbour                                          &
+  &                                             => face_map_get_coordinates_neighbour
+  procedure, non_overridable :: get_neighbour_fe_map => face_map_get_neighbour_fe_map
+  procedure, non_overridable :: get_normals          => face_map_get_normals
+  procedure, non_overridable :: get_det_jacobian     => face_map_get_det_jacobian
+  procedure, non_overridable :: get_face_map         => face_map_get_face_map
 end type face_map_t
 
 public :: face_map_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 type face_integrator_t
-private
-logical                                :: is_boundary
-type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
-type(p_reference_fe_t)                 :: reference_fe(2)
-integer(ip)                            :: current_qpoints_perm_cols(2)
-type(allocatable_array_ip2_t)          :: qpoints_perm
+  private
+  logical                                    :: is_boundary
+  type(volume_integrator_face_restriction_t) :: volume_integrator_face_restriction(2)
+  type(p_reference_fe_t)                     :: reference_fe(2)
+  integer(ip)                                :: current_qpoints_perm_cols(2)
+  type(allocatable_array_ip2_t)              :: qpoints_perm
 contains
-procedure, non_overridable :: create            => face_integrator_create
-procedure, non_overridable :: update            => face_integrator_update
-procedure, non_overridable :: free              => face_integrator_free
-procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
-procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
-generic                    :: get_value         => get_value_scalar, get_value_vector
-procedure, non_overridable :: get_values_scalar => face_integrator_get_values_scalar
-procedure, non_overridable :: get_values_vector => face_integrator_get_values_vector
-generic                    :: get_values        => get_values_scalar, get_values_vector
-procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
-generic                    :: get_gradient => get_gradient_scalar
-procedure, non_overridable :: get_gradients_scalar  => face_integrator_get_gradients_scalar
-generic                    :: get_gradients => get_gradients_scalar
-procedure, non_overridable :: get_curl          => face_integrator_get_curl_vector 
-procedure, non_overridable :: get_curls         => face_integrator_get_curls_vector 
-procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
+  procedure, non_overridable :: create            => face_integrator_create
+  procedure, non_overridable :: update            => face_integrator_update
+  procedure, non_overridable :: free              => face_integrator_free
+  procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
+  procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
+  generic                    :: get_value         => get_value_scalar, get_value_vector
+  procedure, non_overridable :: get_values_scalar => face_integrator_get_values_scalar
+  procedure, non_overridable :: get_values_vector => face_integrator_get_values_vector
+  generic                    :: get_values        => get_values_scalar, get_values_vector
+  procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
+  generic                    :: get_gradient => get_gradient_scalar
+  procedure, non_overridable :: get_gradients_scalar  => face_integrator_get_gradients_scalar
+  generic                    :: get_gradients => get_gradients_scalar
+  procedure, non_overridable :: get_curl          => face_integrator_get_curl_vector 
+  procedure, non_overridable :: get_curls         => face_integrator_get_curls_vector 
+  procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
 
+  procedure, non_overridable, private :: face_integrator_evaluate_fe_function_scalar
+  procedure, non_overridable, private :: face_integrator_evaluate_fe_function_vector
+  procedure, non_overridable, private :: face_integrator_evaluate_fe_function_tensor
+  generic :: evaluate_fe_function => face_integrator_evaluate_fe_function_scalar, &
+  & face_integrator_evaluate_fe_function_vector, &
+  & face_integrator_evaluate_fe_function_tensor
 
-procedure, non_overridable, private :: face_integrator_evaluate_fe_function_scalar
-procedure, non_overridable, private :: face_integrator_evaluate_fe_function_vector
-procedure, non_overridable, private :: face_integrator_evaluate_fe_function_tensor
-generic :: evaluate_fe_function => face_integrator_evaluate_fe_function_scalar, &
-& face_integrator_evaluate_fe_function_vector, &
-& face_integrator_evaluate_fe_function_tensor
-
-procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_scalar
-procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_vector
-generic :: evaluate_gradient_fe_function => face_integrator_evaluate_gradient_fe_function_scalar, &
-& face_integrator_evaluate_gradient_fe_function_vector
-
+  procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_scalar
+  procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_vector
+  generic :: evaluate_gradient_fe_function => face_integrator_evaluate_gradient_fe_function_scalar, &
+  & face_integrator_evaluate_gradient_fe_function_vector
 end type face_integrator_t
 
 type p_face_integrator_t

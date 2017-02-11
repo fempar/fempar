@@ -56,6 +56,7 @@ module output_handler_fe_field_names
 USE types_names
 USE memor_names
 USE fe_function_names,           only: fe_function_t
+USE reference_fe_names,          only: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
 USE output_handler_parameters_names
 
 implicit none
@@ -78,6 +79,7 @@ private
         character(len=:),  allocatable :: name
         integer(ip)                    :: field_id = 0
         type(fe_function_t), pointer   :: fe_function => NULL()
+        character(len=:),  allocatable :: field_type
         character(len=:),  allocatable :: diff_operator
     contains
     private
@@ -85,8 +87,10 @@ private
         procedure, non_overridable, public :: set                   => output_handler_fe_field_set
         procedure, non_overridable, public :: get_name              => output_handler_fe_field_get_name
         procedure, non_overridable, public :: get_diff_operator     => output_handler_fe_field_get_diff_operator
+        procedure, non_overridable, public :: get_field_type        => output_handler_fe_field_get_field_type
         procedure, non_overridable, public :: get_field_id          => output_handler_fe_field_get_field_id
         procedure, non_overridable, public :: get_fe_function       => output_handler_fe_field_get_fe_function
+        procedure, non_overridable, public :: get_number_components => output_handler_fe_field_get_number_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_free
         generic,                    public :: assignment(=)         => output_handler_fe_field_assign
     end type
@@ -133,7 +137,7 @@ private
     contains
     private
         procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_1D_value_value_is_allocated
-        procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_1D_value_allocate_value
+        procedure, non_overridable, public :: create                => output_handler_fe_field_1D_value_create
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_1D_value_get_value
         procedure, non_overridable, public :: get_number_components => output_handler_fe_field_1D_value_get_number_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_1D_value_free
@@ -155,7 +159,7 @@ private
     contains
     private
         procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_2D_value_value_is_allocated
-        procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_2D_value_allocate_value
+        procedure, non_overridable, public :: create                => output_handler_fe_field_2D_value_create
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_2D_value_get_value
         procedure, non_overridable, public :: get_number_components => output_handler_fe_field_2D_value_get_number_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_2D_value_free
@@ -178,7 +182,9 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_fe_field_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        if(allocated(this%name)) deallocate(this%name)
+        if(allocated(this%name))          deallocate(this%name)
+        if(allocated(this%field_type))    deallocate(this%field_type)
+        if(allocated(this%diff_operator)) deallocate(this%diff_operator)
         nullify(this%fe_function)
         this%field_id          = 0
     end subroutine output_handler_fe_field_free
@@ -194,16 +200,18 @@ contains
         real(rp),            pointer                    :: value(:,:)
         integer(ip)                                     :: field_id
         character(len=:), allocatable                   :: name
+        character(len=:), allocatable                   :: field_type
     !----------------------------------------------------------------- 
         call this%free()
         fe_function => output_handler_fe_field%get_fe_function() 
         field_id    =  output_handler_fe_field%get_field_id()
         name        =  output_handler_fe_field%get_name()
-        call this%set(fe_function, field_id, name)
+        field_type  =  output_handler_fe_field%get_field_type()
+        call this%set(fe_function, field_id, name, field_type)
     end subroutine output_handler_fe_field_assign
 
 
-    subroutine output_handler_fe_field_set(this, fe_function, field_id, name, diff_operator)
+    subroutine output_handler_fe_field_set(this, fe_function, field_id, name, field_type, diff_operator)
     !-----------------------------------------------------------------
     !< Associate a fe_function with a field name
     !-----------------------------------------------------------------
@@ -211,12 +219,14 @@ contains
         type(fe_function_t), target,       intent(in)    :: fe_function
         integer(ip),                       intent(in)    :: field_id
         character(len=*),                  intent(in)    :: name
+        character(len=*),                  intent(in)    :: field_type
         character(len=*), optional,        intent(in)    :: diff_operator
     !-----------------------------------------------------------------
         call this%free()
         this%fe_function   => fe_function
         this%field_id      = field_id
         this%name          = name
+        this%field_type    = field_type
         this%diff_operator = no_diff_operator
         if(present(diff_operator)) this%diff_operator = diff_operator
     end subroutine output_handler_fe_field_set
@@ -233,7 +243,19 @@ contains
         name = this%name
     end function output_handler_fe_field_get_name
 
-
+    
+    function output_handler_fe_field_get_field_type(this) result(field_type)
+    !-----------------------------------------------------------------
+    !< Return the field_type of a field associated with a fe_function
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_t), intent(in) :: this
+        character(len=:), allocatable                :: field_type
+    !-----------------------------------------------------------------
+        assert(allocated(this%field_type))
+        field_type = this%field_type
+    end function output_handler_fe_field_get_field_type
+    
+    
     function output_handler_fe_field_get_diff_operator(this) result(diff_operator)
     !-----------------------------------------------------------------
     !< Return the diff_operator of a field associated with a fe_function
@@ -269,6 +291,51 @@ contains
         fe_function => this%fe_function
     end function output_handler_fe_field_get_fe_function
 
+
+    function output_handler_fe_field_get_number_components(this) result(number_components)
+    !-----------------------------------------------------------------
+    !< Return the number of components of the field
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_t), intent(in) :: this
+        integer(ip)                                  :: number_components
+    !-----------------------------------------------------------------
+        assert(allocated(this%field_type))
+	
+        assert(allocated(this%diff_operator))
+        select case(this%field_type)
+            case ( field_type_scalar )
+                select case (this%diff_operator)
+                    case (no_diff_operator)
+                        number_components = 1
+                    case (grad_diff_operator) 
+                        number_components = SPACE_DIM
+                    case DEFAULT
+                        check(.false.)
+                end select
+            case ( field_type_vector )
+                select case (this%diff_operator)
+                    case (no_diff_operator)
+                        number_components = SPACE_DIM
+                    case (grad_diff_operator)
+                        number_components = SPACE_DIM*SPACE_DIM
+                    case (div_diff_operator)
+                        number_components = 1
+                    case (curl_diff_operator)
+                        number_components = SPACE_DIM
+                    case DEFAULT
+                        check(.false.)
+                end select
+            case ( field_type_tensor )
+                select case (this%diff_operator)
+                    case (no_diff_operator)
+                        number_components = SPACE_DIM*SPACE_DIM
+                    case DEFAULT
+                        check(.false.)
+                end select
+        end select
+        
+    end function output_handler_fe_field_get_number_components
+    
 
 !---------------------------------------------------------------------
 ! output_handler_CELL_VECTOR_t PROCEDURES
@@ -367,7 +434,7 @@ contains
     end function output_handler_fe_field_1D_value_value_is_allocated
 
 
-    subroutine output_handler_fe_field_1D_value_allocate_value(this, number_components, number_nodes) 
+    subroutine output_handler_fe_field_1D_value_create(this, number_components, number_nodes) 
     !-----------------------------------------------------------------
     !< Allocate value
     !-----------------------------------------------------------------
@@ -375,10 +442,10 @@ contains
         integer(ip)                                              :: number_components
         integer(ip)                                              :: number_nodes
     !-----------------------------------------------------------------
-        assert(.not. allocated(this%value))
+        call this%free()
         call memalloc(number_components*number_nodes, this%value, __FILE__, __LINE__)
         this%number_components = number_components
-    end subroutine output_handler_fe_field_1D_value_allocate_value
+    end subroutine output_handler_fe_field_1D_value_create
 
 
     function output_handler_fe_field_1D_value_get_value(this) result(value)
@@ -431,7 +498,7 @@ contains
     end function output_handler_fe_field_2D_value_value_is_allocated
 
 
-    subroutine output_handler_fe_field_2D_value_allocate_value(this, number_components, number_nodes) 
+    subroutine output_handler_fe_field_2D_value_create(this, number_components, number_nodes) 
     !-----------------------------------------------------------------
     !< Allocate value
     !-----------------------------------------------------------------
@@ -439,10 +506,10 @@ contains
         integer(ip)                                              :: number_components
         integer(ip)                                              :: number_nodes
     !-----------------------------------------------------------------
-        assert(.not. allocated(this%value))
+        call this%free()
         call memalloc(number_components, number_nodes, this%value, __FILE__, __LINE__)
         this%number_components = number_components
-    end subroutine output_handler_fe_field_2D_value_allocate_value
+    end subroutine output_handler_fe_field_2D_value_create
 
 
     function output_handler_fe_field_2D_value_get_value(this) result(value)
