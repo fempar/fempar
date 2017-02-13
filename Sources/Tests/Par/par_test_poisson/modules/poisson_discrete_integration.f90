@@ -147,6 +147,8 @@ contains
        end if
        call fe_iterator%next()
     end do
+    call memfree(shape_values, __FILE__, __LINE__)
+    deallocate (shape_gradients, stat=istat); check(istat==0);
     deallocate (elem2dof, stat=istat); check(istat==0);
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )

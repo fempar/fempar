@@ -128,6 +128,7 @@ private
         procedure,                  public :: extract_diagonal                 => sparse_matrix_extract_diagonal
         procedure,                  public :: free                             => sparse_matrix_free
         procedure,                  public :: apply                            => sparse_matrix_apply
+        procedure,                  public :: apply_add                        => sparse_matrix_apply_add
         procedure,                  public :: apply_transpose                  => sparse_matrix_apply_transpose
         procedure,                  public :: apply_to_dense_matrix            => sparse_matrix_apply_to_dense_matrix
         procedure,                  public :: apply_transpose_to_dense_matrix  => sparse_matrix_apply_transpose_to_dense_matrix
@@ -1203,41 +1204,55 @@ contains
     end subroutine sparse_matrix_extract_diagonal
 
 
-    subroutine sparse_matrix_apply(op,x,y) 
+    subroutine sparse_matrix_apply(this,x,y) 
     !-----------------------------------------------------------------
     !< Apply matrix vector product y=op*x
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(in)    :: op
+        class(sparse_matrix_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y 
     !-----------------------------------------------------------------
-        assert(allocated(op%State))
-        call op%abort_if_not_in_domain(x)
-        call op%abort_if_not_in_range(y)
-        call op%State%apply(x,y)
+        assert(allocated(this%State))
+        call this%abort_if_not_in_domain(x)
+        call this%abort_if_not_in_range(y)
+        call this%State%apply(x,y)
     end subroutine sparse_matrix_apply
+    
+        subroutine sparse_matrix_apply_add(this,x,y) 
+    !-----------------------------------------------------------------
+    !< Apply matrix vector product y=op*x + y
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in)    :: this
+        class(vector_t),        intent(in)    :: x
+        class(vector_t),        intent(inout) :: y 
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%abort_if_not_in_domain(x)
+        call this%abort_if_not_in_range(y)
+        call this%State%apply_add(x,y)
+    end subroutine sparse_matrix_apply_add
 
 
-    subroutine sparse_matrix_apply_transpose(op,x,y) 
+    subroutine sparse_matrix_apply_transpose(this,x,y) 
     !-----------------------------------------------------------------
     !< Apply transpose matrix vector product y=op'*x
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(in)    :: op
+        class(sparse_matrix_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y 
     !-----------------------------------------------------------------
-        assert(allocated(op%State))
-        call op%abort_if_not_in_domain(y)
-        call op%abort_if_not_in_range(x)
-        call op%State%apply_transpose(x,y)
+        assert(allocated(this%State))
+        call this%abort_if_not_in_domain(y)
+        call this%abort_if_not_in_range(x)
+        call this%State%apply_transpose(x,y)
     end subroutine sparse_matrix_apply_transpose
 
 
-    subroutine sparse_matrix_apply_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine sparse_matrix_apply_to_dense_matrix(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply matrix matrix product y = alpha*op*b + beta*c
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(in)    :: op                   ! Sparse matrix
+        class(sparse_matrix_t), intent(in)    :: this                 ! Sparse matrix
         integer(ip),            intent(in)    :: n                    ! Number of columns of B and C dense arrays
         real(rp),               intent(in)    :: alpha                ! Scalar alpha
         integer(ip),            intent(in)    :: LDB                  ! Leading dimensions of B matrix
@@ -1246,17 +1261,17 @@ contains
         integer(ip),            intent(in)    :: LDC                  ! Leading dimension of C matrix
         real(rp),               intent(inout) :: c(LDC, n)            ! Matrix C
     !-----------------------------------------------------------------
-        assert(allocated(op%State))
-        assert(op%get_num_cols() <= LDB .and. op%get_num_rows() <= LDC)
-        call op%State%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+        assert(allocated(this%State))
+        assert(this%get_num_cols() <= LDB .and. this%get_num_rows() <= LDC)
+        call this%State%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     end subroutine sparse_matrix_apply_to_dense_matrix
 
 
-    subroutine sparse_matrix_apply_transpose_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine sparse_matrix_apply_transpose_to_dense_matrix(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply matrix matrix product y = alpha*op*b + beta*c
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(in)    :: op                   ! Sparse matrix
+        class(sparse_matrix_t), intent(in)    :: this                 ! Sparse matrix
         integer(ip),            intent(in)    :: n                    ! Number of columns of B and C dense arrays
         real(rp),               intent(in)    :: alpha                ! Scalar alpha
         integer(ip),            intent(in)    :: LDB                  ! Leading dimensions of B matrix
@@ -1265,9 +1280,9 @@ contains
         integer(ip),            intent(in)    :: LDC                  ! Leading dimension of C matrix
         real(rp),               intent(inout) :: c(LDC, n)            ! Matrix C
     !-----------------------------------------------------------------
-        assert(allocated(op%State))
-        assert(op%get_num_rows() <= LDB .and. op%get_num_cols() <= LDC)
-        call op%State%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+        assert(allocated(this%State))
+        assert(this%get_num_rows() <= LDB .and. this%get_num_cols() <= LDC)
+        call this%State%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     end subroutine sparse_matrix_apply_transpose_to_dense_matrix
 
 

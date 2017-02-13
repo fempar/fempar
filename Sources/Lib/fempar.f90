@@ -67,6 +67,7 @@ module fempar_names
   use vector_names
   use matrix_names
   use array_names
+  use block_sparse_matrix_names
   use block_preconditioner_l_names
   use block_preconditioner_u_names
   use block_preconditioner_lu_names
