@@ -63,7 +63,7 @@ recursive subroutine put_hash_node(list,key,val,stat)
   key_type                , intent(in)    :: key
   val_type                , intent(inout) :: val   ! val = list%val if it was stored
   integer(ip)             , intent(out)   :: stat
-  class(hash_node)         , pointer      :: newel => null()
+  class(hash_node)        , pointer       :: newel
 
   if(key>list%key) then
      if(associated(list%child) ) then
@@ -123,7 +123,7 @@ recursive subroutine del_hash_node(list,key,stat)
   class(hash_node), target, intent(inout) :: list
   key_type                , intent(in)    :: key
   integer(ip)             , intent(out)   :: stat
-  class(hash_node)         , pointer      :: tmp => null()
+  class(hash_node)         , pointer      :: tmp
 
   if(key==list%key) then
      !if(associated(list%parent)) then ! this is not the first element

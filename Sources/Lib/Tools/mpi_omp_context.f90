@@ -64,7 +64,7 @@ module mpi_omp_context_names
   private
 
   ! Global shared variables to implement communications
-  logical :: is_homogeneous
+  logical     , allocatable :: lg2_buffer(:,:)
   integer(ip) , allocatable :: ip1_buffer(:)
   integer(ip) , allocatable :: ip1_v_buffer(:)
   integer(igp), allocatable :: igp1_buffer(:)
@@ -162,7 +162,7 @@ contains
     class(mpi_omp_context_t), intent(inout) :: this
     integer :: current_task, num_tasks, istat, i
     logical :: initialized
-    integer :: provided_thread_support, comm
+    integer :: provided_thread_support, comm, num_ranks_with_min_threads
     !integer, allocatable :: threads_per_rank(:)
     
     call this%free(finalize=.false.)
@@ -172,79 +172,60 @@ contains
     !$ this%num_threads    = omp_get_num_threads()
     !$ this%current_thread = omp_get_thread_num()
     this%root_thread = mpi_omp_context_default_root_thread
-    write(*,*) 'Before mpi_init',this%current_thread,this%num_threads
+    !write(*,*) 'Before mpi_init',this%current_thread,this%num_threads
 
     if(this%current_thread==this%root_thread) then
-        write(*,*) 'Calling mpi_init',this%current_thread,this%num_threads
+       ! Init mpi and dup mpi_comm_world
+       !write(*,*) 'Calling mpi_init',this%current_thread,this%num_threads
        call mpi_initialized(initialized,istat); check((.not.initialized).and.(istat == mpi_success))
        call mpi_init_thread(mpi_thread_multiple, provided_thread_support, istat); check(istat == mpi_success)
        check(provided_thread_support==mpi_thread_multiple)
-       call memalloc(  this%num_threads+1,ip1_buffer,__FILE__,__LINE__,lb1=0)
-       call memalloc(  this%num_threads,ip1_v_buffer,__FILE__,__LINE__,lb1=0)
-       call memalloc(  this%num_threads,igp1_buffer,__FILE__,__LINE__,lb1=0)
-       call memalloc(  this%num_threads,igp1_v_buffer,__FILE__,__LINE__,lb1=0)
-       call memalloc(4,this%num_threads,ip2_buffer,__FILE__,__LINE__,lb2=0)
-       call memalloc(  this%num_threads,rp1_buffer,__FILE__,__LINE__,lb1=0)
-       call memalloc(  this%num_threads,rp1_v_buffer,__FILE__,__LINE__,lb1=0)
-       call memalloc(1,this%num_threads,rp2_buffer,__FILE__,__LINE__,lb2=0)
-       call mpi_comm_dup(mpi_comm_world,comm,istat); check(istat == mpi_success)
        this%created_from_mpi = .true.
        assert(comm/=mpi_comm_null)
-       ip1_buffer = comm
+       call mpi_comm_dup(mpi_comm_world,this%icontxt,istat); check(istat == mpi_success)
+       
+       ! We assume that the number of threads is the same in all ranks except the last one
+       call mpi_allreduce(this%num_threads,this%max_num_threads,1,mpi_omp_context_ip,mpi_max,this%icontxt,istat); check(istat == mpi_success)
+       call mpi_allreduce(this%num_threads,this%min_num_threads,1,mpi_omp_context_ip,mpi_min,this%icontxt,istat); check(istat == mpi_success)
+       assert(this%min_num_threads==1)
+       assert(this%num_threads==this%max_num_threads.or.this%num_threads==this%min_num_threads)
+       if(this%num_threads==this%min_num_threads) then
+          call mpi_allreduce(1,num_ranks_with_min_threads,1,mpi_omp_context_ip,mpi_sum,this%icontxt,istat); check(istat == mpi_success)
+       else
+          call mpi_allreduce(0,num_ranks_with_min_threads,1,mpi_omp_context_ip,mpi_sum,this%icontxt,istat); check(istat == mpi_success)
+       end if
+       assert(num_ranks_with_min_threads==1.or.this%max_num_threads==this%min_num_threads)
+
+       ! Allocate buffers to manage intrarank (interthread) communications
+       call memalloc(2,this%max_num_threads,lg2_buffer,__FILE__,__LINE__,lb2=0)
+       call memalloc(  this%max_num_threads+1,ip1_buffer,__FILE__,__LINE__,lb1=0)
+       call memalloc(  this%max_num_threads,ip1_v_buffer,__FILE__,__LINE__,lb1=0)
+       call memalloc(  this%max_num_threads,igp1_buffer,__FILE__,__LINE__,lb1=0)
+       call memalloc(  this%max_num_threads,igp1_v_buffer,__FILE__,__LINE__,lb1=0)
+       call memalloc(4,this%max_num_threads,ip2_buffer,__FILE__,__LINE__,lb2=0)
+       call memalloc(  this%max_num_threads,rp1_buffer,__FILE__,__LINE__,lb1=0)
+       call memalloc(  this%max_num_threads,rp1_v_buffer,__FILE__,__LINE__,lb1=0)
+       call memalloc(1,this%max_num_threads,rp2_buffer,__FILE__,__LINE__,lb2=0)
+
+       ip1_buffer = this%icontxt
+       ip2_buffer(1,:)=this%max_num_threads
+       ip2_buffer(2,:)=this%min_num_threads ! This is not needed, I leave it just in case
     else
        this%created_from_mpi = .false.
     end if
     this%type = mpi_omp_context_homogeneous
     !$OMP BARRIER
-    write(*,*) 'After mpi_init',this%current_thread,this%num_threads
+    
     this%icontxt = ip1_buffer(this%current_thread)
-
     call mpi_comm_size(this%icontxt,this%num_ranks,istat)    ; check(istat == mpi_success)
     call mpi_comm_rank(this%icontxt,this%current_rank,istat) ; check(istat == mpi_success)
+    this%max_num_threads = ip2_buffer(1,this%current_thread)
+    this%min_num_threads = ip2_buffer(2,this%current_thread)
 
-    ! The following code can be used if the number of threads per rank is variable.
-    ! It works as it is, although it should be modified (optimized) to avoid the
-    ! communication of an array of size num_ranks. It is possible to scatter instead of bcast.
-    !call memalloc(this%num_ranks+1,this%threads_per_rank,__FILE__,__LINE__,lb1=0)
-    !if(this%current_thread==this%root_thread) then
-    !   call mpi_gather( this%num_threads, 1, mpi_omp_context_ip, this%threads_per_rank(1:this%num_ranks), 1, &
-    !                  & mpi_omp_context_ip, mpi_omp_context_root_rank, comm, istat); check(istat == mpi_success)
-    !   if(this%current_rank==mpi_omp_context_root_rank) then
-    !      ! length to header
-    !      this%threads_per_rank(0) = 0
-    !      do i=1,this%num_ranks
-    !         this%threads_per_rank(i)=this%threads_per_rank(i)+this%threads_per_rank(i-1)
-    !      end do
-    !   end if
-    !   !call mpi_scatter( this%threads_per_rank(1:this%num_ranks), this%num_ranks, mpi_omp_context_ip,  &
-    !   !               &  this%first_threads_in_rank, 1,  mpi_omp_context_ip, &
-    !   !               &  mpi_omp_context_root_rank, comm, istat); check(istat == mpi_success)
-    !   call mpi_bcast( this%threads_per_rank, this%num_ranks+1, mpi_omp_context_ip,  &
-    !                  & mpi_omp_context_root_rank, comm, istat); check(istat == mpi_success)
-    !   this%max_num_threads = 0
-    !   do i=1,this%num_ranks
-    !      this%max_num_threads = max(this%max_num_threads,this%threads_per_rank(i)-this%threads_per_rank(i-1))
-    !   end do
-    !   ip2_buffer(1,:)=this%threads_per_rank(this%current_rank)
-    !   ip2_buffer(2,:)=this%threads_per_rank(this%num_ranks)
-    !end if
-
-    if(this%current_thread==this%root_thread) then
-       call mpi_allreduce(this%num_threads,this%max_num_threads,1,mpi_omp_context_ip,mpi_max,this%icontxt,istat)
-       call mpi_allreduce(this%num_threads,this%min_num_threads,1,mpi_omp_context_ip,mpi_min,this%icontxt,istat)
-    end if    
-    
-    !$OMP BARRIER
-
-    ! We DO NOT assume that the number of threads is the same in all ranks, using commented code above
-    !call this%set_current_task( ip2_buffer(1, this%current_thread ) + this%current_thread )
-    !call this%set_num_tasks   ( ip2_buffer(2, this%current_thread ) )
-    
-    ! We assume that the number of threads is the same in all ranks except, possibly, the last one.
     call this%set_current_task( this%max_num_threads*this%current_rank + this%current_thread )
     call this%set_num_tasks   ( this%max_num_threads*(this%num_ranks-1)+ this%min_num_threads )
     
-    write(*,*) this%get_current_task(),this%get_num_tasks()
+    !write(*,*) 'After task def',this%get_current_task(),this%get_num_tasks()
 
   end subroutine mpi_omp_context_create
 
@@ -289,6 +270,8 @@ contains
     class(execution_context_t), allocatable , intent(inout) :: new_subcontext
     integer, parameter :: key=0
     integer :: i,j, istat, my_color, current_rank, num_ranks
+    logical :: is_homogeneous, all_are_homogeneous
+
 
     if(allocated(new_subcontext)) then
        call new_subcontext%free(finalize=.false.)
@@ -302,12 +285,18 @@ contains
        my_color = color
     end if
 
-    ! We assume homogeneous (only one color) or heterogeneous (all colors different)
-    ! We need num_threads invocations to mpi_comm_split. In the heterogeneous case,
-    ! these calls will be performed by each thread and in the homogeneous one by the
-    ! root thread, keeping the communicator that has the maximum number of processes.
+    ! When num_threads==max_num_threads, we assume homogeneous (only one color) or 
+    ! heterogeneous (all colors different) ranks.
+    ! 
+    ! When there are heterogeneous ranks we need max_num_threads invocations to 
+    ! mpi_comm_split. In the heterogeneous case, these calls will be performed by 
+    ! each thread and this rank will belong to max_num_threads comms. In the 
+    ! homogeneous case the rank will belong to the communicator that has the maximum 
+    ! number of ranks.
     !
-    ! 1) Decide if the new comm is homogeneous or heterogeneous.
+    ! When all ranks are homogeneous only one call to mpi_comm_split is enough.
+    !
+    ! 1) Decide if the ranks are homogeneous or heterogeneous.
     ip1_buffer(this%current_thread)=my_color
     !$OMP BARRIER
     if(this%current_thread==this%root_thread) then
@@ -328,74 +317,105 @@ contains
              check(ip1_buffer(i)==ip1_buffer(this%root_thread))
           end do
        end if
+       call mpi_allreduce(is_homogeneous,all_are_homogeneous,1,mpi_omp_context_lg,mpi_land,this%icontxt,istat); check(istat == mpi_success)
+       lg2_buffer(1,:) = is_homogeneous
+       lg2_buffer(2,:) = all_are_homogeneous 
     end if
+    !$OMP BARRIER
+    is_homogeneous      = lg2_buffer(1,this%current_thread)
+    all_are_homogeneous = lg2_buffer(2,this%current_thread)
 
     select type(new_subcontext)
     type is(mpi_omp_context_t)
 
-       new_subcontext%current_thread = this%current_thread
-       new_subcontext%num_threads    = this%num_threads
+       new_subcontext%num_threads    = this%num_threads     ! =omp_get_num_threads()
+       new_subcontext%current_thread = this%current_thread  ! =omp_get_thread_num()
 
-       !2) Create communicators by split (this is independent of 1, the order could be changed)
-       !$OMP CRITICAL
-       call mpi_comm_split(this%icontxt, my_color, key, new_subcontext%icontxt, istat);  assert ( istat == mpi_success )
-       assert((my_color == mpi_undefined).or.(new_subcontext%icontxt/=mpi_comm_null))
-       !$OMP END CRITICAL
-
-       !3) Select appropriate communicators. This requires 1) to be finished.
-       !$OMP BARRIER
-       if(is_homogeneous) then
-          new_subcontext%type=mpi_omp_context_homogeneous
-          ! Select the communicator having the largest set.
-          !call mpi_comm_rank(new_subcontext%icontxt,current_rank,istat) ; check(istat == mpi_success)
-          call mpi_comm_size(new_subcontext%icontxt,num_ranks,istat)    ; check(istat == mpi_success)
-          ip1_buffer(this%current_thread)=num_ranks
-          !$OMP BARRIER
+       !2) Create communicators by split
+       if(all_are_homogeneous) then ! only one call to mpi_comm_split and shares the comm
+          new_subcontext%created_from_mpi = .false.
           if(this%current_thread==this%root_thread) then
-             num_ranks = 0
-             do i=0,this%num_threads-1
-                if(num_ranks < ip1_buffer(i)) then
-                   num_ranks = ip1_buffer(i)
-                   j = i
-                end if
-             end do
-             ip1_buffer = j
+             call mpi_comm_split(this%icontxt, my_color, key, new_subcontext%icontxt, istat);  assert ( istat == mpi_success )
+             assert((my_color == mpi_undefined).or.(new_subcontext%icontxt/=mpi_comm_null))
+             ip1_buffer(:) = new_subcontext%icontxt
+             new_subcontext%created_from_mpi = .true.
           end if
           !$OMP BARRIER
-          if(this%current_thread/=ip1_buffer(this%current_thread)) then
-             call mpi_comm_free(new_subcontext%icontxt,istat); check(istat == mpi_success)
-          else
-             call mpi_comm_rank(new_subcontext%icontxt,current_rank,istat) ; check(istat == mpi_success)
-             call mpi_comm_size(new_subcontext%icontxt,num_ranks,istat)    ; check(istat == mpi_success)
-             ip2_buffer(1,:) = current_rank
-             ip2_buffer(2,:) = num_ranks
-             !call mpi_bcast(this%master_thread,1,mpi_omp_context_ip,num_ranks-1,this%icontxt,istat); check( istat == mpi_success )
+          new_subcontext%icontxt = ip1_buffer(new_subcontext%current_thread)
+          if(new_subcontext%icontxt/=mpi_comm_null) then
+             call mpi_comm_rank(new_subcontext%icontxt,new_subcontext%current_rank,istat) ; check(istat == mpi_success)
+             call mpi_comm_size(new_subcontext%icontxt,new_subcontext%num_ranks,istat)    ; check(istat == mpi_success)
           end if
-          !$OMP BARRIER
-          new_subcontext%current_rank = ip2_buffer(1,new_subcontext%current_thread)
-          new_subcontext%num_ranks    = ip2_buffer(2,new_subcontext%current_thread)
-          new_subcontext%root_thread  = ip1_buffer(this%current_thread)
        else
-          new_subcontext%type=mpi_omp_context_heterogeneous
-          call mpi_comm_rank(new_subcontext%icontxt,new_subcontext%current_rank,istat) ; check(istat == mpi_success)
-          call mpi_comm_size(new_subcontext%icontxt,new_subcontext%num_ranks,istat)    ; check(istat == mpi_success)
-          new_subcontext%root_thread  = mpi_omp_context_default_root_thread
-          ! bcast master rank
-          !call mpi_bcast(this%current_thread,1,mpi_omp_context_ip,this%current_rank,this%icontxt,istat); check( istat == mpi_success )
-        end if
-        
-        new_subcontext%num_threads    = this%num_threads     ! =omp_get_num_threads()
-        new_subcontext%current_thread = this%current_thread  ! =omp_get_thread_num()
+          !$OMP CRITICAL
+          call mpi_comm_split(this%icontxt, my_color, key, new_subcontext%icontxt, istat);  assert ( istat == mpi_success )
+          !$OMP END CRITICAL
+          assert((my_color == mpi_undefined).or.(new_subcontext%icontxt/=mpi_comm_null))
+          new_subcontext%created_from_mpi = .true.
 
-        if(this%current_thread==this%root_thread) then
-          call mpi_allreduce(new_subcontext%num_threads,new_subcontext%max_num_threads,1,mpi_omp_context_ip,mpi_max,new_subcontext%icontxt,istat)
-          call mpi_allreduce(new_subcontext%num_threads,new_subcontext%min_num_threads,1,mpi_omp_context_ip,mpi_min,new_subcontext%icontxt,istat)
-        end if            
-    
-        call new_subcontext%set_current_task( new_subcontext%max_num_threads*new_subcontext%current_rank + new_subcontext%current_thread )
-        call new_subcontext%set_num_tasks   ( new_subcontext%max_num_threads*(new_subcontext%num_ranks-1)+ new_subcontext%min_num_threads )
+          !3) Select appropriate communicators in homogeneous ranks
+          !$OMP BARRIER
+          if(is_homogeneous) then
+             new_subcontext%type=mpi_omp_context_homogeneous
+             ! Select the communicator having the largest set.
+             !call mpi_comm_rank(new_subcontext%icontxt,current_rank,istat) ; check(istat == mpi_success)
+             call mpi_comm_size(new_subcontext%icontxt,num_ranks,istat)    ; check(istat == mpi_success)
+             ip1_buffer(this%current_thread)=num_ranks
+             !$OMP BARRIER
+             if(this%current_thread==this%root_thread) then
+                num_ranks = 0
+                do i=0,this%num_threads-1
+                   if(num_ranks < ip1_buffer(i)) then
+                      num_ranks = ip1_buffer(i)
+                      j = i
+                   end if
+                end do
+                ip1_buffer = j
+             end if
+             !$OMP BARRIER
+             if(this%current_thread/=ip1_buffer(this%current_thread)) then
+                call mpi_comm_free(new_subcontext%icontxt,istat); check(istat == mpi_success)
+                new_subcontext%created_from_mpi = .false.
+             else
+                call mpi_comm_rank(new_subcontext%icontxt,current_rank,istat) ; check(istat == mpi_success)
+                call mpi_comm_size(new_subcontext%icontxt,num_ranks,istat)    ; check(istat == mpi_success)
+                ip2_buffer(1,:) = current_rank
+                ip2_buffer(2,:) = num_ranks
+                !call mpi_bcast(this%master_thread,1,mpi_omp_context_ip,num_ranks-1,this%icontxt,istat); check( istat == mpi_success )
+             end if
+             !$OMP BARRIER
+             new_subcontext%current_rank = ip2_buffer(1,new_subcontext%current_thread)
+             new_subcontext%num_ranks    = ip2_buffer(2,new_subcontext%current_thread)
+             new_subcontext%root_thread  = ip1_buffer(this%current_thread)
+          else
+             new_subcontext%type=mpi_omp_context_heterogeneous
+             call mpi_comm_rank(new_subcontext%icontxt,new_subcontext%current_rank,istat) ; check(istat == mpi_success)
+             call mpi_comm_size(new_subcontext%icontxt,new_subcontext%num_ranks,istat)    ; check(istat == mpi_success)
+             new_subcontext%root_thread  = mpi_omp_context_default_root_thread
+             ! bcast master rank
+             !call mpi_bcast(this%current_thread,1,mpi_omp_context_ip,this%current_rank,this%icontxt,istat); check( istat == mpi_success )
+          end if
 
-    class default
+       end if
+
+       if(new_subcontext%icontxt/=mpi_comm_null) then
+          if(this%current_thread==this%root_thread) then
+             call mpi_allreduce(new_subcontext%num_threads,new_subcontext%max_num_threads,1,mpi_omp_context_ip,mpi_max,new_subcontext%icontxt,istat)
+             call mpi_allreduce(new_subcontext%num_threads,new_subcontext%min_num_threads,1,mpi_omp_context_ip,mpi_min,new_subcontext%icontxt,istat)
+             ip2_buffer(1,:) = new_subcontext%max_num_threads
+             ip2_buffer(2,:) = new_subcontext%min_num_threads
+          end if
+          !$OMP BARRIER
+          new_subcontext%max_num_threads = ip2_buffer(1,new_subcontext%current_thread)
+          new_subcontext%min_num_threads = ip2_buffer(2,new_subcontext%current_thread)
+
+          !write(*,*) 'In mpi_omp', new_subcontext%current_rank, new_subcontext%num_ranks, new_subcontext%current_thread, new_subcontext%num_threads, new_subcontext%max_num_threads, new_subcontext%min_num_threads
+
+          call new_subcontext%set_current_task( new_subcontext%max_num_threads*new_subcontext%current_rank + new_subcontext%current_thread )
+          call new_subcontext%set_num_tasks   ( new_subcontext%max_num_threads*(new_subcontext%num_ranks-1)+ new_subcontext%min_num_threads )
+
+       end if
+       class default
        check(.false.)
     end select
 
@@ -428,79 +448,78 @@ contains
     else
        ip1_buffer(this%current_thread)=0
     end if
-
     !$OMP BARRIER
-    if(this%current_thread==this%root_thread) then
+    do i=0,this%num_threads-1
+       check(ip1_buffer(i)==ip1_buffer(this%root_thread))
+    end do
 
-       do i=0,this%num_threads-1
-          check(ip1_buffer(i)==ip1_buffer(this%root_thread))
-       end do
-
-       select type(subcontext1)
+    current_thread = this%root_thread
+    num_threads    = 1
+    !$ current_thread = omp_get_thread_num()
+    !$ num_threads    = omp_get_num_threads()
+    
+    
+    select type(subcontext1)
+    type is(mpi_omp_context_t)
+       select type(subcontext2)
        type is(mpi_omp_context_t)
-          select type(subcontext2)
-          type is(mpi_omp_context_t)
-             if ( in_subcontext1 ) then
+
+          subcontext1%created_from_mpi = .false.
+          subcontext2%created_from_mpi = .false.
+
+          if( in_subcontext1 ) then
+             subcontext1%current_thread = current_thread
+             subcontext1%num_threads    = num_threads
+             if(this%current_thread==this%root_thread) then
                 call mpi_comm_split(this%icontxt, 1, key, subcontext1%icontxt, istat); assert ( istat == mpi_success )
-                if(subcontext1%icontxt/=mpi_comm_null) then
-                   call mpi_comm_rank(subcontext1%icontxt,current_rank,istat) ; check(istat == mpi_success)
-                   call mpi_comm_size(subcontext1%icontxt,num_ranks,istat)    ; check(istat == mpi_success)
-                else
-                   current_rank = -1
-                   num_ranks = -1
-                end if
-             else
-                call mpi_comm_split(this%icontxt, 2, key, subcontext2%icontxt, istat); assert ( istat == mpi_success )
-                if(subcontext2%icontxt/=mpi_comm_null) then
-                   call mpi_comm_rank(subcontext2%icontxt,current_rank,istat) ; check(istat == mpi_success)
-                   call mpi_comm_size(subcontext2%icontxt,num_ranks,istat)    ; check(istat == mpi_success)
-                else
-                   current_rank = -1
-                   num_ranks = -1
-                end if
+                assert(subcontext1%icontxt/=mpi_comm_null)
+                subcontext1%created_from_mpi = .true. 
+                ip1_buffer(:) = subcontext1%icontxt
+                call mpi_allreduce(subcontext1%num_threads,subcontext1%max_num_threads,1,mpi_omp_context_ip,mpi_max,subcontext1%icontxt,istat)
+                call mpi_allreduce(subcontext1%num_threads,subcontext1%min_num_threads,1,mpi_omp_context_ip,mpi_min,subcontext1%icontxt,istat)
+                ip2_buffer(1,:) = subcontext1%max_num_threads
+                ip2_buffer(2,:) = subcontext1%min_num_threads
              end if
-             
-             ip2_buffer(1,:) = current_rank
-             ip2_buffer(2,:) = num_ranks
-
-
              !$OMP BARRIER
-
-             current_thread = this%root_thread
-             num_threads    = 1
-             !$ current_thread = omp_get_thread_num()
-             !$ num_threads    = omp_get_num_threads()
-
-             current_rank = ip2_buffer(1,current_thread)
-             num_ranks    = ip2_buffer(2,current_thread)
-
-             if ( in_subcontext1 ) then
-                subcontext1%current_thread = current_thread
-                subcontext1%num_threads    = num_threads
-                subcontext1%current_rank   = current_rank
-                subcontext1%num_ranks      = num_ranks
-                call subcontext1%set_current_task(num_threads*current_rank + current_thread)
-                call subcontext1%set_num_tasks(num_threads*num_ranks)
-                call subcontext2%nullify()
-             else
-                subcontext2%current_thread = current_thread
-                subcontext2%num_threads    = num_threads
-                subcontext2%current_rank   = current_rank
-                subcontext2%num_ranks      = num_ranks
-                call subcontext2%set_current_task(num_threads*current_rank + current_thread)
-                call subcontext2%set_num_tasks(num_threads*num_ranks)
-                call subcontext1%nullify()
+             subcontext1%icontxt = ip1_buffer(current_thread)
+             subcontext1%max_num_threads = ip2_buffer(1,current_thread)
+             subcontext1%min_num_threads = ip2_buffer(2,current_thread)
+             call mpi_comm_rank(subcontext1%icontxt,subcontext1%current_rank,istat) ; check(istat == mpi_success)
+             call mpi_comm_size(subcontext1%icontxt,subcontext1%num_ranks,istat)    ; check(istat == mpi_success)
+             call subcontext1%set_current_task( subcontext1%max_num_threads*subcontext1%current_rank + subcontext1%current_thread )
+             call subcontext1%set_num_tasks   ( subcontext1%max_num_threads*(subcontext1%num_ranks-1)+ subcontext1%min_num_threads )
+             call subcontext2%nullify()             
+          else
+             subcontext2%current_thread = current_thread
+             subcontext2%num_threads    = num_threads
+             if(this%current_thread==this%root_thread) then
+                call mpi_comm_split(this%icontxt, 2, key, subcontext2%icontxt, istat); assert ( istat == mpi_success )
+                subcontext2%created_from_mpi = .true. 
+                assert(subcontext2%icontxt/=mpi_comm_null)
+                ip1_buffer(:) = subcontext2%icontxt
+                call mpi_allreduce(subcontext2%num_threads,subcontext2%max_num_threads,1,mpi_omp_context_ip,mpi_max,subcontext2%icontxt,istat)
+                call mpi_allreduce(subcontext2%num_threads,subcontext2%min_num_threads,1,mpi_omp_context_ip,mpi_min,subcontext2%icontxt,istat)
+                ip2_buffer(1,:) = subcontext2%max_num_threads
+                ip2_buffer(2,:) = subcontext2%min_num_threads
              end if
+             !$OMP BARRIER
+             subcontext2%icontxt = ip1_buffer(current_thread)
+             subcontext2%max_num_threads = ip2_buffer(1,current_thread)
+             subcontext2%min_num_threads = ip2_buffer(2,current_thread)
+             call mpi_comm_rank(subcontext2%icontxt,subcontext2%current_rank,istat) ; check(istat == mpi_success)
+             call mpi_comm_size(subcontext2%icontxt,subcontext2%num_ranks,istat)    ; check(istat == mpi_success)
+             call subcontext2%set_current_task( subcontext2%max_num_threads*subcontext2%current_rank + subcontext2%current_thread )
+             call subcontext2%set_num_tasks   ( subcontext2%max_num_threads*(subcontext2%num_ranks-1)+ subcontext2%min_num_threads )
+             call subcontext1%nullify()             
+          end if
 
-             class default
-             check(.false.)
-          end select
-          class default
+       class default
           check(.false.)
        end select
-
-    end if
-
+    class default
+       check(.false.)
+    end select
+    
   end subroutine mpi_omp_context_split_by_condition
 
   !=============================================================================
@@ -510,11 +529,13 @@ contains
     logical                 , intent(in)    :: finalize
     integer :: istat
     
+    !$OMP BARRIER
     if(this%created_from_mpi) then
        if(this%icontxt/=mpi_comm_null.and.this%icontxt/=mpi_comm_world) then
           call mpi_comm_free(this%icontxt,istat); check(istat == mpi_success)
        end if
        if(finalize) then
+          call memfree(lg2_buffer,__FILE__,__LINE__   )
           call memfree(ip1_buffer,__FILE__,__LINE__   )
           call memfree(ip1_v_buffer,__FILE__,__LINE__ )
           call memfree(igp1_buffer,__FILE__,__LINE__  )
@@ -725,20 +746,18 @@ contains
           if(this%current_thread==this%root_thread) then
              send_rank = mpi_omp_context_root_rank
              if(subcontxt1%am_i_member()) then
-                recv_rank = subcontxt1%get_num_tasks()/subcontxt1%num_threads
+                recv_rank = subcontxt1%get_num_tasks()/subcontxt1%max_num_threads
              else if(subcontxt2%am_i_member()) then
-                recv_rank = (this%get_num_tasks() - subcontxt2%get_num_tasks())/this%num_threads
+                recv_rank = (this%get_num_tasks() - subcontxt2%get_num_tasks())/this%max_num_threads
              end if
 
-             if(this%get_current_task()==send_rank) then
+             if(this%current_rank==send_rank) then
                 call mpi_send(condition, 1, mpi_omp_context_lg, recv_rank,  &
                      & mpi_omp_context_tag, this%icontxt, istat); check( istat == mpi_success )
-             else if(this%get_current_task()==recv_rank) then
+             else if(this%current_rank==recv_rank) then
                 call mpi_recv(condition, 1, mpi_omp_context_lg, send_rank,  &
                      & mpi_omp_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
              end if
-
-
 
              if(subcontxt2%am_i_member()) then
                 call mpi_bcast(condition,1,mpi_omp_context_lg,mpi_omp_context_root_rank,subcontxt2%icontxt,istat); check( istat == mpi_success )
@@ -815,9 +834,9 @@ contains
     ! First post all the non blocking receives   
     do i=1, num_rcv
        task_to_comm = list_rcv(i) - 1 
-       proc_to_comm = task_to_comm/this%num_threads
-       thread_to_comm = task_to_comm - proc_to_comm * this%num_threads
-       msg_tag = this%current_thread + this%num_threads * thread_to_comm ! send_thread + num_threads*recv_thread
+       proc_to_comm = task_to_comm/this%max_num_threads
+       thread_to_comm = task_to_comm - proc_to_comm * this%max_num_threads
+       msg_tag = this%current_thread + this%max_num_threads * thread_to_comm ! send_thread + num_threads*recv_thread
 
        ! Message size to be received
        sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
@@ -833,9 +852,9 @@ contains
     ! Secondly post all non-blocking sends
     do i=1, num_snd
        task_to_comm = list_snd(i) - 1
-       proc_to_comm = task_to_comm/this%num_threads
-       thread_to_comm = task_to_comm - proc_to_comm * this%num_threads
-       msg_tag = this%num_threads * this%current_thread + thread_to_comm ! send_thread + num_threads*recv_thread
+       proc_to_comm = task_to_comm/this%max_num_threads
+       thread_to_comm = task_to_comm - proc_to_comm * this%max_num_threads
+       msg_tag = this%max_num_threads * this%current_thread + thread_to_comm ! send_thread + num_threads*recv_thread
 
        ! Message size to be sent
        sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
@@ -843,7 +862,7 @@ contains
        if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
           call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
                & mpi_omp_context_rp, proc_to_comm,    &
-               & mpi_tag, this%icontxt, sndhd(i), istat)
+               & msg_tag, this%icontxt, sndhd(i), istat)
           check ( istat == mpi_success )
        end if
     end do
@@ -946,9 +965,9 @@ contains
     ! First post all the non blocking receives   
     do i=1, num_rcv
        task_to_comm = list_rcv(i) - 1 
-       proc_to_comm = task_to_comm/this%num_threads
-       thread_to_comm = task_to_comm - proc_to_comm * this%num_threads
-       msg_tag = this%current_thread + this%num_threads * thread_to_comm ! send_thread + num_threads*recv_thread
+       proc_to_comm = task_to_comm/this%max_num_threads
+       thread_to_comm = task_to_comm - proc_to_comm * this%max_num_threads
+       msg_tag = this%current_thread + this%max_num_threads * thread_to_comm ! send_thread + num_threads*recv_thread
 
        ! Message size to be received
        sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*chunk_size_
@@ -956,7 +975,7 @@ contains
        if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
           call mpi_irecv(  rcvbuf((rcv_ptrs(i)-1)*chunk_size_+1), sizmsg,        &
                &  mpi_omp_context_ip, proc_to_comm, &
-               &  mpi_tag, this%icontxt, rcvhd(i), istat)
+               &  msg_tag, this%icontxt, rcvhd(i), istat)
           check ( istat == mpi_success )
        end if
     end do
@@ -964,9 +983,9 @@ contains
     ! Secondly post all non-blocking sends
     do i=1, num_snd
        task_to_comm = list_snd(i) - 1
-       proc_to_comm = task_to_comm/this%num_threads
-       thread_to_comm = task_to_comm - proc_to_comm * this%num_threads
-       msg_tag = this%num_threads * this%current_thread + thread_to_comm ! send_thread + num_threads*recv_thread
+       proc_to_comm = task_to_comm/this%max_num_threads
+       thread_to_comm = task_to_comm - proc_to_comm * this%max_num_threads
+       msg_tag = this%max_num_threads * this%current_thread + thread_to_comm ! send_thread + num_threads*recv_thread
 
        ! Message size to be sent
        sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_
@@ -974,7 +993,7 @@ contains
        if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
           call mpi_isend(sndbuf((snd_ptrs(i)-1)*chunk_size_+1), sizmsg, &
                & mpi_omp_context_ip, proc_to_comm,    &
-               & mpi_tag, this%icontxt, sndhd(i), istat)
+               & msg_tag, this%icontxt, sndhd(i), istat)
           check ( istat == mpi_success )
        end if
     end do
@@ -1073,9 +1092,9 @@ contains
     ! First post all the non blocking receives   
     do i=1, num_rcv
        task_to_comm = list_rcv(i) - 1
-       proc_to_comm = task_to_comm/this%num_threads
-       thread_to_comm = task_to_comm - proc_to_comm * this%num_threads
-       msg_tag = this%current_thread + this%num_threads * thread_to_comm ! send_thread + num_threads*recv_thread
+       proc_to_comm = task_to_comm/this%max_num_threads
+       thread_to_comm = task_to_comm - proc_to_comm * this%max_num_threads
+       msg_tag = this%current_thread + this%max_num_threads * thread_to_comm ! send_thread + num_threads*recv_thread
 
        ! Message size to be received
        sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*chunk_size_
@@ -1083,7 +1102,7 @@ contains
        if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
           call mpi_irecv(  rcvbuf((rcv_ptrs(i)-1)*chunk_size_+1), sizmsg,        &
                &  mpi_omp_context_igp, proc_to_comm, &
-               &  mpi_tag, this%icontxt, rcvhd(i), istat)
+               &  msg_tag, this%icontxt, rcvhd(i), istat)
           check ( istat == mpi_success )
        end if
     end do
@@ -1091,9 +1110,9 @@ contains
     ! Secondly post all non-blocking sends
     do i=1, num_snd
        task_to_comm = list_snd(i) - 1
-       proc_to_comm = task_to_comm/this%num_threads
-       thread_to_comm = task_to_comm - proc_to_comm * this%num_threads
-       msg_tag = this%num_threads * this%current_thread + thread_to_comm ! send_thread + num_threads*recv_thread
+       proc_to_comm = task_to_comm/this%max_num_threads
+       thread_to_comm = task_to_comm - proc_to_comm * this%max_num_threads
+       msg_tag = this%max_num_threads * this%current_thread + thread_to_comm ! send_thread + num_threads*recv_thread
 
        ! Message size to be sent
        sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_
@@ -1101,7 +1120,7 @@ contains
        if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
           call mpi_isend(sndbuf((snd_ptrs(i)-1)*chunk_size_+1), sizmsg, &
                & mpi_omp_context_igp, proc_to_comm,    &
-               & mpi_tag, this%icontxt, sndhd(i), istat)
+               & msg_tag, this%icontxt, sndhd(i), istat)
           check ( istat == mpi_success )
        end if
     end do
@@ -1241,9 +1260,9 @@ contains
     ! First post all the non blocking receives   
     do i=1, number_neighbours
        task_to_comm = neighbour_ids(i) - 1
-       proc_to_comm = task_to_comm/this%num_threads
-       thread_to_comm = task_to_comm - proc_to_comm * this%num_threads
-       msg_tag = this%current_thread + this%num_threads * thread_to_comm ! send_thread + num_threads*recv_thread
+       proc_to_comm = task_to_comm/this%max_num_threads
+       thread_to_comm = task_to_comm - proc_to_comm * this%max_num_threads
+       msg_tag = this%current_thread + this%max_num_threads * thread_to_comm ! send_thread + num_threads*recv_thread
 
        ! Message size to be received
        sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
@@ -1251,7 +1270,7 @@ contains
        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= this%get_current_task()) ) then
           call mpi_irecv(  rcv_buf(rcv_ptrs(i)), sizmsg, &
                &  mpi_omp_context_ieep, proc_to_comm, &
-               &  mpi_tag, this%icontxt, rcvhd(i), istat)
+               &  msg_tag, this%icontxt, rcvhd(i), istat)
           check ( istat == mpi_success )
        end if
     end do
@@ -1259,9 +1278,9 @@ contains
     ! Secondly post all non-blocking sends
     do i=1, number_neighbours
        task_to_comm = neighbour_ids(i) - 1
-       proc_to_comm = task_to_comm/this%num_threads
-       thread_to_comm = task_to_comm - proc_to_comm * this%num_threads
-       msg_tag = this%num_threads * this%current_thread + thread_to_comm ! send_thread + num_threads*recv_thread
+       proc_to_comm = task_to_comm/this%max_num_threads
+       thread_to_comm = task_to_comm - proc_to_comm * this%max_num_threads
+       msg_tag = this%max_num_threads * this%current_thread + thread_to_comm ! send_thread + num_threads*recv_thread
 
        ! Message size to be sent
        sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
@@ -1269,7 +1288,7 @@ contains
        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= this%get_current_task()) ) then 
           call mpi_isend(snd_buf(snd_ptrs(i)), sizmsg, &
                & mpi_omp_context_ieep, proc_to_comm, &
-               & mpi_tag, this%icontxt, sndhd(i), istat)
+               & msg_tag, this%icontxt, sndhd(i), istat)
           check ( istat == mpi_success )
        end if
     end do
@@ -1322,11 +1341,11 @@ contains
     
     ip1_buffer(this%current_thread)=input_data
     !$OMP BARRIER
-    if(this%current_thread==this%root_thread) &
-         & call mpi_gather( ip1_buffer, this%num_threads, mpi_omp_context_ip, &
-         &                 output_data, this%num_threads, mpi_omp_context_ip, mpi_omp_context_root_rank, this%icontxt, istat)
-    !call mpi_gather( input_data, 1, mpi_omp_context_ip, output_data, 1, mpi_omp_context_ip, mpi_omp_context_root_rank, this%icontxt, istat)
-    check( istat == mpi_success )
+    if(this%current_thread==this%root_thread) then
+       call mpi_gather( ip1_buffer, this%max_num_threads, mpi_omp_context_ip, &
+         &              output_data, this%max_num_threads, mpi_omp_context_ip, mpi_omp_context_root_rank, this%icontxt, istat)
+       check( istat == mpi_success )
+    end if
   end subroutine mpi_omp_context_gather_scalar_ip
 
   !=============================================================================
@@ -1337,11 +1356,11 @@ contains
     integer(ip)             , intent(out)  :: output_data
     integer  ::  istat
 
-    if(this%current_thread==this%root_thread) &
-         &  call mpi_scatter( input_data, this%num_threads, mpi_omp_context_ip, &
-                              ip1_buffer, this%num_threads, mpi_omp_context_ip, mpi_omp_context_root_rank, this%icontxt, istat)
-    !call mpi_scatter( input_data, 1, mpi_omp_context_ip, output_data, 1, mpi_omp_context_ip, mpi_omp_context_root_rank, this%icontxt, istat)
-    check( istat == mpi_success )
+    if(this%current_thread==this%root_thread) then
+       call mpi_scatter( input_data, this%max_num_threads, mpi_omp_context_ip, &
+                         ip1_buffer, this%max_num_threads, mpi_omp_context_ip, mpi_omp_context_root_rank, this%icontxt, istat)
+       check( istat == mpi_success )
+    end if
     !$OMP BARRIER
     output_data = ip1_buffer(this%current_thread)
   end subroutine mpi_omp_context_scatter_scalar_ip
@@ -1529,12 +1548,12 @@ contains
     integer :: send_rank, recv_rank, istat
     integer :: send_thread
     send_rank = mpi_omp_context_root_rank
-    recv_rank = (this%get_num_tasks()-1)/this%num_threads
+    recv_rank = (this%get_num_tasks()-1)/this%max_num_threads
     send_thread = this%root_thread
-    if(this%get_current_task()==send_rank.and.this%current_thread==send_thread) then
+    if(this%current_rank==send_rank.and.this%current_thread==send_thread) then
        call mpi_send(input_data, 1, mpi_omp_context_ip, recv_rank,  &
                & mpi_omp_context_tag, this%icontxt, istat); check( istat == mpi_success )
-    else if(this%get_current_task()==recv_rank) then
+    else if(this%current_rank==recv_rank) then
        call mpi_recv(output_data, 1, mpi_omp_context_ip, send_rank,  &
                & mpi_omp_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
     end if
@@ -1549,12 +1568,12 @@ contains
     integer :: send_rank, recv_rank, istat
     integer :: send_thread
     send_rank = mpi_omp_context_root_rank
-    recv_rank = (this%get_num_tasks()-1)/this%num_threads
+    recv_rank = (this%get_num_tasks()-1)/this%max_num_threads
     send_thread = this%root_thread
-    if(this%get_current_task()==send_rank.and.this%current_thread==send_thread) then
+    if(this%current_rank==send_rank.and.this%current_thread==send_thread) then
        call mpi_send(input_data, size(input_data), mpi_omp_context_ip, recv_rank,  &
                & mpi_omp_context_tag, this%icontxt, istat); check( istat == mpi_success )
-    else if(this%get_current_task()==recv_rank) then
+    else if(this%current_rank==recv_rank) then
        call mpi_recv(output_data, size(output_data), mpi_omp_context_ip, send_rank,  &
                & mpi_omp_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
     end if
@@ -1571,11 +1590,10 @@ contains
     ip1_buffer(this%current_thread)=input_data
     !$OMP BARRIER
     master_rank   = (this%get_num_tasks() - 1)/this%max_num_threads
-    !assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%type==mpi_omp_context_heterogeneous.and.this%current_rank==master_rank))
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
     if( (this%current_rank/=master_rank.and.this%current_thread==this%root_thread).or.this%current_rank==master_rank) then
-       call mpi_gather( ip1_buffer , this%num_threads, mpi_omp_context_ip, &
-            &           output_data, this%num_threads, mpi_omp_context_ip, &
+       call mpi_gather( ip1_buffer , this%max_num_threads, mpi_omp_context_ip, &
+            &           output_data, this%max_num_threads, mpi_omp_context_ip, &
             &           master_rank, this%icontxt, istat)
        !call mpi_gather( input_data, 1, mpi_omp_context_ip, output_data, 1, mpi_omp_context_ip, master, this%icontxt, istat)
        check( istat == mpi_success )
@@ -1592,11 +1610,10 @@ contains
     igp1_buffer(this%current_thread)=input_data
     !$OMP BARRIER
     master_rank   = (this%get_num_tasks() - 1)/this%max_num_threads
-    !assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%type==mpi_omp_context_heterogeneous.and.this%current_rank==master_rank))
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
     if( (this%current_rank/=master_rank.and.this%current_thread==this%root_thread).or.this%current_rank==master_rank) then
-       call mpi_gather( igp1_buffer, this%num_threads, mpi_omp_context_igp, &
-            &           output_data, this%num_threads, mpi_omp_context_igp, &
+       call mpi_gather( igp1_buffer, this%max_num_threads, mpi_omp_context_igp, &
+            &           output_data, this%max_num_threads, mpi_omp_context_igp, &
             &           master_rank, this%icontxt, istat)
        !call mpi_gather( input_data, 1, mpi_omp_context_igp, output_data, 1, mpi_omp_context_igp, master, this%icontxt, istat)
        check( istat == mpi_success )
@@ -1613,7 +1630,6 @@ contains
     integer(ip)             , intent(out)  :: output_data(:)
     integer  :: istat, master_rank, send_size
     master_rank   = (this%get_num_tasks()-1)/this%max_num_threads
-    !assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%type==mpi_omp_context_heterogeneous.and.this%current_rank==master_rank))
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
     send_size = input_data_size*this%max_num_threads
     if(this%current_rank/=master_rank) then
@@ -1622,7 +1638,7 @@ contains
                & call memrealloc(send_size,ip1_v_buffer,__FILE__,__LINE__,lb1=0)
        end if
        !$OMP BARRIER
-       ip1_v_buffer(input_data_size*this%current_thread+1:input_data_size*(this%current_thread+1))=input_data(:)
+       ip1_v_buffer(input_data_size*this%current_thread:input_data_size*(this%current_thread+1)-1)=input_data(:)
        !$OMP BARRIER
        if(this%current_thread==this%root_thread) then
           call mpi_gather( ip1_v_buffer, send_size, mpi_omp_context_ip, &
@@ -1656,7 +1672,6 @@ contains
     integer(ip), allocatable :: displs_(:)
 
     master_rank   = (this%get_num_tasks()-1)/this%max_num_threads
-    !assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%type==mpi_omp_context_heterogeneous.and.this%current_rank==master_rank))
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
 
     if(this%current_rank/=master_rank) then
@@ -1674,6 +1689,7 @@ contains
        end if
        !$OMP BARRIER
        ip1_v_buffer(ip1_buffer(this%current_thread):ip1_buffer(this%current_thread+1)-1)=input_data(:)
+       !$OMP BARRIER
        if(this%current_thread==this%root_thread) then
           call mpi_gatherv(ip1_v_buffer, send_size, mpi_omp_context_ip, &
                &            output_data, recv_counts, displs, mpi_omp_context_ip, &
@@ -1681,19 +1697,27 @@ contains
           check( istat == mpi_success )
        end if
     else if(this%current_rank==master_rank) then
-       call memalloc(this%num_ranks,recv_counts_,__FILE__,__LINE__,lb1=0)
-       call memalloc(this%num_ranks,displs_,__FILE__,__LINE__,lb1=0)
-       do i=0,this%num_ranks-1
+       call memalloc(this%num_ranks,recv_counts_,__FILE__,__LINE__)
+       call memalloc(this%num_ranks,displs_,__FILE__,__LINE__)
+       do i=1,this%num_ranks-1
           recv_counts_(i) = 0
           do j=1,this%max_num_threads
-             recv_counts_(i) = recv_counts_(i) + recv_counts(i*this%num_threads+j)
-             displs_(i)      = displs(i*this%num_threads+j)
+             recv_counts_(i) = recv_counts_(i) + recv_counts((i-1)*this%max_num_threads+j)
           end do
+       end do
+       recv_counts_(this%num_ranks) = recv_counts( (this%num_ranks-1)*this%max_num_threads+1)
+       ! JP: I would like to eliminate displ from the interface and assume that data is always
+       ! contiguous in the output vector. Here I assume this is the case and I don't use displ 
+       displs_(1) = 0
+       do i=2, this%num_ranks
+         displs_(i) = displs_(i-1) + recv_counts_(i-1)
        end do
        call mpi_gatherv( input_data, input_data_size, mpi_omp_context_ip, &
             &           output_data, recv_counts_, displs_, mpi_omp_context_ip, &
             &           master_rank, this%icontxt, istat)
        check( istat == mpi_success )
+       call memfree(recv_counts_,__FILE__,__LINE__)
+       call memfree(displs_,__FILE__,__LINE__)
     end if
 
   end subroutine mpi_omp_context_gather_to_masterv_ip_1D_array
@@ -1711,7 +1735,6 @@ contains
     integer(ip), allocatable :: displs_(:)
 
     master_rank   = (this%get_num_tasks()-1)/this%max_num_threads
-    !assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%type==mpi_omp_context_heterogeneous.and.this%current_rank==master_rank))
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
 
     if(this%current_rank/=master_rank) then
@@ -1729,6 +1752,7 @@ contains
        end if
        !$OMP BARRIER
        igp1_v_buffer(ip1_buffer(this%current_thread):ip1_buffer(this%current_thread+1)-1)=input_data(:)
+       !$OMP BARRIER
        if(this%current_thread==this%root_thread) then
           call mpi_gatherv(igp1_v_buffer, send_size, mpi_omp_context_igp, &
                &             output_data, recv_counts, displs, mpi_omp_context_igp, &
@@ -1736,19 +1760,27 @@ contains
           check( istat == mpi_success )
        end if
     else if(this%current_rank==master_rank) then
-       call memalloc(this%num_ranks,recv_counts_,__FILE__,__LINE__,lb1=0)
-       call memalloc(this%num_ranks,displs_,__FILE__,__LINE__,lb1=0)
-       do i=0,this%num_ranks-1
+       call memalloc(this%num_ranks,recv_counts_,__FILE__,__LINE__)
+       call memalloc(this%num_ranks,displs_,__FILE__,__LINE__)
+       do i=1,this%num_ranks-1
           recv_counts_(i) = 0
           do j=1,this%max_num_threads
-             recv_counts_(i) = recv_counts_(i) + recv_counts(i*this%num_threads+j)
-             displs_(i)      = displs(i*this%num_threads+j)
+             recv_counts_(i) = recv_counts_(i) + recv_counts((i-1)*this%max_num_threads+j)
           end do
+       end do
+       recv_counts_(this%num_ranks) = recv_counts( (this%num_ranks-1)*this%max_num_threads+1)
+       ! JP: I would like to eliminate displ from the interface and assume that data is always
+       ! contiguous in the output vector. Here I assume this is the case and I don't use displ 
+       displs_(1) = 0
+       do i=2, this%num_ranks
+         displs_(i) = displs_(i-1) + recv_counts_(i-1)
        end do
        call mpi_gatherv( input_data, input_data_size, mpi_omp_context_igp, &
             &           output_data, recv_counts_, displs_, mpi_omp_context_igp, &
             &           master_rank, this%icontxt, istat)
        check( istat == mpi_success )
+       call memfree(recv_counts_,__FILE__,__LINE__)
+       call memfree(displs_,__FILE__,__LINE__)
     end if
 
   end subroutine mpi_omp_context_gather_to_masterv_igp_1D_array
@@ -1766,7 +1798,6 @@ contains
     integer(ip), allocatable :: displs_(:)
 
     master_rank   = (this%get_num_tasks()-1)/this%max_num_threads
-    !assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%type==mpi_omp_context_heterogeneous.and.this%current_rank==master_rank))
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
 
     if(this%current_rank/=master_rank) then
@@ -1784,6 +1815,7 @@ contains
        end if
        !$OMP BARRIER
        rp1_v_buffer(ip1_buffer(this%current_thread):ip1_buffer(this%current_thread+1)-1) = input_data(:)
+       !$OMP BARRIER
        if(this%current_thread==this%root_thread) then
           call mpi_gatherv(rp1_v_buffer, send_size, mpi_omp_context_rp, &
                &           output_data, recv_counts, displs, mpi_omp_context_rp, &
@@ -1791,19 +1823,27 @@ contains
           check( istat == mpi_success )
        end if
     else if(this%current_rank==master_rank) then
-       call memalloc(this%num_ranks,recv_counts_,__FILE__,__LINE__,lb1=0)
-       call memalloc(this%num_ranks,displs_,__FILE__,__LINE__,lb1=0)
-       do i=0,this%num_ranks-1
+       call memalloc(this%num_ranks,recv_counts_,__FILE__,__LINE__)
+       call memalloc(this%num_ranks,displs_,__FILE__,__LINE__)
+       do i=1,this%num_ranks-1
           recv_counts_(i) = 0
           do j=1,this%max_num_threads
-             recv_counts_(i) = recv_counts_(i) + recv_counts(i*this%num_threads+j)
-             displs_(i)      = displs(i*this%num_threads+j)
+             recv_counts_(i) = recv_counts_(i) + recv_counts((i-1)*this%max_num_threads+j)
           end do
+       end do
+       recv_counts_(this%num_ranks) = recv_counts( (this%num_ranks-1)*this%max_num_threads+1)
+       ! JP: I would like to eliminate displ from the interface and assume that data is always
+       ! contiguous in the output vector. Here I assume this is the case and I don't use displ 
+       displs_(1) = 0
+       do i=2, this%num_ranks
+         displs_(i) = displs_(i-1) + recv_counts_(i-1)
        end do
        call mpi_gatherv( input_data, input_data_size, mpi_omp_context_rp, &
             &           output_data, recv_counts_, displs_, mpi_omp_context_rp, &
             &           master_rank, this%icontxt, istat)
        check( istat == mpi_success )
+       call memfree(recv_counts_,__FILE__,__LINE__)
+       call memfree(displs_,__FILE__,__LINE__)
     end if
 
   end subroutine mpi_omp_context_gather_to_masterv_rp_1D_array
@@ -1820,7 +1860,6 @@ contains
     integer(ip), allocatable :: displs_(:)
 
     master_rank   = (this%get_num_tasks()-1)/this%max_num_threads
-   ! assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%type==mpi_omp_context_heterogeneous.and.this%current_rank==master_rank))
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
 
     if(this%current_rank/=master_rank) then
@@ -1842,6 +1881,7 @@ contains
              rp1_v_buffer(ip1_buffer(this%current_thread)+(j-1)*size(input_data,1)+i-1) = input_data(i,j)
           end do
        end do
+       !$OMP BARRIER
        if(this%current_thread==this%root_thread) then
           call mpi_gatherv(rp1_v_buffer, send_size, mpi_omp_context_rp, &
                &           output_data, recv_counts, displs, mpi_omp_context_rp, &
@@ -1849,19 +1889,27 @@ contains
           check( istat == mpi_success )
        end if
     else if(this%current_rank==master_rank) then
-       call memalloc(this%num_ranks,recv_counts_,__FILE__,__LINE__,lb1=0)
-       call memalloc(this%num_ranks,displs_,__FILE__,__LINE__,lb1=0)
-       do i=0,this%num_ranks-1
+       call memalloc(this%num_ranks,recv_counts_,__FILE__,__LINE__)
+       call memalloc(this%num_ranks,displs_,__FILE__,__LINE__)
+       do i=1,this%num_ranks-1
           recv_counts_(i) = 0
           do j=1,this%max_num_threads
-             recv_counts_(i) = recv_counts_(i) + recv_counts(i*this%num_threads+j)
-             displs_(i)       = displs(i*this%num_threads+j)
+             recv_counts_(i) = recv_counts_(i) + recv_counts((i-1)*this%max_num_threads+j)
           end do
+       end do
+       recv_counts_(this%num_ranks) = recv_counts( (this%num_ranks-1)*this%max_num_threads+1)
+       ! JP: I would like to eliminate displ from the interface and assume that data is always
+       ! contiguous in the output vector. Here I assume this is the case and I don't use displ 
+       displs_(1) = 0
+       do i=2, this%num_ranks
+         displs_(i) = displs_(i-1) + recv_counts_(i-1)
        end do
        call mpi_gatherv( input_data, size(input_data,1)*size(input_data,2), mpi_omp_context_rp, &
             &           output_data, recv_counts_, displs_, mpi_omp_context_rp, &
             &           master_rank, this%icontxt, istat)
        check( istat == mpi_success )
+       call memfree(recv_counts_,__FILE__,__LINE__)
+       call memfree(displs_,__FILE__,__LINE__)
     end if
 
   end subroutine mpi_omp_context_gather_to_masterv_rp_2D_array
@@ -1927,17 +1975,22 @@ contains
     integer(ip), allocatable :: displs_(:)
 
     master_rank   = (this%get_num_tasks()-1)/this%max_num_threads
-    !assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%type==mpi_omp_context_heterogeneous.and.this%current_rank==master_rank))
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
 
-    call memalloc(this%num_ranks,send_counts_,__FILE__,__LINE__,lb1=0)
-    call memalloc(this%num_ranks,displs_,__FILE__,__LINE__,lb1=0)
-    do i=0,this%num_ranks-1
+    call memalloc(this%num_ranks,send_counts_,__FILE__,__LINE__)
+    call memalloc(this%num_ranks,displs_,__FILE__,__LINE__)
+    do i=1,this%num_ranks-1
        send_counts_(i) = 0
-       do j=1,this%num_threads
-          send_counts_(i) = send_counts_(i) + send_counts(i*this%num_threads+j)
-          displs_(i)      = displs(i*this%num_threads+j)
+       do j=1,this%max_num_threads
+          send_counts_(i) = send_counts_(i) + send_counts((i-1)*this%max_num_threads+j)
        end do
+    end do
+    send_counts_(this%num_ranks) = send_counts((this%num_ranks-1)*this%max_num_threads+1)
+    ! JP: I would like to eliminate displ from the interface and assume that data is always
+    ! contiguous in the output vector. Here I assume this is the case and I don't use displ 
+    displs_(1) = 0
+    do i=2, this%num_ranks
+      displs_(i) = displs_(i-1) + send_counts_(i-1)
     end do
     if(this%current_rank==master_rank) then
        call mpi_scatterv( input_data, send_counts_, displs_, mpi_omp_context_rp, &
@@ -1956,15 +2009,15 @@ contains
           recv_size = ip1_buffer(this%num_threads)
           if(size(rp1_v_buffer)<recv_size) &
                & call memrealloc(recv_size,rp1_v_buffer,__FILE__,__LINE__,lb1=0)
-       end if
-       !$OMP BARRIER
-       if(this%current_thread==this%root_thread) then
           call mpi_scatterv( input_data, send_counts_, displs_, mpi_omp_context_rp, &
                &             rp1_v_buffer, recv_size, mpi_omp_context_rp, master_rank, this%icontxt, istat)
           check( istat == mpi_success )
        end if
+       !$OMP BARRIER
        output_data = rp1_v_buffer(ip1_buffer(this%current_thread):ip1_buffer(this%current_thread+1)-1)
     end if
+    call memfree(send_counts_,__FILE__,__LINE__)
+    call memfree(displs_,__FILE__,__LINE__)
 
   end subroutine mpi_omp_context_scatter_from_masterv_rp_1D_array
 
