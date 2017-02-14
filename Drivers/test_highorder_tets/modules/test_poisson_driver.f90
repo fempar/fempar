@@ -447,17 +447,17 @@ contains
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
-    !call this%setup_system()
-    !call this%assemble_system()
-    !call this%setup_solver()
-    !call this%solution%create(this%fe_space) 
-    !call this%solve_system()
-    !if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
-    !  call this%check_solution()
-    !else
-    !  call this%check_solution_vector()
-    !end if  
-    !  call this%write_solution()
+    call this%setup_system()
+    call this%assemble_system()
+    call this%setup_solver()
+    call this%solution%create(this%fe_space) 
+    call this%solve_system()
+    if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
+      call this%check_solution()
+    else
+      call this%check_solution_vector()
+    end if  
+    call this%write_solution()
     call this%free()
   end subroutine run_simulation
   

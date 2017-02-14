@@ -202,9 +202,17 @@ end subroutine polynomial_generate_basis
     real(rp)         , intent(in)    :: x
     real(rp)         , intent(inout) :: p_x(3)
 
-    p_x(1) = x**this%order
-    p_x(2) = this%order * x**(this%order-1)
-    p_x(3) = (this%order-1)*this%order * x**(this%order-1)
+    p_x(1) = x**real(this%order,rp)
+    if ( this%order >= 1 ) then
+      p_x(2) = real(this%order,rp) * x**(real(this%order,rp)-1.0_rp)
+    else
+      p_x(2) = 0.0_rp
+    end if 
+    if ( this%order >= 2 ) then
+      p_x(3) = (real(this%order,rp)-1.0_rp)*real(this%order,rp) * x**(real(this%order,rp)-1.0_rp)
+    else
+      p_x(3) = 0.0_rp
+    end if  
   end subroutine monomial_get_values
   
   subroutine monomial_generate_basis ( order, basis )
@@ -381,7 +389,8 @@ end subroutine polynomial_generate_basis
        max_polynomials = max_polynomials*this%number_pols_dim(i)
     end do
     values = 1.0_rp
-    gradients = 1.0_rp
+    gradients = 0.0_rp
+    gradients(1:this%number_dimensions,:) = 1.0_rp
     ishape = 1
     countp : do i=1,max_polynomials
        call index_to_ijk(i,this%number_dimensions, this%number_pols_dim, ijk)

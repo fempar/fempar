@@ -145,14 +145,7 @@ subroutine new_tet_lagrangian_reference_fe_change_basis(this)
   integer(ip)             :: i, j
   
   call memalloc(this%number_shape_functions,this%number_shape_functions,this%change_basis_matrix,__FILE__,__LINE__)
-  call interpolation%create( this%number_dimensions, &
-                             this%number_shape_functions, &
-                             this%nodal_quadrature%number_quadrature_points, &
-                             this%number_dimensions*(this%number_dimensions + 1)/2, &
-                             compute_hessian = .false.)
-
-  call this%fill_interpolation_pre_basis(this%nodal_quadrature, interpolation)
-  
+  call this%create_interpolation(this%nodal_quadrature,interpolation)
   do i=1,this%number_shape_functions
      do j=1,this%number_shape_functions
         !write(*,*) 'Shape',j,'point',i
@@ -160,11 +153,8 @@ subroutine new_tet_lagrangian_reference_fe_change_basis(this)
         this%change_basis_matrix(i,j) = interpolation%shape_functions(1,j,i)
      end do
   end do
-  
   call interpolation%free()
-  
-  call this%invert_change_basis_matrix
-  
+  call this%invert_change_basis_matrix()
   this%basis_changed = .true.
 end subroutine new_tet_lagrangian_reference_fe_change_basis
 
