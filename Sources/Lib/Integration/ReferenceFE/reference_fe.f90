@@ -326,6 +326,7 @@ module reference_fe_names
   character(*), parameter :: fe_type_lagrangian = "Lagrangian"
   character(*), parameter :: fe_type_raviart_thomas = "Raviart_Thomas"
   character(*), parameter :: fe_type_nedelec = "Nedelec"
+  character(*), parameter :: fe_type_new_tet = "New_tet"
 
 
   ! Abstract reference_fe
@@ -810,7 +811,7 @@ module reference_fe_names
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_raviart_thomas, fe_type_nedelec
+  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_raviart_thomas, fe_type_nedelec, fe_type_new_tet
 
   type p_lagrangian_reference_fe_t
      class(lagrangian_reference_fe_t), pointer :: p => NULL()
@@ -1177,6 +1178,25 @@ procedure, private, non_overridable :: get_n_face_orientation               &
  & => tet_lagrangian_reference_fe_get_n_face_orientation
 end type tet_lagrangian_reference_fe_t
 
+type, extends(tet_lagrangian_reference_fe_t) :: new_tet_lagrangian_reference_fe_t
+  private
+  logical               :: basis_changed
+  real(rp), allocatable :: change_basis_matrix(:,:)
+contains
+procedure :: create  => new_tet_lagrangian_reference_fe_create
+procedure :: free    => new_tet_lagrangian_reference_fe_free
+procedure, private :: fill_interpolation                                             &
+                   & => new_tet_lagrangian_reference_fe_fill_interpolation
+procedure, private :: fill_interpolation_pre_basis                                   &
+                   & => new_tet_lagrangian_reference_fe_fill_interpolation_pre_basis
+procedure, private :: change_basis                                                   &
+                   & => new_tet_lagrangian_reference_fe_change_basis
+procedure, private :: invert_change_basis_matrix                                     &
+                   & => new_tet_lagrangian_reference_fe_invert_change_basis_matrix
+procedure, private :: apply_change_basis_matrix_to_interpolation                     &
+                   & => new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
+end type new_tet_lagrangian_reference_fe_t
+
 public :: tet_lagrangian_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1506,6 +1526,8 @@ contains
 #include "sbm_hex_lagrangian_reference_fe.i90"
 
 #include "sbm_tet_lagrangian_reference_fe.i90"
+
+#include "sbm_new_tet_lagrangian_reference_fe.i90"
 
 #include "sbm_hex_raviart_thomas_reference_fe.i90"
 

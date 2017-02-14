@@ -28,6 +28,7 @@
 module polynomial_names
   use types_names
   use memor_names
+  use sort_names
   use allocatable_array_names
 
   implicit none
@@ -41,14 +42,20 @@ module polynomial_names
      integer(ip)           :: order
      real(rp), allocatable :: coefficients(:)
    contains
-     procedure, non_overridable          :: create          => polynomial_create
+     procedure                           :: create          => polynomial_create
      procedure, non_overridable          :: copy            => polynomial_copy
      procedure, non_overridable          :: free            => polynomial_free
-     procedure, non_overridable          :: get_values      => polynomial_get_values
+     procedure                           :: get_values      => polynomial_get_values
      procedure, nopass                   :: generate_basis  => polynomial_generate_basis
      ! procedure ( polynomial_assign_interface), deferred :: assign
      ! generic(=) :: assign
   end type polynomial_t
+  
+  type, extends(polynomial_t) :: monomial_t
+   contains
+     procedure                           :: get_values      => monomial_get_values
+     procedure, nopass                   :: generate_basis  => monomial_generate_basis
+  end type monomial_t
 
   type :: polynomial_allocatable_array_t
      private
@@ -83,9 +90,25 @@ module polynomial_names
   end type tensor_product_polynomial_space_t
   ! Note: The vector space built from tensor_product_polynomial_space_t is going to be
   ! at the reference_fe implementation of RT and Nedelec.
-
-  public :: polynomial_t, polynomial_allocatable_array_t
-  public :: tensor_product_polynomial_space_t
+  
+  type :: tet_polynomial_prebase_t
+     private
+     integer(ip)                          :: number_dimensions
+     integer(ip)                          :: number_polynomials
+     integer(ip)                          :: number_pols_dim(SPACE_DIM)
+     type(polynomial_allocatable_array_t) :: polynomial_1D_basis(SPACE_DIM)
+     type(allocatable_array_rp3_t)        :: work_shape_data(SPACE_DIM)
+   contains
+     procedure, non_overridable :: create   => tet_polynomial_prebase_create
+     procedure, non_overridable :: fill     => tet_polynomial_prebase_fill
+     procedure, non_overridable :: evaluate => tet_polynomial_prebase_evaluate
+     procedure, non_overridable :: free     => tet_polynomial_prebase_free
+     procedure, non_overridable :: get_number_polynomials => tet_polynomial_prebase_get_number_polynomials
+     
+  end type tet_polynomial_prebase_t
+  
+  public :: polynomial_t, monomial_t, polynomial_allocatable_array_t
+  public :: tensor_product_polynomial_space_t, tet_polynomial_prebase_t
 
 contains
  
@@ -164,6 +187,39 @@ end subroutine polynomial_generate_basis
     if ( allocated(this%coefficients) ) call memfree( this%coefficients, __FILE__, __LINE__ )
   end subroutine polynomial_free
   
+  ! monomial_t TBPS
+  !===================================================================================
+  subroutine monomial_create ( this, order )
+    class(monomial_t), intent(inout) :: this
+    integer(ip)      , intent(in)    :: order 
+    call this%free()
+    this%order = order
+  end subroutine monomial_create
+  
+  subroutine monomial_get_values(this,x,p_x)
+    implicit none
+    class(monomial_t), intent(in)    :: this
+    real(rp)         , intent(in)    :: x
+    real(rp)         , intent(inout) :: p_x(3)
+
+    p_x(1) = x**this%order
+    p_x(2) = this%order * x**(this%order-1)
+    p_x(3) = (this%order-1)*this%order * x**(this%order-1)
+  end subroutine monomial_get_values
+  
+  subroutine monomial_generate_basis ( order, basis )
+    implicit none
+    integer(ip)                         , intent(in)    :: order
+    type(polynomial_allocatable_array_t), intent(inout) :: basis
+    integer(ip) :: i
+    type(monomial_t ) :: mold_monomial
+  
+    call basis%create(order+1, mold_monomial)
+    do i = 0,order
+       call basis%polynomials(i+1)%create(i)
+    end do
+  end subroutine monomial_generate_basis
+    
   ! tensor_product_polynomial_space_t TBPS
   !===================================================================================
   subroutine tensor_product_polynomial_space_create( this, dim, polynomial_1D_basis )
@@ -244,6 +300,169 @@ end subroutine polynomial_generate_basis
     end do    
   end subroutine tensor_product_polynomial_space_evaluate   
   
+  ! tet_polynomial_prebase_t TBPS
+  !===================================================================================
+  subroutine tet_polynomial_prebase_create ( this, dim, polynomial_1D_prebasis )
+    implicit none
+    class(tet_polynomial_prebase_t)     , intent(inout) :: this
+    integer(ip)                         , intent(in)    :: dim
+    type(polynomial_allocatable_array_t), intent(in)    :: polynomial_1D_prebasis(:)
+    integer(ip) :: i, j, work_array(3), max_polynomials, ijk(SPACE_DIM)
+    
+    this%number_dimensions = dim
+    this%number_polynomials = 1
+    this%number_pols_dim = 1
+    max_polynomials = 1.0_rp
+    do i = 1, dim
+       call this%polynomial_1D_basis(i)%copy(polynomial_1D_prebasis(i))
+       this%number_pols_dim(i) = size(polynomial_1D_prebasis(i)%polynomials)
+       max_polynomials = max_polynomials*this%number_pols_dim(i)
+    end do
+    
+    work_array = this%number_pols_dim-1
+    call sort(SPACE_DIM, work_array)
+    i = 0
+    this%number_polynomials = 0!count_polynomials(work_array,0,1,this%number_dimensions,i)
+    countp : do i=1,max_polynomials
+       call index_to_ijk(i,this%number_dimensions, this%number_pols_dim, ijk)
+       do j=1,dim
+          if (ijk(j) > this%number_pols_dim(j))  cycle countp
+       end do
+       if (sum(ijk)-SPACE_DIM < maxval(this%number_pols_dim)) then
+          this%number_polynomials = this%number_polynomials + 1.0_rp
+       end if
+    end do countp
+    !do i = 0, work_array(1)
+    !   do j = 0, work_array(2)-i
+    !      do k = 0, work_array(3)-i-j
+    !         this%number_polynomials = this%number_polynomials + 1.0_rp
+    !      end do
+    !   end do
+    !end do
+  end subroutine tet_polynomial_prebase_create
+  
+  subroutine tet_polynomial_prebase_fill(this, points)
+    implicit none
+    class(tet_polynomial_prebase_t), intent(inout) :: this
+    real(rp)                       , intent(in)    :: points(:,:)
+    integer(ip)                 :: n_q_points, i, j, q
+    
+    do i=1,this%number_dimensions
+       call this%work_shape_data(i)%free()
+    end do
+    n_q_points = size(points,2)
+    do i=1, SPACE_DIM
+       call this%work_shape_data(i)%create(NUM_POLY_DERIV, &
+                                           this%number_pols_dim(i), &
+                                           n_q_points)
+    end do
+    
+    do i = 1,this%number_dimensions
+       do j = 1,this%number_pols_dim(i)
+          do q = 1,n_q_points
+             call this%polynomial_1D_basis(i)%polynomials(j)%get_values(points(i,q),this%work_shape_data(i)%a(:,j,q))
+          end do
+       end do
+    end do
+    
+  end subroutine tet_polynomial_prebase_fill
+  
+  subroutine tet_polynomial_prebase_evaluate(this, q_point, values, gradients)
+    implicit none
+    class(tet_polynomial_prebase_t), intent(inout) :: this
+    integer(ip)                             , intent(in)    :: q_point
+    real(rp)                                , intent(inout) :: values(:)
+    real(rp)                                , intent(inout) :: gradients(:,:)
+    integer(ip) :: ishape, i,j, idime, jdime, max_polynomials, ijk(SPACE_DIM)
+    
+    
+    max_polynomials = 1
+    do i = 1, this%number_dimensions
+       max_polynomials = max_polynomials*this%number_pols_dim(i)
+    end do
+    values = 1.0_rp
+    gradients = 1.0_rp
+    ishape = 1
+    countp : do i=1,max_polynomials
+       call index_to_ijk(i,this%number_dimensions, this%number_pols_dim, ijk)
+       do j=1,this%number_dimensions
+          if (ijk(j) > this%number_pols_dim(j))  cycle countp
+       end do
+       if (sum(ijk)-SPACE_DIM < maxval(this%number_pols_dim)) then
+          do idime=1,this%number_dimensions
+             values(ishape) = values(ishape)*this%work_shape_data(idime)%a(1,ijk(idime),q_point) 
+             gradients(idime,ishape) = gradients(idime,ishape)*this%work_shape_data(idime)%a(2,ijk(idime),q_point)
+             do jdime=1,this%number_dimensions
+                if (idime /= jdime) then
+                   gradients(idime,ishape) = gradients(idime,ishape)*this%work_shape_data(jdime)%a(1,ijk(jdime),q_point)
+                end if
+             end do
+          end do
+          ishape = ishape + 1
+       end if
+    end do countp
+    
+    
+    
+    !work_array = this%number_pols_dim-1
+    !forall (i=1:SPACE_DIM) permu(i) = i 
+    !call sort(SPACE_DIM, work_array, index=permu)
+    !ishape = 1
+    !if (this%number_dimensions .eq. 2) then
+    !   do i = 0, work_array(1)
+    !      do j = 0, work_array(2)-i
+    !         values(ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
+    !                          this%work_shape_data(permu(2))%a(1,j+1,q_point)
+    !         gradients(1,ishape) = this%work_shape_data(permu(1))%a(2,i+1,q_point) * &
+    !                               this%work_shape_data(permu(2))%a(1,j+1,q_point)
+    !         gradients(2,ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
+    !                               this%work_shape_data(permu(2))%a(2,j+1,q_point)
+    !         ishape = ishape + 1_ip
+    !      end do
+    !   end do
+    !elseif (this%number_dimensions .eq. 3) then
+    !   do i = 0, work_array(1)
+    !      do j = 0, work_array(2)-i
+    !         do k = 0, work_array(3)-i-j
+    !            values(ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
+    !                             this%work_shape_data(permu(2))%a(1,j+1,q_point) * &
+    !                             this%work_shape_data(permu(3))%a(1,k+1,q_point)
+    !            gradients(1,ishape) = this%work_shape_data(permu(1))%a(2,i+1,q_point) * &
+    !                                  this%work_shape_data(permu(2))%a(1,j+1,q_point) * &
+    !                                  this%work_shape_data(permu(3))%a(1,k+1,q_point)
+    !            gradients(2,ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
+    !                                  this%work_shape_data(permu(2))%a(2,j+1,q_point) * &
+    !                                  this%work_shape_data(permu(3))%a(1,k+1,q_point)
+    !            gradients(2,ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
+    !                                  this%work_shape_data(permu(2))%a(1,j+1,q_point) * &
+    !                                  this%work_shape_data(permu(3))%a(2,k+1,q_point)
+    !            ishape = ishape + 1_ip
+    !         end do
+    !      end do
+    !   end do
+    !end if    
+  end subroutine tet_polynomial_prebase_evaluate
+  
+  
+  subroutine tet_polynomial_prebase_free( this )
+    implicit none
+    class(tet_polynomial_prebase_t), intent(inout)    :: this
+    integer(ip) :: i
+    do i=1,SPACE_DIM
+    call this%work_shape_data(i)%free()
+    call this%polynomial_1D_basis(i)%free()
+    end do
+  end subroutine tet_polynomial_prebase_free
+  
+  function tet_polynomial_prebase_get_number_polynomials( this ) result(num_poly)
+    implicit none
+    class(tet_polynomial_prebase_t), intent(inout)    :: this
+    integer(ip) :: num_poly
+    num_poly = this%number_polynomials    
+  end function tet_polynomial_prebase_get_number_polynomials
+  
+  ! polynomial_allocatable_array_t TBPS
+  !===================================================================================
   subroutine polynomial_allocatable_array_create ( this, number_polynomials, mold_polynomial )
    implicit none
    class(polynomial_allocatable_array_t), intent(inout)    :: this
@@ -321,5 +540,21 @@ subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
   ijk(ndime) = aux
   ijk = ijk+1
 end subroutine index_to_ijk
+
+recursive function count_polynomials(orders,i,idime,ndime,prev_count) result(count)
+  implicit none
+  integer(ip), intent(in) :: orders(SPACE_DIM),i,idime,ndime
+  integer(ip), intent(inout) :: prev_count
+  integer(ip) :: count, j
+  
+  if (idime .eq. ndime) then
+     count = prev_count + orders(idime)-i+1
+     prev_count = count
+  else
+     do j=0,orders(idime)-i
+        count = count_polynomials(orders,i+j,idime+1,ndime,prev_count)
+     end do
+  end if
+end function count_polynomials
 
 end module polynomial_names

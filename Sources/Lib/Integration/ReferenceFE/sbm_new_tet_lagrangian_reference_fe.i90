@@ -1,0 +1,279 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**************************************************************************************************
+! Deferred TBP implementors from reference_fe_t
+!**************************************************************************************************
+
+!==================================================================================================
+subroutine new_tet_lagrangian_reference_fe_free(this) 
+  implicit none
+  class(new_tet_lagrangian_reference_fe_t), intent(inout) ::  this
+  integer(ip) :: i
+  
+  ! Free member variables of raviart_thomas_reference_fe_t
+  if ( allocated(this%change_basis_matrix) ) &
+     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
+     
+  this%basis_changed = .false. 
+  
+  ! Free member variables of lagrangian_reference_fe_t
+  ! (and those of its ancestors)
+  call lagrangian_reference_fe_free ( this )  
+end subroutine new_tet_lagrangian_reference_fe_free
+
+!==================================================================================================
+subroutine new_tet_lagrangian_reference_fe_create( this, topology, number_dimensions, order, field_type, & 
+     &  continuity, enable_face_integration )
+  implicit none 
+  class(new_tet_lagrangian_reference_fe_t), intent(inout) :: this
+  character(*)                            , intent(in)    :: topology
+  integer(ip)                             , intent(in)    :: number_dimensions
+  integer(ip)                             , intent(in)    :: order
+  character(*)                            , intent(in)    :: field_type
+  logical                                 , intent(in)    :: continuity
+  logical                      , optional , intent(in)    :: enable_face_integration
+  
+  assert ( order >= 0 )
+
+  call this%free()
+  call this%set_common_data(number_dimensions,order,field_type,continuity,enable_face_integration)
+  call this%set_topology ( topology )
+  call this%set_fe_type( fe_type_raviart_thomas )
+  call this%fill()
+  call this%create_nodal_quadrature()
+  if ( this%continuity ) then
+    call this%change_basis()
+  end if
+  
+end subroutine new_tet_lagrangian_reference_fe_create
+
+!==================================================================================================
+subroutine new_tet_lagrangian_reference_fe_fill_interpolation( this, quadrature, interpolation, order_vector )
+  implicit none
+  class(new_tet_lagrangian_reference_fe_t), intent(in) :: this
+  type(quadrature_t)                      , intent(in)         :: quadrature
+  type(interpolation_t)                   , intent(inout)      :: interpolation    
+  integer(ip)                  , optional , intent(in)         :: order_vector(SPACE_DIM)
+  
+  type(interpolation_t) :: interpolation_pre_basis
+  
+  if ( .not. this%basis_changed ) then
+    call this%fill_interpolation_pre_basis ( quadrature, interpolation, order_vector )
+  else
+    call interpolation_pre_basis%clone(interpolation)
+    call this%fill_interpolation_pre_basis ( quadrature, interpolation_pre_basis, order_vector ) 
+    call this%apply_change_basis_matrix_to_interpolation ( interpolation_pre_basis, interpolation )
+    call interpolation_pre_basis%free()
+  end if
+end subroutine new_tet_lagrangian_reference_fe_fill_interpolation
+
+!==================================================================================================
+subroutine new_tet_lagrangian_reference_fe_fill_interpolation_pre_basis ( this, quadrature, interpolation, order_vector ) 
+  implicit none 
+  class(new_tet_lagrangian_reference_fe_t), intent(in) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation
+  integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
+
+  type(tet_polynomial_prebase_t)        :: tet_polynomial_prebase
+  type(polynomial_allocatable_array_t)  :: monomial_1D_basis(SPACE_DIM)
+  type(monomial_t)                      :: monomial_1D
+  
+  real(rp), allocatable :: values(:)
+  real(rp), allocatable :: gradients(:,:)
+  integer(ip) :: idime, q_point
+  
+  do idime=1,interpolation%number_dimensions
+     call monomial_1D%generate_basis(this%order_vector(idime), monomial_1D_basis(idime) )
+  end do
+  
+  call tet_polynomial_prebase%create(interpolation%number_dimensions,monomial_1D_basis)
+  call tet_polynomial_prebase%fill( quadrature%get_coordinates() )
+    
+  call memalloc(tet_polynomial_prebase%get_number_polynomials(),values,__FILE__,__LINE__)
+  call memalloc(SPACE_DIM,tet_polynomial_prebase%get_number_polynomials(),gradients,__FILE__,__LINE__)
+  
+  do q_point=1, quadrature%get_number_quadrature_points()
+     call tet_polynomial_prebase%evaluate(q_point, values, gradients)
+     interpolation%shape_functions(1,:,q_point) = values(:)
+     interpolation%shape_derivatives(1,:,:,q_point) = gradients(:,:)
+  end do
+  
+  ! Free auxiliary memory
+  if(allocated(values))    call memfree(values,__FILE__,__LINE__)
+  if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
+  
+  do idime=1,interpolation%number_dimensions
+     call monomial_1D_basis(idime)%free()
+  end do
+  call monomial_1D%free()
+  call tet_polynomial_prebase%free()
+end subroutine new_tet_lagrangian_reference_fe_fill_interpolation_pre_basis
+
+!==================================================================================================
+subroutine new_tet_lagrangian_reference_fe_change_basis(this) 
+  implicit none
+  class(new_tet_lagrangian_reference_fe_t), intent(inout) ::  this
+  
+  type(interpolation_t)   :: interpolation
+  integer(ip)             :: i, j
+  
+  call memalloc(this%number_shape_functions,this%number_shape_functions,this%change_basis_matrix,__FILE__,__LINE__)
+  call interpolation%create( this%number_dimensions, &
+                             this%number_shape_functions, &
+                             this%nodal_quadrature%number_quadrature_points, &
+                             this%number_dimensions*(this%number_dimensions + 1)/2, &
+                             compute_hessian = .false.)
+
+  call this%fill_interpolation_pre_basis(this%nodal_quadrature, interpolation)
+  
+  do i=1,this%number_shape_functions
+     do j=1,this%number_shape_functions
+        !write(*,*) 'Shape',j,'point',i
+        !write(*,*) interpolation%shape_functions(1,j,i)
+        this%change_basis_matrix(i,j) = interpolation%shape_functions(1,j,i)
+     end do
+  end do
+  
+  call interpolation%free()
+  
+  call this%invert_change_basis_matrix
+  
+  this%basis_changed = .true.
+end subroutine new_tet_lagrangian_reference_fe_change_basis
+
+!==================================================================================================
+subroutine new_tet_lagrangian_reference_fe_invert_change_basis_matrix(this)
+  implicit none
+  class(new_tet_lagrangian_reference_fe_t), intent(inout) :: this 
+  
+  integer(ip) :: error
+  integer(ip), allocatable :: ipiv(:)
+  real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
+  integer(ip) :: i
+  
+  assert ( allocated(this%change_basis_matrix) )
+  assert ( size(this%change_basis_matrix,1) == this%number_shape_functions )
+  assert ( size(this%change_basis_matrix,2) == this%number_shape_functions )
+  
+  ! Solve linear system with several RHS
+  ! Compute LU factorization of this%change_basis_matrix
+#ifdef ENABLE_LAPACK
+  call memalloc ( this%number_shape_functions, ipiv, __FILE__,__LINE__ )
+   
+  call memalloc ( this%number_shape_functions, & 
+                  this%number_shape_functions, &
+                  inverse_change_basis_matrix, &
+                   __FILE__,__LINE__ )
+
+  call DGETRF( this%number_shape_functions, & 
+               this%number_shape_functions, &
+               this%change_basis_matrix, &
+               this%number_shape_functions, &
+               ipiv, &
+               error )
+  check ( error == 0 )
+  
+  inverse_change_basis_matrix = 0.0_rp
+  do i=1, this%number_shape_functions
+    inverse_change_basis_matrix(i,i) = 1.0_rp
+  end do  
+ 
+  call DGETRS( 'N', & 
+               this%number_shape_functions, &
+               this%number_shape_functions, &
+               this%change_basis_matrix, &
+               this%number_shape_functions, &
+               ipiv, &
+               inverse_change_basis_matrix, &
+               this%number_shape_functions, &
+               error )
+  check ( error == 0 )
+  
+  !do i=1, this%number_shape_functions
+  !   this%change_basis_matrix(i,:) = 0.0_rp!inverse_change_basis_matrix(:,i)
+  !end do
+  
+  !call memfree (  inverse_change_basis_matrix, __FILE__, __LINE__  )
+  
+  if ( allocated(this%change_basis_matrix) ) call memfree (  this%change_basis_matrix, __FILE__, __LINE__  )
+   
+  call memmovealloc(inverse_change_basis_matrix, &
+                    this%change_basis_matrix, __FILE__, __LINE__ )
+  !write(*,*) this%change_basis_matrix(1,:)
+  !write(*,*) this%change_basis_matrix(2,:)
+  !write(*,*) this%change_basis_matrix(3,:)
+  call memfree ( ipiv, __FILE__,__LINE__ )
+#else
+  write (0,*) 'Error: reference_fe.f90 was not compiled with -DENABLE_LAPACK.'
+  write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
+  check(.false.)
+#endif 
+   
+end subroutine new_tet_lagrangian_reference_fe_invert_change_basis_matrix
+
+!==================================================================================================
+subroutine new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, interpolation_pre_basis, interpolation)
+  implicit none
+  class(new_tet_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)                   , intent(in)    :: interpolation_pre_basis
+  type(interpolation_t)                   , intent(inout) :: interpolation
+  
+  integer(ip)           :: i, j, idime, jdime, qpoint
+
+  ! Initialize both shape functions and derivatives to zero.
+  interpolation%shape_functions   = 0.0_rp
+  interpolation%shape_derivatives = 0.0_rp
+  
+  ! Compute shape functions
+  do qpoint = 1, interpolation%number_quadrature_points
+     do i=1, this%number_shape_functions
+        do j=1, this%number_shape_functions
+           do idime=1, this%number_dimensions
+              interpolation%shape_functions(idime, i, qpoint) = interpolation%shape_functions(idime, i, qpoint) + &
+                   this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
+           end do
+        end do
+     end do
+  end do
+  
+  ! Compute shape derivatives
+  do qpoint = 1, interpolation%number_quadrature_points
+     do i=1, this%number_shape_functions
+        do j=1, this%number_shape_functions
+           do idime=1, this%number_dimensions
+              do jdime=1, this%number_dimensions
+                 interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
+                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
+              end do
+           end do
+        end do
+     end do
+  end do
+end subroutine new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation
