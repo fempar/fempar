@@ -74,6 +74,7 @@ module block_sparse_matrix_names
      procedure :: get_block                     => block_sparse_matrix_get_block
      procedure :: get_nblocks                   => block_sparse_matrix_get_nblocks
      procedure :: apply                         => block_sparse_matrix_apply
+     procedure :: apply_add                     => block_sparse_matrix_apply_add
      procedure, private :: create_vector_spaces => block_sparse_matrix_create_vector_spaces
      procedure :: create_iterator               => block_sparse_matrix_create_iterator
   end type block_sparse_matrix_t
@@ -235,42 +236,52 @@ contains
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
-  subroutine block_sparse_matrix_apply(op,x,y)
+  subroutine block_sparse_matrix_apply(this,x,y)
     implicit none
-    class(block_sparse_matrix_t), intent(in)    :: op
+    class(block_sparse_matrix_t), intent(in)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     ! Locals
     integer(ip) :: ib,jb
-    type(serial_scalar_array_t)          :: aux
     type(serial_scalar_array_t), pointer :: y_block
-
-    call op%abort_if_not_in_domain(x)
-    call op%abort_if_not_in_range(y)
-    
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
     call x%GuardTemp()
     call y%init(0.0_rp)
+    call this%apply_add(x,y)
+    call x%CleanTemp()
+  end subroutine block_sparse_matrix_apply
+  
+  ! op%apply_add(x,y) <=> y <- op*x+y
+  ! Implicitly assumes that y is already allocated
+  subroutine block_sparse_matrix_apply_add(this,x,y)
+    implicit none
+    class(block_sparse_matrix_t), intent(in)    :: this
+    class(vector_t),              intent(in)    :: x
+    class(vector_t),              intent(inout) :: y
+    ! Locals
+    integer(ip) :: ib,jb
+    type(serial_scalar_array_t), pointer :: y_block
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    call x%GuardTemp()
     select type(x)
        class is (serial_block_array_t)
        select type(y)
           class is(serial_block_array_t)
-          do ib=1,op%nblocks
-             call aux%clone(y%get_block(ib))
+          do ib=1,this%nblocks
              y_block => y%get_block(ib)
-             do jb=1,op%nblocks
-                if ( associated(op%blocks(ib,jb)%sparse_matrix) ) then
-                   ! aux <- A(ib,jb) * x(jb)
-                   call op%blocks(ib,jb)%sparse_matrix%apply(x%get_block(jb),aux)
-                   ! y(ib) <- y(ib) + aux
-                   call y_block%axpby(1.0_rp,aux,1.0_rp)
+             do jb=1,this%nblocks
+                if ( associated(this%blocks(ib,jb)%sparse_matrix) ) then
+                   ! y(ib) <- A(ib,jb) * x(jb) + y(ib)
+                   call this%blocks(ib,jb)%sparse_matrix%apply_add(x%get_block(jb),y_block)
                 end if
              end do
-             call aux%free()
           end do
        end select
     end select
     call x%CleanTemp()
-  end subroutine block_sparse_matrix_apply
+  end subroutine block_sparse_matrix_apply_add
 
   subroutine block_sparse_matrix_free_in_stages(this,action)
     implicit none
@@ -295,8 +306,10 @@ contains
     end do
     if (action == free_clean) then
        this%nblocks = 0
-       deallocate (this%blocks, stat=istat)
-       check(istat==0)
+       if(allocated(this%blocks)) then
+          deallocate (this%blocks, stat=istat)
+          check(istat==0)
+       endif
        call this%free_vector_spaces()
     end if
   end subroutine block_sparse_matrix_free_in_stages

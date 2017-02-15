@@ -155,6 +155,7 @@ if (_MKL_IA32)
     list(APPEND _INTEL_LIBRARY_DIR_SUFFIXES "lib/ia32")
 elseif (_MKL_INTEL64)
     list(APPEND _INTEL_LIBRARY_DIR_SUFFIXES "lib/intel64")
+    list(APPEND _INTEL_LIBRARY_DIR_SUFFIXES "lib/intel64_lin") # Added to find IOMP5
 else()
     message(FATAL_ERROR "unreachable")
 endif()
@@ -296,7 +297,9 @@ find_library(MATH_LIBRARY
 
 if (NOT MATH_LIBRARY)
     # we could instead fallback to default library (via FindOpenMP.cmake)
-    list(APPEND _MKL_MISSING_LIBRARIES MATH)
+    ##list(APPEND _MKL_MISSING_LIBRARIES MATH)
+    ### If MATH_LIBRARY is not found, display a warning instead of mark it as missing
+    message(STATUS "FindMKL: MATH library not found")
 else()
     list(APPEND MKL_LIBRARIES ${MATH_LIBRARY})
     if (MKL_FIND_DEBUG)
