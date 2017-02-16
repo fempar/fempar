@@ -27,6 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_poisson_unfitted_driver_names
   use fempar_names
+  use serial_unfitted_triangulation_names
+  use level_set_functions_gallery_names
   use test_poisson_unfitted_params_names
   use poisson_unfitted_cG_discrete_integration_names
   use poisson_unfitted_dG_discrete_integration_names
@@ -50,7 +52,7 @@ module test_poisson_unfitted_driver_names
      type(ParameterList_t)         :: parameter_list
      
      ! Cells and lower dimension objects container
-     type(serial_triangulation_t)              :: triangulation
+     type(serial_unfitted_triangulation_t)              :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                      :: fe_space 
@@ -109,12 +111,20 @@ contains
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
+    
+    type(level_set_cyllinder_t) :: level_set_function ! TODO: we assume a cylinder for the moment
 
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%parameter_list)
+    
+    ! Old call for body-fitted triangulation
+    !call this%triangulation%create(this%parameter_list)
     !call this%triangulation%print()
+    
+    ! New call for unfitted triangulation
+    call level_set_function%set_radius(0.9_rp)
+    call this%triangulation%create(this%parameter_list,level_set_function)    
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()

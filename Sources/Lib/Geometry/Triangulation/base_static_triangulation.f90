@@ -531,7 +531,8 @@ module base_static_triangulation_names
 
   type, extends(fine_triangulation_t) :: serial_triangulation_t
   contains
-     procedure, non_overridable          :: create                              => serial_triangulation_create
+     procedure                 , private :: serial_triangulation_create
+     generic                             :: create                              => serial_triangulation_create
   end type serial_triangulation_t
   
   type, extends(fine_triangulation_t) :: par_triangulation_t
