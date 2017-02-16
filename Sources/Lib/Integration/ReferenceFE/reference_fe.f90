@@ -88,7 +88,8 @@ module reference_fe_names
      procedure, non_overridable :: print  => quadrature_print
      procedure, non_overridable :: get_number_dimensions => quadrature_get_number_dimensions
      procedure, non_overridable :: get_number_quadrature_points => quadrature_get_number_quadrature_points
-     procedure, non_overridable :: get_coordinates => quadrature_get_coordinates     
+     procedure, non_overridable :: get_coordinates => quadrature_get_coordinates
+     procedure, non_overridable :: get_coordinates_as_points => quadrature_get_coordinates_as_points
      procedure, non_overridable :: get_weight => quadrature_get_weight
   end type quadrature_t
 
