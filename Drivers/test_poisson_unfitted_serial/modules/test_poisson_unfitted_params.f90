@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_poisson_params_names
+module test_poisson_unfitted_params_names
   use fempar_names
 # include "debug.i90"
 
   implicit none
   private
 
-  type test_poisson_params_t  
+  type test_poisson_unfitted_params_t  
      private 
      ! IO parameters
      character(len=:), allocatable :: default_dir_path 
@@ -71,11 +71,11 @@ module test_poisson_params_names
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
 
    contains
-     procedure, non_overridable             :: create       => test_poisson_create
-     procedure, non_overridable, private    :: set_default  => test_poisson_set_default
-     procedure, non_overridable, private    :: add_to_cli   => test_poisson_add_to_cli
-     procedure, non_overridable             :: parse        => test_poisson_parse 
-     procedure, non_overridable             :: free         => test_poisson_free
+     procedure, non_overridable             :: create       => test_poisson_unfitted_create
+     procedure, non_overridable, private    :: set_default  => test_poisson_unfitted_set_default
+     procedure, non_overridable, private    :: add_to_cli   => test_poisson_unfitted_add_to_cli
+     procedure, non_overridable             :: parse        => test_poisson_unfitted_parse 
+     procedure, non_overridable             :: free         => test_poisson_unfitted_free
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
@@ -86,35 +86,35 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dimensions
-  end type test_poisson_params_t  
+  end type test_poisson_unfitted_params_t  
 
   ! Types
-  public :: test_poisson_params_t
+  public :: test_poisson_unfitted_params_t
 
 contains
 
-  subroutine test_poisson_create(this)
+  subroutine test_poisson_unfitted_create(this)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(test_poisson_unfitted_params_t), intent(inout) :: this
     
     call this%free()
     
      ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'test_poisson',                                                     &
+    call this%cli%init(progname    = 'test_poisson_unfitted',                                                     &
          &        version     = '',                                                                 &
          &        authors     = '',                                                                 &
          &        license     = '',                                                                 &
-         &        description =  'FEMPAR test to solve the 2D Poisson PDE with known analytical solution. &
+         &        description =  'FEMPAR test to solve the 2D poisson_unfitted PDE with known analytical solution. &
                                   Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
-         &        examples    = ['test_poisson -h  ', 'test_poisson -h  ' ])
+         &        examples    = ['test_poisson_unfitted -h  ', 'test_poisson_unfitted -h  ' ])
     
     call this%set_default()
     call this%add_to_cli()
-  end subroutine test_poisson_create
+  end subroutine test_poisson_unfitted_create
   
-  subroutine test_poisson_set_default(this)
+  subroutine test_poisson_unfitted_set_default(this)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(test_poisson_unfitted_params_t), intent(inout) :: this
     ! IO parameters
     this%default_dir_path       = 'data/'
     this%default_prefix         = 'square'
@@ -134,12 +134,12 @@ contains
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
 
-  end subroutine test_poisson_set_default
+  end subroutine test_poisson_unfitted_set_default
   
   !==================================================================================================
-  subroutine test_poisson_add_to_cli(this)
+  subroutine test_poisson_unfitted_add_to_cli(this)
     implicit none
-    class(test_poisson_params_t) , intent(inout) :: this
+    class(test_poisson_unfitted_params_t) , intent(inout) :: this
 
     ! Locals
     integer(ip) :: error
@@ -155,7 +155,7 @@ contains
     call this%cli%add(switch='--dir-path-out',switch_ab='-o',help='Output Directory',&
          &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
     check(error==0)  
-    call this%cli%add(switch='--fe-formulation',switch_ab='-f',help='cG or dG FE formulation for Poisson problem',&
+    call this%cli%add(switch='--fe-formulation',switch_ab='-f',help='cG or dG FE formulation for poisson_unfitted problem',&
          &            required=.false.,act='store',def=trim(this%default_fe_formulation), choices='cG,dG', error=error)
     check(error==0)  
     call this%cli%add(switch='--reference-fe-geo-order',switch_ab='-gorder',help='Order of the triangulation reference fe',&
@@ -197,11 +197,11 @@ contains
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
     check(error==0) 
 
-  end subroutine test_poisson_add_to_cli
+  end subroutine test_poisson_unfitted_add_to_cli
   
-  subroutine test_poisson_parse(this,parameter_list)
+  subroutine test_poisson_unfitted_parse(this,parameter_list)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(test_poisson_unfitted_params_t), intent(inout) :: this
     type(ParameterList_t)       , intent(inout) :: parameter_list
     integer(ip) :: istat
     
@@ -243,11 +243,11 @@ contains
     end if
     check(istat==0)
     
-  end subroutine test_poisson_parse  
+  end subroutine test_poisson_unfitted_parse  
 
-  subroutine test_poisson_free(this)
+  subroutine test_poisson_unfitted_free(this)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(test_poisson_unfitted_params_t), intent(inout) :: this
     if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
     if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
     if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
@@ -256,12 +256,12 @@ contains
     if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
     call this%cli%free()
-  end subroutine test_poisson_free
+  end subroutine test_poisson_unfitted_free
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_dir_path
     get_dir_path = trim(this%dir_path)
   end function get_dir_path
@@ -269,7 +269,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_prefix
     get_prefix = trim(this%prefix)
   end function get_prefix
@@ -277,7 +277,7 @@ contains
   !==================================================================================================
   function get_dir_path_out(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_dir_path_out
     get_dir_path_out = trim(this%dir_path_out)
   end function get_dir_path_out
@@ -285,7 +285,7 @@ contains
   !==================================================================================================
   function get_fe_formulation(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_fe_formulation
     get_fe_formulation = trim(this%fe_formulation)
   end function get_fe_formulation
@@ -293,7 +293,7 @@ contains
   !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_geo_order
     get_reference_fe_geo_order = this%reference_fe_geo_order
   end function get_reference_fe_geo_order
@@ -301,7 +301,7 @@ contains
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_order
     get_reference_fe_order = this%reference_fe_order
   end function get_reference_fe_order
@@ -309,7 +309,7 @@ contains
   !==================================================================================================
   function get_write_solution(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     logical :: get_write_solution
     get_write_solution = this%write_solution
   end function get_write_solution
@@ -317,7 +317,7 @@ contains
   !==================================================================================================
   function get_laplacian_type(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_laplacian_type
     get_laplacian_type = trim(this%laplacian_type)
   end function get_laplacian_type 
@@ -325,7 +325,7 @@ contains
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_triangulation_type
     get_triangulation_type = trim(this%triangulation_type)
   end function get_triangulation_type 
@@ -333,9 +333,9 @@ contains
   !==================================================================================================
   function get_num_dimensions(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
     integer(ip) :: get_num_dimensions
     get_num_dimensions = this%num_dimensions
   end function get_num_dimensions
 
-end module test_poisson_params_names
+end module test_poisson_unfitted_params_names

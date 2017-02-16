@@ -27,12 +27,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !****************************************************************************************************
-program test_poisson
+program test_poisson_unfitted
   use fempar_names
-  use test_poisson_driver_names  
+  use test_poisson_unfitted_driver_names  
   implicit none
-  type(test_poisson_driver_t) :: test_driver
+  type(test_poisson_unfitted_driver_t) :: test_driver
   call fempar_init()
   call test_driver%run_simulation()
   call fempar_finalize()
-end program test_poisson
+end program test_poisson_unfitted

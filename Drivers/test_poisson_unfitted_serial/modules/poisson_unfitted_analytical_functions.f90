@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module poisson_analytical_functions_names
+module poisson_unfitted_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -57,19 +57,19 @@ module poisson_analytical_functions_names
      procedure :: get_gradient_space => solution_function_get_gradient_space
   end type solution_function_t
 
-  type poisson_analytical_functions_t
+  type poisson_unfitted_analytical_functions_t
      private
      type(source_term_t)       :: source_term
      type(boundary_function_t) :: boundary_function
      type(solution_function_t) :: solution_function
    contains
-     procedure :: set_num_dimensions      => poisson_analytical_functions_set_num_dimensions
-     procedure :: get_source_term         => poisson_analytical_functions_get_source_term
-     procedure :: get_boundary_function   => poisson_analytical_functions_get_boundary_function
-     procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
-  end type poisson_analytical_functions_t
+     procedure :: set_num_dimensions      => poisson_unfitted_analytical_functions_set_num_dimensions
+     procedure :: get_source_term         => poisson_unfitted_analytical_functions_get_source_term
+     procedure :: get_boundary_function   => poisson_unfitted_analytical_functions_get_boundary_function
+     procedure :: get_solution_function   => poisson_unfitted_analytical_functions_get_solution_function
+  end type poisson_unfitted_analytical_functions_t
 
-  public :: poisson_analytical_functions_t, base_scalar_function_t
+  public :: poisson_unfitted_analytical_functions_t, base_scalar_function_t
 
 contains  
 
@@ -137,38 +137,38 @@ contains
   end subroutine solution_function_get_gradient_space
   
   !===============================================================================================
-  subroutine poisson_analytical_functions_set_num_dimensions ( this, num_dimensions )
+  subroutine poisson_unfitted_analytical_functions_set_num_dimensions ( this, num_dimensions )
     implicit none
-    class(poisson_analytical_functions_t), intent(inout)    :: this
+    class(poisson_unfitted_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dimensions
     call this%source_term%set_num_dimensions(num_dimensions)
     call this%boundary_function%set_num_dimensions(num_dimensions)
     call this%solution_function%set_num_dimensions(num_dimensions)
-  end subroutine poisson_analytical_functions_set_num_dimensions 
+  end subroutine poisson_unfitted_analytical_functions_set_num_dimensions 
   
   !===============================================================================================
-  function poisson_analytical_functions_get_source_term ( this )
+  function poisson_unfitted_analytical_functions_get_source_term ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_source_term
-    poisson_analytical_functions_get_source_term => this%source_term
-  end function poisson_analytical_functions_get_source_term
+    class(poisson_unfitted_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: poisson_unfitted_analytical_functions_get_source_term
+    poisson_unfitted_analytical_functions_get_source_term => this%source_term
+  end function poisson_unfitted_analytical_functions_get_source_term
   
   !===============================================================================================
-  function poisson_analytical_functions_get_boundary_function ( this )
+  function poisson_unfitted_analytical_functions_get_boundary_function ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_boundary_function
-    poisson_analytical_functions_get_boundary_function => this%boundary_function
-  end function poisson_analytical_functions_get_boundary_function
+    class(poisson_unfitted_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: poisson_unfitted_analytical_functions_get_boundary_function
+    poisson_unfitted_analytical_functions_get_boundary_function => this%boundary_function
+  end function poisson_unfitted_analytical_functions_get_boundary_function
   
   !===============================================================================================
-  function poisson_analytical_functions_get_solution_function ( this )
+  function poisson_unfitted_analytical_functions_get_solution_function ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_solution_function
-    poisson_analytical_functions_get_solution_function => this%solution_function
-  end function poisson_analytical_functions_get_solution_function
+    class(poisson_unfitted_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: poisson_unfitted_analytical_functions_get_solution_function
+    poisson_unfitted_analytical_functions_get_solution_function => this%solution_function
+  end function poisson_unfitted_analytical_functions_get_solution_function
 
-end module poisson_analytical_functions_names
+end module poisson_unfitted_analytical_functions_names
 !***************************************************************************************************

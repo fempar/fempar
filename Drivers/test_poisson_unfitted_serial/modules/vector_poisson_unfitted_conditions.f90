@@ -25,44 +25,44 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module vector_poisson_conditions_names
+module vector_poisson_unfitted_conditions_names
   use fempar_names
-  use vector_poisson_analytical_functions_names
+  use vector_poisson_unfitted_analytical_functions_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(conditions_t) :: vector_poisson_conditions_t
+  type, extends(conditions_t) :: vector_poisson_unfitted_conditions_t
      private
      type(boundary_function_t), pointer :: boundary_function
    contains
-     procedure :: set_boundary_function       => vector_poisson_conditions_set_boundary_function
-     procedure :: get_number_components       => vector_poisson_conditions_get_number_components  
-     procedure :: get_components_code         => vector_poisson_conditions_get_components_code
-     procedure :: get_function                => vector_poisson_conditions_get_function
-  end type vector_poisson_conditions_t
+     procedure :: set_boundary_function       => vector_poisson_unfitted_conditions_set_boundary_function
+     procedure :: get_number_components       => vector_poisson_unfitted_conditions_get_number_components  
+     procedure :: get_components_code         => vector_poisson_unfitted_conditions_get_components_code
+     procedure :: get_function                => vector_poisson_unfitted_conditions_get_function
+  end type vector_poisson_unfitted_conditions_t
   
-  public :: vector_poisson_conditions_t
+  public :: vector_poisson_unfitted_conditions_t
   
 contains
   
-  subroutine vector_poisson_conditions_set_boundary_function (this, boundary_function)
+  subroutine vector_poisson_unfitted_conditions_set_boundary_function (this, boundary_function)
     implicit none
-    class(vector_poisson_conditions_t), intent(inout)      :: this
+    class(vector_poisson_unfitted_conditions_t), intent(inout)      :: this
     type(boundary_function_t)          , target, intent(in) :: boundary_function
     this%boundary_function => boundary_function
-  end subroutine vector_poisson_conditions_set_boundary_function
+  end subroutine vector_poisson_unfitted_conditions_set_boundary_function
 
-  function vector_poisson_conditions_get_number_components(this)
+  function vector_poisson_unfitted_conditions_get_number_components(this)
     implicit none
-    class(vector_poisson_conditions_t), intent(in) :: this
-    integer(ip) :: vector_poisson_conditions_get_number_components
-    vector_poisson_conditions_get_number_components = this%boundary_function%num_dimensions
-  end function vector_poisson_conditions_get_number_components
+    class(vector_poisson_unfitted_conditions_t), intent(in) :: this
+    integer(ip) :: vector_poisson_unfitted_conditions_get_number_components
+    vector_poisson_unfitted_conditions_get_number_components = this%boundary_function%num_dimensions
+  end function vector_poisson_unfitted_conditions_get_number_components
 
-  subroutine vector_poisson_conditions_get_components_code(this, boundary_id, components_code)
+  subroutine vector_poisson_unfitted_conditions_get_components_code(this, boundary_id, components_code)
     implicit none
-    class(vector_poisson_conditions_t), intent(in)  :: this
+    class(vector_poisson_unfitted_conditions_t), intent(in)  :: this
     integer(ip)                       , intent(in)  :: boundary_id
     logical                           , intent(out) :: components_code(:)
     assert ( size(components_code) == 2 .or. size(components_code) == 3 )
@@ -70,11 +70,11 @@ contains
     if ( boundary_id == 1 ) then
       components_code(1:size(components_code)) = .true.
     end if
-  end subroutine vector_poisson_conditions_get_components_code
+  end subroutine vector_poisson_unfitted_conditions_get_components_code
   
-  subroutine vector_poisson_conditions_get_function ( this, boundary_id, component_id, function )
+  subroutine vector_poisson_unfitted_conditions_get_function ( this, boundary_id, component_id, function )
     implicit none
-    class(vector_poisson_conditions_t), target     , intent(in)  :: this
+    class(vector_poisson_unfitted_conditions_t), target     , intent(in)  :: this
     integer(ip)                                    , intent(in)  :: boundary_id
     integer(ip)                                    , intent(in)  :: component_id
     class(scalar_function_t)          , pointer    , intent(out) :: function
@@ -83,6 +83,6 @@ contains
     if ( boundary_id == 1 ) then
       function => this%boundary_function
     end if  
-  end subroutine vector_poisson_conditions_get_function 
+  end subroutine vector_poisson_unfitted_conditions_get_function 
 
-end module vector_poisson_conditions_names
+end module vector_poisson_unfitted_conditions_names

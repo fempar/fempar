@@ -25,45 +25,45 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_dG_discrete_integration_names
+module poisson_unfitted_dG_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
-  use poisson_conditions_names
+  use poisson_unfitted_analytical_functions_names
+  use poisson_unfitted_conditions_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: poisson_dG_discrete_integration_t
-     type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
-     type(poisson_conditions_t)          , pointer :: poisson_conditions   => NULL()
+  type, extends(discrete_integration_t) :: poisson_unfitted_dG_discrete_integration_t
+     type(poisson_unfitted_analytical_functions_t), pointer :: analytical_functions => NULL()
+     type(poisson_unfitted_conditions_t)          , pointer :: poisson_unfitted_conditions   => NULL()
    contains
      procedure :: set_analytical_functions
-     procedure :: set_poisson_conditions
+     procedure :: set_poisson_unfitted_conditions
      procedure :: integrate
-  end type poisson_dG_discrete_integration_t
+  end type poisson_unfitted_dG_discrete_integration_t
   
-  public :: poisson_dG_discrete_integration_t
+  public :: poisson_unfitted_dG_discrete_integration_t
   
 contains
 
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
-     class(poisson_dG_discrete_integration_t)        , intent(inout) :: this
-     type(poisson_analytical_functions_t)    , target, intent(in)    :: analytical_functions
+     class(poisson_unfitted_dG_discrete_integration_t)        , intent(inout) :: this
+     type(poisson_unfitted_analytical_functions_t)    , target, intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
   
-  subroutine set_poisson_conditions ( this, poisson_conditions )
+  subroutine set_poisson_unfitted_conditions ( this, poisson_unfitted_conditions )
      implicit none
-     class(poisson_dG_discrete_integration_t)        , intent(inout) :: this
-     type(poisson_conditions_t)              , target, intent(in)    :: poisson_conditions
-     this%poisson_conditions => poisson_conditions
-  end subroutine set_poisson_conditions
+     class(poisson_unfitted_dG_discrete_integration_t)        , intent(inout) :: this
+     type(poisson_unfitted_conditions_t)              , target, intent(in)    :: poisson_unfitted_conditions
+     this%poisson_unfitted_conditions => poisson_unfitted_conditions
+  end subroutine set_poisson_unfitted_conditions
   
   
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
-    class(poisson_dG_discrete_integration_t), intent(in)    :: this
+    class(poisson_unfitted_dG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                , intent(inout) :: fe_space
     class(matrix_array_assembler_t)         , intent(inout) :: matrix_array_assembler
 
@@ -124,7 +124,7 @@ contains
     assert (associated(this%analytical_functions))
     
     source_term => this%analytical_functions%get_source_term()
-    call this%poisson_conditions%get_function(1,1,boundary_function)
+    call this%poisson_unfitted_conditions%get_function(1,1,boundary_function)
     
     call boundary_fe_function%create(fe_space)
     call boundary_fe_function%interpolate_function(fe_space,1,boundary_function)
@@ -366,4 +366,4 @@ contains
     call memfree ( facevec, __FILE__, __LINE__ )
   end subroutine integrate
   
-end module poisson_dG_discrete_integration_names
+end module poisson_unfitted_dG_discrete_integration_names

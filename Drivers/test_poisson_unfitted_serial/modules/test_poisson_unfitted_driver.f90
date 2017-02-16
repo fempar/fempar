@@ -25,28 +25,28 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_poisson_driver_names
+module test_poisson_unfitted_driver_names
   use fempar_names
-  use test_poisson_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_dG_discrete_integration_names
-  use poisson_conditions_names
-  use poisson_analytical_functions_names
+  use test_poisson_unfitted_params_names
+  use poisson_unfitted_cG_discrete_integration_names
+  use poisson_unfitted_dG_discrete_integration_names
+  use poisson_unfitted_conditions_names
+  use poisson_unfitted_analytical_functions_names
   
-  use vector_poisson_discrete_integration_names
-  use vector_poisson_conditions_names
-  use vector_poisson_analytical_functions_names
+  use vector_poisson_unfitted_discrete_integration_names
+  use vector_poisson_unfitted_conditions_names
+  use vector_poisson_unfitted_analytical_functions_names
   
 # include "debug.i90"
 
   implicit none
   private
 
-  type test_poisson_driver_t 
+  type test_poisson_unfitted_driver_t 
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(test_poisson_params_t)   :: test_params
+     type(test_poisson_unfitted_params_t)   :: test_params
      type(ParameterList_t)         :: parameter_list
      
      ! Cells and lower dimension objects container
@@ -55,14 +55,14 @@ module test_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
-     type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration
-     type(poisson_dG_discrete_integration_t)      :: poisson_dG_integration
-     type(poisson_conditions_t)                   :: poisson_conditions
-     type(poisson_analytical_functions_t)         :: poisson_analytical_functions
+     type(poisson_unfitted_cG_discrete_integration_t)      :: poisson_unfitted_cG_integration
+     type(poisson_unfitted_dG_discrete_integration_t)      :: poisson_unfitted_dG_integration
+     type(poisson_unfitted_conditions_t)                   :: poisson_unfitted_conditions
+     type(poisson_unfitted_analytical_functions_t)         :: poisson_unfitted_analytical_functions
      
-     type(vector_poisson_discrete_integration_t)  :: vector_poisson_integration
-     type(vector_poisson_analytical_functions_t)  :: vector_poisson_analytical_functions
-     type(vector_poisson_conditions_t)            :: vector_poisson_conditions
+     type(vector_poisson_unfitted_discrete_integration_t)  :: vector_poisson_unfitted_integration
+     type(vector_poisson_unfitted_analytical_functions_t)  :: vector_poisson_unfitted_analytical_functions
+     type(vector_poisson_unfitted_conditions_t)            :: vector_poisson_unfitted_conditions
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)                   :: fe_affine_operator
@@ -74,7 +74,7 @@ module test_poisson_driver_names
      type(iterative_linear_solver_t)           :: iterative_linear_solver
 #endif     
  
-     ! Poisson problem solution FE function
+     ! poisson_unfitted problem solution FE function
      type(fe_function_t)                       :: solution
    contains
      procedure                  :: run_simulation
@@ -90,23 +90,23 @@ module test_poisson_driver_names
      procedure        , private :: check_solution_vector
      procedure        , private :: write_solution
      procedure        , private :: free
-  end type test_poisson_driver_t
+  end type test_poisson_unfitted_driver_t
 
   ! Types
-  public :: test_poisson_driver_t
+  public :: test_poisson_unfitted_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(test_poisson_driver_t ), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t ), intent(inout) :: this
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
   
   subroutine setup_triangulation(this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
 
@@ -133,7 +133,7 @@ contains
   
   subroutine setup_reference_fes(this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     !
     !type(polytope_tree_t) :: poly, poly_old
     !integer(ip) :: topology
@@ -188,66 +188,66 @@ contains
 
   subroutine setup_fe_space(this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
-      call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-      call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
+      call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
       call this%fe_space%create( triangulation       = this%triangulation, &
-                                 conditions          = this%poisson_conditions, &
+                                 conditions          = this%poisson_unfitted_conditions, &
                                  reference_fes       = this%reference_fes)
     else
-      call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-      call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
+      call this%vector_poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%vector_poisson_unfitted_conditions%set_boundary_function(this%vector_poisson_unfitted_analytical_functions%get_boundary_function()) 
       call this%fe_space%create( triangulation       = this%triangulation, &
-                                 conditions          = this%vector_poisson_conditions, &
+                                 conditions          = this%vector_poisson_unfitted_conditions, &
                                  reference_fes       = this%reference_fes)
     end if
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()    
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
-      call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
+      call this%fe_space%interpolate_dirichlet_values(this%poisson_unfitted_conditions)
     else
-      call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_conditions)
+      call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_unfitted_conditions)
     end if
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then    
       if ( trim(this%test_params%get_fe_formulation()) == 'cG' ) then
-         call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
+         call this%poisson_unfitted_cG_integration%set_analytical_functions(this%poisson_unfitted_analytical_functions)
          call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                                diagonal_blocks_symmetric_storage = [ .true. ], &
                                                diagonal_blocks_symmetric         = [ .true. ], &
                                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                                fe_space                          = this%fe_space, &
-                                               discrete_integration              = this%poisson_cG_integration )
+                                               discrete_integration              = this%poisson_unfitted_cG_integration )
       else
-         call this%poisson_dG_integration%set_analytical_functions(this%poisson_analytical_functions)
-         call this%poisson_dG_integration%set_poisson_conditions(this%poisson_conditions)
+         call this%poisson_unfitted_dG_integration%set_analytical_functions(this%poisson_unfitted_analytical_functions)
+         call this%poisson_unfitted_dG_integration%set_poisson_unfitted_conditions(this%poisson_unfitted_conditions)
          call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                                diagonal_blocks_symmetric_storage = [ .true. ], &
                                                diagonal_blocks_symmetric         = [ .true. ], &
                                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                                fe_space                          = this%fe_space, &
-                                               discrete_integration              = this%poisson_dG_integration )
+                                               discrete_integration              = this%poisson_unfitted_dG_integration )
       end if
     else
-       call this%vector_poisson_integration%set_source_term(this%vector_poisson_analytical_functions%get_source_term())
+       call this%vector_poisson_unfitted_integration%set_source_term(this%vector_poisson_unfitted_analytical_functions%get_source_term())
        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                              diagonal_blocks_symmetric_storage = [ .true. ], &
                                              diagonal_blocks_symmetric         = [ .true. ], &
                                              diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                              fe_space                          = this%fe_space, &
-                                             discrete_integration              = this%vector_poisson_integration )
+                                             discrete_integration              = this%vector_poisson_unfitted_integration )
     end if
   end subroutine setup_system
   
   subroutine setup_solver (this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     integer :: FPLError
     type(parameterlist_t) :: parameter_list
     integer :: iparm(64)
@@ -288,7 +288,7 @@ contains
   
   subroutine assemble_system (this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
@@ -313,7 +313,7 @@ contains
   
   subroutine solve_system(this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
@@ -346,23 +346,23 @@ contains
     
   subroutine check_solution(this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
     
     call error_norm%create(this%fe_space,1)
-    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+    mean = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+    l1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    l2 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    lp = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    linfty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    h1_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    h1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    w1p_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
 
 #ifdef ENABLE_MKL    
     error_tolerance = 1.0e-08
@@ -386,23 +386,23 @@ contains
   
   subroutine check_solution_vector(this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     type(error_norms_vector_t) :: error_norm
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
     
     call error_norm%create(this%fe_space,1)
-    mean = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+    mean = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+    l1 = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    l2 = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    lp = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    linfty = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    h1_s = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    h1 = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    w1p_s = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm%compute(this%vector_poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
 
 #ifdef ENABLE_MKL    
     error_tolerance = 1.0e-08
@@ -427,7 +427,7 @@ contains
   
   subroutine write_solution(this)
     implicit none
-    class(test_poisson_driver_t), intent(in) :: this
+    class(test_poisson_unfitted_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
     character(len=:), allocatable            :: path
     character(len=:), allocatable            :: prefix
@@ -447,7 +447,7 @@ contains
   
   subroutine run_simulation(this) 
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this    
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this    
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_triangulation()
@@ -469,7 +469,7 @@ contains
   
   subroutine free(this)
     implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
     call this%solution%free()
@@ -493,4 +493,4 @@ contains
     call this%test_params%free()
   end subroutine free  
   
-end module test_poisson_driver_names
+end module test_poisson_unfitted_driver_names

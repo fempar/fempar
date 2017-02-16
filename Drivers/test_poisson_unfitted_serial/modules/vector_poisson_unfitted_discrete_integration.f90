@@ -25,37 +25,36 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_cG_discrete_integration_names
+module vector_poisson_unfitted_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: poisson_cG_discrete_integration_t
-     type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
+  type, extends(discrete_integration_t) :: vector_poisson_unfitted_discrete_integration_t
+     private
+     class(vector_function_t), pointer :: source_term
    contains
-     procedure :: set_analytical_functions
+     procedure :: set_source_term
      procedure :: integrate
-  end type poisson_cG_discrete_integration_t
+  end type vector_poisson_unfitted_discrete_integration_t
   
-  public :: poisson_cG_discrete_integration_t
+  public :: vector_poisson_unfitted_discrete_integration_t
   
 contains
    
-  subroutine set_analytical_functions ( this, analytical_functions )
-     implicit none
-     class(poisson_cG_discrete_integration_t)    , intent(inout) :: this
-     type(poisson_analytical_functions_t), target, intent(in)    :: analytical_functions
-     this%analytical_functions => analytical_functions
-  end subroutine set_analytical_functions
-
+  subroutine set_source_term (this, vector_function)
+    implicit none
+    class(vector_poisson_unfitted_discrete_integration_t)        , intent(inout) :: this
+    class(vector_function_t)                    , target, intent(in)    :: vector_function
+    this%source_term => vector_function
+  end subroutine set_source_term
 
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
-    class(poisson_cG_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
+    class(vector_poisson_unfitted_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)                    , intent(inout) :: fe_space
+    class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
     type(fe_iterator_t) :: fe_iterator
@@ -66,17 +65,19 @@ contains
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(volume_integrator_t), pointer :: vol_int
-    type(vector_field_t), allocatable  :: shape_gradients(:,:)
-    real(rp)            , allocatable  :: shape_values(:,:)
+    type(vector_field_t), allocatable  :: shape_values(:,:)
+    type(tensor_field_t), allocatable  :: shape_gradients(:,:)
 
+    
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs
-    real(rp)     :: factor
-    real(rp)     :: source_term_value
+    real(rp)     :: factor, source_term_value
+    
+    type(vector_field_t) :: source_term
 
     integer(ip)  :: number_fields
 
@@ -85,18 +86,14 @@ contains
 
     type(i1p_t), allocatable :: elem2dof(:)
     integer(ip), allocatable :: num_dofs_per_field(:)  
-    class(scalar_function_t), pointer :: source_term
 
-    assert (associated(this%analytical_functions))
-    
-    source_term => this%analytical_functions%get_source_term()
     
     number_fields = fe_space%get_number_fields()
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
-        
-    fe_iterator = fe_space%create_fe_iterator()
+    
+    fe_iterator = fe_space%create_fe_iterator()    
     call fe_iterator%current(fe)
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -107,6 +104,7 @@ contains
     num_quad_points = quad%get_number_quadrature_points()
     fe_map          => fe%get_fe_map()
     vol_int         => fe%get_volume_integrator(1)
+    
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
        call fe_iterator%current(fe)
@@ -116,42 +114,46 @@ contains
        
        ! Get DoF numbering within current FE
        call fe%get_elem2dof(elem2dof)
-       
-       ! Get quadrature coordinates to evaluate source_term
-       quad_coords => fe_map%get_quadrature_coordinates()
 
+       ! Get quadrature coordinates to evaluate boundary value
+       quad_coords => fe_map%get_quadrature_coordinates()
+       
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
        call vol_int%get_gradients(shape_gradients)
        call vol_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
+       
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          
+          ! Diffusive term
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
+                elmat(idof,jdof) = elmat(idof,jdof) + factor * double_contract(shape_gradients(jdof,qpoint),shape_gradients(idof,qpoint))
              end do
           end do
           
           ! Source term
-          call source_term%get_value(quad_coords(qpoint),source_term_value)
+          call this%source_term%get_value_space(quad_coords(qpoint),source_term)
           do idof = 1, num_dofs
-             elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint)
+             elvec(idof) = elvec(idof) + factor * source_term * shape_values(idof,qpoint)
           end do 
+          
        end do
        
-       ! Apply boundary conditions
+       ! Apply boundary conditions (IMPLEMENTATION PENDING)
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe_iterator%next()
     end do
-    call memfree(shape_values, __FILE__, __LINE__)
-    deallocate (shape_gradients, stat=istat); check(istat==0);
+    deallocate(shape_values, stat=istat); check(istat==0);
+    deallocate(shape_gradients, stat=istat); check(istat==0);
     deallocate (elem2dof, stat=istat); check(istat==0);
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate
   
-end module poisson_cG_discrete_integration_names
+end module vector_poisson_unfitted_discrete_integration_names

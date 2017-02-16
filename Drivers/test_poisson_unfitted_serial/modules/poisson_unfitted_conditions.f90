@@ -25,43 +25,43 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_conditions_names
+module poisson_unfitted_conditions_names
   use fempar_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(conditions_t) :: poisson_conditions_t
+  type, extends(conditions_t) :: poisson_unfitted_conditions_t
      private
      class(scalar_function_t), pointer :: boundary_function  
    contains
-     procedure :: set_boundary_function       => poisson_conditions_set_boundary_function
-     procedure :: get_number_components       => poisson_conditions_get_number_components  
-     procedure :: get_components_code         => poisson_conditions_get_components_code
-     procedure :: get_function                => poisson_conditions_get_function
-  end type poisson_conditions_t
+     procedure :: set_boundary_function       => poisson_unfitted_conditions_set_boundary_function
+     procedure :: get_number_components       => poisson_unfitted_conditions_get_number_components  
+     procedure :: get_components_code         => poisson_unfitted_conditions_get_components_code
+     procedure :: get_function                => poisson_unfitted_conditions_get_function
+  end type poisson_unfitted_conditions_t
   
-  public :: poisson_conditions_t
+  public :: poisson_unfitted_conditions_t
   
 contains
 
-  subroutine poisson_conditions_set_boundary_function (this, boundary_function)
+  subroutine poisson_unfitted_conditions_set_boundary_function (this, boundary_function)
     implicit none
-    class(poisson_conditions_t)        , intent(inout) :: this
+    class(poisson_unfitted_conditions_t)        , intent(inout) :: this
     class(scalar_function_t)   , target, intent(in)    :: boundary_function
     this%boundary_function => boundary_function
-  end subroutine poisson_conditions_set_boundary_function
+  end subroutine poisson_unfitted_conditions_set_boundary_function
 
-  function poisson_conditions_get_number_components(this)
+  function poisson_unfitted_conditions_get_number_components(this)
     implicit none
-    class(poisson_conditions_t), intent(in) :: this
-    integer(ip) :: poisson_conditions_get_number_components
-    poisson_conditions_get_number_components = 1
-  end function poisson_conditions_get_number_components
+    class(poisson_unfitted_conditions_t), intent(in) :: this
+    integer(ip) :: poisson_unfitted_conditions_get_number_components
+    poisson_unfitted_conditions_get_number_components = 1
+  end function poisson_unfitted_conditions_get_number_components
 
-  subroutine poisson_conditions_get_components_code(this, boundary_id, components_code)
+  subroutine poisson_unfitted_conditions_get_components_code(this, boundary_id, components_code)
     implicit none
-    class(poisson_conditions_t), intent(in)  :: this
+    class(poisson_unfitted_conditions_t), intent(in)  :: this
     integer(ip)            , intent(in)  :: boundary_id
     logical                , intent(out) :: components_code(:)
     assert ( size(components_code) == 1 )
@@ -69,11 +69,11 @@ contains
     if ( boundary_id == 1 ) then
       components_code(1) = .true.
     end if
-  end subroutine poisson_conditions_get_components_code
+  end subroutine poisson_unfitted_conditions_get_components_code
   
-  subroutine poisson_conditions_get_function ( this, boundary_id, component_id, function )
+  subroutine poisson_unfitted_conditions_get_function ( this, boundary_id, component_id, function )
     implicit none
-    class(poisson_conditions_t), target, intent(in)  :: this
+    class(poisson_unfitted_conditions_t), target, intent(in)  :: this
     integer(ip)                        , intent(in)  :: boundary_id
     integer(ip)                        , intent(in)  :: component_id
     class(scalar_function_t), pointer  , intent(out) :: function
@@ -83,6 +83,6 @@ contains
     if ( boundary_id == 1 ) then
       function => this%boundary_function
     end if  
-  end subroutine poisson_conditions_get_function 
+  end subroutine poisson_unfitted_conditions_get_function 
 
-end module poisson_conditions_names
+end module poisson_unfitted_conditions_names
