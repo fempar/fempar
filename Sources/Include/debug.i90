@@ -35,8 +35,15 @@
       write(0,'(a,a,a,i10)') "Assertion failed in file ", __FILE__,", at line number", __LINE__  ; \
       call runend ; \
    endif 
+#define massert(test,message) \
+   if (.not.(test)) then ; \
+      write(0,'(a,a,a,i10)') "Assertion failed in file ", __FILE__,", at line number", __LINE__  ; \
+      write(0,'(a,a)') "Cause: ", message; \
+      call runend ; \
+   endif    
 #else
 #define assert(test) 
+#define massert(test,message)
 #endif
 !
 ! Tests to be performed always (basic error control).
@@ -45,6 +52,12 @@
       write(0,'(a,a,a,i10)') "Check failed in file ", __FILE__,", at line number", __LINE__  ; \
       call runend ; \
    endif 
+#define mcheck(test,message) \
+   if (.not.(test)) then ; \
+      write(0,'(a,a,a,i10)') "Check failed in file ", __FILE__,", at line number", __LINE__  ; \
+      write(0,'(a,a)') "Cause: ", message; \
+      call runend ; \
+   endif     
 !
 ! Output debug information using a macro?
 !#ifdef VERBOSE0

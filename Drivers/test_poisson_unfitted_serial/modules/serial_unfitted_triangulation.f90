@@ -29,11 +29,10 @@
 module serial_unfitted_triangulation_names
   use fempar_names
   use level_set_functions_gallery_names
-
+  
   implicit none
 # include "debug.i90"
   private
-
 
   ! Include the look-up tables 
 # include "mc_tables_qua4.i90"

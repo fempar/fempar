@@ -118,13 +118,17 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   type(unfitted_cell_iterator_t)            :: cell_iter
   type(unfitted_cell_accessor_t)            :: cell
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(quadrature_t), pointer :: nodal_quadrature
   integer(ip) :: nbcn, icn
+  integer(ip), parameter :: x=1, y=2
+  integer(ip) :: first_edge, last_edge, current_edge
   type(point_t), allocatable :: Xc(:)
 
   integer(ip) :: num_cut_edges, max_num_cut_edges_per_cell, this_num_cut_edges
   integer(ip) :: num_lhcells
   integer(ip) :: i_lhcell, co, i_point, i_ptr
   type(point_t), allocatable :: points_tmp(:)
+  type(list_iterator_t) :: nodes_n_face_iterator
 
   ! To be safe
   call this%mc_runtime_info_free()
@@ -141,16 +145,35 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
       write (*,*) "Node coordinates (physical space)"
       ! This can be moved outside the poop if all elements are of the same type
       reference_fe_geo => cell%get_reference_fe_geo()
+      nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
       nbcn = reference_fe_geo%get_number_shape_functions()
       allocate ( Xc(nbcn) )
       call cell%get_coordinates(Xc)
       do icn = 1,nbcn
-        write (*,*) Xc(icn)%get(1), Xc(icn)%get(2)
+        write (*,*) Xc(icn)%get(x), Xc(icn)%get(y)
       end do
-            
-      deallocate (Xc)
-      
       write(*,*) " "
+      call nodal_quadrature%get_coordinates_as_points(Xc);
+      write (*,*) "Node coordinates (reference space)"
+      do icn = 1,nbcn
+        write (*,*) Xc(icn)%get(x), Xc(icn)%get(y)
+      end do
+      deallocate (Xc)
+      write(*,*) " "
+      
+      first_edge = reference_fe_geo%get_number_n_faces_of_dimension(0) + 1
+      last_edge  = first_edge + reference_fe_geo%get_number_n_faces_of_dimension(1) - 1
+      
+      write(*,*) "first_edge=", first_edge, " last_edge=", last_edge
+      
+      do current_edge = first_edge, last_edge 
+      write (*,*) "current_edge = ", current_edge
+        nodes_n_face_iterator = reference_fe_geo%create_nodes_n_face_iterator(current_edge)
+        do while (.not. nodes_n_face_iterator%is_upper_bound())
+           write(*,*) "edge=",  current_edge - first_edge, " node=", nodes_n_face_iterator%get_current()        
+        call nodes_n_face_iterator%next()
+        end do      
+      end do
       
     call cell_iter%next()
 

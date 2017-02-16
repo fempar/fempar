@@ -464,7 +464,9 @@ module reference_fe_names
      procedure :: get_number_shape_functions => reference_fe_get_number_shape_functions
      procedure :: get_n_face_dimension  => reference_fe_get_n_face_dimension
      procedure :: get_vertices_n_face  =>   reference_fe_get_vertices_n_face
+     procedure :: create_vertices_n_face_iterator => reference_fe_create_vertices_n_face_iterator
      procedure :: get_nodes_n_face   =>   reference_fe_get_nodes_n_face
+     procedure :: create_nodes_n_face_iterator => reference_fe_create_nodes_n_face_iterator
      procedure :: get_n_faces_n_face   =>   reference_fe_get_n_faces_n_face
      procedure :: get_number_vertices_n_face => reference_fe_get_number_vertices_n_face
 
