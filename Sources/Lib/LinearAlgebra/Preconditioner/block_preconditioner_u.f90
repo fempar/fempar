@@ -44,7 +44,7 @@ use iso_c_binding
 
   ! Pointer to operator
   type p_abs_operator_t
-     type(dynamic_state_operator_t), pointer :: p_op => null()
+     type(lvalue_operator_t), pointer :: p_op => null()
   end type p_abs_operator_t
 
 
@@ -60,6 +60,7 @@ use iso_c_binding
      procedure  :: free               => block_preconditioner_u_free
      procedure  :: get_block          => block_preconditioner_u_get_block
      procedure  :: apply              => block_preconditioner_u_apply
+     procedure  :: apply_add          => block_preconditioner_u_apply_add
      procedure  :: is_linear          => block_preconditioner_u_is_linear
    end type block_preconditioner_u_t
 
@@ -74,48 +75,81 @@ contains
 
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
-  subroutine block_preconditioner_u_apply (op,x,y)
+  subroutine block_preconditioner_u_apply (this,x,y)
     implicit none
-    class(block_preconditioner_u_t)     , intent(in)   :: op
+    class(block_preconditioner_u_t)     , intent(in)   :: this
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
 
     ! Locals
     integer(ip) :: iblk, jblk
-    class(vector_t), allocatable :: aux1, aux2
+    class(vector_t), allocatable :: aux
 
-    call op%abort_if_not_in_domain(x)
-    call op%abort_if_not_in_range(y)
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
     call x%GuardTemp()
     select type(x)
     class is (block_vector_t)
        select type(y)
-       class is(block_vector_t)
-          allocate(aux1, mold=x%blocks(1)%vector); call aux1%default_initialization()
-          allocate(aux2, mold=x%blocks(1)%vector); call aux2%default_initialization()
-          do iblk=op%nblocks, 1, -1
-             call aux1%clone(x%blocks(iblk)%vector)
-             call aux1%copy(x%blocks(iblk)%vector)
-             call aux2%clone(x%blocks(iblk)%vector)
-             do jblk=op%nblocks, iblk+1,-1
-                if (associated(op%blocks(iblk,jblk)%p_op)) then
-                   call op%blocks(iblk,jblk)%p_op%apply(y%blocks(jblk)%vector,aux2)
-                   call aux1%axpby(-1.0,aux2,1.0)
+       class is(block_vector_t)          
+          allocate(aux, mold=x%blocks(1)%vector); call aux%default_initialization()
+          do iblk=this%nblocks, 1, -1
+             call aux%clone(x%blocks(iblk)%vector)
+             call aux%scal(-1.0_rp,x%blocks(iblk)%vector)
+             do jblk=this%nblocks, iblk+1,-1
+                if (associated(this%blocks(iblk,jblk)%p_op)) then
+                   call this%blocks(iblk,jblk)%p_op%apply_add(y%blocks(jblk)%vector,aux)
                 end if
              end do
-             call op%blocks(iblk,iblk)%p_op%apply(aux1,y%blocks(iblk)%vector)
-             call aux1%free()
-             call aux2%free()
+             call aux%scal(-1.0_rp,aux)
+             call this%blocks(iblk,iblk)%p_op%apply(aux,y%blocks(iblk)%vector)
           end do
-          deallocate(aux1, aux2)
+          deallocate(aux)
        end select
     end select
     call x%CleanTemp()
   end subroutine block_preconditioner_u_apply
   
-  function block_preconditioner_u_is_linear(op)
+  ! op%apply_add(x,y) <=> y <- op*x + y
+  ! Implicitly assumes that y is already allocated
+  subroutine block_preconditioner_u_apply_add (this,x,y)
     implicit none
-    class(block_preconditioner_u_t), intent(in) :: op
+    class(block_preconditioner_u_t)     , intent(in)   :: this
+    class(vector_t)      , intent(in)    :: x
+    class(vector_t)      , intent(inout) :: y
+
+    ! Locals
+    integer(ip) :: iblk, jblk
+    class(vector_t), allocatable :: aux
+
+    call this%abort_if_not_in_domain(x)
+    call this%abort_if_not_in_range(y)
+    call x%GuardTemp()
+    select type(x)
+    class is (block_vector_t)
+       select type(y)
+       class is(block_vector_t)
+          allocate(aux, mold=x%blocks(1)%vector); call aux%default_initialization()
+          do iblk=this%nblocks, 1, -1
+             call aux%clone(x%blocks(iblk)%vector)
+             call aux%scal(-1.0_rp,x%blocks(iblk)%vector)
+             do jblk=this%nblocks, iblk+1,-1
+                if (associated(this%blocks(iblk,jblk)%p_op)) then
+                   call this%blocks(iblk,jblk)%p_op%apply_add(y%blocks(jblk)%vector,aux)
+                end if
+             end do
+             call aux%scal(-1.0_rp,aux)
+             call this%blocks(iblk,iblk)%p_op%apply_add(aux,y%blocks(iblk)%vector)
+          end do
+          deallocate(aux)
+       end select
+    end select
+    call x%CleanTemp()
+  end subroutine block_preconditioner_u_apply_add
+  
+  function block_preconditioner_u_is_linear(this)
+    implicit none
+    class(block_preconditioner_u_t), intent(in) :: this
     logical :: block_preconditioner_u_is_linear
     block_preconditioner_u_is_linear = .false.
   end function block_preconditioner_u_is_linear

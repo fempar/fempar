@@ -89,7 +89,7 @@ subroutine face_fe_function_scalar_update ( this, face_accessor, fe_function )
         nodal_values                => this%get_nodal_values(icell_around)
         call this%cell_fe_function(icell_around)%move_alloc_values_out(quadrature_points_values) 
         call this%cell_fe_function(icell_around)%move_alloc_gradients_out(quadrature_points_gradients) 
-
+        
         ! Gather DoFs of current cell + field_id on nodal_values 
         call fe_function%gather_nodal_values(fe, field_id, nodal_values)
 

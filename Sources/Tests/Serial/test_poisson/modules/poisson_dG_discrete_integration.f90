@@ -78,7 +78,10 @@ contains
     type(quadrature_t)       , pointer     :: quad
     type(point_t)            , pointer     :: quad_coords(:)
     type(volume_integrator_t), pointer     :: vol_int
-    type(vector_field_t)                   :: grad_test, grad_trial
+    type(vector_field_t)     , allocatable, target :: shape_gradients_first(:,:), shape_gradients_second(:,:)
+    type(vector_field_t)     , pointer     :: shape_gradients_ineigh(:,:),shape_gradients_jneigh(:,:)
+    real(rp)                 , allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
+    real(rp)                 , pointer     :: shape_values_ineigh(:,:),shape_values_jneigh(:,:)
     type(i1p_t)              , allocatable :: elem2dof(:)
     
     ! Face integration-related data types
@@ -100,7 +103,9 @@ contains
     real(rp) :: C_IP        ! Interior Penalty constant
     
     class(scalar_function_t), pointer :: source_term, boundary_function
-    real(rp) :: source_term_value, boundary_value  
+    type(fe_function_t)               :: boundary_fe_function
+    type(face_fe_function_scalar_t)   :: boundary_face_fe_function
+    real(rp) :: source_term_value, boundary_value, boundary_fe_function_value
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
@@ -120,6 +125,10 @@ contains
     
     source_term => this%analytical_functions%get_source_term()
     call this%poisson_conditions%get_function(1,1,boundary_function)
+    
+    call boundary_fe_function%create(fe_space)
+    call boundary_fe_function%interpolate_function(fe_space,1,boundary_function)
+    call boundary_face_fe_function%create(fe_space,1)
 
     number_fields = fe_space%get_number_fields()
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
@@ -161,22 +170,21 @@ contains
          ! Compute element matrix and vector
          elmat = 0.0_rp
          elvec = 0.0_rp
+         call vol_int%get_gradients(shape_gradients_first)
+         call vol_int%get_values(shape_values_first)
          do qpoint = 1, num_quad_points
             factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do idof = 1, num_dofs
-               call vol_int%get_gradient(idof, qpoint, grad_trial)
                do jdof = 1, num_dofs
-                  call vol_int%get_gradient(jdof, qpoint, grad_test)
                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                  elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial
+                  elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients_first(jdof,qpoint) * shape_gradients_first(idof,qpoint)
                end do
             end do
             
             ! Source term
             call source_term%get_value(quad_coords(qpoint),source_term_value)
             do idof = 1, num_dofs
-               call vol_int%get_value(idof, qpoint, shape_trial)
-               elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial
+               elvec(idof) = elvec(idof) + factor * source_term_value * shape_values_first(idof,qpoint)
             end do  
          end do        
          
@@ -213,27 +221,49 @@ contains
          facemat = 0.0_rp
          facevec = 0.0_rp
          call fe_face%update_integration()    
+         
+         call face_int%get_values(1,shape_values_first)
+         call face_int%get_values(2,shape_values_second)
+         call face_int%get_gradients(1,shape_gradients_first)
+         call face_int%get_gradients(2,shape_gradients_second)
          do qpoint = 1, num_quad_points
             call face_map%get_normals(qpoint,normals)
             h_length = face_map%compute_characteristic_length(qpoint)
             factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do ineigh = 1, fe_face%get_num_cells_around()
-               do idof = 1, num_dofs
-                  call face_int%get_value(idof,qpoint,ineigh,shape_trial)
-                  call face_int%get_gradient(idof,qpoint,ineigh,grad_trial)
-                  do jneigh = 1, fe_face%get_num_cells_around()
+               if (ineigh==1) then
+                 shape_values_ineigh    => shape_values_first
+                 shape_gradients_ineigh => shape_gradients_first
+               else if (ineigh==2) then
+                 shape_values_ineigh    => shape_values_second
+                 shape_gradients_ineigh => shape_gradients_second
+               end if
+               
+               do jneigh = 1, fe_face%get_num_cells_around()
+
+                 if (jneigh==1) then
+                   shape_values_jneigh    => shape_values_first
+                   shape_gradients_jneigh => shape_gradients_first
+                 else if (jneigh==2) then
+                   shape_values_jneigh    => shape_values_second
+                   shape_gradients_jneigh => shape_gradients_second
+                 end if
+ 
+                 do idof = 1, num_dofs
+                  !call face_int%get_value(idof,qpoint,ineigh,shape_trial)
+                  !call face_int%get_gradient(idof,qpoint,ineigh,grad_trial)
                      do jdof = 1, num_dofs
-                        call face_int%get_value(jdof,qpoint,jneigh,shape_test)
-                        call face_int%get_gradient(jdof,qpoint,jneigh,grad_test)
+                        !call face_int%get_value(jdof,qpoint,jneigh,shape_test)
+                        !call face_int%get_gradient(jdof,qpoint,jneigh,grad_test)
                         !- mu*({{grad u}}[[v]] + (1-xi)*[[u]]{{grad v}} ) + C*mu*p^2/h * [[u]] [[v]]
                         facemat(idof,jdof,ineigh,jneigh) = facemat(idof,jdof,ineigh,jneigh) +     &
                              &  factor * viscosity *   &
-                             &  (-0.5_rp*grad_test*normals(ineigh)*shape_trial - &
-                             &   0.5_rp*grad_trial*normals(jneigh)*shape_test  + &
-                             &   c_IP / h_length * shape_test*shape_trial *        &
+                             &  (-0.5_rp*shape_gradients_jneigh(jdof,qpoint)*normals(ineigh)*shape_values_ineigh(idof,qpoint) - &
+                             &   0.5_rp*shape_gradients_ineigh(idof,qpoint)*normals(jneigh)*shape_values_jneigh(jdof,qpoint)   + &
+                             &   c_IP / h_length * shape_values_jneigh(jdof,qpoint)*shape_values_ineigh(idof,qpoint) *        &
                              &   normals(ineigh)*normals(jneigh))
                      end do
-                  end do
+                 end do
                end do
             end do
          end do
@@ -269,7 +299,7 @@ contains
     num_quad_points = quad%get_number_quadrature_points()
     face_map        => fe_face%get_face_map()
     face_int        => fe_face%get_face_integrator(1)
-    
+   
     do while ( .not. fe_face_iterator%has_finished() )
        call fe_face_iterator%current(fe_face)
        
@@ -277,28 +307,33 @@ contains
          facemat = 0.0_rp
          facevec = 0.0_rp
          assert( fe_face%get_set_id() == 1 )
-         call fe_face%update_integration() 
+         call fe_face%update_integration()
+         call boundary_face_fe_function%update(fe_face,boundary_fe_function)
          quad_coords => face_map%get_quadrature_coordinates()
+         call face_int%get_values(1,shape_values_first)
+         call face_int%get_gradients(1,shape_gradients_first)
          do qpoint = 1, num_quad_points
             call face_map%get_normals(qpoint,normals)
             h_length = face_map%compute_characteristic_length(qpoint)
             factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
+            call boundary_face_fe_function%get_value(qpoint,1,boundary_fe_function_value)
+            boundary_value = 2*boundary_value - boundary_fe_function_value
             do idof = 1, num_dofs_per_field(1)
-              call face_int%get_value(idof,qpoint,1,shape_trial)
-              call face_int%get_gradient(idof,qpoint,1,grad_trial)   
+              !call face_int%get_value(idof,qpoint,1,shape_trial)
+              !call face_int%get_gradient(idof,qpoint,1,grad_trial)   
               do jdof = 1, num_dofs_per_field(1)
-                 call face_int%get_value(jdof,qpoint,1,shape_test)
-                 call face_int%get_gradient(jdof,qpoint,1,grad_test)
+                 !call face_int%get_value(jdof,qpoint,1,shape_test)
+                 !call face_int%get_gradient(jdof,qpoint,1,grad_test)
                  facemat(idof,jdof,1,1) = facemat(idof,jdof,1,1) + &
                                      &  factor * viscosity *   &
-                                     (-grad_test*normals(1)*shape_trial - &
-                                      grad_trial*normals(1)*shape_test  + &
-                                      c_IP / h_length * shape_test*shape_trial)     
+                                     (-shape_gradients_first(jdof,qpoint)*normals(1)*shape_values_first(idof,qpoint) - &
+                                      shape_gradients_first(idof,qpoint)*normals(1)*shape_values_first(jdof,qpoint)  + &
+                                      c_IP / h_length * shape_values_first(idof,qpoint)*shape_values_first(jdof,qpoint))
               end do
               facevec(idof,1) = facevec(idof,1) + factor * viscosity * &
-                                      (-boundary_value * grad_trial * normals(1) + &
-                                      c_IP/h_length * boundary_value * shape_trial ) 
+                                      (-boundary_value * shape_gradients_first(idof,qpoint) * normals(1) + &
+                                      c_IP/h_length * boundary_value * shape_values_first(idof,qpoint) ) 
             end do   
          end do
          call fe_face%get_elem2dof(1, test_elem2dof)
@@ -315,8 +350,12 @@ contains
        call fe_face_iterator%next()
     end do
     
-    
-
+    call boundary_fe_function%free()
+    call boundary_face_fe_function%free()
+    call memfree(shape_values_first, __FILE__, __LINE__) 
+    call memfree(shape_values_second, __FILE__, __LINE__) 
+    deallocate(shape_gradients_first, stat=istat); check(istat==0);
+    deallocate(shape_gradients_second, stat=istat); check(istat==0);
     deallocate (elem2dof, stat=istat); check(istat==0);
     deallocate( trial_elem2dof, stat=istat); check(istat==0);
     deallocate( test_elem2dof, stat=istat); check(istat==0);

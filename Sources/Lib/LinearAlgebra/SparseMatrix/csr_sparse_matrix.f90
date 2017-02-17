@@ -100,6 +100,7 @@ private
         procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                                => csr_sparse_matrix_free_val
         procedure         :: apply_body                              => csr_sparse_matrix_apply_body
+        procedure         :: apply_add_body                          => csr_sparse_matrix_apply_add_body
         procedure         :: apply_transpose_body                    => csr_sparse_matrix_apply_transpose_body
         procedure         :: apply_to_dense_matrix_body              => csr_sparse_matrix_apply_to_dense_matrix_body
         procedure         :: apply_transpose_to_dense_matrix_body    => csr_sparse_matrix_apply_transpose_to_dense_matrix_body
@@ -618,11 +619,11 @@ contains
     end subroutine matvec_symmetric_storage
 
 
-    subroutine csr_sparse_matrix_apply_body(op,x,y) 
+    subroutine csr_sparse_matrix_apply_body(this,x,y) 
     !-----------------------------------------------------------------
     !< Apply matrix vector product y=op*x
     !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t), intent(in)    :: op
+        class(csr_sparse_matrix_t), intent(in)    :: this
         class(vector_t),            intent(in)    :: x
         class(vector_t) ,           intent(inout) :: y 
     !-----------------------------------------------------------------
@@ -637,26 +638,26 @@ contains
                         x_entries => x%get_entries()
                         y_entries => y%get_entries()
                         y_entries = 0.0_rp
-                        if (op%get_symmetric_storage()) then
-                            call matvec_symmetric_storage(            &
-                                        num_rows = op%get_num_rows(), &
-                                        num_cols = op%get_num_cols(), &
-                                        irp      = op%irp,            &
-                                        ja       = op%ja,             &
-                                        val      = op%val,            &
-                                        alpha    = 1.0_rp,            &
-                                        x        = x_entries,         &
-                                        beta     = 0.0_rp,            &
+                        if (this%get_symmetric_storage()) then
+                            call matvec_symmetric_storage(              &
+                                        num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(), &
+                                        irp      = this%irp,            &
+                                        ja       = this%ja,             &
+                                        val      = this%val,            &
+                                        alpha    = 1.0_rp,              &
+                                        x        = x_entries,           &
+                                        beta     = 0.0_rp,              &
                                         y        = y_entries )
                         else
-                            call matvec(num_rows = op%get_num_rows(), &
-                                        num_cols = op%get_num_cols(), &
-                                        irp      = op%irp,            &
-                                        ja       = op%ja,             &
-                                        val      = op%val,            &
-                                        alpha    = 1.0_rp,            &
-                                        x        = x_entries,         &
-                                        beta     = 0.0_rp,            &
+                            call matvec(num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(), &
+                                        irp      = this%irp,            &
+                                        ja       = this%ja,             &
+                                        val      = this%val,            &
+                                        alpha    = 1.0_rp,              &
+                                        x        = x_entries,           &
+                                        beta     = 0.0_rp,              &
                                         y        = y_entries )
                     end if
                 end select
@@ -665,13 +666,61 @@ contains
         end select
         call x%CleanTemp()
     end subroutine csr_sparse_matrix_apply_body
+    
+    
+    subroutine csr_sparse_matrix_apply_add_body(this,x,y) 
+    !-----------------------------------------------------------------
+    !< Apply matrix vector product y=op*x+y
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(in)    :: this
+        class(vector_t),            intent(in)    :: x
+        class(vector_t) ,           intent(inout) :: y 
+    !-----------------------------------------------------------------
+        real(rp), pointer :: x_entries(:)
+        real(rp), pointer :: y_entries(:)
+        
+        call x%GuardTemp()
+        select type(x)
+            class is (serial_scalar_array_t)
+                select type(y)
+                    class is(serial_scalar_array_t)
+                        x_entries => x%get_entries()
+                        y_entries => y%get_entries()
+                        if (this%get_symmetric_storage()) then
+                            call matvec_symmetric_storage(              &
+                                        num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(), &
+                                        irp      = this%irp,            &
+                                        ja       = this%ja,             &
+                                        val      = this%val,            &
+                                        alpha    = 1.0_rp,              &
+                                        x        = x_entries,           &
+                                        beta     = 1.0_rp,              &
+                                        y        = y_entries )
+                        else
+                            call matvec(num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(), &
+                                        irp      = this%irp,            &
+                                        ja       = this%ja,             &
+                                        val      = this%val,            &
+                                        alpha    = 1.0_rp,              &
+                                        x        = x_entries,           &
+                                        beta     = 1.0_rp,              &
+                                        y        = y_entries )
+                    end if
+                end select
+            class DEFAULT
+                check(.false.)
+        end select
+        call x%CleanTemp()
+    end subroutine csr_sparse_matrix_apply_add_body
 
 
-    subroutine csr_sparse_matrix_apply_transpose_body(op,x,y) 
+    subroutine csr_sparse_matrix_apply_transpose_body(this,x,y) 
     !-----------------------------------------------------------------
     !< Apply transpose matrix vector product y=op'*x
     !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t), intent(in)    :: op
+        class(csr_sparse_matrix_t), intent(in)    :: this
         class(vector_t),            intent(in)    :: x
         class(vector_t) ,           intent(inout) :: y 
     !-----------------------------------------------------------------
@@ -686,26 +735,26 @@ contains
                         x_entries => x%get_entries()
                         y_entries => y%get_entries()
                         y_entries = 0.0_rp
-                        if (op%get_symmetric_storage()) then
-                            call matvec_symmetric_storage(            &
-                                        num_rows = op%get_num_rows(), &
-                                        num_cols = op%get_num_cols(), &
-                                        irp      = op%irp,            &
-                                        ja       = op%ja,             &
-                                        val      = op%val,            &
-                                        alpha    = 1.0_rp,            &
-                                        x        = x_entries,         &
-                                        beta     = 0.0_rp,            &
+                        if (this%get_symmetric_storage()) then
+                            call matvec_symmetric_storage(              &
+                                        num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(), &
+                                        irp      = this%irp,            &
+                                        ja       = this%ja,             &
+                                        val      = this%val,            &
+                                        alpha    = 1.0_rp,              &
+                                        x        = x_entries,           &
+                                        beta     = 0.0_rp,              &
                                         y        = y_entries )
                         else
-                            call transpose_matvec(num_rows = op%get_num_rows(), &
-                                        num_cols = op%get_num_cols(),           &
-                                        irp      = op%irp,                      &
-                                        ja       = op%ja,                       &
-                                        val      = op%val,                      &
-                                        alpha    = 1.0_rp,                      &
-                                        x        = x_entries,                   &
-                                        beta     = 0.0_rp,                      &
+                            call transpose_matvec(num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(),           &
+                                        irp      = this%irp,                      &
+                                        ja       = this%ja,                       &
+                                        val      = this%val,                      &
+                                        alpha    = 1.0_rp,                        &
+                                        x        = x_entries,                     &
+                                        beta     = 0.0_rp,                        &
                                         y        = y_entries )
                     end if
                 end select
@@ -716,11 +765,11 @@ contains
     end subroutine csr_sparse_matrix_apply_transpose_body
 
 
-    subroutine csr_sparse_matrix_apply_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine csr_sparse_matrix_apply_to_dense_matrix_body(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply matrix matrix product y = alpha*op*b + beta*c
     !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t),  intent(in)    :: op              ! Sparse matrix
+        class(csr_sparse_matrix_t),  intent(in)    :: this              ! Sparse matrix
         integer(ip),                 intent(in)    :: n               ! Number of columns of B and C dense arrays
         real(rp),                    intent(in)    :: alpha           ! Scalar alpha
         integer(ip),                 intent(in)    :: LDB             ! Leading dimensions of B matrix
@@ -731,75 +780,75 @@ contains
         integer(ip)                                :: i               ! Index to loop on B columns
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        if (op%get_symmetric_storage()) then
-            call mkl_dcsrmm(transa    = 'N',               & ! Non transposed
-                            m         = op%get_num_rows(), &
-                            n         = n,                 &
-                            k         = op%get_num_cols(), &
-                            alpha     = alpha,             &
-                            matdescra = 'SUNF',            & ! (Symmetric, Upper, Non-unit, Fortran)
-                            val       = op%val,            &
-                            indx      = op%ja,             &
-                            pntrb     = op%irp(1),         &
-                            pntre     = op%irp(2),         &
-                            b         = b,                 &
-                            ldb       = LDB,               &
-                            beta      = beta,              &
-                            c         = c,                 &
+        if (this%get_symmetric_storage()) then
+            call mkl_dcsrmm(transa    = 'N',                 & ! Non transposed
+                            m         = this%get_num_rows(), &
+                            n         = n,                   &
+                            k         = this%get_num_cols(), &
+                            alpha     = alpha,               &
+                            matdescra = 'SUNF',              & ! (Symmetric, Upper, Non-unit, Fortran)
+                            val       = this%val,            &
+                            indx      = this%ja,             &
+                            pntrb     = this%irp(1),         &
+                            pntre     = this%irp(2),         &
+                            b         = b,                   &
+                            ldb       = LDB,                 &
+                            beta      = beta,                &
+                            c         = c,                   &
                             ldc       = LDC )
         else
-            call mkl_dcsrmm(transa    = 'N',               & ! Non transposed
-                            m         = op%get_num_rows(), &
-                            n         = n,                 &
-                            k         = op%get_num_cols(), &
-                            alpha     = alpha,             &
-                            matdescra = 'GXXF',            & ! General, X, X, Fortran)
-                            val       = op%val,            &
-                            indx      = op%ja,             &
-                            pntrb     = op%irp(1),         &
-                            pntre     = op%irp(2),         &
-                            b         = b,                 &
-                            ldb       = LDB,               &
-                            beta      = beta,              &
-                            c         = c,                 &
+            call mkl_dcsrmm(transa    = 'N',                 & ! Non transposed
+                            m         = this%get_num_rows(), &
+                            n         = n,                   &
+                            k         = this%get_num_cols(), &
+                            alpha     = alpha,               &
+                            matdescra = 'GXXF',              & ! General, X, X, Fortran)
+                            val       = this%val,            &
+                            indx      = this%ja,             &
+                            pntrb     = this%irp(1),         &
+                            pntre     = this%irp(2),         &
+                            b         = b,                   &
+                            ldb       = LDB,                 &
+                            beta      = beta,                &
+                            c         = c,                   &
                             ldc       = LDC )
         endif
 #else
-        if (op%get_symmetric_storage()) then
+        if (this%get_symmetric_storage()) then
             do i=1,n
-                call matvec_symmetric_storage(                   &
-                            num_rows = op%get_num_rows(),        &
-                            num_cols = op%get_num_rows(),        &
-                            irp      = op%irp,                   &
-                            ja       = op%ja,                    &
-                            val      = op%val,                   &
-                            alpha    = alpha,                    &
-                            x        = b(1:op%get_num_rows(),i), &
-                            beta     = beta,                     &
-                            y        = c(1:op%get_num_rows(),i) )
+                call matvec_symmetric_storage(                     &
+                            num_rows = this%get_num_rows(),        &
+                            num_cols = this%get_num_rows(),        &
+                            irp      = this%irp,                   &
+                            ja       = this%ja,                    &
+                            val      = this%val,                   &
+                            alpha    = alpha,                      &
+                            x        = b(1:this%get_num_rows(),i), &
+                            beta     = beta,                       &
+                            y        = c(1:this%get_num_rows(),i) )
             end do
         else
             do i=1,n
-                call matvec(num_rows = op%get_num_rows(),        &
-                            num_cols = op%get_num_cols(),        &
-                            irp      = op%irp,                   &
-                            ja       = op%ja,                    &
-                            val      = op%val,                   &
-                            alpha    = alpha,                    &
-                            x        = b(1:op%get_num_cols(),i), &
-                            beta     = beta,                     &
-                            y        = c(1:op%get_num_rows(),i) )
+                call matvec(num_rows = this%get_num_rows(),        &
+                            num_cols = this%get_num_cols(),        &
+                            irp      = this%irp,                   &
+                            ja       = this%ja,                    &
+                            val      = this%val,                   &
+                            alpha    = alpha,                      &
+                            x        = b(1:this%get_num_cols(),i), &
+                            beta     = beta,                       &
+                            y        = c(1:this%get_num_rows(),i) )
             enddo
         endif
 #endif
     end subroutine csr_sparse_matrix_apply_to_dense_matrix_body
 
 
-    subroutine csr_sparse_matrix_apply_transpose_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
+    subroutine csr_sparse_matrix_apply_transpose_to_dense_matrix_body(this, n, alpha, LDB, b, beta, LDC, c) 
     !-----------------------------------------------------------------
     !< Apply matrix matrix product y = alpha*op*b + beta*c
     !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t),  intent(in)    :: op              ! Sparse matrix
+        class(csr_sparse_matrix_t),  intent(in)    :: this              ! Sparse matrix
         integer(ip),                 intent(in)    :: n               ! Number of columns of B and C dense arrays
         real(rp),                    intent(in)    :: alpha           ! Scalar alpha
         integer(ip),                 intent(in)    :: LDB             ! Leading dimensions of B matrix
@@ -810,65 +859,65 @@ contains
         integer(ip)                                :: i               ! Index to loop on B columns
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        if (op%get_symmetric_storage()) then
-            call mkl_dcsrmm(transa    = 'T',               & ! Transposed
-                            m         = op%get_num_rows(), &
-                            n         = n,                 &
-                            k         = op%get_num_cols(), &
-                            alpha     = alpha,             &
-                            matdescra = 'SUNF',            & ! (Symmetric, Upper, Non-unit, Fortran)
-                            val       = op%val,            &
-                            indx      = op%ja,             &
-                            pntrb     = op%irp(1),         &
-                            pntre     = op%irp(2),         &
-                            b         = b,                 &
-                            ldb       = LDB,               &
-                            beta      = beta,              &
-                            c         = c,                 &
+        if (this%get_symmetric_storage()) then
+            call mkl_dcsrmm(transa    = 'T',                 & ! Transposed
+                            m         = this%get_num_rows(), &
+                            n         = n,                   &
+                            k         = this%get_num_cols(), &
+                            alpha     = alpha,               &
+                            matdescra = 'SUNF',              & ! (Symmetric, Upper, Non-unit, Fortran)
+                            val       = this%val,            &
+                            indx      = this%ja,             &
+                            pntrb     = this%irp(1),         &
+                            pntre     = this%irp(2),         &
+                            b         = b,                   &
+                            ldb       = LDB,                 &
+                            beta      = beta,                &
+                            c         = c,                   &
                             ldc       = LDC )
         else
-            call mkl_dcsrmm(transa    = 'T',               & ! Transposed
-                            m         = op%get_num_rows(), &
-                            n         = n,                 &
-                            k         = op%get_num_cols(), &
-                            alpha     = alpha,             &
-                            matdescra = 'GXXF',            & ! General, X, X, Fortran)
-                            val       = op%val,            &
-                            indx      = op%ja,             &
-                            pntrb     = op%irp(1),         &
-                            pntre     = op%irp(2),         &
-                            b         = b,                 &
-                            ldb       = LDB,               &
-                            beta      = beta,              &
-                            c         = c,                 &
+            call mkl_dcsrmm(transa    = 'T',                 & ! Transposed
+                            m         = this%get_num_rows(), &
+                            n         = n,                   &
+                            k         = this%get_num_cols(), &
+                            alpha     = alpha,               &
+                            matdescra = 'GXXF',              & ! General, X, X, Fortran)
+                            val       = this%val,            &
+                            indx      = this%ja,             &
+                            pntrb     = this%irp(1),         &
+                            pntre     = this%irp(2),         &
+                            b         = b,                   &
+                            ldb       = LDB,                 &
+                            beta      = beta,                &
+                            c         = c,                   &
                             ldc       = LDC )
         endif
 #else
-        if (op%get_symmetric_storage()) then
+        if (this%get_symmetric_storage()) then
             do i=1,n
-                call matvec_symmetric_storage(                   &
-                            num_rows = op%get_num_rows(),        &
-                            num_cols = op%get_num_rows(),        &
-                            irp      = op%irp,                   &
-                            ja       = op%ja,                    &
-                            val      = op%val,                   &
-                            alpha    = alpha,                    &
-                            x        = b(1:op%get_num_rows(),i), &
-                            beta     = beta,                     &
-                            y        = c(1:op%get_num_rows(),i) )
+                call matvec_symmetric_storage(                     &
+                            num_rows = this%get_num_rows(),        &
+                            num_cols = this%get_num_rows(),        &
+                            irp      = this%irp,                   &
+                            ja       = this%ja,                    &
+                            val      = this%val,                   &
+                            alpha    = alpha,                      &
+                            x        = b(1:this%get_num_rows(),i), &
+                            beta     = beta,                       &
+                            y        = c(1:this%get_num_rows(),i) )
             end do
         else
             do i=1,n
-                call transpose_matvec(                           &
-                            num_rows = op%get_num_rows(),        &
-                            num_cols = op%get_num_cols(),        &
-                            irp      = op%irp,                   &
-                            ja       = op%ja,                    &
-                            val      = op%val,                   &
-                            alpha    = alpha,                    &
-                            x        = b(i,1:n), &
-                            beta     = beta,                     &
-                            y        = c(1:op%get_num_cols(),i) )
+                call transpose_matvec(                             &
+                            num_rows = this%get_num_rows(),        &
+                            num_cols = this%get_num_cols(),        &
+                            irp      = this%irp,                   &
+                            ja       = this%ja,                    &
+                            val      = this%val,                   &
+                            alpha    = alpha,                      &
+                            x        = b(i,1:n),                   &
+                            beta     = beta,                       &
+                            y        = c(1:this%get_num_cols(),i) )
             enddo
         endif
 #endif

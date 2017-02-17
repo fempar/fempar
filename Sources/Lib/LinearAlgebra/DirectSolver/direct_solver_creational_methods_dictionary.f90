@@ -51,6 +51,7 @@ private
     end type
 
     type(direct_solver_creational_methods_dictionary_t), save :: The_direct_solver_creational_methods_dictionary
+   !$OMP THREADPRIVATE(The_direct_solver_creational_methods_dictionary)
 
 public :: The_direct_solver_creational_methods_dictionary
 

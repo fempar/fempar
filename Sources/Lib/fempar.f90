@@ -38,8 +38,8 @@ module fempar_names
  	use mpi_context_names
   use flap, only : command_line_interface
   use FPL
-  use parameter_generator_names
-  use par_timer_names
+  use timer_names
+  use parameter_handler_names
   use output_handler_names
   use output_handler_parameters_names
   use vtk_parameters_names
@@ -67,6 +67,7 @@ module fempar_names
   use vector_names
   use matrix_names
   use array_names
+  use block_sparse_matrix_names
   use block_preconditioner_l_names
   use block_preconditioner_u_names
   use block_preconditioner_lu_names

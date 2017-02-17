@@ -171,7 +171,6 @@ subroutine lagrangian_reference_fe_create_edge_local_interpolation (this, quadra
                                          this%order_vector(1), &
                                          this%field_type, &
                                          this%continuity )
-
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_edge_local_interpolation
@@ -185,28 +184,8 @@ subroutine lagrangian_reference_fe_update_interpolation( this, fe_map,          
   type(fe_map_t)                  , intent(in)    :: fe_map
   type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
   type(interpolation_t)           , intent(inout) :: interpolation_real_cell
-
   call this%apply_femap_to_interpolation(fe_map,interpolation_reference_cell,interpolation_real_cell)
-
 end subroutine lagrangian_reference_fe_update_interpolation
-
-!==================================================================================================
-subroutine lagrangian_reference_fe_update_interpolation_face( this, local_face_id,     &
-     & fe_map_face_restriction, &
-     & interpolation_face_restriction )
-  implicit none 
-  class(lagrangian_reference_fe_t)      , intent(in)    :: this 
-  integer(ip)                           , intent(in)    :: local_face_id
-  type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
-  type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
-
-  interpolation_face_restriction%active_face_id = local_face_id
-
-  call this%update_interpolation(fe_map_face_restriction%fe_map(local_face_id),                   &
-       &                         interpolation_face_restriction%interpolation(local_face_id),     &
-       &                         interpolation_face_restriction%interpolation_o_map(local_face_id))
-
-end subroutine lagrangian_reference_fe_update_interpolation_face
 
 !==================================================================================================
 function lagrangian_reference_fe_get_component_node( this, node )
@@ -266,6 +245,84 @@ subroutine lagrangian_reference_fe_get_value_vector( this, actual_cell_interpola
 end subroutine lagrangian_reference_fe_get_value_vector
 
 !==================================================================================================
+subroutine lagrangian_reference_fe_get_values_scalar( this, actual_cell_interpolation, values, qpoints_perm )
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  real(rp), allocatable           , intent(inout) :: values(:,:)
+  integer(ip)          , optional   , intent(in)  :: qpoints_perm(:)
+  integer(ip) :: ishape, qpoint, actual_qpoint
+  logical     :: reallocate
+  assert( this%field_type == field_type_scalar )
+  
+  reallocate = .false.
+  if (allocated(values)) reallocate = (size(values,1) < this%number_shape_functions) .or. &
+                                      (size(values,2) < actual_cell_interpolation%number_quadrature_points)                                          
+  if ((.not. allocated(values)) .or. reallocate) then
+     if (allocated(values)) then 
+        call memfree(values, __FILE__,__LINE__); 
+     end if
+     call memalloc(this%number_shape_functions, &
+                   actual_cell_interpolation%number_quadrature_points, &
+                   values, __FILE__,__LINE__);
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions
+        values(ishape,qpoint) = actual_cell_interpolation%shape_functions(1,ishape,actual_qpoint)
+     end do
+  end do
+end subroutine lagrangian_reference_fe_get_values_scalar
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_get_values_vector( this, actual_cell_interpolation, values, qpoints_perm )
+  implicit none
+  class(lagrangian_reference_fe_t) , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  type(vector_field_t), allocatable, intent(inout) :: values(:,:)
+  integer(ip)          , optional   , intent(in)   :: qpoints_perm(:)
+  
+  integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
+  logical     :: reallocate
+  assert( this%field_type == field_type_vector )
+  
+  reallocate = .false.
+  if (allocated(values)) reallocate = (size(values,1) < this%number_shape_functions) .or. &
+                                      (size(values,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if ((.not. allocated(values)) .or. reallocate) then
+     if (allocated(values)) then 
+        deallocate(values, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(values(this%number_shape_functions, &
+              actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);      
+  else
+     do qpoint=1, actual_cell_interpolation%number_quadrature_points
+        do ishape=1, this%number_shape_functions
+           call values(ishape,qpoint)%init(0.0_rp)
+        end do
+     end do
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions
+        call values(ishape,qpoint)%set(this%node_component_array(ishape,2), &
+                                        actual_cell_interpolation%shape_functions(1,this%node_component_array(ishape,1),actual_qpoint))
+     end do
+  end do
+end subroutine lagrangian_reference_fe_get_values_vector
+
+!==================================================================================================
 subroutine lagrangian_reference_fe_get_gradient_scalar( this, actual_cell_interpolation, & 
      & ishape, qpoint, vector_field )
   implicit none
@@ -305,6 +362,97 @@ subroutine lagrangian_reference_fe_get_gradient_vector( this, actual_cell_interp
 end subroutine lagrangian_reference_fe_get_gradient_vector
 
 !==================================================================================================
+subroutine lagrangian_reference_fe_get_gradients_scalar( this, actual_cell_interpolation, gradients, qpoints_perm )
+  implicit none
+  class(lagrangian_reference_fe_t)             , intent(in)    :: this 
+  type(interpolation_t)                        , intent(in)    :: actual_cell_interpolation
+  type(vector_field_t)            , allocatable, intent(inout) :: gradients(:,:)
+  integer(ip)          , optional              , intent(in)    :: qpoints_perm(:)
+
+  integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
+  logical     :: reallocate
+  assert( this%field_type == field_type_scalar )
+  
+  reallocate = .false.
+  if (allocated(gradients)) reallocate = (size(gradients,1) < this%number_shape_functions) .or. &
+                                         (size(gradients,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if ((.not. allocated(gradients)) .or. reallocate) then
+     if (allocated(gradients)) then 
+        deallocate(gradients, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(gradients(this%number_shape_functions, &
+                        actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);      
+  else
+     do qpoint=1, actual_cell_interpolation%number_quadrature_points
+        do ishape=1, this%number_shape_functions
+           call gradients(ishape,qpoint)%init(0.0_rp)
+        end do
+     end do
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions
+        do idime=1,this%number_dimensions
+           call gradients(ishape,qpoint)%set(idime,actual_cell_interpolation%shape_derivatives(1,idime,ishape,actual_qpoint))
+        end do
+     end do
+  end do
+end subroutine lagrangian_reference_fe_get_gradients_scalar
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_get_gradients_vector( this, actual_cell_interpolation, gradients, qpoints_perm )
+  implicit none
+  class(lagrangian_reference_fe_t)             , intent(in)    :: this 
+  type(interpolation_t)                        , intent(in)    :: actual_cell_interpolation 
+  type(tensor_field_t)            , allocatable, intent(inout) :: gradients(:,:)
+  integer(ip)          , optional              , intent(in)    :: qpoints_perm(:)
+  integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
+  logical     :: reallocate
+  assert( this%field_type == field_type_vector )
+  
+  reallocate = .false.
+  if (allocated(gradients)) reallocate = (size(gradients,1) < this%number_shape_functions) .or. &
+                                          (size(gradients,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if ((.not. allocated(gradients)) .or. reallocate) then
+     if (allocated(gradients)) then 
+        deallocate(gradients, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(gradients(this%number_shape_functions, &
+                        actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);      
+  else
+     do qpoint=1, actual_cell_interpolation%number_quadrature_points
+        do ishape=1, this%number_shape_functions
+           call gradients(ishape,qpoint)%init(0.0_rp)
+        end do
+     end do
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions
+        do idime=1,this%number_dimensions
+           call gradients(ishape,qpoint)%set(idime, &
+                                             this%node_component_array(ishape,2), &
+                                             actual_cell_interpolation%shape_derivatives(1,idime,this%node_component_array(ishape,1),actual_qpoint))
+        end do
+     end do
+  end do
+end subroutine lagrangian_reference_fe_get_gradients_vector
+
+!==================================================================================================
 subroutine lagrangian_reference_fe_get_divergence_vector( this, actual_cell_interpolation, & 
      & ishape, qpoint, scalar_field )
   implicit none
@@ -313,10 +461,6 @@ subroutine lagrangian_reference_fe_get_divergence_vector( this, actual_cell_inte
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
   real(rp)                        , intent(inout) :: scalar_field
-
-  ! Locals 
-  integer(ip) :: idime
-
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
   assert( qpoint >= 1 )
@@ -325,6 +469,44 @@ subroutine lagrangian_reference_fe_get_divergence_vector( this, actual_cell_inte
        & this%node_component_array(ishape,1), &
        & qpoint)  
 end subroutine lagrangian_reference_fe_get_divergence_vector
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_get_divergences_vector( this, actual_cell_interpolation, divergences, qpoints_perm )
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  real(rp), allocatable           , intent(inout) :: divergences(:,:)
+  integer(ip)        , optional   , intent(in)    :: qpoints_perm(:)
+
+  integer(ip) :: ishape, qpoint, actual_qpoint
+  logical     :: reallocate
+  assert( this%field_type == field_type_vector )
+  
+  reallocate = .false.
+  if (allocated(divergences)) reallocate = (size(divergences,1) < this%number_shape_functions) .or. &
+                                           (size(divergences,2) < actual_cell_interpolation%number_quadrature_points)
+                                          
+  if ((.not. allocated(divergences)) .or. reallocate) then
+     if (allocated(divergences)) then 
+        call memfree(divergences, __FILE__,__LINE__); 
+     end if
+     call memalloc(this%number_shape_functions, &
+                   actual_cell_interpolation%number_quadrature_points, &
+                   divergences, __FILE__,__LINE__);
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions
+        divergences(ishape,qpoint) = actual_cell_interpolation%shape_derivatives(1,this%node_component_array(ishape,2), &
+                                                                                 this%node_component_array(ishape,1), &
+                                                                                 actual_qpoint)  
+     end do
+  end do
+end subroutine lagrangian_reference_fe_get_divergences_vector
 
 ! =================================================================================================
 subroutine lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolation, ishape, qpoint, vector_field )
@@ -335,25 +517,20 @@ subroutine lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolat
   integer(ip)                        , intent(in)     :: qpoint
   type(vector_field_t)               , intent(inout)  :: vector_field
   integer(ip)   :: icomp, ishape_scalar 
-  
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
   assert( qpoint >= 1 )  
 
  ishape_scalar = this%node_component_array(ishape,1) 
- icomp         = this%node_component_array(ishape,2) 
-
-  call vector_field%init(0.0_rp)
+ icomp         = this%node_component_array(ishape,2)
+ call vector_field%init(0.0_rp)
  if (this%number_dimensions == 2) then 
-
     if  (icomp == 1) then  ! [0,0,- d_y u_x]
        call vector_field%set(3, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,2,ishape_scalar,qpoint))
     elseif (icomp == 2) then  ! [0,0,d_x u_y] 
        call vector_field%set(3, actual_cell_interpolation%shape_derivatives(1,1,ishape_scalar,qpoint))
     end if
-
- elseif (this%number_dimensions == 3) then  
-
+ elseif (this%number_dimensions == 3) then
     if   (icomp == 1) then ! [0, d_z u_x, - d_y u_x]
        call vector_field%set(2, actual_cell_interpolation%shape_derivatives(1,3,ishape_scalar,qpoint))
        call vector_field%set(3, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,2,ishape_scalar,qpoint))
@@ -366,10 +543,69 @@ subroutine lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolat
        call vector_field%set(1, actual_cell_interpolation%shape_derivatives(1,2,ishape_scalar,qpoint))
        call vector_field%set(2, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,1,ishape_scalar,qpoint))
     end if
-
- end if
- 
+ end if 
 end subroutine lagrangian_reference_fe_get_curl_vector
+
+subroutine lagrangian_reference_fe_get_curls_vector(this, actual_cell_interpolation, curls, qpoints_perm)
+  implicit none
+  class(lagrangian_reference_fe_t)   , intent(in)     :: this 
+  type(interpolation_t)              , intent(in)     :: actual_cell_interpolation 
+  type(vector_field_t), allocatable  , intent(inout)  :: curls(:,:)
+  integer(ip)           , optional   , intent(in)     :: qpoints_perm(:)
+
+  integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
+  logical     :: reallocate
+  integer(ip)   :: icomp, ishape_scalar 
+  assert( this%field_type == field_type_vector )
+  reallocate = .false.
+  if (allocated(curls)) reallocate = (size(curls,1) < this%number_shape_functions) .or. &
+                                      (size(curls,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if ((.not. allocated(curls)) .or. reallocate) then
+     if (allocated(curls)) then 
+        deallocate(curls, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(curls(this%number_shape_functions, &
+                    actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);      
+  else
+     do qpoint=1, actual_cell_interpolation%number_quadrature_points
+        do ishape=1, this%number_shape_functions
+           call curls(ishape,qpoint)%init(0.0_rp)
+        end do
+     end do
+  end if
+  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%number_shape_functions
+        ishape_scalar = this%node_component_array(ishape,1) 
+        icomp         = this%node_component_array(ishape,2)
+        if (this%number_dimensions == 2) then 
+           if  (icomp == 1) then  ! [0,0,- d_y u_x]
+              call curls(ishape,qpoint)%set(3, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,2,ishape_scalar,actual_qpoint))
+           elseif (icomp == 2) then  ! [0,0,d_x u_y] 
+              call curls(ishape,qpoint)%set(3, actual_cell_interpolation%shape_derivatives(1,1,ishape_scalar,actual_qpoint))
+           end if
+        elseif (this%number_dimensions == 3) then
+           if   (icomp == 1) then ! [0, d_z u_x, - d_y u_x]
+              call curls(ishape,qpoint)%set(2, actual_cell_interpolation%shape_derivatives(1,3,ishape_scalar,actual_qpoint))
+              call curls(ishape,qpoint)%set(3, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,2,ishape_scalar,actual_qpoint))
+           elseif (icomp == 2) then ! [-d_z u_y, 0, d_x u_y]
+              call curls(ishape,qpoint)%set(1, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,3,ishape_scalar,actual_qpoint))
+              call curls(ishape,qpoint)%set(3, actual_cell_interpolation%shape_derivatives(1,1,ishape_scalar,actual_qpoint))
+           elseif (icomp == 3) then ! [d_y u_z, -d_x u_z, 0]
+              call curls(ishape,qpoint)%set(1, actual_cell_interpolation%shape_derivatives(1,2,ishape_scalar,actual_qpoint))
+              call curls(ishape,qpoint)%set(2, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,1,ishape_scalar,actual_qpoint))
+           end if
+        end if
+     end do
+  end do
+end subroutine lagrangian_reference_fe_get_curls_vector
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_create_nodal_quadrature (this)

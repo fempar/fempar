@@ -664,7 +664,7 @@ contains
      do i=nparts, 1, -1  
         rename=name
         call numbered_filename_compose(i,nparts,rename)
-        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
+        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
         call mesh_write_file(lmesh(i),lunio)
         call io_close(lunio)
      end do
@@ -697,7 +697,7 @@ contains
         name=prefix
         call numbered_filename_compose(i,nparts,name)
         call mesh_compose_post_name (name, rename)
-        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
+        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
         call mesh_write_post_file(lmesh(i),lunio)
         call io_close(lunio)
      end do
@@ -767,7 +767,7 @@ contains
      do i=nparts, 1, -1  
         rename=name
         call numbered_filename_compose(i,nparts,rename)
-        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'read' )
+        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'read' ); check(lunio>0)
         call lmesh(i)%read(lunio)
         call io_close(lunio)
      end do
@@ -790,7 +790,7 @@ contains
 
      ! Read mesh
      call mesh_compose_name ( prefix, name )
-     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' ); check(lunio>0)
      call f_mesh%read(lunio)  !, permute_c2z
      call io_close(lunio)
 
@@ -815,7 +815,7 @@ contains
      call check_and_get_path_and_prefix_from_parameterlist(parameter_list, dir_path, prefix)
 
      call mesh_compose_post_name ( prefix, name )
-     lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' )
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' ); check(lunio>0)
      call mesh_write_post_file(f_mesh,lunio)
      call io_close(lunio)
 

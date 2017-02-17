@@ -254,6 +254,8 @@ contains
         class(vtk_output_handler_t), intent(inout) :: this
         integer(ip)                                :: number_nodes
         integer(ip)                                :: number_cells
+        type(output_handler_fe_field_t), pointer   :: field
+        integer(ip)                                :: i
     !-----------------------------------------------------------------
         number_nodes = this%get_number_nodes()
         number_cells = this%get_number_cells()
@@ -288,6 +290,13 @@ contains
         else
             call memalloc(  number_nodes, this%Connectivities, __FILE__, __LINE__)
         endif
+        do i=1, this%get_number_fields()
+            field => this%get_fe_field(i)
+            call this%FieldValues(i)%create(field%get_number_components(), this%get_number_nodes())
+        end do
+        do i=1, this%get_number_cell_vectors()
+            call this%CellValues(i)%create(1, this%get_number_cells())
+        enddo
     end subroutine vtk_output_handler_allocate_cell_and_nodal_arrays
 
 
@@ -323,17 +332,15 @@ contains
         endif
 
         do i=1, number_fields
-            number_components = subcell_accessor%get_number_field_components(i)
-            if(.not. this%FieldValues(i)%value_is_allocated()) call this%FieldValues(i)%allocate_value(number_components, this%get_number_nodes())
+            number_components = this%FieldValues(i)%get_number_components()
             FieldValue => this%FieldValues(i)%get_value()
-            call subcell_accessor%get_field(i, number_components, FieldValue(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
+            call subcell_accessor%get_field(i, FieldValue(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
         enddo
 
         this%node_offset = this%node_offset + number_vertices
         this%cell_offset = this%cell_offset + 1
 
         do i=1, number_cell_vectors
-            if(.not. this%CellValues(i)%value_is_allocated()) call this%CellValues(i)%allocate_value(1, this%get_number_cells())
             CellValue => this%CellValues(i)%get_value()
             call subcell_accessor%get_cell_vector(i, CellValue(this%cell_offset:this%cell_offset))
         enddo
@@ -359,7 +366,9 @@ contains
         assert(associated(fe_space))
         environment => fe_space%get_environment()
         assert(associated(environment))
-        call environment%info(me, np)
+        !call environment%info(me, np)
+        me = environment%get_l1_rank()
+        np = environment%get_l1_size()
 
         if( environment%am_i_l1_task()) then
 

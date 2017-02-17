@@ -76,7 +76,7 @@ contains
     implicit none
     class(lfom_t), intent(inout) :: this
     type(vector_space_t), pointer :: range
-    type(dynamic_state_operator_t), pointer :: A, M
+    type(lvalue_operator_t), pointer :: A, M
     class(environment_t), pointer :: environment
     A => this%get_A()
     range  => A%get_range_vector_space()

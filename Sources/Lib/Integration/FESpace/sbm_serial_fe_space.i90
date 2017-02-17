@@ -1043,7 +1043,8 @@ subroutine serial_fe_space_allocate_and_fill_field_blocks_and_coupling ( this, f
   this%blocks_coupling = .false.
   do jfield=1,this%number_fields
      do ifield=1,this%number_fields
-        this%blocks_coupling(this%field_blocks(ifield), this%field_blocks(jfield)) =  this%field_coupling(ifield,jfield)
+        this%blocks_coupling(this%field_blocks(ifield), this%field_blocks(jfield)) = & 
+          this%blocks_coupling(this%field_blocks(ifield), this%field_blocks(jfield)) .or. this%field_coupling(ifield,jfield)
      end do
   end do
 end subroutine serial_fe_space_allocate_and_fill_field_blocks_and_coupling

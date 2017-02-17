@@ -139,6 +139,7 @@ module mlbddc_names
 
     ! Apply related TBPs
     procedure                           :: apply                                           => base_mlbddc_apply
+    procedure                           :: apply_add                                       => base_mlbddc_apply_add
     procedure, non_overridable, private :: apply_par_scalar_array                          => base_mlbddc_apply_par_scalar_array
     procedure, non_overridable, private :: solve_coarse_problem                            => base_mlbddc_solve_coarse_problem
     procedure, non_overridable, private :: compute_coarse_correction                       => base_mlbddc_compute_coarse_correction
@@ -189,6 +190,7 @@ module mlbddc_names
 end type base_mlbddc_t
  
  type, extends(base_mlbddc_t) :: mlbddc_t
+   !<graph: false
    private
    ! Pointer to parameter_list_t to be re-directed to TBPs of type(coarse_fe_handler_t)
    ! This pointer is set-up during mlbddc_t%create() and re-used in the rest of stages.

@@ -123,7 +123,7 @@ contains
     integer(ip)       :: istat 
 
     istat = 0
-    call this%triangulation%create(this%test_params%get_parameters())
+    call this%triangulation%create(this%test_params%get_values())
 
     ! Assign subset_id to different cells for the created structured mesh 
     allocate(cells_set(this%triangulation%get_num_cells() ), stat=istat); check(istat==0)
