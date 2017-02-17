@@ -80,11 +80,12 @@ for icase = 1:mc_ncases
     mc_inout_subcells_per_case(icase,1:N) = mc_inout_subcells_per_case_aux{icase};
 end
 
+mc_max_num_cut_edges = max(mc_num_cut_edges_per_case);
 
 
 elem_type = 'HEX8';
 file_name = '../mc_tables_hex8.i90';
-write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_num_sub_cells_per_case, mc_subcells_per_case, mc_inout_subcells_per_case, mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type);
+write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_max_num_cut_edges, mc_num_sub_cells_per_case, mc_subcells_per_case, mc_inout_subcells_per_case, mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type);
 
 disp('Table for HEX8 done!')
 

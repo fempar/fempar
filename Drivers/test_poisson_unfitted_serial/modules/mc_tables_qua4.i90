@@ -1,44 +1,74 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe        
+!                                                                                 
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)      
+!                                                                                 
+! FEMPAR is free software: you can redistribute it and/or modify                  
+! it under the terms of the GNU General Public License as published by            
+! the Free Software Foundation, either version 3 of the License, or               
+! (at your option) any later version.                                             
+!                                                                                 
+! FEMPAR is distributed in the hope that it will be useful,                       
+! but WITHOUT ANY WARRANTY; without even the implied warranty of                  
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                   
+! GNU General Public License for more details.                                    
+!                                                                                 
+! You should have received a copy of the GNU General Public License               
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.                  
+!                                                                                 
+! Additional permission under GNU GPL version 3 section 7                         
+!                                                                                 
+! If you modify this Program, or any covered work, by linking or combining it     
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package      
+! and/or the HSL Mathematical Software Library (or a modified version of them),   
+! containing parts covered by the terms of their respective licenses, the         
+! licensors of this Program grant you additional permission to convey the         
+! resulting work.                                                                 
+!                                                                                 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
+
 ! Look up tables for QUA4
-! This file has been automatically generated in Matlab.
+! This file has been automatically generated in Matlab using the script: 
+! Drivers/test_poisson_unfitted_serial/modules/matlab_mc_tables/do_tables.sh 
 ! Do not modify this file by hand!
 
 integer(ip), parameter :: MC_QUA4_NUM_CASES = 16
 integer(ip), parameter :: MC_QUA4_MAX_NUM_SUBCELLS = 6
+integer(ip), parameter :: MC_QUA4_MAX_NUM_CUT_EDGES = 4
 integer(ip), parameter :: MC_QUA4_NUM_NODES_PER_SUBCELL = 3
-integer(ip), parameter :: MC_QUA4_NUM_SUBCELLS_PER_CASE(16) = [ 0, 4, 4, 4, 4, 6, 4, 4, 4, 4, 6, 4, 4, 4, 4, 0 ]
+integer(ip), parameter :: MC_QUA4_NUM_SUBCELLS_PER_CASE(16) = [ 0, 4, 4, 4, 4, 4, 6, 4, 4, 6, 4, 4, 4, 4, 4, 0 ]
 
-integer(ip), parameter :: MC_QUA4_NUM_CUT_EDGES_PER_CASE(16) = [ 0, 2, 2, 2, 2, 4, 2, 2, 2, 2, 4, 2, 2, 2, 2, 0 ]
+integer(ip), parameter :: MC_QUA4_NUM_CUT_EDGES_PER_CASE(16) = [ 0, 2, 2, 2, 2, 2, 4, 2, 2, 4, 2, 2, 2, 2, 2, 0 ]
 integer(ip), parameter :: MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(3,6,16) = &
 reshape( [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &
-           4, 6, 5, 6, 1, 2, 6, 2, 5, 2, 3, 5, 0, 0, 0, 0, 0, 0, &
-           4, 1, 6, 1, 2, 5, 6, 5, 3, 6, 1, 5, 0, 0, 0, 0, 0, 0, &
-           4, 6, 5, 6, 1, 2, 4, 5, 3, 6, 2, 5, 0, 0, 0, 0, 0, 0, &
-           1, 5, 4, 5, 6, 4, 4, 6, 3, 5, 2, 6, 0, 0, 0, 0, 0, 0, &
-           1, 5, 8, 5, 7, 8, 8, 7, 4, 5, 2, 6, 7, 6, 3, 7, 5, 6, &
-           4, 1, 5, 4, 5, 6, 6, 5, 2, 6, 2, 3, 0, 0, 0, 0, 0, 0, &
-           4, 6, 3, 6, 1, 5, 6, 5, 3, 5, 2, 3, 0, 0, 0, 0, 0, 0, &
-           4, 6, 3, 6, 1, 5, 6, 5, 3, 5, 2, 3, 0, 0, 0, 0, 0, 0, &
-           4, 1, 5, 4, 5, 6, 6, 5, 2, 6, 2, 3, 0, 0, 0, 0, 0, 0, &
-           1, 5, 8, 5, 7, 8, 8, 7, 4, 5, 2, 6, 7, 6, 3, 7, 5, 6, &
-           1, 5, 4, 5, 6, 4, 4, 6, 3, 5, 2, 6, 0, 0, 0, 0, 0, 0, &
-           4, 6, 5, 6, 1, 2, 4, 5, 3, 6, 2, 5, 0, 0, 0, 0, 0, 0, &
-           4, 1, 6, 1, 2, 5, 6, 5, 3, 6, 1, 5, 0, 0, 0, 0, 0, 0, &
-           4, 6, 5, 6, 1, 2, 6, 2, 5, 2, 3, 5, 0, 0, 0, 0, 0, 0, &
+           3, 1, 5, 1, 2, 6, 5, 6, 4, 5, 1, 6, 0, 0, 0, 0, 0, 0, &
+           3, 6, 5, 6, 1, 2, 6, 2, 5, 2, 4, 5, 0, 0, 0, 0, 0, 0, &
+           3, 5, 6, 5, 1, 2, 3, 6, 4, 5, 2, 6, 0, 0, 0, 0, 0, 0, &
+           1, 5, 3, 5, 6, 3, 3, 6, 4, 5, 2, 6, 0, 0, 0, 0, 0, 0, &
+           3, 1, 5, 3, 5, 6, 6, 5, 2, 6, 2, 4, 0, 0, 0, 0, 0, 0, &
+           3, 7, 6, 7, 1, 5, 7, 5, 6, 8, 4, 6, 6, 5, 8, 5, 2, 8, &
+           3, 6, 4, 6, 1, 5, 6, 5, 4, 5, 2, 4, 0, 0, 0, 0, 0, 0, &
+           3, 6, 4, 6, 1, 5, 6, 5, 4, 5, 2, 4, 0, 0, 0, 0, 0, 0, &
+           3, 7, 6, 7, 1, 5, 7, 5, 6, 8, 4, 6, 6, 5, 8, 5, 2, 8, &
+           3, 1, 5, 3, 5, 6, 6, 5, 2, 6, 2, 4, 0, 0, 0, 0, 0, 0, &
+           1, 5, 3, 5, 6, 3, 3, 6, 4, 5, 2, 6, 0, 0, 0, 0, 0, 0, &
+           3, 5, 6, 5, 1, 2, 3, 6, 4, 5, 2, 6, 0, 0, 0, 0, 0, 0, &
+           3, 6, 5, 6, 1, 2, 6, 2, 5, 2, 4, 5, 0, 0, 0, 0, 0, 0, &
+           3, 1, 5, 1, 2, 6, 5, 6, 4, 5, 1, 6, 0, 0, 0, 0, 0, 0, &
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ] , [3,6,16] )
 integer(ip), parameter :: MC_QUA4_INOUT_SUBCELLS_PER_CASE(6,16) = &
 reshape( [ 0, 0, 0, 0, 0, 0, &
-           1,-1,-1,-1, 0, 0, &
           -1,-1, 1,-1, 0, 0, &
+           1,-1,-1,-1, 0, 0, &
            1,-1, 1,-1, 0, 0, &
           -1,-1,-1, 1, 0, 0, &
-          -1, 1, 1, 1,-1, 1, &
           -1,-1, 1, 1, 0, 0, &
+           1,-1, 1,-1, 1, 1, &
            1,-1, 1, 1, 0, 0, &
           -1, 1,-1,-1, 0, 0, &
+          -1, 1, 1, 1, 1,-1, &
            1, 1,-1,-1, 0, 0, &
-           1, 1,-1,-1, 1, 1, &
            1, 1, 1,-1, 0, 0, &
           -1, 1,-1, 1, 0, 0, &
-           1, 1,-1, 1, 0, 0, &
           -1, 1, 1, 1, 0, 0, &
+           1, 1,-1, 1, 0, 0, &
            0, 0, 0, 0, 0, 0 ] , [6,16] )

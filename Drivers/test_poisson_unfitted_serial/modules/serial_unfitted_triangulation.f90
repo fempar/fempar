@@ -36,7 +36,7 @@ module serial_unfitted_triangulation_names
 
   ! Include the look-up tables 
 # include "mc_tables_qua4.i90"
-!# include "mc_tables_hex8.i90"
+# include "mc_tables_hex8.i90"
 
   type, extends(cell_accessor_t) :: unfitted_cell_accessor_t
     private
@@ -61,10 +61,14 @@ module serial_unfitted_triangulation_names
 
   type, extends(serial_triangulation_t) :: serial_unfitted_triangulation_t
     private
+    
+    ! Thelevel set funciton
+    class(level_set_function_t), pointer :: level_set_function
 
     ! Look up-tables (precomputed off-line, for each cell type)
     integer(ip)                :: mc_table_num_cases
     integer(ip)                :: mc_table_max_num_subcells
+    integer(ip)                :: mc_table_max_num_cut_edges
     integer(ip)                :: mc_table_num_nodes_subcell
     integer(ip),   allocatable :: mc_table_num_subcells_per_case(:)
     integer(ip),   allocatable :: mc_table_num_cut_edges_per_case(:)
@@ -77,11 +81,16 @@ module serial_unfitted_triangulation_names
     type(point_t), allocatable :: mc_intersection_points(:)  ! mc_ptr_to_intersections(num_local_cells+num_ghost_cells+1) - mc_ptr_to_intersections(1)
 
   contains
-    procedure, private :: serial_triangulation_create                        => serial_unfitted_triangulation_serial_triangulation_create
-    procedure, private :: serial_unfitted_triangulation_create
-    generic            :: create                                          => serial_unfitted_triangulation_create
-    procedure          :: free                                            => serial_unfitted_triangulation_free
-    procedure, non_overridable          :: create_unfitted_cell_iterator  => serial_unfitted_triangulation_create_unfitted_cell_iterator
+
+    ! Public TBP 
+    generic                    :: create                        => serial_unfitted_triangulation_create
+    procedure                  :: free                          => serial_unfitted_triangulation_free
+    procedure, non_overridable :: create_unfitted_cell_iterator => serial_unfitted_triangulation_create_unfitted_cell_iterator
+    
+    ! Private TBP
+    procedure,                  private :: serial_triangulation_create    => serial_unfitted_triangulation_serial_triangulation_create
+    procedure,                  private :: serial_unfitted_triangulation_create
+    procedure, non_overridable, private :: fulfills_assumptions           => serial_unfitted_triangulation_fulfills_assumptions
     procedure, non_overridable, private :: mc_tables_create               => serial_unfitted_triangulation_mc_tables_create
     procedure, non_overridable, private :: mc_tables_free                 => serial_unfitted_triangulation_mc_tables_free
     procedure, non_overridable, private :: mc_runtime_info_create         => serial_unfitted_triangulation_mc_runtime_info_create

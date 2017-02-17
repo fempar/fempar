@@ -1,4 +1,4 @@
-function fc = write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_num_sub_cells_per_case,...
+function fc = write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_max_num_cut_edges, mc_num_sub_cells_per_case,...
     mc_subcells_per_case, mc_inout_subcells_per_case, mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type)
 
 % Falta el num d'intersection points
@@ -7,14 +7,51 @@ function fc = write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_num_sub_
 fid = fopen(file_name,'w');
 
 
+fprintf(fid,'! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe        \n');
+fprintf(fid,'!                                                                                 \n');
+fprintf(fid,'! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)      \n');
+fprintf(fid,'!                                                                                 \n');
+fprintf(fid,'! FEMPAR is free software: you can redistribute it and/or modify                  \n');
+fprintf(fid,'! it under the terms of the GNU General Public License as published by            \n');
+fprintf(fid,'! the Free Software Foundation, either version 3 of the License, or               \n');
+fprintf(fid,'! (at your option) any later version.                                             \n');
+fprintf(fid,'!                                                                                 \n');
+fprintf(fid,'! FEMPAR is distributed in the hope that it will be useful,                       \n');
+fprintf(fid,'! but WITHOUT ANY WARRANTY; without even the implied warranty of                  \n');
+fprintf(fid,'! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                   \n');
+fprintf(fid,'! GNU General Public License for more details.                                    \n');
+fprintf(fid,'!                                                                                 \n');
+fprintf(fid,'! You should have received a copy of the GNU General Public License               \n');
+fprintf(fid,'! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.                  \n');
+fprintf(fid,'!                                                                                 \n');
+fprintf(fid,'! Additional permission under GNU GPL version 3 section 7                         \n');
+fprintf(fid,'!                                                                                 \n');
+fprintf(fid,'! If you modify this Program, or any covered work, by linking or combining it     \n');
+fprintf(fid,'! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package      \n');
+fprintf(fid,'! and/or the HSL Mathematical Software Library (or a modified version of them),   \n');
+fprintf(fid,'! containing parts covered by the terms of their respective licenses, the         \n');
+fprintf(fid,'! licensors of this Program grant you additional permission to convey the         \n');
+fprintf(fid,'! resulting work.                                                                 \n');
+fprintf(fid,'!                                                                                 \n');
+fprintf(fid,'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   \n');
+
+
+fprintf(fid,'\n');
+
 fprintf(fid,'! Look up tables for %s\n',elem_type);
-fprintf(fid,'! This file has been automatically generated in Matlab.\n');
+fprintf(fid,'! This file has been automatically generated in Matlab using the script: \n');
+
+aux = pwd;
+k = strfind(aux,'Driver');
+aux = aux(k:end); 
+fprintf(fid,'! %s/do_tables.sh \n',aux);
 fprintf(fid,'! Do not modify this file by hand!\n');
 
 fprintf(fid,'\n');
 
 fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_CASES = %d\n',elem_type,mc_ncases);
 fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_SUBCELLS = %d\n',elem_type,mc_max_sub_cells);
+fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_CUT_EDGES = %d\n',elem_type,mc_max_num_cut_edges);
 fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_NODES_PER_SUBCELL = %d\n',elem_type,mc_num_nodes_per_subcell);
 
 %fprintf(fid,'\n');

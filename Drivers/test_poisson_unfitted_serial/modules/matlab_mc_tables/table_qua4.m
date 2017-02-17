@@ -2,8 +2,8 @@ clear
 close all
 clc
 
-Xe = [-1 -1; 1 -1; 1 1; -1 1]; % TODO This is my numeration, not fempar's!
-Eedges =  [1 2; 2 3; 3 4; 4 1]; % TODO This is my numeration, not fempar's!
+Xe     = [-1 -1; 1 -1; -1 1; 1 1]; % fempar numbering
+Eedges = [1 2; 3 4; 1 3; 2 4]; % fempar numbering
 Pe  = [0 0 0 0]';
 
 mc_ncases = 2^4;
@@ -60,11 +60,14 @@ for icase = 1:mc_ncases
     mc_inout_subcells_per_case(icase,1:N) = mc_inout_subcells_per_case_aux{icase};
 end
 
+mc_max_num_cut_edges = max(mc_num_cut_edges_per_case);
 
 
 elem_type = 'QUA4';
 file_name = '../mc_tables_qua4.i90';
-write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_num_sub_cells_per_case, mc_subcells_per_case, mc_inout_subcells_per_case, mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type);
+write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_max_num_cut_edges, ...
+mc_num_sub_cells_per_case, mc_subcells_per_case, mc_inout_subcells_per_case,...
+mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type);
 
 disp('Table for QUA4 done!');
 

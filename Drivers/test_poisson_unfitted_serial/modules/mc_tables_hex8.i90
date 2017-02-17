@@ -1,9 +1,39 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe        
+!                                                                                 
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)      
+!                                                                                 
+! FEMPAR is free software: you can redistribute it and/or modify                  
+! it under the terms of the GNU General Public License as published by            
+! the Free Software Foundation, either version 3 of the License, or               
+! (at your option) any later version.                                             
+!                                                                                 
+! FEMPAR is distributed in the hope that it will be useful,                       
+! but WITHOUT ANY WARRANTY; without even the implied warranty of                  
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                   
+! GNU General Public License for more details.                                    
+!                                                                                 
+! You should have received a copy of the GNU General Public License               
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.                  
+!                                                                                 
+! Additional permission under GNU GPL version 3 section 7                         
+!                                                                                 
+! If you modify this Program, or any covered work, by linking or combining it     
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package      
+! and/or the HSL Mathematical Software Library (or a modified version of them),   
+! containing parts covered by the terms of their respective licenses, the         
+! licensors of this Program grant you additional permission to convey the         
+! resulting work.                                                                 
+!                                                                                 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
+
 ! Look up tables for HEX8
-! This file has been automatically generated in Matlab.
+! This file has been automatically generated in Matlab using the script: 
+! Drivers/test_poisson_unfitted_serial/modules/matlab_mc_tables/do_tables.sh 
 ! Do not modify this file by hand!
 
 integer(ip), parameter :: MC_HEX8_NUM_CASES = 256
 integer(ip), parameter :: MC_HEX8_MAX_NUM_SUBCELLS = 24
+integer(ip), parameter :: MC_HEX8_MAX_NUM_CUT_EDGES = 12
 integer(ip), parameter :: MC_HEX8_NUM_NODES_PER_SUBCELL = 4
 integer(ip), parameter :: MC_HEX8_NUM_SUBCELLS_PER_CASE(256) = &
 [ 0,11,11,12,11,15,12,15,11,12,15,15,12,15,15,12, &
