@@ -1001,8 +1001,9 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
   type(node_array_t)    :: nodes_n_face, vertices_n_face
   integer(ip)           :: n_face_type, topology_n_face, c, iorie, j
   type(node_iterator_t) :: node_iterator, vertex_iterator
-  integer(ip)           :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM)
+  integer(ip)           :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM), sq_index
   integer(ip)           :: ijk_rot(SPACE_DIM), ijk_perm(SPACE_DIM), order_vector(SPACE_DIM),aux, ones(SPACE_DIM)
+  integer(ip), allocatable :: sq_index_2_index(:)
   order_vector = order
   ones = 1
   if ( order > 1 ) then 
@@ -1022,9 +1023,13 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
      node_iterator = nodes_n_face%create_node_iterator( n_face_type, own_boundary = .false. )
      vertex_iterator = vertices_n_face%create_node_iterator( n_face_type, own_boundary = .true. )
      c = 0
+     allocate( sq_index_2_index(0:product(order_vector(1:idime)-1)-1))
      call node_iterator%init()
      do while (.not. node_iterator%has_finished() )
         c = c+1
+        aux =  node_iterator%current_ijk()
+        ijk_node = node_iterator%coordinate
+        sq_index_2_index(ijk_to_index(ijk_node-1, order_vector-2,idime)) = c
         call node_iterator%next() 
      end do
      call own_node_permutations%create(c, idime * vertices_n_face%number_nodes )
@@ -1049,7 +1054,11 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
 
               ! Now rotate the n-face based on the anchor node
               ! If the anchor node is in the original position (0) perm = Id
-              ijk_rot =  rotate(ijk_node,ijk_anchor_node,idime, order )
+              if (topology_n_face.gt.1)then
+                 ijk_rot =  rotate(ijk_node,ijk_anchor_node,idime, order )
+              else
+                 ijk_rot =  rotate_tet(ijk_node,ijk_anchor_node,idime, order )
+              end if
               ! Next, consider the possible orientations
 
               ijk_perm = change_orientation(ijk_rot,iorie,idime)
@@ -1058,7 +1067,8 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
               !write(*,*) '***final node:***', ijk_to_index(ijk_perm-1, order_vector-2,idime)+1
               !write(*,*) 'ROTATED + ORIENTED node OLD ARRAY:', nodes_n_face%ijk_to_index(ijk_to_index(ijk_perm,this%order,idime))
               !write(*,*) 'node iterator number:', ijk_to_index(ijk_node-1,this%order-2,idime)+1
-              own_node_permutations%a(ijk_to_index(ijk_node-1, order_vector-2,idime)+1,c) =  ijk_to_index(ijk_perm-1, order_vector-2,idime)+1
+              sq_index = ijk_to_index(ijk_node-1, order_vector-2,idime)
+              own_node_permutations%a(sq_index_2_index(sq_index),c) = sq_index_2_index(ijk_to_index(ijk_perm-1, order_vector-2,idime))
               !nodes_n_face%ijk_to_index(ijk_to_index(ijk_perm,this%order,idime))
               ! Be careful, ijk_perm is not contiguous for TETs, etc.
               call node_iterator%next() 
@@ -1069,6 +1079,7 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
      call n_face%free()
      call nodes_n_face%free()
      call vertices_n_face%free()
+     deallocate(sq_index_2_index)
   else 
      call own_node_permutations%create(nd1=0, nd2=0)
   end if
@@ -1127,6 +1138,28 @@ function rotate( ijk_node, ijk_anchor_node, face_dim, order )
      rot_vertex(face_dim) = 1 - aux2
   end do
 end function rotate
+!
+! Here we compute (x,y) -> (y,1-x) rotations (with respect to 1/2,1/2). Given the position of 
+! the anchor node in the master face, we consider the permutations of this type till the anchor node 
+! of the slave node (origin) coincides. In 2D, x -> 1-x.
+!=================================================================================================
+function rotate_tet( ijk_node, ijk_anchor_node, face_dim, order )
+  implicit none
+  integer(ip), intent(in) :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM), face_dim, order
+  integer(ip) :: i, rotate_tet(SPACE_DIM), aux1, aux2, rot_vertex(SPACE_DIM)
+  rot_vertex = ijk_anchor_node
+  rotate_tet = ijk_node
+  do while ( sum(rot_vertex(1:face_dim)) /= 0 )
+     aux1 = sum(rotate_tet(1:face_dim))
+     aux2 = sum(rot_vertex(1:face_dim))
+     do i = 1,face_dim-1
+        rotate_tet(i) = rotate_tet(i+1)
+        rot_vertex(i) = rot_vertex(i+1)
+     end do
+     rotate_tet(face_dim) = order - aux1
+     rot_vertex(face_dim) = 1 - aux2
+  end do
+end function rotate_tet
 !
 ! The change of orientation in 3D is ij -> ij or ji. In 2D, i -> i.
 !=================================================================================================

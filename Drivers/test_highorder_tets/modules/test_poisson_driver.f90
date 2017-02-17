@@ -163,7 +163,7 @@ contains
     
     ! BEGIN Checking new tet shape functions
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                 fe_type = fe_type_new_tet, &
+                                                 fe_type = this%test_params%get_fe_type(), &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
