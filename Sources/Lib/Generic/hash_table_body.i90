@@ -134,7 +134,6 @@ recursive subroutine del_hash_node(list,key,stat)
      !   tmp => list%child
      if(.not.associated(list%child)) then
         write(*,*) 'Error in mem_db_del, not associated'
-        !!$ write(*,*) 'Thread number: ',omp_get_thread_num()
         write(*,*) key,list%key,associated(list%parent),associated(list%child)
         if(associated(list%parent)) then
            write(*,*) list%parent%key

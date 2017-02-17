@@ -34,33 +34,33 @@ module timer_names
   private
   
   ! What to do in case several pairs of start()-stop() calls are performed?
-  character(len=*), parameter :: PAR_TIMER_MODE_SUM     = "par_timer_mode_sum"
-  character(len=*), parameter :: PAR_TIMER_MODE_MIN     = "par_timer_mode_min"
-  character(len=*), parameter :: PAR_TIMER_MODE_LAST    = "par_timer_mode_last"
-  character(len=*), parameter :: DEFAULT_PAR_TIMER_MODE = PAR_TIMER_MODE_LAST
+  character(len=*), parameter :: TIMER_MODE_SUM     = "timer_mode_sum"
+  character(len=*), parameter :: TIMER_MODE_MIN     = "timer_mode_min"
+  character(len=*), parameter :: TIMER_MODE_LAST    = "timer_mode_last"
+  character(len=*), parameter :: DEFAULT_TIMER_MODE = TIMER_MODE_LAST
 
   type timer_t
      private
      class(execution_context_t), allocatable :: context
      character(:), allocatable :: message  ! Concept being measured (e.g., assembly)
-     character(:), allocatable :: mode     ! par_timer operation mode (see options above)
+     character(:), allocatable :: mode     ! timer operation mode (see options above)
      real(rp)                  :: t_start  ! last call to start
      real(rp)                  :: t_stop   ! last call to stop
      real(rp)                  :: t_accum  ! sum of all stop-start 
    contains
-     procedure, non_overridable :: create => par_timer_create
-     procedure, non_overridable :: free   => par_timer_free
-     procedure, non_overridable :: init   => par_timer_init
-     procedure, non_overridable :: start  => par_timer_start
-     procedure, non_overridable :: stop   => par_timer_stop
-     procedure, non_overridable :: report => par_timer_report
+     procedure, non_overridable :: create => timer_create
+     procedure, non_overridable :: free   => timer_free
+     procedure, non_overridable :: init   => timer_init
+     procedure, non_overridable :: start  => timer_start
+     procedure, non_overridable :: stop   => timer_stop
+     procedure, non_overridable :: report => timer_report
   end type timer_t
 
   ! Public types
   public :: timer_t 
 
 contains  
-    subroutine par_timer_create ( this, context, message, mode )
+    subroutine timer_create ( this, context, message, mode )
       ! Parameters
       class(timer_t)        , intent(inout) :: this
       character(len=*)          , intent(in)    :: message
@@ -71,10 +71,10 @@ contains
       call this%free()
 
       if ( present(mode) ) then
-        assert ( mode == PAR_TIMER_MODE_SUM .or. mode == PAR_TIMER_MODE_MIN .or. mode == PAR_TIMER_MODE_LAST )
+        assert ( mode == TIMER_MODE_SUM .or. mode == TIMER_MODE_MIN .or. mode == TIMER_MODE_LAST )
         this%mode = mode
       else
-        this%mode = DEFAULT_PAR_TIMER_MODE
+        this%mode = DEFAULT_TIMER_MODE
       end if
       
       allocate(this%context,mold=context,stat=istat);check(istat==0)
@@ -82,14 +82,14 @@ contains
       this%message = message
       this%t_start   = 0.0_rp
       this%t_stop    = 0.0_rp
-      if ( this%mode == PAR_TIMER_MODE_MIN ) then
+      if ( this%mode == TIMER_MODE_MIN ) then
         this%t_accum   = 1.79769e+308_rp ! Largest double precision number
       else
         this%t_accum   = 0.0_rp
       end if
-    end subroutine par_timer_create
+    end subroutine timer_create
     
-    subroutine par_timer_free ( this )
+    subroutine timer_free ( this )
       ! Parameters
       class(timer_t), intent(inout) :: this  
       integer(ip) :: istat
@@ -107,30 +107,30 @@ contains
       this%t_start   = 0.0_rp
       this%t_stop    = 0.0_rp
       this%t_accum   = 1.79769E+308_rp ! Largest double precision number
-    end subroutine par_timer_free
+    end subroutine timer_free
 
-    subroutine par_timer_init ( this )
+    subroutine timer_init ( this )
       implicit none 
       ! Parameters
       class(timer_t), intent(inout) :: this
       this%t_start  = 0.0_rp
       this%t_stop   = 0.0_rp
-      if ( this%mode == PAR_TIMER_MODE_MIN ) then
+      if ( this%mode == TIMER_MODE_MIN ) then
         this%t_accum   = 1.79769e+308_rp ! Largest double precision number
       else
         this%t_accum   = 0.0_rp
       end if
-    end subroutine par_timer_init
+    end subroutine timer_init
 
-    subroutine par_timer_start ( this )
+    subroutine timer_start ( this )
       implicit none 
       ! Parameters
       class(timer_t), intent(inout)          :: this
       call this%context%barrier()
       this%t_start  = this%context%time()
-    end subroutine par_timer_start
+    end subroutine timer_start
 
-    subroutine par_timer_stop ( this )
+    subroutine timer_stop ( this )
       implicit none 
       ! Parameters
       class(timer_t), intent(inout)          :: this
@@ -143,19 +143,19 @@ contains
         cur_time = 0.0_rp
       end if  
       
-      if ( this%mode == PAR_TIMER_MODE_MIN ) then
+      if ( this%mode == TIMER_MODE_MIN ) then
          if ( this%t_accum > cur_time ) this%t_accum = cur_time
-      else if ( this%mode == PAR_TIMER_MODE_SUM ) then
+      else if ( this%mode == TIMER_MODE_SUM ) then
          this%t_accum = this%t_accum + cur_time
-      else if ( this%mode == PAR_TIMER_MODE_LAST ) then
+      else if ( this%mode == TIMER_MODE_LAST ) then
          this%t_accum = cur_time
       end if
       
       this%t_start  = 0.0_rp
       this%t_stop   = 0.0_rp
-    end subroutine par_timer_stop
+    end subroutine timer_stop
    
-    subroutine par_timer_report ( this, show_header, luout )
+    subroutine timer_report ( this, show_header, luout )
       implicit none 
       ! Parameters
       class(timer_t), intent(inout)  :: this
@@ -192,6 +192,6 @@ contains
          if ( this%context%am_i_root() ) write(*,fmt_data) adjustl(this%message), accum_min, accum_max, accum_sum/this%context%get_num_tasks()
       end if
 
-    end subroutine par_timer_report
+    end subroutine timer_report
 
 end module timer_names

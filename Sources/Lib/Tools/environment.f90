@@ -632,7 +632,8 @@ contains
     class(environment_t)      , intent(in)    :: this
     character(len=*)          , intent(in)    :: message
     character(len=*), optional, intent(in)    :: mode
-    type(timer_t)             , intent(out)   :: timer
+    type(timer_t)             , intent(inout) :: timer
+    call timer%free()
     call timer%create(this%l1_context, message, mode)
   end subroutine environment_create_l1_timer  
   
