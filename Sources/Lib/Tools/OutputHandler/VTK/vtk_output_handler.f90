@@ -366,7 +366,9 @@ contains
         assert(associated(fe_space))
         environment => fe_space%get_environment()
         assert(associated(environment))
-        call environment%info(me, np)
+        !call environment%info(me, np)
+        me = environment%get_l1_rank()
+        np = environment%get_l1_size()
 
         if( environment%am_i_l1_task()) then
 

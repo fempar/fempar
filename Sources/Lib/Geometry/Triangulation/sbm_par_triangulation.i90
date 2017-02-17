@@ -26,6 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine par_triangulation_create ( this, parameters, par_environment)
+  !$ use omp_lib
   implicit none
   class(par_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)             , intent(inout) :: parameters
@@ -126,7 +127,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         call mesh%compose_name ( prefix, name )
         if(this%p_env%get_l1_size()>1) &
              &  call par_filename( this%p_env%get_l1_rank()+1, this%p_env%get_l1_size(), name )
-        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
         call mesh%read (lunio) 
         call io_close(lunio)
 
@@ -141,7 +142,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         if(this%p_env%get_l1_size()>1) then
            call mesh_distribution_compose_name ( prefix, name )
            call par_filename( this%p_env%get_l1_rank()+1, this%p_env%get_l1_size(), name )
-           lunio = io_open (trim(dir_path) // '/' // trim(name))
+           lunio = io_open (trim(dir_path) // '/' // trim(name)); check(lunio>0)
            call mesh_distribution%read_file(lunio)
            call io_close(lunio)
         else

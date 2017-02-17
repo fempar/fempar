@@ -32,30 +32,11 @@ module types_names
   use, intrinsic :: iso_fortran_env, only: INT8, INT32, INT64, REAL64
   implicit none
 
-  integer, parameter       :: ieep = INT8   ! Integer precision for buffers in element exchanges
-  integer, parameter       :: ip   = INT32  ! Integer precision
-  integer, parameter       :: rp   = REAL64 ! Real precision
-  !integer, parameter       :: lg   = 1     ! Logical precision
-
-  integer(ip)  , parameter :: imp  = INT64  ! Integer precision, 
-  ! memory consumption
-
-  ! integer(ip), parameter :: igp = 8    ! Integer precision, 
-  !                                      ! for global ids
-
-  ! This is a 8-byte integer, and typically different from default integer(ip).
-  ! (A.F.M.: fem has to be responsible for the following two definitions)
-  ! psb_long_int_k_ kind parameter is required by some psb modules. I extracted
-  ! the definition of this parameter from psb_const_mod PSBLAS 2.4.0 module
-  integer, parameter  :: longndig=12
-  integer, parameter  :: psb_long_int_k_ = selected_int_kind(longndig)
-
-  integer(ip)  , parameter :: igp = psb_long_int_k_ ! Integer precision, 
-  ! for global ids
-
-  ! Error constant psb_success_ (extracted from PSBLAS 2.4.0 
-  ! psb_const_mod module)
-  integer, parameter  :: psb_success_=0
+  integer, parameter :: ieep = INT8   ! Integer precision for buffers in element exchanges
+  integer, parameter :: ip   = INT32  ! Integer precision
+  integer, parameter :: rp   = REAL64 ! Real precision
+  integer, parameter :: imp  = INT64  ! Integer precision for memory consumption
+  integer, parameter :: igp  = INT64  ! Integer precision for global ids
   
   type i1p_t
      integer(ip), pointer :: p(:) => NULL()

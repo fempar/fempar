@@ -169,6 +169,7 @@ contains
     end do
     assert(task_id<num_tasks)
 
+    parts_mapping = -1
     ilevel=1
     ipart = task_id + 1 
     num_parts = 0
@@ -180,11 +181,13 @@ contains
     parts_mapping(ilevel) = ipart
     do while(ilevel<=num_levels-1)
        first = (ilevel-1)*SPACE_DIM
-       last  = first + this%number_of_dimensions
-       call spatial_to_ijk_numbering(this%number_of_dimensions, this%number_of_parts_per_dir(first:last), ipart-1, part_ijk)
+       last  = first + this%number_of_dimensions-1
+       call spatial_to_ijk_numbering(this%number_of_dimensions, this%number_of_parts_per_dir(first:last), ipart, part_ijk)
        do idime = 0, this%number_of_dimensions - 1 
           part_ijk(idime) = part_ijk(idime)*this%number_of_parts_per_dir(ilevel*SPACE_DIM+idime)/this%number_of_parts_per_dir((ilevel-1)*SPACE_DIM+idime)
        end do
+       first = ilevel*SPACE_DIM
+       last  = first + this%number_of_dimensions-1
        ipart = ijk_to_spatial_numbering(this%number_of_dimensions,this%number_of_parts_per_dir(first:last), part_ijk)+1
        ilevel = ilevel +1
        parts_mapping(ilevel) = ipart
