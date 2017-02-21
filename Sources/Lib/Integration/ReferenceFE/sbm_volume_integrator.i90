@@ -406,8 +406,15 @@ subroutine fe_map_update_edge_map(this,local_edge_id,reference_fe,quadrature)
   end do
 end subroutine fe_map_update_edge_map
 
-
-
+!==================================================================================================
+subroutine fe_map_update_interpolation( this, quadrature, reference_fe_geometry )
+  implicit none
+  class(fe_map_t)                 , intent(inout) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
+  call this%interpolation_geometry%free()
+  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation_geometry )
+end subroutine fe_map_update_interpolation
 
 !==================================================================================================
 subroutine fe_map_free( this )

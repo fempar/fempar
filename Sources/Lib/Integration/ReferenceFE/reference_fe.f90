@@ -162,6 +162,7 @@ module reference_fe_names
      procedure, non_overridable :: update                            => fe_map_update
      procedure, non_overridable :: update_face_map                   => fe_map_update_face_map
      procedure, non_overridable :: update_edge_map                   => fe_map_update_edge_map
+     procedure, non_overridable :: update_interpolation              => fe_map_update_interpolation
      procedure, non_overridable :: free                              => fe_map_free
      procedure, non_overridable :: print                             => fe_map_print
      procedure, non_overridable :: get_det_jacobian                  => fe_map_get_det_jacobian

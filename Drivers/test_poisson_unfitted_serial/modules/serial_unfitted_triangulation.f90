@@ -29,6 +29,8 @@
 module serial_unfitted_triangulation_names
   use fempar_names
   use level_set_functions_gallery_names
+  USE IR_Precision ! VTK_IO
+  USE Lib_VTK_IO ! VTK_IO
   
   implicit none
 # include "debug.i90"
@@ -37,14 +39,34 @@ module serial_unfitted_triangulation_names
   ! Include the look-up tables 
 # include "mc_tables_qua4.i90"
 # include "mc_tables_hex8.i90"
+  
 
   type, extends(cell_accessor_t) :: unfitted_cell_accessor_t
+  
     private
-    class(serial_unfitted_triangulation_t), pointer :: serial_unfitted_triangulation
+    class(serial_unfitted_triangulation_t), pointer     :: serial_unfitted_triangulation => NULL()
+    type(point_t), pointer :: subcells_phys_coords(:) => NULL()
+    integer(ip)  , pointer :: subcells_connectivities(:,:) => NULL()
+    type(quadrature_t)  :: quadrature ! TODO who frees this?
+    type(fe_map_t)      :: fe_map ! TODO who frees this?  Who deallocates the member variables of a derived type that goes out of scope?
+    
   contains
-    procedure :: cell_accessor_create => unfitted_cell_accessor_cell_accessor_create
-    procedure :: cell_accessor_free   => unfitted_cell_accessor_cell_accessor_free
-    !procedure, non_overridable, private :: get_marching_cube_case => unfitted_cell_accessor_get_marching_cube_case
+    
+    ! Public TBPs
+    procedure :: cell_accessor_create         => unfitted_cell_accessor_cell_accessor_create
+    procedure :: cell_accessor_free           => unfitted_cell_accessor_cell_accessor_free
+    procedure :: cell_accessor_next           => unfitted_cell_accessor_cell_accessor_next
+    procedure, non_overridable :: get_number_of_subcells       => unfitted_cell_accessor_get_number_of_subcells
+    procedure, non_overridable :: get_number_of_subcell_nodes  => unfitted_cell_accessor_get_number_of_subcell_nodes
+    procedure, non_overridable :: get_phys_coords_of_subcell   => unfitted_cell_accessor_get_phys_coords_of_subcell
+    procedure, non_overridable :: is_cut => unfitted_cell_accessor_is_cut
+    procedure, non_overridable :: is_interior => unfitted_cell_accessor_is_interior
+    procedure, non_overridable :: is_exterior => unfitted_cell_accessor_is_exterior    
+    
+    ! Private TBPs
+    procedure, non_overridable, private :: init_private   => cell_accessor_init_private
+    procedure, non_overridable, private :: update_private => cell_accessor_update_private
+    
   end type unfitted_cell_accessor_t
 
   type :: unfitted_cell_iterator_t
@@ -62,7 +84,7 @@ module serial_unfitted_triangulation_names
   type, extends(serial_triangulation_t) :: serial_unfitted_triangulation_t
     private
     
-    ! Thelevel set funciton
+    ! The level set funciton
     class(level_set_function_t), pointer :: level_set_function
 
     ! Look up-tables (precomputed off-line, for each cell type)
@@ -76,9 +98,9 @@ module serial_unfitted_triangulation_names
     integer(ip),   allocatable :: mc_table_subcell_node_ids_per_case(:,:,:)
 
     ! Info related to cut cells on this triangulation (this is computed at runtime)
-    integer(ip),   allocatable :: mc_case_per_cell(:)        ! Num local cells
-    integer(ip),   allocatable :: mc_ptr_to_intersections(:) ! Num local cells + 1
-    type(point_t), allocatable :: mc_intersection_points(:)  ! mc_ptr_to_intersections(num_local_cells+num_ghost_cells+1) - mc_ptr_to_intersections(1)
+    integer(ip),   allocatable :: mc_case_per_cell(:)       
+    integer(ip),   allocatable :: mc_ptr_to_intersections(:) 
+    type(point_t), allocatable :: mc_intersection_points(:)  
 
   contains
 
@@ -86,6 +108,7 @@ module serial_unfitted_triangulation_names
     generic                    :: create                        => serial_unfitted_triangulation_create
     procedure                  :: free                          => serial_unfitted_triangulation_free
     procedure, non_overridable :: create_unfitted_cell_iterator => serial_unfitted_triangulation_create_unfitted_cell_iterator
+    procedure, non_overridable :: print_to_vtk_file             => serial_unfitted_triangulation_print_to_vtk_file
     
     ! Private TBP
     procedure,                  private :: serial_triangulation_create    => serial_unfitted_triangulation_serial_triangulation_create
@@ -95,14 +118,12 @@ module serial_unfitted_triangulation_names
     procedure, non_overridable, private :: mc_tables_free                 => serial_unfitted_triangulation_mc_tables_free
     procedure, non_overridable, private :: mc_runtime_info_create         => serial_unfitted_triangulation_mc_runtime_info_create
     procedure, non_overridable, private :: mc_runtime_info_free           => serial_unfitted_triangulation_mc_runtime_info_free
-    procedure, non_overridable, private :: determine_mc_case              => serial_unfitted_triangulation_determine_mc_case
-    procedure, non_overridable, private :: compute_mc_intersection_points => serial_unfitted_triangulation_compute_mc_intersection_points
 
   end type serial_unfitted_triangulation_t
 
   ! Derived types
-  !public :: unfitted_cell_accessor_t
-  !public :: unfitted_cell_iterator_t
+  public :: unfitted_cell_accessor_t
+  public :: unfitted_cell_iterator_t
   public :: serial_unfitted_triangulation_t
 
 contains

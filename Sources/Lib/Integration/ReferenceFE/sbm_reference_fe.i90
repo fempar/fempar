@@ -323,22 +323,27 @@ function reference_fe_get_num_nodes_per_n_face_of_dim ( this, n_face_dim ) resul
   num_nodes     = this%get_number_nodes_n_face(first_n_face)
 end function reference_fe_get_num_nodes_per_n_face_of_dim
 
-subroutine reference_fe_get_nodes_of_all_n_faces_of_dim ( this, n_face_dim, nodes_all_n_faces, num_nodes_per_n_face, num_n_faces )
+subroutine reference_fe_get_nodes_of_all_n_faces_of_dim ( this, n_face_dim, nodes_all_n_faces )
   implicit none
   class(reference_fe_t)   , intent(in)    :: this
   integer(ip)             , intent(in)    :: n_face_dim
   integer(ip), allocatable, intent(inout) :: nodes_all_n_faces(:,:)
-  integer(ip)             , intent(inout) :: num_nodes_per_n_face
-  integer(ip)             , intent(inout) :: num_n_faces
-  integer(ip)                             :: first_n_face, last_n_face, n_face, i_node
-  type(list_iterator_t)                   :: list_iterator
+  
+  integer(ip)              :: num_nodes_per_n_face
+  integer(ip)              :: num_n_faces
+  integer(ip)              :: first_n_face, last_n_face, n_face, i_node
+  type(list_iterator_t)    :: list_iterator
+  
   check( this%has_constant_num_nodes_per_n_face_of_dim(n_face_dim) )
   num_n_faces  = this%get_number_n_faces_of_dimension(n_face_dim)
   num_nodes_per_n_face = this%get_num_nodes_per_n_face_of_dim(n_face_dim)  
   first_n_face = this%get_first_n_face_id_of_dimension(n_face_dim)
   last_n_face  = first_n_face + num_n_faces - 1
-  if (allocated (nodes_all_n_faces)) call memfree  ( nodes_all_n_faces, __FILE__, __LINE__ )
-  call memalloc ( num_nodes_per_n_face, num_n_faces, nodes_all_n_faces, __FILE__, __LINE__ )
+  
+  assert(allocated( nodes_all_n_faces ))
+  assert( size(nodes_all_n_faces,1) == num_nodes_per_n_face )
+  assert( size(nodes_all_n_faces,2) == num_n_faces )
+ 
   do n_face = first_n_face, last_n_face 
         list_iterator = this%create_nodes_n_face_iterator(n_face)
         do while (.not. list_iterator%is_upper_bound())
@@ -347,6 +352,7 @@ subroutine reference_fe_get_nodes_of_all_n_faces_of_dim ( this, n_face_dim, node
           call list_iterator%next()
         end do      
   end do
+  
 end subroutine reference_fe_get_nodes_of_all_n_faces_of_dim
 
 function reference_fe_get_vertices_n_face ( this )

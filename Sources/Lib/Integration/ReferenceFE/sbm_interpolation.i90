@@ -78,7 +78,7 @@ end subroutine interpolation_free
 subroutine interpolation_copy(this, source_interpolation)
   implicit none
   class(interpolation_t), intent(inout) :: this
-		type(interpolation_t), intent(in)     :: source_interpolation
+  type(interpolation_t), intent(in)     :: source_interpolation
 
   call this%clone(source_interpolation)
 

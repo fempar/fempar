@@ -25,34 +25,191 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Public TBPs ----------------------------------------------------------------------------
+
 subroutine unfitted_cell_accessor_cell_accessor_create ( this, lid, base_static_triangulation )
   implicit none
   class(unfitted_cell_accessor_t)           , intent(inout) :: this
   integer(ip)                               , intent(in)    :: lid
-  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
+  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation  
   call this%free()
   call this%cell_accessor_t%create(lid,base_static_triangulation)
   select type(base_static_triangulation)
   class is (serial_unfitted_triangulation_t)
-    this%serial_unfitted_triangulation => base_static_triangulation 
+    this%serial_unfitted_triangulation => base_static_triangulation
+    call this%init_private()
   class default
     check(.false.)
-  end select 
+  end select   
 end subroutine unfitted_cell_accessor_cell_accessor_create
 
-subroutine unfitted_cell_accessor_cell_accessor_free ( this)
+subroutine unfitted_cell_accessor_cell_accessor_free ( this )
   implicit none
   class(unfitted_cell_accessor_t), intent(inout) :: this
   call this%cell_accessor_t%free()
   nullify ( this%serial_unfitted_triangulation )
+  nullify ( this%subcells_phys_coords )
+  nullify ( this%subcells_connectivities )
+  call this%quadrature%free()
+  call this%fe_map%free()
 end subroutine unfitted_cell_accessor_cell_accessor_free
 
-!function unfitted_cell_accessor_get_marching_cube_case(this)
-!  implicit none
-!  class(unfitted_cell_accessor_t), intent(in) :: this
-!  integer(ip) :: unfitted_cell_accessor_get_marching_cube_case
-!  assert ( associated(this%serial_unfitted_triangulation) )
-!  assert ( allocated(this%serial_unfitted_triangulation%marching_cube_case_per_cell) )
-!  assert ( this%get_lid() >=1 .and. this%get_lid() <= size(this%serial_unfitted_triangulation%marching_cube_case_per_cell))
-!  unfitted_cell_accessor_get_marching_cube_case = this%serial_unfitted_triangulation%marching_cube_case_per_cell(this%get_lid())
-!end function unfitted_cell_accessor_get_marching_cube_case
+subroutine unfitted_cell_accessor_cell_accessor_next( this )
+  implicit none
+  class(unfitted_cell_accessor_t), intent(inout) :: this
+  call this%cell_accessor_t%next()
+  if ( .not. this%past_the_end() ) call this%update_private()
+end subroutine unfitted_cell_accessor_cell_accessor_next
+
+function unfitted_cell_accessor_get_number_of_subcells( this ) result ( num_subcells )
+  implicit none
+  class(unfitted_cell_accessor_t), intent(in) :: this
+  integer(ip) :: num_subcells
+  integer(ip) :: mc_case
+  mc_case           = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+  num_subcells      = this%serial_unfitted_triangulation%mc_table_num_subcells_per_case(mc_case)  
+end function unfitted_cell_accessor_get_number_of_subcells
+
+function unfitted_cell_accessor_get_number_of_subcell_nodes( this ) result ( num_nodes_subcell )
+  implicit none
+  class(unfitted_cell_accessor_t), intent(in) :: this
+  integer(ip) :: num_nodes_subcell
+  num_nodes_subcell = this%serial_unfitted_triangulation%mc_table_num_nodes_subcell
+end function unfitted_cell_accessor_get_number_of_subcell_nodes
+
+subroutine unfitted_cell_accessor_get_phys_coords_of_subcell( this, subcell, points)
+  implicit none
+  class(unfitted_cell_accessor_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),      allocatable, intent(inout) :: points(:)
+  integer(ip) :: num_nodes_subcell, ipo
+  num_nodes_subcell = this%serial_unfitted_triangulation%mc_table_num_nodes_subcell
+  assert( allocated(points) )
+  assert( size(points) == num_nodes_subcell)
+  assert(this%is_cut())  
+  do ipo = 1,num_nodes_subcell
+    points(ipo) = this%subcells_phys_coords(this%subcells_connectivities(ipo,subcell))
+  end do
+end subroutine unfitted_cell_accessor_get_phys_coords_of_subcell
+
+function unfitted_cell_accessor_is_cut( this ) result ( is_cut )
+  implicit none
+  class(unfitted_cell_accessor_t), intent(in)    :: this
+  logical :: is_cut
+  integer(ip) :: mc_case, num_mc_cases
+  mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+  num_mc_cases = this%serial_unfitted_triangulation%mc_table_num_cases
+  is_cut = (1_ip < mc_case) .and. ( mc_case < num_mc_cases) 
+end function unfitted_cell_accessor_is_cut
+
+function unfitted_cell_accessor_is_interior( this ) result ( is_interior )
+  implicit none
+  class(unfitted_cell_accessor_t), intent(in)  :: this
+  logical :: is_interior
+  integer(ip) :: mc_case, num_mc_cases
+  mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+  num_mc_cases = this%serial_unfitted_triangulation%mc_table_num_cases
+  is_interior = ( mc_case == num_mc_cases ) 
+end function unfitted_cell_accessor_is_interior
+
+function unfitted_cell_accessor_is_exterior( this ) result ( is_exterior )
+  implicit none
+  class(unfitted_cell_accessor_t), intent(in)  :: this
+  logical :: is_exterior
+  integer(ip) :: mc_case
+  mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+  is_exterior = ( mc_case == 1_ip ) 
+end function unfitted_cell_accessor_is_exterior
+
+! Private TBPs ----------------------------------------------------------------------------
+
+subroutine cell_accessor_init_private( this )
+  implicit none
+  class(unfitted_cell_accessor_t), intent(inout) :: this
+  
+  type(quadrature_t),                    pointer :: nodal_quadrature
+  class(lagrangian_reference_fe_t),      pointer :: reference_fe_geo  
+  integer(ip)        :: max_num_cut_edges, max_num_subcells, num_nodes_subcell
+  integer(ip)        :: num_nodes, num_dime
+  integer(ip)        :: inod, idime
+  real(rp), pointer :: ref_cell_coords(:,:), ref_subcell_coords(:,:)
+  
+  ! Get the nodal coordinates in the reference element
+  reference_fe_geo => this%get_reference_fe_geo()
+  nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
+  ref_cell_coords  => nodal_quadrature%get_coordinates()
+
+  ! Sizes
+  max_num_cut_edges = this%serial_unfitted_triangulation%mc_table_max_num_cut_edges
+  max_num_subcells  = this%serial_unfitted_triangulation%mc_table_max_num_subcells
+  num_nodes_subcell = this%serial_unfitted_triangulation%mc_table_num_nodes_subcell
+  num_dime          = nodal_quadrature%get_number_dimensions()
+  num_nodes         = nodal_quadrature%get_number_quadrature_points()
+ 
+  ! Store the nodal coordinates of the reference element in the new quadrature
+  call this%quadrature%free()
+  call this%quadrature%create(num_dime,num_nodes+max_num_cut_edges)
+  ref_subcell_coords => this%quadrature%get_coordinates()
+  do idime = 1,num_dime
+    do inod = 1,num_nodes
+      ref_subcell_coords(idime,inod) =  ref_cell_coords(idime,inod)
+    end do
+  end do
+  
+  ! Create the fe_map
+  call this%fe_map%free()
+  call this%fe_map%create( this%quadrature, reference_fe_geo )
+  
+  ! Compute info for the first cell
+  call this%update_private()
+  
+end subroutine cell_accessor_init_private
+
+subroutine cell_accessor_update_private( this )
+  implicit none
+  class(unfitted_cell_accessor_t), intent(inout) :: this  
+
+  integer(ip)        :: mc_case, num_cut_edges, num_subcells, num_nodes_subcell
+  integer(ip)        :: num_nodes, num_dime
+  integer(ip)        :: inod, idime, ipoin
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(quadrature_t),               pointer :: nodal_quadrature
+  type(point_t),                    pointer :: phys_cell_coords(:)
+  real(rp),                         pointer :: ref_subcell_coords(:,:)
+  
+  ! Get sizes
+  mc_case           = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+  num_cut_edges     = this%serial_unfitted_triangulation%mc_table_num_cut_edges_per_case(mc_case)
+  num_subcells      = this%serial_unfitted_triangulation%mc_table_num_subcells_per_case(mc_case)
+  num_nodes_subcell = this%serial_unfitted_triangulation%mc_table_num_nodes_subcell
+  reference_fe_geo => this%get_reference_fe_geo()
+  nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
+  num_dime          = nodal_quadrature%get_number_dimensions()
+  num_nodes         = nodal_quadrature%get_number_quadrature_points()
+   
+  ! Add the intersection points to the quadrature
+  ref_subcell_coords => this%quadrature%get_coordinates()
+  do idime = 1,num_dime
+    do inod = 1,num_cut_edges
+      ipoin = this%serial_unfitted_triangulation%mc_ptr_to_intersections(this%get_lid()) + inod - 1
+      ref_subcell_coords(idime,inod+num_nodes) = &
+      this%serial_unfitted_triangulation%mc_intersection_points(ipoin)%get(idime)
+    end do
+  end do
+  
+  ! The quadrature points have changed, thus update the interpolation of the fe map
+  call this%fe_map%update_interpolation( this%quadrature, reference_fe_geo )
+  
+  ! Update the nodal coordinates and compute the map
+  ! After this, the fe_map contains the nodes of the subcells on the physical space
+  phys_cell_coords => this%fe_map%get_coordinates()
+  call this%get_coordinates(phys_cell_coords)
+  call this%fe_map%compute_quadrature_coordinates() 
+  this%subcells_phys_coords => this%fe_map%get_quadrature_points_coordinates()
+  
+  ! Update the array of subcell connectivities for the current mc_case
+  this%subcells_connectivities => &
+  this%serial_unfitted_triangulation%mc_table_subcell_node_ids_per_case(:,:,mc_case) 
+  
+end subroutine cell_accessor_update_private
