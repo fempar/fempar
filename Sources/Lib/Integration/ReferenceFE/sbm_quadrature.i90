@@ -79,10 +79,9 @@ end function quadrature_get_coordinates
 
 subroutine quadrature_get_coordinates_as_points ( this, points )
   implicit none
-  class(quadrature_t),        intent(in)    :: this
-  type(point_t), allocatable, intent(inout) :: points(:)
+  class(quadrature_t), intent(in)    :: this
+  type(point_t), intent(inout) :: points(:)
   integer(ip) :: ipo, idi
-  assert( allocated(points) )
   assert( size(points) == this%number_quadrature_points )
   do ipo = 1, this%number_quadrature_points
     do idi = 1, SPACE_DIM

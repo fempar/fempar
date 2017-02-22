@@ -14,7 +14,8 @@ mc_inout_subcells_per_case_aux = cell(mc_ncases,1);
 mc_num_nodes_per_subcell = 3;
 mc_num_cut_edges_per_case = zeros(mc_ncases,1);
 
-icase = 1;
+
+node2bit = [1 2 4 8 16 32 64 128];
 
 Pn = [-1 1];
 for n1 = 1:2
@@ -27,6 +28,14 @@ for n1 = 1:2
                 Pe(4)=Pn(n4);
                 %disp(icase)
                 %disp(Pe')
+                
+                icase = 0;
+                for i=1:length(Pe)
+                    if Pe(i) <0
+                    icase = bitor(icase,node2bit(i));
+                    end
+                end
+                icase = icase + 1;
                 
                 [Xtris,Ttris,Ptris] = subtriangulate_element(Xe,Pe,Eedges);
                 num_sub_cells = size(Ttris,1);
@@ -43,7 +52,6 @@ for n1 = 1:2
                 end
                 
                 
-                icase = icase +1;
             end
         end
     end

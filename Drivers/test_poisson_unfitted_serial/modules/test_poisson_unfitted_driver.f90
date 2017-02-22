@@ -126,6 +126,7 @@ contains
     call level_set_function%set_radius(0.9_rp)
     call this%triangulation%create(this%parameter_list,level_set_function)
     call this%triangulation%print_to_vtk_file() ! TODO. Remove this. This is only for debugging
+    call this%triangulation%print()
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()

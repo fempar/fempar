@@ -13,6 +13,8 @@ Xe = [-1 -1  -1
 
 Eedges = [1 2; 2 3; 3 4; 4 1; 1 5; 2 6; 3 7; 4 8; 5 6; 6 7; 7 8; 8 5];% TODO This is my numeration, not fempar's!
 
+node2bit = [1 2 4 8 16 32 64 128];
+
 Pe  = zeros(8,1);
 
 mc_ncases = 2^8;
@@ -43,6 +45,14 @@ for n1 = 1:2
                             for n8 = 1:2
                                 Pe(8)=Pn(n8);
                                 
+                                icase = 0;
+                                for i=1:length(Pe)
+                                    if Pe(i) <0
+                                        icase = bitor(icase,node2bit(i));
+                                    end
+                                end
+                                icase = icase + 1;
+                                
                                 [Xtris,Ttris,Ptris] = subtriangulate_element(Xe,Pe,Eedges);
                                 num_sub_cells = size(Ttris,1);
                                 
@@ -56,7 +66,7 @@ for n1 = 1:2
                                 else
                                     mc_num_cut_edges_per_case(icase) = size(Xtris,1)-size(Xe,1);
                                 end
-                                icase = icase +1;
+                               
                                 
                                 
                             end

@@ -109,6 +109,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_reference_fe_geo_id => cell_accessor_get_reference_fe_geo_id
     procedure, non_overridable           :: get_coordinates         => cell_accessor_get_coordinates
     procedure, non_overridable           :: set_coordinates         => cell_accessor_set_coordinates
+    procedure, non_overridable           :: get_coordinates_ref_space => cell_accessor_get_coordinates_ref_space
     procedure, non_overridable           :: get_lid                 => cell_accessor_get_lid
     procedure, non_overridable           :: get_gid                 => cell_accessor_get_gid
     procedure, non_overridable           :: get_my_part             => cell_accessor_get_mypart
