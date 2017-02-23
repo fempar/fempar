@@ -112,7 +112,7 @@ contains
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
     
-    type(level_set_cyllinder_t) :: level_set_function ! TODO: we assume a cylinder for the moment
+    type(level_set_sphere_t) :: level_set_function ! TODO: we assume a cylinder for the moment
 
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
@@ -125,8 +125,9 @@ contains
     ! New call for unfitted triangulation
     call level_set_function%set_radius(0.9_rp)
     call this%triangulation%create(this%parameter_list,level_set_function)
+    !call this%triangulation%print()
     call this%triangulation%print_to_vtk_file() ! TODO. Remove this. This is only for debugging
-    call this%triangulation%print()
+    
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()

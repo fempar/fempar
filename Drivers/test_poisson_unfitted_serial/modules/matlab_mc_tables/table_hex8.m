@@ -2,16 +2,31 @@ clear
 close all
 clc
 
-Xe = [-1 -1  -1
-    1   -1  -1
-    1    1  -1
-    -1   1  -1
-    -1  -1   1
-    1   -1   1
-    1    1   1
-    -1   1   1]; % TODO This is my numeration, not fempar's!
 
-Eedges = [1 2; 2 3; 3 4; 4 1; 1 5; 2 6; 3 7; 4 8; 5 6; 6 7; 7 8; 8 5];% TODO This is my numeration, not fempar's!
+Xe = [...
+  -1.0  -1.0  -1.0
+   1.0  -1.0  -1.0
+  -1.0   1.0  -1.0
+   1.0   1.0  -1.0
+  -1.0  -1.0   1.0
+   1.0  -1.0   1.0
+  -1.0   1.0   1.0
+   1.0   1.0   1.0 ]; % Fempar numeration
+
+Eedges = [...
+ 1   2
+ 3   4
+ 5   6
+ 7   8
+ 1   3
+ 2   4
+ 5   7
+ 6   8
+ 1   5
+ 2   6
+ 3   7
+ 4   8]; % Fempar numeration
+
 
 node2bit = [1 2 4 8 16 32 64 128];
 

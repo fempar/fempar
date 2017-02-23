@@ -258,9 +258,6 @@ subroutine serial_unfitted_triangulation_print ( this )
     end do
     call cell_iter%next()
   end do
-  write(*,*) " "
-
-
 
   write(*,*) " "
   write (*,'(a)') '**** print type(serial_unfitted_triangulation_t) [end] ****'
@@ -300,6 +297,8 @@ subroutine serial_unfitted_triangulation_print_to_vtk_file ( this )
   integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
 
   assert( this%mc_runtime_init )
+  
+  write(*,*) "serial_unfitted_triangulation_t: Writing vtu file ..."
 
   cell_iter = this%create_unfitted_cell_iterator()
   call cell_iter%current(cell)
@@ -328,6 +327,7 @@ subroutine serial_unfitted_triangulation_print_to_vtk_file ( this )
     case(3)
       the_cell_type = 12_I1P
       the_subcell_type = 10_I1P
+      nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
     case(2)
       the_cell_type = 9_I1P
       the_subcell_type = 5_I1P
@@ -345,7 +345,7 @@ subroutine serial_unfitted_triangulation_print_to_vtk_file ( this )
     call cell_iter%current(cell)
     call cell%get_coordinates( cell_coords )
 
-    do ino = 1, num_cell_nodes
+    do ino = 1, num_cell_nodes !TODO is it possible to avoid loops like this one?
       x(inode) = cell_coords(ino)%get(1)
       y(inode) = cell_coords(ino)%get(2)
       z(inode) = cell_coords(ino)%get(3)
@@ -421,6 +421,8 @@ subroutine serial_unfitted_triangulation_print_to_vtk_file ( this )
   call memfree ( nodesids, __FILE__, __LINE__ )
 
   call cell_iter%free()
+  
+  write(*,*) "serial_unfitted_triangulation_t: Writing vtu file ... OK"
 
 end subroutine serial_unfitted_triangulation_print_to_vtk_file
 
@@ -447,6 +449,7 @@ function serial_unfitted_triangulation_fulfills_assumptions(this) result (fulfil
   character(:),                 allocatable :: topology 
   integer(ip)                               :: num_dim, num_dim_tmp, p_order
   
+  ! TODO: requires clean up using getters
   ! Hypothesis: All cells in the mesh are either qua4 or hex8
   fulfills = .true. 
   cell_iter = this%create_cell_iterator()
@@ -480,6 +483,8 @@ subroutine serial_unfitted_triangulation_mc_tables_create(this)
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: num_dim
 
+  ! TODO: requires clean up using getters
+  
   ! To be safe
   call this%mc_tables_free()
   
@@ -553,7 +558,7 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   type(cell_accessor_t)  :: cell
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   type(quadrature_t), pointer :: nodal_quadrature
-  integer(ip), parameter :: x=1, y=2
+  integer(ip), parameter :: x=1, y=2, z=3
   type(point_t), allocatable :: Xe_phys(:), Xe_ref(:)
   integer(ip), parameter :: edge_dim = 1
   integer(ip), allocatable :: edges2nodes(:,:)
@@ -568,24 +573,23 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   ! To be safe
   call this%mc_runtime_info_free()  
   
-  ! Get edges to nodes table on the reference element
+  ! Get edges to nodes table on the reference element.
+  ! To this end I have created a new getter in reference FE. TODO: a better way of doing this?
   cell_iter = this%create_cell_iterator()
   call cell_iter%current(cell)
   reference_fe_geo => cell%get_reference_fe_geo()
-  write(*,*) "Is edges2nodes allocated? ", allocated(edges2nodes)  
   num_edges      = reference_fe_geo%get_number_n_faces_of_dimension(edge_dim)
   num_edge_nodes = reference_fe_geo%get_num_nodes_per_n_face_of_dim(edge_dim) 
   assert(num_edge_nodes == 2_ip)
   call memalloc (num_edge_nodes, num_edges, edges2nodes, __FILE__, __LINE__ )
   call reference_fe_geo%get_nodes_of_all_n_faces_of_dim( edge_dim, edges2nodes ) 
-    
-  
-  ! TODO. to be removed (print the table)
-  write(*,*) "Edge to nodes table"
-  do iedge = 1, num_edges
-      write(*,*) edges2nodes(1,iedge), edges2nodes(2,iedge)
-  end do  
-  write(*,*) " "
+   
+  !! TODO. to be removed (print the table)
+  !write(*,*) "Edge to nodes table"
+  !do iedge = 1, num_edges
+  !    write(*,*) edges2nodes(1,iedge), edges2nodes(2,iedge)
+  !end do  
+  !write(*,*) " "
  
   ! Get the nodal coordinates in the reference element
   nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
@@ -595,15 +599,15 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   check(istat == 0)
   call nodal_quadrature%get_coordinates_as_points( Xe_ref )
   
-  write(*,*) "Coordinates at reference element"
-  do inode = 1, num_nodes
-      write(*,*) Xe_ref(inode)%get(x), Xe_ref(inode)%get(y)
-  end do  
-    write(*,*) " "
+  !write(*,*) "Coordinates at reference element"
+  !do inode = 1, num_nodes
+  !    write(*,*) Xe_ref(inode)%get(x), Xe_ref(inode)%get(y), Xe_ref(inode)%get(z)
+  !end do  
+  !  write(*,*) " "
     
   ! Get number of cells  
   num_cells = this%get_num_local_cells() + this%get_num_ghost_cells()
-  write(*,*) "num_cells ", num_cells
+  !write(*,*) "num_cells ", num_cells
   
   call memalloc (num_cells, this%mc_case_per_cell, __FILE__, __LINE__ )
   
@@ -615,26 +619,33 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
 
     call cell_iter%current(cell)
    
-      write (*,*) "I am: ", cell%get_lid(), " lid"
-      write (*,*) "Node coordinates (physical space)"
-      reference_fe_geo => cell%get_reference_fe_geo()
+      !write (*,*) "I am: ", cell%get_lid(), " lid"
+      !write (*,*) "Node coordinates (physical space)"
+      !reference_fe_geo => cell%get_reference_fe_geo()
       
       call cell%get_coordinates(Xe_phys)
-      do inode = 1, num_nodes
-        write (*,*) Xe_phys(inode)%get(x), Xe_phys(inode)%get(y)
-      end do
-      write(*,*) " "
+      
+      if ( num_dim == 2_ip ) then ! Only needed to use a sphere levelset in 2d. TODO: remove when using a generic levelset
+        do inode = 1, num_nodes
+          call Xe_phys(inode)%set(z,0.0_rp)
+        end do
+      end if
+      
+      !do inode = 1, num_nodes
+      !  write (*,*) Xe_phys(inode)%get(x), Xe_phys(inode)%get(y)
+      !end do
+      !write(*,*) " "
       
       ! Evaluate level set and the case
       icase = 0_ip
       do inode = 1, num_nodes
         call this%level_set_function%get_value(Xe_phys(inode),phi_node)
-        write (*,*) phi_node
+        !write (*,*) phi_node
         if (phi_node < 0.0_rp) icase = ior(icase,node2bit(inode))
       end do
       this%mc_case_per_cell(icell) = icase + 1
-      write(*,*) "case ", icase
-      write(*,*) " "
+      !write(*,*) "case ", icase
+      !write(*,*) " "
       
     icell = icell + 1 ! TODO a better way of doing this?? using the iterator?  Use lid? what happens to ghost cells?
     call cell_iter%next()
@@ -659,35 +670,35 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   do while ( .not. cell_iter%has_finished() )
     call cell_iter%current(cell)
       call cell%get_coordinates(Xe_phys)
-      write (*,*) "I am: ", cell%get_lid(), " lid"
-      write (*,*) "Node coordinates (physical space)"
-      do inode = 1, num_nodes
-        write (*,*) Xe_phys(inode)%get(x), Xe_phys(inode)%get(y)
-      end do
-      write(*,*) " "
+      !write (*,*) "I am: ", cell%get_lid(), " lid"
+      !write (*,*) "Node coordinates (physical space)"
+      !do inode = 1, num_nodes
+      !  write (*,*) Xe_phys(inode)%get(x), Xe_phys(inode)%get(y)
+      !end do
+      !write(*,*) " "
       do iedge = 1, num_edges
         nodes_in_edge(:) = edges2nodes(:,iedge)      
         do inode = 1,num_nodes_in_edge
           call this%level_set_function%get_value(Xe_phys(nodes_in_edge(inode)),phi_edge(inode))
         end do
-        write(*,*) "Edge=", iedge, " ", phi_edge
+        !write(*,*) "Edge=", iedge, " ", phi_edge
         if ( (phi_edge(1) >= 0 .and. phi_edge(2) < 0) .or. (phi_edge(2) >= 0 .and. phi_edge(1) < 0)   ) then
           this%mc_intersection_points(ipoin) = Xe_ref(nodes_in_edge(1)) + &
           (abs(phi_edge(1))/(abs(phi_edge(1))+abs(phi_edge(2))))*( Xe_ref(nodes_in_edge(2)) - Xe_ref(nodes_in_edge(1)) ) 
-          write(*,*) "Int ", this%mc_intersection_points(ipoin)%get(x), this%mc_intersection_points(ipoin)%get(y) 
+          !write(*,*) "Int ", this%mc_intersection_points(ipoin)%get(x), this%mc_intersection_points(ipoin)%get(y) 
           ipoin = ipoin + 1          
         end if
       end do      
     icell = icell + 1 ! TODO a better way of doing this?? using the iterator?  Use lid?  Use lid? what happens to ghost cells?
     call cell_iter%next()
-    write(*,*) " "
+   ! write(*,*) " "
  end do
   
-  deallocate( Xe_ref, stat=istat )   ! TODO needed? allocated when it goes out of scope?
+  deallocate( Xe_ref, stat=istat )  
   check(istat == 0)
-  deallocate( Xe_phys, stat=istat )    ! TODO needed? allocated when it goes out of scope?
+  deallocate( Xe_phys, stat=istat )    
   check(istat == 0)
-  call memfree (edges2nodes, __FILE__, __LINE__ ) ! TODO needed? allocated when it goes out of scope?
+  call memfree (edges2nodes, __FILE__, __LINE__ ) 
 
   this%mc_runtime_init = .true.
   
@@ -698,36 +709,11 @@ end subroutine serial_unfitted_triangulation_mc_runtime_info_create
 subroutine serial_unfitted_triangulation_mc_runtime_info_free(this)
   implicit none
   class(serial_unfitted_triangulation_t), intent(inout) :: this
-  integer(ip) :: istat
+  integer(ip) :: istat, i
   if (allocated (this%mc_case_per_cell       )) call memfree ( this%mc_case_per_cell        , __FILE__, __LINE__ )
   if (allocated (this%mc_ptr_to_intersections)) call memfree ( this%mc_ptr_to_intersections , __FILE__, __LINE__ )
-  if (allocated (this%mc_intersection_points )) then
-    deallocate( this%mc_intersection_points, stat=istat )
-    check(istat==0)
+  if (allocated (this%mc_intersection_points)) then
+    deallocate(this%mc_intersection_points, stat=istat); check(istat==0)
   end if
-
   this%mc_runtime_init = .false.
 end subroutine serial_unfitted_triangulation_mc_runtime_info_free
-
-
-! TODO split previous function into several shorter ones
-
-!function serial_unfitted_triangulation_determine_mc_case(this,i_lhcell) result (i_case)
-!  implicit none
-!  class(serial_unfitted_triangulation_t), intent(in) :: this
-!  integer(ip), intent(in) :: i_lhcell
-!  integer(ip) :: i_case
-!  ! TODO
-!end function serial_unfitted_triangulation_determine_mc_case
-
-
-
-!subroutine serial_unfitted_triangulation_compute_mc_intersection_points(this,i_lhcell,points_out)
-!  implicit none
-!  class(serial_unfitted_triangulation_t), intent(in) :: this
-!  integer(ip), intent(in) :: i_lhcell
-!  type(point_t), allocatable, intent(out) :: points_out(:)
-!  ! TODO
-!end subroutine serial_unfitted_triangulation_compute_mc_intersection_points
-
-

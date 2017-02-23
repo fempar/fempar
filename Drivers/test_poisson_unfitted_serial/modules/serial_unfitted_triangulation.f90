@@ -29,8 +29,8 @@
 module serial_unfitted_triangulation_names
   use fempar_names
   use level_set_functions_gallery_names
-  USE IR_Precision ! VTK_IO
-  USE Lib_VTK_IO ! VTK_IO
+  use IR_Precision ! VTK_IO
+  use Lib_VTK_IO ! VTK_IO
   
   implicit none
 # include "debug.i90"
@@ -40,22 +40,16 @@ module serial_unfitted_triangulation_names
 # include "mc_tables_qua4.i90"
 # include "mc_tables_hex8.i90"
   
-
   type, extends(cell_accessor_t) :: unfitted_cell_accessor_t
   
     private
     class(serial_unfitted_triangulation_t), pointer     :: serial_unfitted_triangulation => NULL()
-    !type(point_t), pointer :: subcells_phys_coords(:) => NULL()
-    !integer(ip)  , pointer :: subcells_connectivities(:,:) => NULL()
-    !type(quadrature_t)  :: quadrature ! TODO who frees this?
-    !type(fe_map_t)      :: fe_map ! TODO who frees this?  Who deallocates the member variables of a derived type that goes out of scope?
-
+    
   contains
 
     ! Public TBPs
     procedure :: cell_accessor_create => unfitted_cell_accessor_cell_accessor_create
     procedure :: cell_accessor_free   => unfitted_cell_accessor_cell_accessor_free
-    !procedure :: cell_accessor_next   => unfitted_cell_accessor_cell_accessor_next
 
     procedure, non_overridable :: get_number_of_subcells      => unfitted_cell_accessor_get_number_of_subcells
     procedure, non_overridable :: get_number_of_subnodes      => unfitted_cell_accessor_get_number_of_subnodes
@@ -71,8 +65,6 @@ module serial_unfitted_triangulation_names
 
     ! Private TBPs
     procedure, non_overridable, private :: get_ref_coords_subnodes    => unfitted_cell_accessor_get_ref_coords_subnodes
-    !!procedure, non_overridable, private :: init_private   => cell_accessor_init_private
-    !!procedure, non_overridable, private :: update_private => cell_accessor_update_private
 
   end type unfitted_cell_accessor_t
 

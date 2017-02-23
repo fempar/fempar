@@ -25,6 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 subroutine unfitted_cell_iterator_create ( this, lid, base_static_triangulation ) 
   implicit none
   class(unfitted_cell_iterator_t)   , intent(inout) :: this
@@ -44,7 +45,6 @@ subroutine unfitted_cell_iterator_init ( this )
   implicit none
   class(unfitted_cell_iterator_t), intent(inout) :: this
   call this%current_cell_accessor%set_lid(lid=1)
-  !call this%current_cell_accessor%init_private()
 end subroutine unfitted_cell_iterator_init
 
 subroutine unfitted_cell_iterator_next ( this ) 
