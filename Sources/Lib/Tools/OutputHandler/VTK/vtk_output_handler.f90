@@ -206,22 +206,15 @@ contains
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
         integer(ip),                 intent(in)    :: number_steps
-        integer(ip)                                :: current_size
-        real(rp), allocatable                      :: temp_times(:)
+        integer(ip)                                :: new_size 
     !-----------------------------------------------------------------
         if(.not. allocated(this%Times)) then
             call memalloc(100, this%times, __FILE__, __LINE__)
         elseif(number_steps > size(this%Times)) then
-            current_size = size(this%Times)
-            allocate(temp_times(current_size))
-            temp_times(1:current_size) = this%Times(1:current_size)
-            deallocate(this%Times)
-            allocate(this%Times(int(1.5*current_size)))
-            this%Times(1:current_size) = temp_times(1:current_size)
-            deallocate(temp_times)
+            new_size = int(1.5*size(this%Times))
+            call memrealloc(new_size,this%Times,__FILE__,__LINE__)
         endif
     end subroutine vtk_output_handler_resize_times_if_needed
-
 
     subroutine vtk_output_handler_append_time_step(this, value)
     !-----------------------------------------------------------------
