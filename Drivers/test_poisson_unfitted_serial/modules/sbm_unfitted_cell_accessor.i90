@@ -50,6 +50,62 @@ subroutine unfitted_cell_accessor_cell_accessor_free ( this )
   nullify ( this%serial_unfitted_triangulation )
 end subroutine unfitted_cell_accessor_cell_accessor_free
 
+subroutine unfitted_cell_accessor_update_subcells( this )
+
+  implicit none
+  class(unfitted_cell_accessor_t), intent(inout) :: this
+
+  integer(ip) :: num_subnodes, num_nodes, num_intersections, i1, i2, mc_case, num_dim
+  integer(ip) :: ipo, idi
+  type(point_t), pointer, dimension(:) ::  node_coords, intersec_coords, coordinates
+  type(quadrature_t), pointer :: quadrature
+  real(rp), pointer :: points_in_quadrature(:,:)
+  type(point_t),  pointer :: phys_cell_coords(:)
+  type(fe_map_t), pointer :: fe_map
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+
+  if ( .not. this%is_cut() ) return
+
+  assert(this%serial_unfitted_triangulation%mc_runtime_init)
+  num_subnodes = this%get_number_of_subnodes()
+  num_nodes = this%get_num_nodes()
+  num_dim = this%serial_unfitted_triangulation%get_num_dimensions()
+  num_intersections = num_subnodes - num_nodes
+  assert(num_subnodes > num_nodes)
+
+  ! Recover the subpoints coordinates on the ref space
+  coordinates => this%serial_unfitted_triangulation%subnodes_ref_coords
+  assert( num_subnodes <= size(coordinates) )
+  node_coords => coordinates(1:num_nodes)
+  call this%get_coordinates_ref_space( node_coords )
+  intersec_coords => coordinates(num_nodes+1:num_subnodes)
+  i1 = this%serial_unfitted_triangulation%mc_ptr_to_intersections(this%get_lid())
+  i2 = this%serial_unfitted_triangulation%mc_ptr_to_intersections(this%get_lid()+1)-1
+  intersec_coords(:) = this%serial_unfitted_triangulation%mc_intersection_points(i1:i2)
+
+  ! Update the quadrature
+  mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+  quadrature => this%serial_unfitted_triangulation%subnodes_nodal_quadratures(mc_case)
+  assert(num_dim == quadrature%get_number_dimensions())
+  assert(num_subnodes == quadrature%get_number_quadrature_points())
+  points_in_quadrature => quadrature%get_coordinates()
+  do ipo = 1, num_subnodes
+    do idi = 1, num_dim
+      points_in_quadrature(idi,ipo) = coordinates(ipo)%get(idi)
+    end do
+  end do
+
+  ! Prepare the fe map
+  fe_map => this%serial_unfitted_triangulation%subnodes_fe_maps(mc_case)
+  reference_fe_geo => this%get_reference_fe_geo()
+  call fe_map%update_interpolation( quadrature, reference_fe_geo )
+  phys_cell_coords => fe_map%get_coordinates()
+  call this%get_coordinates(phys_cell_coords)
+  call fe_map%compute_quadrature_coordinates()
+
+
+end subroutine unfitted_cell_accessor_update_subcells
+
 function unfitted_cell_accessor_get_number_of_subcells( this ) result ( num_subcells )
   implicit none
   class(unfitted_cell_accessor_t), intent(in) :: this
@@ -85,6 +141,23 @@ subroutine unfitted_cell_accessor_get_phys_coords_of_subcell( this, subcell, poi
   class(unfitted_cell_accessor_t), intent(in)    :: this
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: points(:)
+
+  !integer(ip) :: num_nodes_subcell, mc_case
+  !type(point_t), pointer :: subnodes_phys_coords(:)
+  !type(fe_map_t), pointer :: fe_map
+  !integer(ip), pointer ::  subcell_node_ids(:)
+
+  !assert(this%serial_unfitted_triangulation%mc_runtime_init)
+  !num_nodes_subcell = this%get_number_of_subcell_nodes()
+  !assert( size(points) == num_nodes_subcell)
+  !assert(this%is_cut())
+  !assert( (1_ip <= subcell) .and. (subcell <= this%get_number_of_subcells())  )
+
+  !mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+  !fe_map => this%serial_unfitted_triangulation%subnodes_fe_maps(mc_case)
+  !subnodes_phys_coords => fe_map%get_coordinates()
+  !subcell_node_ids =>  this%serial_unfitted_triangulation%mc_table_subcell_node_ids_per_case(:,subcell,mc_case)
+  !points(:) = subnodes_phys_coords(subcell_node_ids(:))
 
   integer(ip) :: num_dime, num_nodes_subcell, ipo, idi
   type(quadrature_t) :: quadrature
@@ -135,8 +208,8 @@ subroutine unfitted_cell_accessor_get_ref_coords_of_subcell( this, subcell, subc
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: subcell_points(:)
 
-  integer(ip) :: num_nodes_subcell, ipo, istat, mc_case
-  type(point_t), allocatable :: subpoints(:)
+  integer(ip) :: num_nodes_subcell, mc_case
+  type(point_t), pointer :: subnodes_ref_coords(:)
   integer(ip), pointer ::  subcell_node_ids(:)
 
   assert(this%serial_unfitted_triangulation%mc_runtime_init)
@@ -145,12 +218,27 @@ subroutine unfitted_cell_accessor_get_ref_coords_of_subcell( this, subcell, subc
   assert(this%is_cut())
   assert( (1_ip <= subcell) .and. (subcell <= this%get_number_of_subcells())  )
 
-  allocate( subpoints(1:this%get_number_of_subnodes()) , stat=istat ); check( istat==0 )
-  call this%get_ref_coords_subnodes( subpoints )
+  subnodes_ref_coords => this%serial_unfitted_triangulation%subnodes_ref_coords
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
   subcell_node_ids =>  this%serial_unfitted_triangulation%mc_table_subcell_node_ids_per_case(:,subcell,mc_case)
-  subcell_points(:) = subpoints(subcell_node_ids(:))
-  deallocate( subpoints , stat=istat ); check( istat==0 )
+  subcell_points(:) = subnodes_ref_coords(subcell_node_ids(:))
+
+  !integer(ip) :: num_nodes_subcell, ipo, istat, mc_case
+  !type(point_t), allocatable :: subpoints(:)
+  !integer(ip), pointer ::  subcell_node_ids(:)
+
+  !assert(this%serial_unfitted_triangulation%mc_runtime_init)
+  !num_nodes_subcell = this%get_number_of_subcell_nodes()
+  !assert( size(subcell_points) == num_nodes_subcell)
+  !assert(this%is_cut())
+  !assert( (1_ip <= subcell) .and. (subcell <= this%get_number_of_subcells())  )
+
+  !allocate( subpoints(1:this%get_number_of_subnodes()) , stat=istat ); check( istat==0 ) ! Don't reallocate this again and again
+  !call this%get_ref_coords_subnodes( subpoints )
+  !mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+  !subcell_node_ids =>  this%serial_unfitted_triangulation%mc_table_subcell_node_ids_per_case(:,subcell,mc_case)
+  !subcell_points(:) = subpoints(subcell_node_ids(:))
+  !deallocate( subpoints , stat=istat ); check( istat==0 )
 
 end subroutine unfitted_cell_accessor_get_ref_coords_of_subcell
 
@@ -216,29 +304,29 @@ function unfitted_cell_accessor_is_exterior_subcell( this, subcell ) result ( is
   is_out = ( pos == 1_ip )
 end function unfitted_cell_accessor_is_exterior_subcell
 
-! Private TBPs ----------------------------------------------------------------------------
-
-subroutine unfitted_cell_accessor_get_ref_coords_subnodes( this, coordinates)
-  implicit none
-  class(unfitted_cell_accessor_t), intent(in)  :: this
-  type(point_t), target, intent(inout) :: coordinates(:)
-
-  integer(ip) :: num_subnodes, num_nodes, num_intersections, i1, i2
-  type(point_t), pointer, dimension(:) ::  node_coords, intersec_coords
-
-  assert(this%serial_unfitted_triangulation%mc_runtime_init)
-  num_subnodes = this%get_number_of_subnodes()
-  num_nodes = this%get_num_nodes()
-  num_intersections = num_subnodes - num_nodes
-  assert( size(coordinates) == num_subnodes )
-  assert(this%is_cut())
-  assert(num_subnodes > num_nodes)
-
-  node_coords => coordinates(1:num_nodes)
-  call this%get_coordinates_ref_space( node_coords )
-  intersec_coords => coordinates(num_nodes+1:num_subnodes)
-  i1 = this%serial_unfitted_triangulation%mc_ptr_to_intersections(this%get_lid())
-  i2 = this%serial_unfitted_triangulation%mc_ptr_to_intersections(this%get_lid()+1)-1
-  intersec_coords(:) = this%serial_unfitted_triangulation%mc_intersection_points(i1:i2)
-
-end subroutine unfitted_cell_accessor_get_ref_coords_subnodes
+!! Private TBPs ----------------------------------------------------------------------------
+!
+!subroutine unfitted_cell_accessor_get_ref_coords_subnodes( this, coordinates)
+!  implicit none
+!  class(unfitted_cell_accessor_t), intent(in)  :: this
+!  type(point_t), target, intent(inout) :: coordinates(:)
+!
+!  integer(ip) :: num_subnodes, num_nodes, num_intersections, i1, i2
+!  type(point_t), pointer, dimension(:) ::  node_coords, intersec_coords
+!
+!  assert(this%serial_unfitted_triangulation%mc_runtime_init)
+!  num_subnodes = this%get_number_of_subnodes()
+!  num_nodes = this%get_num_nodes()
+!  num_intersections = num_subnodes - num_nodes
+!  assert( size(coordinates) == num_subnodes )
+!  assert(this%is_cut())
+!  assert(num_subnodes > num_nodes)
+!
+!  node_coords => coordinates(1:num_nodes)
+!  call this%get_coordinates_ref_space( node_coords )
+!  intersec_coords => coordinates(num_nodes+1:num_subnodes)
+!  i1 = this%serial_unfitted_triangulation%mc_ptr_to_intersections(this%get_lid())
+!  i2 = this%serial_unfitted_triangulation%mc_ptr_to_intersections(this%get_lid()+1)-1
+!  intersec_coords(:) = this%serial_unfitted_triangulation%mc_intersection_points(i1:i2)
+!
+!end subroutine unfitted_cell_accessor_get_ref_coords_subnodes

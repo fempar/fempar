@@ -107,7 +107,8 @@ contains
 
     integer(ip), parameter :: x=1,y=2,z=3
     assert(this%radius > 0.0_rp)
-    result = sqrt( point%get(x)**2 + point%get(y)**2 + point%get(z)**2 ) - this%radius
+    !result = sqrt( point%get(x)**2 + point%get(y)**2 + point%get(z)**2 ) - this%radius !TODO we cannot assume that component z is 0 in 2D...
+    result = sqrt( point%get(x)**2 + point%get(y)**2 ) - this%radius !TODO we cannot assume that component z is 0 in 2D...
 
   end subroutine level_set_sphere_get_level_set_value
 

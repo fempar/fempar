@@ -106,12 +106,12 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type interpolation_t
      private
-     integer(ip)                ::  &
-          number_dimensions,        &      
-          number_shape_functions,   &      
-          number_quadrature_points, &      
-          number_entries_symmetric_tensor
-     real(rp), allocatable      ::  &
+     integer(ip)                    ::  &
+          number_dimensions = 0,        &      
+          number_shape_functions = 0,   &      
+          number_quadrature_points = 0, &      
+          number_entries_symmetric_tensor = 0
+     real(rp), allocatable        ::  &
           shape_functions(:,:,:),     &   
           shape_derivatives(:,:,:,:), &   
           hessian(:,:,:,:)     
@@ -121,6 +121,7 @@ module reference_fe_names
      procedure, non_overridable :: copy   => interpolation_copy
      procedure, non_overridable :: clone  => interpolation_clone
      procedure, non_overridable :: print  => interpolation_print
+     procedure, non_overridable, private :: is_needed_to_allocate => interpolation_is_needed_to_allocate
   end type interpolation_t
 
   public :: interpolation_t
@@ -1309,6 +1310,7 @@ procedure, non_overridable :: create_on_face => volume_integrator_create_on_face
 procedure, non_overridable :: free           => volume_integrator_free
 procedure, non_overridable :: update         => volume_integrator_update
 procedure, non_overridable :: print          => volume_integrator_print
+procedure, non_overridable :: update_interpolation  => volume_integrator_update_interpolation
 
 procedure, non_overridable :: get_interpolation_reference_cell =>                               &
 &                                   volume_integrator_get_interpolation_reference_cell

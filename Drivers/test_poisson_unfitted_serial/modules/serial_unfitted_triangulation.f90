@@ -51,6 +51,8 @@ module serial_unfitted_triangulation_names
     procedure :: cell_accessor_create => unfitted_cell_accessor_cell_accessor_create
     procedure :: cell_accessor_free   => unfitted_cell_accessor_cell_accessor_free
 
+    procedure, non_overridable :: update_subcells      => unfitted_cell_accessor_update_subcells
+
     procedure, non_overridable :: get_number_of_subcells      => unfitted_cell_accessor_get_number_of_subcells
     procedure, non_overridable :: get_number_of_subnodes      => unfitted_cell_accessor_get_number_of_subnodes
     procedure, non_overridable :: get_number_of_subcell_nodes => unfitted_cell_accessor_get_number_of_subcell_nodes
@@ -64,7 +66,7 @@ module serial_unfitted_triangulation_names
     procedure, non_overridable :: is_exterior_subcell => unfitted_cell_accessor_is_exterior_subcell
 
     ! Private TBPs
-    procedure, non_overridable, private :: get_ref_coords_subnodes    => unfitted_cell_accessor_get_ref_coords_subnodes
+    !procedure, non_overridable, private :: get_ref_coords_subnodes    => unfitted_cell_accessor_get_ref_coords_subnodes
 
   end type unfitted_cell_accessor_t
 
@@ -103,6 +105,11 @@ module serial_unfitted_triangulation_names
     type(point_t), allocatable :: mc_intersection_points(:)
     logical :: mc_runtime_init = .false.
 
+    ! Info related to the subnodes
+    type(point_t),      allocatable :: subnodes_ref_coords(:)
+    type(quadrature_t), allocatable :: subnodes_nodal_quadratures(:)
+    type(fe_map_t),     allocatable :: subnodes_fe_maps(:)
+
   contains
 
     ! Public TBP 
@@ -129,6 +136,8 @@ module serial_unfitted_triangulation_names
     procedure, non_overridable, private :: mc_tables_free                 => serial_unfitted_triangulation_mc_tables_free
     procedure, non_overridable, private :: mc_runtime_info_create         => serial_unfitted_triangulation_mc_runtime_info_create
     procedure, non_overridable, private :: mc_runtime_info_free           => serial_unfitted_triangulation_mc_runtime_info_free
+    procedure, non_overridable, private :: subnodes_data_create           => serial_unfitted_triangulation_subnodes_data_create
+    procedure, non_overridable, private :: subnodes_data_free             => serial_unfitted_triangulation_subnodes_data_free
 
   end type serial_unfitted_triangulation_t
 
