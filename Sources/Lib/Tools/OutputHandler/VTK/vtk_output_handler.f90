@@ -216,6 +216,7 @@ contains
         endif
     end subroutine vtk_output_handler_resize_times_if_needed
 
+    
     subroutine vtk_output_handler_append_time_step(this, value)
     !-----------------------------------------------------------------
     !< Append a new time step
