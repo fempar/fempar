@@ -91,6 +91,7 @@ module reference_fe_names
      procedure, non_overridable :: get_coordinates => quadrature_get_coordinates
      procedure, non_overridable :: get_coordinates_as_points => quadrature_get_coordinates_as_points
      procedure, non_overridable :: get_weight => quadrature_get_weight
+     procedure, non_overridable :: get_weights => quadrature_get_weights
   end type quadrature_t
 
   type p_quadrature_t

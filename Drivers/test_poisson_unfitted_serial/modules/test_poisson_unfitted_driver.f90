@@ -28,6 +28,7 @@
 module test_poisson_unfitted_driver_names
   use fempar_names
   use serial_unfitted_triangulation_names
+  use serial_unfitted_fe_space_names
   use level_set_functions_gallery_names
   use test_poisson_unfitted_params_names
   use poisson_unfitted_cG_discrete_integration_names
@@ -55,7 +56,7 @@ module test_poisson_unfitted_driver_names
      type(serial_unfitted_triangulation_t)              :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
-     type(serial_fe_space_t)                      :: fe_space 
+     type(serial_unfitted_fe_space_t)             :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      type(poisson_unfitted_cG_discrete_integration_t)      :: poisson_unfitted_cG_integration
      type(poisson_unfitted_dG_discrete_integration_t)      :: poisson_unfitted_dG_integration

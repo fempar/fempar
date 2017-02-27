@@ -98,6 +98,13 @@ function quadrature_get_weight ( this, i )
   quadrature_get_weight = this%weight(i)
 end function quadrature_get_weight
 
+function quadrature_get_weights ( this )
+  implicit none
+  class(quadrature_t), target, intent(in) :: this
+  real(rp), pointer :: quadrature_get_weights(:)
+  quadrature_get_weights => this%weight
+end function quadrature_get_weights
+
 ! function quadrature_get_pointer_coordinates ( this )
 !   implicit none
 !   class(quadrature_t), target, intent(in) :: this

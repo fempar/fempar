@@ -130,7 +130,7 @@ module fe_space_names
     private
     class(serial_fe_space_t), pointer :: fe_space
   contains
-    procedure, private, non_overridable :: fe_accessor_create
+    procedure,                  private :: fe_accessor_create
     generic                             :: create                                     => fe_accessor_create
     procedure                           :: cell_accessor_create                       => fe_accessor_cell_accessor_create
     procedure                           :: free                                       => fe_accessor_free
