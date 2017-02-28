@@ -206,6 +206,25 @@ end function serial_unfitted_triangulation_get_total_num_of_subcells
 
 !------------------------------------------------------------------------------------------------
 
+function serial_unfitted_triangulation_get_num_mc_cases(this) result (mc_cases)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: mc_cases
+  mc_cases = this%mc_table_num_cases
+end function serial_unfitted_triangulation_get_num_mc_cases
+
+!------------------------------------------------------------------------------------------------
+
+function serial_unfitted_triangulation_get_num_subcells_mc_case(this,mc_case) result (num_subcells)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in) :: this
+  integer(ip), intent(in) :: mc_case
+  integer(ip) :: num_subcells
+  num_subcells = this%mc_table_num_subcells_per_case(mc_case)
+end function serial_unfitted_triangulation_get_num_subcells_mc_case
+
+!------------------------------------------------------------------------------------------------
+
 subroutine serial_unfitted_triangulation_print ( this )
 
   implicit none
@@ -684,6 +703,7 @@ subroutine serial_unfitted_triangulation_subnodes_data_create( this )
   allocate( this%subnodes_fe_maps          (1:this%mc_table_num_cases), stat=istat); check(istat==0_ip)
 
   ! Initialize each one of the quadratures
+  ! TODO we assume that all the cells are of the same type
   cell_iter = this%create_cell_iterator()
   call cell_iter%current(cell)
   do icase=1, this%mc_table_num_cases

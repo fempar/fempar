@@ -35,17 +35,35 @@ module serial_unfitted_fe_space_names
   private
 
   type, extends(fe_accessor_t) :: unfitted_fe_accessor_t
+
     private
     class(serial_unfitted_fe_space_t), pointer     :: unfitted_fe_space => NULL()
+    type(unfitted_cell_accessor_t)                 :: unfitted_cell_accessor
+
   contains
+
     procedure, private :: fe_accessor_create => unfitted_fe_accessor_create
     procedure          :: fe_accessor_free   => unfitted_fe_accessor_free
+
+    procedure, non_overridable :: get_unfitted_cell_accessor => unfitted_fe_accessor_get_unfitted_cell_accessor
+
+    procedure          :: get_quadrature        => unfitted_fe_accessor_get_quadrature
+    procedure          :: get_fe_map            => unfitted_fe_accessor_get_fe_map
+    procedure          :: get_volume_integrator => unfitted_fe_accessor_get_volume_integrator
+
+    procedure          :: update_integration     => unfitted_fe_accessor_update_integration
+    procedure          :: update_cut_integration => unfitted_fe_accessor_update_cut_integration
+
+
   end type unfitted_fe_accessor_t
 
   type :: unfitted_fe_iterator_t
+
     private
     type(unfitted_fe_accessor_t) :: unfitted_fe_accessor
+
   contains
+
     procedure, non_overridable, private :: create       => unfitted_fe_iterator_create
     procedure, non_overridable          :: free         => unfitted_fe_iterator_free
     procedure, non_overridable          :: init         => unfitted_fe_iterator_init
@@ -53,6 +71,7 @@ module serial_unfitted_fe_space_names
     procedure, non_overridable          :: has_finished => unfitted_fe_iterator_has_finished
     procedure, non_overridable, private :: unfitted_fe_iterator_current
     generic                             :: current      => unfitted_fe_iterator_current
+
   end type unfitted_fe_iterator_t
 
   type, extends(serial_fe_space_t) :: serial_unfitted_fe_space_t
@@ -62,19 +81,31 @@ module serial_unfitted_fe_space_names
     class(serial_unfitted_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
 
     ! All the machinery for integrating in cut elements
-    type(quadrature_t)                  :: quadrature_subelem
-    type(tet_lagrangian_reference_fe_t) :: reference_subelem
-    type(fe_map_t)                      :: fe_map_subelem
+    type(quadrature_t)                        :: quadrature_subelem
+    type(tet_lagrangian_reference_fe_t)       :: geo_reference_subelem
+    type(fe_map_t)                         :: fe_map_subelem
     type(quadrature_t),        allocatable :: cut_quadratures(:)
     type(fe_map_t),            allocatable :: cut_fe_maps(:)
     type(volume_integrator_t), allocatable :: cut_vol_integrators(:)
 
+    ! The exterior elements do not contribute to the integral
+    ! We achieve this with empty quadratures and related things
+    ! TODO a better way of doing this?
+    type(quadrature_t)             :: empty_quadrature
+    type(fe_map_t)                 :: empty_fe_map
+    type(volume_integrator_t)      :: empty_vol_integrator
+
     contains
 
-    procedure,  private         :: serial_fe_space_create_same_reference_fes_on_all_cells => serial_unfitted_fe_space_create_same_reference_fes_on_all_cells
-    procedure                   :: free                                                   => serial_unfitted_fe_space_free
-    procedure, non_overridable  :: create_unfitted_fe_iterator                            => serial_unfitted_fe_space_create_unfitted_fe_iterator
+    ! Public TBPs
+    ! TODO we only override one of the possible generic bindings of create of the father...
+    procedure,  private         :: serial_fe_space_create_same_reference_fes_on_all_cells => &
+                                   serial_unfitted_fe_space_create_same_reference_fes_on_all_cells ! TODO this one is in fact public..
+    procedure                   :: free                         => serial_unfitted_fe_space_free
+    procedure, non_overridable  :: create_unfitted_fe_iterator  => serial_unfitted_fe_space_create_unfitted_fe_iterator
 
+
+    !Private TBPs
     procedure, non_overridable, private :: init_reference_subelem => serial_unfitted_fe_space_init_reference_subelem
     procedure, non_overridable, private :: free_reference_subelem => serial_unfitted_fe_space_free_reference_subelem
     procedure, non_overridable, private :: init_cut_integration   => serial_unfitted_fe_space_init_cut_integration

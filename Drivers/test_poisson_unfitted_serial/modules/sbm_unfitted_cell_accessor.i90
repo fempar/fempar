@@ -184,6 +184,14 @@ subroutine unfitted_cell_accessor_get_ref_coords_of_subcell( this, subcell, subc
 
 end subroutine unfitted_cell_accessor_get_ref_coords_of_subcell
 
+function unfitted_cell_accessor_get_mc_case( this ) result ( mc_case )
+  implicit none
+  class(unfitted_cell_accessor_t), intent(in)    :: this
+  integer(ip) :: mc_case
+  assert(this%serial_unfitted_triangulation%mc_runtime_init)
+  mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+end function unfitted_cell_accessor_get_mc_case
+
 function unfitted_cell_accessor_is_cut( this ) result ( is_cut )
   implicit none
   class(unfitted_cell_accessor_t), intent(in)    :: this

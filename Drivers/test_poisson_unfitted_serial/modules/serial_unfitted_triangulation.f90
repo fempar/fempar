@@ -59,6 +59,9 @@ module serial_unfitted_triangulation_names
     procedure, non_overridable :: get_phys_coords_of_subcell  => unfitted_cell_accessor_get_phys_coords_of_subcell
     procedure, non_overridable :: get_ref_coords_of_subcell   => unfitted_cell_accessor_get_ref_coords_of_subcell
 
+    ! TODO this procedure assumes that the cut elements are sub-divided with marching cubes
+    procedure, non_overridable :: get_mc_case   => unfitted_cell_accessor_get_mc_case
+
     procedure, non_overridable :: is_cut      => unfitted_cell_accessor_is_cut
     procedure, non_overridable :: is_interior => unfitted_cell_accessor_is_interior
     procedure, non_overridable :: is_exterior => unfitted_cell_accessor_is_exterior
@@ -124,6 +127,11 @@ module serial_unfitted_triangulation_names
     procedure, non_overridable :: get_max_num_subnodes_in_cell  => serial_unfitted_triangulation_get_max_subnodes_in_cell
     procedure, non_overridable :: get_max_num_nodes_in_subcell  => serial_unfitted_triangulation_get_max_nodes_in_subcell
     procedure, non_overridable :: get_total_num_of_subcells     => serial_unfitted_triangulation_get_total_num_of_subcells
+
+    !TODO this two methods assume that the triangulation is cut using the marching cubes algorithm
+    ! In the future this can change since other methods can be used to sub-divide the cells
+    procedure, non_overridable :: get_num_mc_cases              => serial_unfitted_triangulation_get_num_mc_cases
+    procedure, non_overridable :: get_num_subcells_mc_case      => serial_unfitted_triangulation_get_num_subcells_mc_case
 
     procedure :: print                     => serial_unfitted_triangulation_print
     procedure :: print_to_vtk_file         => serial_unfitted_triangulation_print_to_vtk_file

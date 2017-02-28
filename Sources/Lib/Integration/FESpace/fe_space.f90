@@ -141,7 +141,7 @@ module fe_space_names
     procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_accessor_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_accessor_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_accessor_renumber_dofs_field
-    procedure, non_overridable          :: update_integration                         => fe_accessor_update_integration
+    procedure                           :: update_integration                         => fe_accessor_update_integration
 
     procedure, non_overridable          :: get_fe_space                               => fe_accessor_get_fe_space
     procedure, non_overridable          :: get_number_fields                          => fe_accessor_get_number_fields
@@ -165,9 +165,9 @@ module fe_space_names
     procedure, non_overridable          :: unset_at_strong_dirichlet_boundary         => fe_accessor_unset_at_strong_dirichlet_boundary
     procedure, non_overridable          :: compute_volume                             => fe_accessor_compute_volume
     
-    procedure, non_overridable          :: get_quadrature                             => fe_accessor_get_quadrature
-    procedure, non_overridable          :: get_fe_map                                 => fe_accessor_get_fe_map
-    procedure, non_overridable          :: get_volume_integrator                      => fe_accessor_get_volume_integrator    
+    procedure                           :: get_quadrature                             => fe_accessor_get_quadrature
+    procedure                           :: get_fe_map                                 => fe_accessor_get_fe_map
+    procedure                           :: get_volume_integrator                      => fe_accessor_get_volume_integrator    
     
     procedure, non_overridable, private :: fe_accessor_get_fe_vef
     generic                             :: get_vef                                    => fe_accessor_get_fe_vef
