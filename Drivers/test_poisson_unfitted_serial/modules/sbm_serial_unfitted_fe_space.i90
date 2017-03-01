@@ -198,6 +198,9 @@ subroutine serial_unfitted_fe_space_init_cut_integration( this )
   reference_elem => fe%get_reference_fe(field_id=1)
   geo_reference_elem => fe%get_reference_fe_geo()
 
+  ! TODO Now we allocate in function of the number of mc cases. 
+  ! But this can be heavitly improved, since many mc cases have the same number of subcells
+  ! TODO we whant to make it independent of the method used for sub-dividing the cells
   allocate( this%cut_fe_maps(1:mc_num_cases), stat=istat ); check(istat==0_ip)
   do mc_case = 1, mc_num_cases
     call this%cut_fe_maps(mc_case)%create( this%cut_quadratures(mc_case), geo_reference_elem )

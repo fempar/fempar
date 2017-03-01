@@ -92,6 +92,7 @@ module test_poisson_unfitted_driver_names
      procedure        , private :: check_solution
      procedure        , private :: check_solution_vector
      procedure        , private :: write_solution
+     procedure        , private :: compute_domain_volume
      procedure        , private :: free
   end type test_poisson_unfitted_driver_t
 
@@ -467,20 +468,65 @@ contains
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
-    call this%setup_system()
-    call this%assemble_system()
-    call this%setup_solver()
-    call this%solution%create(this%fe_space) 
-    call this%solve_system()
-    if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
-      call this%check_solution()
-    else
-      call this%check_solution_vector()
-    end if  
-      call this%write_solution()
+    call this%compute_domain_volume()
+    !call this%setup_system()
+    !call this%assemble_system()
+    !call this%setup_solver()
+    !call this%solution%create(this%fe_space) 
+    !call this%solve_system()
+    !if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
+    !  call this%check_solution()
+    !else
+    !  call this%check_solution_vector()
+    !end if  
+    !  call this%write_solution()
     call this%free()
   end subroutine run_simulation
-  
+
+subroutine compute_domain_volume( this )
+
+    implicit none
+    class(test_poisson_unfitted_driver_t), intent(in) :: this
+
+    type(unfitted_fe_iterator_t) :: fe_iterator
+    type(unfitted_fe_accessor_t) :: fe
+    real(rp) :: volume, dV
+    type(quadrature_t), pointer :: quadrature
+    type(fe_map_t),     pointer :: fe_map
+    integer(ip) :: qpoint, num_quad_points
+
+    write(*,*) "Computing domain volume ..."
+
+    fe_iterator = this%fe_space%create_unfitted_fe_iterator()
+
+    volume = 0.0_rp
+    do while ( .not. fe_iterator%has_finished() )
+
+       ! Get current FE
+       call fe_iterator%current(fe)
+
+       ! Update FE-integration related data structures
+       call fe%update_integration()
+
+       ! As the quadrature changes elem by elem, this has to be inside the loop
+       quadrature => fe%get_quadrature()
+       num_quad_points = quadrature%get_number_quadrature_points()
+       fe_map => fe%get_fe_map()
+
+       ! Integrate!
+       do qpoint = 1, num_quad_points
+         dV = fe_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+         volume = volume + dV
+       end do
+
+       call fe_iterator%next()
+    end do
+
+    write(*,*) "Computing domain volume ... OK"
+    write(*,*) "Domain volume = ", volume
+
+end subroutine compute_domain_volume
+
   subroutine free(this)
     implicit none
     class(test_poisson_unfitted_driver_t), intent(inout) :: this

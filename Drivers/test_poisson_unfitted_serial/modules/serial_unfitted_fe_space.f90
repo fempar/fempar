@@ -47,12 +47,17 @@ module serial_unfitted_fe_space_names
 
     procedure, non_overridable :: get_unfitted_cell_accessor => unfitted_fe_accessor_get_unfitted_cell_accessor
 
+    !TODO Now we return integration data used to integrte in the itnerior
+    !We could provide also integration date to integrate in the exterior (required when dealing with bi-material problems)
     procedure          :: get_quadrature        => unfitted_fe_accessor_get_quadrature
     procedure          :: get_fe_map            => unfitted_fe_accessor_get_fe_map
     procedure          :: get_volume_integrator => unfitted_fe_accessor_get_volume_integrator
 
-    procedure          :: update_integration     => unfitted_fe_accessor_update_integration
-    procedure          :: update_cut_integration => unfitted_fe_accessor_update_cut_integration
+    procedure :: update_integration     => unfitted_fe_accessor_update_integration
+
+    procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_accessor_update_cut_quadratures
+    procedure, non_overridable, private :: update_cut_fe_maps     => unfitted_fe_accessor_update_cut_fe_maps
+    procedure, non_overridable, private :: update_cut_vol_integrators  => unfitted_fe_accessor_update_cut_vol_integrators
 
 
   end type unfitted_fe_accessor_t

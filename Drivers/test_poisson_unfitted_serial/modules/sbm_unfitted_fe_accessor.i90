@@ -131,15 +131,24 @@ end function unfitted_fe_accessor_get_volume_integrator
 !-----------------------------------------------------------------------------------------------------
 
 subroutine unfitted_fe_accessor_update_integration( this )
+
   implicit none
   class(unfitted_fe_accessor_t), intent(inout) :: this
+  
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
   type(fe_map_t)           , pointer :: fe_map
   type(quadrature_t)       , pointer :: quadrature
   type(volume_integrator_t), pointer :: volume_integrator
+  class(unfitted_cell_accessor_t), pointer :: cell
 
-  call this%update_cut_integration()
+  ! TODO where is the safe place to put this update?
+  cell => this%get_unfitted_cell_accessor()
+  call cell%update_subcells()
+  
+  call this%update_cut_quadratures()
+  call this%update_cut_fe_maps()
+  call this%update_cut_vol_integrators()
 
   ! TODO we are duplicating code from the father
   ! A better way to do it?
@@ -158,38 +167,122 @@ end subroutine unfitted_fe_accessor_update_integration
 
 !-----------------------------------------------------------------------------------------------------
 
-subroutine unfitted_fe_accessor_update_cut_integration( this )
+subroutine unfitted_fe_accessor_update_cut_quadratures( this )
 
   implicit none
   class(unfitted_fe_accessor_t), intent(inout) :: this
 
   class(unfitted_cell_accessor_t), pointer :: cell
   type(quadrature_t), pointer :: quadrature
-  type(fe_map_t), pointer :: fe_map
-  type(volume_integrator_t), pointer :: vol_integrator
-  integer(ip) :: subcell, field_id
-  class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
+  real(rp),           pointer :: quadrature_coordinates(:,:)
+  real(rp),           pointer :: quadrature_weights(:)
+  integer(ip)                 :: num_gp, igp, num_dim
+  type(quadrature_t), pointer :: quadrature_subelem
+  real(rp),           pointer :: quadrature_weights_subelem(:)
+  integer(ip)                 :: num_gp_subelem, igp_subelem, num_dim_subelem
+  type(fe_map_t),     pointer :: fe_map_subelem
+  type(point_t),      pointer :: nodal_coords_subelem(:)
+  type(point_t),      pointer :: mapped_quadrature_coords_subelem(:)
+  integer(ip)                 :: subcell, idi
+  real(rp)                    :: coef
 
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_interior() .or. cell%is_exterior() ) return
 
-  ! Compute modified quadrature
+  ! Recover info about the quadrature of the current element
   quadrature => this%get_quadrature()
-  do subcell = 1, cell%get_number_of_subcells()
-  !TODO
-  end do
+  quadrature_coordinates => quadrature%get_coordinates()
+  quadrature_weights     => quadrature%get_weights()
+  num_gp                 =  quadrature%get_number_quadrature_points()
+  num_dim                =  quadrature%get_number_dimensions()
 
-  ! Update the interpolation in the fe_map and the vol_integrator
+  ! Recover info about the quadrature of the sub-element
+  quadrature_subelem => this%unfitted_fe_space%quadrature_subelem
+  quadrature_weights_subelem     => quadrature_subelem%get_weights()
+  num_gp_subelem                 =  quadrature_subelem%get_number_quadrature_points()
+  num_dim_subelem                =  quadrature_subelem%get_number_dimensions()
+
+  ! Check that both quadratures are compatible in size
+  assert( num_dim == num_dim_subelem )
+  assert( num_gp  == num_gp_subelem*cell%get_number_of_subcells() )
+
+  ! Recover the fe map between the reference sub-element and the reference element
+  fe_map_subelem                   => this%unfitted_fe_space%fe_map_subelem
+  nodal_coords_subelem             => fe_map_subelem%get_coordinates()
+  mapped_quadrature_coords_subelem => fe_map_subelem%get_quadrature_points_coordinates()
+
+  ! Compute modified quadrature for the element
+  igp = 1
+  do subcell = 1, cell%get_number_of_subcells()
+
+    ! Take the coordinates of the sub-element in the ref space of the element
+    call cell%get_ref_coords_of_subcell( subcell, nodal_coords_subelem )
+    
+    ! Compute the Jacobian of the mapping between the ref sub-element and ref element
+    call fe_map_subelem%update( quadrature_subelem )
+
+    ! Determine if the current sub-cell is interior or exterior
+    ! TODO this way of discarding the exterior sub-cells can be improved
+    ! (i.e. doing the loop, and allocating data only for interior sub-cells )
+    if ( cell%is_interior_subcell(subcell) ) then
+      coef = 1.0_rp
+    else if ( cell%is_exterior_subcell(subcell) ) then
+      coef = 0.0_rp
+    else
+      check(.false.)
+    end if
+
+    do igp_subelem = 1, num_gp_subelem
+
+      ! Correct the weights
+      quadrature_weights(igp) = coef*fe_map_subelem%get_det_jacobian(igp_subelem)*quadrature_weights_subelem(igp_subelem)
+
+      ! Map the coordinates
+      do idi = 1, num_dim
+        quadrature_coordinates(idi,igp) = mapped_quadrature_coords_subelem(igp_subelem)%get(idi)
+      end do
+
+      igp = igp + 1
+    end do
+
+  end do  
+
+end subroutine unfitted_fe_accessor_update_cut_quadratures
+
+!-----------------------------------------------------------------------------------------------------
+
+subroutine unfitted_fe_accessor_update_cut_fe_maps( this )
+
+  implicit none
+  class(unfitted_fe_accessor_t), intent(inout) :: this
+
+  type(quadrature_t), pointer :: quadrature
+  type(fe_map_t), pointer :: fe_map
+  class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
+
   fe_map => this%get_fe_map()
+  quadrature => this%get_quadrature()
   geo_reference_elem => this%get_reference_fe_geo()
   call fe_map%update_interpolation( quadrature, geo_reference_elem )
 
-  ! Update the interpolation in the fe_map and the vol_integrator
+end subroutine unfitted_fe_accessor_update_cut_fe_maps
+
+!-----------------------------------------------------------------------------------------------------
+
+subroutine unfitted_fe_accessor_update_cut_vol_integrators( this )
+
+  implicit none
+  class(unfitted_fe_accessor_t), intent(inout) :: this
+
+  type(quadrature_t), pointer :: quadrature
+  type(volume_integrator_t), pointer :: vol_integrator
+  integer(ip) :: field_id
+
+  quadrature => this%get_quadrature()
   do field_id = 1, this%get_number_fields()
     vol_integrator => this%get_volume_integrator(field_id)
     call vol_integrator%update_interpolation( quadrature )
   end do
 
-
-end subroutine unfitted_fe_accessor_update_cut_integration
+end subroutine unfitted_fe_accessor_update_cut_vol_integrators
 

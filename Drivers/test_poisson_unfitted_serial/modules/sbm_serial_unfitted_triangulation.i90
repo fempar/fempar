@@ -271,6 +271,8 @@ subroutine serial_unfitted_triangulation_print ( this )
   call cell_iter%init()
   do while ( .not. cell_iter%has_finished() )
     call cell_iter%current(cell)
+    ! TODO where is the safe place to put this update?
+    call cell%update_subcells()
     call cell%get_coordinates( cell_coords )
     write (*,'(i7,a7,20(2x,e9.2))'  ) cell%get_lid(), ' ',(cell_coords(inode)%get_value(),inode=1,cell%get_num_nodes())
     do isubcell = 1, cell%get_number_of_subcells()
@@ -364,6 +366,9 @@ subroutine serial_unfitted_triangulation_print_to_vtk_file ( this )
   do while ( .not. cell_iter%has_finished() )
 
     call cell_iter%current(cell)
+    
+    ! TODO where is the safe place to put this update?
+    call cell%update_subcells()
 
     call cell%get_coordinates( cell_coords )
 

@@ -65,5 +65,4 @@ subroutine unfitted_cell_iterator_current ( this, current )
   class(unfitted_cell_iterator_t), target, intent(in)    :: this
   type(unfitted_cell_accessor_t),          intent(inout) :: current
   current = this%current_cell_accessor
-  call current%update_subcells()
 end subroutine unfitted_cell_iterator_current
