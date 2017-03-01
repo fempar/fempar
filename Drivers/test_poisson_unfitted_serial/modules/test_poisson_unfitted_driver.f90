@@ -125,7 +125,7 @@ contains
     !call this%triangulation%print()
     
     ! New call for unfitted triangulation
-    call level_set_function%set_radius(0.9_rp)
+    call level_set_function%set_radius(1.0_rp)
     call this%triangulation%create(this%parameter_list,level_set_function)
     !call this%triangulation%print()
     call this%triangulation%print_to_vtk_file() ! TODO. Remove this. This is only for debugging
@@ -494,6 +494,7 @@ subroutine compute_domain_volume( this )
     type(quadrature_t), pointer :: quadrature
     type(fe_map_t),     pointer :: fe_map
     integer(ip) :: qpoint, num_quad_points
+    type(point_t), pointer :: quadrature_coordinates(:)
 
     write(*,*) "Computing domain volume ..."
 
@@ -512,11 +513,14 @@ subroutine compute_domain_volume( this )
        quadrature => fe%get_quadrature()
        num_quad_points = quadrature%get_number_quadrature_points()
        fe_map => fe%get_fe_map()
+       
+       ! Physical coordinates of the quadrature points
+       quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
 
        ! Integrate!
        do qpoint = 1, num_quad_points
          dV = fe_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-         volume = volume + dV
+         volume = volume + quadrature_coordinates(qpoint)%get(1)*quadrature_coordinates(qpoint)%get(2)*dV
        end do
 
        call fe_iterator%next()
