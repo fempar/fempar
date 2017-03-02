@@ -26,21 +26,19 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-! Public TBP ------------------------------------------------------------------------
-
 subroutine serial_unfitted_triangulation_create(this, parameters, level_set_function)
   implicit none
   class(serial_unfitted_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)                         , intent(inout) :: parameters
   class(level_set_function_t),            target, intent(in)    :: level_set_function
-  
+
   ! Allocate and fill data managed by the parent class
   call this%free()
   call this%serial_triangulation_t%create(parameters)
-  
+
   ! Check that the triangulation fulfills the assumptions made by this class
   assert(this%fulfills_assumptions())
-  
+
   ! Allocate and fill member variables which are managed by this derived data type
   this%level_set_function => level_set_function
   call this%mc_tables_create()
@@ -149,37 +147,19 @@ end function serial_unfitted_triangulation_get_num_exterior_cells
 !------------------------------------------------------------------------------------------------
 
 function serial_unfitted_triangulation_get_max_subcells_in_cell( this ) result ( max_subcells_in_cell )
-
   implicit none
   class(serial_unfitted_triangulation_t), intent(in)    :: this
   integer(ip) :: max_subcells_in_cell
-
   max_subcells_in_cell = this%mc_table_max_num_subcells
-
 end function serial_unfitted_triangulation_get_max_subcells_in_cell
 
 !------------------------------------------------------------------------------------------------
 
-function serial_unfitted_triangulation_get_max_subnodes_in_cell( this ) result ( max_subnodes_in_cell )
-
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: max_subnodes_in_cell
-
-  max_subnodes_in_cell = this%get_max_number_shape_functions() + this%mc_table_max_num_cut_edges
-
-end function serial_unfitted_triangulation_get_max_subnodes_in_cell
-
-!------------------------------------------------------------------------------------------------
-
 function serial_unfitted_triangulation_get_max_nodes_in_subcell( this ) result ( max_nodes_in_subcell )
-
   implicit none
   class(serial_unfitted_triangulation_t), intent(in)    :: this
   integer(ip) :: max_nodes_in_subcell
-
   max_nodes_in_subcell = this%mc_table_num_nodes_subcell
-
 end function serial_unfitted_triangulation_get_max_nodes_in_subcell
 
 !------------------------------------------------------------------------------------------------
@@ -197,12 +177,63 @@ function serial_unfitted_triangulation_get_total_num_of_subcells( this ) result 
   cell_iter = this%create_unfitted_cell_iterator()
   do while ( .not. cell_iter%has_finished() )
     call cell_iter%current(cell)
+    call cell%update_sub_triangulation()
     total_num = total_num + cell%get_number_of_subcells()
     call cell_iter%next()
   end do
   call cell_iter%free()
 
 end function serial_unfitted_triangulation_get_total_num_of_subcells
+
+!------------------------------------------------------------------------------------------------
+
+function serial_unfitted_triangulation_get_max_subfaces_in_cell( this ) result ( max_subfaces_in_cell )
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: max_subfaces_in_cell
+  max_subfaces_in_cell = this%mc_table_max_num_subfaces
+end function serial_unfitted_triangulation_get_max_subfaces_in_cell
+
+!------------------------------------------------------------------------------------------------
+
+function serial_unfitted_triangulation_get_max_nodes_in_subface( this ) result ( max_nodes_in_subface)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: max_nodes_in_subface
+  max_nodes_in_subface = this%mc_table_num_nodes_subface
+end function serial_unfitted_triangulation_get_max_nodes_in_subface
+
+!------------------------------------------------------------------------------------------------
+
+function serial_unfitted_triangulation_get_total_num_of_subfaces( this ) result ( total_num )
+
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: total_num
+
+  type(unfitted_cell_iterator_t)  :: cell_iter
+  type(unfitted_cell_accessor_t)  :: cell
+
+  total_num = 0_ip
+  cell_iter = this%create_unfitted_cell_iterator()
+  do while ( .not. cell_iter%has_finished() )
+    call cell_iter%current(cell)
+    call cell%update_sub_triangulation()
+    total_num = total_num + cell%get_number_of_subfaces()
+    call cell_iter%next()
+  end do
+  call cell_iter%free()
+
+end function serial_unfitted_triangulation_get_total_num_of_subfaces
+
+!------------------------------------------------------------------------------------------------
+
+function serial_unfitted_triangulation_get_max_subnodes_in_cell( this ) result ( max_subnodes_in_cell )
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: max_subnodes_in_cell
+  max_subnodes_in_cell = this%get_max_number_shape_functions() + this%mc_table_max_num_cut_edges
+end function serial_unfitted_triangulation_get_max_subnodes_in_cell
 
 !------------------------------------------------------------------------------------------------
 
@@ -232,8 +263,8 @@ subroutine serial_unfitted_triangulation_print ( this )
 
   type(unfitted_cell_iterator_t)  :: cell_iter
   type(unfitted_cell_accessor_t)  :: cell
-  type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
-  integer(ip) :: inode, isubcell
+  type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords, subface_coords
+  integer(ip) :: inode, isubcell, isubface
 
   ! Print basic info of triangulation
   write(*,*) " "
@@ -248,8 +279,10 @@ subroutine serial_unfitted_triangulation_print ( this )
   write (*,'(a,i10)') 'num_exterior_cells:       ', this%get_num_exterior_cells()
   write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%get_max_number_shape_functions()
   write (*,'(a,i10)') 'max_num_subcells_in_cell: ', this%get_max_num_subcells_in_cell()
-  write (*,'(a,i10)') 'max_num_subnodes_in_cell: ', this%get_max_num_subnodes_in_cell()
   write (*,'(a,i10)') 'max_num_nodes_in_subcell: ', this%get_max_num_nodes_in_subcell()
+  write (*,'(a,i10)') 'max_num_subfaces_in_cell: ', this%get_max_num_subfaces_in_cell()
+  write (*,'(a,i10)') 'max_num_nodes_in_subface: ', this%get_max_num_nodes_in_subface()
+  write (*,'(a,i10)') 'max_num_subnodes_in_cell: ', this%get_max_num_subnodes_in_cell()
   write(*,*) " "
 
   ! Print basic info of cells
@@ -265,19 +298,24 @@ subroutine serial_unfitted_triangulation_print ( this )
 
   call memalloc( this%get_max_number_shape_functions(), cell_coords   , __FILE__, __LINE__ ) !TODO can we use memalloc for derived data types?
   call memalloc( this%get_max_num_nodes_in_subcell()  , subcell_coords, __FILE__, __LINE__ )
+  call memalloc( this%get_max_num_nodes_in_subface()  , subface_coords, __FILE__, __LINE__ )
 
   ! Print coordinates of cells and sub-cells
-  write(*,'(2a7,7a11)') 'id', 'sbid', 'x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'etc.'
+  write(*,'(3a7,7a11)') 'id', 'scid', 'sfid', 'x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'etc.'
   call cell_iter%init()
   do while ( .not. cell_iter%has_finished() )
     call cell_iter%current(cell)
     ! TODO where is the safe place to put this update?
-    call cell%update_subcells()
+    call cell%update_sub_triangulation()
     call cell%get_coordinates( cell_coords )
-    write (*,'(i7,a7,20(2x,e9.2))'  ) cell%get_lid(), ' ',(cell_coords(inode)%get_value(),inode=1,cell%get_num_nodes())
+    write (*,'(i7,2a7,20(2x,e9.2))'  ) cell%get_lid(), ' ', ' ',(cell_coords(inode)%get_value(),inode=1,cell%get_num_nodes())
     do isubcell = 1, cell%get_number_of_subcells()
       call cell%get_phys_coords_of_subcell(isubcell,subcell_coords)
-      write (*,'(a7,i7,20(2x,e9.2))'  ) ' ', isubcell, (subcell_coords(inode)%get_value(),inode=1,cell%get_number_of_subcell_nodes())
+      write (*,'(a7,i7,a7,20(2x,e9.2))'  ) ' ', isubcell, ' ' ,(subcell_coords(inode)%get_value(),inode=1,cell%get_number_of_subcell_nodes())
+    end do
+    do isubface = 1, cell%get_number_of_subfaces()
+      call cell%get_phys_coords_of_subface(isubface,subface_coords)
+      write (*,'(2a7,i7,20(2x,e9.2))'  ) ' ', ' ' , isubface,(subface_coords(inode)%get_value(),inode=1,cell%get_number_of_subface_nodes())
     end do
     call cell_iter%next()
   end do
@@ -288,6 +326,7 @@ subroutine serial_unfitted_triangulation_print ( this )
 
  call memfree( cell_coords   , __FILE__, __LINE__ )
  call memfree( subcell_coords, __FILE__, __LINE__ )
+ call memfree( subface_coords, __FILE__, __LINE__ )
  call cell_iter%free()
 
 end subroutine serial_unfitted_triangulation_print
@@ -295,164 +334,13 @@ end subroutine serial_unfitted_triangulation_print
 !------------------------------------------------------------------------------------------------
 
 subroutine serial_unfitted_triangulation_print_to_vtk_file ( this )
-
   implicit none
   class(serial_unfitted_triangulation_t), intent(in)    :: this
-
-  integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
-  integer(ip) :: istat, icell, inode, ino, isubcell
-  type(unfitted_cell_iterator_t)  :: cell_iter
-  type(unfitted_cell_accessor_t)  :: cell
-  type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
-  integer(ip) :: the_cell_type, the_subcell_type
-
-  ! Used by VTKIO
-  integer(ip) :: E_IO
-  integer(ip) :: Nn
-  integer(ip) :: Ne
-  real(rp),    allocatable, dimension(:) :: x
-  real(rp),    allocatable, dimension(:) :: y
-  real(rp),    allocatable, dimension(:) :: z
-  integer(ip), allocatable, dimension(:) :: cell_type
-  integer(ip), allocatable, dimension(:) :: offset
-  integer(ip), allocatable, dimension(:) :: connect
-  integer(ip), allocatable, dimension(:) :: vc
-  integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
-
-  assert( this%mc_runtime_init )
-  
   write(*,*) "serial_unfitted_triangulation_t: Writing vtu file ..."
-
-  cell_iter = this%create_unfitted_cell_iterator()
-  call cell_iter%current(cell)
-
-  num_dime = this%get_num_dimensions()
-  num_cells = this%get_num_cells()
-  num_cell_nodes = cell%get_num_nodes()
-  num_subcells = this%get_total_num_of_subcells()
-  num_subcell_nodes = this%get_max_num_nodes_in_subcell()
-  Ne = num_cells + num_subcells
-  Nn = num_cell_nodes*num_cells  + num_subcell_nodes*num_subcells
-
-  call memalloc ( Nn, x, __FILE__, __LINE__ )
-  call memalloc ( Nn, y, __FILE__, __LINE__ )
-  call memalloc ( Nn, z, __FILE__, __LINE__ )
-  call memalloc ( Ne, cell_type, __FILE__, __LINE__ )
-  call memalloc ( Ne, offset   , __FILE__, __LINE__ )
-  call memalloc ( Nn, connect  , __FILE__, __LINE__ )
-  call memalloc ( Ne, vc       , __FILE__, __LINE__ )
-  allocate ( cell_coords(1:num_cell_nodes), stat = istat ); check(istat == 0)
-  allocate ( subcell_coords(1:num_subcell_nodes), stat = istat ); check(istat == 0)
-  call memalloc ( num_cell_nodes, nodes_vtk2fempar, __FILE__, __LINE__ )
-  call memalloc ( num_cell_nodes, nodesids        , __FILE__, __LINE__ )
-
-  select case (num_dime)
-    case(3)
-      the_cell_type = 12_I1P
-      the_subcell_type = 10_I1P
-      nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
-    case(2)
-      the_cell_type = 9_I1P
-      the_subcell_type = 5_I1P
-      nodes_vtk2fempar(:) = [1, 2 , 4, 3]
-    case default
-    check(.false.)
-  end select
-
-  ! Fill date to be passed to vtkio
-  call cell_iter%init()
-  icell = 1
-  inode = 1
-  do while ( .not. cell_iter%has_finished() )
-
-    call cell_iter%current(cell)
-    
-    ! TODO where is the safe place to put this update?
-    call cell%update_subcells()
-
-    call cell%get_coordinates( cell_coords )
-
-    do ino = 1, num_cell_nodes !TODO is it possible to avoid loops like this one?
-      x(inode) = cell_coords(ino)%get(1)
-      y(inode) = cell_coords(ino)%get(2)
-      z(inode) = cell_coords(ino)%get(3)
-      nodesids(ino) = inode
-      inode = inode + 1
-    end do
-
-    connect(nodesids(:)) = nodesids( nodes_vtk2fempar(:) ) - 1
-
-    offset(icell)        = inode - 1
-    cell_type(icell)     = the_cell_type
-
-    if ( cell%is_interior() ) then
-      vc( icell )  = -1
-    else if ( cell%is_cut() ) then
-      vc( icell )  = 0
-    else
-      vc( icell )  = 1
-    end if
-
-    icell = icell + 1
-
-    do isubcell = 1, cell%get_number_of_subcells()
-      call cell%get_phys_coords_of_subcell(isubcell,subcell_coords)
-
-      do ino = 1, num_subcell_nodes
-        x(inode) = subcell_coords(ino)%get(1)
-        y(inode) = subcell_coords(ino)%get(2)
-        z(inode) = subcell_coords(ino)%get(3)
-        connect(inode) = inode - 1
-        inode = inode + 1
-      end do
-
-      offset(icell)        = inode - 1
-      cell_type(icell)     = the_subcell_type
-
-      if ( cell%is_interior_subcell(isubcell) ) then
-        vc( icell )  = -2
-      else
-        vc( icell )  = 2
-      end if
-
-      icell = icell + 1
-
-    end do
-
-    call cell_iter%next()
-  end do
-
-
-  if (num_dime == 2_ip) z(:) = 0
-
-  ! Write mesh to .vtu file
-  E_IO = VTK_INI_XML(output_format = 'ascii', filename = 'unfitted_triangulation.vtu', mesh_topology = 'UnstructuredGrid')
-  E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
-  E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) ) 
-  E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'opeN')
-  E_IO = VTK_VAR_XML(NC_NN = Ne, varname = 'cell_scalars', var = vc)
-  E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'CLOSE')
-  E_IO = VTK_GEO_XML()
-  E_IO = VTK_END_XML()
-
-  call memfree ( x        , __FILE__, __LINE__ )
-  call memfree ( y        , __FILE__, __LINE__ )
-  call memfree ( z        , __FILE__, __LINE__ )
-  call memfree ( cell_type, __FILE__, __LINE__ )
-  call memfree ( offset   , __FILE__, __LINE__ )
-  call memfree ( connect  , __FILE__, __LINE__ )
-  call memfree ( vc       , __FILE__, __LINE__ )
-  deallocate ( cell_coords, stat = istat ); check(istat == 0)
-  deallocate ( subcell_coords, stat = istat ); check(istat == 0)
-  call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
-  call memfree ( nodesids, __FILE__, __LINE__ )
-
-  call cell_iter%free()
-  
+  call this%print_vtk_subcells()
+  call this%print_vtk_subfaces()
   write(*,*) "serial_unfitted_triangulation_t: Writing vtu file ... OK"
-
 end subroutine serial_unfitted_triangulation_print_to_vtk_file
-
 
 ! Private TBP ------------------------------------------------------------------------
 
@@ -517,18 +405,25 @@ subroutine serial_unfitted_triangulation_mc_tables_create(this)
   if (num_dim == 2_ip) then
     this%mc_table_num_cases         = MC_QUA4_NUM_CASES
     this%mc_table_max_num_subcells  = MC_QUA4_MAX_NUM_SUBCELLS
+    this%mc_table_max_num_subfaces  = MC_QUA4_MAX_NUM_SUBFACES
     this%mc_table_max_num_cut_edges = MC_QUA4_MAX_NUM_CUT_EDGES
     this%mc_table_num_nodes_subcell = MC_QUA4_NUM_NODES_PER_SUBCELL
+    this%mc_table_num_nodes_subface = MC_QUA4_NUM_NODES_PER_SUBFACE
   else
     this%mc_table_num_cases         = MC_HEX8_NUM_CASES
     this%mc_table_max_num_subcells  = MC_HEX8_MAX_NUM_SUBCELLS
+    this%mc_table_max_num_subfaces  = MC_HEX8_MAX_NUM_SUBFACES
     this%mc_table_max_num_cut_edges = MC_HEX8_MAX_NUM_CUT_EDGES
     this%mc_table_num_nodes_subcell = MC_HEX8_NUM_NODES_PER_SUBCELL
+    this%mc_table_num_nodes_subface = MC_HEX8_NUM_NODES_PER_SUBFACE
   end if
 
   ! Now, we know the sizes and can allocate
   call memalloc (this%mc_table_num_cases, &
                  this%mc_table_num_subcells_per_case    , __FILE__, __LINE__ )
+  
+  call memalloc (this%mc_table_num_cases, &
+                 this%mc_table_num_subfaces_per_case    , __FILE__, __LINE__ )
   
   call memalloc (this%mc_table_num_cases, &
                  this%mc_table_num_cut_edges_per_case   , __FILE__, __LINE__ )
@@ -538,18 +433,25 @@ subroutine serial_unfitted_triangulation_mc_tables_create(this)
   
   call memalloc (this%mc_table_num_nodes_subcell, this%mc_table_max_num_subcells, this%mc_table_num_cases, &
                  this%mc_table_subcell_node_ids_per_case, __FILE__, __LINE__ )
+  
+  call memalloc (this%mc_table_num_nodes_subface, this%mc_table_max_num_subfaces, this%mc_table_num_cases, &
+                 this%mc_table_subface_node_ids_per_case, __FILE__, __LINE__ )
 
   ! Fill tables for the selected element type
   if (num_dim == 2_ip) then
-    this%mc_table_num_subcells_per_case      = MC_QUA4_NUM_SUBCELLS_PER_CASE
-    this%mc_table_num_cut_edges_per_case     = MC_QUA4_NUM_CUT_EDGES_PER_CASE
-    this%mc_table_inout_subcells_per_case    = MC_QUA4_INOUT_SUBCELLS_PER_CASE
-    this%mc_table_subcell_node_ids_per_case  = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE
+    this%mc_table_num_subcells_per_case(:)      = MC_QUA4_NUM_SUBCELLS_PER_CASE(:)
+    this%mc_table_num_subfaces_per_case(:)      = MC_QUA4_NUM_SUBFACES_PER_CASE(:)
+    this%mc_table_num_cut_edges_per_case(:)     = MC_QUA4_NUM_CUT_EDGES_PER_CASE(:)
+    this%mc_table_inout_subcells_per_case(:,:)    = MC_QUA4_INOUT_SUBCELLS_PER_CASE(:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,:)  = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_subface_node_ids_per_case(:,:,:)  = MC_QUA4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
   else
-    this%mc_table_num_subcells_per_case      = MC_HEX8_NUM_SUBCELLS_PER_CASE
-    this%mc_table_num_cut_edges_per_case     = MC_HEX8_NUM_CUT_EDGES_PER_CASE
-    this%mc_table_inout_subcells_per_case    = MC_HEX8_INOUT_SUBCELLS_PER_CASE
-    this%mc_table_subcell_node_ids_per_case  = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE
+    this%mc_table_num_subcells_per_case(:)      = MC_HEX8_NUM_SUBCELLS_PER_CASE(:)
+    this%mc_table_num_subfaces_per_case(:)      = MC_HEX8_NUM_SUBFACES_PER_CASE(:)
+    this%mc_table_num_cut_edges_per_case(:)     = MC_HEX8_NUM_CUT_EDGES_PER_CASE(:)
+    this%mc_table_inout_subcells_per_case(:,:)    = MC_HEX8_INOUT_SUBCELLS_PER_CASE(:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,:)  = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_subface_node_ids_per_case(:,:,:)  = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
   endif
 
   this%mc_tables_init = .true.
@@ -561,9 +463,11 @@ subroutine serial_unfitted_triangulation_mc_tables_free(this)
   class(serial_unfitted_triangulation_t), intent(inout) :: this
 
   if (allocated (this%mc_table_num_subcells_per_case    )) call memfree (this%mc_table_num_subcells_per_case    , __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_subfaces_per_case    )) call memfree (this%mc_table_num_subfaces_per_case    , __FILE__, __LINE__)
   if (allocated (this%mc_table_num_cut_edges_per_case   )) call memfree (this%mc_table_num_cut_edges_per_case   , __FILE__, __LINE__)
   if (allocated (this%mc_table_inout_subcells_per_case  )) call memfree (this%mc_table_inout_subcells_per_case  , __FILE__, __LINE__)
   if (allocated (this%mc_table_subcell_node_ids_per_case)) call memfree (this%mc_table_subcell_node_ids_per_case, __FILE__, __LINE__)
+  if (allocated (this%mc_table_subface_node_ids_per_case)) call memfree (this%mc_table_subface_node_ids_per_case, __FILE__, __LINE__)
 
   this%mc_tables_init = .false.
 
@@ -752,4 +656,267 @@ subroutine serial_unfitted_triangulation_subnodes_data_free( this )
   end if
 
 end subroutine serial_unfitted_triangulation_subnodes_data_free
+
+!------------------------------------------------------------------------------------------------
+
+subroutine serial_unfitted_triangulation_print_vtk_subcells( this )
+
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+
+  integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
+  integer(ip) :: istat, icell, inode, ino, isubcell
+  type(unfitted_cell_iterator_t)  :: cell_iter
+  type(unfitted_cell_accessor_t)  :: cell
+  type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
+  integer(ip) :: the_cell_type, the_subcell_type
+
+  ! Used by VTKIO
+  integer(ip) :: E_IO
+  integer(ip) :: Nn
+  integer(ip) :: Ne
+  real(rp),    allocatable, dimension(:) :: x
+  real(rp),    allocatable, dimension(:) :: y
+  real(rp),    allocatable, dimension(:) :: z
+  integer(ip), allocatable, dimension(:) :: cell_type
+  integer(ip), allocatable, dimension(:) :: offset
+  integer(ip), allocatable, dimension(:) :: connect
+  integer(ip), allocatable, dimension(:) :: vc
+  integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
+
+  assert( this%mc_runtime_init )
+
+  cell_iter = this%create_unfitted_cell_iterator()
+  call cell_iter%current(cell)
+
+  num_dime = this%get_num_dimensions()
+  num_cells = this%get_num_cells()
+  num_cell_nodes = cell%get_num_nodes()
+  num_subcells = this%get_total_num_of_subcells()
+  num_subcell_nodes = this%get_max_num_nodes_in_subcell()
+  Ne = num_cells + num_subcells
+  Nn = num_cell_nodes*num_cells  + num_subcell_nodes*num_subcells
+
+  call memalloc ( Nn, x, __FILE__, __LINE__ )
+  call memalloc ( Nn, y, __FILE__, __LINE__ )
+  call memalloc ( Nn, z, __FILE__, __LINE__ )
+  call memalloc ( Ne, cell_type, __FILE__, __LINE__ )
+  call memalloc ( Ne, offset   , __FILE__, __LINE__ )
+  call memalloc ( Nn, connect  , __FILE__, __LINE__ )
+  call memalloc ( Ne, vc       , __FILE__, __LINE__ )
+  allocate ( cell_coords(1:num_cell_nodes), stat = istat ); check(istat == 0)
+  allocate ( subcell_coords(1:num_subcell_nodes), stat = istat ); check(istat == 0)
+  call memalloc ( num_cell_nodes, nodes_vtk2fempar, __FILE__, __LINE__ )
+  call memalloc ( num_cell_nodes, nodesids        , __FILE__, __LINE__ )
+
+  select case (num_dime)
+    case(3)
+      the_cell_type = 12_I1P
+      the_subcell_type = 10_I1P
+      nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
+    case(2)
+      the_cell_type = 9_I1P
+      the_subcell_type = 5_I1P
+      nodes_vtk2fempar(:) = [1, 2 , 4, 3]
+    case default
+    check(.false.)
+  end select
+
+  ! Fill date to be passed to vtkio
+  call cell_iter%init()
+  icell = 1
+  inode = 1
+  do while ( .not. cell_iter%has_finished() )
+
+    call cell_iter%current(cell)
+    
+    ! TODO where is the safe place to put this update?
+    call cell%update_sub_triangulation()
+
+    call cell%get_coordinates( cell_coords )
+
+    do ino = 1, num_cell_nodes !TODO is it possible to avoid loops like this one?
+      x(inode) = cell_coords(ino)%get(1)
+      y(inode) = cell_coords(ino)%get(2)
+      z(inode) = cell_coords(ino)%get(3)
+      nodesids(ino) = inode
+      inode = inode + 1
+    end do
+
+    connect(nodesids(:)) = nodesids( nodes_vtk2fempar(:) ) - 1
+
+    offset(icell)        = inode - 1
+    cell_type(icell)     = the_cell_type
+
+    if ( cell%is_interior() ) then
+      vc( icell )  = -1
+    else if ( cell%is_cut() ) then
+      vc( icell )  = 0
+    else
+      vc( icell )  = 1
+    end if
+
+    icell = icell + 1
+
+    do isubcell = 1, cell%get_number_of_subcells()
+      call cell%get_phys_coords_of_subcell(isubcell,subcell_coords)
+
+      do ino = 1, num_subcell_nodes
+        x(inode) = subcell_coords(ino)%get(1)
+        y(inode) = subcell_coords(ino)%get(2)
+        z(inode) = subcell_coords(ino)%get(3)
+        connect(inode) = inode - 1
+        inode = inode + 1
+      end do
+
+      offset(icell)        = inode - 1
+      cell_type(icell)     = the_subcell_type
+
+      if ( cell%is_interior_subcell(isubcell) ) then
+        vc( icell )  = -2
+      else
+        vc( icell )  = 2
+      end if
+
+      icell = icell + 1
+
+    end do
+
+    call cell_iter%next()
+  end do
+
+
+  if (num_dime == 2_ip) z(:) = 0
+
+  ! Write mesh to .vtu file
+  E_IO = VTK_INI_XML(output_format = 'ascii', filename = 'unfitted_triangulation.vtu', mesh_topology = 'UnstructuredGrid')
+  E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
+  E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) ) 
+  E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'opeN')
+  E_IO = VTK_VAR_XML(NC_NN = Ne, varname = 'cell_scalars', var = vc)
+  E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'CLOSE')
+  E_IO = VTK_GEO_XML()
+  E_IO = VTK_END_XML()
+
+  call memfree ( x        , __FILE__, __LINE__ )
+  call memfree ( y        , __FILE__, __LINE__ )
+  call memfree ( z        , __FILE__, __LINE__ )
+  call memfree ( cell_type, __FILE__, __LINE__ )
+  call memfree ( offset   , __FILE__, __LINE__ )
+  call memfree ( connect  , __FILE__, __LINE__ )
+  call memfree ( vc       , __FILE__, __LINE__ )
+  deallocate ( cell_coords, stat = istat ); check(istat == 0)
+  deallocate ( subcell_coords, stat = istat ); check(istat == 0)
+  call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
+  call memfree ( nodesids, __FILE__, __LINE__ )
+
+  call cell_iter%free()
+
+end subroutine serial_unfitted_triangulation_print_vtk_subcells
+
+!------------------------------------------------------------------------------------------------
+
+subroutine serial_unfitted_triangulation_print_vtk_subfaces( this )
+
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+
+  integer(ip) :: num_subfaces, num_subface_nodes, num_dime
+  integer(ip) :: istat, iface, inode, ino, isubface
+  type(unfitted_cell_iterator_t)  :: cell_iter
+  type(unfitted_cell_accessor_t)  :: cell
+  type(point_t), allocatable, dimension(:) :: subface_coords
+  integer(ip) :: the_subface_type
+
+  ! Used by VTKIO
+  integer(ip) :: E_IO
+  integer(ip) :: Nn
+  integer(ip) :: Ne
+  real(rp),    allocatable, dimension(:) :: x
+  real(rp),    allocatable, dimension(:) :: y
+  real(rp),    allocatable, dimension(:) :: z
+  integer(ip), allocatable, dimension(:) :: cell_type
+  integer(ip), allocatable, dimension(:) :: offset
+  integer(ip), allocatable, dimension(:) :: connect
+
+  assert( this%mc_runtime_init )
+
+  cell_iter = this%create_unfitted_cell_iterator()
+  call cell_iter%current(cell)
+
+  num_dime = this%get_num_dimensions()
+  num_subfaces = this%get_total_num_of_subfaces()
+  num_subface_nodes = this%get_max_num_nodes_in_subface()
+  Ne = num_subfaces
+  Nn = num_subface_nodes*num_subfaces
+
+  call memalloc ( Nn, x, __FILE__, __LINE__ )
+  call memalloc ( Nn, y, __FILE__, __LINE__ )
+  call memalloc ( Nn, z, __FILE__, __LINE__ )
+  call memalloc ( Ne, cell_type, __FILE__, __LINE__ )
+  call memalloc ( Ne, offset   , __FILE__, __LINE__ )
+  call memalloc ( Nn, connect  , __FILE__, __LINE__ )
+  allocate ( subface_coords(1:num_subface_nodes), stat = istat ); check(istat == 0)
+
+  select case (num_dime)
+    case(3)
+      the_subface_type = 5_I1P
+    case(2)
+      the_subface_type = 3_I1P
+    case default
+    check(.false.)
+  end select
+
+  ! Fill date to be passed to vtkio
+  call cell_iter%init()
+  iface = 1
+  inode = 1
+  do while ( .not. cell_iter%has_finished() )
+
+    call cell_iter%current(cell)
+
+    ! TODO where is the safe place to put this update?
+    call cell%update_sub_triangulation()
+
+    do isubface = 1, cell%get_number_of_subfaces()
+      call cell%get_phys_coords_of_subface(isubface,subface_coords)
+
+      do ino = 1, num_subface_nodes
+        x(inode) = subface_coords(ino)%get(1)
+        y(inode) = subface_coords(ino)%get(2)
+        z(inode) = subface_coords(ino)%get(3)
+        connect(inode) = inode - 1
+        inode = inode + 1
+      end do
+
+      offset(iface)        = inode - 1
+      cell_type(iface)     = the_subface_type
+
+      iface = iface + 1
+
+    end do
+
+    call cell_iter%next()
+  end do
+
+
+  if (num_dime == 2_ip) z(:) = 0
+
+  ! Write mesh to .vtu file
+  E_IO = VTK_INI_XML(output_format = 'ascii', filename = 'unfitted_triangulation_faces.vtu', mesh_topology = 'UnstructuredGrid')
+  E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
+  E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) ) 
+  E_IO = VTK_GEO_XML()
+  E_IO = VTK_END_XML()
+
+  call memfree ( x        , __FILE__, __LINE__ )
+  call memfree ( y        , __FILE__, __LINE__ )
+  call memfree ( z        , __FILE__, __LINE__ )
+  call memfree ( cell_type, __FILE__, __LINE__ )
+  call memfree ( offset   , __FILE__, __LINE__ )
+  call memfree ( connect  , __FILE__, __LINE__ )
+  deallocate ( subface_coords, stat = istat ); check(istat == 0)
+  call cell_iter%free()
+
+end subroutine serial_unfitted_triangulation_print_vtk_subfaces
 

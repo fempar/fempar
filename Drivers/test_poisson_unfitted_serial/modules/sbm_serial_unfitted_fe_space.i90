@@ -150,9 +150,16 @@ subroutine serial_unfitted_fe_space_init_reference_subelem( this )
                                       order = 1,&
                                       field_type = field_type_scalar,&
                                       continuity = .false. )
-
- ! Create the fe map
- call this%fe_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
+  
+  ! Create reference sub-face (a segment in 2d and a triangle in 3d)
+  ! TODO: a better way to do this ??
+  call this%geo_reference_subface%create( topology = topology_tet,&
+                                      number_dimensions = (num_dim-1_ip),&
+                                      order = 1,&
+                                      field_type = field_type_scalar,&
+                                      continuity = .false. )
+  ! Create the fe map
+  call this%fe_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
 
 end subroutine serial_unfitted_fe_space_init_reference_subelem
 
@@ -164,6 +171,7 @@ subroutine serial_unfitted_fe_space_free_reference_subelem( this )
   call this%fe_map_subelem%free()
   call this%geo_reference_subelem%free()
   call this%quadrature_subelem%free()
+  call this%geo_reference_subface%free()
 end subroutine serial_unfitted_fe_space_free_reference_subelem
 
 !-----------------------------------------------------------------------------------------------------

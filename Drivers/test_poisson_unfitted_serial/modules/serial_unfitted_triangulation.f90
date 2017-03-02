@@ -50,16 +50,24 @@ module serial_unfitted_triangulation_names
     ! Public TBPs
     procedure :: cell_accessor_create => unfitted_cell_accessor_cell_accessor_create
     procedure :: cell_accessor_free   => unfitted_cell_accessor_cell_accessor_free
+    
+    ! To be called each time the lid changes
+    procedure, non_overridable :: update_sub_triangulation    => unfitted_cell_accessor_update_sub_triangulation
 
-    procedure, non_overridable :: update_subcells      => unfitted_cell_accessor_update_subcells
-
+    ! TBPs related with the subcells
     procedure, non_overridable :: get_number_of_subcells      => unfitted_cell_accessor_get_number_of_subcells
-    procedure, non_overridable :: get_number_of_subnodes      => unfitted_cell_accessor_get_number_of_subnodes
     procedure, non_overridable :: get_number_of_subcell_nodes => unfitted_cell_accessor_get_number_of_subcell_nodes
     procedure, non_overridable :: get_phys_coords_of_subcell  => unfitted_cell_accessor_get_phys_coords_of_subcell
     procedure, non_overridable :: get_ref_coords_of_subcell   => unfitted_cell_accessor_get_ref_coords_of_subcell
-
-    ! TODO this procedure assumes that the cut elements are sub-divided with marching cubes
+    
+    ! TBPs related with the subfaces
+    procedure, non_overridable :: get_number_of_subfaces      => unfitted_cell_accessor_get_number_of_subfaces
+    procedure, non_overridable :: get_number_of_subface_nodes => unfitted_cell_accessor_get_number_of_subface_nodes
+    procedure, non_overridable :: get_phys_coords_of_subface  => unfitted_cell_accessor_get_phys_coords_of_subface
+    procedure, non_overridable :: get_ref_coords_of_subface   => unfitted_cell_accessor_get_ref_coords_of_subface
+    
+    ! TODO this procedure assumes that the cut elements are sub-divided with the marching cubes algorithm
+    ! In the future, we want this class to be independent of the method used to sub-divide the cells
     procedure, non_overridable :: get_mc_case   => unfitted_cell_accessor_get_mc_case
 
     procedure, non_overridable :: is_cut      => unfitted_cell_accessor_is_cut
@@ -69,7 +77,7 @@ module serial_unfitted_triangulation_names
     procedure, non_overridable :: is_exterior_subcell => unfitted_cell_accessor_is_exterior_subcell
 
     ! Private TBPs
-    !procedure, non_overridable, private :: get_ref_coords_subnodes    => unfitted_cell_accessor_get_ref_coords_subnodes
+    procedure, non_overridable, private :: get_number_of_subnodes      => unfitted_cell_accessor_get_number_of_subnodes
 
   end type unfitted_cell_accessor_t
 
@@ -94,12 +102,16 @@ module serial_unfitted_triangulation_names
     ! Look up-tables (precomputed off-line, for each cell type)
     integer(ip)                :: mc_table_num_cases
     integer(ip)                :: mc_table_max_num_subcells
+    integer(ip)                :: mc_table_max_num_subfaces
     integer(ip)                :: mc_table_max_num_cut_edges
     integer(ip)                :: mc_table_num_nodes_subcell
+    integer(ip)                :: mc_table_num_nodes_subface
     integer(ip),   allocatable :: mc_table_num_subcells_per_case(:)
+    integer(ip),   allocatable :: mc_table_num_subfaces_per_case(:)
     integer(ip),   allocatable :: mc_table_num_cut_edges_per_case(:)
     integer(ip),   allocatable :: mc_table_inout_subcells_per_case(:,:)
     integer(ip),   allocatable :: mc_table_subcell_node_ids_per_case(:,:,:)
+    integer(ip),   allocatable :: mc_table_subface_node_ids_per_case(:,:,:)
     logical :: mc_tables_init = .false.
 
     ! Info related to cut cells on this triangulation (this is computed at runtime)
@@ -120,13 +132,17 @@ module serial_unfitted_triangulation_names
     procedure                  :: free                          => serial_unfitted_triangulation_free
     procedure, non_overridable :: create_unfitted_cell_iterator => serial_unfitted_triangulation_create_unfitted_cell_iterator
 
+    ! TODO Are all these getters needed?
     procedure, non_overridable :: get_num_cut_cells             => serial_unfitted_triangulation_get_num_cut_cells
     procedure, non_overridable :: get_num_interior_cells        => serial_unfitted_triangulation_get_num_interior_cells
     procedure, non_overridable :: get_num_exterior_cells        => serial_unfitted_triangulation_get_num_exterior_cells
     procedure, non_overridable :: get_max_num_subcells_in_cell  => serial_unfitted_triangulation_get_max_subcells_in_cell
-    procedure, non_overridable :: get_max_num_subnodes_in_cell  => serial_unfitted_triangulation_get_max_subnodes_in_cell
     procedure, non_overridable :: get_max_num_nodes_in_subcell  => serial_unfitted_triangulation_get_max_nodes_in_subcell
     procedure, non_overridable :: get_total_num_of_subcells     => serial_unfitted_triangulation_get_total_num_of_subcells
+    procedure, non_overridable :: get_max_num_subfaces_in_cell  => serial_unfitted_triangulation_get_max_subfaces_in_cell
+    procedure, non_overridable :: get_max_num_nodes_in_subface  => serial_unfitted_triangulation_get_max_nodes_in_subface
+    procedure, non_overridable :: get_total_num_of_subfaces     => serial_unfitted_triangulation_get_total_num_of_subfaces
+    procedure, non_overridable :: get_max_num_subnodes_in_cell  => serial_unfitted_triangulation_get_max_subnodes_in_cell
 
     !TODO this two methods assume that the triangulation is cut using the marching cubes algorithm
     ! In the future this can change since other methods can be used to sub-divide the cells
@@ -146,6 +162,9 @@ module serial_unfitted_triangulation_names
     procedure, non_overridable, private :: mc_runtime_info_free           => serial_unfitted_triangulation_mc_runtime_info_free
     procedure, non_overridable, private :: subnodes_data_create           => serial_unfitted_triangulation_subnodes_data_create
     procedure, non_overridable, private :: subnodes_data_free             => serial_unfitted_triangulation_subnodes_data_free
+    procedure, non_overridable, private :: print_vtk_subcells             => serial_unfitted_triangulation_print_vtk_subcells
+    procedure, non_overridable, private :: print_vtk_subfaces             => serial_unfitted_triangulation_print_vtk_subfaces
+
 
   end type serial_unfitted_triangulation_t
 

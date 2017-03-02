@@ -144,7 +144,7 @@ subroutine unfitted_fe_accessor_update_integration( this )
 
   ! TODO where is the safe place to put this update?
   cell => this%get_unfitted_cell_accessor()
-  call cell%update_subcells()
+  call cell%update_sub_triangulation()
   
   call this%update_cut_quadratures()
   call this%update_cut_fe_maps()

@@ -85,14 +85,17 @@ module serial_unfitted_fe_space_names
 
     class(serial_unfitted_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
 
-    ! All the machinery for integrating in cut elements
-    type(quadrature_t)                        :: quadrature_subelem
-    type(tet_lagrangian_reference_fe_t)       :: geo_reference_subelem
+    ! All the machinery for integrating in subcells
+    type(quadrature_t)                     :: quadrature_subelem
+    type(tet_lagrangian_reference_fe_t)    :: geo_reference_subelem
     type(fe_map_t)                         :: fe_map_subelem
     type(quadrature_t),        allocatable :: cut_quadratures(:)
     type(fe_map_t),            allocatable :: cut_fe_maps(:)
     type(volume_integrator_t), allocatable :: cut_vol_integrators(:)
-
+    
+    ! All the machinery for integrating in subfaces
+    type(tet_lagrangian_reference_fe_t)    :: geo_reference_subface
+    
     ! The exterior elements do not contribute to the integral
     ! We achieve this with empty quadratures and related things
     ! TODO a better way of doing this?
