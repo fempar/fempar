@@ -1279,7 +1279,7 @@ type, extends(nedelec_reference_fe_t) :: hex_nedelec_reference_fe_t
 private
 contains 
   ! Deferred TBP implementors from reference_fe_t
-procedure :: check_compatibility_of_n_faces                                 &
+procedure :: check_compatibility_of_n_faces                              &
 &   => hex_nedelec_reference_fe_check_compatibility_of_n_faces
 procedure :: get_characteristic_length                                   &
 &   => hex_nedelec_reference_fe_get_characteristic_length
@@ -1303,6 +1303,57 @@ procedure, private :: change_basis &
 end type hex_nedelec_reference_fe_t
 
 public :: hex_nedelec_reference_fe_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+type, extends(nedelec_reference_fe_t) :: tet_nedelec_reference_fe_t
+private
+contains 
+  ! Deferred TBP implementors from reference_fe_t
+procedure :: check_compatibility_of_n_faces                              &
+&   => tet_nedelec_reference_fe_check_compatibility_of_n_faces
+procedure :: get_characteristic_length                                   &
+&   => tet_nedelec_reference_fe_get_characteristic_length
+procedure, private :: fill                                               & 
+&   => tet_nedelec_reference_fe_fill 
+procedure, private :: fill_vector                                        & 
+&   => tet_nedelec_reference_fe_fill_vector
+procedure, private :: fill_quadrature                                    &
+& => tet_nedelec_reference_fe_fill_quadrature
+procedure, private :: fill_interpolation                                 &
+& => tet_nedelec_reference_fe_fill_interpolation
+procedure, private :: fill_interpolation_pre_basis                       &
+& => tet_nedelec_reference_fe_fill_interpolation_pre_basis
+procedure, private :: conform_k_order_polynomial_basis                
+procedure, private :: fill_face_interpolation                            &
+& => tet_nedelec_reference_fe_fill_face_interpolation
+procedure, private :: fill_edge_interpolation                            &
+& => tet_nedelec_reference_fe_fill_edge_interpolation
+procedure, private :: set_permutation_2D                                 &
+& => tet_nedelec_reference_fe_set_permutation_2D
+procedure, private :: set_number_quadrature_points                       &
+& => tet_nedelec_reference_fe_set_number_quadrature_points
+procedure, private :: compute_number_nodes_scalar                        &
+ & => tet_nedelec_reference_fe_compute_number_nodes_scalar
+procedure, private :: get_node_local_id                                  &
+& => tet_nedelec_reference_fe_get_node_local_id
+! Concrete TBPs of this derived data type
+procedure, private, non_overridable :: fill_nodes_n_face                            &
+& => tet_nedelec_reference_fe_fill_nodes_n_face
+procedure, private, non_overridable :: fill_n_face_dimension_and_vertices           &
+& => tet_nedelec_reference_fe_fill_n_face_dimension_and_vertices
+procedure, private, non_overridable :: compute_number_interior_nodes                &
+& => tet_nedelec_reference_fe_compute_number_interior_nodes
+procedure, private, non_overridable :: compute_sum_of_nodes_in_simplices            &
+& => tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices
+procedure, private, non_overridable :: nedelec_evaluate_interpolation               &
+& => tet_nedelec_reference_fe_evaluate_interpolation
+procedure, private, non_overridable :: nedelec_get_n_face_orientation               &
+& => tet_nedelec_reference_fe_get_n_face_orientation
+procedure, private :: change_basis                                                  &
+& => tet_nedelec_reference_fe_change_basis
+end type tet_nedelec_reference_fe_t
+
+public :: tet_nedelec_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type volume_integrator_t 
@@ -1518,6 +1569,8 @@ contains
 #include "sbm_tet_raviart_thomas_reference_fe.i90"
 
 #include "sbm_hex_nedelec_reference_fe.i90"
+
+#include "sbm_tet_nedelec_reference_fe.i90"
 
 #include "sbm_polytope_topology.i90"
 

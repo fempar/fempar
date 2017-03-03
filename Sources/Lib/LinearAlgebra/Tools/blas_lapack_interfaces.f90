@@ -368,6 +368,20 @@ module lapack77_interfaces_names
        REAL(DP), INTENT(INOUT) :: B( LDB, * )
      END SUBROUTINE DSYTRS
 
+	SUBROUTINE DGESVD( JOBU, JOBVT, M, N, A, LDA, S, U, LDU, VT, LDVT, WORK, LWORK, INFO )
+       use blas77_precision_names
+       implicit none
+
+	   ! *     .. Scalar Arguments ..
+       CHARACTER, INTENT(IN)     ::  JOBU, JOBVT
+       INTEGER,   INTENT(IN)     ::  LDA, LDU, LDVT, LWORK, M, N
+	   INTEGER,   INTENT(OUT)    ::  INFO
+
+       ! *     .. Array Arguments ..
+	    REAL(DP), INTENT(OUT)   :: S( * ), U( LDU, * ),  VT( LDVT, * ), WORK( * )
+        REAL(DP), INTENT(INOUT) :: A( LDA, * )                
+
+     END SUBROUTINE DGESVD
   end interface
 
 end module lapack77_interfaces_names
