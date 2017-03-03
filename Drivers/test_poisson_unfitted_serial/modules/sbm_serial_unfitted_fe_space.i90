@@ -51,7 +51,9 @@ subroutine serial_unfitted_fe_space_create_same_reference_fes_on_all_cells(&
     this%unfitted_triangulation => triangulation
     ! Initialize the member variables of this class
     call this%init_reference_subelem()
+    call this%init_reference_subface()
     call this%init_cut_integration()
+    call this%init_cut_boundary_integration()
   class default
     check(.false.)
   end select
@@ -67,7 +69,9 @@ subroutine serial_unfitted_fe_space_free( this )
   call this%serial_fe_space_t%free()
   ! Free the memory managed by this class
   call this%free_reference_subelem()
+  call this%free_reference_subface()
   call this%free_cut_integration()
+  call this%free_cut_boundary_integration()
 end subroutine serial_unfitted_fe_space_free
 
 !-----------------------------------------------------------------------------------------------------
@@ -86,14 +90,12 @@ subroutine serial_unfitted_fe_space_init_reference_subelem( this )
   class(serial_unfitted_fe_space_t), intent(inout) :: this
 
   ! Cubic quadrature for triangles enough to integrate x^2 and y^2 (stiffness matrix of qua4)
-! TODO check which are the coords of the ref triangle
   real(rp), target ::  tri_xg(3) = [ 0.5000000000000000, 0.0000000000000000, 0.5000000000000000]
   real(rp), target ::  tri_yg(3) = [ 0.0000000000000000, 0.5000000000000000, 0.5000000000000000]
   real(rp), target ::  tri_zg(3) = [ 0.0000000000000000, 0.0000000000000000, 0.0000000000000000]
   real(rp), target ::  tri_wg(3) = [ 0.1666666666666666, 0.1666666666666666, 0.1666666666666666]
 
   ! Quadrature for a tetrahedron enough to integrate x^2*x^2 (stiffness matrix of hex8)
-  ! TODO check which are the coords of the ref tetrahedron
   real(rp), target :: tet_xg(11) = [ 0.2500000000000000, 0.7857142857142857, 0.0714285714285714, 0.0714285714285714, 0.0714285714285714,&
                                      0.1005964238332008, 0.3994035761667992, 0.3994035761667992, 0.3994035761667992, 0.1005964238332008, 0.1005964238332008]
   real(rp), target :: tet_yg(11) = [ 0.2500000000000000, 0.0714285714285714, 0.0714285714285714, 0.0714285714285714, 0.7857142857142857,&
@@ -150,14 +152,7 @@ subroutine serial_unfitted_fe_space_init_reference_subelem( this )
                                       order = 1,&
                                       field_type = field_type_scalar,&
                                       continuity = .false. )
-  
-  ! Create reference sub-face (a segment in 2d and a triangle in 3d)
-  ! TODO: a better way to do this ??
-  call this%geo_reference_subface%create( topology = topology_tet,&
-                                      number_dimensions = (num_dim-1_ip),&
-                                      order = 1,&
-                                      field_type = field_type_scalar,&
-                                      continuity = .false. )
+
   ! Create the fe map
   call this%fe_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
 
@@ -171,8 +166,74 @@ subroutine serial_unfitted_fe_space_free_reference_subelem( this )
   call this%fe_map_subelem%free()
   call this%geo_reference_subelem%free()
   call this%quadrature_subelem%free()
-  call this%geo_reference_subface%free()
 end subroutine serial_unfitted_fe_space_free_reference_subelem
+
+!-----------------------------------------------------------------------------------------------------
+
+subroutine serial_unfitted_fe_space_init_reference_subface( this )
+
+  implicit none
+  class(serial_unfitted_fe_space_t), intent(inout) :: this
+
+  real(rp), pointer ::  xg(:)
+  real(rp), pointer ::  yg(:)
+  real(rp), pointer ::  wg(:)
+
+  ! We need to integrate (n*grad(u))*(n*grad(u)), thus the terms. TODO what about the penalty term??
+  ! of the type: x^2y^2
+  ! 7 Gauss points seems to be enough, 3 are not enough
+  real(rp), target :: xg_tri(7) =  [0.101286507323456, 0.101286507323456, 0.797426985353087, 0.470142064105115,&
+                                    0.470142064105115, 0.059715871789770, 0.333333333333333]
+  real(rp), target :: yg_tri(7) =  [0.101286507323456, 0.797426985353087, 0.101286507323456, 0.470142064105115,&
+                                    0.059715871789770, 0.470142064105115, 0.333333333333333]
+  real(rp), target :: wg_tri(7) =  [0.062969590272414, 0.062969590272414, 0.062969590272414, 0.066197076394253,&
+                                    0.066197076394253, 0.066197076394253, 0.112500000000000]
+
+  ! We need to integrate (n*grad(u))*(n*grad(u)), thus the term x^2 TODO what about the penalty term??
+  ! (order 2)
+  ! 2 Gauss points are enough
+  real(rp), target :: xg_seg(2) = [-0.577350269189626, 0.577350269189626]
+  real(rp), target :: yg_seg(2) = [ 0.000000000000000, 0.000000000000000]
+  real(rp), target :: wg_seg(2) = [1.0, 1.0]
+
+  integer(ip) :: num_gp, num_dim
+  real(rp), pointer :: points_in_quadrature(:,:)
+  real(rp), pointer :: weights_in_quadrature(:)
+
+  call this%free_reference_subface()
+
+  ! Now the quadrature of the sub-face is hard-codded in this procedure
+  ! TODO: Use fempar's quadrature generators instead
+  num_dim = this%get_num_dimensions()
+  if (num_dim == 2) then
+    xg => xg_seg
+    yg => yg_seg
+    wg => wg_seg
+  else if (num_dim == 3) then
+    xg => xg_tri
+    yg => yg_tri
+    wg => wg_tri
+  else
+    check(.false.)
+  end if
+  num_gp  = size(wg)
+
+  call this%quadrature_subface%create(num_dim-1,num_gp)
+  points_in_quadrature  => this%quadrature_subface%get_coordinates()
+  weights_in_quadrature => this%quadrature_subface%get_weights()
+  points_in_quadrature(1,:) = xg(:)
+  points_in_quadrature(2,:) = yg(:)
+  weights_in_quadrature(:)  = wg(:)
+
+end subroutine serial_unfitted_fe_space_init_reference_subface
+
+!-----------------------------------------------------------------------------------------------------
+
+subroutine serial_unfitted_fe_space_free_reference_subface( this )
+  implicit none
+  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  call this%quadrature_subface%free()
+end subroutine serial_unfitted_fe_space_free_reference_subface
 
 !-----------------------------------------------------------------------------------------------------
 
@@ -260,3 +321,121 @@ subroutine serial_unfitted_fe_space_free_cut_integration( this )
   call this%empty_vol_integrator%free()
 
 end subroutine serial_unfitted_fe_space_free_cut_integration
+
+!-----------------------------------------------------------------------------------------------------
+
+subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
+
+  implicit none
+  class(serial_unfitted_fe_space_t), intent(inout) :: this
+
+  type(fe_iterator_t) :: fe_iterator
+  type(fe_accessor_t) :: fe
+  class(reference_fe_t),     pointer        :: reference_elem
+  class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
+
+  integer(ip) :: mc_case, mc_num_cases, istat, pini, pend, subface
+  integer(ip) :: num_dim, num_gp, num_subfaces, num_face_dim
+
+  real(rp), pointer :: quad_coords(:,:), sub_quad_coords(:,:)
+  real(rp), pointer :: quad_weight(:), sub_quad_weight(:)
+
+  call this%free_cut_boundary_integration()
+
+  num_gp = this%quadrature_subface%get_number_quadrature_points()
+  num_dim = this%get_num_dimensions()
+  mc_num_cases = this%unfitted_triangulation%get_num_mc_cases()
+
+  !TODO not needed to allocate for all the mc cases
+  allocate( this%cut_boundary_quadratures_cell_dim    (1:mc_num_cases), stat = istat ); check(istat==0)
+  allocate( this%cut_boundary_piecewise_fe_maps       (1:mc_num_cases), stat = istat ); check(istat==0)
+  allocate( this%cut_boundary_fe_maps                 (1:mc_num_cases), stat = istat ); check(istat==0)
+  allocate( this%cut_boundary_vol_integrators         (1:mc_num_cases), stat = istat ); check(istat==0)
+
+  do mc_case = 1, mc_num_cases
+    num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+    call this%cut_boundary_quadratures_cell_dim(mc_case)%create(num_dim,     num_gp*num_subfaces)
+  end do
+
+  ! Fill the quadratures with the values of the reference subface
+  do mc_case = 1, mc_num_cases
+    num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+    sub_quad_coords => this%quadrature_subface%get_coordinates()
+    sub_quad_weight => this%quadrature_subface%get_weights()
+    quad_coords     => this%cut_boundary_quadratures_cell_dim(mc_case)%get_coordinates()
+    quad_weight     => this%cut_boundary_quadratures_cell_dim(mc_case)%get_weights()
+    do subface = 1, num_subfaces
+      pend = subface*num_gp
+      pini = pend -  num_gp + 1
+      quad_coords(:,pini:pend) = sub_quad_coords(:,:)
+      quad_weight(pini:pend) = sub_quad_weight(:)
+    end do
+  end do
+
+  ! TODO we assume that the same ref element is in all the mesh and all fields
+  fe_iterator = this%create_fe_iterator()
+  call fe_iterator%current(fe)
+  reference_elem => fe%get_reference_fe(field_id=1)
+  geo_reference_elem => fe%get_reference_fe_geo()
+
+  do mc_case = 1, mc_num_cases
+    num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+    call this%cut_boundary_piecewise_fe_maps(mc_case)%create_face_map(&
+         this%quadrature_subface, geo_reference_elem, num_subfaces  )
+  end do
+  
+  do mc_case = 1, mc_num_cases
+    num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+    call this%cut_boundary_fe_maps(mc_case)%create(&
+         this%cut_boundary_quadratures_cell_dim(mc_case), geo_reference_elem)
+  end do
+
+  do mc_case = 1, mc_num_cases
+    call this%cut_boundary_vol_integrators(mc_case)%create(&
+         this%cut_boundary_quadratures_cell_dim(mc_case), reference_elem )
+  end do
+  
+  call this%empty_piecewise_fe_map%create_face_map( this%empty_quadrature, geo_reference_elem, 0 )
+
+end subroutine serial_unfitted_fe_space_init_cut_boundary_integration
+
+!-----------------------------------------------------------------------------------------------------
+
+subroutine serial_unfitted_fe_space_free_cut_boundary_integration( this )
+
+  implicit none
+  class(serial_unfitted_fe_space_t), intent(inout) :: this
+
+  integer(ip) :: id, istat
+
+  if ( allocated( this%cut_boundary_quadratures_cell_dim ) ) then
+    do id = 1, size(this%cut_boundary_quadratures_cell_dim)
+      call this%cut_boundary_quadratures_cell_dim(id)%free()
+    end do
+    deallocate( this%cut_boundary_quadratures_cell_dim , stat = istat ); check(istat==0)
+  end if
+
+  if ( allocated( this%cut_boundary_piecewise_fe_maps ) ) then
+    do id = 1, size(this%cut_boundary_piecewise_fe_maps )
+      call this%cut_boundary_piecewise_fe_maps(id)%free()
+    end do
+    deallocate( this%cut_boundary_piecewise_fe_maps , stat = istat ); check(istat==0)
+  end if
+  
+  if ( allocated( this%cut_boundary_fe_maps ) ) then
+    do id = 1, size(this%cut_boundary_fe_maps )
+      call this%cut_boundary_fe_maps(id)%free()
+    end do
+    deallocate( this%cut_boundary_fe_maps , stat = istat ); check(istat==0)
+  end if
+
+  if ( allocated( this%cut_boundary_vol_integrators ) ) then
+    do id = 1, size(this%cut_boundary_vol_integrators)
+      call this%cut_boundary_vol_integrators(id)%free()
+    end do
+    deallocate( this%cut_boundary_vol_integrators , stat = istat ); check(istat==0)
+  end if
+
+  call this%empty_piecewise_fe_map%free()
+  
+end subroutine serial_unfitted_fe_space_free_cut_boundary_integration

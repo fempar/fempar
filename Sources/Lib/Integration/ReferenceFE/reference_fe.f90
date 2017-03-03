@@ -168,6 +168,7 @@ module reference_fe_names
      procedure, non_overridable :: free                              => fe_map_free
      procedure, non_overridable :: print                             => fe_map_print
      procedure, non_overridable :: get_det_jacobian                  => fe_map_get_det_jacobian
+     procedure, non_overridable :: get_det_jacobians                 => fe_map_get_det_jacobians
      procedure, non_overridable :: compute_h                         => fe_map_compute_h
      procedure, non_overridable :: compute_h_min                     => fe_map_compute_h_min
      procedure, non_overridable :: compute_h_max                     => fe_map_compute_h_max
@@ -179,6 +180,7 @@ module reference_fe_names
      procedure, non_overridable :: compute_quadrature_coordinates    => fe_map_compute_quadrature_coordinates
      procedure, non_overridable :: get_quadrature_coordinates        => fe_map_get_quadrature_coordinates
      procedure, non_overridable :: get_normal                        => fe_map_get_normal
+     procedure, non_overridable :: get_normals                       => fe_map_get_normals
      procedure, non_overridable :: get_tangent                       => fe_map_get_tangent
      procedure, non_overridable :: get_jacobian_normalized_column    => fe_map_get_jacobian_normalized_column
   end type fe_map_t

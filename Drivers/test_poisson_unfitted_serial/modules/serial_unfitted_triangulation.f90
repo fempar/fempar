@@ -148,6 +148,7 @@ module serial_unfitted_triangulation_names
     ! In the future this can change since other methods can be used to sub-divide the cells
     procedure, non_overridable :: get_num_mc_cases              => serial_unfitted_triangulation_get_num_mc_cases
     procedure, non_overridable :: get_num_subcells_mc_case      => serial_unfitted_triangulation_get_num_subcells_mc_case
+    procedure, non_overridable :: get_num_subfaces_mc_case      => serial_unfitted_triangulation_get_num_subfaces_mc_case
 
     procedure :: print                     => serial_unfitted_triangulation_print
     procedure :: print_to_vtk_file         => serial_unfitted_triangulation_print_to_vtk_file

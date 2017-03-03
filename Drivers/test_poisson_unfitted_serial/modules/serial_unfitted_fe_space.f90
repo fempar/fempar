@@ -29,6 +29,7 @@
 module serial_unfitted_fe_space_names
   use fempar_names
   use serial_unfitted_triangulation_names
+  use piecewise_fe_map_names
 
   implicit none
 # include "debug.i90"
@@ -52,12 +53,23 @@ module serial_unfitted_fe_space_names
     procedure          :: get_quadrature        => unfitted_fe_accessor_get_quadrature
     procedure          :: get_fe_map            => unfitted_fe_accessor_get_fe_map
     procedure          :: get_volume_integrator => unfitted_fe_accessor_get_volume_integrator
+    
+    procedure          :: get_boundary_quadrature        => unfitted_fe_accessor_get_boundary_quadrature
+    procedure          :: get_boundary_piecewise_fe_map  => unfitted_fe_accessor_get_boundary_piecewise_fe_map
+    procedure          :: get_boundary_fe_map            => unfitted_fe_accessor_get_boundary_fe_map
+    procedure          :: get_boundary_volume_integrator => unfitted_fe_accessor_get_boundary_volume_integrator
 
     procedure :: update_integration     => unfitted_fe_accessor_update_integration
+    procedure :: update_boundary_integration  => unfitted_fe_accessor_update_boundary_integration
 
     procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_accessor_update_cut_quadratures
     procedure, non_overridable, private :: update_cut_fe_maps     => unfitted_fe_accessor_update_cut_fe_maps
     procedure, non_overridable, private :: update_cut_vol_integrators  => unfitted_fe_accessor_update_cut_vol_integrators
+    
+    procedure, non_overridable, private :: update_cut_boundary_quadratures => unfitted_fe_accessor_update_cut_boundary_quadratures
+    procedure, non_overridable, private :: update_cut_boundary_fe_maps     => unfitted_fe_accessor_update_cut_boundary_fe_maps
+    procedure, non_overridable, private :: update_cut_boundary_vol_integrators  => &
+    unfitted_fe_accessor_update_cut_boundary_vol_integrators
 
 
   end type unfitted_fe_accessor_t
@@ -94,13 +106,18 @@ module serial_unfitted_fe_space_names
     type(volume_integrator_t), allocatable :: cut_vol_integrators(:)
     
     ! All the machinery for integrating in subfaces
-    type(tet_lagrangian_reference_fe_t)    :: geo_reference_subface
+    type(quadrature_t)                     :: quadrature_subface
+    type(quadrature_t),        allocatable :: cut_boundary_quadratures_cell_dim(:)
+    type(piecewise_fe_map_t),  allocatable :: cut_boundary_piecewise_fe_maps(:)
+    type(fe_map_t),            allocatable :: cut_boundary_fe_maps(:)
+    type(volume_integrator_t), allocatable :: cut_boundary_vol_integrators(:)
     
     ! The exterior elements do not contribute to the integral
     ! We achieve this with empty quadratures and related things
     ! TODO a better way of doing this?
     type(quadrature_t)             :: empty_quadrature
     type(fe_map_t)                 :: empty_fe_map
+    type(piecewise_fe_map_t)       :: empty_piecewise_fe_map
     type(volume_integrator_t)      :: empty_vol_integrator
 
     contains
@@ -116,8 +133,12 @@ module serial_unfitted_fe_space_names
     !Private TBPs
     procedure, non_overridable, private :: init_reference_subelem => serial_unfitted_fe_space_init_reference_subelem
     procedure, non_overridable, private :: free_reference_subelem => serial_unfitted_fe_space_free_reference_subelem
+    procedure, non_overridable, private :: init_reference_subface => serial_unfitted_fe_space_init_reference_subface
+    procedure, non_overridable, private :: free_reference_subface => serial_unfitted_fe_space_free_reference_subface
     procedure, non_overridable, private :: init_cut_integration   => serial_unfitted_fe_space_init_cut_integration
     procedure, non_overridable, private :: free_cut_integration   => serial_unfitted_fe_space_free_cut_integration
+    procedure, non_overridable, private :: init_cut_boundary_integration   => serial_unfitted_fe_space_init_cut_boundary_integration
+    procedure, non_overridable, private :: free_cut_boundary_integration   => serial_unfitted_fe_space_free_cut_boundary_integration
 
   end type serial_unfitted_fe_space_t
 

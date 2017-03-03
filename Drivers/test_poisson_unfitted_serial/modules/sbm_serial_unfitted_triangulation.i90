@@ -256,6 +256,16 @@ end function serial_unfitted_triangulation_get_num_subcells_mc_case
 
 !------------------------------------------------------------------------------------------------
 
+function serial_unfitted_triangulation_get_num_subfaces_mc_case(this,mc_case) result (num_subfaces)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in) :: this
+  integer(ip), intent(in) :: mc_case
+  integer(ip) :: num_subfaces
+  num_subfaces = this%mc_table_num_subfaces_per_case(mc_case)
+end function serial_unfitted_triangulation_get_num_subfaces_mc_case
+
+!------------------------------------------------------------------------------------------------
+
 subroutine serial_unfitted_triangulation_print ( this )
 
   implicit none

@@ -454,6 +454,13 @@ function fe_map_get_det_jacobian ( this, i )
   fe_map_get_det_jacobian = this%det_jacobian(i)
 end function fe_map_get_det_jacobian
 
+function fe_map_get_det_jacobians ( this )
+  implicit none
+  class(fe_map_t), target, intent(in) :: this
+  real(rp), pointer :: fe_map_get_det_jacobians(:)
+  fe_map_get_det_jacobians => this%det_jacobian
+end function fe_map_get_det_jacobians
+
 !==================================================================================================
 function fe_map_compute_h ( this, qpoin)
   implicit none
@@ -642,6 +649,13 @@ subroutine fe_map_get_normal(this, qpoint, normal)
    call normal%set(idime,this%normals(idime,qpoint))
  end do
 end subroutine  fe_map_get_normal
+
+function fe_map_get_normals(this)
+ implicit none
+ class(fe_map_t), target, intent(in)    :: this
+ real(rp), pointer :: fe_map_get_normals(:,:)
+ fe_map_get_normals => this%normals
+end function  fe_map_get_normals
 
 subroutine fe_map_get_tangent(this, qpoint, tangent)
  implicit none
