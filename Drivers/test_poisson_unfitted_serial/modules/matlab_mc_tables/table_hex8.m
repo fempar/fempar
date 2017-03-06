@@ -28,7 +28,9 @@ Eedges = [...
     3   7
     4   8]; % Fempar numeration
 
-Efaces = [1 3 2; 1 2 4; 1 4 3; 2 3 4]; % Matlab Numeration
+%Efaces = [1 3 2; 1 2 4; 1 4 3; 2 3 4]; % Matlab Numeration
+
+Efaces =  [1 2 3; 1 4 2; 1 3 4; 2 4 3]; % FEMPAR umeration We have to orinte the faces like the first face in fempar (i.e. pointing inwards)
 
 
 node2bit = [1 2 4 8 16 32 64 128];

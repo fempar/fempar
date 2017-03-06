@@ -39,6 +39,7 @@ module test_poisson_unfitted_driver_names
   use vector_poisson_unfitted_discrete_integration_names
   use vector_poisson_unfitted_conditions_names
   use vector_poisson_unfitted_analytical_functions_names
+  use piecewise_fe_map_names
   
 # include "debug.i90"
 
@@ -93,6 +94,7 @@ module test_poisson_unfitted_driver_names
      procedure        , private :: check_solution_vector
      procedure        , private :: write_solution
      procedure        , private :: compute_domain_volume
+     procedure        , private :: compute_domain_surface
      procedure        , private :: free
   end type test_poisson_unfitted_driver_t
 
@@ -225,6 +227,10 @@ contains
     else
       call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_unfitted_conditions)
     end if
+    
+    !TODO debug only
+    call this%fe_space%print_boundary_quad_points()
+    
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
@@ -469,6 +475,7 @@ contains
     call this%setup_reference_fes()
     call this%setup_fe_space()
     call this%compute_domain_volume()
+    call this%compute_domain_surface()
     !call this%setup_system()
     !call this%assemble_system()
     !call this%setup_solver()
@@ -530,6 +537,55 @@ subroutine compute_domain_volume( this )
     write(*,*) "Domain volume = ", volume
 
 end subroutine compute_domain_volume
+
+subroutine compute_domain_surface( this )
+
+    implicit none
+    class(test_poisson_unfitted_driver_t), intent(in) :: this
+
+    type(unfitted_fe_iterator_t) :: fe_iterator
+    type(unfitted_fe_accessor_t) :: fe
+    real(rp) :: surface, dS
+    type(quadrature_t), pointer :: quadrature
+    type(piecewise_fe_map_t),     pointer :: fe_map
+    integer(ip) :: qpoint, num_quad_points
+    type(point_t), pointer :: quadrature_coordinates(:)
+
+    write(*,*) "Computing domain surface..."
+
+    fe_iterator = this%fe_space%create_unfitted_fe_iterator()
+
+    surface = 0.0_rp
+    do while ( .not. fe_iterator%has_finished() )
+
+       ! Get current FE
+       call fe_iterator%current(fe)
+
+       ! Update FE-integration related data structures
+       call fe%update_boundary_integration()
+
+       ! As the quadrature changes elem by elem, this has to be inside the loop
+       quadrature => fe%get_boundary_quadrature()
+       num_quad_points = quadrature%get_number_quadrature_points()
+       fe_map => fe%get_boundary_piecewise_fe_map()
+       
+       ! Physical coordinates of the quadrature points
+       quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
+
+       ! Integrate!
+       do qpoint = 1, num_quad_points
+         dS = fe_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+         surface = surface + dS !quadrature_coordinates(qpoint)%get(1)*quadrature_coordinates(qpoint)%get(2)*dS
+       end do
+
+       call fe_iterator%next()
+    end do
+
+    write(*,*) "Computing domain surface ... OK"
+    write(*,*) "Domain surface = ", surface
+
+end subroutine compute_domain_surface
+
 
   subroutine free(this)
     implicit none

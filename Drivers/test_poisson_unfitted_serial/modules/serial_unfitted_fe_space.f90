@@ -30,6 +30,8 @@ module serial_unfitted_fe_space_names
   use fempar_names
   use serial_unfitted_triangulation_names
   use piecewise_fe_map_names
+  use IR_Precision ! VTK_IO
+  use Lib_VTK_IO ! VTK_IO
 
   implicit none
 # include "debug.i90"
@@ -128,6 +130,8 @@ module serial_unfitted_fe_space_names
                                    serial_unfitted_fe_space_create_same_reference_fes_on_all_cells ! TODO this one is in fact public..
     procedure                   :: free                         => serial_unfitted_fe_space_free
     procedure, non_overridable  :: create_unfitted_fe_iterator  => serial_unfitted_fe_space_create_unfitted_fe_iterator
+
+    procedure, non_overridable :: print_boundary_quad_points => serial_unfitted_fe_space_print_boundary_quad_points
 
 
     !Private TBPs

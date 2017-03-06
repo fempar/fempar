@@ -85,6 +85,123 @@ end function serial_unfitted_fe_space_create_unfitted_fe_iterator
 
 !-----------------------------------------------------------------------------------------------------
 
+subroutine serial_unfitted_fe_space_print_boundary_quad_points( this )
+
+  implicit none
+  class(serial_unfitted_fe_space_t), intent(inout) :: this
+
+  type(unfitted_fe_iterator_t) :: fe_iterator
+  type(unfitted_fe_accessor_t) :: fe
+  type(quadrature_t), pointer :: quadrature
+  type(point_t), pointer :: quadrature_coordinates(:)
+  type(piecewise_fe_map_t),     pointer :: fe_map
+  integer(ip) :: num_dime, num_subfaces, num_gp_subface
+  integer(ip) :: qpoint, num_quad_points
+  integer(ip) :: ipoint
+  type(vector_field_t)  :: normal_vec
+
+  ! Used by VTKIO
+  integer(ip) :: E_IO
+  integer(ip) :: Nn
+  integer(ip) :: Ne
+  real(rp),    allocatable, dimension(:) :: x
+  real(rp),    allocatable, dimension(:) :: y
+  real(rp),    allocatable, dimension(:) :: z
+  integer(ip), allocatable, dimension(:) :: cell_type
+  integer(ip), allocatable, dimension(:) :: offset
+  integer(ip), allocatable, dimension(:) :: connect
+  integer(ip), parameter :: the_point_type = 1
+  real(rp),    allocatable, dimension(:) :: v_x
+  real(rp),    allocatable, dimension(:) :: v_y
+  real(rp),    allocatable, dimension(:) :: v_z
+
+  write(*,*) "serial_unfitted_fe_space_t: Writing boundary data into vtu file ..."
+
+  num_dime       = this%unfitted_triangulation%get_num_dimensions()
+  num_subfaces   = this%unfitted_triangulation%get_total_num_of_subfaces()
+  num_gp_subface = this%quadrature_subface%get_number_quadrature_points()
+
+  Ne = num_subfaces*num_gp_subface
+  Nn = num_subfaces*num_gp_subface
+
+  call memalloc ( Nn, x, __FILE__, __LINE__ )
+  call memalloc ( Nn, y, __FILE__, __LINE__ )
+  call memalloc ( Nn, z, __FILE__, __LINE__ )
+  call memalloc ( Ne, cell_type, __FILE__, __LINE__ )
+  call memalloc ( Ne, offset   , __FILE__, __LINE__ )
+  call memalloc ( Nn, connect  , __FILE__, __LINE__ )
+  call memalloc ( Nn, v_x, __FILE__, __LINE__ )
+  call memalloc ( Nn, v_y, __FILE__, __LINE__ )
+  call memalloc ( Nn, v_z, __FILE__, __LINE__ )
+  
+  ipoint = 1
+  fe_iterator = this%create_unfitted_fe_iterator()
+  do while ( .not. fe_iterator%has_finished() )
+
+     ! Get current FE
+     call fe_iterator%current(fe)
+
+     ! Update FE-integration related data structures
+     call fe%update_boundary_integration()
+
+     ! As the quadrature changes elem by elem, this has to be inside the loop
+     quadrature => fe%get_boundary_quadrature()
+     num_quad_points = quadrature%get_number_quadrature_points()
+     fe_map => fe%get_boundary_piecewise_fe_map()
+
+     ! Physical coordinates of the quadrature points
+     quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
+
+     do qpoint = 1, num_quad_points
+       x(ipoint) = quadrature_coordinates(qpoint)%get(1)
+       y(ipoint) = quadrature_coordinates(qpoint)%get(2)
+       z(ipoint) = quadrature_coordinates(qpoint)%get(3)
+       call fe_map%get_normal(qpoint,normal_vec)
+       v_x(ipoint) = normal_vec%get(1)
+       v_y(ipoint) = normal_vec%get(2)
+       v_z(ipoint) = normal_vec%get(3)
+       cell_type(ipoint) = the_point_type
+       offset(ipoint) = ipoint
+       connect(ipoint) = ipoint - 1
+       ipoint = ipoint + 1
+     end do
+
+     call fe_iterator%next()
+  end do
+
+  if (num_dime == 2_ip) z(:) = 0
+  if (num_dime == 2_ip) v_z(:) = 0
+
+  ! Write mesh to .vtu file
+  E_IO = VTK_INI_XML(output_format = 'ascii',&
+                     filename      = 'unfitted_triangulation_faces_points.vtu',&
+                     mesh_topology = 'UnstructuredGrid')
+  E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
+  E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) ) 
+  E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'opeN')
+  E_IO = VTK_VAR_XML(NC_NN = Nn, varname = 'out_normal', varX = v_x, varY = v_y, varZ = v_z )
+  E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'CLOSE')
+  E_IO = VTK_GEO_XML()
+  E_IO = VTK_END_XML()
+  
+
+
+  call memfree ( x        , __FILE__, __LINE__ )
+  call memfree ( y        , __FILE__, __LINE__ )
+  call memfree ( z        , __FILE__, __LINE__ )
+  call memfree ( cell_type, __FILE__, __LINE__ )
+  call memfree ( offset   , __FILE__, __LINE__ )
+  call memfree ( connect  , __FILE__, __LINE__ )
+  call memfree ( v_x        , __FILE__, __LINE__ )
+  call memfree ( v_y        , __FILE__, __LINE__ )
+  call memfree ( v_z        , __FILE__, __LINE__ )
+
+  write(*,*) "serial_unfitted_fe_space_t: Writing boundary data into vtu file ... OK"
+
+end subroutine serial_unfitted_fe_space_print_boundary_quad_points
+
+!-----------------------------------------------------------------------------------------------------
+
 subroutine serial_unfitted_fe_space_init_reference_subelem( this )
   implicit none
   class(serial_unfitted_fe_space_t), intent(inout) :: this
@@ -370,19 +487,32 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
       quad_coords(:,pini:pend) = sub_quad_coords(:,:)
       quad_weight(pini:pend) = sub_quad_weight(:)
     end do
-  end do
-
+  end do  
+  
+  
   ! TODO we assume that the same ref element is in all the mesh and all fields
   fe_iterator = this%create_fe_iterator()
   call fe_iterator%current(fe)
   reference_elem => fe%get_reference_fe(field_id=1)
   geo_reference_elem => fe%get_reference_fe_geo()
-
-  do mc_case = 1, mc_num_cases
-    num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
-    call this%cut_boundary_piecewise_fe_maps(mc_case)%create_face_map(&
-         this%quadrature_subface, geo_reference_elem, num_subfaces  )
-  end do
+  
+  !TODO it is very counter intuitive that the reference element sould be here a tet4 (3d), a quad4 (2d)
+  select case (num_dim)
+  case (2)
+    do mc_case = 1, mc_num_cases
+      num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+      call this%cut_boundary_piecewise_fe_maps(mc_case)%create_face_map(&
+           this%quadrature_subface, geo_reference_elem, num_subfaces  )
+    end do
+  case (3)
+    do mc_case = 1, mc_num_cases
+      num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+      call this%cut_boundary_piecewise_fe_maps(mc_case)%create_face_map(&
+           this%quadrature_subface, this%geo_reference_subelem, num_subfaces  )
+    end do
+  case default
+    check(.false.)
+  end select
   
   do mc_case = 1, mc_num_cases
     num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
