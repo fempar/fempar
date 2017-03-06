@@ -319,13 +319,28 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
 
   this%current_qpoints_perm_cols = 1
   ! @sbadia: order+2 only works for topology_hex. When the work for high order TETS with face 
-  ! integration will be performed, it has to be corrected
-  assert ( left_reference_fe%topology == topology_hex )
-
-  call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
-                                                       quadrature%number_dimensions, &
-                                                       left_reference_fe%polytope, &
-                                                       this%qpoints_perm )
+  ! integration will be performed, it has to be corrected. @jbonilla: this workaround still works
+  ! if quadratures for topology_hex plus Duffy transformation is used. Whenever, symmetric 
+  ! quadrature points for TETs are used it has to be corrected.
+  ! (For hex topology + lagrangian FE) the number of quadrature points within a face corresponds 
+  ! to the number of interior nodes in a face for a reference FE with order+2 (instead of order+1)
+  
+  ! assert ( left_reference_fe%topology == topology_hex )
+  
+  ! For tet topology and 3D, the quadrature used is order+2, thus the number of quadrature points
+  ! within a face corresponds  to the number of interior nodes in a face for a reference FE with 
+  ! order+3 (instead of order+2)
+  if ((quadrature%number_dimensions.eq.3).and.(left_reference_fe%topology.eq.topology_tet)) then
+     call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+3, &
+                                                          quadrature%number_dimensions,        &
+                                                          left_reference_fe%polytope,          &
+                                                          this%qpoints_perm )
+  else
+     call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
+                                                          quadrature%number_dimensions,        &
+                                                          left_reference_fe%polytope,          &
+                                                          this%qpoints_perm )
+  end if
 end subroutine face_integrator_create
 
 !==================================================================================================

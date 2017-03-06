@@ -1054,10 +1054,13 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
 
               ! Now rotate the n-face based on the anchor node
               ! If the anchor node is in the original position (0) perm = Id
-              if (topology_n_face.gt.1)then
+              if (base_polytope%topology.eq.(2**base_polytope%number_dimensions-1)) then
                  ijk_rot =  rotate(ijk_node,ijk_anchor_node,idime, order )
-              else
+              elseif (base_polytope%topology.eq.0) then
                  ijk_rot =  rotate_tet(ijk_node,ijk_anchor_node,idime, order )
+              else
+                 ! Pyramid or prisms permutations are not implemented yet
+                 assert (.false.)
               end if
               ! Next, consider the possible orientations
 

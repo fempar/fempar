@@ -1154,22 +1154,26 @@ type, extends(tet_lagrangian_reference_fe_t) :: new_tet_lagrangian_reference_fe_
   private
   logical               :: basis_changed
   real(rp), allocatable :: change_basis_matrix(:,:)
-contains
-procedure :: create  => new_tet_lagrangian_reference_fe_create
-procedure :: free    => new_tet_lagrangian_reference_fe_free
-procedure, private :: fill_interpolation                                             &
-                   & => new_tet_lagrangian_reference_fe_fill_interpolation
-procedure, private :: fill_interpolation_pre_basis                                   &
-                   & => new_tet_lagrangian_reference_fe_fill_interpolation_pre_basis
-procedure, private :: change_basis                                                   &
-                   & => new_tet_lagrangian_reference_fe_change_basis
-procedure, private :: invert_change_basis_matrix                                     &
-                   & => new_tet_lagrangian_reference_fe_invert_change_basis_matrix
-procedure, private :: apply_change_basis_matrix_to_interpolation                     &
-                   & => new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
+ contains
+   procedure :: create  => new_tet_lagrangian_reference_fe_create
+   procedure :: free    => new_tet_lagrangian_reference_fe_free
+   procedure, private :: fill_quadrature                                                &
+                      & => new_tet_lagrangian_reference_fe_fill_quadrature
+   procedure, private :: fill_interpolation                                             &
+                      & => new_tet_lagrangian_reference_fe_fill_interpolation
+   procedure, private :: fill_interpolation_pre_basis                                   &
+                      & => new_tet_lagrangian_reference_fe_fill_interpolation_pre_basis
+   procedure, private :: change_basis                                                   &
+                      & => new_tet_lagrangian_reference_fe_change_basis
+   procedure, private :: invert_change_basis_matrix                                     &
+                      & => new_tet_lagrangian_reference_fe_invert_change_basis_matrix
+   procedure, private :: apply_change_basis_matrix_to_interpolation                     &
+                      & => new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
+   procedure, private :: set_number_quadrature_points                                   &
+                      & => new_tet_lagrangian_reference_fe_set_number_quadrature_points
 end type new_tet_lagrangian_reference_fe_t
 
-public :: tet_lagrangian_reference_fe_t
+public :: tet_lagrangian_reference_fe_t, new_tet_lagrangian_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(raviart_thomas_reference_fe_t) :: tet_raviart_thomas_reference_fe_t

@@ -267,3 +267,112 @@ subroutine new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, i
      end do
   end do
 end subroutine new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation
+
+
+!==================================================================================================
+subroutine new_tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
+  !-----------------------------------------------------------------------
+  ! 
+  !     This routine sets up the integration constants of open rules for
+  !     triangles and tetrahedra mapping hexahedra quadratures
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  class(new_tet_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  type(hex_lagrangian_reference_fe_t)                :: hex_lagrangian_rfe
+
+  if (get_quadratures_from_hex(quadrature)) then
+     call hex_lagrangian_rfe%fill_quadrature ( quadrature ) 
+     if (quadrature%number_dimensions.eq.2) then
+        ! x' = (x+1)/2
+        quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
+        ! y' = (1-x')(y+1)/2
+        quadrature%coordinates(2,:) = (1.0_rp - quadrature%coordinates(1,:)) * &
+                                     ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
+        ! w' = (1-x')/4
+        quadrature%weight = (1.0_rp - quadrature%coordinates(1,:)) /4.0_rp * &
+                            quadrature%weight
+        
+     elseif (quadrature%number_dimensions.eq.3) then
+        ! x' = (x+1)/2
+        quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
+        ! y' = (1-x')(y+1)/2
+        quadrature%coordinates(2,:) = (1.0_rp - quadrature%coordinates(1,:)) * &
+                                     ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
+        ! z' = (1-x'-y')(z+1)/2
+        quadrature%coordinates(3,:) = (1.0_rp - quadrature%coordinates(1,:)    &
+                                              - quadrature%coordinates(2,:)) * &
+                                     ((1.0_rp + quadrature%coordinates(3,:)) / 2.0_rp)
+        ! w' = ((1-x')^2+y'(x'-1))/8
+        quadrature%weight = ((1.0_rp - quadrature%coordinates(1,:))**2.0_rp + &
+                        quadrature%coordinates(2,:)*(quadrature%coordinates(1,:) - 1.0_rp)) / 8.0_rp * &
+                        quadrature%weight
+     end if
+  else 
+     call tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
+  end if
+end subroutine new_tet_lagrangian_reference_fe_fill_quadrature
+
+!=================================================================================================
+function new_tet_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
+  implicit none
+  class(new_tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                             , intent(in)    :: order
+  integer(ip)                             , intent(in)    :: dimension
+  integer(ip) :: new_tet_lagrangian_reference_fe_set_number_quadrature_points
+  
+  if( dimension .eq. 1 ) then
+     new_tet_lagrangian_reference_fe_set_number_quadrature_points = order + 1
+  elseif( dimension .eq. 2 ) then
+     !*************************************************************************
+     ! Uncomment the following lines for using efficent symmetrical gaussian 
+     ! quadrature rules. Uncomment function get_quadratures_from_hex too.
+     ! Take into account that these quadratures DO NOT work for face integration.
+     !
+     ! Symmetric trianglular quadratures
+     !if( order .eq. 1 ) then
+     !   new_tet_lagrangian_reference_fe_set_number_quadrature_points = 3
+     !elseif( order .eq. 2 ) then
+     !   new_tet_lagrangian_reference_fe_set_number_quadrature_points = 6
+     !elseif( order .eq. 3 ) then
+     !   new_tet_lagrangian_reference_fe_set_number_quadrature_points = 13
+     !elseif( order .eq. 4 ) then
+     !   new_tet_lagrangian_reference_fe_set_number_quadrature_points = 19
+     !elseif( order .eq. 5 ) then
+     !   new_tet_lagrangian_reference_fe_set_number_quadrature_points = 28
+     !else ! Quadratures based on brick quadratures transformation
+     !_________________________________________________________________________
+        new_tet_lagrangian_reference_fe_set_number_quadrature_points = (order+1)**2
+     !end if
+  elseif( dimension .eq. 3 ) then
+     !*************************************************************************
+     ! Uncomment the following lines for using efficent symmetrical gaussian 
+     ! quadrature rules. Uncomment function get_quadratures_from_hex too.
+     ! Take into account that these quadratures DO NOT work for face integration.
+     !
+     !if( order .eq. 1 ) then
+     !   new_tet_lagrangian_reference_fe_set_number_quadrature_points = 4
+     !elseif( order .eq. 2) then
+     !   new_tet_lagrangian_reference_fe_set_number_quadrature_points = 11
+     !else ! Quadratures based on brick quadratures transformation
+     !_________________________________________________________________________
+        new_tet_lagrangian_reference_fe_set_number_quadrature_points = (order+2)**3
+     !end if
+  end if
+  
+end function new_tet_lagrangian_reference_fe_set_number_quadrature_points
+
+!=================================================================================================
+function get_quadratures_from_hex(quadrature)
+  implicit none
+  type(quadrature_t), intent(in) :: quadrature
+  logical :: get_quadratures_from_hex
+  
+  get_quadratures_from_hex = .true.
+  !if ((quadrature%number_dimensions.eq.2).and.(quadrature%number_quadrature_points.lt.29)) then
+  !   get_quadratures_from_hex = .false.
+  !elseif ((quadrature%number_dimensions.eq.3).and.(quadrature%number_quadrature_points.lt.12)) then
+  !   get_quadratures_from_hex = .false.
+  !end if
+end function
