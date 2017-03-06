@@ -61,7 +61,8 @@ subroutine fe_face_accessor_get_fe_around (this, icell_around, fe)
   type(fe_accessor_t)      , intent(inout) :: fe
   type(cell_accessor_t)                    :: cell
   call this%get_cell_around(icell_around, cell)
-  call fe%create(cell%get_lid(), this%fe_space)
+  call fe%create(this%fe_space)
+  call fe%set_lid(cell%get_lid())
 end subroutine fe_face_accessor_get_fe_around
 
 !==================================================================================================

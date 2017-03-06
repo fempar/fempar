@@ -100,6 +100,8 @@ module base_static_triangulation_names
     generic                              :: create                  => cell_accessor_create
     procedure                            :: free                    => cell_accessor_free
     procedure, non_overridable           :: next                    => cell_accessor_next
+    procedure, non_overridable           :: first                   => cell_accessor_first
+    procedure, non_overridable           :: last                    => cell_accessor_last
     procedure, non_overridable           :: set_lid                 => cell_accessor_set_lid
     procedure, non_overridable, private  :: set_gid                 => cell_accessor_set_gid
     procedure, non_overridable, private  :: set_mypart              => cell_accessor_set_mypart

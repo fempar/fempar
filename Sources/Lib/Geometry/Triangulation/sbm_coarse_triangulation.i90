@@ -154,9 +154,8 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
      lst_vefs_dimension )
   implicit none
   class(coarse_triangulation_t), intent(inout) :: this
-  integer(ip)                       , intent(in)    :: lst_vefs_dimension(*)
+  integer(ip)                  , intent(in)    :: lst_vefs_dimension(*)
   integer(ip)                                       :: icell, ivef, vef_lid, current
-  type(cell_iterator_t) :: cell_iterator
   type(cell_accessor_t) :: cell
   type(vef_accessor_t)  :: vef
   
@@ -168,9 +167,9 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
   this%vefs_type = 0 
   
   current = 1
-  cell_iterator = this%create_cell_iterator()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(cell)
+  call cell%create(this)
+  call cell%first()
+  do while(.not.cell%past_the_end())
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
         !this%vefs_dimension(vef_lid) = lst_vefs_dimension(current)
@@ -179,7 +178,7 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
         call vef%set_dimension(lst_vefs_dimension(current))
         current = current + 1 
      end do
-     call cell_iterator%next()
+     call cell%next()
   end do
 end subroutine coarse_triangulation_allocate_and_fill_vefs_dimension
 
@@ -189,7 +188,6 @@ subroutine coarse_triangulation_print ( this )
    integer(ip) :: ivef,inode
    type(vef_iterator_t)  :: vef_iterator
    type(vef_accessor_t)  :: vef
-   type(cell_iterator_t) :: cell_iterator
    type(cell_accessor_t) :: cell
    type(point_t), allocatable :: cell_coordinates(:)
    !type(vef_accessor_t)  :: vef
@@ -203,12 +201,12 @@ subroutine coarse_triangulation_print ( this )
      write (*,'(a,i10)') 'num_itfc_vefs:  ', this%num_itfc_vefs
      write (*,'(a)') '**** Cells ****'
 
-     cell_iterator = this%create_cell_iterator()
+     call cell%create(this)
+     call cell%first()
      write (*,'(a)') '       id      is_local   is_ghost  num_vefs    vef        vef  ....'
-     do while ( .not. cell_iterator%has_finished() )
-         call cell_iterator%current(cell)
+     do while ( .not. cell%past_the_end() )
          write(*,'(i10,2l10,10(2x,i10))') cell%get_lid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_lid(ivef),ivef=1,cell%get_num_vefs())
-         call cell_iterator%next()
+         call cell%next()
      end do
 
      write (*,'(a)') '**** Vefs ****'

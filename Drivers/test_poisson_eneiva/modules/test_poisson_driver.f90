@@ -100,7 +100,6 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    type(cell_iterator_t)                     :: cell_iterator
     type(cell_accessor_t)                     :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     integer(ip)                               :: istat
@@ -108,8 +107,8 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
-    cell_iterator = this%triangulation%create_cell_iterator()
-    call cell_iterator%current(cell)
+    call cell%create(this)
+    call cell%first()
     reference_fe_geo => cell%get_reference_fe_geo()
     
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &

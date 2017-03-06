@@ -138,7 +138,6 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
-    type(cell_iterator_t)                     :: cell_iterator
     type(cell_accessor_t)                     :: cell
     integer(ip)                               :: istat
     integer(ip), allocatable                  :: cells_set(:)
@@ -151,11 +150,10 @@ contains
 
     if ( this%environment%am_i_l1_task() ) then
        call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
-       cell_iterator = this%triangulation%create_cell_iterator()
-       call cell_iterator%current(cell)
+       call cell%create(this%triangulation)
+       call cell%first()
        allocate (cell_coords(cell%get_num_nodes()),stat=istat)
-       do while( .not. cell_iterator%has_finished() )
-          call cell_iterator%current(cell)
+       do while( .not. cell%past_the_end)
           if ( cell%is_local() ) then
              call cell%get_coordinates(cell_coords)
              call grav_center%init(0.0_rp)
@@ -167,7 +165,7 @@ contains
                   this%triangulation%get_num_dimensions(), &
                   this%test_params%get_jump(), this%test_params%get_inclusion() )
           end if
-          call cell_iterator%next()
+          call cell%next()
        end do
        call this%triangulation%fill_cells_set( cells_set )
        call memfree( cells_set, __FILE__, __LINE__ )
@@ -281,7 +279,6 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(cell_iterator_t)                     :: cell_iterator
     type(cell_accessor_t)                     :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
 
@@ -289,8 +286,7 @@ contains
     check(istat==0)
 
     if ( this%environment%am_i_l1_task() ) then
-       cell_iterator = this%triangulation%create_cell_iterator()
-       call cell_iterator%current(cell)
+       call cell%create(this%triangulation)
        reference_fe_geo => cell%get_reference_fe_geo()
        this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
             fe_type = fe_type_lagrangian, &

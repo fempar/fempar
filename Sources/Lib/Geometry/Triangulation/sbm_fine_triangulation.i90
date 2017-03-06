@@ -34,7 +34,6 @@ subroutine fine_triangulation_generate_vefs(this,order)
 
   integer(ip)          , allocatable :: ptr_vertices(:)
   integer(ip)          , allocatable :: lst_vertices(:)
-  type(cell_iterator_t)              :: cell_iterator
   type(cell_accessor_t)              :: icell
   type(cell_accessor_t)              :: jcell
   type(vef_accessor_t)               :: ivef_accessor
@@ -66,9 +65,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
   ! using a Lagrangian type fe and nodal values are stored into a point_t array.
   call pos_ref_fe%init(max_num_reference_fes_geo)
 
-  cell_iterator = this%create_cell_iterator()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(icell)
+  call icell%create(this)
+  call icell%first()
+  do while ( .not. icell%past_the_end() )
      ielem = icell%get_lid()
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
      call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
@@ -106,7 +105,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
            this%reference_fe_geo_list(icell_type)%p => reference_fe
         end select
      end if
-     call cell_iterator%next()
+     call icell%next()
   end do
   !write(*,*) 'Ref fe list done'
   !call this%reference_fe_geo_list(1)%p%print()
@@ -116,16 +115,15 @@ subroutine fine_triangulation_generate_vefs(this,order)
   !call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_nodes_per_cell, __FILE__, __LINE__ )
   this%ptr_vefs_per_cell(1)=1
   !this%ptr_nodes_per_cell(1)=1
-  call cell_iterator%init()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(icell)
+  call icell%first()
+  do while ( .not. icell%past_the_end() )
      ielem = icell%get_lid()
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
      call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
      assert(istat==old_index)
      this%ptr_vefs_per_cell(ielem+1)  = this%ptr_vefs_per_cell(ielem)  + this%reference_fe_geo_list(icell_type)%p%get_number_n_faces()
      !this%ptr_nodes_per_cell(ielem+1) = this%ptr_nodes_per_cell(ielem) + this%reference_fe_geo_list(ielem_type)%p%get_number_nodes()
-     call cell_iterator%next()
+     call icell%next()
   end do
   call memalloc(this%ptr_vefs_per_cell(this%num_local_cells + this%num_ghost_cells+1)-1, this%lst_vefs_lids , __FILE__, __LINE__ )
   this%lst_vefs_lids=0
@@ -133,9 +131,8 @@ subroutine fine_triangulation_generate_vefs(this,order)
   !write(*,*) this%ptr_vefs_per_cell
   
   ! Fill vertices (dim 0 vefs)
-  call cell_iterator%init()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(icell)
+  call icell%first()
+  do while ( .not. icell%past_the_end() )
      ielem = icell%get_lid()
      !write(*,*) 'Element i:',ielem
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
@@ -144,15 +141,14 @@ subroutine fine_triangulation_generate_vefs(this,order)
      ! Fill vefs (only vertices)
      this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem):this%ptr_vefs_per_cell(ielem)+ielem_num_vertices-1) = &
           & lst_vertices(ptr_vertices(ielem):ptr_vertices(ielem+1)-1)
-     call cell_iterator%next()
+     call icell%next()
   end do
   !write(*,*) 'Vertices filled'
   
   ! Fill dim 1 vefs (this%num_vefs = number of vertices at this point)
   ! they only have two vertices
-  call cell_iterator%init()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(icell)
+  call icell%first()
+  do while ( .not. icell%past_the_end() )
      ielem = icell%get_lid()
      !write(*,*) 'Element i:',ielem
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
@@ -208,7 +204,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
            end do
         end if
      end do
-     call cell_iterator%next()
+     call icell%next()
   end do
 
   ! These numbers (num_faces and num_edges) might not be necessary
@@ -222,9 +218,8 @@ subroutine fine_triangulation_generate_vefs(this,order)
 
      ! Fill dim 2 vefs (the code is similar to that of dim 1 vefs,
      ! except for the number of vertices of each vef, that is variable)
-     call cell_iterator%init()
-     do while ( .not. cell_iterator%has_finished() )
-        call cell_iterator%current(icell)
+     call icell%first()
+     do while ( .not. icell%past_the_end() )
         ielem = icell%get_lid()
         !write(*,*) 'Element i:',ielem
         ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
@@ -285,7 +280,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
               end do
            end if
         end do
-        call cell_iterator%next()
+        call icell%next()
      end do
      this%num_faces=this%num_vefs-this%num_vertices-this%num_edges
   end if
@@ -351,7 +346,6 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
   integer(ip) , intent(in) :: vefs_set(:)
   integer(ip)                        :: order
 
-  type(cell_iterator_t)              :: cell_iterator
   type(cell_accessor_t)              :: icell
   type(cell_accessor_t)              :: jcell
   type(vef_accessor_t)               :: ivef_accessor
@@ -603,7 +597,6 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   integer(ip)           :: icell 
   integer(ip)           :: cell_type, istat
   type(cell_accessor_t) :: cell, cell2
-  type(cell_iterator_t) :: cell_iterator
   type(vef_iterator_t)  :: vef_iterator
   type(vef_accessor_t)  :: vef
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
@@ -615,25 +608,24 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_nodes_per_cell, __FILE__, __LINE__ )
 
   this%ptr_nodes_per_cell(1)=1
-  cell_iterator = this%create_cell_iterator()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(cell)
+  call cell%create(this)
+  call cell%first()
+  do while ( .not. cell%past_the_end() )
      reference_fe_geo => cell%get_reference_fe_geo()
      ielem = cell%get_lid()
      this%ptr_nodes_per_cell(ielem+1) = this%ptr_nodes_per_cell(ielem) + reference_fe_geo%get_number_shape_functions()
-     call cell_iterator%next()
+     call cell%next()
   end do
   call memalloc(this%ptr_nodes_per_cell(this%num_local_cells + this%num_ghost_cells+1)-1, this%lst_nodes , __FILE__, __LINE__ )
   this%lst_nodes=0
 
   ! Set nodes on vertices (with id = id of the vertex)
-  call cell_iterator%init()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(cell)
+  call cell%first()
+  do while ( .not. cell%past_the_end() )
      if ( cell%is_local() ) then
        call cell%fill_nodes_on_vertices()
      end if  
-     call cell_iterator%next()
+     call cell%next()
   end do
   this%num_nodes=this%num_vertices
   
@@ -662,13 +654,12 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   end do
 
   ! Fill nodes on volume
-  call cell_iterator%init()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(cell)
+  call cell%first()
+  do while ( .not. cell%past_the_end() )
      if ( cell%is_local() ) then
        call cell%fill_internal_nodes_new(this%num_nodes)
       end if 
-      call cell_iterator%next()  
+      call cell%next()  
   end do
 
   !write(*,*) this%num_nodes
@@ -686,9 +677,8 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   implicit none
   class(fine_triangulation_t), intent(inout) :: this
   real(rp)                          , intent(in)    :: vertices_coordinates(:,:)
-  type(cell_iterator_t)     :: cell_iterator
-  type(cell_accessor_t)     :: cell
-  type(vertex_iterator_t) :: vertices_iterator
+  type(cell_accessor_t)    :: cell
+  type(vertex_iterator_t)  :: vertices_iterator
   type(edge_iterator_t)    :: edges_iterator
   type(face_iterator_t)    :: faces_iterator
   type(vef_accessor_t)      :: vef
@@ -788,9 +778,9 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
 
   ! Fill internal nodes
   ! write(*,*) 'Fill internal nodes'
-  cell_iterator = this%create_cell_iterator()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(cell)
+  call cell%create(this)
+  call cell%first()
+  do while ( .not. cell%past_the_end() )
      if ( cell%is_local() ) then
        ! Reallocate coordinates (if needed) and get them from cell
        cell_num_nodes = cell%get_num_nodes()
@@ -807,7 +797,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
        ! Store coordinates
        call cell%set_coordinates(coordinates)
      end if
-     call cell_iterator%next()
+     call cell%next()
   end do
   call memfree( coordinates, __FILE__,__LINE__)
 end subroutine fine_triangulation_allocate_and_fill_coordinates

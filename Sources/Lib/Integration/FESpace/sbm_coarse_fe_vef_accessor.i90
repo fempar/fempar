@@ -63,6 +63,7 @@ function coarse_fe_vef_accessor_get_coarse_fe_around (this, icoarse_fe_around)
   type(coarse_fe_accessor_t)                  :: coarse_fe_vef_accessor_get_coarse_fe_around
   type(cell_accessor_t)                       :: cell
   call this%get_cell_around(icoarse_fe_around,cell)
-  call coarse_fe_vef_accessor_get_coarse_fe_around%create(cell%get_lid(), this%coarse_fe_space)
+  call coarse_fe_vef_accessor_get_coarse_fe_around%create(this%coarse_fe_space)
+  call coarse_fe_vef_accessor_get_coarse_fe_around%set_lid(cell%get_lid())
 end function coarse_fe_vef_accessor_get_coarse_fe_around
 

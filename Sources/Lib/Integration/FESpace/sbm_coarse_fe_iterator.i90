@@ -31,7 +31,8 @@ subroutine coarse_fe_iterator_create ( this, lid, coarse_fe_space )
   integer(ip)                      , intent(in)    :: lid
   type(coarse_fe_space_t)          , intent(in)    :: coarse_fe_space
   call this%free()
-  call this%current_coarse_fe_accessor%create(lid=lid, coarse_fe_space=coarse_fe_space)
+  call this%current_coarse_fe_accessor%create(coarse_fe_space=coarse_fe_space)
+  call this%current_coarse_fe_accessor%set_lid(lid=lid)
 end subroutine coarse_fe_iterator_create
 
 subroutine coarse_fe_iterator_free ( this ) 

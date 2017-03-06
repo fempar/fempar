@@ -239,7 +239,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   ! Count number_strong_dirichlet_dofs
   this%number_strong_dirichlet_dofs = 0
 
-  call source_fe%create(1, this)
+  call source_fe%create(this)
 
 
   fe_iterator = this%create_fe_iterator()
@@ -1729,7 +1729,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   current_dof_block = init_dof_block
 
   if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
-     call source_fe%create(1, this)
+     call source_fe%create(this)
      call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
      visited_vef_to_fe_map = -1
      fe_iterator = this%create_fe_iterator()

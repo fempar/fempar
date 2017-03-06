@@ -31,8 +31,9 @@ subroutine cell_iterator_create ( this, lid, base_static_triangulation )
   integer(ip)                       , intent(in)    :: lid
   class(base_static_triangulation_t), intent(in)    :: base_static_triangulation
   call this%free()
-  call this%current_cell_accessor%create(lid=lid, base_static_triangulation=base_static_triangulation )
-end subroutine cell_iterator_create
+  call this%current_cell_accessor%create(base_static_triangulation=base_static_triangulation )
+  call this%current_cell_accessor%set_lid(lid=lid)
+  end subroutine cell_iterator_create
 
 subroutine cell_iterator_free ( this ) 
   implicit none

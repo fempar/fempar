@@ -114,7 +114,6 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     ! Locals 
     integer(ip)                 , allocatable :: cells_set(:) 
-    type(cell_iterator_t)                     :: cell_iterator
     type(cell_accessor_t)                     :: cell
     type(point_t), allocatable                :: cell_coordinates(:)
     integer(ip)                               :: inode
@@ -127,12 +126,11 @@ contains
 
     ! Assign subset_id to different cells for the created structured mesh 
     allocate(cells_set(this%triangulation%get_num_cells() ), stat=istat); check(istat==0)
-    cell_iterator = this%triangulation%create_cell_iterator()
-    call cell_iterator%current(cell)
+    call cell%create(this)
+    call cell%first()
     allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0) 
     
-    do while ( .not. cell_iterator%has_finished() )
-       call cell_iterator%current(cell)
+    do while ( .not. cell%past_the_end() )
        call cell%get_coordinates(cell_coordinates)
        ! Compute center of the element coordinates 
        cx = 0.0_rp
@@ -150,7 +148,7 @@ contains
        else 
           cells_set( cell%get_lid() ) = air
        end if
-       call cell_iterator%next() 
+       call cell%next() 
     end do
 
     call this%triangulation%fill_cells_set(cells_set)  
@@ -165,7 +163,6 @@ contains
     integer(ip) :: istat, ivef
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
-    type(cell_iterator_t) :: cell_iterator
     type(cell_accessor_t) :: cell
     type(point_t)         :: cell_coordinates(8)
 

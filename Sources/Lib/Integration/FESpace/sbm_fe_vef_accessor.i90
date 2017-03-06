@@ -56,6 +56,7 @@ subroutine fe_vef_accessor_get_cell_around (this, ife_around, fe)
   type(fe_accessor_t)               ,  intent(inout) :: fe
   type(cell_accessor_t)                              :: cell
   call this%get_cell_around(ife_around,cell)
-  call fe%create(cell%get_lid(), this%fe_space)
+  call fe%create(this%fe_space)
+  call fe%set_lid(cell%get_lid())
 end subroutine fe_vef_accessor_get_cell_around
 

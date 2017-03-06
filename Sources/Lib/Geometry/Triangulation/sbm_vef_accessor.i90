@@ -230,7 +230,8 @@ subroutine vef_accessor_get_cell_around (this, icell_around, cell)
   assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
   position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid) + icell_around-1
   icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
-  call cell%create(icell,this%base_static_triangulation)
+  call cell%create(this%base_static_triangulation)
+  call cell%set_lid(icell)
 end subroutine vef_accessor_get_cell_around
 
 subroutine face_accessor_get_coordinates (this, face_coordinates)

@@ -339,7 +339,7 @@ subroutine coarse_fe_space_fetch_ghost_fes_data(this, &
   call memalloc ( number_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
   call memalloc ( number_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
 
-  call coarse_fe%create(1, this)
+  call coarse_fe%create(this)
 
   spos = this%ptr_dofs_per_fe_and_field(1)
   epos   = this%ptr_dofs_per_fe_and_field(num_local_cells*this%number_fields+1)-1
@@ -462,9 +462,12 @@ subroutine coarse_fe_space_allocate_and_fill_own_dofs_vef_per_fe (this, &
   ! do not currently have it (does it make sense to have it?), then I need
   ! cell iterators and a traversal over all cells!
   
-  call coarse_fe%create(this%coarse_triangulation%get_num_local_cells()+ &
-                         this%coarse_triangulation%get_num_ghost_cells(), this)
+  !call coarse_fe%create(this%coarse_triangulation%get_num_local_cells()+ &
+  !                       this%coarse_triangulation%get_num_ghost_cells(), this)
   
+  call coarse_fe%create(this)
+  call coarse_fe%last()
+
   sum_num_vefs_all_cells = coarse_fe%get_lid() + & ! Interior VEFs 
                            coarse_fe%scan_sum_number_vefs() + coarse_fe%get_num_vefs()
                            
@@ -674,7 +677,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   call memalloc ( 2, this%coarse_triangulation%get_num_vefs(), visited_vef_to_coarse_fe_map,  __FILE__, __LINE__ )
   visited_vef_to_coarse_fe_map = -1
 
-  call source_fe%create(1, this)
+  call source_fe%create(this)
 
   ! Assign local identifiers to DoFs on local cells
   if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then

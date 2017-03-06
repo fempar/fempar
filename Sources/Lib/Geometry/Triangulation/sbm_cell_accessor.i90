@@ -25,15 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine cell_accessor_create ( this, lid, base_static_triangulation )
+subroutine cell_accessor_create ( this, base_static_triangulation )
   implicit none
   class(cell_accessor_t)                    , intent(inout) :: this
-  integer(ip)                               , intent(in)    :: lid
   class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
   !write(*,*) 'cell_accessor_create :: begining'
   call this%free()
   !write(*,*) 'cell_accessor_create :: after free'
-  this%lid = lid
   this%base_static_triangulation => base_static_triangulation
   !write(*,*) 'cell_accessor_create :: end'
 end subroutine cell_accessor_create
@@ -50,6 +48,19 @@ subroutine cell_accessor_next(this)
   class(cell_accessor_t), intent(inout) :: this
   this%lid = this%lid + 1
 end subroutine cell_accessor_next
+
+subroutine cell_accessor_first(this)
+  implicit none
+  class(cell_accessor_t), intent(inout) :: this
+  this%lid = 1
+end subroutine cell_accessor_first
+
+subroutine cell_accessor_last(this)
+  implicit none
+  class(cell_accessor_t), intent(inout) :: this
+  this%lid = this%base_static_triangulation%num_local_cells + &
+             this%base_static_triangulation%num_ghost_cells
+end subroutine cell_accessor_last
 
 subroutine cell_accessor_set_lid(this, lid)
   implicit none

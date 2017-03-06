@@ -141,7 +141,6 @@ contains
     ! Locals
     integer(ip) :: istat    
     logical                                   :: continuity
-    type(cell_iterator_t)                     :: cell_iterator
     type(cell_accessor_t)                     :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     character(:), allocatable :: field_type
@@ -160,8 +159,8 @@ contains
       field_type = field_type_vector
     end if
     
-    cell_iterator = this%triangulation%create_cell_iterator()
-    call cell_iterator%current(cell)
+    call cell%create(this%triangulation)
+    call cell%first()
     reference_fe_geo => cell%get_reference_fe_geo()
     
     

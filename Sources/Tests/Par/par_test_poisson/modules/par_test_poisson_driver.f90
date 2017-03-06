@@ -130,7 +130,6 @@ contains
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(cell_iterator_t)                     :: cell_iterator
     type(cell_accessor_t)                     :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     
@@ -138,8 +137,8 @@ contains
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
-      cell_iterator = this%triangulation%create_cell_iterator()
-      call cell_iterator%current(cell)
+      call cell%create(this%triangulation)
+      call cell%first()
       reference_fe_geo => cell%get_reference_fe_geo()
       this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
