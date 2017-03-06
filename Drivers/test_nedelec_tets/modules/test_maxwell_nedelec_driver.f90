@@ -111,7 +111,7 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,      &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,      &
                                                  fe_type = fe_type_nedelec,    &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
@@ -143,13 +143,13 @@ contains
                                reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
-    ! call this%fe_space%initialize_fe_face_integration() 
+    !call this%fe_space%initialize_fe_face_integration() 
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
 	if ( this%triangulation%get_num_dimensions() == 3) then 
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	end if 
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
+    !call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
     !call this%fe_space%print()
   end subroutine setup_fe_space
 
