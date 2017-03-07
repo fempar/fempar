@@ -221,6 +221,20 @@ subroutine bst_fill_cells_set (this, cells_set)
                                              this%cells_set )
 end subroutine bst_fill_cells_set
 
+subroutine bst_allocate_cells_active_flag (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  call this%free_cells_active_flag()
+  call memalloc ( this%num_local_cells + this%num_ghost_cells, this%cells_active_flag, __FILE__, __LINE__ )
+end subroutine bst_allocate_cells_active_flag
+
+subroutine bst_fill_cells_active_flag (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  ! By default all cells are active
+  this%cells_active_flag(:) = .true.
+end subroutine bst_fill_cells_active_flag
+
 subroutine bst_free_ptr_vefs_per_cell (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
@@ -250,6 +264,12 @@ subroutine bst_free_cells_set (this)
   class(base_static_triangulation_t), intent(inout) :: this
   if (allocated (this%cells_set)) call memfree ( this%cells_set, __FILE__, __LINE__ )
 end subroutine bst_free_cells_set
+
+subroutine bst_free_cells_active_flag (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated (this%cells_active_flag)) call memfree ( this%cells_active_flag, __FILE__, __LINE__ )
+end subroutine bst_free_cells_active_flag
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -2076,6 +2096,7 @@ subroutine bst_print ( this )
         call this%free_cells_gid()
         call this%free_cells_mypart() 
         call this%free_cells_set()
+        call this%free_cells_active_flag()
         
         call this%cell_import%free()
         this%num_local_cells = -1

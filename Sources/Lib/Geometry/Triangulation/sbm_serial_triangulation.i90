@@ -146,6 +146,10 @@ subroutine serial_triangulation_create ( this, parameters)
   ! Allocate and fill this%cells_set from cells_set member variable
   call this%allocate_cells_set()
   call this%fill_cells_set(cells_set)
+  
+  ! Allocate and fill active flag
+  call this%allocate_cells_active_flag()
+  call this%fill_cells_active_flag()
 
   ! Generate dual mesh (around all vefs now)
   call this%allocate_and_fill_cells_around()

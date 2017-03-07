@@ -72,6 +72,20 @@ subroutine cell_accessor_set_mypart(this, mypart)
   this%base_static_triangulation%cells_mypart(this%lid) = mypart
 end subroutine cell_accessor_set_mypart
 
+subroutine cell_accessor_set_as_active(this)
+  implicit none
+  class(cell_accessor_t), intent(inout) :: this
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  this%base_static_triangulation%cells_active_flag(this%lid) = .true.
+end subroutine cell_accessor_set_as_active
+
+subroutine cell_accessor_set_as_inactive(this)
+  implicit none
+  class(cell_accessor_t), intent(inout) :: this
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  this%base_static_triangulation%cells_active_flag(this%lid) = .false.
+end subroutine cell_accessor_set_as_inactive
+
 function cell_accessor_past_the_end(this)
   implicit none
   class(cell_accessor_t), intent(in) :: this
@@ -343,6 +357,14 @@ function cell_accessor_is_ghost (this)
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   cell_accessor_is_ghost = (this%lid > this%base_static_triangulation%num_local_cells)
 end function cell_accessor_is_ghost
+
+function cell_accessor_is_active (this)
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  logical                            :: cell_accessor_is_active
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  cell_accessor_is_active = this%base_static_triangulation%cells_active_flag(this%lid)
+end function cell_accessor_is_active
 
 ! Returns the sum of num_vefs over all cells up-to the present one (exclusive, i.e.,
 ! without considering the present one), with the cells being ordered consistently 

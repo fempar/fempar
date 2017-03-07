@@ -102,6 +102,8 @@ module base_static_triangulation_names
     procedure, non_overridable           :: set_lid                 => cell_accessor_set_lid
     procedure, non_overridable, private  :: set_gid                 => cell_accessor_set_gid
     procedure, non_overridable, private  :: set_mypart              => cell_accessor_set_mypart
+    procedure, non_overridable           :: set_as_active           => cell_accessor_set_as_active
+    procedure, non_overridable           :: set_as_inactive         => cell_accessor_set_as_inactive
     procedure, non_overridable, private  :: get_triangulation       => cell_accessor_get_triangulation
     procedure, non_overridable, private  :: cell_accessor_get_vef
     procedure, non_overridable           :: past_the_end            => cell_accessor_past_the_end
@@ -128,6 +130,7 @@ module base_static_triangulation_names
     generic                              :: get_vef                 => cell_accessor_get_vef
     procedure, non_overridable           :: is_local                => cell_accessor_is_local
     procedure, non_overridable           :: is_ghost                => cell_accessor_is_ghost
+    procedure, non_overridable           :: is_active               => cell_accessor_is_active
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_accessor_get_scan_sum_number_vefs
 
     procedure, non_overridable           :: fill_nodes_on_vertices        => cell_accessor_fill_nodes_on_vertices
@@ -353,9 +356,10 @@ module base_static_triangulation_names
      integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_set(:)               ! Num local cells + num ghost cells
+     logical,      allocatable             :: cells_active_flag(:)       ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: ptr_vefs_per_cell(:)       ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable             :: lst_vefs_lids(:)
-
+      
      ! Data type describing the layout in distributed-memory of the dual graph
      ! (It is required, e.g., for nearest neighbour comms on this graph)
      type(cell_import_t)                   :: cell_import   
@@ -448,11 +452,14 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
+     procedure, non_overridable, private :: allocate_cells_active_flag          => bst_allocate_cells_active_flag
+     procedure, non_overridable, private :: fill_cells_active_flag              => bst_fill_cells_active_flag
      procedure, non_overridable, private :: free_ptr_vefs_per_cell              => bst_free_ptr_vefs_per_cell
      procedure, non_overridable, private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
      procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
      procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set
+     procedure, non_overridable, private :: free_cells_active_flag              => bst_free_cells_active_flag
 
      ! Private methods to perform nearest neighbor exchange
      procedure, non_overridable, nopass, private :: bst_cell_pack_vef_gids
