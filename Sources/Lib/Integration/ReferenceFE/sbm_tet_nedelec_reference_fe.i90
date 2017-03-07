@@ -1226,28 +1226,37 @@ subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id
   type(quadrature_t)                      , intent(in)    :: local_quadrature
   type(interpolation_t)                   , intent(inout) :: edge_interpolation
   type(quadrature_t) :: aux_quadrature
-  integer(ip) :: c, idime, n_face_index
+  integer(ip) :: c, idime, n_face_index, qpoin
   
   ! Add offset to have same numbering as in polytope
   n_face_index = local_edge_id+this%get_first_n_face_id_of_dimension(1)-1
   
-  ! Create a d-dimensional quadrature as follows
+  ! Create a d-dimensional quadrature as follows: so far only 2D case, build for 3D 
   call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
   c = 0
-  do idime = 0,this%number_dimensions-1
-      write(*,*) 'IFAC', n_face_index, 'idime', idime, 'is fi', this%polytope%n_face_dir_is_fixed( n_face_index, idime )
+
+   if ( local_edge_id .le. this%number_dimensions ) then 
+       do idime = 0,this%number_dimensions-1
+  
+     ! Orthogonal faces in the reference element 
      if ( this%polytope%n_face_dir_is_fixed( n_face_index, idime ) == 1 ) then
         c = c+1
         aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(c,:)
-     else if ( this%polytope%n_face_dir_coordinate( n_face_index, idime ) == 0 ) then
-        aux_quadrature%coordinates(idime+1,:) = -1.0_rp
-     else
-        aux_quadrature%coordinates(idime+1,:) = 1.0_rp
+     else 
+        aux_quadrature%coordinates(idime+1,:) = 0.0_rp
      end if
-  end do
+        end do 
+   else 
+     	  ! Non-orthogonal face in the reference element
+	    do qpoin = 1, local_quadrature%number_quadrature_points
+           aux_quadrature%coordinates(1, qpoin) = 1.0_rp - local_quadrature%coordinates(1,qpoin)
+           aux_quadrature%coordinates(2, qpoin) = local_quadrature%coordinates(1,qpoin)
+		end do 
+  	end if
+    
   call this%fill_interpolation( aux_quadrature, edge_interpolation ) 
   call aux_quadrature%free()
-  WRITE(*,*) '*****************************'
+
 end subroutine tet_nedelec_reference_fe_fill_edge_interpolation
 
 !==================================================================================================
@@ -1918,7 +1927,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
  do edge_id = this%get_first_n_face_id_of_dimension(1), & 
                this%get_first_n_face_id_of_dimension(1) + this%get_number_n_faces_of_dimension(1)-1
   
-     ! Get face map coordinates
+     ! Get edge map coordinates
      edge_map_coordinates => edge_map%get_coordinates()
    
      ! Extract coordinates of the vertices within the face
@@ -1936,13 +1945,15 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
                                    reference_fe  = d_fe_geo, &
                                    quadrature    = edge_quadrature ) 
      
+	 ! Edge quadrature is updated to every edge of the reference_fe 
      call this%create_edge_interpolation (edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
-                                          edge_quadrature, &
+                                          edge_quadrature,                                          &
                                           edge_interpolation )
-     
+	  
      ! Integrate edge boundary moments int_edge(u.t q), q \in P_k-1
      do qpoint = 1, edge_quadrature%number_quadrature_points
         factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
+
         call edge_map%get_tangent(qpoint, tangent)
 
         do ishape=1, interpolation_1D%number_shape_functions
@@ -1956,7 +1967,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      end do
      d = d + interpolation_1D%number_shape_functions
  end do
-
+ 
  if ( this%number_dimensions == 3 .and. this%order > 1 ) then
     ! Create a 2D lagrangian reference FE of order k-2.
     ! Not that continuity = .false. as we are interested into 
