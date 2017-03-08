@@ -35,6 +35,7 @@ module test_poisson_unfitted_driver_names
   use poisson_unfitted_dG_discrete_integration_names
   use poisson_unfitted_conditions_names
   use poisson_unfitted_analytical_functions_names
+  use uniform_hex_mesh_generator_names
   
   use vector_poisson_unfitted_discrete_integration_names
   use vector_poisson_unfitted_conditions_names
@@ -55,6 +56,9 @@ module test_poisson_unfitted_driver_names
      
      ! Cells and lower dimension objects container
      type(serial_unfitted_triangulation_t)              :: triangulation
+     
+     ! Level set funciton describing the gemetry
+     class(level_set_function_t), allocatable :: level_set_function 
      
      ! Discrete weak problem integration-related data type instances 
      type(serial_unfitted_fe_space_t)             :: fe_space 
@@ -112,23 +116,30 @@ contains
   
   subroutine setup_triangulation(this)
     implicit none
-    class(test_poisson_unfitted_driver_t), intent(inout) :: this
+    class(test_poisson_unfitted_driver_t), target, intent(inout) :: this
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
+    integer(ip) :: istat
+    class(level_set_function_t), pointer :: levset
+    real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
+       
+    allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0) ! TODO for the moment we assume an sphere
     
-    type(level_set_sphere_t) :: level_set_function ! TODO: we assume a cylinder for the moment
-
-    !call this%triangulation%create(this%test_params%get_dir_path(),&
-    !                               this%test_params%get_prefix(),&
-    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
+    !TODO
+    levset => this%level_set_function
+    select type ( levset )
+      class is (level_set_sphere_t)
+         call levset%set_radius(1.0_rp)
+      class default
+        check(.false.)
+    end select
+        
+    ! TODO is it correct?
+    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     
-    ! Old call for body-fitted triangulation
-    !call this%triangulation%create(this%parameter_list)
-    !call this%triangulation%print()
     
-    ! New call for unfitted triangulation
-    call level_set_function%set_radius(1.0_rp)
-    call this%triangulation%create(this%parameter_list,level_set_function)
+    ! New call for unfitted triangulation    
+    call this%triangulation%create(this%parameter_list,this%level_set_function)
     !call this%triangulation%print()
     call this%triangulation%print_to_vtk_file() ! TODO. Remove this. This is only for debugging
     
@@ -610,6 +621,9 @@ end subroutine compute_domain_surface
       check(istat==0)
     end if
     call this%triangulation%free()
+    if ( allocated(this%level_set_function) ) then
+      deallocate( this%level_set_function, stat=istat ); check(istat == 0)
+    end if 
     call this%test_params%free()
   end subroutine free  
   
