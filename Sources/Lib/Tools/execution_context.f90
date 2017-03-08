@@ -31,7 +31,7 @@
 ! This is an abstract class that defines services the need to be provided by
 ! concrete implementations of an execution context. This context contains a
 ! set of tasks labelled 0 to n-1. One of them is the root task (tipically 0)
-! and one of which is the master task (tipically n-1). 
+! and one of them is the master task (tipically n-1). 
 !
 ! This class is exploited by the multilevel environment to manage communications
 ! between the tasks on different levels and between tasks on the same level.
@@ -40,8 +40,8 @@
 !
 ! The first (and most natural) implementation of this class is mpi_context_t
 ! which actually implementes communications defined here. There is also a class
-! serial_context_t which provides a fake implementation to build a serial
-! environment.
+! serial_context_t which provides a fake implementation consisting of one task
+! only.
 !
 module execution_context_names
   use types_names
@@ -71,11 +71,14 @@ module execution_context_names
      procedure (execution_context_free              ) , deferred :: free
      procedure (execution_context_nullify           ) , deferred :: nullify
      procedure (execution_context_am_i_member       ) , deferred :: am_i_member       
-     procedure (execution_context_barrier           ) , deferred :: barrier           
-     procedure (execution_context_sum_scalar_rp     ) , deferred :: sum_scalar_rp     
-     procedure (execution_context_sum_vector_rp     ) , deferred :: sum_vector_rp     
-     procedure (execution_context_max_scalar_rp     ) , deferred :: max_scalar_rp     
-     procedure (execution_context_max_vector_rp     ) , deferred :: max_vector_rp     
+     procedure (execution_context_am_i_root         ) , deferred :: am_i_root
+     procedure (execution_context_barrier           ) , deferred :: barrier         
+     procedure (execution_context_time              ) , deferred :: time         
+     procedure (execution_context_sum_scalar_rp     ) , deferred :: sum_scalar_rp
+     procedure (execution_context_sum_vector_rp     ) , deferred :: sum_vector_rp
+     procedure (execution_context_max_scalar_rp     ) , deferred :: max_scalar_rp
+     procedure (execution_context_max_vector_rp     ) , deferred :: max_vector_rp
+     procedure (execution_context_min_scalar_rp     ) , deferred :: min_scalar_rp
      procedure (execution_context_scatter_scalar_ip ) , deferred :: scatter           
      procedure (execution_context_gather_scalar_ip  ) , deferred :: gather            
      procedure (execution_context_bcast_scalar_ip   ) , deferred :: bcast             
@@ -160,12 +163,12 @@ module execution_context_names
      ! Frees the memory related to the communication object underlying "this"
      ! and finalizes the underlying message-passing library (i.e., MPI) if 
      ! finalize == .true. 
-     subroutine execution_context_free ( p_context, finalize  )
+     subroutine execution_context_free ( this, finalize  )
        import :: execution_context_t
        implicit none 
        ! Parameters
-       class(execution_context_t)            , intent(inout) :: p_context
-       logical                         , intent(in)    :: finalize
+       class(execution_context_t), intent(inout) :: this
+       logical                   , intent(in)    :: finalize
      end subroutine execution_context_free
 
      !=============================================================================
@@ -180,8 +183,16 @@ module execution_context_names
        import :: execution_context_t
        implicit none
        class(execution_context_t), intent(in) :: this
-       logical                          :: execution_context_am_i_member
+       logical                                :: execution_context_am_i_member
      end function execution_context_am_i_member
+
+     !=============================================================================
+     pure function execution_context_am_i_root(this)
+       import :: execution_context_t
+       implicit none
+       class(execution_context_t), intent(in) :: this
+       logical                                :: execution_context_am_i_root
+     end function execution_context_am_i_root
 
      !=============================================================================
      subroutine execution_context_barrier(this)
@@ -189,6 +200,14 @@ module execution_context_names
        implicit none 
        class(execution_context_t), intent(in) :: this
      end subroutine execution_context_barrier
+
+     !=============================================================================
+     function execution_context_time(this)
+       import :: execution_context_t, rp
+       implicit none 
+       class(execution_context_t), intent(in) :: this
+       real(rp) :: execution_context_time
+     end function execution_context_time
 
      !=============================================================================
      subroutine execution_context_sum_scalar_rp (this,alpha)
@@ -213,6 +232,14 @@ module execution_context_names
        class(execution_context_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha
      end subroutine execution_context_max_scalar_rp
+
+     !=============================================================================
+     subroutine execution_context_min_scalar_rp (this,alpha)
+       import :: execution_context_t, rp
+       implicit none
+       class(execution_context_t) , intent(in)    :: this
+       real(rp)             , intent(inout) :: alpha
+     end subroutine execution_context_min_scalar_rp
 
      !=============================================================================
      subroutine execution_context_max_vector_rp(this,alpha)

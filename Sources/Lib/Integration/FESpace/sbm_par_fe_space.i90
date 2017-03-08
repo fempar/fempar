@@ -1045,7 +1045,8 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
   do while ( col <= num_cols ) 
      if ( raw_interface_data ( owner_flag_row, col ) == 2 ) then
         start_col = col
-        do while  (raw_interface_data ( owner_flag_row, col ) == 2)
+        do while ( ( raw_interface_data ( owner_flag_row, col ) == 2).and. &
+        &          ( raw_interface_data ( neighbor_part_id_row, col ) == raw_interface_data ( neighbor_part_id_row, start_col ) ) )
            col = col + 1
            if ( col > num_cols ) exit
         end do
