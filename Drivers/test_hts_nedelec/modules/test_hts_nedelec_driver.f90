@@ -276,8 +276,7 @@ contains
     type(sparse_matrix_t), pointer :: coefficient_matrix
 
     ! Integration loop 
-    type(fe_iterator_t) :: fe_iterator
-    type(fe_accessor_t) :: fe
+    class(fe_accessor_t), allocatable :: fe
     type(fe_face_iterator_t) :: fe_face_iterator
     type(fe_face_accessor_t) :: fe_face 
     integer(ip) :: ielem 
@@ -315,9 +314,9 @@ contains
     call this%constraint_vector%init(0.0_rp) 
 
         ! Initialize
-    fe_iterator = this%fe_space%create_fe_iterator()
     call this%fe_space%initialize_fe_integration()
-    call fe_iterator%current(fe)
+    call this%fe_space%create_fe_accessor(fe)
+    call fe%first()    
     
     number_fields         =  this%fe_space%get_number_fields()
     num_dofs              =  fe%get_number_dofs()
@@ -335,8 +334,7 @@ contains
     number_qpoints =  quad%get_number_quadrature_points()
     
     ! Loop over elements
-    do while ( .not. fe_iterator%has_finished() )
-       call fe_iterator%current(fe)
+    do while ( .not. fe%past_the_end())
 
        if ( fe%get_set_id() == hts ) then  
           ! Update finite structures
@@ -363,8 +361,9 @@ contains
           end do
 
        end if
-       call fe_iterator%next()
+       call fe%next()
     end do
+    call fe%free()
     
     ! ================================   3D CASE, only integrate over z-normal faces ===================
     elseif ( this%triangulation%get_num_dimensions() == 3) then 
@@ -418,7 +417,8 @@ contains
           end if
           call fe_face_iterator%next()
        end do
-      
+
+       call fe%free()
         call memfree ( facevec, __FILE__, __LINE__ )
     end if 
     
@@ -565,9 +565,7 @@ contains
     implicit none 
     class(test_hts_nedelec_driver_t)   , intent(inout) :: this
     class(vector_t),      pointer                      :: dof_values_current_solution     
-    ! FE space traversal-related data types
-    type(fe_iterator_t) :: fe_iterator
-    type(fe_accessor_t) :: fe
+    class(fe_accessor_t), allocatable :: fe
     ! Integration loop 
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
@@ -590,10 +588,10 @@ contains
     integer(ip) :: istat 
 
     ! Integrate structures needed 
-    fe_iterator = this%fe_space%create_fe_iterator()
     call cell_fe_function_current%create(this%fe_space,  1)
     call this%fe_space%initialize_fe_integration()
-    call fe_iterator%current(fe)
+    call this%fe_space%create_fe_accessor(fe)
+    call fe%first()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
@@ -604,9 +602,7 @@ contains
     Hy_average  = 0
     xJ_average  = 0
     hts_volume  = 0.0_rp 
-    do while ( .not. fe_iterator%has_finished() )
-       ! Get current FE
-       call fe_iterator%current(fe)
+    do while ( .not. fe%past_the_end())
 
        if ( fe%get_set_id() == hts ) then  ! Integrate only in HTS device DOMAIN 
           ! Update FE-integration related data structures
@@ -627,8 +623,9 @@ contains
 
            hts_volume = hts_volume + fe%compute_volume()
        end if
-       call fe_iterator%next()
+       call fe%next()
     end do
+    call fe%free()
 
     ! Coordinates of quadrature does influence the constant value Happ(t) 
     boundary_function_Hy => this%problem_functions%get_boundary_function_Hy()

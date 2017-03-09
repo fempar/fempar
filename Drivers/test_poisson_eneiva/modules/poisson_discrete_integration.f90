@@ -66,8 +66,7 @@ contains
     class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    type(fe_iterator_t)      :: fe_iterator
-    type(fe_accessor_t)      :: fe
+    class(fe_accessor_t), allocatable :: fe
     type(fe_face_iterator_t) :: fe_face_iterator
     type(fe_face_accessor_t) :: fe_face
     
@@ -110,10 +109,10 @@ contains
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
     
-    fe_iterator = fe_space%create_fe_iterator()
     call fe_space%initialize_fe_integration()
+    call fe_space%create_fe_accessor(fe)
+    call fe%first()    
     
-    call fe_iterator%current(fe)
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
@@ -124,9 +123,7 @@ contains
     fe_map          => fe%get_fe_map()
     vol_int         => fe%get_volume_integrator(1)
     
-    do while ( .not. fe_iterator%has_finished() )
-       ! Get current FE
-       call fe_iterator%current(fe)
+    do while ( .not. fe%past_the_end())
        
        ! Update FE-integration related data structures
        call fe%update_integration()
@@ -166,8 +163,9 @@ contains
        ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
-       call fe_iterator%next()
+       call fe%next()
     end do
+    call fe%free()
     
     call fe_space%initialize_fe_face_integration()
     

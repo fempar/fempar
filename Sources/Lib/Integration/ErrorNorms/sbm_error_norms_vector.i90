@@ -85,8 +85,7 @@ function error_norms_vector_compute (this, exact_solution, fe_function, norm_typ
   ! Local variables
   real(rp)                      :: exponent_
   real(rp)                      :: time_(1)
-  type(fe_iterator_t)           :: fe_iterator
-  type(fe_accessor_t)           :: fe
+  class(fe_accessor_t), allocatable :: fe
   real(rp)                      :: values_cell_contribution, values_norm
   real(rp)                      :: gradients_cell_contribution, gradients_norm
   real(rp)                      :: curl_values_cell_contribution, curl_values_norm 
@@ -100,9 +99,9 @@ function error_norms_vector_compute (this, exact_solution, fe_function, norm_typ
      values_norm      = 0.0_rp
      gradients_norm   = 0.0_rp
      curl_values_norm = 0.0_rp 
-     fe_iterator = this%fe_space%create_fe_iterator()
-     do while ( .not. fe_iterator%has_finished() ) 
-        call fe_iterator%current(fe)
+     call this%fe_space%create_fe_accessor(fe)
+     call fe%first()
+     do while(.not.fe%past_the_end())
         if ( fe%is_local() ) then
            call fe%update_integration()
            call this%cell_fe_function%update(fe, fe_function)
@@ -118,9 +117,11 @@ function error_norms_vector_compute (this, exact_solution, fe_function, norm_typ
            call update_norm(norm_type, gradients_cell_contribution, gradients_norm)
            call update_norm(norm_type, curl_values_cell_contribution, curl_values_norm)
         end if
-        call fe_iterator%next() 
+        call fe%next() 
      end do
+     call fe%free()
      call finalize_norm(environment, norm_type, exponent_, values_norm, gradients_norm, norm, curl_values_norm)
+
   end if
 end function error_norms_vector_compute
 

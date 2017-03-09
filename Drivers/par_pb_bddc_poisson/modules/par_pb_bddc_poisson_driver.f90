@@ -458,9 +458,8 @@ contains
     class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
     type(output_handler_t)                             :: oh
     type(parameterlist_t)                              :: parameter_list
-    type(fe_iterator_t)                                :: fe_iterator
     class(base_static_triangulation_t), pointer        :: triangulation
-    type(fe_accessor_t)                                :: fe
+    class(fe_accessor_t), allocatable :: fe
     real(rp), allocatable                              :: set_id_cell_vector(:)
     integer(ip)                                        :: i, istat
     if(this%test_params%get_write_solution()) then
@@ -482,18 +481,19 @@ contains
     end if
   contains
     subroutine build_set_id_cell_vector()
-      fe_iterator = this%fe_space%create_fe_iterator()
       triangulation => this%fe_space%get_triangulation()
       call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
       i = 1
-      do while (.not. fe_iterator%has_finished())
-         call fe_iterator%current(fe)
+      call this%fe_space%create_fe_accessor(fe)
+      call fe%first()    
+      do while ( .not. fe%past_the_end())
          if (fe%is_local()) then
             set_id_cell_vector(i) = fe%get_set_id()
             i = i + 1
          end if
-         call fe_iterator%next()
+         call fe%next()
       enddo
+      call fe%free()
     end subroutine build_set_id_cell_vector
 
     subroutine free_set_id_cell_vector()

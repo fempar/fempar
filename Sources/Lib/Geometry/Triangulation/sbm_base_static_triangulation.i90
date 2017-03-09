@@ -632,14 +632,14 @@ subroutine bst_compute_num_vefs ( this )
   class(base_static_triangulation_t), intent(inout) :: this
   type(hash_table_ip_ip_t) :: visited_vefs
   integer(ip) :: icell, ivef, vef_lid, istat
-
+  !class(cell_accessor_t), allocatable :: cell
   type(cell_accessor_t) :: cell
-
+  
   call visited_vefs%init(max(5,int(real(this%num_local_cells,rp)*0.2_rp,ip))) 
   this%num_vefs = 0
 
+  !call this%create_cell_accessor(cell)
   call cell%create(this)
-  !call this%create_cell(cell)
   call cell%first()
   do while( .not. cell%past_the_end() )
      do ivef=1, cell%get_num_vefs()
@@ -650,7 +650,8 @@ subroutine bst_compute_num_vefs ( this )
      call cell%next()
   end do
   call visited_vefs%free()
-
+  call cell%free()
+  
 end subroutine bst_compute_num_vefs
 
 subroutine bst_allocate_and_fill_vefs_gid ( this, lst_vefs_gid )
@@ -1936,6 +1937,19 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
 ! Traversals
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine bst_create_cell_accessor ( this, cell )
+  implicit none
+  class(base_static_triangulation_t) , intent(in)    :: this
+  class(cell_accessor_t), allocatable, intent(inout) :: cell
+  integer(ip) :: istat
+  if(allocated(cell)) then
+     call cell%free()
+     deallocate(cell, stat=istat); check(istat==0)
+  end if
+  allocate(cell_accessor_t :: cell, stat=istat); check(istat==0)
+  call cell%create(this)
+end subroutine bst_create_cell_accessor
+
 function bst_create_cell_iterator ( this )
   implicit none
   class(base_static_triangulation_t), intent(in)    :: this

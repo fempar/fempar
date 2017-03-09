@@ -376,6 +376,7 @@ module fe_space_names
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      
      ! fes and fe_faces traversals-related TBPs
+     procedure, non_overridable          :: create_fe_accessor                           => serial_fe_space_create_fe_accessor
      procedure, non_overridable          :: create_fe_iterator                           => serial_fe_space_create_fe_iterator
      procedure, non_overridable          :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator
      procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator

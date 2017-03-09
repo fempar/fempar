@@ -420,6 +420,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_number_objects                  => bst_get_number_objects
 
      ! Cell traversals-related TBPs
+     procedure, non_overridable          :: create_cell_accessor                => bst_create_cell_accessor
      procedure, non_overridable          :: create_cell_iterator                => bst_create_cell_iterator
   
      ! Vef traversals-related TBPs

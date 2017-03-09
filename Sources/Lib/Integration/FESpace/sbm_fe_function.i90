@@ -118,8 +118,7 @@
   type(quadrature_t), pointer    :: nodal_quadrature
   integer(ip)                    :: block_id
   
-  type(fe_iterator_t)            :: fe_iterator
-  type(fe_accessor_t)            :: fe
+  class(fe_accessor_t), allocatable :: fe
   type(point_t)        , pointer :: nodal_coordinates(:)
   type(point_t)        , pointer :: cell_coordinates(:)
   real(rp), allocatable          :: fe_function_values(:,:)
@@ -151,14 +150,12 @@
   field_blocks => fe_space%get_field_blocks()
   block_id = field_blocks(field_id)
   
-  ! Create FE iterator
-  fe_iterator = fe_space%create_fe_iterator()
+  call fe_space%create_fe_accessor(fe)
+  call fe%first()
   
   ! Loop over the elements
-  do while ( .not. fe_iterator%has_finished())
-     ! Get current FE
-     call fe_iterator%current(fe)
-            
+  do while ( .not. fe%past_the_end())
+  
      if ( fe%is_local() ) then
      
        ! Create FE_MAP for current cell + field_id if we didn't
@@ -210,9 +207,10 @@
      end if
      
      ! Go to next FE
-     call fe_iterator%next()
-  end do   
-  
+     call fe%next()
+  end do
+  call fe%free()
+
   do i=1, size(fe_maps)
     call fe_maps(i)%free()
   end do
@@ -254,8 +252,7 @@ subroutine fe_function_interpolate_vector_function( this, &
   type(quadrature_t), pointer    :: nodal_quadrature
   integer(ip)                    :: block_id
   
-  type(fe_iterator_t)            :: fe_iterator
-  type(fe_accessor_t)            :: fe
+  class(fe_accessor_t), allocatable :: fe
   type(point_t)        , pointer :: nodal_coordinates(:)
   type(point_t)        , pointer :: cell_coordinates(:)
   type(vector_field_t) , allocatable :: fe_function_values(:,:)
@@ -289,14 +286,12 @@ subroutine fe_function_interpolate_vector_function( this, &
   field_blocks => fe_space%get_field_blocks()
   block_id = field_blocks(field_id)
   
-  ! Create FE iterator
-  fe_iterator = fe_space%create_fe_iterator()
+  call fe_space%create_fe_accessor(fe)
+  call fe%first()
   
   ! Loop over the elements
-  do while ( .not. fe_iterator%has_finished())
-     ! Get current FE
-     call fe_iterator%current(fe)
-            
+  do while ( .not. fe%past_the_end())
+
      if ( fe%is_local() ) then
      
        ! Create FE_MAP for current cell + field_id if we didn't
@@ -355,9 +350,10 @@ subroutine fe_function_interpolate_vector_function( this, &
      
      
      ! Go to next FE
-     call fe_iterator%next()
+     call fe%next()
   end do   
-  
+  call fe%free()
+
   do i=1, size(fe_maps)
     call fe_maps(i)%free()
   end do

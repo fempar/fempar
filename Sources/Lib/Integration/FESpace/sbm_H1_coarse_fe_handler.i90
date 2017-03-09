@@ -199,7 +199,7 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
   type(fe_vef_accessor_t)                :: vef
-  type(fe_accessor_t)                    :: fe
+  !type(fe_accessor_t)                    :: fe
   type(list_iterator_t)                  :: own_coarse_dofs_iterator
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
   integer(ip), pointer                   :: elem2dof(:)
@@ -214,8 +214,7 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
   type(list_iterator_t)                  :: subparts_iterator 
   logical, allocatable :: is_subpart_local(:), touch_subpart(:)
   real(rp), allocatable :: subpart_viscosity(:)
-  type(fe_iterator_t)                    :: fe_iterator
-  
+  class(fe_accessor_t), allocatable :: fe  
 
   if (allocated(weighting_operator) ) then
      call memfree ( weighting_operator, __FILE__, __LINE__ )
@@ -242,10 +241,10 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
   subpart_viscosity = 0.0_rp
   
   par_env =>  par_fe_space%get_par_environment()
-    
-  fe_iterator = par_fe_space%create_fe_iterator()
-  do while ( .not. fe_iterator%has_finished() )
-     call fe_iterator%current(fe)
+
+  call par_fe_space%create_fe_accessor(fe)
+  call fe%first()
+  do while ( .not. fe%past_the_end())
      subpart = fe%get_my_subpart()
      subpart = fe%get_my_subpart_lid()
      if ( .not. touch_subpart(subpart)) then
@@ -257,8 +256,9 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
              subpart_viscosity(subpart) = this%diffusion_inclusion
         end if
      end if
-     call fe_iterator%next()
+     call fe%next()
   end do
+  call fe%free()
   
   object_iterator = par_fe_space%create_fe_object_iterator()
   do while ( .not. object_iterator%has_finished() )

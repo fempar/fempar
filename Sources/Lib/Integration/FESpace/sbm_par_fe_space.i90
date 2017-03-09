@@ -197,8 +197,7 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   integer(ip) :: first_face_id, num_faces
   integer(ip) :: iblock, init_dof_block, current_dof_block
   
-  type(fe_iterator_t)     :: fe_iterator
-  type(fe_accessor_t)     :: fe
+  class(fe_accessor_t), allocatable :: fe
   type(fe_accessor_t)     :: source_fe
   type(fe_vef_accessor_t) :: vef 
 
@@ -213,9 +212,9 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   current_dof_block = init_dof_block
 
   if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
-     fe_iterator = this%create_fe_iterator()
-     do while ( .not. fe_iterator%has_finished() )
-        call fe_iterator%current(fe)
+     call this%create_fe_accessor(fe)
+     call fe%first()
+     do while(.not. fe%past_the_end())
         if ( fe%is_ghost() ) then
           do ivef = 1, fe%get_num_vefs()
             call fe%get_vef(ivef, vef)
@@ -236,13 +235,15 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
             end if
           end do
         end if
-        call fe_iterator%next() 
+        call fe%next() 
      end do
+     call fe%free() 
+
   else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
   
-     fe_iterator = this%create_fe_iterator()
-     do while ( .not. fe_iterator%has_finished() )
-        call fe_iterator%current(fe)
+     call this%create_fe_accessor(fe)
+     call fe%first()
+     do while(.not. fe%past_the_end())
         if ( fe%is_ghost() ) then
           do ivef = 1, fe%get_num_vefs()
             call fe%get_vef(ivef, vef)
@@ -253,8 +254,10 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
             end if
           end do
         end if
-        call fe_iterator%next() 
+        call fe%next() 
      end do
+     call fe%free() 
+
   end if
 
   this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + & 
@@ -1283,12 +1286,10 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
-  type(fe_iterator_t)      :: fe_iterator
-  type(fe_accessor_t)      :: fe
-
   type(fe_face_iterator_t) :: fe_face_iterator
   type(fe_face_accessor_t) :: fe_face
-
+  type(fe_accessor_t)      :: fe
+  
   type(i1p_t), allocatable :: elem2dof(:)
 
   type(par_sparse_matrix_t)            :: matrix
