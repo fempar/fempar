@@ -692,9 +692,11 @@ function node_iterator_in_bound( this, comp, end_comp )
   integer(ip) :: bound, i
   node_iterator_in_bound = .true.
   bound = this%max_value(comp)
-  do i = comp+1,end_comp
+  do i = 0,end_comp
+     if (i.ne.comp) then
      if ( IBITS( this%topology, i, 1 ) == 0 ) then
         bound = bound - this%displacement(i)
+     end if
      end if
   end do
   if ( this%displacement(comp) > bound ) node_iterator_in_bound = .false.
