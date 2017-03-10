@@ -81,23 +81,25 @@ subroutine tet_nedelec_reference_fe_fill (this)
   this%order_vector = this%order-1
   call this%fill_vector()
   
-  call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
+  ! This information will not be used 
   
-  call memalloc( this%node_array_vector(1)%number_nodes,     & 
-       &         this%number_field_components, & 
-       &         this%node_array_component,    & 
-       &         __FILE__, __LINE__ )
+  !call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
+  
+  !call memalloc( this%node_array_vector(1)%number_nodes,     & 
+  !     &         this%number_field_components, & 
+  !     &         this%node_array_component,    & 
+  !     &         __FILE__, __LINE__ )
 
-  c = 1
-  do i = 1, this%number_field_components
-    assert(this%node_array_vector(i)%number_nodes == this%node_array_vector(1)%number_nodes)
-    do j = 1, this%node_array_vector(i)%number_nodes
-        this%node_component_array(c,1) = j
-        this%node_component_array(c,2) = i   
-        this%node_array_component(j,i) = c
-        c = c+1
-     end do
-  end do
+  !c = 1
+  !do i = 1, this%number_field_components
+  !  assert(this%node_array_vector(i)%number_nodes == this%node_array_vector(1)%number_nodes)
+  !  do j = 1, this%node_array_vector(i)%number_nodes
+  !      this%node_component_array(c,1) = j
+  !      this%node_component_array(c,2) = i   
+  !      this%node_array_component(j,i) = c
+  !      c = c+1
+  !   end do
+  !end do
   
 end subroutine tet_nedelec_reference_fe_fill
 
@@ -1033,7 +1035,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
      call tet_polynomial_prebase_2%evaluate(q_point, values, gradients)
      do ipoly=1, k_order_node_array%order(1)  ! The space S_k has dimension k  
            do idime=1, interpolation%number_dimensions	
-		    do ivalu=1+(idime-1)*(N_k-1), idime*(N_k-1)      ! Sk(ipoly, 1:N_k-1) "homogeneous info" || values(2:N_k) "non-homogeneous polynomials"
+		    do ivalu=1+(idime-1)*(N_k-1), idime*(N_k-1) ! Sk(ipoly, 1:N_k-1) "homogeneous info wo/ 0" || values(2:N_k) "non-homogeneous polynomials"
 			     interpolation%shape_functions(idime,c+ipoly,q_point) =  &
 				 interpolation%shape_functions(idime,c+ipoly,q_point) + basis_Sk(ipoly, ivalu)*values(ivalu-(idime-1)*(N_k-1)+1)	
                  do jdime=1, interpolation%number_dimensions
@@ -1044,7 +1046,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
            end do
      end do
   end do
-    			  
+     
   call memfree(work, __FILE__,__LINE__)
   call memfree(eigenvalues_array, __FILE__,__LINE__)
   call memfree( U, __FILE__, __LINE__)
@@ -1549,6 +1551,7 @@ recursive function tet_nedelec_reference_fe_compute_number_interior_nodes(this,d
              & this%compute_number_interior_nodes(dimension-1,q)
      end do
   end if
+
 end function tet_nedelec_reference_fe_compute_number_interior_nodes
 
 !=================================================================================================
@@ -1916,6 +1919,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
                       continuity        = .true. )
 
  call this%create_edge_quadrature( edge_quadrature )
+ 
+ ! For higher order, need to update interpolation 1D values in the physical edge (scaled)
  call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
  
  call edge_map%create_edge_map( edge_quadrature, d_fe_geo )
@@ -2140,12 +2145,9 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
    end do 
  end do
  
-  
  this%nodes_n_face      = this%interior_nodes_n_face
  this%own_nodes_n_faces = this%interior_nodes_n_face
  
- 
-  
   ! Re-define own_node_permutations-related stuff
   if ( allocated(this%number_rotations_per_dimension) )  call memfree (this%number_rotations_per_dimension,__FILE__,__LINE__)
   if ( allocated(this%number_orientations_per_dimension) ) call memfree (this%number_orientations_per_dimension,__FILE__,__LINE__)
@@ -2218,4 +2220,16 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
  call cell_interpolation%free()
  call cell_map%free()
   
-end subroutine tet_nedelec_reference_fe_change_basis 
+end subroutine tet_nedelec_reference_fe_change_basis
+
+subroutine tet_nedelec_reference_fe_update_interpolation_signs(this, shape_to_change, interpolation, interpolation_o_map) 
+  implicit none
+  class(tet_nedelec_reference_fe_t), intent(in)     :: this
+  integer(ip)                      , intent(in)     :: shape_to_change 
+  type(interpolation_t)            , intent(inout)  :: interpolation
+  type(interpolation_t)            , intent(inout)  :: interpolation_o_map
+  
+  interpolation_o_map%shape_functions(:,shape_to_change,:)      = -interpolation_o_map%shape_functions(:,shape_to_change,:)
+  interpolation_o_map%shape_derivatives(:,:,shape_to_change,:)  = -interpolation_o_map%shape_derivatives(:,:,shape_to_change,:)
+	   
+end subroutine tet_nedelec_reference_fe_update_interpolation_signs 

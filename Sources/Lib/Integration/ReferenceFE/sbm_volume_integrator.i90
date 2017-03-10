@@ -733,6 +733,15 @@ subroutine volume_integrator_update( this, fe_map )
 
   call this%reference_fe%update_interpolation(fe_map, this%interpolation,this%interpolation_o_map)
 end subroutine volume_integrator_update
+
+!==================================================================================================
+subroutine volume_integrator_apply_sign_change( this, shape_to_change )
+  implicit none
+  class(volume_integrator_t), intent(inout) :: this
+  integer(ip)               , intent(in)    :: shape_to_change
+
+  call this%reference_fe%update_interpolation_signs(shape_to_change, this%interpolation, this%interpolation_o_map)
+end subroutine volume_integrator_apply_sign_change
 !==================================================================================================
 subroutine volume_integrator_print( this )
   implicit none

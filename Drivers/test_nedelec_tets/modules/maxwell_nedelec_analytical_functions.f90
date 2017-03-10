@@ -47,7 +47,6 @@ module maxwell_nedelec_analytical_functions_names
    contains
      procedure :: get_value_space    => solution_get_value_space
      procedure :: get_gradient_space => solution_get_gradient_space
-	 procedure :: get_curl_space     => solution_get_curl_space
   end type solution_t
   
     type, extends(scalar_function_t) :: base_scalar_function_t
@@ -113,15 +112,13 @@ contains
 	
 	assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3)  
-  !  call result%set(1, point%get(2) )
-  !  call result%set(2, 0.0_rp)
-  !  if ( this%num_dimensions == 3 ) then
-  !     call result%set(3, 0.0_rp) 
-  !  end if
-	 call result%init(0.0_rp) 
-     call result%set(1, pi*pi*(sin(pi*x)*sin(pi*y)) + sin(pi*x)*sin(pi*y) )
-     call result%set(2, pi*pi*(cos(pi*x)*cos(pi*y)))
 
+	 call result%init(0.0_rp) 
+     call result%set(1, pi*pi*(sin(pi*x)*sin(pi*y))  + sin(pi*x)*sin(pi*y) )
+     call result%set(2, pi*pi*(cos(pi*x)*cos(pi*y)))
+	 
+	! call result%set(1, sin(pi*x)*sin(pi*y) )
+ 
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -164,31 +161,18 @@ contains
 	
 	real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-    ! call result%set(2, 1, 1.0_rp)
+
+	call result%init(0.0_rp) 
 	call result%set(1, 1, pi*cos(pi*x)*sin(pi*y) )
-	call result%set(2, 1, pi*sin(pi*x)*cos(pi*y) )
+	call result%set(2, 1, pi*sin(pi*x)*cos(pi*y) ) 
   end subroutine solution_get_gradient_space
   
-   !===============================================================================================
-  subroutine solution_get_curl_space ( this, point, result )
-    implicit none
-    class(solution_t), intent(in)    :: this
-    type(point_t)           , intent(in)    :: point
-    type(vector_field_t)    , intent(inout) :: result
-	
-	real(rp) :: x,y,z 
-	x = point%get(1); y=point%get(2); z=point%get(3) 
-   ! call result%set(3, -1.0_rp)
-	 call result%set(3, -pi*sin(pi*x)*cos(pi*y) )
-  end subroutine solution_get_curl_space
-
   !===============================================================================================
   subroutine boundary_function_Hx_get_value_space( this, point, result )
     implicit none 
     class(boundary_function_Hx_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    !result = point%get(2)
 	 result = 0.0_rp
   end subroutine boundary_function_Hx_get_value_space
 

@@ -481,6 +481,7 @@ module reference_fe_names
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: get_permuted_own_node_n_face  => reference_fe_get_permuted_own_node_n_face
+	 procedure :: update_interpolation_signs => reference_fe_update_interpolation_signs
 
   end type reference_fe_t
 
@@ -1355,6 +1356,8 @@ procedure, private, non_overridable :: nedelec_get_n_face_orientation           
 & => tet_nedelec_reference_fe_get_n_face_orientation
 procedure, private :: change_basis                                                  &
 & => tet_nedelec_reference_fe_change_basis
+procedure :: update_interpolation_signs                                             &
+& => tet_nedelec_reference_fe_update_interpolation_signs 
 end type tet_nedelec_reference_fe_t
 
 public :: tet_nedelec_reference_fe_t
@@ -1369,11 +1372,12 @@ type(interpolation_t)          :: interpolation      ! Unknown interpolation_t i
 type(interpolation_t)          :: interpolation_o_map! Unknown interpolation_t in the physical element domain
 contains
 
-procedure, non_overridable :: create         => volume_integrator_create
-procedure, non_overridable :: create_on_face => volume_integrator_create_on_face
-procedure, non_overridable :: free           => volume_integrator_free
-procedure, non_overridable :: update         => volume_integrator_update
-procedure, non_overridable :: print          => volume_integrator_print
+procedure, non_overridable :: create             => volume_integrator_create
+procedure, non_overridable :: create_on_face     => volume_integrator_create_on_face
+procedure, non_overridable :: free               => volume_integrator_free
+procedure, non_overridable :: update             => volume_integrator_update
+procedure, non_overridable :: apply_sign_change  => volume_integrator_apply_sign_change
+procedure, non_overridable :: print              => volume_integrator_print
 
 procedure, non_overridable :: get_interpolation_reference_cell =>                               &
 &                                   volume_integrator_get_interpolation_reference_cell

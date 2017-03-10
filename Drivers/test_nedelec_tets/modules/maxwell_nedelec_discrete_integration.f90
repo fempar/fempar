@@ -52,7 +52,7 @@ contains
 
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
-    class(maxwell_nedelec_discrete_integration_t), intent(in)    :: this
+    class(maxwell_nedelec_discrete_integration_t), intent(in)   :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
     class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
 
@@ -135,14 +135,12 @@ contains
           do idof=1, num_dofs_per_field(1)
             do jdof=1, num_dofs_per_field(1)
               elmat(idof,jdof) = elmat(idof,jdof) + &
-                                 (H_shape_values(idof,qpoint)*H_shape_values(jdof,qpoint) + H_shape_curls(jdof,qpoint)*H_shape_curls(idof,qpoint))*factor
+                                 ( H_shape_values(idof,qpoint)*H_shape_values(jdof,qpoint) + H_shape_curls(jdof,qpoint)*H_shape_curls(idof,qpoint) )*factor
             end do
             ! \int_(curl(v).f)
             elvec(idof) = elvec(idof) + H_shape_values(idof,qpoint) * source_term_values(qpoint) * factor
           end do
        end do
-       
-       ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe_iterator%next()

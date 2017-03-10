@@ -111,14 +111,14 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,      &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,      &
                                                  fe_type = fe_type_nedelec,    &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_vector, &
                                                  continuity = .true. ) 
     
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    !if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()
        do while ( .not. vef_iterator%has_finished() )
           call vef_iterator%current(vef)
@@ -129,7 +129,7 @@ contains
           end if
           call vef_iterator%next()
        end do
-    end if    
+     !end if    
     
   end subroutine setup_reference_fes
 
@@ -143,7 +143,7 @@ contains
                                reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
-    !call this%fe_space%initialize_fe_face_integration() 
+    ! call this%fe_space%initialize_fe_face_integration() 
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
 	if ( this%triangulation%get_num_dimensions() == 3) then 
@@ -219,6 +219,7 @@ contains
     !class DEFAULT
     !   assert(.false.) 
     !end select
+
   end subroutine assemble_system
 
   subroutine solve_system(this)
@@ -236,7 +237,14 @@ contains
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
 #endif    
-    
+	
+	! select type (matrix)
+    !class is (sparse_matrix_t)  
+	!  call matrix%print_matrix_market(6)
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
+    !	  
     !select type (rhs)
     !class is (serial_scalar_array_t)  
     !   call rhs%print_matrix_market(6)
@@ -246,7 +254,8 @@ contains
     
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
-    !   call dof_values%print_matrix_market(6)
+    !WRITE(*,*) 'DOFS'
+	!call dof_values%print_matrix_market(6)
     !class DEFAULT
     !   assert(.false.) 
     !end select
@@ -283,18 +292,18 @@ contains
     error_tolerance = 1.0e-02
 #endif    
     
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < error_tolerance )
     write(*,'(a20,e32.25)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; !check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'lp_norm:', lp; !check ( lp < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < error_tolerance )
 	write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; !check ( hcurl < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; !check ( w1infty < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < error_tolerance )
+   ! write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; !check ( w1infty < error_tolerance )
     
     call H_error_norm%free()
   end subroutine check_solution 
