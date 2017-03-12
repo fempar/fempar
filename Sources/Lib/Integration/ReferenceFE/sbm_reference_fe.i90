@@ -480,10 +480,11 @@ function reference_fe_get_permuted_own_node_n_face(this,inode,target_n_face_id, 
   reference_fe_get_permuted_own_node_n_face = this%get_own_node_n_face(permuted_own_node, target_n_face_id)
 end function reference_fe_get_permuted_own_node_n_face
 
-subroutine reference_fe_update_interpolation_signs(this, shape_to_change, interpolation, interpolation_o_map)  
+subroutine reference_fe_update_interpolation_signs(this, num_shapes, shapes_to_change, interpolation, interpolation_o_map)  
 implicit none 
 class(reference_fe_t)     , intent(in)     :: this 
-integer(ip)               , intent(in)     :: shape_to_change
+integer(ip)               , intent(in)     :: num_shapes
+integer(ip)               , intent(in)     :: shapes_to_change(num_shapes)
 type(interpolation_t)     , intent(inout)  :: interpolation
 type(interpolation_t)     , intent(inout)  :: interpolation_o_map
 ! Do-nothing subrotine, it only makes sense for nedelec elements (only implemented in tets)

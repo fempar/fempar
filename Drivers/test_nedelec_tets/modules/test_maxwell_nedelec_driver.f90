@@ -111,7 +111,7 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,      &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,      &
                                                  fe_type = fe_type_nedelec,    &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &

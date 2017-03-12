@@ -876,7 +876,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 
   integer(ip)              :: c, idime, jdime, q_point, ipoly, ijk 
   integer(ip)              :: number_polynomials_prebase_1, N_k
-  real(rp), allocatable    :: A(:,:) 
+  real(rp), allocatable    :: A(:,:), kernel_A(:,:) 
   type(node_array_t)       :: k_order_node_array, higher_order_node_array
   type(node_iterator_t)    :: node_iterator 
   integer(ip), allocatable :: ijk_new(:)
@@ -1020,11 +1020,14 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
      end if
   end do
 
+  call memalloc( null_eigenvalues_counter, N, kernel_A, __FILE__, __LINE__ ) 
+  kernel_A(:, :) = VT(N-null_eigenvalues_counter+1:N,:)
+  
   ! Kernel also contains lower order monomials and lower-order k-order combination, choose a k-only order basis
   call memalloc(k_order_node_array%order(1), N, basis_Sk, __FILE__, __LINE__ )
   call this%conform_k_order_polynomial_basis( interpolation%number_dimensions,        &
 											  null_eigenvalues_counter,               &
-											  VT(N-null_eigenvalues_counter+1:N,:),   &
+											  kernel_A,                               &
 											  node_iterator,                          & 
 											  basis_Sk )
 
@@ -1053,6 +1056,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   call memfree( VT, __FILE__, __LINE__)
   call memfree(A, __FILE__, __LINE__ )
   call memfree(basis_Sk, __FILE__, __LINE__ )
+  call memfree(kernel_A, __FILE__, __LINE__ )
 
 #else
   write (0,*) 'Error: sbm_tet_nedelec_reference_fe.i90 was not compiled with -DENABLE_LAPACK.'
@@ -1157,14 +1161,17 @@ integer(ip)              :: info, lwork, order
      end if
   end do
   	
-     ! Add recursively the mixed polynomials that are linearly independent to those ones previously added, up to k
+     ! Add recursively the (already lower order monomials filtered) mixed polynomials that are 
+     ! linearly independent to those ones previously added, up to k.  
      imixed_poly = 1
      trial_basis_dimension = num_added_polynomials + 1
      do while ( num_added_polynomials .lt. node_iterator%node_array%order(1) ) 
 		! The polynomial tested can not be greater than the number of mixed polynomials found 
 		check( imixed_poly .lt. num_mixed_polynomials )
         ipoly = mixed_polynomials(imixed_poly) 
-
+        
+		! Check the p(x)·x condition before becoming a candidate !! 
+	
         call memalloc( trial_basis_dimension, N, full_rank_checker_matrix, __FILE__, __LINE__) 
         call memalloc( trial_basis_dimension, rank_checker_eigenvalues, __FILE__, __LINE__) 
         call memalloc( trial_basis_dimension, trial_basis_dimension, Uc, __FILE__, __LINE__)
@@ -1374,7 +1381,7 @@ function tet_nedelec_reference_fe_set_number_quadrature_points( this, order, dim
   integer(ip) :: tet_nedelec_reference_fe_set_number_quadrature_points
   
   tet_nedelec_reference_fe_set_number_quadrature_points = & 
-       & this%compute_number_nodes_scalar( order+1, dimension )
+       & this%compute_number_nodes_scalar( order, dimension )
   !if( dimension .eq. 2 ) then
   !   if( order .eq. 3 ) then
   !      tet_nedelec_reference_fe_set_number_quadrature_points = 13
@@ -1949,7 +1956,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      call edge_map%update_edge_map(local_edge_id = edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
                                    reference_fe  = d_fe_geo, &
                                    quadrature    = edge_quadrature ) 
-     
+	 
 	 ! Edge quadrature is updated to every edge of the reference_fe 
      call this%create_edge_interpolation (edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
                                           edge_quadrature,                                          &
@@ -2096,10 +2103,12 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
  end do
  call cell_map%update(cell_quadrature)
 
- ! ! Integration of interior moments int_K (u.q), q \in Pk-3,k-3,k-3 x Qk-3,k-3,k-3 x Qk-3,k-3,k-3     
+  ! Integration of interior moments 
+  ! 2D CASE: int_K (u.q), q \in Pk-2,k-2 x Qk-2,k-2 
+  ! 3D CASE: int_K (u.q), q \in Pk-3,k-3,k-3 x Qk-3,k-3,k-3 x Qk-3,k-3,k-3     
  do qpoint = 1, cell_quadrature%number_quadrature_points
     factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
-    do ishape=1, interpolation_3D%number_shape_functions
+    do ishape=1, interpolation_3D%number_shape_functions*fe_3D%number_dimensions
        call fe_3D%get_value(interpolation_3D, ishape, qpoint, v_shape_test)
        do jshape=1, cell_interpolation%number_shape_functions
         call this%get_value(cell_interpolation, jshape, qpoint, v_shape_trial)
@@ -2222,14 +2231,27 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   
 end subroutine tet_nedelec_reference_fe_change_basis
 
-subroutine tet_nedelec_reference_fe_update_interpolation_signs(this, shape_to_change, interpolation, interpolation_o_map) 
+subroutine tet_nedelec_reference_fe_update_interpolation_signs(this, num_shapes, shapes_to_change, interpolation, interpolation_o_map) 
   implicit none
   class(tet_nedelec_reference_fe_t), intent(in)     :: this
-  integer(ip)                      , intent(in)     :: shape_to_change 
+  integer(ip)                      , intent(in)     :: num_shapes
+  integer(ip)                      , intent(in)     :: shapes_to_change(num_shapes) 
   type(interpolation_t)            , intent(inout)  :: interpolation
   type(interpolation_t)            , intent(inout)  :: interpolation_o_map
   
-  interpolation_o_map%shape_functions(:,shape_to_change,:)      = -interpolation_o_map%shape_functions(:,shape_to_change,:)
-  interpolation_o_map%shape_derivatives(:,:,shape_to_change,:)  = -interpolation_o_map%shape_derivatives(:,:,shape_to_change,:)
-	   
+  type(interpolation_t) :: interpolation_buffer
+  integer(ip) :: ishape, k
+  
+  call interpolation_buffer%copy(interpolation_o_map)
+  
+  ! Swap columns ( i,...,i+(k-1) ) and change their sign 
+  do ishape = 1, num_shapes
+   interpolation_o_map%shape_functions(:,shapes_to_change(ishape),:)      =  &
+                         -interpolation_buffer%shape_functions(:,shapes_to_change(num_shapes+1-ishape),:)
+   interpolation_o_map%shape_derivatives(:,:,shapes_to_change(ishape),:)  =  &
+                         -interpolation_buffer%shape_derivatives(:,:,shapes_to_change(num_shapes+1-ishape),:)
+  end do 
+
+   call interpolation_buffer%free()
+  
 end subroutine tet_nedelec_reference_fe_update_interpolation_signs 
