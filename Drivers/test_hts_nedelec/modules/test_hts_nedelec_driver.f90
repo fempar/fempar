@@ -161,7 +161,6 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat, ivef
-    type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
     type(cell_accessor_t) :: cell
     type(point_t)         :: cell_coordinates(8)
@@ -184,19 +183,18 @@ contains
                                                  continuity = .true. ) 
     
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-    
-       vef_iterator = this%triangulation%create_vef_iterator()
-       do while ( .not. vef_iterator%has_finished() )
-          call vef_iterator%current(vef)
+       call vef%create(this%triangulation)
+       call vef%first()
+       do while ( .not. vef%past_the_end() )
           ! In the 3D case, vefs asociated to faces 21,22 are Neumann boundary (2D case set_id <= 9)
          if ( vef%is_at_boundary() .and. ( vef%get_set_id() .ne. 21 .and. vef%get_set_id() .ne. 22) ) then 
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
-          call vef_iterator%next()
+          call vef%next()
        end do
-         
+       call vef%free()
     end if    
  
   end subroutine setup_reference_fes

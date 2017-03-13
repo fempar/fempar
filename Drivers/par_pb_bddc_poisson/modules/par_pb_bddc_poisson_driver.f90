@@ -105,22 +105,22 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
     
     call this%triangulation%create(this%parameter_list, this%environment)
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       vef_iterator = this%triangulation%create_vef_iterator()
-       do while ( .not. vef_iterator%has_finished() )
-          call vef_iterator%current(vef)
+       call vef%create(this%triangulation)
+       call vef%first()
+       do while ( .not. vef%past_the_end() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
-          call vef_iterator%next()
+          call vef%next()
        end do
+       call vef%free()
     end if
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then

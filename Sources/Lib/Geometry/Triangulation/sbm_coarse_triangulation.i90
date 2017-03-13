@@ -185,7 +185,6 @@ end subroutine coarse_triangulation_allocate_and_fill_vefs_dimension
 subroutine coarse_triangulation_print ( this )
    class(coarse_triangulation_t), intent(in) :: this
    integer(ip) :: ivef,inode
-   type(vef_iterator_t)  :: vef_iterator
    type(vef_accessor_t)  :: vef
    type(cell_accessor_t) :: cell
    type(point_t), allocatable :: cell_coordinates(:)
@@ -210,12 +209,14 @@ subroutine coarse_triangulation_print ( this )
 
      write (*,'(a)') '**** Vefs ****'
      write (*,'(a)') '        id          dim    is_local    is_at_interface  is_ghost   is_at_bound '
-     vef_iterator = this%create_vef_iterator()
-     do while ( .not. vef_iterator%has_finished() )
-        call vef_iterator%current (vef) 
+     call vef%create(this)
+     call vef%first()
+     do while ( .not. vef%past_the_end() )
         vef_lid = vef%get_lid()
         write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dimension(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary()
-        call vef_iterator%next()
+        call vef%next()
      end do
+     call vef%free()
    end if
+   
   end subroutine coarse_triangulation_print

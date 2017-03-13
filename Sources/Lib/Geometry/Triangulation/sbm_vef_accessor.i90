@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine vef_accessor_create ( this, base_static_triangulation )
   implicit none
-  class(vef_accessor_t)               , intent(inout) :: this
-  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
+  class(vef_accessor_t)             , intent(inout)      :: this
+  class(base_static_triangulation_t), target, intent(in) :: base_static_triangulation
   call this%free()
   this%base_static_triangulation => base_static_triangulation
 end subroutine vef_accessor_create
@@ -237,6 +237,50 @@ subroutine vef_accessor_get_cell_around (this, icell_around, cell)
   call cell%create(this%base_static_triangulation)
   call cell%set_lid(icell)
 end subroutine vef_accessor_get_cell_around
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Extensions
+!
+subroutine vertex_accessor_next ( this ) 
+  implicit none
+  class(vertex_accessor_t), intent(inout)    :: this
+  if ( this%lid >= this%base_static_triangulation%num_vertices ) then
+     call this%set_lid(this%base_static_triangulation%num_vefs+1)
+  else
+     this%lid = this%lid + 1
+  end if
+end subroutine vertex_accessor_next
+
+subroutine edge_accessor_first (this) 
+  implicit none
+  class(edge_accessor_t), intent(inout) :: this
+  call this%set_lid(this%base_static_triangulation%num_vertices+1)
+end subroutine edge_accessor_first
+
+subroutine edge_accessor_next ( this ) 
+  implicit none
+  class(edge_accessor_t), intent(inout)    :: this
+  if ( this%lid >= this%base_static_triangulation%num_vertices + this%base_static_triangulation%num_edges ) then
+     call this%set_lid(this%base_static_triangulation%num_vefs+1)
+  else
+     this%lid = this%lid + 1
+  end if
+end subroutine edge_accessor_next
+
+subroutine face_accessor_first (this) 
+  implicit none
+  class(face_accessor_t), intent(inout) :: this
+  call this%set_lid(this%base_static_triangulation%num_vertices+this%base_static_triangulation%num_edges+1)
+end subroutine face_accessor_first
+
+
+
+
+
+
+
+
+
 
 subroutine face_accessor_get_coordinates (this, face_coordinates)
   implicit none

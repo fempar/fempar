@@ -162,8 +162,8 @@ module base_static_triangulation_names
      procedure, non_overridable          :: vef_accessor_get_cell_around
      generic                             :: create => vef_accessor_create
      procedure                           :: free                      => vef_accessor_free
-     procedure, non_overridable          :: first                     => vef_accessor_first
-     procedure, non_overridable          :: next                      => vef_accessor_next
+     procedure                           :: first                     => vef_accessor_first
+     procedure                           :: next                      => vef_accessor_next
      procedure, non_overridable          :: set_lid                   => vef_accessor_set_lid
      procedure, non_overridable          :: past_the_end              => vef_accessor_past_the_end
      procedure, non_overridable          :: get_triangulation         => vef_accessor_get_triangulation
@@ -193,18 +193,24 @@ module base_static_triangulation_names
      !procedure, non_overridable          :: get_vertices              => vef_accessor_get_vertices
   end type vef_accessor_t
 
-  ! So far this is just a rename
-  !type, extends(vef_accessor_t) :: vertex_accessor_t
-  !end type vertex_accessor_t
+  type, extends(vef_accessor_t) :: vertex_accessor_t
+    private
+    contains
+     procedure, non_overridable          :: next                      => vertex_accessor_next
+  end type vertex_accessor_t
 
-  ! So far this is just a rename
-  !type, extends(vef_accessor_t) :: edge_accessor_t
-  !end type edge_accessor_t
+  type, extends(vef_accessor_t) :: edge_accessor_t
+    private
+    contains
+     procedure, non_overridable          :: first                     => edge_accessor_first
+     procedure, non_overridable          :: next                      => edge_accessor_next
+  end type edge_accessor_t
 
   ! This will include functions to ask for orientation, rotation, etc.
   type, extends(vef_accessor_t) :: face_accessor_t
     private
   contains
+    procedure, non_overridable          :: first                            => face_accessor_first
     procedure, non_overridable          :: get_coordinates                  => face_accessor_get_coordinates
     procedure, non_overridable          :: get_face_lid                     => face_accessor_get_face_lid
     procedure, non_overridable          :: get_face_lpos_within_cell_around => face_accessor_get_face_lpos_within_cell_around
