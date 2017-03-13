@@ -34,7 +34,8 @@ subroutine coarse_fe_vefs_on_object_iterator_create ( this, lid, coarse_fe_space
   call this%free()
   this%vefs_on_object_iterator = coarse_fe_space%coarse_triangulation%create_vefs_on_object_iterator(lid)
   call this%vefs_on_object_iterator%current(vef)
-  call this%current_coarse_fe_vef_accessor%create(vef%get_lid(), coarse_fe_space )
+  call this%current_coarse_fe_vef_accessor%create(coarse_fe_space )
+  call this%current_coarse_fe_vef_accessor%set_lid(vef%get_lid())
 end subroutine coarse_fe_vefs_on_object_iterator_create
 
 subroutine coarse_fe_vefs_on_object_iterator_free ( this ) 

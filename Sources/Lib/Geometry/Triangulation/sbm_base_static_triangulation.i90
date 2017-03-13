@@ -1264,7 +1264,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     type(vef_accessor_t) :: vef
     
     call memalloc ( this%number_objects, this%objects_dimension, __FILE__, __LINE__ )
-    call vef%create(1,this)
+    call vef%create(this)
     do iobj=1, this%number_objects
       vefs_object_iterator = this%vefs_object%create_iterator(iobj)
       this%objects_dimension(iobj) = 0

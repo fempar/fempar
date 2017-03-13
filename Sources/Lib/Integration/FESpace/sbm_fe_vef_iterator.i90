@@ -31,7 +31,8 @@ subroutine fe_vef_iterator_create ( this, lid, fe_space )
   integer(ip)                 , intent(in)    :: lid
   class(serial_fe_space_t), intent(in)    :: fe_space
   call this%free()
-  call this%current_fe_vef_accessor%create(lid, fe_space )
+  call this%current_fe_vef_accessor%create(fe_space )
+  call this%current_fe_vef_accessor%set_lid(lid)
 end subroutine fe_vef_iterator_create
 
 subroutine fe_vef_iterator_free ( this ) 
@@ -73,7 +74,8 @@ subroutine itfc_fe_vef_iterator_create ( this, fe_space )
   type(vef_accessor_t) :: vef
   call this%itfc_vef_iterator%create(fe_space%triangulation)
   call this%itfc_vef_iterator%current(vef)
-  call this%current_vef_accessor%create(vef%get_lid(), fe_space)
+  call this%current_vef_accessor%create(fe_space)
+  call this%current_vef_accessor%set_lid(vef%get_lid())
 end subroutine itfc_fe_vef_iterator_create
 
 subroutine itfc_fe_vef_iterator_free ( this ) 

@@ -162,6 +162,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: vef_accessor_get_cell_around
      generic                             :: create => vef_accessor_create
      procedure                           :: free                      => vef_accessor_free
+     procedure, non_overridable          :: first                     => vef_accessor_first
      procedure, non_overridable          :: next                      => vef_accessor_next
      procedure, non_overridable          :: set_lid                   => vef_accessor_set_lid
      procedure, non_overridable          :: past_the_end              => vef_accessor_past_the_end

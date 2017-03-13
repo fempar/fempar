@@ -31,7 +31,8 @@ subroutine vef_iterator_create ( this, lid, base_static_triangulation )
   integer(ip)                       , intent(in)    :: lid
   class(base_static_triangulation_t), intent(in)    :: base_static_triangulation
   call this%free()
-  call this%current_vef_accessor%create(lid=lid, base_static_triangulation=base_static_triangulation )
+  call this%current_vef_accessor%create(base_static_triangulation=base_static_triangulation )
+  call this%current_vef_accessor%set_lid(lid)
 end subroutine vef_iterator_create
 
 subroutine vef_iterator_free ( this ) 
@@ -73,12 +74,11 @@ subroutine itfc_vef_iterator_create ( this, base_static_triangulation )
   class(base_static_triangulation_t)     , intent(in)    :: base_static_triangulation
   call this%free()
   this%itfc_lid = 1
-  if ( base_static_triangulation%num_itfc_vefs == 0 ) then
-     call this%current_vef_accessor%create(lid=base_static_triangulation%num_vefs+1, &
-          base_static_triangulation=base_static_triangulation)
+  call this%current_vef_accessor%create(base_static_triangulation)
+    if ( base_static_triangulation%num_itfc_vefs == 0 ) then
+     call this%current_vef_accessor%set_lid(base_static_triangulation%num_vefs+1)
   else
-     call this%current_vef_accessor%create(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid), &
-          base_static_triangulation=base_static_triangulation)
+     call this%current_vef_accessor%set_lid(base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
   end if
 end subroutine itfc_vef_iterator_create
 
@@ -129,7 +129,6 @@ subroutine itfc_vef_iterator_current ( this, current )
   current = this%current_vef_accessor
 end subroutine itfc_vef_iterator_current
 
-
 subroutine vertex_iterator_next ( this ) 
   implicit none
   class(vertex_iterator_t), intent(inout)    :: this
@@ -174,6 +173,7 @@ subroutine face_iterator_current ( this, current )
   implicit none
   class(face_iterator_t), target, intent(in)    :: this
   type(face_accessor_t),          intent(inout) :: current
-  call current%create (this%current_vef_accessor%get_lid(), this%current_vef_accessor%base_static_triangulation)
+  call current%create (this%current_vef_accessor%base_static_triangulation)
+  call current%set_lid(this%current_vef_accessor%get_lid())
 end subroutine face_iterator_current
 

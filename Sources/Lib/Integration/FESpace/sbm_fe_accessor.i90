@@ -534,7 +534,8 @@ subroutine fe_accessor_get_fe_vef(this, ivef, fe_vef)
   type(fe_vef_accessor_t), intent(inout) :: fe_vef
   type(vef_accessor_t) :: vef_accessor
   call this%get_vef(ivef, vef_accessor)
-  call fe_vef%create(vef_accessor%get_lid(), this%fe_space)
+  call fe_vef%create(this%fe_space)
+  call fe_vef%set_lid(vef_accessor%get_lid())
 end subroutine fe_accessor_get_fe_vef
 
 function fe_accessor_get_reference_fe(this, field_id)

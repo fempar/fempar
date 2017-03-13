@@ -312,7 +312,8 @@ subroutine cell_accessor_get_vef (this, ivef, vef)
   integer(ip),            intent(in)    :: ivef
   type(vef_accessor_t),   intent(inout) :: vef
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  call vef%create(this%get_vef_lid(ivef), this%base_static_triangulation)
+  call vef%create(this%base_static_triangulation)
+  call vef%set_lid(this%get_vef_lid(ivef))
 end subroutine cell_accessor_get_vef
 
 function cell_accessor_is_local (this)

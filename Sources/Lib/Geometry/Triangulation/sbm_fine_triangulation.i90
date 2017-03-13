@@ -37,6 +37,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
   type(cell_accessor_t)              :: icell
   type(cell_accessor_t)              :: jcell
   type(vef_accessor_t)               :: ivef_accessor
+  type(vef_accessor_t)               :: vef
 
   type(position_hash_table_t) :: pos_ref_fe
 
@@ -147,6 +148,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
   
   ! Fill dim 1 vefs (this%num_vefs = number of vertices at this point)
   ! they only have two vertices
+  call vef%create(this)
   call icell%first()
   do while ( .not. icell%past_the_end() )
      ielem = icell%get_lid()
@@ -166,18 +168,10 @@ subroutine fine_triangulation_generate_vefs(this,order)
            vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
            vertex_of_ivef(1) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef_iterator%reach_from_current(0))
            vertex_of_ivef(2) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef_iterator%reach_from_current(1))
-           !write(*,*) 'vertices of vef:',vertex_of_ivef(1:2)
-           !write(*,*) 'Creating vef accessor for local vertex',vertex_of_ivef(1)
-           !ivef_accessor = icell%get_vef(vertex_of_ivef(1))
-           call ivef_accessor%create(vertex_of_ivef(1),this)
-           !write(*,*) 'Created with ID:',ivef_accessor%lid
-           !write(*,*) 'Num_cells_around:',ivef_accessor%get_num_cells_around()
-           do jelpo = 1, ivef_accessor%get_num_cells_around()
-              !write(*,*) 'Cell_around:',jelpo
-              call ivef_accessor%get_cell_around(jelpo, jcell)
-              !write(*,*) 'Calling get_lid'
+           call vef%set_lid(vertex_of_ivef(1))
+           do jelpo = 1, vef%get_num_cells_around()
+              call vef%get_cell_around(jelpo, jcell)
               jelem = jcell%get_lid()
-              !write(*,*) 'Element around i:',jelem
               if(jelem>ielem) then
                  jelem_num_vertices=ptr_vertices(jelem+1)-ptr_vertices(jelem)
                  call pos_ref_fe%get(key=jelem_num_vertices,val=jelem_type,stat=istat)
@@ -210,11 +204,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
   ! These numbers (num_faces and num_edges) might not be necessary
   if(this%num_dimensions==2) then
      this%num_edges = 0
-     this%num_faces=this%num_vefs-this%num_vertices
-     !write(*,*) '2D faces filled',this%num_faces
+     this%num_faces = this%num_vefs - this%num_vertices
   else if(this%num_dimensions==3) then
-     this%num_edges=this%num_vefs-this%num_vertices
-     !write(*,*) '3D edges filled',this%num_edges
+     this%num_edges = this%num_vefs - this%num_vertices
 
      ! Fill dim 2 vefs (the code is similar to that of dim 1 vefs,
      ! except for the number of vertices of each vef, that is variable)
@@ -239,10 +231,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
                  vertex_of_ivef(ivert)=lst_vertices( ptr_vertices(ielem)-1+vertices_ivef_iterator%get_current())
                  call vertices_ivef_iterator%next()
               end do
-              !ivef_accessor = icell%get_vef(vertex_of_ivef(1))
-              call ivef_accessor%create(vertex_of_ivef(1),this)
-              do jelpo = 1, ivef_accessor%get_num_cells_around()
-                 call ivef_accessor%get_cell_around(jelpo, jcell)
+              call vef%set_lid(vertex_of_ivef(1))
+              do jelpo = 1, vef%get_num_cells_around()
+                 call vef%get_cell_around(jelpo, jcell)
                  jelem = jcell%get_lid()
                  if(jelem>ielem) then
                     jelem_num_vertices=ptr_vertices(jelem+1)-ptr_vertices(jelem)
@@ -284,7 +275,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
      end do
      this%num_faces=this%num_vefs-this%num_vertices-this%num_edges
   end if
-  !write(*,*) this%lst_vefs_lids
+  call vef%free()
 
   ! Generate the ref fe position hash table using the number of vefs (instead of vertices) as keys
   call  this%reference_fe_geo_index%init(max_num_reference_fes_geo)
@@ -348,7 +339,7 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
 
   type(cell_accessor_t)              :: icell
   type(cell_accessor_t)              :: jcell
-  type(vef_accessor_t)               :: ivef_accessor
+  type(vef_accessor_t)               :: vef
 
   type(list_t), pointer    :: vertices_ivef
   type(list_t), pointer    :: vertices_jvef
@@ -375,6 +366,7 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
      this%vefs_geometry=0
      this%vefs_set=0
 
+     call vef%create(this)
      do iboun=1,given_vefs%get_num_pointers()
         given_vefs_iterator = given_vefs%create_iterator(iboun)
         nnodb=given_vefs%get_sublist_size(iboun)
@@ -386,9 +378,9 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
         else if(nnodb==2) then ! Edge
            vertex_of_ivef(1) = given_vefs_iterator%reach_from_current(0)
            vertex_of_ivef(2) = given_vefs_iterator%reach_from_current(1)
-           call ivef_accessor%create(vertex_of_ivef(1),this)
-           elems1: do jelpo = 1, ivef_accessor%get_num_cells_around()
-              call ivef_accessor%get_cell_around(jelpo, jcell)
+           call vef%set_lid(vertex_of_ivef(1))
+           elems1: do jelpo = 1, vef%get_num_cells_around()
+              call vef%get_cell_around(jelpo, jcell)
               jelem = jcell%get_lid()
               !jelem_num_vertices=ptr_vertices(jelem+1)-ptr_vertices(jelem)
               !call pos_ref_fe%get(key=jelem_num_vertices,val=jelem_type,stat=istat)
@@ -421,9 +413,9 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
               call given_vefs_iterator%next()
            end do
            ielem_num_vef_verts = nnodb
-           call ivef_accessor%create(vertex_of_ivef(1),this)
-           elems2: do jelpo = 1, ivef_accessor%get_num_cells_around()
-              call ivef_accessor%get_cell_around(jelpo, jcell)
+           call vef%set_lid(vertex_of_ivef(1))
+           elems2: do jelpo = 1, vef%get_num_cells_around()
+              call vef%get_cell_around(jelpo, jcell)
               jelem = jcell%get_lid()
               !jelem_num_vertices=ptr_vertices(jelem+1)-ptr_vertices(jelem)
               !call pos_ref_fe%get(key=jelem_num_vertices,val=jelem_type,stat=istat)
@@ -462,9 +454,7 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
            end do elems2
         end if
      end do
-     !write(*,*) this%vefs_geometry,this%vefs_set
-
-     
+     call vef%free()
      
 end subroutine fine_triangulation_allocate_and_fill_geometry_and_set
 

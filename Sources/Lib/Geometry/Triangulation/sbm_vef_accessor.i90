@@ -25,13 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine vef_accessor_create ( this, lid, base_static_triangulation )
+subroutine vef_accessor_create ( this, base_static_triangulation )
   implicit none
   class(vef_accessor_t)               , intent(inout) :: this
-  integer(ip)                         , intent(in)    :: lid
   class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
   call this%free()
-  this%lid = lid
   this%base_static_triangulation => base_static_triangulation
 end subroutine vef_accessor_create
 
@@ -41,6 +39,12 @@ subroutine vef_accessor_free ( this)
   this%lid = -1
   nullify ( this%base_static_triangulation )
 end subroutine vef_accessor_free
+
+subroutine vef_accessor_first(this)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  this%lid = 1
+end subroutine vef_accessor_first
 
 subroutine vef_accessor_next(this)
   implicit none

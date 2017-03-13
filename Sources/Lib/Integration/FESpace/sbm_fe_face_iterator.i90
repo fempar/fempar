@@ -33,7 +33,8 @@ subroutine fe_face_iterator_create ( this, fe_space )
   call this%free()
   this%face_iterator = fe_space%triangulation%create_face_iterator()
   call this%face_iterator%current(face)
-  call this%current_fe_face_accessor%create(face%get_lid(), fe_space)
+  call this%current_fe_face_accessor%create(fe_space)
+  call this%current_fe_face_accessor%set_lid(face%get_lid())
 end subroutine fe_face_iterator_create
 
 subroutine fe_face_iterator_free ( this ) 

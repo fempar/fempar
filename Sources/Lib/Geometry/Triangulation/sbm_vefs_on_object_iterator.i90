@@ -32,8 +32,8 @@ subroutine vefs_on_object_iterator_create ( this, lid, base_static_triangulation
   class(base_static_triangulation_t), intent(in)    :: base_static_triangulation
   call this%free()
   this%vefs_lids_on_object_iterator = base_static_triangulation%vefs_object%create_iterator(lid)
-  call this%current_vef_accessor%create(this%vefs_lids_on_object_iterator%get_current(), &
-                                        base_static_triangulation )
+  call this%current_vef_accessor%create (base_static_triangulation )
+  call this%current_vef_accessor%set_lid(this%vefs_lids_on_object_iterator%get_current())
 end subroutine vefs_on_object_iterator_create
 
 subroutine vefs_on_object_iterator_free ( this ) 

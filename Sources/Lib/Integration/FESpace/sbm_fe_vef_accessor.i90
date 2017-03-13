@@ -25,22 +25,27 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine fe_vef_accessor_vef_accessor_create(this, lid, base_static_triangulation )
+subroutine fe_vef_accessor_vef_accessor_create(this, base_static_triangulation )
   implicit none
   class(fe_vef_accessor_t)                  , intent(inout) :: this
-  integer(ip)                               , intent(in)    :: lid
   class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
   check(.false.)
 end subroutine fe_vef_accessor_vef_accessor_create
 
-subroutine fe_vef_accessor_create ( this, lid, fe_space )
+subroutine fe_vef_accessor_create ( this, fe_space )
   implicit none
-  class(fe_vef_accessor_t)             , intent(inout) :: this
-  integer(ip)                          , intent(in)    :: lid
+  class(fe_vef_accessor_t)         , intent(inout) :: this
   class(serial_fe_space_t) , target, intent(in)    :: fe_space
-  call this%vef_accessor_t%create(lid,fe_space%get_triangulation())
+  call this%vef_accessor_t%create(fe_space%get_triangulation())
   this%fe_space => fe_space
 end subroutine fe_vef_accessor_create
+
+!subroutine fe_vef_accessor_set_lid ( this, lid)
+!  implicit none
+!  class(fe_vef_accessor_t), intent(inout) :: this
+!  integer(ip)             , intent(in)    :: lid
+!  call this%vef_accessor_t%set_lid(lid)
+!end subroutine fe_vef_accessor_create
 
 subroutine fe_vef_accessor_free ( this)
   implicit none

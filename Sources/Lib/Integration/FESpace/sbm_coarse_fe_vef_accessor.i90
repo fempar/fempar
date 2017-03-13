@@ -25,20 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine coarse_fe_vef_accessor_vef_accessor_create(this, lid, base_static_triangulation )
+subroutine coarse_fe_vef_accessor_vef_accessor_create(this, base_static_triangulation )
   implicit none
   class(coarse_fe_vef_accessor_t)           , intent(inout) :: this
-  integer(ip)                               , intent(in)    :: lid
   class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
   check(.false.)
 end subroutine coarse_fe_vef_accessor_vef_accessor_create
 
-subroutine coarse_fe_vef_accessor_create ( this, lid, coarse_fe_space )
+subroutine coarse_fe_vef_accessor_create ( this, coarse_fe_space )
   implicit none
   class(coarse_fe_vef_accessor_t)     , intent(inout) :: this
-  integer(ip)                         , intent(in)    :: lid
   type(coarse_fe_space_t), target     , intent(in)    :: coarse_fe_space
-  call this%vef_accessor_t%create(lid,coarse_fe_space%coarse_triangulation)
+  call this%vef_accessor_t%create(coarse_fe_space%coarse_triangulation)
   this%coarse_fe_space => coarse_fe_space
 end subroutine coarse_fe_vef_accessor_create
 

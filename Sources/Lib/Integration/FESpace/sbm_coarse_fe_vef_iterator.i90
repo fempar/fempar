@@ -31,7 +31,8 @@ subroutine coarse_fe_vef_iterator_create ( this, lid, coarse_fe_space )
   integer(ip)                      , intent(in)    :: lid
   type(coarse_fe_space_t)          , intent(in)    :: coarse_fe_space
   call this%free()
-  call this%current_coarse_fe_vef_accessor%create(lid, coarse_fe_space )
+  call this%current_coarse_fe_vef_accessor%create(coarse_fe_space )
+  call this%current_coarse_fe_vef_accessor%set_lid(lid)
 end subroutine coarse_fe_vef_iterator_create
 
 subroutine coarse_fe_vef_iterator_free ( this ) 
@@ -73,7 +74,8 @@ subroutine itfc_coarse_fe_vef_iterator_create ( this, coarse_fe_space )
   type(vef_accessor_t) :: vef
   call this%itfc_vef_iterator%create(coarse_fe_space%coarse_triangulation)
   call this%itfc_vef_iterator%current(vef)
-  call this%current_coarse_vef_accessor%create(vef%get_lid(), coarse_fe_space)
+  call this%current_coarse_vef_accessor%create(coarse_fe_space)
+  call this%current_coarse_vef_accessor%set_lid(vef%get_lid())
 end subroutine itfc_coarse_fe_vef_iterator_create
 
 subroutine itfc_coarse_fe_vef_iterator_free ( this ) 
