@@ -342,15 +342,10 @@ subroutine fe_accessor_apply_edge_rotation_change_basis(this, field_id)
      if (relative_rotation == 2) then 
         ! Apply rotation and change of sign to rotated edges to DOFS on top of the VEF
         dofs_on_edge_iterator = this%create_own_dofs_on_vef_iterator(ivef, field_id)
-		call memalloc( dofs_on_edge_iterator%get_size(), dofs_to_swap, __FILE__, __LINE__ )
-		idof = 1
 		 do while ( .not. dofs_on_edge_iterator%is_upper_bound() )
-		   dofs_to_swap(idof) = dofs_on_edge_iterator%get_current() 
-		   idof = idof + 1
+		   call volume_integrator%apply_sign_change( dofs_on_edge_iterator%get_current() )
            call dofs_on_edge_iterator%next() 
         end do
-		call volume_integrator%apply_sign_change( dofs_on_edge_iterator%get_size(), dofs_to_swap )
-		call memfree(dofs_to_swap, __FILE__, __LINE__ )
      end if
 
      deallocate( cells_around, stat=istat )

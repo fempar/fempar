@@ -1312,7 +1312,9 @@ public :: hex_nedelec_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(nedelec_reference_fe_t) :: tet_nedelec_reference_fe_t
 private
+real(rp), allocatable :: basis_Sk(:,:)
 contains 
+procedure :: free => tet_nedelec_reference_fe_free 
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                              &
 &   => tet_nedelec_reference_fe_check_compatibility_of_n_faces
@@ -1356,6 +1358,8 @@ procedure, private, non_overridable :: nedelec_get_n_face_orientation           
 & => tet_nedelec_reference_fe_get_n_face_orientation
 procedure, private :: change_basis                                                  &
 & => tet_nedelec_reference_fe_change_basis
+procedure, private :: create_and_fill_basis_Sk_indices                              & 
+& => tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices 
 procedure :: update_interpolation_signs                                             &
 & => tet_nedelec_reference_fe_update_interpolation_signs 
 end type tet_nedelec_reference_fe_t

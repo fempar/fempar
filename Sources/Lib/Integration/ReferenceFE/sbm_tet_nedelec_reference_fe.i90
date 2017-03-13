@@ -26,10 +26,31 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine tet_nedelec_reference_fe_free ( this )
+  implicit none 
+  class(tet_nedelec_reference_fe_t), intent(inout) :: this
+  integer(ip) :: i
+  
+  ! Free member variables of nedelec_reference_fe_t
+  if ( allocated(this%change_basis_matrix) ) &
+     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
+	 
+  if ( allocated(this%basis_Sk) ) &
+     call memfree ( this%basis_Sk, __FILE__, __LINE__ )  
+     
+  this%basis_changed  = .false. 
+  do i=1, size(this%node_array_vector)
+    call this%node_array_vector(i)%free()
+  end do
+  
+  ! Free member variables of lagrangian_reference_fe_t
+  ! (and those of its ancestors)
+  call lagrangian_reference_fe_free ( this )  
+end subroutine tet_nedelec_reference_fe_free
+
 !**************************************************************************************************
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
-
 !==================================================================================================
 function tet_nedelec_reference_fe_check_compatibility_of_n_faces                   &
      &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
@@ -100,6 +121,16 @@ subroutine tet_nedelec_reference_fe_fill (this)
   !      c = c+1
   !   end do
   !end do
+  
+  !  if ( this%continuity ) then
+  !   allocate(this%own_node_permutations(this%number_dimensions-1))
+  !   do idime = 1, this%number_dimensions-1
+  !      call this%node_array%fill_permutations( this%order, &
+  !                                              idime, &
+  !                                              this%polytope, &
+  !                                              this%own_node_permutations(idime) )
+  !   end do
+  !end if
   
 end subroutine tet_nedelec_reference_fe_fill
 
@@ -299,7 +330,7 @@ subroutine tet_nedelec_reference_fe_fill_quadrature ( this, quadrature )
   !
   !-----------------------------------------------------------------------
   implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this
+  class(tet_nedelec_reference_fe_t)   , intent(in)    :: this
   type(quadrature_t)                  , intent(inout) :: quadrature
   real(rp)    :: a,b,c,d,e,f,g,h,p,q,r,s,t,u,v,w,x,y,z
   real(rp)    :: w1,w2,w3,w4,w5,w6,w7,w8
@@ -308,7 +339,7 @@ subroutine tet_nedelec_reference_fe_fill_quadrature ( this, quadrature )
 
   ndime = quadrature%number_dimensions
   ngaus = quadrature%number_quadrature_points
-
+	 
   ! Line integral (the same as for brick elements)
   if(ndime==1) then
      if(ngaus==1) then
@@ -874,18 +905,9 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   real(rp), allocatable :: values(:)
   real(rp), allocatable :: gradients(:,:)
 
-  integer(ip)              :: c, idime, jdime, q_point, ipoly, ijk 
+  integer(ip)              :: c, idime, jdime, q_point, ipoly
   integer(ip)              :: number_polynomials_prebase_1, N_k
-  real(rp), allocatable    :: A(:,:), kernel_A(:,:) 
-  type(node_array_t)       :: k_order_node_array, higher_order_node_array
-  type(node_iterator_t)    :: node_iterator 
-  integer(ip), allocatable :: ijk_new(:)
-  
-  real(rp), allocatable  :: eigenvalues_array(:) 
-  real(rp), allocatable  :: work(:) 
-  integer(ip)            :: info, lwork, M, N, k_order_vector(SPACE_DIM), higher_order_vector(SPACE_DIM)
-  integer(ip)            :: ieig, null_eigenvalues_counter, ivalu, offcomponent
-  real(rp), allocatable  :: U(:,:), VT(:,:), basis_Sk(:,:)
+  integer(ip)              :: ivalu, info, offcomponent 
 
   interpolation%shape_functions   = 0.0_rp
   interpolation%shape_derivatives = 0.0_rp
@@ -947,28 +969,73 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   call memalloc(tet_polynomial_prebase_2%get_number_polynomials(),values,__FILE__,__LINE__)
   call memalloc(SPACE_DIM,tet_polynomial_prebase_2%get_number_polynomials(),gradients,__FILE__,__LINE__)
 
+   ! Fill second set of prebasis functions with order k prebase and Sk( homogeneous polynomials basis indices )  
+  N_k = tet_polynomial_prebase_2%get_number_polynomials()
+  c   = interpolation%number_dimensions*number_polynomials_prebase_1 
+  do q_point=1, quadrature%get_number_quadrature_points()
+     call tet_polynomial_prebase_2%evaluate(q_point, values, gradients)
+     do ipoly=1, this%order_vector(1) + 1 ! The space S_k has dimension k  
+           do idime=1, interpolation%number_dimensions	
+		    do ivalu=1+(idime-1)*(N_k-1), idime*(N_k-1) ! Sk(ipoly, 1:N_k-1) "homogeneous info wo/ 0" || values(2:N_k) "non-homogeneous polynomials"
+			     interpolation%shape_functions(idime,c+ipoly,q_point) =  &
+				 interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk(ipoly, ivalu)*values(ivalu-(idime-1)*(N_k-1)+1)	
+                 do jdime=1, interpolation%number_dimensions
+                 interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) = & 
+				 interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk(ipoly, ivalu)*gradients(jdime,ivalu-(idime-1)*(N_k-1)+1)
+                 end do
+              end do
+           end do
+     end do
+  end do
+
+  ! Free auxiliary memory
+  if(allocated(values))    call memfree(values,__FILE__,__LINE__)
+  if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
+
+  do idime=1,interpolation%number_dimensions
+     call monomial_1D_basis(idime)%free()
+  end do
+  call monomial_1D%free()
+  call tet_polynomial_prebase_2%free()
+
+end subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis
+
+! =================================================================================================
+subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this, order ) 
+  class(tet_nedelec_reference_fe_t), intent(inout) :: this 
+  integer(ip)                      , intent(in)    :: order   
+  
+  integer(ip)              :: c, idime, jdime, q_point, ipoly, ijk 
+  real(rp), allocatable    :: A(:,:), kernel_A(:,:) 
+  type(node_array_t)       :: k_order_node_array, higher_order_node_array
+  type(node_iterator_t)    :: node_iterator 
+  integer(ip), allocatable :: ijk_new(:)
+  
+  real(rp), allocatable  :: eigenvalues_array(:), work(:) 
+  integer(ip)            :: info, lwork, M, N, k_order_vector(SPACE_DIM), higher_order_vector(SPACE_DIM)
+  integer(ip)            :: ieig, null_eigenvalues_counter, ivalu, offcomponent
+  real(rp), allocatable  :: U(:,:), VT(:,:)
+
   ! Seek homogeneous polynomials such that [P_k]^d·x = 0. 
-  ! Create auxiliary node arrays of order (k+1), (k+2)
-  k_order_vector      = this%order_vector(1) + 1 
-  higher_order_vector = this%order_vector(1) + 2
+  k_order_vector      = order 
+  higher_order_vector = order + 1
   call k_order_node_array%create( this%node_array_vector(1)%polytope_tree, k_order_vector ) 
   call higher_order_node_array%create( this%node_array_vector(1)%polytope_tree, higher_order_vector ) 
   ! A directly allocated for homogeneous spaces (does not contain 0, i.e. number_nodes-1). All arrays from now on 
   ! are thought to represent homogeneous spaces (A, Vt, kernel(A)...)
   call memalloc( higher_order_node_array%number_nodes-1,                              &
-                (k_order_node_array%number_nodes-1)*interpolation%number_dimensions,  & 
+                (k_order_node_array%number_nodes-1)*this%number_dimensions,  & 
                  A, __FILE__,__LINE__)
   
-  call node_iterator%create( k_order_node_array, & 
-							12, &   !this%get_first_n_face_id_of_dimension(interpolation%number_dimensions), &
+  call node_iterator%create( k_order_node_array,                             & 
+							this%polytope%get_n_face(this%number_n_faces+1), & 
 							own_boundary = .true. )  
 
   call node_iterator%init() 
-
-  call memalloc(interpolation%number_dimensions, ijk_new, __FILE__,__LINE__)
+  call memalloc(this%number_dimensions, ijk_new, __FILE__,__LINE__)
   A = 0.0_rp 
   do while (.not. node_iterator%has_finished() ) 
-     do idime=1, interpolation%number_dimensions
+     do idime=1, this%number_dimensions
         ijk     = node_iterator%current_ijk()  
         ijk_new = node_iterator%coordinate
         if ( ijk .ne. 0) then ! avoid the constant 
@@ -984,7 +1051,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   ! Solve the singular value decomposition A = (U)S(V**t)
 #ifdef ENABLE_LAPACK
   M = higher_order_node_array%number_nodes-1
-  N = (k_order_node_array%number_nodes-1)*interpolation%number_dimensions
+  N = (k_order_node_array%number_nodes-1)*this%number_dimensions
 
   call memalloc( min(M,N), eigenvalues_array, __FILE__,__LINE__)
   call memalloc( M, M, U, __FILE__, __LINE__)
@@ -1000,10 +1067,10 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
                   A, &   ! A array
                   higher_order_node_array%number_nodes-1, & ! LDA, rows of A
                   eigenvalues_array, &             ! Output, stores eigenvalues 
-				  U,    & ! U-matrix 
-				  M,    & ! U-leading dimension 
-				  VT,   & ! VT 
-				  N,    & ! VT leading dimension 
+		  U,    & ! U-matrix 
+		  M,    & ! U-leading dimension 
+		  VT,   & ! VT 
+		  N,    & ! VT leading dimension 
                   work,    & ! not converged eigenvalues (info>0) 
                   lwork,   & ! dimension of the array work  
                   info )  
@@ -1023,78 +1090,42 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   kernel_A(:, :) = VT(N-null_eigenvalues_counter+1:N,:)
   
   ! Kernel also contains lower order monomials and lower-order k-order combination, choose a k-only order basis
-  call memalloc(k_order_node_array%order(1), N, basis_Sk, __FILE__, __LINE__ )
-  call this%conform_k_order_polynomial_basis( interpolation%number_dimensions,        &
-											  null_eigenvalues_counter,               &
+  call memalloc(k_order_node_array%order(1), N, this%basis_Sk, __FILE__, __LINE__ )
+  call this%conform_k_order_polynomial_basis( null_eigenvalues_counter,               &
 											  kernel_A,                               &
 											  node_iterator,                          & 
-											  higher_order_node_array,                & 
-											  basis_Sk )
-
-   ! Fill second set of prebasis functions 
-  N_k = tet_polynomial_prebase_2%get_number_polynomials()
-  c   = interpolation%number_dimensions*number_polynomials_prebase_1 
-  do q_point=1, quadrature%get_number_quadrature_points()
-     call tet_polynomial_prebase_2%evaluate(q_point, values, gradients)
-     do ipoly=1, k_order_node_array%order(1)  ! The space S_k has dimension k  
-           do idime=1, interpolation%number_dimensions	
-		    do ivalu=1+(idime-1)*(N_k-1), idime*(N_k-1) ! Sk(ipoly, 1:N_k-1) "homogeneous info wo/ 0" || values(2:N_k) "non-homogeneous polynomials"
-			     interpolation%shape_functions(idime,c+ipoly,q_point) =  &
-				 interpolation%shape_functions(idime,c+ipoly,q_point) + basis_Sk(ipoly, ivalu)*values(ivalu-(idime-1)*(N_k-1)+1)	
-                 do jdime=1, interpolation%number_dimensions
-                 interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) = & 
-				 interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + basis_Sk(ipoly, ivalu)*gradients(jdime,ivalu-(idime-1)*(N_k-1)+1)
-                 end do
-              end do
-           end do
-     end do
-  end do
-     
+											  higher_order_node_array                 )
+  
   call memfree(work, __FILE__,__LINE__)
   call memfree(eigenvalues_array, __FILE__,__LINE__)
   call memfree( U, __FILE__, __LINE__)
   call memfree( VT, __FILE__, __LINE__)
   call memfree(A, __FILE__, __LINE__ )
-  call memfree(basis_Sk, __FILE__, __LINE__ )
   call memfree(kernel_A, __FILE__, __LINE__ )
-
 #else
   write (0,*) 'Error: sbm_tet_nedelec_reference_fe.i90 was not compiled with -DENABLE_LAPACK.'
   write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
   check(.false.)  
 #endif 
-
-  ! Free auxiliary memory
-  if(allocated(values))    call memfree(values,__FILE__,__LINE__)
-  if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
-  if(allocated(ijk_new))   call memfree(ijk_new,__FILE__,__LINE__)
-
-  do idime=1,interpolation%number_dimensions
-     call monomial_1D_basis(idime)%free()
-  end do
-  call monomial_1D%free()
-  call tet_polynomial_prebase_2%free()
   
-  call k_order_node_array%free()
-  call higher_order_node_array%free()
-
-end subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis
-
+  call k_order_node_array%free() 
+  call higher_order_node_array%free() 
+  call memfree(ijk_new, __FILE__, __LINE__ )
+  
+end subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices
 ! ================================================================================================= 
-subroutine conform_k_order_polynomial_basis( this, number_dimensions, null_eigenvalues_counter, kernel_A, node_iterator, higher_order_node_array, basis_Sk )
+subroutine conform_k_order_polynomial_basis( this, null_eigenvalues_counter, kernel_A, node_iterator, higher_order_node_array )
 ! This subroutine takes the full kernel of the A-operator defined and builds a basis 
 ! of space S_k (dimension=k) which is in DIRECT SUM with the [P_{k-1}]^d space. 
 ! IDEA: - First of all we will discard all functions that are build ONLY with lower order monomials (are already in the prebasis_1=[P_{k-1}]^d) 
 !       - Functions from the kernel build ONLY with k-order monomials are clearly in the S_k basis 
 !       - Complete the basis (up to k-dimension) by checking which ones of the rest of functions are linearly independent (and accomplish p(x)·x = 0), 
 !         where we have eliminated its lower-order monomials part (already in the prebasis_1),
-class(tet_nedelec_reference_fe_t), intent(in)    :: this 
-integer(ip)                      , intent(in)    :: number_dimensions
+class(tet_nedelec_reference_fe_t), intent(inout) :: this 
 integer(ip)                      , intent(in)    :: null_eigenvalues_counter 
 real(rp)                         , intent(inout) :: kernel_A(:,:) 
 type(node_iterator_t)            , intent(inout) :: node_iterator
 type(node_array_t)               , intent(in)    :: higher_order_node_array 
-real(rp)                         , intent(inout) :: basis_Sk(:,:)  
 
 ! Locals 
 integer(ip)              :: N, ipoly, idime, ivalu, offcomponent, ijk
@@ -1111,148 +1142,147 @@ real(rp)   , allocatable :: Uc(:,:), VcT(:,:)
 real(rp)   , allocatable :: work(:) 
 integer(ip)              :: info, lwork, order
 
-  call memalloc(null_eigenvalues_counter, current_order_monomials, __FILE__,__LINE__)
-  call memalloc(null_eigenvalues_counter, lower_order_monomials, __FILE__,__LINE__)
-  
-  N = (node_iterator%node_array%number_nodes-1)*number_dimensions
-  current_order_monomials    = 0
-  lower_order_monomials      = 0
-  
-  do ipoly=1, null_eigenvalues_counter 
-    call node_iterator%init() 
-     do while (.not. node_iterator%has_finished() ) 
-        do idime=1, number_dimensions
-           offcomponent = (idime-1)*(node_iterator%node_array%number_nodes-1)
-           if ( node_iterator%current_ijk() .ne. 0 ) then  
-              if ( abs(kernel_A(ipoly, offcomponent + (node_iterator%current()-1) )) .gt. 1e-15 ) then 
-                 if ( sum(node_iterator%coordinate) .eq. node_iterator%node_array%order(1) ) then 
-				    current_order_monomials(ipoly) = current_order_monomials(ipoly) +1
-					else 
-					! Discard all lower order monomials 
-					lower_order_monomials(ipoly) = lower_order_monomials(ipoly) + 1
-				    kernel_A( ipoly, offcomponent + (node_iterator%current()-1) ) = 0.0_rp 
-                 end if
-              end if
-           end if
-        end do
-        call node_iterator%next() 
-     end do
-  end do
-  
-  ! BASIS conformed by current order-only polynomials 
-  call memalloc(null_eigenvalues_counter, mixed_polynomials, __FILE__, __LINE__)
-  mixed_polynomials = 0
-  num_mixed_polynomials = 0
-  num_added_polynomials = 0
+call memalloc(null_eigenvalues_counter, current_order_monomials, __FILE__,__LINE__)
+call memalloc(null_eigenvalues_counter, lower_order_monomials, __FILE__,__LINE__)
 
-      call memalloc(node_iterator%node_array%order(1), polynomials_added_to_the_basis, __FILE__,__LINE__ )
-	  polynomials_added_to_the_basis = 0
+N = (node_iterator%node_array%number_nodes-1)*this%number_dimensions
+current_order_monomials    = 0
+lower_order_monomials      = 0
 
-  do ipoly=1, null_eigenvalues_counter 
-     if ( (lower_order_monomials(ipoly) .ne. 0 ) .and. (current_order_monomials(ipoly) .eq. 0 ) ) then 
-	    ! It is in the kernel of space (k-1), spanned by P_(k-1) 
-     else if ( (lower_order_monomials(ipoly) .eq. 0 ) .and. (current_order_monomials(ipoly) .ne. 0 ) ) then 
-        num_added_polynomials = num_added_polynomials + 1
-		polynomials_added_to_the_basis(num_added_polynomials) = ipoly 
-		basis_Sk(num_added_polynomials, :) = kernel_A( ipoly, :)
-     else if  ( (lower_order_monomials(ipoly) .ne. 0 ) .and. (current_order_monomials(ipoly) .ne. 0 ) ) then 
-        num_mixed_polynomials = num_mixed_polynomials + 1
-        mixed_polynomials(num_mixed_polynomials) = ipoly 
-     else 
-        check(.false.) 
-        write(*,*) ' Polynomials associated to the Kernel of A are empty '
-     end if
-  end do
-  					
-     ! Add recursively the (already lower order monomials filtered) mixed polynomials that are 
-     ! linearly independent to those ones previously added, up to k (known rank of space S_k).  
-     imixed_poly = 0
-     trial_basis_dimension = num_added_polynomials + 1
-	 call memalloc( higher_order_node_array%number_nodes-1, orthogonality_checker, __FILE__, __LINE__ )
-     do while ( num_added_polynomials .lt. node_iterator%node_array%order(1) ) 
-		! The polynomial tested can not be greater than the number of mixed polynomials found 
-	 	imixed_poly = imixed_poly + 1
-		check( imixed_poly .lt. num_mixed_polynomials )
-        ipoly = mixed_polynomials(imixed_poly) 
-        
-		! Check the p(x)·x condition before becoming a candidate
-		 call node_iterator%init() 
-		 call memalloc ( number_dimensions, ijk_new, __FILE__, __LINE__ ) 
-		 orthogonality_checker = 0
-    do while (.not. node_iterator%has_finished() ) 
-       do idime=1, number_dimensions
+do ipoly=1, null_eigenvalues_counter 
+   call node_iterator%init() 
+   do while (.not. node_iterator%has_finished() ) 
+      do idime=1, this%number_dimensions
+         offcomponent = (idime-1)*(node_iterator%node_array%number_nodes-1)
+         if ( node_iterator%current_ijk() .ne. 0 ) then  
+            if ( abs(kernel_A(ipoly, offcomponent + (node_iterator%current()-1) )) .gt. 1e-15 ) then 
+               if ( sum(node_iterator%coordinate) .eq. node_iterator%node_array%order(1) ) then 
+                  current_order_monomials(ipoly) = current_order_monomials(ipoly) +1
+               else 
+                  ! Discard all lower order monomials 
+                  lower_order_monomials(ipoly) = lower_order_monomials(ipoly) + 1
+                  kernel_A( ipoly, offcomponent + (node_iterator%current()-1) ) = 0.0_rp 
+               end if
+            end if
+         end if
+      end do
+      call node_iterator%next() 
+   end do
+end do
+
+! BASIS conformed by current order-only polynomials 
+call memalloc(null_eigenvalues_counter, mixed_polynomials, __FILE__, __LINE__)
+mixed_polynomials = 0
+num_mixed_polynomials = 0
+num_added_polynomials = 0
+
+call memalloc(node_iterator%node_array%order(1), polynomials_added_to_the_basis, __FILE__,__LINE__ )
+polynomials_added_to_the_basis = 0
+
+do ipoly=1, null_eigenvalues_counter 
+   if ( (lower_order_monomials(ipoly) .ne. 0 ) .and. (current_order_monomials(ipoly) .eq. 0 ) ) then 
+      ! It is in the kernel of space (k-1), spanned by P_(k-1) 
+   else if ( (lower_order_monomials(ipoly) .eq. 0 ) .and. (current_order_monomials(ipoly) .ne. 0 ) ) then 
+      num_added_polynomials = num_added_polynomials + 1
+      polynomials_added_to_the_basis(num_added_polynomials) = ipoly 
+      this%basis_Sk(num_added_polynomials, :) = kernel_A( ipoly, :)
+   else if  ( (lower_order_monomials(ipoly) .ne. 0 ) .and. (current_order_monomials(ipoly) .ne. 0 ) ) then 
+      num_mixed_polynomials = num_mixed_polynomials + 1
+      mixed_polynomials(num_mixed_polynomials) = ipoly 
+   else 
+      check(.false.) 
+      write(*,*) ' Polynomials associated to the Kernel of A are empty '
+   end if
+end do
+
+! Add recursively the (already lower order monomials filtered) mixed polynomials that are 
+! linearly independent to those ones previously added, up to k (known rank of space S_k).  
+imixed_poly = 0
+trial_basis_dimension = num_added_polynomials + 1
+call memalloc( higher_order_node_array%number_nodes-1, orthogonality_checker, __FILE__, __LINE__ )
+do while ( num_added_polynomials .lt. node_iterator%node_array%order(1) ) 
+   ! The polynomial tested can not be greater than the number of mixed polynomials found 
+   imixed_poly = imixed_poly + 1
+   check( imixed_poly .lt. num_mixed_polynomials )
+   ipoly = mixed_polynomials(imixed_poly) 
+
+   ! Check the p(x)·x condition before becoming a candidate
+   call node_iterator%init() 
+   call memalloc ( this%number_dimensions, ijk_new, __FILE__, __LINE__ ) 
+   orthogonality_checker = 0
+   do while (.not. node_iterator%has_finished() ) 
+      do idime=1, this%number_dimensions
          ijk     = node_iterator%current_ijk()  
          ijk_new = node_iterator%coordinate
-		 offcomponent = (idime-1)*(node_iterator%node_array%number_nodes-1)
+         offcomponent = (idime-1)*(node_iterator%node_array%number_nodes-1)
          if ( ijk .ne. 0) then ! avoid the constant 
-           ijk_new(idime-1) = ijk_new(idime-1) + 1 ! The array starts from 0
-           ijk = higher_order_node_array%ijk_to_index(ijk_to_index( ijk_new, higher_order_node_array%order, higher_order_node_array%polytope_tree%number_dimensions )) 
-           orthogonality_checker(ijk-1) = orthogonality_checker(ijk-1) + kernel_A(ipoly, offcomponent + node_iterator%current()-1)
+            ijk_new(idime-1) = ijk_new(idime-1) + 1 ! The array starts from 0
+            ijk = higher_order_node_array%ijk_to_index(ijk_to_index( ijk_new, higher_order_node_array%order, higher_order_node_array%polytope_tree%number_dimensions )) 
+            orthogonality_checker(ijk-1) = orthogonality_checker(ijk-1) + kernel_A(ipoly, offcomponent + node_iterator%current()-1)
          end if
-        end do
-       call node_iterator%next() 
-     end do
-		call memfree(ijk_new, __FILE__, __LINE__)
+      end do
+      call node_iterator%next() 
+   end do
+   call memfree(ijk_new, __FILE__, __LINE__)
 
-		! If the candidate accomplishes p(x)·x = 0, check if it is linearly independent to those ones previously added to the Sk basis 
-	    if ( sum(orthogonality_checker) < 1e-15_rp ) then 
-		
-        call memalloc( trial_basis_dimension, N, full_rank_checker_matrix, __FILE__, __LINE__) 
-        call memalloc( trial_basis_dimension, rank_checker_eigenvalues, __FILE__, __LINE__) 
-        call memalloc( trial_basis_dimension, trial_basis_dimension, Uc, __FILE__, __LINE__)
-        call memalloc( N, N, VcT, __FILE__, __LINE__)
-        do iadded_poly = 1, num_added_polynomials  
-           full_rank_checker_matrix(iadded_poly,:) = kernel_A( polynomials_added_to_the_basis(iadded_poly), :)
-        end do
-		    ! Trial polynomial to the built basis 
-		   full_rank_checker_matrix(trial_basis_dimension,:) = kernel_A( ipoly, :) 
-           lwork = max( 1, 3*min(trial_basis_dimension,N) + max(trial_basis_dimension,N), 5*min(trial_basis_dimension,N) )
-           call memalloc( lwork, work, __FILE__,__LINE__)
-		   
-        call DGESVD( 'N', &  ! U related output 
-                     'N', &  ! V^t related output, overwrite A 
-                     trial_basis_dimension,    &   ! rows(rank_checker)
-                     N,   &   ! columns(rank_checker)
-                     full_rank_checker_matrix, &   ! rank-checker array
-                     trial_basis_dimension,    &   ! LDA, rows of A
-                     rank_checker_eigenvalues, &             ! Output, stores eigenvalues 
-                     Uc,                       & ! U-matrix 
-                     trial_basis_dimension,    & ! U-leading dimension 
-                     VcT,     & ! VT 
-                     N,       & ! VT leading dimension 
-                     work,    & ! not converged eigenvalues (info>0) 
-                     lwork,   & ! dimension of the array work  
-                     info )  
-        check(info==0) 
+   ! If the candidate accomplishes p(x)·x = 0, check if it is linearly independent to those ones previously added to the Sk basis 
+   if ( sum(orthogonality_checker) < 1e-15_rp ) then 
 
-        if ( rank_checker_eigenvalues(trial_basis_dimension) .le. 1e-15_rp ) then 
-           ! It is linear dependent 
-        else 
-           ! Add polynomial to the basis 
-		   polynomials_added_to_the_basis(trial_basis_dimension) = ipoly 
-		   basis_Sk(trial_basis_dimension, :) = kernel_A( ipoly, :) 
-           trial_basis_dimension = trial_basis_dimension + 1 
-		   num_added_polynomials = num_added_polynomials + 1
-        end if
-		
-        call memfree(full_rank_checker_matrix, __FILE__, __LINE__)
-        call memfree(rank_checker_eigenvalues, __FILE__, __LINE__) 
-        call memfree( Uc, __FILE__, __LINE__)
-        call memfree( VcT, __FILE__, __LINE__)
-		call memfree( work, __FILE__, __LINE__)
-		
-		end if 
-	
-     end do
+      call memalloc( trial_basis_dimension, N, full_rank_checker_matrix, __FILE__, __LINE__) 
+      call memalloc( trial_basis_dimension, rank_checker_eigenvalues, __FILE__, __LINE__) 
+      call memalloc( trial_basis_dimension, trial_basis_dimension, Uc, __FILE__, __LINE__)
+      call memalloc( N, N, VcT, __FILE__, __LINE__)
+      do iadded_poly = 1, num_added_polynomials  
+         full_rank_checker_matrix(iadded_poly,:) = kernel_A( polynomials_added_to_the_basis(iadded_poly), :)
+      end do
+      ! Trial polynomial to the built basis 
+      full_rank_checker_matrix(trial_basis_dimension,:) = kernel_A( ipoly, :) 
+      lwork = max( 1, 3*min(trial_basis_dimension,N) + max(trial_basis_dimension,N), 5*min(trial_basis_dimension,N) )
+      call memalloc( lwork, work, __FILE__,__LINE__)
 
-  call memfree( mixed_polynomials, __FILE__,__LINE__ )
-  call memfree( polynomials_added_to_the_basis, __FILE__,__LINE__ )
-  call memfree( current_order_monomials, __FILE__,__LINE__)
-  call memfree( lower_order_monomials, __FILE__,__LINE__)
-  call memfree(orthogonality_checker, __FILE__, __LINE__ )
+      call DGESVD( 'N', &  ! U related output 
+           'N', &  ! V^t related output, overwrite A 
+           trial_basis_dimension,    &   ! rows(rank_checker)
+           N,   &   ! columns(rank_checker)
+           full_rank_checker_matrix, &   ! rank-checker array
+           trial_basis_dimension,    &   ! LDA, rows of A
+           rank_checker_eigenvalues, &             ! Output, stores eigenvalues 
+           Uc,                       & ! U-matrix 
+           trial_basis_dimension,    & ! U-leading dimension 
+           VcT,     & ! VT 
+           N,       & ! VT leading dimension 
+           work,    & ! not converged eigenvalues (info>0) 
+           lwork,   & ! dimension of the array work  
+           info )  
+      check(info==0) 
+
+      if ( rank_checker_eigenvalues(trial_basis_dimension) .le. 1e-15_rp ) then 
+         ! It is linear dependent, discarded candidate polynomial  
+      else 
+         ! It is linearly independent, add candidate polynomial to the basis 
+         polynomials_added_to_the_basis(trial_basis_dimension) = ipoly 
+         this%basis_Sk(trial_basis_dimension, :) = kernel_A( ipoly, :) 
+         trial_basis_dimension = trial_basis_dimension + 1 
+         num_added_polynomials = num_added_polynomials + 1
+      end if
+
+      call memfree(full_rank_checker_matrix, __FILE__, __LINE__)
+      call memfree(rank_checker_eigenvalues, __FILE__, __LINE__) 
+      call memfree( Uc, __FILE__, __LINE__)
+      call memfree( VcT, __FILE__, __LINE__)
+      call memfree( work, __FILE__, __LINE__)
+
+   end if
+
+end do
+
+call memfree( mixed_polynomials, __FILE__,__LINE__ )
+call memfree( polynomials_added_to_the_basis, __FILE__,__LINE__ )
+call memfree( current_order_monomials, __FILE__,__LINE__)
+call memfree( lower_order_monomials, __FILE__,__LINE__)
+call memfree(orthogonality_checker, __FILE__, __LINE__ )
   
 end subroutine conform_k_order_polynomial_basis
-
 
 !==================================================================================================
 subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id, local_quadrature, edge_interpolation )
@@ -1417,6 +1447,14 @@ function tet_nedelec_reference_fe_set_number_quadrature_points( this, order, dim
   !   if( order .eq. 2) then
   !      tet_nedelec_reference_fe_set_number_quadrature_points = 11
   !   end if
+  !end if
+  
+  !if( dimension .eq. 1 ) then
+  !   tet_nedelec_reference_fe_set_number_quadrature_points = order + 1
+  !elseif( dimension .eq. 2 ) then
+  !   tet_nedelec_reference_fe_set_number_quadrature_points = (order+1)**2
+  !elseif( dimension .eq. 3 ) then
+  !   tet_nedelec_reference_fe_set_number_quadrature_points = (order+2)**3
   !end if
   
 end function tet_nedelec_reference_fe_set_number_quadrature_points
@@ -1936,7 +1974,11 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
                 this%change_basis_matrix, &
                 __FILE__, &
                 __LINE__)
-
+  
+   ! Allocate and fill Sk prebase polynomials indices  
+  if ( allocated(this%basis_Sk) ) call memfree(this%basis_Sk, __FILE__, __LINE__ )  
+  call this%create_and_fill_basis_Sk_indices(this%order)
+  
  ! Create a 1D scalar lagrangian reference FE of order k-1
  call fe_1D%create(topology          = this%get_topology(), &
                    number_dimensions = 1,                   &
@@ -2216,19 +2258,15 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   
    call this%own_node_permutations(idime)%create(num_rows_own_node_permutations, &
                                                  num_cols_own_node_permutations)
-
-   
-   ! Warning: temporarily initializing this%own_node_permutations(number_dimensions-1)%a(:)
-   !          to the identity. This only will work provided that for all faces F within the 
-   !          triangulation, F is oriented the same way in both cells around it
-   if (num_rows_own_node_permutations > 0) then
-     do j=1, num_cols_own_node_permutations
-       do i=1, num_rows_own_node_permutations
-         this%own_node_permutations(idime)%a(i,j) = i
-       end do
-     end do
-   end if
- end do  
+ 
+     if ( this%continuity ) then
+        call this%node_array%fill_permutations( this%order+1, &
+                                                idime, &
+                                                this%polytope, &
+                                                this%own_node_permutations(idime) )
+    end if
+  
+   end do  
   
 
  ! Flag change of basis
@@ -2258,27 +2296,13 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   
 end subroutine tet_nedelec_reference_fe_change_basis
 
-subroutine tet_nedelec_reference_fe_update_interpolation_signs(this, num_shapes, shapes_to_change, interpolation, interpolation_o_map) 
+subroutine tet_nedelec_reference_fe_update_interpolation_signs(this, ishape, interpolation_o_map) 
   implicit none
   class(tet_nedelec_reference_fe_t), intent(in)     :: this
-  integer(ip)                      , intent(in)     :: num_shapes
-  integer(ip)                      , intent(in)     :: shapes_to_change(num_shapes) 
-  type(interpolation_t)            , intent(inout)  :: interpolation
+  integer(ip)                      , intent(in)     :: ishape
   type(interpolation_t)            , intent(inout)  :: interpolation_o_map
-  
-  type(interpolation_t) :: interpolation_buffer
-  integer(ip) :: ishape, k
-  
-  call interpolation_buffer%copy(interpolation_o_map)
-  
-  ! Swap columns ( i,...,i+(k-1) ) and change their sign 
-  do ishape = 1, num_shapes
-   interpolation_o_map%shape_functions(:,shapes_to_change(ishape),:)      =  &
-                         -interpolation_buffer%shape_functions(:,shapes_to_change(num_shapes+1-ishape),:)
-   interpolation_o_map%shape_derivatives(:,:,shapes_to_change(ishape),:)  =  &
-                         -interpolation_buffer%shape_derivatives(:,:,shapes_to_change(num_shapes+1-ishape),:)
-  end do 
+   
+   interpolation_o_map%shape_functions(:,ishape,:)     = -interpolation_o_map%shape_functions(:,ishape,:)
+   interpolation_o_map%shape_derivatives(:,:,ishape,:) = -interpolation_o_map%shape_derivatives(:,:,ishape,:)
 
-   call interpolation_buffer%free()
-  
 end subroutine tet_nedelec_reference_fe_update_interpolation_signs 
