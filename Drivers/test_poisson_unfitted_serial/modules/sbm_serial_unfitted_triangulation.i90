@@ -297,10 +297,10 @@ subroutine serial_unfitted_triangulation_print ( this )
 
   ! Print basic info of cells
   cell_iter = this%create_unfitted_cell_iterator()
-  write(*,'(7a20)') 'id', 'is_cut', 'is_interior', 'is_exterior', 'num_nodes' , 'num_subcells', 'num_nodes_subcell'
+  write(*,'(8a20)') 'id', 'is_cut', 'is_interior', 'is_exterior', 'is_active', 'num_nodes' , 'num_subcells', 'num_nodes_subcell'
   do while ( .not. cell_iter%has_finished() )
     call cell_iter%current(cell)
-    write(*,'(i20,3L20,3i20)') cell%get_lid(), cell%is_cut(), cell%is_interior(), cell%is_exterior(), &
+    write(*,'(i20,4L20,3i20)') cell%get_lid(), cell%is_cut(), cell%is_interior(), cell%is_exterior(), cell%is_active(), &
                                cell%get_num_nodes(), cell%get_number_of_subcells(), cell%get_number_of_subcell_nodes()
     call cell_iter%next()
   end do
@@ -525,7 +525,7 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   num_cells = this%get_num_local_cells() + this%get_num_ghost_cells()  
   call memalloc (num_cells, this%mc_case_per_cell, __FILE__, __LINE__ )
   allocate ( Xe_phys(num_nodes), stat=istat ); check(istat == 0)
-  icell = 1 ! TODO use local id istead
+  icell = 1 ! TODO use local id instead
   do while ( .not. cell_iter%has_finished() )
     call cell_iter%current(cell)      
     call cell%get_coordinates(Xe_phys)
@@ -537,7 +537,7 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
       if (phi_node > 0.0_rp) num_nodes_outside = num_nodes_outside + 1
     end do
     if ( num_nodes_outside == 0_ip ) then
-      ! This is to avoid to set as cut an element that has nevarive and zero nodes (which is infact a full interior element)
+      ! This is to avoid to set as cut an element that has negative and zero nodes (which is in fact a full interior element)
       this%mc_case_per_cell(icell) = this%mc_table_num_cases
     else
       this%mc_case_per_cell(icell) = icase + 1 
@@ -545,11 +545,21 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
     icell = icell + 1 
     call cell_iter%next()
   end do
-  
+
+  ! De-activate cells which are exterior
+  call cell_iter%init()
+  icell = 1 ! TODO use local id instead
+  do while ( .not. cell_iter%has_finished() )
+    call cell_iter%current(cell)
+    if (this%mc_case_per_cell(icell)==1) call cell%set_as_inactive()
+    icell = icell + 1
+    call cell_iter%next()
+  end do
+
   ! Allocate and fill the intersection points pointers
   call memalloc (num_cells+1, this%mc_ptr_to_intersections, __FILE__, __LINE__ )
   this%mc_ptr_to_intersections(1) = 1
-  icell = 1 ! TODO use local id istead
+  icell = 1 ! TODO use local id instead
   call cell_iter%init()
   do while ( .not. cell_iter%has_finished() )
     this%mc_ptr_to_intersections(icell + 1) = this%mc_ptr_to_intersections(icell) & 

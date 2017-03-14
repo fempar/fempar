@@ -30,6 +30,7 @@ module test_poisson_unfitted_driver_names
   use serial_unfitted_triangulation_names
   use serial_unfitted_fe_space_names
   use level_set_functions_gallery_names
+  use poisson_unfitted_vtk_writer_names
   use test_poisson_unfitted_params_names
   use poisson_unfitted_cG_discrete_integration_names
   use poisson_unfitted_dG_discrete_integration_names
@@ -123,13 +124,13 @@ contains
     class(level_set_function_t), pointer :: levset
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
        
-    allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0) ! TODO for the moment we assume an sphere
+    allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0) ! TODO for the moment we assume a sphere
     
-    !TODO
+    !TODO we assume a sphere
     levset => this%level_set_function
     select type ( levset )
       class is (level_set_sphere_t)
-         call levset%set_radius(1.0_rp)
+         call levset%set_radius(0.6_rp)
       class default
         check(.false.)
     end select
@@ -140,7 +141,7 @@ contains
     
     ! New call for unfitted triangulation    
     call this%triangulation%create(this%parameter_list,this%level_set_function)
-    !call this%triangulation%print()
+    if ( this%triangulation%get_num_cells() <= 100 ) call this%triangulation%print() ! TODO. Remove this. This is only for debugging
     call this%triangulation%print_to_vtk_file() ! TODO. Remove this. This is only for debugging
     
     
@@ -219,13 +220,14 @@ contains
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
     
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
-      call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+     !call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_unfitted_analytical_functions%create('ex001_2d') ! TODO Assumes scalar functions
       call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
       call this%fe_space%create( triangulation       = this%triangulation, &
                                  conditions          = this%poisson_unfitted_conditions, &
                                  reference_fes       = this%reference_fes)
     else
-      call this%vector_poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      !call this%vector_poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%vector_poisson_unfitted_conditions%set_boundary_function(this%vector_poisson_unfitted_analytical_functions%get_boundary_function()) 
       call this%fe_space%create( triangulation       = this%triangulation, &
                                  conditions          = this%vector_poisson_unfitted_conditions, &
@@ -267,13 +269,14 @@ contains
                                                discrete_integration              = this%poisson_unfitted_dG_integration )
       end if
     else
-       call this%vector_poisson_unfitted_integration%set_source_term(this%vector_poisson_unfitted_analytical_functions%get_source_term())
-       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                             diagonal_blocks_symmetric_storage = [ .true. ], &
-                                             diagonal_blocks_symmetric         = [ .true. ], &
-                                             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                             fe_space                          = this%fe_space, &
-                                             discrete_integration              = this%vector_poisson_unfitted_integration )
+       check(.false.) ! Only implemented for scalar problems for the moment!
+       !call this%vector_poisson_unfitted_integration%set_source_term(this%vector_poisson_unfitted_analytical_functions%get_source_term())
+       !call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+       !                                      diagonal_blocks_symmetric_storage = [ .true. ], &
+       !                                      diagonal_blocks_symmetric         = [ .true. ], &
+       !                                      diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+       !                                      fe_space                          = this%fe_space, &
+       !                                      discrete_integration              = this%vector_poisson_unfitted_integration )
     end if
   end subroutine setup_system
   
@@ -315,8 +318,7 @@ contains
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
 #endif
     call parameter_list%free()
-  end subroutine setup_solver
-  
+  end subroutine setup_solver  
   
   subroutine assemble_system (this)
     implicit none
@@ -459,22 +461,40 @@ contains
   
   subroutine write_solution(this)
     implicit none
-    class(test_poisson_unfitted_driver_t), intent(in) :: this
-    type(output_handler_t)                   :: oh
-    character(len=:), allocatable            :: path
-    character(len=:), allocatable            :: prefix
-    if(this%test_params%get_write_solution()) then
-        path = this%test_params%get_dir_path_out()
-        prefix = this%test_params%get_prefix()
-        call oh%create()
-        call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'solution')
-        call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-        call oh%open(path, prefix)
-        call oh%write()
-        call oh%close()
-        call oh%free()
-    endif
+    class(test_poisson_unfitted_driver_t), target, intent(inout) :: this
+    
+    type(poisson_unfitted_vtk_writer_t) :: vtk_writer
+    class(serial_fe_space_t), pointer :: fe_space_ptr
+    class(scalar_function_t), pointer :: scal_fun
+    integer(ip) :: fieldid
+    
+    fieldid = 1
+    fe_space_ptr => this%fe_space
+    scal_fun => this%poisson_unfitted_analytical_functions%get_solution_function()
+    call this%solution%interpolate_function(fe_space_ptr,fieldid,scal_fun)
+    
+    !call vtk_writer%attach_triangulation(this%triangulation)
+    call vtk_writer%attach_fe_function(this%solution,this%fe_space)
+    call vtk_writer%write_to_vtk_file('out_mesh.vtu')
+    call vtk_writer%free()
+    
+    !type(output_handler_t)                   :: oh
+    !character(len=:), allocatable            :: path
+    !character(len=:), allocatable            :: prefix
+    !if(this%test_params%get_write_solution()) then
+    !    path = this%test_params%get_dir_path_out()
+    !    prefix = this%test_params%get_prefix()
+    !    call oh%create()
+    !    call oh%attach_fe_space(this%fe_space)
+    !    call oh%add_fe_function(this%solution, 1, 'solution')
+    !    call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
+    !    call oh%open(path, prefix)
+    !    call oh%write()
+    !    call oh%close()
+    !    call oh%free()
+    !endif
+    
+    
   end subroutine write_solution
   
   subroutine run_simulation(this) 
@@ -487,17 +507,17 @@ contains
     call this%setup_fe_space()
     call this%compute_domain_volume()
     call this%compute_domain_surface()
-    !call this%setup_system()
-    !call this%assemble_system()
-    !call this%setup_solver()
-    !call this%solution%create(this%fe_space) 
-    !call this%solve_system()
+    call this%setup_system()
+    call this%assemble_system()
+    call this%setup_solver()
+    call this%solution%create(this%fe_space) 
+    call this%solve_system()
     !if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
     !  call this%check_solution()
     !else
     !  call this%check_solution_vector()
     !end if  
-    !  call this%write_solution()
+    call this%write_solution()
     call this%free()
   end subroutine run_simulation
 
@@ -513,6 +533,8 @@ subroutine compute_domain_volume( this )
     type(fe_map_t),     pointer :: fe_map
     integer(ip) :: qpoint, num_quad_points
     type(point_t), pointer :: quadrature_coordinates(:)
+    real(rp) :: exact_volume
+    integer(ip) :: num_dime
 
     write(*,*) "Computing domain volume ..."
 
@@ -538,14 +560,25 @@ subroutine compute_domain_volume( this )
        ! Integrate!
        do qpoint = 1, num_quad_points
          dV = fe_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-         volume = volume + quadrature_coordinates(qpoint)%get(1)*quadrature_coordinates(qpoint)%get(2)*dV
+         volume = volume + dV !quadrature_coordinates(qpoint)%get(1)*quadrature_coordinates(qpoint)%get(2)*dV
        end do
 
        call fe_iterator%next()
     end do
+    
+    num_dime = this%triangulation%get_num_dimensions()
+    select case (num_dime)
+      case (2)
+        exact_volume = 4.0 - PI*(0.6_rp)**2 ! TODO Area of circle
+      case (3)
+        exact_volume = 8.0 - 2.0*PI*(0.6_rp)**2 !(4.0/3.0)*PI*(1.0_rp)**3 ! TODO volume of sphere
+      case default
+        check(.false.)
+    end select
 
     write(*,*) "Computing domain volume ... OK"
-    write(*,*) "Domain volume = ", volume
+    write(*,*) "Domain volume   = ", volume
+    write(*,*) "Exact volume    = ", exact_volume
 
 end subroutine compute_domain_volume
 
@@ -561,6 +594,8 @@ subroutine compute_domain_surface( this )
     type(piecewise_fe_map_t),     pointer :: fe_map
     integer(ip) :: qpoint, num_quad_points
     type(point_t), pointer :: quadrature_coordinates(:)
+    real(rp) :: exact_surface
+    integer(ip) :: num_dime
 
     write(*,*) "Computing domain surface..."
 
@@ -591,9 +626,20 @@ subroutine compute_domain_surface( this )
 
        call fe_iterator%next()
     end do
+    
+    num_dime = this%triangulation%get_num_dimensions()
+    select case (num_dime)
+      case (2)
+        exact_surface = 2.0*PI*(0.6_rp) ! TODO length of circunference
+      case (3)
+        exact_surface = 2.0*2.0*PI*(0.6_rp) ! TODO surface of cylinder
+      case default
+        check(.false.)
+    end select
 
     write(*,*) "Computing domain surface ... OK"
     write(*,*) "Domain surface = ", surface
+    write(*,*) "Exact surface  = ", exact_surface
 
 end subroutine compute_domain_surface
 

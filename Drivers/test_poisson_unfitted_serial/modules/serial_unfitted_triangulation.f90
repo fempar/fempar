@@ -111,7 +111,7 @@ module serial_unfitted_triangulation_names
     integer(ip),   allocatable :: mc_table_num_cut_edges_per_case(:)
     integer(ip),   allocatable :: mc_table_inout_subcells_per_case(:,:)
     integer(ip),   allocatable :: mc_table_subcell_node_ids_per_case(:,:,:)
-    integer(ip),   allocatable :: mc_table_subface_node_ids_per_case(:,:,:)
+    integer(ip),   allocatable :: mc_table_subface_node_ids_per_case(:,:,:) !TODO Provide also boundary sub-faces??
     logical :: mc_tables_init = .false.
 
     ! Info related to cut cells on this triangulation (this is computed at runtime)

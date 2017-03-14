@@ -111,11 +111,18 @@ contains
        ! Get current FE
        call fe_iterator%current(fe)
        
+       ! Assemble only for active elements
+       ! TODO a better way to do that?
+       if (.not. fe%is_active()) then
+         call fe_iterator%next()
+         cycle
+       end if
+       
        ! Update FE-integration related data structures
        call fe%update_integration()
        
        ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
+       call fe%get_elem2dof(elem2dof)       
        
        ! Get quadrature coordinates to evaluate source_term
        quad_coords => fe_map%get_quadrature_coordinates()

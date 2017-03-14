@@ -46,8 +46,11 @@ module vector_poisson_unfitted_analytical_functions_names
   end type source_term_t
 
   type, extends(base_scalar_function_t) :: boundary_function_t
+  ! TODO it is hard coded here. rethink interaction between scalar and vector analytical functions. Use generic bindings?
+     integer(ip) :: num_dimensions 
    contains
-     procedure :: get_value_space => boundary_function_get_value_space  
+     procedure :: get_value_space => boundary_function_get_value_space
+     procedure :: set_num_dimensions    => boundary_function_set_num_dimensions
   end type boundary_function_t
 
   type, extends(base_vector_function_t) :: solution_function_t
@@ -107,6 +110,15 @@ contains
       result = point%get(1)+point%get(2)+point%get(3)
     end if  
   end subroutine boundary_function_get_value_space
+  
+  !===============================================================================================
+  ! TODO this routine was addded as a temporary solution
+  subroutine boundary_function_set_num_dimensions ( this, num_dimensions )
+    implicit none
+    class(boundary_function_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  num_dimensions
+    this%num_dimensions = num_dimensions
+  end subroutine boundary_function_set_num_dimensions
 
   !===============================================================================================
   subroutine solution_function_get_value_space ( this, point, result )
