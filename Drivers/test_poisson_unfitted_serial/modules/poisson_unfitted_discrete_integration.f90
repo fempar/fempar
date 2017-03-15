@@ -28,6 +28,7 @@
 module poisson_unfitted_cG_discrete_integration_names
   use fempar_names
   use poisson_unfitted_analytical_functions_names
+  use serial_unfitted_fe_space_names
   
   implicit none
 # include "debug.i90"
@@ -58,8 +59,9 @@ contains
     class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    type(fe_iterator_t) :: fe_iterator
-    type(fe_accessor_t) :: fe
+    ! TODO We need this because the accesors and iterators are not polymorphic
+    type(unfitted_fe_iterator_t) :: fe_iterator
+    type(unfitted_fe_accessor_t) :: fe
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
@@ -88,6 +90,14 @@ contains
     class(scalar_function_t), pointer :: source_term
 
     assert (associated(this%analytical_functions))
+
+    ! TODO we need this because iterator is not polymorpfic
+    select type(fe_space)
+      class is (serial_unfitted_fe_space_t)
+        fe_iterator = fe_space%create_unfitted_fe_iterator()
+      class default
+        check(.false.)
+    end select
     
     source_term => this%analytical_functions%get_source_term()
     
@@ -96,17 +106,12 @@ contains
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
         
-    fe_iterator = fe_space%create_fe_iterator()
-    call fe_iterator%current(fe)
+    call fe_iterator%current(fe) ! TODO assumes constant element ....
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
     call fe%get_number_dofs_per_field(num_dofs_per_field)
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
-    fe_map          => fe%get_fe_map()
-    vol_int         => fe%get_volume_integrator(1)
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
        call fe_iterator%current(fe)
@@ -120,6 +125,12 @@ contains
        
        ! Update FE-integration related data structures
        call fe%update_integration()
+
+       !WARNING This has to be inside the loop
+       quad            => fe%get_quadrature()
+       num_quad_points = quad%get_number_quadrature_points()
+       fe_map          => fe%get_fe_map()
+       vol_int         => fe%get_volume_integrator(1)
        
        ! Get DoF numbering within current FE
        call fe%get_elem2dof(elem2dof)       

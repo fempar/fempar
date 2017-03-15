@@ -32,6 +32,7 @@ module poisson_unfitted_exact_solutions_names
 # include "debug.i90"
   private
 
+  ! TODO Exact solution can be a derived type from scalar_function_t
   type :: scalar_exact_solution_t
     contains
       procedure :: u      => scalar_exact_solution_u
@@ -46,6 +47,16 @@ module poisson_unfitted_exact_solutions_names
       procedure :: lapl_u => sol_ex001_2d_lapl_u
   end type sol_ex001_2d_t
 
+  type, extends(scalar_exact_solution_t) :: sol_ex002_2d_t
+    real(rp) :: k  = 4.0*PI
+    real(rp) :: x0 = 0.0
+    real(rp) :: y0 = 0.0
+    contains
+      procedure :: u      => sol_ex002_2d_u
+      procedure :: grad_u => sol_ex002_2d_grad_u
+      procedure :: lapl_u => sol_ex002_2d_lapl_u
+  end type sol_ex002_2d_t
+
   interface scalar_exact_solution_t
 
     ! This is the factory constructor.
@@ -58,6 +69,7 @@ module poisson_unfitted_exact_solutions_names
 
   contains
 
+    !==============================================================================================
     function scalar_exact_solution_constructor(example_name) result (exact_sol)
 
       character(len=*), intent(in)   :: example_name
@@ -68,6 +80,8 @@ module poisson_unfitted_exact_solutions_names
       select case (example_name)
       case ("ex001_2d")
         allocate(sol_ex001_2d_t:: exact_sol, stat=istat); check(istat==0)
+      case ("ex002_2d")
+        allocate(sol_ex002_2d_t:: exact_sol, stat=istat); check(istat==0)
       case ("zero")
         allocate(scalar_exact_solution_t:: exact_sol, stat=istat); check(istat==0)
       case default
@@ -76,6 +90,8 @@ module poisson_unfitted_exact_solutions_names
 
     end function scalar_exact_solution_constructor
 
+    !==============================================================================================
+    !==============================================================================================
     subroutine scalar_exact_solution_u(this,point,val)
       implicit none
       class(scalar_exact_solution_t), intent(in) :: this
@@ -84,6 +100,7 @@ module poisson_unfitted_exact_solutions_names
       val = 0.0
     end subroutine scalar_exact_solution_u
 
+    !==============================================================================================
     subroutine scalar_exact_solution_grad_u(this,point,val)
       implicit none
       class(scalar_exact_solution_t), intent(in) :: this
@@ -94,6 +111,7 @@ module poisson_unfitted_exact_solutions_names
       call val%set(3,0.0)
     end subroutine scalar_exact_solution_grad_u
 
+    !==============================================================================================
     subroutine scalar_exact_solution_lapl_u(this,point,val)
       implicit none
       class(scalar_exact_solution_t), intent(in) :: this
@@ -102,32 +120,101 @@ module poisson_unfitted_exact_solutions_names
       val = 0.0
     end subroutine scalar_exact_solution_lapl_u
 
+    !==============================================================================================
+    !==============================================================================================
     subroutine sol_ex001_2d_u(this,point,val)
       implicit none
       class(sol_ex001_2d_t), intent(in) :: this
       type(point_t), intent(in) :: point
       real(rp), intent(inout) :: val
-      val = 0.0 ! TODO
-      val = point%get(1) !TODO only for debug
+      real(rp) :: x1, x2
+      x1 = point%get(1)
+      x2 = point%get(2)
+      val =  x1**2*x2**2*(x1 - 1)**2*(x2 - 1)**2
     end subroutine sol_ex001_2d_u
 
+    !==============================================================================================
     subroutine sol_ex001_2d_grad_u(this,point,val)
       implicit none
       class(sol_ex001_2d_t), intent(in) :: this
       type(point_t), intent(in) :: point
       type(vector_field_t), intent(inout) :: val
-      call val%set(1,0.0)!TODO
-      call val%set(2,0.0)!TODO
-      call val%set(3,0.0)!TODO
+      real(rp) :: x1, x2, g1, g2
+      x1 = point%get(1)
+      x2 = point%get(2)
+      g1 = 2*x1*x2**2*(x1 - 1)**2*(x2 - 1)**2 + x1**2*x2**2*(2*x1 - 2)*(x2 - 1)**2
+      g2 = 2*x1**2*x2*(x1 - 1)**2*(x2 - 1)**2 + x1**2*x2**2*(2*x2 - 2)*(x1 - 1)**2
+      call val%set(1,g1)
+      call val%set(2,g2)
+      call val%set(3,0.0)
     end subroutine sol_ex001_2d_grad_u
 
+    !==============================================================================================
     subroutine sol_ex001_2d_lapl_u(this,point,val)
       implicit none
       class(sol_ex001_2d_t), intent(in) :: this
       type(point_t), intent(in) :: point
       real(rp), intent(inout) :: val
-      val = 0.0 ! TODO
+      real(rp) :: x1, x2
+      x1 = point%get(1)
+      x2 = point%get(2)
+      val = 2*x1**2*x2**2*(x1 - 1)**2 +&
+            2*x1**2*x2**2*(x2 - 1)**2 +&
+            2*x1**2*(x1 - 1)**2*(x2 - 1)**2 +&
+            2*x2**2*(x1 - 1)**2*(x2 - 1)**2 +&
+            4*x1*x2**2*(2*x1 - 2)*(x2 - 1)**2 +&
+            4*x1**2*x2*(2*x2 - 2)*(x1 - 1)**2
     end subroutine sol_ex001_2d_lapl_u
+
+    !==============================================================================================
+    !==============================================================================================
+    subroutine sol_ex002_2d_u(this,point,val)
+      implicit none
+      class(sol_ex002_2d_t), intent(in) :: this
+      type(point_t), intent(in) :: point
+      real(rp), intent(inout) :: val
+      real(rp) :: x1, x2
+      x1 = point%get(1) - this%x0
+      x2 = point%get(2) - this%y0
+      val = sin(this%k*(x1**2 + x2**2)**(1/2.0))
+      !val = sin(this%k*x1)*sin(this%k*x2)
+    end subroutine sol_ex002_2d_u
+
+    !==============================================================================================
+    subroutine sol_ex002_2d_grad_u(this,point,val)
+      implicit none
+      class(sol_ex002_2d_t), intent(in) :: this
+      type(point_t), intent(in) :: point
+      type(vector_field_t), intent(inout) :: val
+      real(rp) :: x1, x2, g1, g2
+      x1 = point%get(1) - this%x0
+      x2 = point%get(2) - this%y0
+      g1 = (this%k*x1*cos(this%k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(1/2.0)
+      g2 = (this%k*x2*cos(this%k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(1/2.0)
+      !g1 = this%k*cos(this%k*x1)*sin(this%k*x2)
+      !g2 = this%k*cos(this%k*x2)*sin(this%k*x1)
+      call val%set(1,g1)
+      call val%set(2,g2)
+      call val%set(3,0.0)
+    end subroutine sol_ex002_2d_grad_u
+
+    !==============================================================================================
+    subroutine sol_ex002_2d_lapl_u(this,point,val)
+      implicit none
+      class(sol_ex002_2d_t), intent(in) :: this
+      type(point_t), intent(in) :: point
+      real(rp), intent(inout) :: val
+      real(rp) :: x1, x2
+      x1 = point%get(1) - this%x0
+      x2 = point%get(2) - this%y0
+      val = (2*this%k*cos(this%k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(1/2.0) -&
+            (this%k**2*x1**2*sin(this%k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2) -&
+            (this%k**2*x2**2*sin(this%k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2) -&
+            (this%k*x1**2*cos(this%k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(3/2.0) -&
+            (this%k*x2**2*cos(this%k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(3/2.0)
+      !val = -2*this%k**2*sin(this%k*x1)*sin(this%k*x2)
+    end subroutine sol_ex002_2d_lapl_u
+
 
 end module poisson_unfitted_exact_solutions_names
 !***************************************************************************************************

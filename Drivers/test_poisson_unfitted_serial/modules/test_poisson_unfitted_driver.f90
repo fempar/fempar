@@ -130,7 +130,7 @@ contains
     levset => this%level_set_function
     select type ( levset )
       class is (level_set_sphere_t)
-         call levset%set_radius(0.6_rp)
+         call levset%set_radius(0.625_rp)
       class default
         check(.false.)
     end select
@@ -221,7 +221,7 @@ contains
     
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
      !call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-      call this%poisson_unfitted_analytical_functions%create('ex001_2d') ! TODO Assumes scalar functions
+      call this%poisson_unfitted_analytical_functions%create('ex002_2d') ! TODO Assumes scalar functions
       call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
       call this%fe_space%create( triangulation       = this%triangulation, &
                                  conditions          = this%poisson_unfitted_conditions, &
@@ -471,7 +471,7 @@ contains
     fieldid = 1
     fe_space_ptr => this%fe_space
     scal_fun => this%poisson_unfitted_analytical_functions%get_solution_function()
-    call this%solution%interpolate_function(fe_space_ptr,fieldid,scal_fun)
+    !call this%solution%interpolate_function(fe_space_ptr,fieldid,scal_fun)
     
     !call vtk_writer%attach_triangulation(this%triangulation)
     call vtk_writer%attach_fe_function(this%solution,this%fe_space)
@@ -569,9 +569,9 @@ subroutine compute_domain_volume( this )
     num_dime = this%triangulation%get_num_dimensions()
     select case (num_dime)
       case (2)
-        exact_volume = 4.0 - PI*(0.6_rp)**2 ! TODO Area of circle
+        exact_volume = 4.0 - PI*(0.625_rp)**2 ! TODO Area of circle
       case (3)
-        exact_volume = 8.0 - 2.0*PI*(0.6_rp)**2 !(4.0/3.0)*PI*(1.0_rp)**3 ! TODO volume of sphere
+        exact_volume = 8.0 - 2.0*PI*(0.625_rp)**2 !(4.0/3.0)*PI*(1.0_rp)**3 ! TODO volume of sphere
       case default
         check(.false.)
     end select
@@ -630,9 +630,9 @@ subroutine compute_domain_surface( this )
     num_dime = this%triangulation%get_num_dimensions()
     select case (num_dime)
       case (2)
-        exact_surface = 2.0*PI*(0.6_rp) ! TODO length of circunference
+        exact_surface = 2.0*PI*(0.625_rp) ! TODO length of circunference
       case (3)
-        exact_surface = 2.0*2.0*PI*(0.6_rp) ! TODO surface of cylinder
+        exact_surface = 2.0*2.0*PI*(0.625_rp) ! TODO surface of cylinder
       case default
         check(.false.)
     end select

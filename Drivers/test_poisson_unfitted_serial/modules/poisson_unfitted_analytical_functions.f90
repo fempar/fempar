@@ -99,6 +99,7 @@ contains
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
     call this%exact_solution%lapl_u(point,result)
+    result = -1.0*result
   end subroutine source_term_get_value_space
 
   !===============================================================================================

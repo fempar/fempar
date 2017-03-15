@@ -262,17 +262,21 @@ contains
        call cell%update_sub_triangulation()
 
        do subcell = 1, cell%get_number_of_subcells()
-         call cell%get_ref_coords_of_subcell(subcell,subcell_points)
 
-         ! TODO this is always a nightmare
-         do inode = 1, num_subelem_nodes
-           do idime = 1, num_dime
-             subcell_coords(idime,inode) = subcell_points(inode)%get(idime)
+         ! Get the subcell values
+         if (cell%is_interior_subcell(subcell)) then
+           call cell%get_ref_coords_of_subcell(subcell,subcell_points)
+           ! TODO this is always a nightmare
+           do inode = 1, num_subelem_nodes
+             do idime = 1, num_dime
+               subcell_coords(idime,inode) = subcell_points(inode)%get(idime)
+             end do
            end do
-         end do
-
-         call ref_fe%create_interpolation(subcel_nodal_quad,fe_interpol)
-         call ref_fe%evaluate_fe_function_scalar(fe_interpol,nodal_vals,subelem_nodal_vals)
+           call ref_fe%create_interpolation(subcel_nodal_quad,fe_interpol)
+           call ref_fe%evaluate_fe_function_scalar(fe_interpol,nodal_vals,subelem_nodal_vals)
+         else
+           subelem_nodal_vals(:) = 0.0
+         end if
 
          do inode = 1, num_subelem_nodes
             this%point_data(ipoint) = subelem_nodal_vals(inode)
