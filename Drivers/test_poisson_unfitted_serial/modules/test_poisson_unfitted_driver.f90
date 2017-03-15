@@ -31,6 +31,7 @@ module test_poisson_unfitted_driver_names
   use serial_unfitted_fe_space_names
   use level_set_functions_gallery_names
   use poisson_unfitted_vtk_writer_names
+  use unfitted_solution_checker_names
   use test_poisson_unfitted_params_names
   use poisson_unfitted_cG_discrete_integration_names
   use poisson_unfitted_dG_discrete_integration_names
@@ -142,8 +143,7 @@ contains
     ! New call for unfitted triangulation    
     call this%triangulation%create(this%parameter_list,this%level_set_function)
     if ( this%triangulation%get_num_cells() <= 100 ) call this%triangulation%print() ! TODO. Remove this. This is only for debugging
-    call this%triangulation%print_to_vtk_file() ! TODO. Remove this. This is only for debugging
-    
+    if ( this%triangulation%get_num_cells() <= 100000 ) call this%triangulation%print_to_vtk_file() ! TODO. Remove this. This is only for debugging
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()
@@ -381,41 +381,59 @@ contains
   subroutine check_solution(this)
     implicit none
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
-    type(error_norms_scalar_t) :: error_norm
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
-    real(rp) :: error_tolerance
-    
-    call error_norm%create(this%fe_space,1)
-    mean = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+
+    type(unfitted_solution_checker_t) :: solution_checker
+    real(rp) :: error_h1_semi_norm
+    real(rp) :: error_l2_norm
+    real(rp) :: h1_semi_norm
+    real(rp) :: l2_norm
+
+    call solution_checker%create(this%fe_space,this%solution,this%poisson_unfitted_analytical_functions%get_solution_function())
+    call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm)
+    call solution_checker%free()
+
+    write(*,'(a20,e32.25)') 'l2_norm:                   ', l2_norm
+    write(*,'(a20,e32.25)') 'h1_semi_norm:              ', h1_semi_norm
+    write(*,'(a20,e32.25)') 'error in l2_norm:          ', error_l2_norm
+    write(*,'(a20,e32.25)') 'error in h1_semi_norm:     ', error_h1_semi_norm
+    write(*,'(a20,e32.25)') 'rel. error in l2_norm:     ', error_l2_norm/l2_norm
+    write(*,'(a20,e32.25)') 'rel. error in h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
+
+    !type(error_norms_scalar_t) :: error_norm
+    !real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    !real(rp) :: error_tolerance
+    !
+    !call error_norm%create(this%fe_space,1)
+    !mean = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+    !l1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    !l2 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    !lp = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    !linfty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    !h1_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    !h1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    !w1p_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    !w1p = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    !w1infty_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    !w1infty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
 
 #ifdef ENABLE_MKL    
-    error_tolerance = 1.0e-08
+    !error_tolerance = 1.0e-08
 #else
-    error_tolerance = 1.0e-06
+    !error_tolerance = 1.0e-06
 #endif    
-    
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-    call error_norm%free()
+    !
+    !write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+    !write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+    !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+    !write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+    !write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+    !write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+    !write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    !write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+    !write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+    !write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+    !write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+    !call error_norm%free()
   end subroutine check_solution
   
   subroutine check_solution_vector(this)
@@ -475,7 +493,7 @@ contains
     
     !call vtk_writer%attach_triangulation(this%triangulation)
     call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-    call vtk_writer%write_to_vtk_file('out_mesh.vtu')
+    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh.vtu')
     call vtk_writer%free()
     
     !type(output_handler_t)                   :: oh
@@ -512,6 +530,7 @@ contains
     call this%setup_solver()
     call this%solution%create(this%fe_space) 
     call this%solve_system()
+    call this%check_solution()
     !if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
     !  call this%check_solution()
     !else

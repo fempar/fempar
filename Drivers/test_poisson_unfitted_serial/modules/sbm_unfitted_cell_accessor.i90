@@ -192,7 +192,7 @@ function unfitted_cell_accessor_get_number_of_subface_nodes( this ) result ( num
 end function unfitted_cell_accessor_get_number_of_subface_nodes
 
 subroutine unfitted_cell_accessor_get_phys_coords_of_subface( this, subface, points )
-
+! TODO in 3D fix inverted elements!
   implicit none
   class(unfitted_cell_accessor_t), intent(in)    :: this
   integer(ip),                     intent(in)    :: subface
@@ -218,7 +218,7 @@ subroutine unfitted_cell_accessor_get_phys_coords_of_subface( this, subface, poi
 end subroutine unfitted_cell_accessor_get_phys_coords_of_subface
 
 subroutine unfitted_cell_accessor_get_ref_coords_of_subface( this, subface, points )
-
+! TODO in 3D fix inverted elements!
   implicit none
   class(unfitted_cell_accessor_t), intent(in)    :: this
   integer(ip),                     intent(in)    :: subface

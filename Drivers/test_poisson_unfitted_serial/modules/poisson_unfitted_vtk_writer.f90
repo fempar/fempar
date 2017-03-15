@@ -244,13 +244,13 @@ contains
        call fe_iterator%current(fe)
        fe_ptr => fe
        cell => fe%get_unfitted_cell_accessor()
-       ref_fe => fe%get_reference_fe(1)
+       ref_fe => fe%get_reference_fe(1) ! TODO we assume a single field
 
        ! Recover nodal values
        if (cell%is_exterior()) then
          nodal_vals(:) = 0.0
        else
-         call fe_function%gather_nodal_values(fe_ptr,1,nodal_vals)
+         call fe_function%gather_nodal_values(fe_ptr,1,nodal_vals)!TODO we assume a single field
        end if
 
        do inode = 1,num_elem_nodes
@@ -272,6 +272,7 @@ contains
                subcell_coords(idime,inode) = subcell_points(inode)%get(idime)
              end do
            end do
+           ! TODO this can be done with a volume integrator
            call ref_fe%create_interpolation(subcel_nodal_quad,fe_interpol)
            call ref_fe%evaluate_fe_function_scalar(fe_interpol,nodal_vals,subelem_nodal_vals)
          else
