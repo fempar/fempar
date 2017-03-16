@@ -49,8 +49,8 @@ module poisson_unfitted_exact_solutions_names
 
   type, extends(scalar_exact_solution_t) :: sol_ex002_2d_t
     real(rp) :: k  = 4.0*PI
-    real(rp) :: x0 = 0.0
-    real(rp) :: y0 = 0.0
+    real(rp) :: x0 = 0.3
+    real(rp) :: y0 = 0.3
     contains
       procedure :: u      => sol_ex002_2d_u
       procedure :: grad_u => sol_ex002_2d_grad_u
@@ -59,9 +59,9 @@ module poisson_unfitted_exact_solutions_names
 
   type, extends(scalar_exact_solution_t) :: sol_ex002_3d_t
     real(rp) :: k  = 4.0*PI
-    real(rp) :: x0 = 0.0
-    real(rp) :: y0 = 0.0
-    real(rp) :: z0 = 0.0
+    real(rp) :: x0 = 0.3
+    real(rp) :: y0 = 0.3
+    real(rp) :: z0 = 0.3
     contains
       procedure :: u      => sol_ex002_3d_u
       procedure :: grad_u => sol_ex002_3d_grad_u

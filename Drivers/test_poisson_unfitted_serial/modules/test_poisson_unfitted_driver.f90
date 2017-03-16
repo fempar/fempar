@@ -135,20 +135,20 @@ contains
     select case (num_dime)
       case (2)
         allocate( level_set_cylinder_t:: this%level_set_function, stat= istat ); check(istat==0)
+            levset => this%level_set_function
+        select type ( levset )
+          class is (level_set_sphere_t)
+            call levset%set_radius(0.625_rp)
+          class default
+            check(.false.)
+        end select
       case (3)
-        allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0)
+        allocate( level_set_cheese_block_t:: this%level_set_function, stat= istat ); check(istat==0)
       case default
         check(.false.)
     end select
     
-    !TODO we assume a sphere/cylinder
-    levset => this%level_set_function
-    select type ( levset )
-      class is (level_set_sphere_t)
-         call levset%set_radius(0.625_rp)
-      class default
-        check(.false.)
-    end select
+
         
     ! TODO is it correct?
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)

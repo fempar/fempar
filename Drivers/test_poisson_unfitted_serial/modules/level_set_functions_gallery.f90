@@ -36,7 +36,7 @@ module level_set_functions_gallery_names
     private
     real(rp) :: tolerance = 0.0_rp
   contains
-    procedure, private :: get_level_set_value => level_set_function_get_level_set_value ! TODO: deferred better?
+    procedure, private :: get_level_set_value => level_set_function_get_level_set_value
     procedure :: get_value_space              => level_set_function_get_value_space
     procedure :: set_tolerance                => level_set_function_set_tolerance
   end type level_set_function_t
@@ -55,10 +55,16 @@ module level_set_functions_gallery_names
     procedure, private :: get_level_set_value => level_set_cylinder_get_level_set_value
   end type level_set_cylinder_t
 
+  type, extends(level_set_function_t) :: level_set_cheese_block_t
+    private
+  contains
+    procedure, private :: get_level_set_value => level_set_cheese_block_get_level_set_value
+  end type level_set_cheese_block_t
 
   public :: level_set_function_t
   public :: level_set_sphere_t
   public :: level_set_cylinder_t
+  public :: level_set_cheese_block_t
 
 contains
 
@@ -109,7 +115,7 @@ contains
     integer(ip), parameter :: x=1,y=2,z=3
     assert(this%radius > 0.0_rp)
     result = sqrt( point%get(x)**2 + point%get(y)**2 + point%get(z)**2 ) - this%radius
-    result = -1*result !TODO only for debug. Add a mechanism to get the complement, the union etc
+    result = -1*result !TODO only for debug. Add a mechanism to get the complement, the union etc. Translations and complement can implemented in the base class
   end subroutine level_set_sphere_get_level_set_value
 
 !========================================================================================
@@ -123,6 +129,20 @@ contains
     result = sqrt( point%get(x)**2 + point%get(y)**2 ) - this%radius
     result = -1*result !TODO only for debug. Add a mechanism to get the complement, the union etc
   end subroutine level_set_cylinder_get_level_set_value
+
+!========================================================================================
+  subroutine level_set_cheese_block_get_level_set_value( this, point, result )
+    implicit none
+    class(level_set_cheese_block_t),  intent(in)    :: this
+    type(point_t)               , intent(in)    :: point
+    real(rp)                    , intent(inout) :: result
+    real(rp) :: x, y, z
+    x = 1.85*point%get(1)
+    y = 1.85*point%get(2)
+    z = 1.85*point%get(3)
+    result = (x**2+y**2-4)**2 + (z**2-1.2)**2 + (y**2+z**2-4)**2 +&
+             (x**2-1.2)**2 + (z**2+x**2-4)**2 + (y**2-1.2)**2 - 12
+  end subroutine level_set_cheese_block_get_level_set_value
 
 end module level_set_functions_gallery_names
 !***************************************************************************************************

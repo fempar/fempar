@@ -29,6 +29,7 @@ module poisson_unfitted_cG_discrete_integration_names
   use fempar_names
   use poisson_unfitted_analytical_functions_names
   use serial_unfitted_fe_space_names
+  use piecewise_fe_map_names
   
   implicit none
 # include "debug.i90"
@@ -65,11 +66,16 @@ contains
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
+    type(piecewise_fe_map_t) , pointer :: pw_fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(volume_integrator_t), pointer :: vol_int
     type(vector_field_t), allocatable  :: shape_gradients(:,:)
     real(rp)            , allocatable  :: shape_values(:,:)
+    real(rp)            , allocatable  :: boundary_shape_values(:,:)
+    type(vector_field_t)               :: exact_gradient_gp
+    type(vector_field_t)               :: normal_vec
+    real(rp)                           :: normal_d
 
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -77,7 +83,7 @@ contains
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs
-    real(rp)     :: factor
+    real(rp)     :: factor, dS
     real(rp)     :: source_term_value
 
     integer(ip)  :: number_fields
@@ -88,6 +94,7 @@ contains
     type(i1p_t), allocatable :: elem2dof(:)
     integer(ip), allocatable :: num_dofs_per_field(:)  
     class(scalar_function_t), pointer :: source_term
+    class(scalar_function_t), pointer :: exact_sol
 
     assert (associated(this%analytical_functions))
 
@@ -100,6 +107,7 @@ contains
     end select
     
     source_term => this%analytical_functions%get_source_term()
+    exact_sol   => this%analytical_functions%get_solution_function()
     
     number_fields = fe_space%get_number_fields()
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
@@ -117,12 +125,12 @@ contains
        call fe_iterator%current(fe)
        
        ! Assemble only for active elements
-       ! TODO a better way to do that?
+       ! TODO a better way to do that? with a custom iterator?
        if (.not. fe%is_active()) then
          call fe_iterator%next()
          cycle
        end if
-       
+
        ! Update FE-integration related data structures
        call fe%update_integration()
 
@@ -131,10 +139,10 @@ contains
        num_quad_points = quad%get_number_quadrature_points()
        fe_map          => fe%get_fe_map()
        vol_int         => fe%get_volume_integrator(1)
-       
+
        ! Get DoF numbering within current FE
        call fe%get_elem2dof(elem2dof)       
-       
+
        ! Get quadrature coordinates to evaluate source_term
        quad_coords => fe_map%get_quadrature_coordinates()
 
@@ -151,20 +159,57 @@ contains
                 elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
              end do
           end do
-          
+
           ! Source term
           call source_term%get_value(quad_coords(qpoint),source_term_value)
           do idof = 1, num_dofs
              elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint)
           end do 
        end do
-       
+
+       ! Update FE boundary integration related data structures
+       call fe%update_boundary_integration()
+
+       ! Get info on the unfitted boundary for integrating BCs
+       quad            => fe%get_boundary_quadrature()
+       num_quad_points = quad%get_number_quadrature_points()
+       pw_fe_map       => fe%get_boundary_piecewise_fe_map()
+       quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
+       vol_int         => fe%get_boundary_volume_integrator(1)
+
+       ! Neumann BCs unfitted boundary
+       call vol_int%get_values(boundary_shape_values)
+       do qpoint = 1, num_quad_points
+
+         ! Surface measure
+         dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+
+         ! Value of the gradient of the solution at the boundary
+         call exact_sol%get_gradient(quad_coords(qpoint),exact_gradient_gp)
+
+         ! Get the boundary normals
+         call pw_fe_map%get_normal(qpoint,normal_vec)
+
+         ! Normal derivative
+         ! It is save to do so in 2d only if the 3rd component is set to 0
+         ! in at least one of the 2 vectors
+         normal_d = normal_vec*exact_gradient_gp
+
+         ! Integration
+          do idof = 1, num_dofs
+             elvec(idof) = elvec(idof) + normal_d * boundary_shape_values(idof,qpoint) * dS
+          end do 
+
+       end do
+
        ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe_iterator%next()
     end do
+    ! TODO Why these two are not allocated??
     call memfree(shape_values, __FILE__, __LINE__)
+    call memfree(boundary_shape_values, __FILE__, __LINE__)
     deallocate (shape_gradients, stat=istat); check(istat==0);
     deallocate (elem2dof, stat=istat); check(istat==0);
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
