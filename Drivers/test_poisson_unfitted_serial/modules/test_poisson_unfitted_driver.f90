@@ -124,10 +124,24 @@ contains
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
-       
-    allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0) ! TODO for the moment we assume a sphere
+    integer(ip) :: num_dime
     
-    !TODO we assume a sphere
+    ! Get number of dimensions form input    
+    assert( this%parameter_list%isPresent    (key = number_of_dimensions_key) )
+    assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
+
+    !TODO we assume it is a sphere or a cylinder
+    select case (num_dime)
+      case (2)
+        allocate( level_set_cylinder_t:: this%level_set_function, stat= istat ); check(istat==0)
+      case (3)
+        allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0)
+      case default
+        check(.false.)
+    end select
+    
+    !TODO we assume a sphere/cylinder
     levset => this%level_set_function
     select type ( levset )
       class is (level_set_sphere_t)
@@ -221,7 +235,17 @@ contains
     
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
      !call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-      call this%poisson_unfitted_analytical_functions%create('ex002_2d') ! TODO Assumes scalar functions
+     
+      !TODO this is hard coded
+      select case(this%triangulation%get_num_dimensions())
+      case (2)
+        call this%poisson_unfitted_analytical_functions%create('ex002_2d') ! TODO Assumes scalar functions
+      case (3)
+        call this%poisson_unfitted_analytical_functions%create('ex002_3d') ! TODO Assumes scalar functions
+      case default
+        check(.false.)
+      end select
+      
       call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
       call this%fe_space%create( triangulation       = this%triangulation, &
                                  conditions          = this%poisson_unfitted_conditions, &

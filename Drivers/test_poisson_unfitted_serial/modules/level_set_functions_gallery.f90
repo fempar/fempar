@@ -49,38 +49,42 @@ module level_set_functions_gallery_names
     procedure, private :: get_level_set_value => level_set_sphere_get_level_set_value
   end type level_set_sphere_t
 
+  type, extends(level_set_sphere_t) :: level_set_cylinder_t
+    private
+  contains
+    procedure, private :: get_level_set_value => level_set_cylinder_get_level_set_value
+  end type level_set_cylinder_t
+
+
   public :: level_set_function_t
   public :: level_set_sphere_t
+  public :: level_set_cylinder_t
 
 contains
 
-  !------------------------------------------------------------------
 
+!========================================================================================
   subroutine level_set_function_get_level_set_value( this, point, result )
     implicit none
     class(level_set_function_t), intent(in)    :: this
     type(point_t)              , intent(in)    :: point
     real(rp)                   , intent(inout) :: result
-    check(.false.) ! Derived types MUST implement this method. TODO: deferred better?
+    check(.false.) ! Derived types MUST implement this method.
   end subroutine level_set_function_get_level_set_value
-  
-  !------------------------------------------------------------------
 
+!========================================================================================
   subroutine level_set_function_get_value_space( this, point, result )
     implicit none
     class(level_set_function_t), intent(in)    :: this
     type(point_t)              , intent(in)    :: point
     real(rp)                   , intent(inout) :: result
-
     call this%get_level_set_value( point, result )
     if (abs(result) < this%tolerance) then
       result = 0.0_rp
     end if
-
   end subroutine level_set_function_get_value_space
-  
- !------------------------------------------------------------------
 
+!========================================================================================
   subroutine level_set_function_set_tolerance ( this, tolerance_in )
     implicit none
     class(level_set_function_t), intent(inout) :: this
@@ -88,32 +92,37 @@ contains
     this%tolerance = tolerance_in
   end subroutine level_set_function_set_tolerance
 
-  !------------------------------------------------------------------
-
+!========================================================================================
   subroutine level_set_sphere_set_radius ( this, radius_in )
     implicit none
     class(level_set_sphere_t), intent(inout) :: this
     real(rp)                    , intent(in)    :: radius_in
     this%radius = radius_in
   end subroutine level_set_sphere_set_radius
-  
-  !------------------------------------------------------------------
 
+!========================================================================================
   subroutine level_set_sphere_get_level_set_value( this, point, result )
     implicit none
     class(level_set_sphere_t), intent(in)    :: this
     type(point_t)               , intent(in)    :: point
     real(rp)                    , intent(inout) :: result
-
     integer(ip), parameter :: x=1,y=2,z=3
     assert(this%radius > 0.0_rp)
-    !TODO this is not an sphere. Create a circle and a cylinder level set fun
-    !result = sqrt( point%get(x)**2 + point%get(y)**2 + point%get(z)**2 ) - this%radius !TODO we cannot assume that component z is 0 in 2D...
-    result = sqrt( point%get(x)**2 + point%get(y)**2 ) - this%radius !TODO we cannot assume that component z is 0 in 2D...
-    result = -1*result !TODO only for debugg. Add a mechanism to get the complement, the union etc
+    result = sqrt( point%get(x)**2 + point%get(y)**2 + point%get(z)**2 ) - this%radius
+    result = -1*result !TODO only for debug. Add a mechanism to get the complement, the union etc
   end subroutine level_set_sphere_get_level_set_value
 
-  !------------------------------------------------------------------
+!========================================================================================
+  subroutine level_set_cylinder_get_level_set_value( this, point, result )
+    implicit none
+    class(level_set_cylinder_t),  intent(in)    :: this
+    type(point_t)               , intent(in)    :: point
+    real(rp)                    , intent(inout) :: result
+    integer(ip), parameter :: x=1,y=2
+    assert(this%radius > 0.0_rp)
+    result = sqrt( point%get(x)**2 + point%get(y)**2 ) - this%radius
+    result = -1*result !TODO only for debug. Add a mechanism to get the complement, the union etc
+  end subroutine level_set_cylinder_get_level_set_value
 
 end module level_set_functions_gallery_names
 !***************************************************************************************************

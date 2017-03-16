@@ -58,7 +58,7 @@ def data_print_slope(h,el2n,v,slope):
     dy = v[3]-v[2]
     x0 = np.log10(h[-1])
     x1 = np.log10(h[ 0])
-    y0 = np.log10(el2n[-1]) - 0.1*dy
+    y0 = np.log10(el2n[-1]) - 0.05*dy
     y1 = y0 + slope*(x1-x0)
     px = np.array([x0,x1])
     py = np.array([y0,y1])
@@ -68,11 +68,17 @@ def data_print_slope(h,el2n,v,slope):
 #======================================================
 def main(num_files):
 
+    mm2in = 1.0/25.4
+
     el2n, eh1sn, h, ul2n, uh1sn = parse_serie(num_files)
 
     el2n  = el2n /ul2n
     eh1sn = eh1sn/uh1sn
 
+
+    fwidth  = 150*mm2in
+    fheight = 200*mm2in
+    plt.figure(figsize=(fwidth,fheight))
     plt.plot(np.log10(h),np.log10(el2n),'bo-', label='L2 norm')
     plt.plot(np.log10(h),np.log10(eh1sn),'rs-', label='H1 semi norm')
     plt.xlabel('log10(Element size)')
