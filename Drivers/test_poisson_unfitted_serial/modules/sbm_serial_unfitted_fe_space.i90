@@ -174,7 +174,7 @@ subroutine serial_unfitted_fe_space_print_boundary_quad_points( this )
 
   ! Write mesh to .vtu file
   E_IO = VTK_INI_XML(output_format = 'ascii',&
-                     filename      = 'unfitted_triangulation_faces_points.vtu',&
+                     filename      = 'out_mesh_boundary_normals.vtu',&
                      mesh_topology = 'UnstructuredGrid')
   E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
   E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) ) 

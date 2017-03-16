@@ -242,7 +242,7 @@ contains
     end if
     
     !TODO debug only
-    call this%fe_space%print_boundary_quad_points()
+    if ( this%triangulation%get_num_cells() <= 100000 ) call this%fe_space%print_boundary_quad_points()
     
   end subroutine setup_fe_space
   
@@ -392,12 +392,12 @@ contains
     call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm)
     call solution_checker%free()
 
-    write(*,'(a20,e32.25)') 'l2_norm:                   ', l2_norm
-    write(*,'(a20,e32.25)') 'h1_semi_norm:              ', h1_semi_norm
-    write(*,'(a20,e32.25)') 'error in l2_norm:          ', error_l2_norm
-    write(*,'(a20,e32.25)') 'error in h1_semi_norm:     ', error_h1_semi_norm
-    write(*,'(a20,e32.25)') 'rel. error in l2_norm:     ', error_l2_norm/l2_norm
-    write(*,'(a20,e32.25)') 'rel. error in h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
+    write(*,'(a,e32.25)') 'l2_norm:               ', l2_norm
+    write(*,'(a,e32.25)') 'h1_semi_norm:          ', h1_semi_norm
+    write(*,'(a,e32.25)') 'error_l2_norm:         ', error_l2_norm
+    write(*,'(a,e32.25)') 'error_h1_semi_norm:    ', error_h1_semi_norm
+    write(*,'(a,e32.25)') 'rel_error_l2_norm:     ', error_l2_norm/l2_norm
+    write(*,'(a,e32.25)') 'rel_error_h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
 
     !type(error_norms_scalar_t) :: error_norm
     !real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
@@ -493,7 +493,7 @@ contains
     
     !call vtk_writer%attach_triangulation(this%triangulation)
     call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh.vtu')
+    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
     call vtk_writer%free()
     
     !type(output_handler_t)                   :: oh

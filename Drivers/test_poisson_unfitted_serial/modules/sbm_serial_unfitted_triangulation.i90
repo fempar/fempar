@@ -691,7 +691,7 @@ subroutine serial_unfitted_triangulation_subnodes_data_free( this )
 end subroutine serial_unfitted_triangulation_subnodes_data_free
 
 !------------------------------------------------------------------------------------------------
-
+! TODO put all of this in vtw writer
 subroutine serial_unfitted_triangulation_print_vtk_subcells( this )
 
   implicit none
@@ -822,7 +822,7 @@ subroutine serial_unfitted_triangulation_print_vtk_subcells( this )
   if (num_dime == 2_ip) z(:) = 0
 
   ! Write mesh to .vtu file
-  E_IO = VTK_INI_XML(output_format = 'ascii', filename = 'unfitted_triangulation.vtu', mesh_topology = 'UnstructuredGrid')
+  E_IO = VTK_INI_XML(output_format = 'ascii', filename = 'out_mesh.vtu', mesh_topology = 'UnstructuredGrid')
   E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
   E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) ) 
   E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'opeN')
@@ -848,7 +848,7 @@ subroutine serial_unfitted_triangulation_print_vtk_subcells( this )
 end subroutine serial_unfitted_triangulation_print_vtk_subcells
 
 !------------------------------------------------------------------------------------------------
-
+! TODO put all of this in vtw writer
 subroutine serial_unfitted_triangulation_print_vtk_subfaces( this )
 
   implicit none
@@ -936,7 +936,7 @@ subroutine serial_unfitted_triangulation_print_vtk_subfaces( this )
   if (num_dime == 2_ip) z(:) = 0
 
   ! Write mesh to .vtu file
-  E_IO = VTK_INI_XML(output_format = 'ascii', filename = 'unfitted_triangulation_faces.vtu', mesh_topology = 'UnstructuredGrid')
+  E_IO = VTK_INI_XML(output_format = 'ascii', filename = 'out_mesh_boundary.vtu', mesh_topology = 'UnstructuredGrid')
   E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
   E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) ) 
   E_IO = VTK_GEO_XML()
