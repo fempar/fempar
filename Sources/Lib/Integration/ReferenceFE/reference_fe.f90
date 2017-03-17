@@ -1171,6 +1171,8 @@ type, extends(tet_lagrangian_reference_fe_t) :: new_tet_lagrangian_reference_fe_
                       & => new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
    procedure, private :: set_number_quadrature_points                                   &
                       & => new_tet_lagrangian_reference_fe_set_number_quadrature_points
+   procedure, private :: fill_face_interpolation                                        &
+                      & => new_tet_lagrangian_reference_fe_fill_face_interpolation
 end type new_tet_lagrangian_reference_fe_t
 
 public :: tet_lagrangian_reference_fe_t, new_tet_lagrangian_reference_fe_t
