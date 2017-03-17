@@ -365,7 +365,7 @@ subroutine serial_unfitted_fe_space_init_cut_integration( this )
   type(fe_accessor_t) :: fe
   class(reference_fe_t),     pointer        :: reference_elem
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
-
+  
   call this%free_cut_integration()
   num_dim = this%get_num_dimensions()
   num_gp_subelem = this%quadrature_subelem%get_number_quadrature_points()
@@ -378,13 +378,16 @@ subroutine serial_unfitted_fe_space_init_cut_integration( this )
   end do
   
   ! Store a pointer to a reference element
-  ! TODO we assume that the same ref element is in all the mesh and all fields
+  ! TODO @fverdugo DRIVER PRIORITY LOW EFFORT HIGH
+  ! We assume that the same ref element is in all the mesh and all fields
+  ! Is this ok, or we really need to be more general?
   fe_iterator = this%create_fe_iterator()
   call fe_iterator%current(fe)
   reference_elem => fe%get_reference_fe(field_id=1)
   geo_reference_elem => fe%get_reference_fe_geo()
 
-  ! TODO Now we allocate in function of the number of mc cases. 
+  ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
+  ! Now we allocate in function of the number of mc cases. 
   ! But this can be heavitly improved, since many mc cases have the same number of subcells
   ! TODO we whant to make it independent of the method used for sub-dividing the cells
   allocate( this%cut_fe_maps(1:mc_num_cases), stat=istat ); check(istat==0_ip)
@@ -392,11 +395,14 @@ subroutine serial_unfitted_fe_space_init_cut_integration( this )
     call this%cut_fe_maps(mc_case)%create( this%cut_quadratures(mc_case), geo_reference_elem )
   end do
 
+  ! Volume integrators
   allocate( this%cut_vol_integrators(1:mc_num_cases), stat=istat ); check(istat==0_ip)
   do mc_case = 1, mc_num_cases
     call this%cut_vol_integrators(mc_case)%create( this%cut_quadratures(mc_case), reference_elem )
   end do
+    
 
+  ! Create empty dummy objects
   call this%empty_quadrature%create(num_dim,0)
   call this%empty_fe_map%create( this%empty_quadrature, geo_reference_elem )
   call this%empty_vol_integrator%create( this%empty_quadrature, reference_elem )
@@ -432,7 +438,7 @@ subroutine serial_unfitted_fe_space_free_cut_integration( this )
     end do
     deallocate( this%cut_vol_integrators, stat=istat ); check(istat==0_ip)
   end if
-
+  
   call this%empty_quadrature%free()
   call this%empty_fe_map%free()
   call this%empty_vol_integrator%free()
@@ -525,8 +531,9 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
          this%cut_boundary_quadratures_cell_dim(mc_case), reference_elem )
   end do
   
+  
   call this%empty_piecewise_fe_map%create_face_map( this%empty_quadrature, geo_reference_elem, 0 )
-
+  
 end subroutine serial_unfitted_fe_space_init_cut_boundary_integration
 
 !-----------------------------------------------------------------------------------------------------
@@ -565,7 +572,7 @@ subroutine serial_unfitted_fe_space_free_cut_boundary_integration( this )
     end do
     deallocate( this%cut_boundary_vol_integrators , stat = istat ); check(istat==0)
   end if
-
+  
   call this%empty_piecewise_fe_map%free()
   
 end subroutine serial_unfitted_fe_space_free_cut_boundary_integration

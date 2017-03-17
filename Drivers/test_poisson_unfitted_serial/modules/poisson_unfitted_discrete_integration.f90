@@ -79,11 +79,13 @@ contains
 
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
+    ! For computing nitsche's betas
+    real(rp), allocatable              :: elmatB(:,:), elmatV(:,:) 
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs
-    real(rp)     :: factor, dS
+    real(rp)     :: dV, dS
     real(rp)     :: source_term_value
 
     integer(ip)  :: number_fields
@@ -120,6 +122,10 @@ contains
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
     call fe%get_number_dofs_per_field(num_dofs_per_field)
+    
+    call memalloc ( num_dofs-1, num_dofs-1, elmatB, __FILE__, __LINE__ )
+    call memalloc ( num_dofs-1, num_dofs-1, elmatV, __FILE__, __LINE__ )
+    
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
        call fe_iterator%current(fe)
@@ -152,18 +158,18 @@ contains
        call vol_int%get_gradients(shape_gradients)
        call vol_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
-          factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
+                elmat(idof,jdof) = elmat(idof,jdof) + dV * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
              end do
           end do
 
           ! Source term
           call source_term%get_value(quad_coords(qpoint),source_term_value)
           do idof = 1, num_dofs
-             elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint)
+             elvec(idof) = elvec(idof) + dV * source_term_value * shape_values(idof,qpoint)
           end do 
        end do
 
@@ -201,6 +207,9 @@ contains
           end do 
 
        end do
+       
+       ! Compute Nitsches betas
+       ! TODO       
 
        ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
@@ -215,6 +224,8 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
+    call memfree ( elmatB, __FILE__, __LINE__ )
+    call memfree ( elmatV, __FILE__, __LINE__ )
   end subroutine integrate
   
 end module poisson_unfitted_cG_discrete_integration_names

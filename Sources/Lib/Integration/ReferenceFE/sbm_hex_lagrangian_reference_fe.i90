@@ -880,3 +880,108 @@ subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
 
 end subroutine blend_2D
 
+! TODO @fverdugo FEMPAR PRIORITY MEDIUM EFFORT LOW
+! I have put this subroutine here since it is the only one of this class.
+! Is it better to create a new .i90?
+! This where the monomials are computed
+! F. Verdugo (2017-3-17)
+!==================================================================================================
+subroutine m_hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, interpolation, order_vector )
+  implicit none
+  class(m_hex_lagrangian_reference_fe_t), intent(in) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation
+  integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
+
+  integer(ip) :: idime, q_point, num_funcs
+  real(rp), allocatable :: tensor_product_values(:)
+  real(rp), allocatable :: tensor_product_gradients(:,:)
+  real(rp), pointer :: quad_coords(:,:)
+
+  ! TODO @fverdugo FEMPAR PRIORITY MEDIUM EFFORT MEDIUM
+  ! Only implemented for linear order in all dimensions
+  ! This can be done for arbitrary orders by extending and using the polynomial_t
+  ! polynomial_t has to be extended to give also the basis of monomials
+  do idime = 1, interpolation%number_dimensions
+    check(this%order_vector(idime)==1)
+  end do
+
+  quad_coords => quadrature%get_coordinates()
+
+  ! Monomials
+  interpolation%shape_functions(:,:,:)=0.0
+  do q_point=1, quadrature%get_number_quadrature_points()
+    select case(interpolation%number_dimensions)
+      case(1)
+        interpolation%shape_functions(1,1,q_point) = 1 ! 1
+        interpolation%shape_functions(1,2,q_point) = quad_coords(1,q_point) ! x
+      case(2)
+        interpolation%shape_functions(1,1,q_point) = 1 ! 1
+        interpolation%shape_functions(1,2,q_point) = quad_coords(1,q_point) ! x
+        interpolation%shape_functions(1,3,q_point) = quad_coords(2,q_point) ! y
+        interpolation%shape_functions(1,4,q_point) = quad_coords(1,q_point)*quad_coords(2,q_point) ! xy
+      case(3)
+        interpolation%shape_functions(1,1,q_point) = 1 ! 1
+        interpolation%shape_functions(1,2,q_point) = quad_coords(1,q_point) ! x
+        interpolation%shape_functions(1,3,q_point) = quad_coords(2,q_point) ! y
+        interpolation%shape_functions(1,5,q_point) = quad_coords(1,q_point)*quad_coords(2,q_point) ! xy
+        interpolation%shape_functions(1,4,q_point) = quad_coords(3,q_point) ! z
+        interpolation%shape_functions(1,6,q_point) = quad_coords(1,q_point)*quad_coords(3,q_point) ! xz
+        interpolation%shape_functions(1,7,q_point) = quad_coords(2,q_point)*quad_coords(3,q_point) ! yz
+        interpolation%shape_functions(1,8,q_point) = quad_coords(1,q_point)*quad_coords(2,q_point)*quad_coords(3,q_point) ! xyz
+      case default
+        check(.false.)
+    end select
+  end do
+
+  ! Gradients of the monomials
+  interpolation%shape_derivatives(:,:,:,:)=0.0
+  do q_point=1, quadrature%get_number_quadrature_points()
+    do idime = 1, interpolation%number_dimensions
+      select case(interpolation%number_dimensions)
+        case(1)
+            interpolation%shape_derivatives(1,1,1,q_point) = 0 ! 1
+            interpolation%shape_derivatives(1,1,2,q_point) = 1 ! x
+          case(2)
+            interpolation%shape_derivatives(1,1,1,q_point) = 0 ! dx 1
+            interpolation%shape_derivatives(1,1,2,q_point) = 1 ! dx x
+            interpolation%shape_derivatives(1,1,3,q_point) = 0 ! dx y
+            interpolation%shape_derivatives(1,1,4,q_point) = quad_coords(2,q_point) ! dx xy
+            interpolation%shape_derivatives(1,2,1,q_point) = 0 ! dy 1
+            interpolation%shape_derivatives(1,2,2,q_point) = 0 ! dy x
+            interpolation%shape_derivatives(1,2,3,q_point) = 1 ! dy y
+            interpolation%shape_derivatives(1,2,4,q_point) = quad_coords(1,q_point) ! dy xy
+          case(3)
+            interpolation%shape_derivatives(1,1,1,q_point) = 0 ! dx 1
+            interpolation%shape_derivatives(1,1,2,q_point) = 1 ! dx x
+            interpolation%shape_derivatives(1,1,3,q_point) = 0 ! dx y
+            interpolation%shape_derivatives(1,1,4,q_point) = quad_coords(2,q_point) ! dx xy
+            interpolation%shape_derivatives(1,1,5,q_point) = 0 ! dx z
+            interpolation%shape_derivatives(1,1,6,q_point) = quad_coords(3,q_point) ! dx xz
+            interpolation%shape_derivatives(1,1,7,q_point) = 0 ! dx yz
+            interpolation%shape_derivatives(1,1,8,q_point) = quad_coords(2,q_point)*quad_coords(3,q_point) ! dx xyz
+            interpolation%shape_derivatives(1,2,1,q_point) = 0 ! dy 1
+            interpolation%shape_derivatives(1,2,2,q_point) = 0 ! dy x
+            interpolation%shape_derivatives(1,2,3,q_point) = 1 ! dy y
+            interpolation%shape_derivatives(1,2,4,q_point) = quad_coords(1,q_point) ! dy xy
+            interpolation%shape_derivatives(1,2,5,q_point) = 0 ! dy z
+            interpolation%shape_derivatives(1,2,6,q_point) = 0 ! dy xz
+            interpolation%shape_derivatives(1,2,7,q_point) = quad_coords(3,q_point) ! dy yz
+            interpolation%shape_derivatives(1,2,8,q_point) = quad_coords(1,q_point)*quad_coords(3,q_point) ! dy xyz
+            interpolation%shape_derivatives(1,3,1,q_point) = 0 ! dz 1
+            interpolation%shape_derivatives(1,3,2,q_point) = 0 ! dz x
+            interpolation%shape_derivatives(1,3,3,q_point) = 0 ! dz y
+            interpolation%shape_derivatives(1,3,4,q_point) = 0 ! dz xy
+            interpolation%shape_derivatives(1,3,5,q_point) = 1 ! dz z
+            interpolation%shape_derivatives(1,3,6,q_point) = quad_coords(1,q_point) ! dz xz
+            interpolation%shape_derivatives(1,3,7,q_point) = quad_coords(2,q_point) ! dz yz
+            interpolation%shape_derivatives(1,3,8,q_point) = quad_coords(1,q_point)*quad_coords(2,q_point) ! dz xyz
+          case default
+            check(.false.)
+        end select
+    end do
+  end do
+
+
+end subroutine m_hex_lagrangian_reference_fe_fill_interpolation
+

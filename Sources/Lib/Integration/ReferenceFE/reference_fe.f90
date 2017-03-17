@@ -1241,6 +1241,19 @@ end type hex_lagrangian_reference_fe_t
 public :: hex_lagrangian_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! TODO @fverdugo FEMPAR PRIORITY MEDIUM EFFORT HIGH
+! I have added this class, since i need to avaluate the monomials 1, x, y, xy, ...
+! A more elegant way to do this?
+! F. Verdugo (2017-3-17)
+type, extends(hex_lagrangian_reference_fe_t) :: m_hex_lagrangian_reference_fe_t
+  private
+  contains 
+    procedure, private :: fill_interpolation => m_hex_lagrangian_reference_fe_fill_interpolation
+end type m_hex_lagrangian_reference_fe_t
+
+public :: m_hex_lagrangian_reference_fe_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(raviart_thomas_reference_fe_t) :: hex_raviart_thomas_reference_fe_t
 private
 contains 

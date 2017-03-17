@@ -128,7 +128,6 @@ function unfitted_fe_accessor_get_volume_integrator(this, field_id) result (vol_
   end if
 end function unfitted_fe_accessor_get_volume_integrator
 
-
 !-----------------------------------------------------------------------------------------------------
 
 function unfitted_fe_accessor_get_boundary_quadrature(this) result (quadrature)
@@ -213,7 +212,8 @@ subroutine unfitted_fe_accessor_update_integration( this )
   type(volume_integrator_t), pointer :: volume_integrator
   class(unfitted_cell_accessor_t), pointer :: cell
 
-  ! TODO where is the safe place to put this update?
+  ! TODO @fverdugo DRIVER PRIORITY MEDIUM EFFORT HIGH
+  ! where is the safe place to put this update?
   cell => this%get_unfitted_cell_accessor()
   call cell%update_sub_triangulation()
   
@@ -221,7 +221,8 @@ subroutine unfitted_fe_accessor_update_integration( this )
   call this%update_cut_fe_maps()
   call this%update_cut_vol_integrators()
 
-  ! TODO we are duplicating code from the father
+  ! TODO @fverdugo DRIVER PRIORITY LOW EFFORT HIGH
+  ! we are duplicating code from the father
   ! A better way to do it?
   fe_map      => this%get_fe_map()
   coordinates => fe_map%get_coordinates()
@@ -242,7 +243,8 @@ subroutine unfitted_fe_accessor_update_boundary_integration( this )
   implicit none
   class(unfitted_fe_accessor_t), intent(inout) :: this
   class(unfitted_cell_accessor_t), pointer :: cell
-  ! TODO where is the safe place to put this update?
+  ! TODO @fverdugo DRIVER PRIORITY MEDIUM EFFORT HIGH
+  ! where is the safe place to put this update?
   cell => this%get_unfitted_cell_accessor()
   call cell%update_sub_triangulation()
   call this%update_cut_boundary_quadratures()
@@ -490,4 +492,3 @@ subroutine unfitted_fe_accessor_update_cut_boundary_vol_integrators( this )
   ! At this point we can extract info about shape function from the volume integrator
 
 end subroutine unfitted_fe_accessor_update_cut_boundary_vol_integrators
-
