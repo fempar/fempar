@@ -368,6 +368,16 @@ module lapack77_interfaces_names
        REAL(DP), INTENT(INOUT) :: B( LDB, * )
      END SUBROUTINE DSYTRS
 
+     SUBROUTINE DSYGV( ITYPE, JOBZ, UPLO, N, A, LDA, B, LDB, W, WORK, LWORK, INFO )
+       use blas77_precision_names
+       !.. Scalar Arguments ..
+       CHARACTER, INTENT(IN)  :: JOBZ, UPLO
+       INTEGER,   INTENT(OUT) :: INFO
+       INTEGER,   INTENT(IN)  :: ITYPE, LDA, LDB, LWORK, N
+       !.. Array Arguments ..
+       REAL(DP), INTENT(INOUT) :: A( LDA, * ), B( LDB, * ), W( * ), WORK( * )
+     END SUBROUTINE DSYGV
+
   end interface
 
 end module lapack77_interfaces_names
