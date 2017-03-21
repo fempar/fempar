@@ -148,6 +148,7 @@ contains
         check(.false.)
     end select
     
+    call this%level_set_function%set_tolerance(1.0e-10)
 
         
     ! TODO is it correct?

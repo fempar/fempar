@@ -31,6 +31,7 @@ module poisson_unfitted_cG_discrete_integration_names
   use serial_unfitted_fe_space_names
   use piecewise_fe_map_names
   use blas77_interfaces_names
+  use gen_eigenvalue_solver_names
 
   implicit none
 # include "debug.i90"
@@ -186,6 +187,9 @@ end subroutine evaluate_monomials
     real(rp), parameter::beta_coef=2.0_rp
     real(rp) :: beta
     real(rp) :: exact_sol_gp
+    real(rp), pointer :: lambdas(:,:)
+    real(rp) :: volele
+    type(gen_eigenvalue_solver_t) :: eigs
 
     assert (associated(this%analytical_functions))
 
@@ -225,6 +229,8 @@ end subroutine evaluate_monomials
     ! We assume that the constant monomial is the first
     shape2mono_fixed => shape2mono(:,2:)
     lwork = 3*(num_dofs-1)-1
+    ! Allocate the eigenvalue solver
+    call eigs%create(num_dofs - 1)
 
     call memalloc ( num_dofs, num_dofs, elmatB_aux, __FILE__, __LINE__ )
     call memalloc ( num_dofs-1, num_dofs-1, elmatB, __FILE__, __LINE__ )
@@ -263,10 +269,12 @@ end subroutine evaluate_monomials
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
+       volele = 0.0_rp
        call vol_int%get_gradients(shape_gradients)
        call vol_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
           dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          volele = volele + dV
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))
@@ -282,6 +290,7 @@ end subroutine evaluate_monomials
        end do
 
        ! Update FE boundary integration related data structures
+       ! TODO to this part only for cut elements
        call fe%update_boundary_integration()
 
        ! Get info on the unfitted boundary for integrating BCs
@@ -324,7 +333,7 @@ end subroutine evaluate_monomials
        ! Nitsche beta
 
        ! Integrate the matrix associated with the normal derivatives
-       elmatB_aux(:,:)=0
+       elmatB_aux(:,:)=0.0_rp
        do qpoint = 1, num_quad_points
          dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
          call pw_fe_map%get_normal(qpoint,normal_vec)
@@ -332,7 +341,7 @@ end subroutine evaluate_monomials
              do jdof = 1, num_dofs
                 ! B_K(i,j) = (n*grad(phi_i),n*grad(phi_j))_{\partial\Omega}
                 elmatB_aux(idof,jdof) = elmatB_aux(idof,jdof) + &
-                  dS * (normal_vec*boundary_shape_gradients(jdof,qpoint)) * (normal_vec*boundary_shape_gradients(idof,qpoint))
+                  dS *( (normal_vec*boundary_shape_gradients(jdof,qpoint)) * (normal_vec*boundary_shape_gradients(idof,qpoint)) )
              end do
           end do
        end do
@@ -342,15 +351,21 @@ end subroutine evaluate_monomials
        call At_times_B_times_A(shape2mono_fixed,elmatB_aux,elmatB)
 
        ! Solve the eigenvalue problem
-       ! TODO @fverdugo FEMPAT PRIORITY HIGH EFFORT LOW
-       ! How to avoid implicit interface warning?
-       ! How to know if we have to call the double or single precision version?
-       ! Wrap the Lapack call in a subroutine?
-       elmatB_work(:,:) = elmatB(:,:)
-       elmatV_work(:,:) = elmatV(:,:)
-       call DSYGV( 1, 'N', 'L', num_dofs-1, elmatB_work, num_dofs-1, elmatV_work, num_dofs-1, eigenvals, work, lwork, istat )
-       if(istat /= 0) then
-         write(*,*) 'DSYGV returned code ', istat
+       lambdas => eigs%solve(elmatB,elmatV,istat)
+       if( (istat .ne. 0) ) then
+         write(*,*) 'Eig Solver returned code ', istat
+         write(*,*) 'shape2mono_fixed ='
+         do idof = 1, (num_dofs)
+           write(*,*) shape2mono_fixed(idof,:)
+         end do
+         write(*,*) 'B matrix_pre ='
+         do idof = 1, (num_dofs)
+           write(*,*) elmatB_aux(idof,:)
+         end do
+         write(*,*) 'V matrix_pre ='
+         do idof = 1, (num_dofs)
+           write(*,*) elmat(idof,:)
+         end do
          write(*,*) 'B matrix ='
          do idof = 1, (num_dofs-1)
            write(*,*) elmatB(idof,:)
@@ -359,11 +374,46 @@ end subroutine evaluate_monomials
          do idof = 1, (num_dofs-1)
            write(*,*) elmatV(idof,:)
          end do
+         write(*,*) 'Normalized volume trimmed cell = ', volele/(4.0)
+         write(*,*) 'V matrix ='
+         do idof = 1, (num_dofs-1)
+           write(*,*) lambdas(idof,:)
+         end do
        end if
-       check(istat==0)
+       check(istat == 0)
+
+       !! Solve the eigenvalue problem (old method)
+       !! TODO @fverdugo FEMPAT PRIORITY HIGH EFFORT LOW
+       !! How to avoid implicit interface warning?
+       !! How to know if we have to call the double or single precision version?
+       !! Wrap the Lapack call in a subroutine?
+       !elmatB_work(:,:) = elmatB(:,:)
+       !elmatV_work(:,:) = elmatV(:,:)
+       !call DSYGV( 1, 'N', 'L', num_dofs-1, elmatB_work, num_dofs-1, elmatV_work, num_dofs-1, eigenvals, work, lwork, istat )
+       !if(istat /= 0) then
+       !  write(*,*) 'DSYGV returned code ', istat
+       !  write(*,*) 'B matrix ='
+       !  do idof = 1, (num_dofs-1)
+       !    write(*,*) elmatB(idof,:)
+       !  end do
+       !  write(*,*) 'V matrix ='
+       !  do idof = 1, (num_dofs-1)
+       !    write(*,*) elmatV(idof,:)
+       !  end do
+       !end if
+       !check(istat==0)
+
+       !if (abs( maxval(eigenvals) - maxval(lambdas(:,1)))>=1e-10_rp) then
+       !  write(*,*) maxval(eigenvals), maxval(lambdas(:,1))
+       !end if
+       !check(abs( maxval(eigenvals) - maxval(lambdas(:,1)))<1e-10_rp)
 
        ! Set beta (the maximum eigenvalue is stored in the last position)
-       beta = beta_coef*eigenvals(num_dofs-1)
+       !beta = beta_coef*eigenvals(num_dofs-1)
+
+       ! The eigenvalue should be real. Thus, it is save to take only the real part.
+       beta = beta_coef*maxval(lambdas(:,1))
+       assert(beta>=0)
 
        ! Once we have the beta, we can compute Nitsche's terms
        do qpoint = 1, num_quad_points
@@ -378,9 +428,9 @@ end subroutine evaluate_monomials
              do jdof = 1, num_dofs
                 ! A_K(i,j)=(beta*phi_i,phi_j)_{\partial\Omega} - (phi_i,n*grad(phi_j))_{\partial\Omega}  - (phi_j,n*grad(phi_i))_{\partial\Omega}
                 elmat(idof,jdof) = elmat(idof,jdof) &
-                  + dS*beta*boundary_shape_values(idof,qpoint)*boundary_shape_values(jdof,qpoint) &
-                  - dS*boundary_shape_values(idof,qpoint)*(normal_vec*boundary_shape_gradients(jdof,qpoint)) &
-                  - dS*boundary_shape_values(jdof,qpoint)*(normal_vec*boundary_shape_gradients(idof,qpoint))
+                  + dS*beta*(boundary_shape_values(idof,qpoint)*boundary_shape_values(jdof,qpoint)) &
+                  - dS*(boundary_shape_values(idof,qpoint)*(normal_vec*boundary_shape_gradients(jdof,qpoint))) &
+                  - dS*(boundary_shape_values(jdof,qpoint)*(normal_vec*boundary_shape_gradients(idof,qpoint)))
              end do
           end do
 
@@ -418,6 +468,7 @@ end subroutine evaluate_monomials
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call memfree ( eigenvals, __FILE__, __LINE__ )
     call memfree ( work, __FILE__, __LINE__ )
+    call eigs%free()
   end subroutine integrate
 
 end module poisson_unfitted_cG_discrete_integration_names
