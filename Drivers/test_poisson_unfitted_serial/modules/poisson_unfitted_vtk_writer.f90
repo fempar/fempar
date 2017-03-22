@@ -127,7 +127,6 @@ contains
 
       call cell_iter%current(cell)
 
-      ! TODO where is the safe place to put this update?
       call cell%update_sub_triangulation()
 
       call cell%get_coordinates( cell_coords )
@@ -258,7 +257,6 @@ contains
          ipoint = ipoint + 1
        end do
 
-       ! TODO where is the safe place to put this update?
        call cell%update_sub_triangulation()
 
        do subcell = 1, cell%get_number_of_subcells()

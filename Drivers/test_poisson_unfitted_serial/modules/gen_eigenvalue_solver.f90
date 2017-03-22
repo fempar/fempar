@@ -42,10 +42,10 @@ module gen_eigenvalue_solver_names
     real(rp), allocatable :: lambdas(:,:)
     real(rp), allocatable :: scaling(:)
   contains
-    procedure :: create => gen_eigenvalue_solver_base_create
-    procedure :: free   => gen_eigenvalue_solver_base_free
-    procedure, non_overridable :: solve => gen_eigenvalue_solver_base_solve
-    procedure, private :: solve_lapack => gen_eigenvalue_solver_base_solve_lapack
+    procedure                           :: create         => gen_eigenvalue_solver_base_create
+    procedure                           :: free           => gen_eigenvalue_solver_base_free
+    procedure, non_overridable          :: solve          => gen_eigenvalue_solver_base_solve
+    procedure, private                  :: solve_lapack   => gen_eigenvalue_solver_base_solve_lapack
     procedure, non_overridable, private :: scale_matrices => gen_eigenvalue_solver_base_scale_matrices
   end type gen_eigenvalue_solver_base_t
 
@@ -55,8 +55,8 @@ module gen_eigenvalue_solver_names
     real(rp), allocatable :: work(:)
     integer(ip) :: lwork
   contains
-    procedure :: create => gen_eigenvalue_solver_chol_create
-    procedure :: free   => gen_eigenvalue_solver_chol_free
+    procedure          :: create        => gen_eigenvalue_solver_chol_create
+    procedure          :: free          => gen_eigenvalue_solver_chol_free
     procedure, private :: solve_lapack  => gen_eigenvalue_solver_chol_solve_lapack
   end type gen_eigenvalue_solver_chol_t
 
@@ -72,8 +72,8 @@ module gen_eigenvalue_solver_names
     real(rp), allocatable :: work(:)
     integer(ip) :: lwork
   contains
-    procedure :: create => gen_eigenvalue_solver_qz_create
-    procedure :: free   => gen_eigenvalue_solver_qz_free
+    procedure          :: create        => gen_eigenvalue_solver_qz_create
+    procedure          :: free          => gen_eigenvalue_solver_qz_free
     procedure, private :: solve_lapack  => gen_eigenvalue_solver_qz_solve_lapack
   end type gen_eigenvalue_solver_qz_t
 
@@ -344,7 +344,6 @@ function gen_eigenvalue_solver_solve(this,A,B,stat) result (lambdas)
 
   ! Finally try to solve with qz with scaling
   lambdas => this%qz%solve(A,B,stat,.true.)
-  if (stat==0) return
 
 end function gen_eigenvalue_solver_solve
 

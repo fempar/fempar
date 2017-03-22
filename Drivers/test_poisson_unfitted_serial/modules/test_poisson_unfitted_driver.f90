@@ -238,6 +238,7 @@ contains
      !call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
      
       !TODO this is hard coded
+    
       select case(this%triangulation%get_num_dimensions())
       case (2)
         call this%poisson_unfitted_analytical_functions%create('ex002_2d') ! TODO Assumes scalar functions

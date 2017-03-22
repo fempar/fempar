@@ -28,6 +28,7 @@
 module poisson_unfitted_cG_discrete_integration_names
   use fempar_names
   use poisson_unfitted_analytical_functions_names
+  use serial_unfitted_triangulation_names
   use serial_unfitted_fe_space_names
   use piecewise_fe_map_names
   use blas77_interfaces_names
@@ -129,8 +130,6 @@ end subroutine evaluate_monomials
 
 !========================================================================================
   subroutine integrate ( this, fe_space, matrix_array_assembler )
-    ! TODO @fverdugo
-    ! Clean up of this routine required
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
@@ -140,6 +139,7 @@ end subroutine evaluate_monomials
     ! TODO We need this because the accesors and iterators are not polymorphic
     type(unfitted_fe_iterator_t) :: fe_iterator
     type(unfitted_fe_accessor_t) :: fe
+    type(unfitted_cell_accessor_t), pointer :: cell
 
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
@@ -177,18 +177,13 @@ end subroutine evaluate_monomials
     ! For Nitsche
     class(reference_fe_t), pointer :: ref_fe
     class(quadrature_t), pointer :: nodal_quad
-    real(rp), allocatable :: elmatB(:,:), elmatV(:,:), elmatB_aux(:,:)
-    real(rp), allocatable :: elmatB_work(:,:), elmatV_work(:,:)! TODO remove this ones, only for debug
+    real(rp), allocatable :: elmatB(:,:), elmatV(:,:), elmatB_pre(:,:)
     real(rp), allocatable, target :: shape2mono(:,:)
     real(rp), pointer :: shape2mono_fixed(:,:)
-    real(rp), allocatable :: eigenvals(:)
-    integer(ip) :: lwork
-    real(rp), allocatable :: work(:)
     real(rp), parameter::beta_coef=2.0_rp
     real(rp) :: beta
     real(rp) :: exact_sol_gp
     real(rp), pointer :: lambdas(:,:)
-    real(rp) :: volele
     type(gen_eigenvalue_solver_t) :: eigs
 
     assert (associated(this%analytical_functions))
@@ -228,17 +223,12 @@ end subroutine evaluate_monomials
     ! TODO @fverdugo DRIVER PRIORITY LOW EFFORT HIGH
     ! We assume that the constant monomial is the first
     shape2mono_fixed => shape2mono(:,2:)
-    lwork = 3*(num_dofs-1)-1
     ! Allocate the eigenvalue solver
     call eigs%create(num_dofs - 1)
 
-    call memalloc ( num_dofs, num_dofs, elmatB_aux, __FILE__, __LINE__ )
+    call memalloc ( num_dofs, num_dofs, elmatB_pre, __FILE__, __LINE__ )
     call memalloc ( num_dofs-1, num_dofs-1, elmatB, __FILE__, __LINE__ )
     call memalloc ( num_dofs-1, num_dofs-1, elmatV, __FILE__, __LINE__ )
-    call memalloc ( num_dofs-1, eigenvals, __FILE__, __LINE__ )
-    call memalloc ( lwork, work, __FILE__, __LINE__ )
-    call memalloc ( num_dofs-1, num_dofs-1, elmatB_work, __FILE__, __LINE__ )
-    call memalloc ( num_dofs-1, num_dofs-1, elmatV_work, __FILE__, __LINE__ )
 
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
@@ -269,12 +259,10 @@ end subroutine evaluate_monomials
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       volele = 0.0_rp
        call vol_int%get_gradients(shape_gradients)
        call vol_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
           dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-          volele = volele + dV
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))
@@ -290,164 +278,118 @@ end subroutine evaluate_monomials
        end do
 
        ! Update FE boundary integration related data structures
-       ! TODO to this part only for cut elements
-       call fe%update_boundary_integration()
+       ! Only for cut elements
+       ! TODO @fverdugo FEMPAR PRIORITY LOW EFFORT HIGH
+       ! Create iterator for cut and for full elements? Then we can remove this if
+       cell => fe%get_unfitted_cell_accessor()
+       if (cell%is_cut()) then
 
-       ! Get info on the unfitted boundary for integrating BCs
-       quad            => fe%get_boundary_quadrature()
-       num_quad_points = quad%get_number_quadrature_points()
-       pw_fe_map       => fe%get_boundary_piecewise_fe_map()
-       quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
-       vol_int         => fe%get_boundary_volume_integrator(1)
-       call vol_int%get_values(boundary_shape_values)
-       call vol_int%get_gradients(boundary_shape_gradients)
+         call fe%update_boundary_integration()
 
-       ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
-       ! We assume that the unfitted boundary is Nitche
-       if (.false.) then
-         ! Neumann BCs unfitted boundary
-         do qpoint = 1, num_quad_points
+         ! Get info on the unfitted boundary for integrating BCs
+         quad            => fe%get_boundary_quadrature()
+         num_quad_points = quad%get_number_quadrature_points()
+         pw_fe_map       => fe%get_boundary_piecewise_fe_map()
+         quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
+         vol_int         => fe%get_boundary_volume_integrator(1)
+         call vol_int%get_values(boundary_shape_values)
+         call vol_int%get_gradients(boundary_shape_gradients)
 
-           ! Surface measure
-           dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+         ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
+         ! We assume that the unfitted boundary is Nitsche
+         if (.false.) then
+           ! Neumann BCs unfitted boundary
+           do qpoint = 1, num_quad_points
 
-           ! Value of the gradient of the solution at the boundary
-           call exact_sol%get_gradient(quad_coords(qpoint),exact_gradient_gp)
+             ! Surface measure
+             dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
 
-           ! Get the boundary normals
-           call pw_fe_map%get_normal(qpoint,normal_vec)
+             ! Value of the gradient of the solution at the boundary
+             call exact_sol%get_gradient(quad_coords(qpoint),exact_gradient_gp)
 
-           ! Normal derivative
-           ! It is save to do so in 2d only if the 3rd component is set to 0
-           ! in at least one of the 2 vectors
-           normal_d = normal_vec*exact_gradient_gp
+             ! Get the boundary normals
+             call pw_fe_map%get_normal(qpoint,normal_vec)
 
-           ! Integration
-            do idof = 1, num_dofs
-               elvec(idof) = elvec(idof) + normal_d * boundary_shape_values(idof,qpoint) * dS
-            end do
+             ! Normal derivative
+             ! It is save to do so in 2d only if the 3rd component is set to 0
+             ! in at least one of the 2 vectors
+             normal_d = normal_vec*exact_gradient_gp
 
-         end do
-       end if
+             ! Integration
+              do idof = 1, num_dofs
+                 elvec(idof) = elvec(idof) + normal_d * boundary_shape_values(idof,qpoint) * dS
+              end do
 
-       ! Nitsche beta
+           end do
 
-       ! Integrate the matrix associated with the normal derivatives
-       elmatB_aux(:,:)=0.0_rp
-       do qpoint = 1, num_quad_points
-         dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-         call pw_fe_map%get_normal(qpoint,normal_vec)
-          do idof = 1, num_dofs
-             do jdof = 1, num_dofs
-                ! B_K(i,j) = (n*grad(phi_i),n*grad(phi_j))_{\partial\Omega}
-                elmatB_aux(idof,jdof) = elmatB_aux(idof,jdof) + &
-                  dS *( (normal_vec*boundary_shape_gradients(jdof,qpoint)) * (normal_vec*boundary_shape_gradients(idof,qpoint)) )
-             end do
-          end do
-       end do
+         else ! Nitsche on the unfitted boundary
 
-       ! Compute the matrices without the kernel
-       call At_times_B_times_A(shape2mono_fixed,elmat,elmatV)
-       call At_times_B_times_A(shape2mono_fixed,elmatB_aux,elmatB)
+           ! Nitsche beta
 
-       ! Solve the eigenvalue problem
-       lambdas => eigs%solve(elmatB,elmatV,istat)
-       if( (istat .ne. 0) ) then
-         write(*,*) 'Eig Solver returned code ', istat
-         write(*,*) 'shape2mono_fixed ='
-         do idof = 1, (num_dofs)
-           write(*,*) shape2mono_fixed(idof,:)
-         end do
-         write(*,*) 'B matrix_pre ='
-         do idof = 1, (num_dofs)
-           write(*,*) elmatB_aux(idof,:)
-         end do
-         write(*,*) 'V matrix_pre ='
-         do idof = 1, (num_dofs)
-           write(*,*) elmat(idof,:)
-         end do
-         write(*,*) 'B matrix ='
-         do idof = 1, (num_dofs-1)
-           write(*,*) elmatB(idof,:)
-         end do
-         write(*,*) 'V matrix ='
-         do idof = 1, (num_dofs-1)
-           write(*,*) elmatV(idof,:)
-         end do
-         write(*,*) 'Normalized volume trimmed cell = ', volele/(4.0)
-         write(*,*) 'V matrix ='
-         do idof = 1, (num_dofs-1)
-           write(*,*) lambdas(idof,:)
-         end do
-       end if
-       check(istat == 0)
+           ! Integrate the matrix associated with the normal derivatives
+           elmatB_pre(:,:)=0.0_rp
+           do qpoint = 1, num_quad_points
+             dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+             call pw_fe_map%get_normal(qpoint,normal_vec)
+              do idof = 1, num_dofs
+                 do jdof = 1, num_dofs
+                    ! B_K(i,j) = (n*grad(phi_i),n*grad(phi_j))_{\partial\Omega}
+                    elmatB_pre(idof,jdof) = elmatB_pre(idof,jdof) + &
+                      dS *( (normal_vec*boundary_shape_gradients(jdof,qpoint)) * (normal_vec*boundary_shape_gradients(idof,qpoint)) )
+                 end do
+              end do
+           end do
 
-       !! Solve the eigenvalue problem (old method)
-       !! TODO @fverdugo FEMPAT PRIORITY HIGH EFFORT LOW
-       !! How to avoid implicit interface warning?
-       !! How to know if we have to call the double or single precision version?
-       !! Wrap the Lapack call in a subroutine?
-       !elmatB_work(:,:) = elmatB(:,:)
-       !elmatV_work(:,:) = elmatV(:,:)
-       !call DSYGV( 1, 'N', 'L', num_dofs-1, elmatB_work, num_dofs-1, elmatV_work, num_dofs-1, eigenvals, work, lwork, istat )
-       !if(istat /= 0) then
-       !  write(*,*) 'DSYGV returned code ', istat
-       !  write(*,*) 'B matrix ='
-       !  do idof = 1, (num_dofs-1)
-       !    write(*,*) elmatB(idof,:)
-       !  end do
-       !  write(*,*) 'V matrix ='
-       !  do idof = 1, (num_dofs-1)
-       !    write(*,*) elmatV(idof,:)
-       !  end do
-       !end if
-       !check(istat==0)
+           ! Compute the matrices without the kernel
+           call At_times_B_times_A(shape2mono_fixed,elmat,elmatV)
+           call At_times_B_times_A(shape2mono_fixed,elmatB_pre,elmatB)
 
-       !if (abs( maxval(eigenvals) - maxval(lambdas(:,1)))>=1e-10_rp) then
-       !  write(*,*) maxval(eigenvals), maxval(lambdas(:,1))
-       !end if
-       !check(abs( maxval(eigenvals) - maxval(lambdas(:,1)))<1e-10_rp)
+           ! Solve the eigenvalue problem
+           lambdas => eigs%solve(elmatB,elmatV,istat)
+           check(istat == 0)
 
-       ! Set beta (the maximum eigenvalue is stored in the last position)
-       !beta = beta_coef*eigenvals(num_dofs-1)
+           ! The eigenvalue should be real. Thus, it is save to take only the real part.
+           beta = beta_coef*maxval(lambdas(:,1))
+           assert(beta>=0)
 
-       ! The eigenvalue should be real. Thus, it is save to take only the real part.
-       beta = beta_coef*maxval(lambdas(:,1))
-       assert(beta>=0)
+           ! Once we have the beta, we can compute Nitsche's terms
+           do qpoint = 1, num_quad_points
 
-       ! Once we have the beta, we can compute Nitsche's terms
-       do qpoint = 1, num_quad_points
+             ! Get info at quadrature point
+             dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+             call pw_fe_map%get_normal(qpoint,normal_vec)
+             call exact_sol%get_value(quad_coords(qpoint),exact_sol_gp)
 
-         ! Get info at quadrature point
-         dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-         call pw_fe_map%get_normal(qpoint,normal_vec)
-         call exact_sol%get_value(quad_coords(qpoint),exact_sol_gp)
+             ! Elem matrix
+              do idof = 1, num_dofs
+                 do jdof = 1, num_dofs
+                    ! A_K(i,j)=(beta*phi_i,phi_j)_{\partial\Omega} - (phi_i,n*grad(phi_j))_{\partial\Omega}  - (phi_j,n*grad(phi_i))_{\partial\Omega}
+                    elmat(idof,jdof) = elmat(idof,jdof) &
+                      + dS*beta*(boundary_shape_values(idof,qpoint)*boundary_shape_values(jdof,qpoint)) &
+                      - dS*(boundary_shape_values(idof,qpoint)*(normal_vec*boundary_shape_gradients(jdof,qpoint))) &
+                      - dS*(boundary_shape_values(jdof,qpoint)*(normal_vec*boundary_shape_gradients(idof,qpoint)))
+                 end do
+              end do
 
-         ! Elem matrix
-          do idof = 1, num_dofs
-             do jdof = 1, num_dofs
-                ! A_K(i,j)=(beta*phi_i,phi_j)_{\partial\Omega} - (phi_i,n*grad(phi_j))_{\partial\Omega}  - (phi_j,n*grad(phi_i))_{\partial\Omega}
-                elmat(idof,jdof) = elmat(idof,jdof) &
-                  + dS*beta*(boundary_shape_values(idof,qpoint)*boundary_shape_values(jdof,qpoint)) &
-                  - dS*(boundary_shape_values(idof,qpoint)*(normal_vec*boundary_shape_gradients(jdof,qpoint))) &
-                  - dS*(boundary_shape_values(jdof,qpoint)*(normal_vec*boundary_shape_gradients(idof,qpoint)))
-             end do
-          end do
+              ! Elem vector
+              do idof = 1, num_dofs
+                 ! f_k(i) = (beta*ufun,phi_i)_{\partial\Omega} - (ufun,n*grad(phi_i))_{\partial\Omega}
+                 elvec(idof) = elvec(idof) &
+                   + dS*beta*exact_sol_gp*boundary_shape_values(idof,qpoint) &
+                   - dS*exact_sol_gp*(normal_vec*boundary_shape_gradients(idof,qpoint))
+              end do
 
-          ! Elem vector
-          do idof = 1, num_dofs
-             ! f_k(i) = (beta*ufun,phi_i)_{\partial\Omega} - (ufun,n*grad(phi_i))_{\partial\Omega}
-             elvec(idof) = elvec(idof) &
-               + dS*beta*exact_sol_gp*boundary_shape_values(idof,qpoint) &
-               - dS*exact_sol_gp*(normal_vec*boundary_shape_gradients(idof,qpoint))
-          end do
+           end do
 
-       end do
+         end if !Nitsche's case
+
+       end if ! Only for cut elems
 
        ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe_iterator%next()
+
     end do
 
     ! TODO Why these are not allocated??
@@ -460,14 +402,10 @@ end subroutine evaluate_monomials
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-    call memfree ( elmatB_aux, __FILE__, __LINE__ )
+    call memfree ( elmatB_pre, __FILE__, __LINE__ )
     call memfree ( elmatB, __FILE__, __LINE__ )
     call memfree ( elmatV, __FILE__, __LINE__ )
-    call memfree ( elmatB_work, __FILE__, __LINE__ )
-    call memfree ( elmatV_work, __FILE__, __LINE__ )
     call memfree ( shape2mono, __FILE__, __LINE__ )
-    call memfree ( eigenvals, __FILE__, __LINE__ )
-    call memfree ( work, __FILE__, __LINE__ )
     call eigs%free()
   end subroutine integrate
 

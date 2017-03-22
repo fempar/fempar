@@ -32,6 +32,9 @@ module level_set_functions_gallery_names
 # include "debug.i90"
   private
 
+  !TODO. Add a mechanism to get the complement, the union etc.
+  !Translations and complement can implemented in the base class
+
   type, extends(scalar_function_t) :: level_set_function_t
     private
     real(rp) :: tolerance = 0.0_rp
@@ -115,7 +118,6 @@ contains
     integer(ip), parameter :: x=1,y=2,z=3
     assert(this%radius > 0.0_rp)
     result = sqrt( point%get(x)**2 + point%get(y)**2 + point%get(z)**2 ) - this%radius
-    result = -1*result !TODO only for debug. Add a mechanism to get the complement, the union etc. Translations and complement can implemented in the base class
   end subroutine level_set_sphere_get_level_set_value
 
 !========================================================================================
@@ -127,7 +129,6 @@ contains
     integer(ip), parameter :: x=1,y=2
     assert(this%radius > 0.0_rp)
     result = sqrt( point%get(x)**2 + point%get(y)**2 ) - this%radius
-    result = -1*result !TODO only for debug. Add a mechanism to get the complement, the union etc
   end subroutine level_set_cylinder_get_level_set_value
 
 !========================================================================================

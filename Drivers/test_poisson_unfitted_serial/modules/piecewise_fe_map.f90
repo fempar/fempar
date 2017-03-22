@@ -26,6 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!****************************************************************************************
 module piecewise_fe_map_names
   use fempar_names
 
@@ -35,7 +36,7 @@ module piecewise_fe_map_names
 
   ! This type encapsulates maps from a common reference element to several physical elements of the same type
   ! The user sees it as a single fe map
-  ! TODO define this type as an extension of fe_map_t
+  ! TODO define this type as an extension of fe_map_t. Is this type actually needed?
   type :: piecewise_fe_map_t
 
     private
@@ -74,6 +75,7 @@ module piecewise_fe_map_names
 
 contains
 
+!========================================================================================
   subroutine piecewise_fe_map_create_face_map( this, quadrature, reference_fe_geometry, num_sub_maps )
 
     implicit none
@@ -106,7 +108,7 @@ contains
 
   end subroutine piecewise_fe_map_create_face_map
 
-
+!========================================================================================
   subroutine piecewise_fe_map_free( this )
     implicit none
     class(piecewise_fe_map_t), intent(inout) :: this
@@ -123,7 +125,7 @@ contains
     call this%fe_sub_map%free()
   end subroutine piecewise_fe_map_free
 
-
+!========================================================================================
   subroutine piecewise_fe_map_update_face_map( this, quadrature, reference_fe_geometry )
 
     implicit none
@@ -131,7 +133,7 @@ contains
     type   (quadrature_t),              intent(in)    :: quadrature
     class  (lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
 
-    ! TODO the arguments quadrature and reference_fe_geometry are needed only
+    ! The arguments quadrature and reference_fe_geometry are needed only
     ! because the fe_map_update_face_map requires them, ...
 
     integer(ip) :: imap, nini, nend, pini, pend
@@ -164,7 +166,7 @@ contains
 
   end subroutine piecewise_fe_map_update_face_map
 
-
+!========================================================================================
   subroutine piecewise_fe_map_compute_quadrature_coordinates( this )
 
     implicit none
@@ -195,7 +197,7 @@ contains
 
   end subroutine piecewise_fe_map_compute_quadrature_coordinates
 
-
+!========================================================================================
   function piecewise_fe_map_get_det_jacobian ( this, i )
     implicit none
     class(piecewise_fe_map_t), intent(in) :: this
@@ -204,7 +206,7 @@ contains
     piecewise_fe_map_get_det_jacobian = this%det_jacobian(i)
   end function piecewise_fe_map_get_det_jacobian
 
-
+!========================================================================================
   function piecewise_fe_map_get_coordinates(this)
     implicit none
     class(piecewise_fe_map_t)   , target, intent(in) :: this
@@ -212,7 +214,7 @@ contains
     piecewise_fe_map_get_coordinates => this%coordinates_nodes
   end function piecewise_fe_map_get_coordinates
 
-
+!========================================================================================
   function piecewise_fe_map_get_quadrature_points_coordinates(this)
     implicit none
     class(piecewise_fe_map_t)   , target, intent(in) :: this
@@ -220,7 +222,7 @@ contains
     piecewise_fe_map_get_quadrature_points_coordinates => this%coordinates_quadrature
   end function piecewise_fe_map_get_quadrature_points_coordinates
 
-
+!========================================================================================
   subroutine piecewise_fe_map_get_normal(this, qpoint, normal)
    implicit none
    class(piecewise_fe_map_t)     , intent(in)    :: this
@@ -233,5 +235,5 @@ contains
    end do
   end subroutine  piecewise_fe_map_get_normal
 
-
+!****************************************************************************************
 end module piecewise_fe_map_names
