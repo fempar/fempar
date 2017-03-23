@@ -604,6 +604,7 @@ subroutine serial_unfitted_triangulation_subnodes_data_create( this )
   type(cell_iterator_t)  :: cell_iter
   type(cell_accessor_t)  :: cell
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  integer(ip) :: n_subcells, n_subfaces, n_nodes_subcell, n_nodes_subface
 
   assert(this%mc_tables_init)
   assert(this%mc_runtime_init)
@@ -629,6 +630,15 @@ subroutine serial_unfitted_triangulation_subnodes_data_create( this )
   do icase=1, this%mc_table_num_cases
     call this%subnodes_fe_maps(icase)%create( this%subnodes_nodal_quadratures(icase), reference_fe_geo)
   end do
+
+  !Allocate place holders for the sub-mesh
+  n_subcells      = this%get_max_num_subcells_in_cell()
+  n_subfaces      = this%get_max_num_subfaces_in_cell()
+  n_nodes_subcell = this%get_max_num_nodes_in_subcell()
+  n_nodes_subface = this%get_max_num_nodes_in_subface()
+  call memalloc(n_nodes_subcell,n_subcells,this%subcells_node_ids,__FILE__,__LINE__)
+  call memalloc(n_nodes_subface,n_subfaces,this%subfaces_node_ids,__FILE__,__LINE__)
+  call memalloc(n_subcells,this%is_inverted_subcell,__FILE__,__LINE__)
 
 end subroutine serial_unfitted_triangulation_subnodes_data_create
 
@@ -656,6 +666,10 @@ subroutine serial_unfitted_triangulation_subnodes_data_free( this )
     end do
     deallocate( this%subnodes_fe_maps, stat=istat ); check( istat==0_ip )
   end if
+
+  if(allocated(this%subcells_node_ids  )) call memfree(this%subcells_node_ids  ,__FILE__,__LINE__)
+  if(allocated(this%subfaces_node_ids  )) call memfree(this%subfaces_node_ids  ,__FILE__,__LINE__)
+  if(allocated(this%is_inverted_subcell)) call memfree(this%is_inverted_subcell,__FILE__,__LINE__)
 
 end subroutine serial_unfitted_triangulation_subnodes_data_free
 

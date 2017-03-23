@@ -77,7 +77,9 @@ module serial_unfitted_triangulation_names
     procedure, non_overridable :: is_exterior_subcell => unfitted_cell_accessor_is_exterior_subcell
 
     ! Private TBPs
-    procedure, non_overridable, private :: get_number_of_subnodes      => unfitted_cell_accessor_get_number_of_subnodes
+    procedure, non_overridable, private :: get_number_of_subnodes => unfitted_cell_accessor_get_number_of_subnodes
+    procedure, non_overridable, private :: is_inverted_subcell    => unfitted_cell_accessor_is_inverted_subcell
+    procedure, non_overridable, private :: is_neighbour_inverted_subcell => unfitted_cell_accessor_is_neighbour_inverted_subcell
 
   end type unfitted_cell_accessor_t
 
@@ -120,7 +122,10 @@ module serial_unfitted_triangulation_names
     type(point_t), allocatable :: mc_intersection_points(:)
     logical :: mc_runtime_init = .false.
 
-    ! Info related to the subnodes
+    ! Info related to the sub-tessellation
+    integer(ip),        allocatable :: subcells_node_ids(:,:)
+    logical,            allocatable :: is_inverted_subcell(:)
+    integer(ip),        allocatable :: subfaces_node_ids(:,:)
     type(point_t),      allocatable :: subnodes_ref_coords(:)
     type(quadrature_t), allocatable :: subnodes_nodal_quadratures(:)
     type(fe_map_t),     allocatable :: subnodes_fe_maps(:)

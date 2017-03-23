@@ -271,7 +271,7 @@ subroutine unfitted_fe_accessor_update_cut_quadratures( this )
   type(point_t),      pointer :: nodal_coords_subelem(:)
   type(point_t),      pointer :: mapped_quadrature_coords_subelem(:)
   integer(ip)                 :: subcell, idi
-  real(rp)                    :: coef
+  real(rp)                    :: coef, dV_subelem
 
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_interior() .or. cell%is_exterior() ) return
@@ -304,7 +304,7 @@ subroutine unfitted_fe_accessor_update_cut_quadratures( this )
 
     ! Take the coordinates of the sub-element in the ref space of the element
     call cell%get_ref_coords_of_subcell( subcell, nodal_coords_subelem )
-    
+
     ! Compute the Jacobian of the mapping between the ref sub-element and ref element
     call fe_map_subelem%update( quadrature_subelem )
 
@@ -322,7 +322,9 @@ subroutine unfitted_fe_accessor_update_cut_quadratures( this )
     do igp_subelem = 1, num_gp_subelem
 
       ! Correct the weights
-      quadrature_weights(igp) = coef*fe_map_subelem%get_det_jacobian(igp_subelem)*quadrature_weights_subelem(igp_subelem)
+      dV_subelem = fe_map_subelem%get_det_jacobian(igp_subelem)
+      assert(dV_subelem>0.0_rp .or. abs(dV_subelem)<1.0e-10_rp)
+      quadrature_weights(igp) = coef*dV_subelem*quadrature_weights_subelem(igp_subelem)
 
       ! Map the coordinates
       do idi = 1, num_dim

@@ -26,6 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!========================================================================================
 subroutine unfitted_cell_accessor_cell_accessor_create ( this, lid, base_static_triangulation )
   implicit none
   class(unfitted_cell_accessor_t)           , intent(inout) :: this
@@ -38,9 +39,10 @@ subroutine unfitted_cell_accessor_cell_accessor_create ( this, lid, base_static_
     this%serial_unfitted_triangulation => base_static_triangulation
   class default
     check(.false.)
-  end select   
+  end select
 end subroutine unfitted_cell_accessor_cell_accessor_create
 
+!========================================================================================
 subroutine unfitted_cell_accessor_cell_accessor_free ( this )
   implicit none
   class(unfitted_cell_accessor_t), intent(inout) :: this
@@ -48,19 +50,22 @@ subroutine unfitted_cell_accessor_cell_accessor_free ( this )
   nullify ( this%serial_unfitted_triangulation )
 end subroutine unfitted_cell_accessor_cell_accessor_free
 
+!========================================================================================
 subroutine unfitted_cell_accessor_update_sub_triangulation( this )
 
   implicit none
   class(unfitted_cell_accessor_t), intent(inout) :: this
 
   integer(ip) :: num_subnodes, num_nodes, num_intersections, i1, i2, mc_case, num_dim
-  integer(ip) :: ipo, idi
+  integer(ip) :: ipo, idi, subcell, subface
   type(point_t), pointer, dimension(:) ::  node_coords, intersec_coords, coordinates
   type(quadrature_t), pointer :: quadrature
   real(rp), pointer :: points_in_quadrature(:,:)
   type(point_t),  pointer :: phys_cell_coords(:)
   type(fe_map_t), pointer :: fe_map
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  integer(ip) :: subcell_nodes(4)
+  integer(ip) :: subface_nodes(3)
 
   if ( .not. this%is_cut() ) return
 
@@ -71,7 +76,7 @@ subroutine unfitted_cell_accessor_update_sub_triangulation( this )
   num_intersections = num_subnodes - num_nodes
   assert(num_subnodes > num_nodes)
 
-  ! Recover the subpoints coordinates on the ref space
+  ! Recover the sub-points coordinates on the ref space
   coordinates => this%serial_unfitted_triangulation%subnodes_ref_coords
   assert( num_subnodes <= size(coordinates) )
   node_coords => coordinates(1:num_nodes)
@@ -81,8 +86,45 @@ subroutine unfitted_cell_accessor_update_sub_triangulation( this )
   i2 = this%serial_unfitted_triangulation%mc_ptr_to_intersections(this%get_lid()+1)-1
   intersec_coords(:) = this%serial_unfitted_triangulation%mc_intersection_points(i1:i2)
 
-  ! Update the quadrature
+  ! Recover connectivities of the sub-cells
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
+  this%serial_unfitted_triangulation%subcells_node_ids(:,:) = 0
+  do subcell=1,this%get_number_of_subcells()
+    this%serial_unfitted_triangulation%subcells_node_ids(:,subcell) = &
+    this%serial_unfitted_triangulation%mc_table_subcell_node_ids_per_case(:,subcell,mc_case)
+  end do
+
+  ! Recover connectivities of the sub-faces
+  this%serial_unfitted_triangulation%subfaces_node_ids(:,:) = 0
+  do subface=1,this%get_number_of_subfaces()
+    this%serial_unfitted_triangulation%subfaces_node_ids(:,subface) = &
+    this%serial_unfitted_triangulation%mc_table_subface_node_ids_per_case(:,subface,mc_case)
+  end do
+
+  !Fix inverted sub-cells and sub-faces (only in 3D)
+  if (this%serial_unfitted_triangulation%get_num_dimensions()==3) then
+
+    ! Search for inverted sub-cells and reorient them
+    this%serial_unfitted_triangulation%is_inverted_subcell(:)=.false.
+    do subcell=1,this%get_number_of_subcells()
+      if (this%is_inverted_subcell(subcell)) then
+        this%serial_unfitted_triangulation%is_inverted_subcell(subcell)=.true.
+        subcell_nodes(:) = this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
+        this%serial_unfitted_triangulation%subcells_node_ids(:,subcell) = subcell_nodes([1,3,2,4])
+      end if
+    end do
+
+    ! Find sub-faces belonging to inverted sub-cells and reorient them
+    do subface=1,this%get_number_of_subfaces()
+      if (this%is_neighbour_inverted_subcell(subface)) then
+        subface_nodes(:) = this%serial_unfitted_triangulation%subfaces_node_ids(:,subface)
+        this%serial_unfitted_triangulation%subfaces_node_ids(:,subface) = subface_nodes([1,3,2])
+      end if
+    end do
+
+  end if
+
+  ! Update the quadrature
   quadrature => this%serial_unfitted_triangulation%subnodes_nodal_quadratures(mc_case)
   assert(num_dim == quadrature%get_number_dimensions())
   assert(num_subnodes == quadrature%get_number_quadrature_points())
@@ -101,8 +143,11 @@ subroutine unfitted_cell_accessor_update_sub_triangulation( this )
   call this%get_coordinates(phys_cell_coords)
   call fe_map%compute_quadrature_coordinates()
 
+  ! At this point we can extract the physical coordinates of the sub-nodes from the fe_maps
+
 end subroutine unfitted_cell_accessor_update_sub_triangulation
 
+!========================================================================================
 function unfitted_cell_accessor_get_number_of_subcells( this ) result ( num_subcells )
   implicit none
   class(unfitted_cell_accessor_t), intent(in) :: this
@@ -113,6 +158,7 @@ function unfitted_cell_accessor_get_number_of_subcells( this ) result ( num_subc
   num_subcells      = this%serial_unfitted_triangulation%mc_table_num_subcells_per_case(mc_case)
 end function unfitted_cell_accessor_get_number_of_subcells
 
+!========================================================================================
 function unfitted_cell_accessor_get_number_of_subcell_nodes( this ) result ( num_nodes_subcell )
   implicit none
   class(unfitted_cell_accessor_t), intent(in) :: this
@@ -122,6 +168,7 @@ function unfitted_cell_accessor_get_number_of_subcell_nodes( this ) result ( num
   if (this%get_number_of_subcells() .ne. 0) num_nodes_subcell = this%serial_unfitted_triangulation%mc_table_num_nodes_subcell
 end function unfitted_cell_accessor_get_number_of_subcell_nodes
 
+!========================================================================================
 subroutine unfitted_cell_accessor_get_phys_coords_of_subcell( this, subcell, points)
 
   implicit none
@@ -143,11 +190,12 @@ subroutine unfitted_cell_accessor_get_phys_coords_of_subcell( this, subcell, poi
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
   fe_map => this%serial_unfitted_triangulation%subnodes_fe_maps(mc_case)
   subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
-  subcell_node_ids =>  this%serial_unfitted_triangulation%mc_table_subcell_node_ids_per_case(:,subcell,mc_case)
+  subcell_node_ids =>  this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
   points(:) = subnodes_phys_coords(subcell_node_ids(:))
 
 end subroutine unfitted_cell_accessor_get_phys_coords_of_subcell
 
+!========================================================================================
 subroutine unfitted_cell_accessor_get_ref_coords_of_subcell( this, subcell, points)
 
   implicit none
@@ -155,7 +203,7 @@ subroutine unfitted_cell_accessor_get_ref_coords_of_subcell( this, subcell, poin
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: points(:)
 
-  integer(ip) :: num_nodes_subcell, mc_case
+  integer(ip) :: num_nodes_subcell
   type(point_t), pointer :: subnodes_ref_coords(:)
   integer(ip), pointer ::  subcell_node_ids(:)
 
@@ -166,12 +214,12 @@ subroutine unfitted_cell_accessor_get_ref_coords_of_subcell( this, subcell, poin
   assert( (1_ip <= subcell) .and. (subcell <= this%get_number_of_subcells())  )
 
   subnodes_ref_coords => this%serial_unfitted_triangulation%subnodes_ref_coords
-  mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
-  subcell_node_ids =>  this%serial_unfitted_triangulation%mc_table_subcell_node_ids_per_case(:,subcell,mc_case)
+  subcell_node_ids =>  this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
   points(:) = subnodes_ref_coords(subcell_node_ids(:))
 
 end subroutine unfitted_cell_accessor_get_ref_coords_of_subcell
 
+!========================================================================================
 function unfitted_cell_accessor_get_number_of_subfaces( this ) result ( num_subfaces )
   implicit none
   class(unfitted_cell_accessor_t), intent(in)    :: this
@@ -182,6 +230,7 @@ function unfitted_cell_accessor_get_number_of_subfaces( this ) result ( num_subf
   num_subfaces      = this%serial_unfitted_triangulation%mc_table_num_subfaces_per_case(mc_case)
 end function unfitted_cell_accessor_get_number_of_subfaces
 
+!========================================================================================
 function unfitted_cell_accessor_get_number_of_subface_nodes( this ) result ( num_nodes_subface )
   implicit none
   class(unfitted_cell_accessor_t), intent(in)    :: this
@@ -191,8 +240,9 @@ function unfitted_cell_accessor_get_number_of_subface_nodes( this ) result ( num
   if (this%get_number_of_subfaces() .ne. 0) num_nodes_subface = this%serial_unfitted_triangulation%mc_table_num_nodes_subface
 end function unfitted_cell_accessor_get_number_of_subface_nodes
 
+!========================================================================================
 subroutine unfitted_cell_accessor_get_phys_coords_of_subface( this, subface, points )
-! TODO in 3D fix inverted elements!
+
   implicit none
   class(unfitted_cell_accessor_t), intent(in)    :: this
   integer(ip),                     intent(in)    :: subface
@@ -212,13 +262,14 @@ subroutine unfitted_cell_accessor_get_phys_coords_of_subface( this, subface, poi
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
   fe_map => this%serial_unfitted_triangulation%subnodes_fe_maps(mc_case)
   subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
-  subface_node_ids =>  this%serial_unfitted_triangulation%mc_table_subface_node_ids_per_case(:,subface,mc_case)
+  subface_node_ids =>  this%serial_unfitted_triangulation%subfaces_node_ids(:,subface)
   points(:) = subnodes_phys_coords(subface_node_ids(:))
 
 end subroutine unfitted_cell_accessor_get_phys_coords_of_subface
 
+!========================================================================================
 subroutine unfitted_cell_accessor_get_ref_coords_of_subface( this, subface, points )
-! TODO in 3D fix inverted elements!
+
   implicit none
   class(unfitted_cell_accessor_t), intent(in)    :: this
   integer(ip),                     intent(in)    :: subface
@@ -236,11 +287,12 @@ subroutine unfitted_cell_accessor_get_ref_coords_of_subface( this, subface, poin
 
   subnodes_ref_coords => this%serial_unfitted_triangulation%subnodes_ref_coords
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
-  subface_node_ids =>  this%serial_unfitted_triangulation%mc_table_subface_node_ids_per_case(:,subface,mc_case)
+  subface_node_ids =>  this%serial_unfitted_triangulation%subfaces_node_ids(:,subface)
   points(:) = subnodes_ref_coords(subface_node_ids(:))
 
 end subroutine unfitted_cell_accessor_get_ref_coords_of_subface
 
+!========================================================================================
 function unfitted_cell_accessor_get_mc_case( this ) result ( mc_case )
   implicit none
   class(unfitted_cell_accessor_t), intent(in)    :: this
@@ -249,6 +301,7 @@ function unfitted_cell_accessor_get_mc_case( this ) result ( mc_case )
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
 end function unfitted_cell_accessor_get_mc_case
 
+!========================================================================================
 function unfitted_cell_accessor_is_cut( this ) result ( is_cut )
   implicit none
   class(unfitted_cell_accessor_t), intent(in)    :: this
@@ -260,6 +313,7 @@ function unfitted_cell_accessor_is_cut( this ) result ( is_cut )
   is_cut = (1_ip < mc_case) .and. ( mc_case < num_mc_cases)
 end function unfitted_cell_accessor_is_cut
 
+!========================================================================================
 function unfitted_cell_accessor_is_interior( this ) result ( is_interior )
   implicit none
   class(unfitted_cell_accessor_t), intent(in)  :: this
@@ -271,6 +325,7 @@ function unfitted_cell_accessor_is_interior( this ) result ( is_interior )
   is_interior = ( mc_case == num_mc_cases )
 end function unfitted_cell_accessor_is_interior
 
+!========================================================================================
 function unfitted_cell_accessor_is_exterior( this ) result ( is_exterior )
   implicit none
   class(unfitted_cell_accessor_t), intent(in)  :: this
@@ -278,9 +333,10 @@ function unfitted_cell_accessor_is_exterior( this ) result ( is_exterior )
   integer(ip) :: mc_case
   assert(this%serial_unfitted_triangulation%mc_runtime_init)
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
-  is_exterior = ( mc_case == 1_ip ) 
+  is_exterior = ( mc_case == 1_ip )
 end function unfitted_cell_accessor_is_exterior
 
+!========================================================================================
 function unfitted_cell_accessor_is_interior_subcell( this, subcell ) result ( is_in )
   implicit none
   class(unfitted_cell_accessor_t), intent(in)  :: this
@@ -296,6 +352,7 @@ function unfitted_cell_accessor_is_interior_subcell( this, subcell ) result ( is
   is_in = ( pos == -1_ip )
 end function unfitted_cell_accessor_is_interior_subcell
 
+!========================================================================================
 function unfitted_cell_accessor_is_exterior_subcell( this, subcell ) result ( is_out )
   implicit none
   class(unfitted_cell_accessor_t), intent(in)  :: this
@@ -311,6 +368,7 @@ function unfitted_cell_accessor_is_exterior_subcell( this, subcell ) result ( is
   is_out = ( pos == 1_ip )
 end function unfitted_cell_accessor_is_exterior_subcell
 
+!========================================================================================
 function unfitted_cell_accessor_get_number_of_subnodes( this ) result (num_subnodes)
   implicit none
   class(unfitted_cell_accessor_t), intent(in) :: this
@@ -320,3 +378,77 @@ function unfitted_cell_accessor_get_number_of_subnodes( this ) result (num_subno
   mc_case      = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
   num_subnodes = this%get_num_nodes() + this%serial_unfitted_triangulation%mc_table_num_cut_edges_per_case(mc_case)
 end function unfitted_cell_accessor_get_number_of_subnodes
+
+!========================================================================================
+function unfitted_cell_accessor_is_inverted_subcell(this,subcell) result (is_inverted)
+
+  implicit none
+  class(unfitted_cell_accessor_t), intent(in) :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_inverted
+
+  type(point_t) :: Xe(4)
+  type(vector_field_t) :: u,v,w
+  integer(ip), pointer :: Te(:)
+  real(rp) :: vol
+
+  ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
+  ! Check it
+  assert(1<=subcell .and. subcell <= this%get_number_of_subcells())
+  assert(this%get_number_of_subcell_nodes()==4)
+  assert(this%serial_unfitted_triangulation%get_num_dimensions() == 3)
+
+  ! Get connectivities and coordinates
+  ! We assume that update_triangulation was called for this cell
+  Te => this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
+  Xe(:) = this%serial_unfitted_triangulation%subnodes_ref_coords(Te)
+
+  ! Compute (signed) volume
+  u = Xe(2) - Xe(1)
+  v = Xe(3) - Xe(1)
+  w = Xe(4) - Xe(1)
+  vol = w*cross_product(u,v)
+
+  ! Check if inverted
+  is_inverted = vol < 0.0_rp
+
+end function unfitted_cell_accessor_is_inverted_subcell
+
+!========================================================================================
+function unfitted_cell_accessor_is_neighbour_inverted_subcell(this,subface) result (is_neighbour)
+
+  implicit none
+  class(unfitted_cell_accessor_t), intent(in) :: this
+  integer(ip), intent(in) :: subface
+  logical :: is_neighbour
+
+  integer(ip), pointer :: Tf(:), Te(:)
+  integer(ip) :: subcell
+
+  ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
+  ! Check it
+  assert(1<=subface .and. subface <= this%get_number_of_subfaces())
+  assert(this%get_number_of_subcell_nodes()==4)
+  assert(this%serial_unfitted_triangulation%get_num_dimensions() == 3)
+
+  ! Initialize result
+  is_neighbour= .false.
+
+  ! Get connectivities of the sub-face
+  Tf => this%serial_unfitted_triangulation%subfaces_node_ids(:,subface)
+
+  ! Do a loop in elements and find the ones that have the three nodes of the face
+  do subcell=1,this%get_number_of_subcells()
+    Te => this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
+  end do
+
+  ! Determine if one of these sub-cells has been reoriented and is interior
+
+  !TODO
+
+
+end function unfitted_cell_accessor_is_neighbour_inverted_subcell
+
+
+
+
