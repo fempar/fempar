@@ -31,7 +31,7 @@ subroutine unfitted_cell_accessor_cell_accessor_create ( this, lid, base_static_
   implicit none
   class(unfitted_cell_accessor_t)           , intent(inout) :: this
   integer(ip)                               , intent(in)    :: lid
-  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation  
+  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
   call this%free()
   call this%cell_accessor_t%create(lid,base_static_triangulation)
   select type(base_static_triangulation)
@@ -424,6 +424,7 @@ function unfitted_cell_accessor_is_neighbour_inverted_subcell(this,subface) resu
 
   integer(ip), pointer :: Tf(:), Te(:)
   integer(ip) :: subcell
+  logical :: has_the_subface, has_been_reoriented, is_interior
 
   ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
   ! Check it
@@ -437,15 +438,23 @@ function unfitted_cell_accessor_is_neighbour_inverted_subcell(this,subface) resu
   ! Get connectivities of the sub-face
   Tf => this%serial_unfitted_triangulation%subfaces_node_ids(:,subface)
 
-  ! Do a loop in elements and find the ones that have the three nodes of the face
+  ! Do a loop in sub-cell
   do subcell=1,this%get_number_of_subcells()
+
+    ! Find the sub-cells that have the three nodes of the face
     Te => this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
+    has_the_subface = (any(Te == Tf(1)) .and. any(Te == Tf(2)) .and. any(Te == Tf(3)))
+
+    ! Check if it has been reoriented
+    has_been_reoriented = this%serial_unfitted_triangulation%is_inverted_subcell(subcell)
+
+    !Check if it is interior
+    is_interior = this%is_interior_subcell(subcell)
+
+    ! If the three conditions are met, return true, so that the sub-face will be reoriented
+    is_neighbour = has_the_subface .and. has_been_reoriented .and. is_interior
+
   end do
-
-  ! Determine if one of these sub-cells has been reoriented and is interior
-
-  !TODO
-
 
 end function unfitted_cell_accessor_is_neighbour_inverted_subcell
 
