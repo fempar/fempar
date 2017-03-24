@@ -63,7 +63,7 @@ module uniform_hex_mesh_generator_names
      integer(ip), allocatable :: number_of_cells_per_dir(:) ! 0:SPACE_DIM-1)
      integer(ip), allocatable :: number_of_parts_per_dir(:) ! 0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
-     real(rp) :: domain(1:SPACE_DIM,2)
+     real(rp) :: domain_limits(1:SPACE_DIM,2)
    contains   
      procedure, non_overridable :: get_data_from_parameter_list => uniform_hex_mesh_get_data_from_parameter_list
      procedure, non_overridable :: generate_levels_and_parts    => uniform_hex_mesh_generate_levels_and_parts
@@ -145,15 +145,15 @@ contains
       assert(parameter_list%isAssignable(hex_mesh_domain_limits_key, domain_limits))
       istat = parameter_list%get(key = hex_mesh_domain_limits_key , value = domain_limits); check(istat==0)
       do idime = 1,this%number_of_dimensions
-        this%domain(idime,1) = domain_limits(2*idime-1)
-        this%domain(idime,2) = domain_limits(2*idime)
-        assert(this%domain(idime,2)>this%domain(idime,1))
+        this%domain_limits(idime,1) = domain_limits(2*idime-1)
+        this%domain_limits(idime,2) = domain_limits(2*idime)
+        assert(this%domain_limits(idime,2)>this%domain_limits(idime,1))
       end do
       call memfree(domain_limits,__FILE__,__LINE__)
     else
       ! Default value for domain
-      this%domain(:,1) = 0.0
-      this%domain(:,2) = 1.0
+      this%domain_limits(:,1) = 0.0
+      this%domain_limits(:,2) = 1.0
     end if
     
 
@@ -679,7 +679,7 @@ contains
     
     ! Map coordinates from [0,1]x[0,1]x[0,1] to [xi,xe]x[yi,ye]x[zi,ze]
     do idime = 1, this%number_of_dimensions
-      coordinates(idime,:) = (this%domain(idime,2)-this%domain(idime,1))*coordinates(idime,:) + this%domain(idime,1)
+      coordinates(idime,:) = (this%domain_limits(idime,2)-this%domain_limits(idime,1))*coordinates(idime,:) + this%domain_limits(idime,1)
     end do
 
     call memfree( num_global_n_faces, __FILE__,__LINE__)
