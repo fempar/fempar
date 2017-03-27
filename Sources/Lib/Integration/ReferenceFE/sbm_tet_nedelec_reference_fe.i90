@@ -160,8 +160,12 @@ subroutine tet_nedelec_reference_fe_fill_vector (this)
      offset(idime+1) = offset(idime) + this%node_array_vector(idime)%get_number_nodes()
   end do 
   
-  ! Add homogeneous polynomials s.t p(x)*x=0 shape functions 
+  ! Add homogeneous polynomials s.t p(x)*x=0 shape functions, S_k basis  
+  if (this%number_dimensions == 2) then 
   this%number_shape_functions = this%number_shape_functions + this%order 
+  else 
+  this%number_shape_functions = this%number_shape_functions + this%order*(this%order+2)
+  end if 
 
   num_n_faces = this%polytope%get_number_n_faces()
   ! Number n-faces ( I don't like it, not volume included...)
@@ -1001,15 +1005,14 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 end subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis
 
 ! =================================================================================================
-subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this, order ) 
+subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this ) 
   class(tet_nedelec_reference_fe_t), intent(inout) :: this 
-  integer(ip)                      , intent(in)    :: order   
   
-  integer(ip)              :: c, idime, jdime, q_point, ipoly, ijk 
+  integer(ip)              :: c, idime, jdime, q_point, ipoly, ijk, basis_dimension 
   real(rp), allocatable    :: A(:,:), kernel_A(:,:) 
   type(node_array_t)       :: k_order_node_array, higher_order_node_array
   type(node_iterator_t)    :: node_iterator 
-  integer(ip), allocatable :: ijk_new(:)
+  integer(ip)              :: ijk_new(0:SPACE_DIM-1)
   
   real(rp), allocatable  :: eigenvalues_array(:), work(:) 
   integer(ip)            :: info, lwork, M, N, k_order_vector(SPACE_DIM), higher_order_vector(SPACE_DIM)
@@ -1017,8 +1020,8 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this, orde
   real(rp), allocatable  :: U(:,:), VT(:,:)
 
   ! Seek homogeneous polynomials such that [P_k]^d·x = 0. 
-  k_order_vector      = order 
-  higher_order_vector = order + 1
+  k_order_vector      = this%order 
+  higher_order_vector = this%order + 1
   call k_order_node_array%create( this%node_array_vector(1)%polytope_tree, k_order_vector ) 
   call higher_order_node_array%create( this%node_array_vector(1)%polytope_tree, higher_order_vector ) 
   ! A directly allocated for homogeneous spaces (does not contain 0, i.e. number_nodes-1). All arrays from now on 
@@ -1030,9 +1033,8 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this, orde
   call node_iterator%create( k_order_node_array,                             & 
 							this%polytope%get_n_face(this%number_n_faces+1), & 
 							own_boundary = .true. )  
-
+  
   call node_iterator%init() 
-  call memalloc(this%number_dimensions, ijk_new, __FILE__,__LINE__)
   A = 0.0_rp 
   do while (.not. node_iterator%has_finished() ) 
      do idime=1, this%number_dimensions
@@ -1067,10 +1069,10 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this, orde
                   A, &   ! A array
                   higher_order_node_array%number_nodes-1, & ! LDA, rows of A
                   eigenvalues_array, &             ! Output, stores eigenvalues 
-		  U,    & ! U-matrix 
-		  M,    & ! U-leading dimension 
-		  VT,   & ! VT 
-		  N,    & ! VT leading dimension 
+		          U,       & ! U-matrix 
+		          M,       & ! U-leading dimension 
+		          VT,      & ! VT 
+		          N,       & ! VT leading dimension 
                   work,    & ! not converged eigenvalues (info>0) 
                   lwork,   & ! dimension of the array work  
                   info )  
@@ -1088,9 +1090,15 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this, orde
 
   call memalloc( null_eigenvalues_counter, N, kernel_A, __FILE__, __LINE__ ) 
   kernel_A(:, :) = VT(N-null_eigenvalues_counter+1:N,:)
+
+  if (this%number_dimensions == 2) then 
+  basis_dimension = this%order
+  else 
+  basis_dimension = this%order*(this%order+2)
+  end if
   
   ! Kernel also contains lower order monomials and lower-order k-order combination, choose a k-only order basis
-  call memalloc(k_order_node_array%order(1), N, this%basis_Sk, __FILE__, __LINE__ )
+  call memalloc(basis_dimension, N, this%basis_Sk, __FILE__, __LINE__ )
   call this%conform_k_order_polynomial_basis( null_eigenvalues_counter,               &
 											  kernel_A,                               &
 											  node_iterator,                          & 
@@ -1110,13 +1118,12 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this, orde
   
   call k_order_node_array%free() 
   call higher_order_node_array%free() 
-  call memfree(ijk_new, __FILE__, __LINE__ )
   
 end subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices
 ! ================================================================================================= 
 subroutine conform_k_order_polynomial_basis( this, null_eigenvalues_counter, kernel_A, node_iterator, higher_order_node_array )
 ! This subroutine takes the full kernel of the A-operator defined and builds a basis 
-! of space S_k (dimension=k) which is in DIRECT SUM with the [P_{k-1}]^d space. 
+! of space S_k (dimension={k, k(k+2)} in 2D, 3D respectively) which is in DIRECT SUM with the [P_{k-1}]^d space. 
 ! IDEA: - First of all we will discard all functions that are build ONLY with lower order monomials (are already in the prebasis_1=[P_{k-1}]^d) 
 !       - Functions from the kernel build ONLY with k-order monomials are clearly in the S_k basis 
 !       - Complete the basis (up to k-dimension) by checking which ones of the rest of functions are linearly independent (and accomplish p(x)·x = 0), 
@@ -1131,7 +1138,7 @@ type(node_array_t)               , intent(in)    :: higher_order_node_array
 integer(ip)              :: N, ipoly, idime, ivalu, offcomponent, ijk
 real(rp)   , allocatable :: current_order_monomials(:), lower_order_monomials(:) 
 integer(ip), allocatable :: mixed_polynomials(:), ijk_new(:) 
-integer(ip)              :: num_mixed_polynomials
+integer(ip)              :: num_mixed_polynomials, basis_dimension 
 integer(ip), allocatable :: polynomials_added_to_the_basis(:), num_added_polynomials 
 integer(ip)              :: current_basis_dimension, trial_basis_dimension, iadded_poly, imixed_poly
 real(rp),    allocatable :: orthogonality_checker(:) 
@@ -1176,7 +1183,12 @@ mixed_polynomials = 0
 num_mixed_polynomials = 0
 num_added_polynomials = 0
 
-call memalloc(node_iterator%node_array%order(1), polynomials_added_to_the_basis, __FILE__,__LINE__ )
+if (this%number_dimensions == 2) then 
+basis_dimension = this%order
+else 
+basis_dimension = this%order*(this%order+2)
+end if 
+call memalloc( basis_dimension, polynomials_added_to_the_basis, __FILE__,__LINE__ )
 polynomials_added_to_the_basis = 0
 
 do ipoly=1, null_eigenvalues_counter 
@@ -1200,7 +1212,8 @@ end do
 imixed_poly = 0
 trial_basis_dimension = num_added_polynomials + 1
 call memalloc( higher_order_node_array%number_nodes-1, orthogonality_checker, __FILE__, __LINE__ )
-do while ( num_added_polynomials .lt. node_iterator%node_array%order(1) ) 
+
+do while ( num_added_polynomials .lt. basis_dimension) 
    ! The polynomial tested can not be greater than the number of mixed polynomials found 
    imixed_poly = imixed_poly + 1
    check( imixed_poly .lt. num_mixed_polynomials )
@@ -1240,21 +1253,21 @@ do while ( num_added_polynomials .lt. node_iterator%node_array%order(1) )
       lwork = max( 1, 3*min(trial_basis_dimension,N) + max(trial_basis_dimension,N), 5*min(trial_basis_dimension,N) )
       call memalloc( lwork, work, __FILE__,__LINE__)
 
-      call DGESVD( 'N', &  ! U related output 
-           'N', &  ! V^t related output, overwrite A 
-           trial_basis_dimension,    &   ! rows(rank_checker)
-           N,   &   ! columns(rank_checker)
-           full_rank_checker_matrix, &   ! rank-checker array
-           trial_basis_dimension,    &   ! LDA, rows of A
-           rank_checker_eigenvalues, &             ! Output, stores eigenvalues 
-           Uc,                       & ! U-matrix 
-           trial_basis_dimension,    & ! U-leading dimension 
-           VcT,     & ! VT 
-           N,       & ! VT leading dimension 
-           work,    & ! not converged eigenvalues (info>0) 
-           lwork,   & ! dimension of the array work  
-           info )  
-      check(info==0) 
+      call DGESVD( 'N', &                        ! U related output 
+                   'N', &                        ! V^t related output, overwrite A 
+                   trial_basis_dimension,    &   ! rows(rank_checker)
+                   N,   &                        ! columns(rank_checker)
+                   full_rank_checker_matrix, &   ! rank-checker array
+                   trial_basis_dimension,    &   ! LDA, rows of A
+                   rank_checker_eigenvalues, &   ! Output, stores eigenvalues 
+                   Uc,                       &   ! U-matrix 
+                   trial_basis_dimension,    &   ! U-leading dimension 
+                   VcT,     &                    ! VT 
+                   N,       &                    ! VT leading dimension 
+                   work,    &                    ! not converged eigenvalues (info>0) 
+                   lwork,   &                    ! dimension of the array work  
+                   info )  
+                   check(info==0) 
 
       if ( rank_checker_eigenvalues(trial_basis_dimension) .le. 1e-15_rp ) then 
          ! It is linear dependent, discarded candidate polynomial  
@@ -1296,29 +1309,22 @@ subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id
   
   ! Add offset to have same numbering as in polytope
   n_face_index = local_edge_id+this%get_first_n_face_id_of_dimension(1)-1
-  
-  ! Create a d-dimensional quadrature as follows: so far only 2D case, build for 3D 
-  call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
-  c = 0
 
-   if ( local_edge_id .le. this%number_dimensions ) then 
-       do idime = 0,this%number_dimensions-1
-  
-     ! Orthogonal edges in the reference element 
-     if ( this%polytope%n_face_dir_is_fixed( n_face_index, idime ) == 1 ) then
-        c = c+1
-        aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(c,:)
+  ! Create a d-dimensional quadrature as follows: 
+  call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
+ 
+  do idime = 0,this%number_dimensions-1
+     if ( (this%polytope%n_face_dir_is_fixed( n_face_index, idime )==1) .and. (this%polytope%n_face_dir_coordinate( n_face_index, idime )==0) ) then
+        aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(1,:)	 
+     elseif  ( (this%polytope%n_face_dir_is_fixed( n_face_index, idime )==0) .and. (this%polytope%n_face_dir_coordinate( n_face_index, idime )==1) ) then 
+        ! Non-orthogonal edges in the reference element
+        do qpoin = 1, local_quadrature%number_quadrature_points
+           aux_quadrature%coordinates(idime+1, qpoin) = 1.0_rp - local_quadrature%coordinates(1,qpoin)
+        end do
      else 
         aux_quadrature%coordinates(idime+1,:) = 0.0_rp
      end if
-        end do 
-   else 
-     	  ! Non-orthogonal edges in the reference element
-	    do qpoin = 1, local_quadrature%number_quadrature_points
-           aux_quadrature%coordinates(1, qpoin) = 1.0_rp - local_quadrature%coordinates(1,qpoin)
-           aux_quadrature%coordinates(2, qpoin) = local_quadrature%coordinates(1,qpoin)
-		end do 
-  	end if
+  end do
     
   call this%fill_interpolation( aux_quadrature, edge_interpolation ) 
   call aux_quadrature%free()
@@ -1977,7 +1983,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   
    ! Allocate and fill Sk prebase polynomials indices  
   if ( allocated(this%basis_Sk) ) call memfree(this%basis_Sk, __FILE__, __LINE__ )  
-  call this%create_and_fill_basis_Sk_indices(this%order)
+  call this%create_and_fill_basis_Sk_indices()
   
  ! Create a 1D scalar lagrangian reference FE of order k-1
  call fe_1D%create(topology          = this%get_topology(), &
