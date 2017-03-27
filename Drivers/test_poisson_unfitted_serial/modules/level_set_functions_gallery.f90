@@ -35,15 +35,19 @@ module level_set_functions_gallery_names
   !TODO. Add a mechanism to get the complement, the union etc.
   !Translations and complement can implemented in the base class
 
+!========================================================================================
   type, extends(scalar_function_t) :: level_set_function_t
     private
     real(rp) :: tolerance = 0.0_rp
+    integer(ip) :: num_dimensions = SPACE_DIM
   contains
     procedure, private :: get_level_set_value => level_set_function_get_level_set_value
+    procedure, non_overridable :: set_num_dimensions  => level_set_function_set_num_dimensions
     procedure :: get_value_space              => level_set_function_get_value_space
     procedure :: set_tolerance                => level_set_function_set_tolerance
   end type level_set_function_t
 
+!========================================================================================
   type, extends(level_set_function_t) :: level_set_sphere_t
     private
     real(rp) :: radius = 0.0_rp
@@ -52,18 +56,21 @@ module level_set_functions_gallery_names
     procedure, private :: get_level_set_value => level_set_sphere_get_level_set_value
   end type level_set_sphere_t
 
+!========================================================================================
   type, extends(level_set_sphere_t) :: level_set_cylinder_t
     private
   contains
     procedure, private :: get_level_set_value => level_set_cylinder_get_level_set_value
   end type level_set_cylinder_t
 
+!========================================================================================
   type, extends(level_set_function_t) :: level_set_cheese_block_t
     private
   contains
     procedure, private :: get_level_set_value => level_set_cheese_block_get_level_set_value
   end type level_set_cheese_block_t
 
+!========================================================================================
   public :: level_set_function_t
   public :: level_set_sphere_t
   public :: level_set_cylinder_t
@@ -82,15 +89,35 @@ contains
   end subroutine level_set_function_get_level_set_value
 
 !========================================================================================
+  subroutine level_set_function_set_num_dimensions( this, num_dime )
+    implicit none
+    class(level_set_function_t), intent(inout) :: this
+    integer(ip),                 intent(in)    :: num_dime
+    this%num_dimensions = num_dime
+  end subroutine level_set_function_set_num_dimensions
+
+!========================================================================================
   subroutine level_set_function_get_value_space( this, point, result )
     implicit none
     class(level_set_function_t), intent(in)    :: this
     type(point_t)              , intent(in)    :: point
     real(rp)                   , intent(inout) :: result
-    call this%get_level_set_value( point, result )
+
+    type(point_t) :: point2
+
+    ! Restrict to the current dimensions
+    point2 = point
+    if (this%num_dimensions < 3) call point2%set(3,0.0)
+    if (this%num_dimensions < 2) call point2%set(2,0.0)
+
+    ! Call the actual level set function
+    call this%get_level_set_value( point2, result )
+
+    ! Apply tolerance
     if (abs(result) < this%tolerance) then
       result = 0.0_rp
     end if
+
   end subroutine level_set_function_get_value_space
 
 !========================================================================================

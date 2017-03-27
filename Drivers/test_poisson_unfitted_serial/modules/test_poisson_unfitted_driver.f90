@@ -89,6 +89,7 @@ module test_poisson_unfitted_driver_names
    contains
      procedure                  :: run_simulation
      procedure        , private :: parse_command_line_parameters
+     procedure        , private :: setup_levelset
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -116,44 +117,57 @@ contains
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
 
-  subroutine setup_triangulation(this)
+  subroutine setup_levelset(this)
     implicit none
-    class(test_poisson_unfitted_driver_t), target, intent(inout) :: this
-    type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef
+    class(test_poisson_unfitted_driver_t ), target, intent(inout) :: this
+
+    integer(ip) :: num_dime
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
-    real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
-    integer(ip) :: num_dime
 
     ! Get number of dimensions form input
     assert( this%parameter_list%isPresent    (key = number_of_dimensions_key) )
     assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
     istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
 
-    !TODO we assume it is a sphere or a cylinder
-    select case (num_dime)
-      case (2)
+    !TODO we assume it is a sphere
+    select case ('sphere')
+      case ('sphere')
+        allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0)
+      case ('cylinder')
         allocate( level_set_cylinder_t:: this%level_set_function, stat= istat ); check(istat==0)
-            levset => this%level_set_function
-        select type ( levset )
-          class is (level_set_sphere_t)
-            call levset%set_radius(0.625_rp)
-          class default
-            check(.false.)
-        end select
-      case (3)
+      case ('cheese_block')
         allocate( level_set_cheese_block_t:: this%level_set_function, stat= istat ); check(istat==0)
       case default
         check(.false.)
     end select
 
+
+    ! Set options of the base class
+    call this%level_set_function%set_num_dimensions(num_dime)
     call this%level_set_function%set_tolerance(1.0e-10)
 
+    ! Set options of the derived classes
+    levset => this%level_set_function
+    select type ( levset )
+      class is (level_set_sphere_t)
+        call levset%set_radius(0.9)!0.625_rp)
+      class default
+        check(.false.)
+    end select
+
+  end subroutine setup_levelset
+
+  subroutine setup_triangulation(this)
+    implicit none
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
+    type(vef_iterator_t)  :: vef_iterator
+    type(vef_accessor_t)  :: vef
+    integer(ip) :: istat
+    real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
     ! TODO is it correct?
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
-
 
     ! New call for unfitted triangulation
     call this%triangulation%create(this%parameter_list,this%level_set_function)
@@ -546,6 +560,7 @@ contains
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
     call this%free()
     call this%parse_command_line_parameters()
+    call this%setup_levelset()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
