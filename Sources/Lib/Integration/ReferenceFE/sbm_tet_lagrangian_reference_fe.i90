@@ -853,13 +853,13 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, local_quad
            ! Non-orthogonal face in the reference element
            global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
            global_coordinates(2:face_interpolation%number_dimensions) = & 
-                & local_quadrature%coordinates(:,iquad)
+                & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
         end if
-        call this%evaluate_interpolation( global_coordinates,                                 &
+        call this%evaluate_interpolation( global_coordinates,    &
              face_interpolation%number_dimensions,               &
              face_interpolation%number_shape_functions,          &
              face_interpolation%number_entries_symmetric_tensor, &
-             face_interpolation%shape_functions(1,:,iquad),        &
+             face_interpolation%shape_functions(1,:,iquad),      &
              face_interpolation%shape_derivatives(1,:,:,iquad) )
      end do
   end if

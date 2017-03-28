@@ -154,19 +154,19 @@ subroutine tet_nedelec_reference_fe_fill_vector (this)
   this%number_shape_functions = 0
   offset(1) = 0
   do idime = 1,this%number_dimensions
-     call this%node_array_vector(idime)%create( this%polytope, this%order_vector(idime) ) 
+     call this%node_array_vector(idime)%create( this%polytope, this%order_vector ) 
      ! Number nodes
      this%number_shape_functions = this%number_shape_functions + this%node_array_vector(idime)%get_number_nodes()
      offset(idime+1) = offset(idime) + this%node_array_vector(idime)%get_number_nodes()
   end do 
-  
+
   ! Add homogeneous polynomials s.t p(x)*x=0 shape functions, S_k basis  
   if (this%number_dimensions == 2) then 
   this%number_shape_functions = this%number_shape_functions + this%order 
   else 
   this%number_shape_functions = this%number_shape_functions + this%order*(this%order+2)
   end if 
-
+ 
   num_n_faces = this%polytope%get_number_n_faces()
   ! Number n-faces ( I don't like it, not volume included...)
   this%number_n_faces = num_n_faces-1
@@ -909,7 +909,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   real(rp), allocatable :: values(:)
   real(rp), allocatable :: gradients(:,:)
 
-  integer(ip)              :: c, idime, jdime, q_point, ipoly
+  integer(ip)              :: c, idime, jdime, q_point, ipoly, Sk_basis_dimension 
   integer(ip)              :: number_polynomials_prebase_1, N_k
   integer(ip)              :: ivalu, info, offcomponent 
 
@@ -975,10 +975,11 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 
    ! Fill second set of prebasis functions with order k prebase and Sk( homogeneous polynomials basis indices )  
   N_k = tet_polynomial_prebase_2%get_number_polynomials()
+  Sk_basis_dimension = this%order * (this%order+2)**(this%number_dimensions-2)
   c   = interpolation%number_dimensions*number_polynomials_prebase_1 
   do q_point=1, quadrature%get_number_quadrature_points()
      call tet_polynomial_prebase_2%evaluate(q_point, values, gradients)
-     do ipoly=1, this%order_vector(1) + 1 ! The space S_k has dimension k  
+     do ipoly=1, Sk_basis_dimension 
            do idime=1, interpolation%number_dimensions	
 		    do ivalu=1+(idime-1)*(N_k-1), idime*(N_k-1) ! Sk(ipoly, 1:N_k-1) "homogeneous info wo/ 0" || values(2:N_k) "non-homogeneous polynomials"
 			     interpolation%shape_functions(idime,c+ipoly,q_point) =  &
@@ -1137,8 +1138,8 @@ type(node_array_t)               , intent(in)    :: higher_order_node_array
 ! Locals 
 integer(ip)              :: N, ipoly, idime, ivalu, offcomponent, ijk
 real(rp)   , allocatable :: current_order_monomials(:), lower_order_monomials(:) 
-integer(ip), allocatable :: mixed_polynomials(:), ijk_new(:) 
-integer(ip)              :: num_mixed_polynomials, basis_dimension 
+integer(ip), allocatable :: mixed_polynomials(:)
+integer(ip)              :: num_mixed_polynomials, basis_dimension, ijk_new(0:SPACE_DIM-1)
 integer(ip), allocatable :: polynomials_added_to_the_basis(:), num_added_polynomials 
 integer(ip)              :: current_basis_dimension, trial_basis_dimension, iadded_poly, imixed_poly
 real(rp),    allocatable :: orthogonality_checker(:) 
@@ -1221,7 +1222,6 @@ do while ( num_added_polynomials .lt. basis_dimension)
 
    ! Check the p(x)·x condition before becoming a candidate
    call node_iterator%init() 
-   call memalloc ( this%number_dimensions, ijk_new, __FILE__, __LINE__ ) 
    orthogonality_checker = 0
    do while (.not. node_iterator%has_finished() ) 
       do idime=1, this%number_dimensions
@@ -1236,7 +1236,6 @@ do while ( num_added_polynomials .lt. basis_dimension)
       end do
       call node_iterator%next() 
    end do
-   call memfree(ijk_new, __FILE__, __LINE__)
 
    ! If the candidate accomplishes p(x)·x = 0, check if it is linearly independent to those ones previously added to the Sk basis 
    if ( sum(orthogonality_checker) < 1e-15_rp ) then 
@@ -1311,13 +1310,13 @@ subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id
   n_face_index = local_edge_id+this%get_first_n_face_id_of_dimension(1)-1
 
   ! Create a d-dimensional quadrature as follows: 
+  ! Non-orthogonal directions are taken into account with the (1-d) factor for the free and anchor node dimension 
   call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
  
   do idime = 0,this%number_dimensions-1
      if ( (this%polytope%n_face_dir_is_fixed( n_face_index, idime )==1) .and. (this%polytope%n_face_dir_coordinate( n_face_index, idime )==0) ) then
         aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(1,:)	 
      elseif  ( (this%polytope%n_face_dir_is_fixed( n_face_index, idime )==0) .and. (this%polytope%n_face_dir_coordinate( n_face_index, idime )==1) ) then 
-        ! Non-orthogonal edges in the reference element
         do qpoin = 1, local_quadrature%number_quadrature_points
            aux_quadrature%coordinates(idime+1, qpoin) = 1.0_rp - local_quadrature%coordinates(1,qpoin)
         end do
@@ -1332,78 +1331,43 @@ subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id
 end subroutine tet_nedelec_reference_fe_fill_edge_interpolation
 
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_face_interpolation (this, local_quadrature, local_face_id, face_interpolation)
+subroutine tet_nedelec_reference_fe_fill_face_interpolation( this, local_quadrature, local_face_id, face_interpolation )
   implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)       :: this
-  type(quadrature_t)                  , intent(in)    :: local_quadrature
-  integer(ip)                         , intent(in)    :: local_face_id
-  type(interpolation_t)               , intent(inout) :: face_interpolation
-  real(rp)   , allocatable :: global_coordinates(:)
-  integer(ip)              :: idime, iquad, p_local_coordinate
-
-  call memalloc(face_interpolation%number_dimensions,global_coordinates,__FILE__,__LINE__)
-
-  ! Evaluate shape functions and derivatives at the gauss points
-  if ( allocated( face_interpolation%hessian ) )  then 
-     do iquad = 1,face_interpolation%number_quadrature_points
+  class(tet_nedelec_reference_fe_t)       , intent(in)    :: this
+  type(quadrature_t)                      , intent(in)    :: local_quadrature
+  integer(ip)                             , intent(in)    :: local_face_id
+  type(interpolation_t)                   , intent(inout) :: face_interpolation
+  type(quadrature_t) :: aux_quadrature
+  integer(ip) :: idime,iface,n_face_index, qpoin,p_local_coordinate
+  
+  ! Add offset to have same numbering as in polytope
+  n_face_index = local_face_id+this%get_first_face_id()-1
+  
+  ! Create a d-dimensional quadrature as follows
+  call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
+       do qpoin = 1,face_interpolation%number_quadrature_points
         ! Transform face local coordinates to element global coordinates
         if (local_face_id .le. face_interpolation%number_dimensions ) then 
            ! Orthogonal face in the reference element
            p_local_coordinate = 1
            do idime = 1, face_interpolation%number_dimensions
               if (idime .eq. face_interpolation%number_dimensions + 1 - local_face_id ) then
-                 global_coordinates(idime) = 0.0_rp
+                 aux_quadrature%coordinates(idime,qpoin) = 0.0_rp
               else
-                 global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
+                 aux_quadrature%coordinates(idime,qpoin) = local_quadrature%coordinates(p_local_coordinate, qpoin)
                  p_local_coordinate = p_local_coordinate + 1
               end if
            end do
         else 
            ! Non-orthogonal face in the reference element
-           global_coordinates(1) = 1 - local_quadrature%coordinates(1,iquad)
-           global_coordinates(2:face_interpolation%number_dimensions) = &
-                & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
-        end if
-        ! Evaluate shape functions and derivatives at the gauss points
-        call this%nedelec_evaluate_interpolation( global_coordinates,   &
-             face_interpolation%number_dimensions,                      &
-             face_interpolation%number_shape_functions,                 &
-             face_interpolation%number_entries_symmetric_tensor,        &
-             face_interpolation%shape_functions(1,:,iquad),             &
-             face_interpolation%shape_derivatives(1,:,:,iquad),         &
-             face_interpolation%hessian(1,:,:,iquad) )
+           aux_quadrature%coordinates(1,qpoin) = 1 - sum(local_quadrature%coordinates(:,qpoin))
+           aux_quadrature%coordinates(2:face_interpolation%number_dimensions, qpoin) = & 
+                & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,qpoin)
+        end if	
      end do
-  else
-     do iquad = 1,face_interpolation%number_quadrature_points
-        ! Transform face local coordinates to element global coordinates
-        if (local_face_id .le. face_interpolation%number_dimensions ) then 
-           ! Orthogonal face in the reference element
-           p_local_coordinate = 1
-           do idime = 1, face_interpolation%number_dimensions
-              if (idime .eq. face_interpolation%number_dimensions + 1 - local_face_id ) then
-                 global_coordinates(idime) = 0.0_rp
-              else
-                 global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
-                 p_local_coordinate = p_local_coordinate + 1
-              end if
-           end do
-        else 
-           ! Non-orthogonal face in the reference element
-           global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
-           global_coordinates(2:face_interpolation%number_dimensions) = & 
-                & local_quadrature%coordinates(:,iquad)
-        end if
-        call this%nedelec_evaluate_interpolation( global_coordinates,  &
-             face_interpolation%number_dimensions,                     &
-             face_interpolation%number_shape_functions,                &
-             face_interpolation%number_entries_symmetric_tensor,       &
-             face_interpolation%shape_functions(1,:,iquad),            &
-             face_interpolation%shape_derivatives(1,:,:,iquad) )
-     end do
-  end if
-
-  call memfree(global_coordinates,__FILE__,__LINE__)
-
+	   
+  call this%fill_interpolation( aux_quadrature, face_interpolation ) 
+  call aux_quadrature%free()
 end subroutine tet_nedelec_reference_fe_fill_face_interpolation
 
 !=================================================================================================
@@ -1468,11 +1432,12 @@ end function tet_nedelec_reference_fe_set_number_quadrature_points
 !=================================================================================================
 recursive function tet_nedelec_reference_fe_compute_number_nodes_scalar(this, order, dimension)
   implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this 
-  integer(ip)                         , intent(in)    :: dimension
-  integer(ip)                         , intent(in)    :: order
+  class(tet_nedelec_reference_fe_t)   , intent(in)       :: this 
+  integer(ip)                         , intent(in)       :: dimension
+  integer(ip)                         , intent(in)       :: order
   integer(ip) :: tet_nedelec_reference_fe_compute_number_nodes_scalar
   integer(ip) :: q
+ 
   if (dimension == 0) then
      tet_nedelec_reference_fe_compute_number_nodes_scalar = 1
   elseif (order == 0) then
@@ -1490,6 +1455,7 @@ recursive function tet_nedelec_reference_fe_compute_number_nodes_scalar(this, or
              & this%compute_number_nodes_scalar(dimension-1,q)
      end do
   end if
+
 end function tet_nedelec_reference_fe_compute_number_nodes_scalar
 
 !==================================================================================================
@@ -1654,247 +1620,6 @@ function tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices(this,dimensi
      end do
   end if
 end function tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices
-
-!==================================================================================================
-subroutine tet_nedelec_reference_fe_evaluate_interpolation(this,coord,ndime,nnode, & 
-     & ntens,shape,deriv,heslo)
-  !-----------------------------------------------------------------------
-  !
-  ! This routine evaluates shape functions and their first and second
-  ! derivatives for 2D or 3D continuos standard interpolation elements.
-  !
-  !    BARS                2  &   3  nodes
-  !    TRIANGLES       3   6  &  10  nodes
-  !    TETRAHEDRA          4  &  10  nodes
-  !
-  !-----------------------------------------------------------------------
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  real(rp)                            , intent(in)    :: coord(:)
-  integer(ip)                         , intent(in)    :: ndime,nnode,ntens
-  real(rp)                            , intent(inout) :: shape(:),deriv(:,:)
-  real(rp)                  , optional, intent(inout) :: heslo(:,:)
-  integer(ip) :: i
-  real(rp)    :: a1,a2,a3,a4,c
-  shape = 0.0_rp
-  deriv = 0.0_rp
-  if (present(heslo)) then
-     heslo = 0.0_rp
-  end if
-  if(ndime==1) then 
-     ! Hessian not computed for face interpolation
-     ! Linear bar
-     if(nnode==2) then
-        shape(1)=1.0_rp-coord(1)                              
-        shape(2)=coord(1)                                    
-        deriv(1,1)=-1.0_rp                                   
-        deriv(1,2)= 1.0_rp                                   
-        ! Quadratic bar
-     else if(nnode==3) then
-        shape(1)=2.0_rp*(coord(1)-0.5_rp)*(coord(1)-1.0_rp)                           
-        shape(2)=-4.0_rp*coord(1)*(coord(1)-1.0_rp)  
-        shape(3)=2.0_rp*coord(1)*(coord(1)-0.5_rp)
-        deriv(1,1)=2.0_rp*(2.0_rp*coord(1)-1.5_rp)                                    
-        deriv(1,2)=-4.0_rp*(2.0_rp*coord(1)-1.0_rp)
-        deriv(1,3)=2.0_rp*(2.0_rp*coord(1)-0.5_rp)
-        ! Cubic bar
-     else if(nnode==4) then
-        write(*,*) __FILE__,__LINE__,'ERROR:: Interpolation not defined',ndime,nnode
-        check(.false.)
-     end if
-  elseif(ndime==2) then
-     ! Linear triangle
-     if(nnode==3) then     
-        shape(1)=1.0_rp-coord(1)-coord(2)                                
-        shape(2)=coord(1)                                  
-        shape(3)=coord(2)                                           
-        deriv(1,1)=-1.0_rp                                   !  3 
-        deriv(1,2)= 1.0_rp                                   !
-        deriv(1,3)= 0.0_rp                                   !
-        deriv(2,1)=-1.0_rp                                   !         
-        deriv(2,2)= 0.0_rp                                   !  1       2
-        deriv(2,3)= 1.0_rp
-        ! Quadratic triangle
-     else if(nnode==6) then
-        a1=1.0_rp-coord(1)-coord(2)
-        a2=coord(1)                                             
-        a3=coord(2)
-        shape( 1)=(2.0_rp*a1-1.0_rp)*a1                      !  6
-        shape( 3)=(2.0_rp*a2-1.0_rp)*a2                      !   
-        shape( 6)=(2.0_rp*a3-1.0_rp)*a3                      !   
-        shape( 2)=4.0_rp*a1*a2                               !  4      5
-        shape( 5)=4.0_rp*a2*a3                               !     
-        shape( 4)=4.0_rp*a1*a3                               !                                !  1     2     3
-        deriv(1,1)= 1.0_rp-4.0_rp*a1                        
-        deriv(1,3)= 4.0_rp*a2-1.0_rp    
-        deriv(1,6)= 0.0_rp           
-        deriv(1,2)= 4.0_rp*(a1-a2)   
-        deriv(1,5)= 4.0_rp*a3        
-        deriv(1,4)=-4.0_rp*a3       
-        deriv(2,1)= 1.0_rp-4.0_rp*a1    
-        deriv(2,3)= 0.0_rp           
-        deriv(2,6)= 4.0_rp*a3-1.0_rp    
-        deriv(2,2)=-4.0_rp*a2       
-        deriv(2,5)= 4.0_rp*a2        
-        deriv(2,4)= 4.0_rp*(a1-a3)
-        if (present(heslo)) then
-           heslo(1,1)= 4.0_rp
-           heslo(1,3)= 4.0_rp
-           heslo(1,2)=-8.0_rp
-           heslo(2,1)= 4.0_rp
-           heslo(2,6)= 4.0_rp
-           heslo(2,4)=-8.0_rp
-           heslo(3,1)= 4.0_rp
-           heslo(3,2)=-4.0_rp
-           heslo(3,5)= 4.0_rp
-           heslo(3,4)=-4.0_rp
-        end if
-        ! Cubic triangle
-     else if(nnode==10) then
-        c=9.0_rp/2.0_rp
-        a1=1.0_rp-coord(1)-coord(2)
-        a2=2.0_rp/3.0_rp-coord(1)-coord(2)
-        a3=1.0_rp/3.0_rp-coord(1)-coord(2)
-        shape( 1)=c*a1*a2*a3                                 !  10
-        shape( 4)=c*(1.0_rp/3.0_rp-coord(1))*(2.0_rp/3.0_rp-coord(1))*coord(1)    !
-        shape(10)=c*(1.0_rp/3.0_rp-coord(2))*(2.0_rp/3.0_rp-coord(2))*coord(2)    !
-        shape( 2)= 3.0_rp*c*a1*a2*coord(1)                          !  8    9
-        shape( 3)=-3.0_rp*c*a1*(1.0_rp/3.0_rp-coord(1))*coord(1)           !
-        shape( 7)=-3.0_rp*c*(1.0_rp/3.0_rp-coord(1))*coord(1)*coord(2)            !
-        shape( 9)=-3.0_rp*c*coord(1)*(1.0_rp/3.0_rp-coord(2))*coord(2)            !  5    6     7
-        shape( 8)=-3.0_rp*c*a1*(1.0_rp/3.0_rp-coord(2))*coord(2)           !
-        shape( 5)= 3.0_rp*c*a1*a2*coord(2)                          !
-        shape( 6)= 6.0_rp*c*a1*coord(1)*coord(2)                           !  1    2    3    4
-        deriv(1, 1)=-c*(a1*a2+a1*a3+a2*a3)       
-        deriv(1, 4)=-c*((2.0_rp/3.0_rp-coord(1))*coord(1)&
-             + (1.0_rp/3.0_rp-coord(1))*coord(1)-(1.0_rp/3.0_rp-coord(1))*(2.0_rp/3.0_rp-coord(1)))
-        deriv(1, 10)=0.0_rp
-        deriv(1, 2)= 3.0_rp*c*(a1*a2-a1*coord(1)-a2*coord(1))
-        deriv(1, 3)=-3.0_rp*c*(a1*(1.0_rp/3.0_rp-coord(1))&
-             - a1*coord(1)-(1.0_rp/3.0_rp-coord(1))*coord(1))
-        deriv(1, 7)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(1))*coord(2)-coord(1)*coord(2))
-        deriv(1, 9)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(2))*coord(2))
-        deriv(1, 8)= 3.0_rp*c*((1.0_rp/3.0_rp-coord(2))*coord(2))
-        deriv(1, 5)= 3.0_rp*c*(-a1*coord(2)-a2*coord(2))
-        deriv(1,6)= 6.0_rp*c*(a1*coord(2)-coord(1)*coord(2))
-        deriv(2, 1)=-c*(a1*a2+a1*a3+a2*a3)
-        deriv(2, 4)= 0.0_rp
-        deriv(2, 10)=-c*((2.0_rp/3.0_rp-coord(2))*coord(2)&
-             + (1.0_rp/3.0_rp-coord(2))*coord(2)-(1.0_rp/3.0_rp-coord(2))*(2.0_rp/3.0_rp-coord(2)))
-        deriv(2, 2)= 3.0_rp*c*(-a1*coord(1)-a2*coord(1))
-        deriv(2, 3)=-3.0_rp*c*(-(1.0_rp/3.0_rp-coord(1))*coord(1))
-        deriv(2, 7)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(1))*coord(1))
-        deriv(2, 9)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(2))*coord(1)-coord(1)*coord(2))
-        deriv(2, 8)=-3.0_rp*c*(-(1.0_rp/3.0_rp-coord(2))*coord(2)&
-             - a1*coord(2)+a1*(1.0_rp/3.0_rp-coord(2)))
-        deriv(2, 5)= 3.0_rp*c*(-a1*coord(2)-a2*coord(2)+a1*a2)
-        deriv(2,6)= 6.0_rp*c*(a1*coord(1)-coord(1)*coord(2))
-        if (present(heslo)) then
-           heslo(1, 1)= c*2.0_rp*(a1+a2+a3) 
-           heslo(1, 4)= c*(6.0_rp*coord(1)-2.0_rp) 
-           heslo(1, 10)= 0.0_rp 
-           heslo(1, 2)= c*( 18.0_rp*coord(1)+12.0_rp*coord(2)-10.0_rp)
-           heslo(1, 3)= c*(-18.0_rp*coord(1)- 6.0_rp*coord(2)+ 8.0_rp)
-           heslo(1, 7)= c*6.0_rp*coord(2) 
-           heslo(1, 9)= 0.0_rp 
-           heslo(1, 8)= 0.0_rp  
-           heslo(1, 5)= c*6.0_rp*coord(2) 
-           heslo(1,6)=-c*12.0_rp*coord(2) 
-           heslo(2, 1)= c*2.0_rp*(a1+a2+a3) 
-           heslo(2, 4)= 0.0_rp 
-           heslo(2, 10)= c*(6.0_rp*coord(2)-2.0_rp) 
-           heslo(2, 2)= c*6.0_rp*coord(1)
-           heslo(2, 3)= 0.0_rp
-           heslo(2, 7)= 0.0_rp
-           heslo(2, 9)= c*6.0_rp*coord(1)
-           heslo(2, 8)= c*( -6.0_rp*coord(1)-18.0*coord(2)+ 8.0_rp)
-           heslo(2, 5)= c*( 12.0_rp*coord(1)+18.0*coord(2)-10.0_rp)
-           heslo(2,6)=-c*12.0_rp*coord(1)
-           heslo(3, 1)= 2.0_rp*c*(a1+a2+a3) 
-           heslo(3, 4)= 0.0_rp  
-           heslo(3, 10)= 0.0_rp 
-           heslo(3, 2)= c*( 12.0_rp*coord(1)+6.0_rp*coord(2)-5.0_rp) 
-           heslo(3, 3)= c*(- 6.0_rp*coord(1)+1.0_rp) 
-           heslo(3, 7)= c*(  6.0_rp*coord(1)-1.0_rp) 
-           heslo(3, 9)= c*(  6.0_rp*coord(2)-1.0_rp) 
-           heslo(3, 8)= c*(- 6.0_rp*coord(2)+1.0_rp)  
-           heslo(3, 5)= c*(  6.0_rp*coord(1)+12.0_rp*coord(2)-5.0_rp) 
-           heslo(3,6)= c*(-12.0_rp*coord(1)-12.0_rp*coord(2)+6.0_rp) 
-        end if
-     end if
-  elseif (ndime==3) then
-     ! Linear tetrahedron 
-     if(nnode==4) then
-        shape(   1) = 1.0_rp-coord(1)-coord(2)-coord(3)
-        shape(   2) = coord(1)
-        shape(   3) = coord(2)
-        shape(   4) = coord(3)
-        deriv(1, 1) =-1.0_rp
-        deriv(2, 1) =-1.0_rp
-        deriv(3, 1) =-1.0_rp
-        deriv(3, 4) = 1.0_rp
-        deriv(1, 2) = 1.0_rp
-        deriv(2, 3) = 1.0_rp
-        ! Quadratic tetrahedron 
-     else if(nnode==10) then
-        a1= 1.0_rp-coord(1)-coord(2)-coord(3)
-        a2=coord(1)
-        a3=coord(2)
-        a4=coord(3)
-        shape(   1) = (2.0_rp*a1-1.0_rp)*a1
-        deriv(1, 1) = 1.0_rp-4.0_rp*a1
-        deriv(2, 1) = 1.0_rp-4.0_rp*a1
-        deriv(3, 1) = 1.0_rp-4.0_rp*a1
-        shape(   3) = (2.0_rp*a2-1.0_rp)*a2
-        deriv(1, 3) = 4.0_rp*a2-1.0_rp
-        shape(   6) = (2.0_rp*a3-1.0_rp)*a3
-        deriv(2, 6) = 4.0_rp*a3-1.0_rp
-        shape(  10) = (2.0_rp*a4-1.0_rp)*a4
-        deriv(3,10) = 4.0_rp*a4-1.0_rp
-        shape(   2) = 4.0_rp*a1*a2
-        deriv(1, 2) = 4.0_rp*(a1-a2)
-        deriv(2, 2) =-4.0_rp*a2
-        deriv(3, 2) =-4.0_rp*a2
-        shape(   5) = 4.0_rp*a2*a3
-        deriv(1, 5) = 4.0_rp*a3
-        deriv(2, 5) = 4.0_rp*a2
-        shape(   4) = 4.0_rp*a1*a3
-        deriv(1, 4) =-4.0_rp*a3
-        deriv(2, 4) = 4.0_rp*(a1-a3)
-        deriv(3, 4) =-4.0_rp*a3
-        shape(   7) = 4.0_rp*a1*a4
-        deriv(1, 7) =-4.0_rp*a4
-        deriv(2, 7) =-4.0_rp*a4
-        deriv(3, 7) = 4.0_rp*(a1-a4)
-        shape(   8) = 4.0_rp*a2*a4
-        deriv(1, 8) = 4.0_rp*a4
-        deriv(3, 8) = 4.0_rp*a2
-        shape(   9) = 4.0_rp*a3*a4
-        deriv(2, 9) = 4.0_rp*a4
-        deriv(3, 9) = 4.0_rp*a3
-        if (present(heslo)) then
-           do i = 1,6
-              heslo(i, 1) = 4.0_rp
-           end do
-           heslo(1, 3) = 4.0_rp
-           heslo(2, 6) = 4.0_rp
-           heslo(3,10) = 4.0_rp
-           heslo(1, 2) =-8.0_rp
-           heslo(4, 2) =-4.0_rp
-           heslo(5, 2) =-4.0_rp
-           heslo(4, 5) = 4.0_rp
-           heslo(2, 4) =-8.0_rp
-           heslo(4, 4) =-4.0_rp
-           heslo(6, 4) =-4.0_rp
-           heslo(3, 7) =-8.0_rp
-           heslo(5, 7) =-4.0_rp
-           heslo(6, 7) =-4.0_rp
-           heslo(5, 8) = 4.0_rp
-           heslo(6, 9) = 4.0_rp
-        end if
-     end if
-  end if
-end subroutine tet_nedelec_reference_fe_evaluate_interpolation
 
 !==================================================================================================
 subroutine tet_nedelec_reference_fe_get_n_face_orientation(this,o,od,nd,io)

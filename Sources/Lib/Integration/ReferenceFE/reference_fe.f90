@@ -340,11 +340,11 @@ module reference_fe_names
      type(node_array_t)            :: node_array
      type(node_array_t)            :: vertex_array
 
-     type(allocatable_array_ip1_t)  :: orientation        ! orientation of the n-faces 
+     type(allocatable_array_ip1_t)  :: orientation           ! orientation of the n-faces 
      type(list_t)                   :: interior_nodes_n_face ! interior nodes per n-face
      type(list_t)                   :: nodes_n_face          ! all nodes per n-face
      type(list_t)                   :: vertices_n_face       ! vertices per n-face
-     type(list_t)                   :: n_faces_n_face           ! all n-faces per n-face
+     type(list_t)                   :: n_faces_n_face        ! all n-faces per n-face
      type(list_t)                   :: own_nodes_n_faces
      type(list_t)                   :: face_integration_coupling_nodes_facet
 
@@ -1352,8 +1352,6 @@ procedure, private, non_overridable :: compute_number_interior_nodes            
 & => tet_nedelec_reference_fe_compute_number_interior_nodes
 procedure, private, non_overridable :: compute_sum_of_nodes_in_simplices            &
 & => tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices
-procedure, private, non_overridable :: nedelec_evaluate_interpolation               &
-& => tet_nedelec_reference_fe_evaluate_interpolation
 procedure, private, non_overridable :: nedelec_get_n_face_orientation               &
 & => tet_nedelec_reference_fe_get_n_face_orientation
 procedure, private :: change_basis                                                  &

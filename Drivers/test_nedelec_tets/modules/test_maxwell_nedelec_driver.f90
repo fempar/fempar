@@ -143,13 +143,13 @@ contains
                                reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
-    ! call this%fe_space%initialize_fe_face_integration() 
+    call this%fe_space%initialize_fe_face_integration() 
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
 	if ( this%triangulation%get_num_dimensions() == 3) then 
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	end if 
-    !call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
     !call this%fe_space%print()
   end subroutine setup_fe_space
 
@@ -273,18 +273,18 @@ contains
     
     call H_error_norm%create(this%fe_space,1)
     write(*,*) 'H ERROR NORMS'
-    mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm)   
-    l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm)   
+    !mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm)   
+    !l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm)   
     l2 = H_error_norm%compute(H_exact_function, this%solution, l2_norm)   
-    lp = H_error_norm%compute(H_exact_function, this%solution, lp_norm)   
-    linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
-    h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
-    h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
+    !lp = H_error_norm%compute(H_exact_function, this%solution, lp_norm)   
+    !linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
+    !h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
+    !h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
 	hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_seminorm) 
-    w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
-    w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
-    w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
-    w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
+    !w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
+    !w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
+    !w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
+    !w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
     
 #ifdef ENABLE_MKL    
     error_tolerance = 1.0e-04

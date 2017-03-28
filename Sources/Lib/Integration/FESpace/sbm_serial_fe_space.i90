@@ -850,13 +850,11 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
      end if
      call fe_iterator%next()
   end do
-  ! Allocate + compute subset2global_dirichlet_dofs from subset2global_dirichlet_dofs
+  ! Allocate + compute subset2global_dirichlet_dofs from global2subset_dirichlet_dofs
   call memalloc ( num_subset_strong_dirichlet_dofs, subset2global, __FILE__, __LINE__ ) 
-  idof_subset=1
   do idof_global=1, this%number_strong_dirichlet_dofs
      if (global2subset(idof_global) /= 0) then
-        subset2global(idof_subset) = global2subset(idof_global) 
-        idof_subset=idof_subset+1
+        subset2global(global2subset(idof_global)) = idof_global
      end if
   end do  
   deallocate(elem2dof, stat=istat ); check (istat==0)
@@ -985,7 +983,7 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   type(vector_field_t) :: vector_shape_test, vector_shape_trial
   
   call fe_face%get_cell_around(1,fe)
-  reference_fe => fe%get_reference_fe(field_id)
+  reference_fe      => fe%get_reference_fe(field_id)
   quadrature        => fe_face%get_quadrature()
   face_map          => fe_face%get_face_map()   
   face_map_face_map => face_map%get_face_map()

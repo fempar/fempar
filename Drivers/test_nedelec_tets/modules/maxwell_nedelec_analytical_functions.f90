@@ -104,7 +104,7 @@ contains
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
-    class(source_term_t), intent(in)    :: this
+    class(source_term_t)    , intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
  
@@ -113,27 +113,27 @@ contains
 	assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3)  
 
-	 call result%init(0.0_rp) 
-     call result%set(1, pi*pi*(sin(pi*x)*sin(pi*y))  + sin(pi*x)*sin(pi*y) )
-     call result%set(2, pi*pi*(cos(pi*x)*cos(pi*y)))
+	 call result%init(1.0_rp) 
+     !call result%set(1, pi*pi*(sin(pi*x)*sin(pi*y))  + sin(pi*x)*sin(pi*y) )
+     !call result%set(2, pi*pi*(cos(pi*x)*cos(pi*y)))
 	 
-	! call result%set(1, sin(pi*x)*sin(pi*y) )
+	! call result%set(1, x )
  
   end subroutine source_term_get_value_space
 
   !===============================================================================================
   subroutine source_term_get_gradient_space ( this, point, result )
     implicit none
-    class(source_term_t), intent(in)    :: this
-    type(point_t)           , intent(in)    :: point
-    type(tensor_field_t), intent(inout) :: result
+    class(source_term_t), intent(in)        :: this
+    type(point_t)       , intent(in)        :: point
+    type(tensor_field_t), intent(inout)     :: result
     check(.false.)
   end subroutine source_term_get_gradient_space
 
   !===============================================================================================
   subroutine solution_get_value_space ( this, point, result )
     implicit none
-    class(solution_t), intent(in)    :: this
+    class(solution_t)       , intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
 	
@@ -141,14 +141,10 @@ contains
 	assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3) 
 	
-    !call result%set(1, point%get(2))
-    !call result%set(2, 0.0_rp)  
-    !if ( this%num_dimensions == 3 ) then
-    !   call result%set(3, 0.0_rp)
-    !end if
-	
 	 call result%init(0.0_rp) 
-     call result%set(1, sin(pi*x)*sin(pi*y) )
+	 call result%set(1, 1.0_rp) 
+	 call result%set(2, 1.0_rp) 
+    ! call result%set(1, sin(pi*x)*sin(pi*y) )
 
   end subroutine solution_get_value_space
 
@@ -163,8 +159,8 @@ contains
 	x = point%get(1); y=point%get(2); z=point%get(3)
 
 	call result%init(0.0_rp) 
-	call result%set(1, 1, pi*cos(pi*x)*sin(pi*y) )
-	call result%set(2, 1, pi*sin(pi*x)*cos(pi*y) ) 
+ 	!call result%set(1, 1, pi*cos(pi*x)*sin(pi*y) )
+  	!call result%set(2, 1, pi*sin(pi*x)*cos(pi*y) ) 
   end subroutine solution_get_gradient_space
   
   !===============================================================================================
@@ -173,7 +169,7 @@ contains
     class(boundary_function_Hx_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-	 result = 0.0_rp
+	 result = 1.0_rp
   end subroutine boundary_function_Hx_get_value_space
 
   !===============================================================================================
@@ -182,7 +178,7 @@ contains
     class(boundary_function_Hy_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    result = 0.0_rp          
+    result = 1.0_rp          
   end subroutine boundary_function_Hy_get_value_space
 
   !===============================================================================================
@@ -191,7 +187,7 @@ contains
     class(boundary_function_Hz_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    result = 0.0_rp          
+    result = 1.0_rp          
   end subroutine boundary_function_Hz_get_value_space
 
   !===============================================================================================
