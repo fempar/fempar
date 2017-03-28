@@ -51,6 +51,7 @@ module test_poisson_void_fe_driver_names
      
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)              :: triangulation
+     integer(ip), allocatable                  :: cell_set_ids(:)
      
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                      :: fe_space 
@@ -107,8 +108,15 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_void_fe_driver_t), intent(inout) :: this
+
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
+    type(cell_iterator_t) :: cell_iter
+    type(cell_accessor_t) :: cell
+    type(point_t), allocatable :: cell_coords(:)
+    integer(ip) :: istat
+    integer(ip) :: set_id
+    real(rp) :: x, y
 
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
@@ -127,8 +135,29 @@ contains
           end if
           call vef_iterator%next()
        end do
-    end if    
-    
+    end if
+
+    ! Set the cell ids
+    call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
+    cell_iter = this%triangulation%create_cell_iterator()
+    call cell_iter%current(cell)
+    allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
+    do while( .not. cell_iter%has_finished() )
+      call cell_iter%current(cell)
+      call cell%get_coordinates(cell_coords)
+      x = cell_coords(1)%get(1)
+      y = cell_coords(1)%get(2)
+      if (x>=0.5 .and. y>=0.5) then
+        set_id = 1
+      else
+        set_id = 2
+      end if
+      this%cell_set_ids(cell%get_lid()) = set_id
+      call cell_iter%next()
+    end do
+    deallocate(cell_coords, stat = istat); check(istat == 0)
+    call this%triangulation%fill_cells_set(this%cell_set_ids)
+
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -428,9 +457,24 @@ contains
   subroutine write_solution(this)
     implicit none
     class(test_poisson_void_fe_driver_t), intent(in) :: this
+
     type(output_handler_t)                   :: oh
     character(len=:), allocatable            :: path
     character(len=:), allocatable            :: prefix
+    real(rp),allocatable :: cell_vector(:)
+    integer(ip) :: istat
+    type(cell_iterator_t) :: cell_iter
+    type(cell_accessor_t) :: cell
+
+    allocate(cell_vector(1:size(this%cell_set_ids)),stat=istat ); check(istat == 0)
+    !cell_vector(:) = this%cell_set_ids(:)
+    cell_iter = this%triangulation%create_cell_iterator()
+    do while( .not. cell_iter%has_finished() )
+      call cell_iter%current(cell)
+      cell_vector(cell%get_lid()) = cell%get_set_id()
+      call cell_iter%next()
+    end do
+
     if(this%test_params%get_write_solution()) then
         path = this%test_params%get_dir_path_out()
         prefix = this%test_params%get_prefix()
@@ -438,11 +482,15 @@ contains
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
+        call oh%add_cell_vector(cell_vector,'cell_set_ids')
         call oh%open(path, prefix)
         call oh%write()
         call oh%close()
         call oh%free()
     endif
+
+    deallocate(cell_vector,stat=istat); check(istat == 0)
+
   end subroutine write_solution
   
   subroutine run_simulation(this) 
@@ -491,6 +539,7 @@ contains
     end if
     call this%triangulation%free()
     call this%test_params%free()
+    if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free  
   
 end module test_poisson_void_fe_driver_names
