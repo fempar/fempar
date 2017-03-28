@@ -57,7 +57,7 @@ module timer_names
   end type timer_t
 
   ! Public types
-  public :: timer_t 
+  public :: timer_t ,TIMER_MODE_MIN , TIMER_MODE_SUM, TIMER_MODE_LAST
 
 contains  
     subroutine timer_create ( this, context, message, mode )

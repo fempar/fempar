@@ -74,7 +74,7 @@ module par_pb_bddc_poisson_driver_names
      procedure                  :: run_simulation
      procedure                  :: parse_command_line_parameters
      procedure                  :: setup_environment
-     procedure                  :: get_icontxt
+     !procedure                  :: get_icontxt
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_cell_set_ids
      procedure        , private :: setup_reference_fes
@@ -153,7 +153,7 @@ contains
        call cell%create(this%triangulation)
        call cell%first()
        allocate (cell_coords(cell%get_num_nodes()),stat=istat)
-       do while( .not. cell%past_the_end)
+       do while( .not. cell%past_the_end() )
           if ( cell%is_local() ) then
              call cell%get_coordinates(cell_coords)
              call grav_center%init(0.0_rp)
@@ -505,7 +505,7 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    type(par_timer_t) :: t_solve_system
+    type(timer_t) :: t_solve_system
     
     !call this%free()
     !call this%parse_command_line_parameters()
@@ -515,7 +515,7 @@ contains
     call this%setup_system()
     call this%assemble_system()
     
-    call t_solve_system%create("SOLVE SYSTEM", this%get_icontxt(), 0)
+    call t_solve_system%create(this%environment%get_w_context() , "SOLVE SYSTEM", TIMER_MODE_MIN)
     call t_solve_system%start()
     call this%setup_solver()
     call this%solution%create(this%fe_space) 
@@ -550,17 +550,17 @@ contains
   end subroutine free
 
 
-  function get_icontxt(this)
-    implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
-    integer(ip) :: get_icontxt
-    class(execution_context_t), pointer :: w_context
-    w_context => this%environment%get_w_context()
-    select type(w_context)
-    type is (mpi_context_t)
-       get_icontxt = w_context%get_icontxt()
-    end select
-  end function get_icontxt
+  !function get_icontxt(this)
+  !  implicit none
+  !  class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+  !  integer(ip) :: get_icontxt
+  !  class(execution_context_t), pointer :: w_context
+  !  w_context => this%environment%get_w_context()
+  !  select type(w_context)
+  !  type is (mpi_context_t)
+  !     get_icontxt = w_context%get_icontxt()
+  !  end select
+  !end function get_icontxt
   
   subroutine free_command_line_parameters(this)
     implicit none
