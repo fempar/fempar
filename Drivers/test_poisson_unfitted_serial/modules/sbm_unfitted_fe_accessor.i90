@@ -26,6 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!=============================================================================================
 subroutine unfitted_fe_accessor_create( this, lid, fe_space )
   implicit none
   class(unfitted_fe_accessor_t)   , intent(inout) :: this
@@ -44,8 +45,7 @@ subroutine unfitted_fe_accessor_create( this, lid, fe_space )
   end select
 end subroutine unfitted_fe_accessor_create
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 subroutine unfitted_fe_accessor_free( this )
   implicit none
   class(unfitted_fe_accessor_t)   , intent(inout) :: this
@@ -54,8 +54,7 @@ subroutine unfitted_fe_accessor_free( this )
   call this%unfitted_cell_accessor%free()
 end subroutine unfitted_fe_accessor_free
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 function unfitted_fe_accessor_get_unfitted_cell_accessor(this) result (cell_acc)
   implicit none
   class(unfitted_fe_accessor_t), target, intent(in) :: this
@@ -64,8 +63,7 @@ function unfitted_fe_accessor_get_unfitted_cell_accessor(this) result (cell_acc)
   call cell_acc%set_lid(this%get_lid())
 end function unfitted_fe_accessor_get_unfitted_cell_accessor
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 function unfitted_fe_accessor_get_quadrature(this) result (quadrature)
   implicit none
   class(unfitted_fe_accessor_t),  intent(in) :: this ! TODO why does it work without target ?
@@ -85,8 +83,7 @@ function unfitted_fe_accessor_get_quadrature(this) result (quadrature)
   end if
 end function unfitted_fe_accessor_get_quadrature
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 function unfitted_fe_accessor_get_fe_map(this) result (fe_map)
   implicit none
   class(unfitted_fe_accessor_t), intent(in) :: this
@@ -106,8 +103,7 @@ function unfitted_fe_accessor_get_fe_map(this) result (fe_map)
   end if
 end function unfitted_fe_accessor_get_fe_map
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 function unfitted_fe_accessor_get_volume_integrator(this, field_id) result (vol_int)
   implicit none
   class(unfitted_fe_accessor_t), intent(in)   :: this
@@ -118,18 +114,17 @@ function unfitted_fe_accessor_get_volume_integrator(this, field_id) result (vol_
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
-    vol_int => this%unfitted_fe_space%cut_vol_integrators(mc_case)! TODO we assume only a single field
+    vol_int => this%unfitted_fe_space%cut_vol_integrators(mc_case,field_id)
   else if ( cell%is_interior() ) then
     vol_int => this%fe_accessor_t%get_volume_integrator(field_id)
   else if ( cell%is_exterior() ) then
-    vol_int => this%unfitted_fe_space%empty_vol_integrator
+    vol_int => this%unfitted_fe_space%empty_vol_integrator(field_id)
   else
     check(.false.)
   end if
 end function unfitted_fe_accessor_get_volume_integrator
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 function unfitted_fe_accessor_get_boundary_quadrature(this) result (quadrature)
   implicit none
   class(unfitted_fe_accessor_t),  intent(in) :: this
@@ -145,8 +140,7 @@ function unfitted_fe_accessor_get_boundary_quadrature(this) result (quadrature)
   end if
 end function unfitted_fe_accessor_get_boundary_quadrature
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 function unfitted_fe_accessor_get_boundary_piecewise_fe_map(this) result (fe_map)
   implicit none
   class(unfitted_fe_accessor_t), intent(in) :: this
@@ -162,7 +156,7 @@ function unfitted_fe_accessor_get_boundary_piecewise_fe_map(this) result (fe_map
   end if
 end function unfitted_fe_accessor_get_boundary_piecewise_fe_map
 
-!-----------------------------------------------------------------------------------------------------
+!=============================================================================================
 
 function unfitted_fe_accessor_get_boundary_fe_map(this) result (fe_map)
   implicit none
@@ -180,8 +174,7 @@ function unfitted_fe_accessor_get_boundary_fe_map(this) result (fe_map)
 end function unfitted_fe_accessor_get_boundary_fe_map
 
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 function unfitted_fe_accessor_get_boundary_volume_integrator(this, field_id) result (vol_int)
   implicit none
   class(unfitted_fe_accessor_t), intent(in)   :: this
@@ -192,19 +185,18 @@ function unfitted_fe_accessor_get_boundary_volume_integrator(this, field_id) res
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
-    vol_int => this%unfitted_fe_space%cut_boundary_vol_integrators(mc_case)! TODO we assume only a single field
+    vol_int => this%unfitted_fe_space%cut_boundary_vol_integrators(mc_case,field_id)
   else
-    vol_int => this%unfitted_fe_space%empty_vol_integrator
+    vol_int => this%unfitted_fe_space%empty_vol_integrator(field_id)
   end if
 end function unfitted_fe_accessor_get_boundary_volume_integrator
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 subroutine unfitted_fe_accessor_update_integration( this )
 
   implicit none
   class(unfitted_fe_accessor_t), intent(inout) :: this
-  
+
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
   type(fe_map_t)           , pointer :: fe_map
@@ -216,7 +208,7 @@ subroutine unfitted_fe_accessor_update_integration( this )
   ! where is the safe place to put this update?
   cell => this%get_unfitted_cell_accessor()
   call cell%update_sub_triangulation()
-  
+
   call this%update_cut_quadratures()
   call this%update_cut_fe_maps()
   call this%update_cut_vol_integrators()
@@ -237,8 +229,7 @@ subroutine unfitted_fe_accessor_update_integration( this )
 
 end subroutine unfitted_fe_accessor_update_integration
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 subroutine unfitted_fe_accessor_update_boundary_integration( this )
   implicit none
   class(unfitted_fe_accessor_t), intent(inout) :: this
@@ -252,8 +243,7 @@ subroutine unfitted_fe_accessor_update_boundary_integration( this )
   call this%update_cut_boundary_vol_integrators()
 end subroutine unfitted_fe_accessor_update_boundary_integration
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 subroutine unfitted_fe_accessor_update_cut_quadratures( this )
 
   implicit none
@@ -334,12 +324,11 @@ subroutine unfitted_fe_accessor_update_cut_quadratures( this )
       igp = igp + 1
     end do
 
-  end do  
+    end do
 
 end subroutine unfitted_fe_accessor_update_cut_quadratures
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 subroutine unfitted_fe_accessor_update_cut_fe_maps( this )
 
   implicit none
@@ -356,8 +345,7 @@ subroutine unfitted_fe_accessor_update_cut_fe_maps( this )
 
 end subroutine unfitted_fe_accessor_update_cut_fe_maps
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 subroutine unfitted_fe_accessor_update_cut_vol_integrators( this )
 
   implicit none
@@ -375,8 +363,7 @@ subroutine unfitted_fe_accessor_update_cut_vol_integrators( this )
 
 end subroutine unfitted_fe_accessor_update_cut_vol_integrators
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 subroutine unfitted_fe_accessor_update_cut_boundary_quadratures( this )
 
   implicit none
@@ -418,8 +405,7 @@ subroutine unfitted_fe_accessor_update_cut_boundary_quadratures( this )
 
 end subroutine unfitted_fe_accessor_update_cut_boundary_quadratures
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 subroutine unfitted_fe_accessor_update_cut_boundary_fe_maps( this )
 
   implicit none
@@ -450,8 +436,7 @@ subroutine unfitted_fe_accessor_update_cut_boundary_fe_maps( this )
 
 end subroutine unfitted_fe_accessor_update_cut_boundary_fe_maps
 
-!-----------------------------------------------------------------------------------------------------
-
+!=============================================================================================
 subroutine unfitted_fe_accessor_update_cut_boundary_vol_integrators( this )
 
   implicit none
@@ -494,3 +479,5 @@ subroutine unfitted_fe_accessor_update_cut_boundary_vol_integrators( this )
   ! At this point we can extract info about shape function from the volume integrator
 
 end subroutine unfitted_fe_accessor_update_cut_boundary_vol_integrators
+
+

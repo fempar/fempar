@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_create_same_reference_fes_on_all_cells(&
   this, &
   triangulation, &
@@ -46,6 +46,10 @@ subroutine serial_unfitted_fe_space_create_same_reference_fes_on_all_cells(&
   call this%free()
   ! Initialize the member variables of the father
   call this%serial_fe_space_t%create(triangulation,conditions,reference_fes,field_blocks,field_coupling)
+  ! Check assumptions
+#ifdef DEBUG
+  call this%check_assumptions()
+#endif
   select type(triangulation)
   class is (serial_unfitted_triangulation_t)
     this%unfitted_triangulation => triangulation
@@ -60,8 +64,7 @@ subroutine serial_unfitted_fe_space_create_same_reference_fes_on_all_cells(&
 
 end subroutine serial_unfitted_fe_space_create_same_reference_fes_on_all_cells
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_free( this )
   implicit none
   class(serial_unfitted_fe_space_t), intent(inout) :: this
@@ -74,8 +77,7 @@ subroutine serial_unfitted_fe_space_free( this )
   call this%free_cut_boundary_integration()
 end subroutine serial_unfitted_fe_space_free
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 function serial_unfitted_fe_space_create_unfitted_fe_iterator( this ) result( unfitted_fe_iterator )
   implicit none
   class(serial_unfitted_fe_space_t), intent(in) :: this
@@ -83,8 +85,7 @@ function serial_unfitted_fe_space_create_unfitted_fe_iterator( this ) result( un
   call unfitted_fe_iterator%create(1, this)
 end function serial_unfitted_fe_space_create_unfitted_fe_iterator
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_print_boundary_quad_points( this )
 
   implicit none
@@ -133,7 +134,7 @@ subroutine serial_unfitted_fe_space_print_boundary_quad_points( this )
   call memalloc ( Nn, v_x, __FILE__, __LINE__ )
   call memalloc ( Nn, v_y, __FILE__, __LINE__ )
   call memalloc ( Nn, v_z, __FILE__, __LINE__ )
-  
+
   ipoint = 1
   fe_iterator = this%create_unfitted_fe_iterator()
   do while ( .not. fe_iterator%has_finished() )
@@ -183,8 +184,6 @@ subroutine serial_unfitted_fe_space_print_boundary_quad_points( this )
   E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'CLOSE')
   E_IO = VTK_GEO_XML()
   E_IO = VTK_END_XML()
-  
-
 
   call memfree ( x        , __FILE__, __LINE__ )
   call memfree ( y        , __FILE__, __LINE__ )
@@ -200,8 +199,62 @@ subroutine serial_unfitted_fe_space_print_boundary_quad_points( this )
 
 end subroutine serial_unfitted_fe_space_print_boundary_quad_points
 
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================
+subroutine serial_unfitted_fe_space_check_assumptions(this)
+  implicit none
+  class(serial_unfitted_fe_space_t), intent(inout) :: this
 
+  type(fe_iterator_t) :: fe_it
+  type(fe_accessor_t) :: fe
+  integer(ip) :: num_fields, ifield
+  class(reference_fe_t), pointer :: ref_fe
+  class(reference_fe_t), pointer :: ref_fe_1
+  class(lagrangian_reference_fe_t), pointer :: geo_ref_fe
+  class(lagrangian_reference_fe_t), pointer :: geo_ref_fe_1
+
+  ! Hypothesis:
+  ! Same geom ref element in all cells
+  ! Same ref elem in all cells, but possible different among fields
+
+  fe_it = this%create_fe_iterator()
+  num_fields = this%get_number_fields()
+
+  ! Check geom ref element
+  ! TODO how to check the fe_type?
+  call fe_it%init()
+  call fe_it%current(fe)
+  geo_ref_fe_1 => fe%get_reference_fe_geo()
+  do while (.not. fe_it%has_finished())
+    call fe_it%current(fe)
+    geo_ref_fe => fe%get_reference_fe_geo()
+    assert( geo_ref_fe_1%get_topology()          ==    geo_ref_fe%get_topology()          )
+    assert( geo_ref_fe_1%get_number_dimensions() ==    geo_ref_fe%get_number_dimensions() )
+    assert( geo_ref_fe_1%get_order()             ==    geo_ref_fe%get_order()             )
+    assert( geo_ref_fe_1%get_field_type()        ==    geo_ref_fe%get_field_type()        )
+    assert( geo_ref_fe_1%get_continuity()        .eqv. geo_ref_fe%get_continuity()        )
+    call fe_it%next()
+  end do
+
+  ! Check ref elems
+  do ifield = 1, num_fields
+    call fe_it%init()
+    call fe_it%current(fe)
+    ref_fe_1     => fe%get_reference_fe(ifield)
+    do while (.not. fe_it%has_finished())
+      call fe_it%current(fe)
+      ref_fe     => fe%get_reference_fe(ifield)
+      assert( ref_fe_1%get_topology()          ==    ref_fe%get_topology()         )
+      assert( ref_fe_1%get_number_dimensions() ==    ref_fe%get_number_dimensions())
+      assert( ref_fe_1%get_order()             ==    ref_fe%get_order()            )
+      assert( ref_fe_1%get_field_type()        ==    ref_fe%get_field_type()       )
+      assert( ref_fe_1%get_continuity()        .eqv. ref_fe%get_continuity()       )
+      call fe_it%next()
+    end do
+  end do
+
+end subroutine serial_unfitted_fe_space_check_assumptions
+
+!========================================================================================
 subroutine serial_unfitted_fe_space_init_reference_subelem( this )
   implicit none
   class(serial_unfitted_fe_space_t), intent(inout) :: this
@@ -275,8 +328,7 @@ subroutine serial_unfitted_fe_space_init_reference_subelem( this )
 
 end subroutine serial_unfitted_fe_space_init_reference_subelem
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_free_reference_subelem( this )
   implicit none
   class(serial_unfitted_fe_space_t), intent(inout) :: this
@@ -285,8 +337,7 @@ subroutine serial_unfitted_fe_space_free_reference_subelem( this )
   call this%quadrature_subelem%free()
 end subroutine serial_unfitted_fe_space_free_reference_subelem
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_init_reference_subface( this )
 
   implicit none
@@ -344,28 +395,26 @@ subroutine serial_unfitted_fe_space_init_reference_subface( this )
 
 end subroutine serial_unfitted_fe_space_init_reference_subface
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_free_reference_subface( this )
   implicit none
   class(serial_unfitted_fe_space_t), intent(inout) :: this
   call this%quadrature_subface%free()
 end subroutine serial_unfitted_fe_space_free_reference_subface
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_init_cut_integration( this )
   implicit none
   class(serial_unfitted_fe_space_t), intent(inout) :: this
 
-  integer(ip) :: num_dim, num_gp, num_gp_subelem, num_subelems
-  integer(ip) :: mc_case, mc_num_cases, istat
-  
+  integer(ip) :: num_dim, num_gp, num_gp_subelem, num_subelems, num_fields
+  integer(ip) :: mc_case, mc_num_cases, istat, ifield
+
   type(fe_iterator_t) :: fe_iterator
   type(fe_accessor_t) :: fe
   class(reference_fe_t),     pointer        :: reference_elem
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
-  
+
   call this%free_cut_integration()
   num_dim = this%get_num_dimensions()
   num_gp_subelem = this%quadrature_subelem%get_number_quadrature_points()
@@ -376,14 +425,11 @@ subroutine serial_unfitted_fe_space_init_cut_integration( this )
     num_gp = num_gp_subelem*this%unfitted_triangulation%get_num_subcells_mc_case(mc_case)
     call this%cut_quadratures(mc_case)%create( num_dim, num_gp )
   end do
-  
-  ! Store a pointer to a reference element
-  ! TODO @fverdugo DRIVER PRIORITY LOW EFFORT HIGH
-  ! We assume that the same ref element is in all the mesh and all fields
-  ! Is this ok, or we really need to be more general?
+
+  ! We assume that the same geom ref element is in all the mesh
+  ! We assume that the same ref element is in all the mesh (but can be different amnong fields)
   fe_iterator = this%create_fe_iterator()
   call fe_iterator%current(fe)
-  reference_elem => fe%get_reference_fe(field_id=1)
   geo_reference_elem => fe%get_reference_fe_geo()
 
   ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
@@ -396,27 +442,33 @@ subroutine serial_unfitted_fe_space_init_cut_integration( this )
   end do
 
   ! Volume integrators
-  allocate( this%cut_vol_integrators(1:mc_num_cases), stat=istat ); check(istat==0_ip)
-  do mc_case = 1, mc_num_cases
-    call this%cut_vol_integrators(mc_case)%create( this%cut_quadratures(mc_case), reference_elem )
+  num_fields = this%get_number_fields()
+  allocate( this%cut_vol_integrators(1:mc_num_cases,1:num_fields), stat=istat ); check(istat==0_ip)
+  do ifield = 1,num_fields
+    reference_elem => fe%get_reference_fe(field_id=ifield)
+    do mc_case = 1, mc_num_cases
+      call this%cut_vol_integrators(mc_case,ifield)%create( this%cut_quadratures(mc_case), reference_elem )
+    end do
   end do
-    
 
   ! Create empty dummy objects
   call this%empty_quadrature%create(num_dim,0)
   call this%empty_fe_map%create( this%empty_quadrature, geo_reference_elem )
-  call this%empty_vol_integrator%create( this%empty_quadrature, reference_elem )
+  allocate (this%empty_vol_integrator(1:num_fields), stat=istat); check(istat==0)
+  do ifield = 1,num_fields
+    reference_elem => fe%get_reference_fe(field_id=ifield)
+    call this%empty_vol_integrator(ifield)%create( this%empty_quadrature, reference_elem )
+  end do
 
 end subroutine serial_unfitted_fe_space_init_cut_integration
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_free_cut_integration( this )
 
   implicit none
   class(serial_unfitted_fe_space_t), intent(inout) :: this
 
-  integer(ip) :: ind, istat
+  integer(ip) :: ind, istat, jnd
 
   if ( allocated(this%cut_quadratures) ) then
     do ind = 1,size(this%cut_quadratures)
@@ -433,20 +485,27 @@ subroutine serial_unfitted_fe_space_free_cut_integration( this )
   end if
 
   if ( allocated(this%cut_vol_integrators) ) then
-    do ind = 1,size(this%cut_vol_integrators)
-      call this%cut_vol_integrators(ind)%free()
+    do ind = 1,size(this%cut_vol_integrators,1)
+      do jnd = 1,size(this%cut_vol_integrators,2)
+        call this%cut_vol_integrators(ind,jnd)%free()
+      end do
     end do
     deallocate( this%cut_vol_integrators, stat=istat ); check(istat==0_ip)
   end if
-  
+
   call this%empty_quadrature%free()
   call this%empty_fe_map%free()
-  call this%empty_vol_integrator%free()
+
+  if ( allocated(this%empty_vol_integrator) ) then
+    do ind = 1,size(this%empty_vol_integrator)
+      call this%empty_vol_integrator(ind)%free()
+    end do
+    deallocate( this%empty_vol_integrator, stat=istat ); check(istat==0_ip)
+  end if
 
 end subroutine serial_unfitted_fe_space_free_cut_integration
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
 
   implicit none
@@ -457,8 +516,8 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
   class(reference_fe_t),     pointer        :: reference_elem
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
-  integer(ip) :: mc_case, mc_num_cases, istat, pini, pend, subface
-  integer(ip) :: num_dim, num_gp, num_subfaces, num_face_dim
+  integer(ip) :: mc_case, mc_num_cases, istat, pini, pend, subface, ifield
+  integer(ip) :: num_dim, num_gp, num_subfaces, num_face_dim, num_fields
 
   real(rp), pointer :: quad_coords(:,:), sub_quad_coords(:,:)
   real(rp), pointer :: quad_weight(:), sub_quad_weight(:)
@@ -468,12 +527,13 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
   num_gp = this%quadrature_subface%get_number_quadrature_points()
   num_dim = this%get_num_dimensions()
   mc_num_cases = this%unfitted_triangulation%get_num_mc_cases()
+  num_fields = this%get_number_fields()
 
   !TODO not needed to allocate for all the mc cases
   allocate( this%cut_boundary_quadratures_cell_dim    (1:mc_num_cases), stat = istat ); check(istat==0)
   allocate( this%cut_boundary_piecewise_fe_maps       (1:mc_num_cases), stat = istat ); check(istat==0)
   allocate( this%cut_boundary_fe_maps                 (1:mc_num_cases), stat = istat ); check(istat==0)
-  allocate( this%cut_boundary_vol_integrators         (1:mc_num_cases), stat = istat ); check(istat==0)
+  allocate( this%cut_boundary_vol_integrators         (1:mc_num_cases,1:num_fields), stat = istat ); check(istat==0)
 
   do mc_case = 1, mc_num_cases
     num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
@@ -493,16 +553,15 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
       quad_coords(:,pini:pend) = sub_quad_coords(:,:)
       quad_weight(pini:pend) = sub_quad_weight(:)
     end do
-  end do  
-  
-  
-  ! TODO we assume that the same ref element is in all the mesh and all fields
+  end do
+
+
+  ! We assume that the same ref element is in all the mesh, but possibly different in all fields
   fe_iterator = this%create_fe_iterator()
   call fe_iterator%current(fe)
-  reference_elem => fe%get_reference_fe(field_id=1)
   geo_reference_elem => fe%get_reference_fe_geo()
-  
-  !TODO it is very counter intuitive that the reference element sould be here a tet4 (3d), a quad4 (2d)
+
+  !TODO it is very counter intuitive that the reference element is here a tet4 (3d), a quad4 (2d)
   select case (num_dim)
   case (2)
     do mc_case = 1, mc_num_cases
@@ -519,31 +578,32 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
   case default
     check(.false.)
   end select
-  
+
   do mc_case = 1, mc_num_cases
     num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
     call this%cut_boundary_fe_maps(mc_case)%create(&
          this%cut_boundary_quadratures_cell_dim(mc_case), geo_reference_elem)
   end do
 
-  do mc_case = 1, mc_num_cases
-    call this%cut_boundary_vol_integrators(mc_case)%create(&
-         this%cut_boundary_quadratures_cell_dim(mc_case), reference_elem )
+  do ifield = 1, num_fields
+    reference_elem => fe%get_reference_fe(field_id=ifield)
+    do mc_case = 1, mc_num_cases
+    call this%cut_boundary_vol_integrators(mc_case,ifield)%create(&
+           this%cut_boundary_quadratures_cell_dim(mc_case), reference_elem )
+    end do
   end do
-  
-  
+
   call this%empty_piecewise_fe_map%create_face_map( this%empty_quadrature, geo_reference_elem, 0 )
-  
+
 end subroutine serial_unfitted_fe_space_init_cut_boundary_integration
 
-!-----------------------------------------------------------------------------------------------------
-
+!========================================================================================
 subroutine serial_unfitted_fe_space_free_cut_boundary_integration( this )
 
   implicit none
   class(serial_unfitted_fe_space_t), intent(inout) :: this
 
-  integer(ip) :: id, istat
+  integer(ip) :: id, istat, jd
 
   if ( allocated( this%cut_boundary_quadratures_cell_dim ) ) then
     do id = 1, size(this%cut_boundary_quadratures_cell_dim)
@@ -558,7 +618,7 @@ subroutine serial_unfitted_fe_space_free_cut_boundary_integration( this )
     end do
     deallocate( this%cut_boundary_piecewise_fe_maps , stat = istat ); check(istat==0)
   end if
-  
+
   if ( allocated( this%cut_boundary_fe_maps ) ) then
     do id = 1, size(this%cut_boundary_fe_maps )
       call this%cut_boundary_fe_maps(id)%free()
@@ -567,12 +627,14 @@ subroutine serial_unfitted_fe_space_free_cut_boundary_integration( this )
   end if
 
   if ( allocated( this%cut_boundary_vol_integrators ) ) then
-    do id = 1, size(this%cut_boundary_vol_integrators)
-      call this%cut_boundary_vol_integrators(id)%free()
+    do id = 1, size(this%cut_boundary_vol_integrators,1)
+      do jd = 1, size(this%cut_boundary_vol_integrators,2)
+        call this%cut_boundary_vol_integrators(id,jd)%free()
+      end do
     end do
     deallocate( this%cut_boundary_vol_integrators , stat = istat ); check(istat==0)
   end if
-  
+
   call this%empty_piecewise_fe_map%free()
-  
+
 end subroutine serial_unfitted_fe_space_free_cut_boundary_integration
