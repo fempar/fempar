@@ -145,7 +145,7 @@ contains
 
     ! Set options of the base class
     call this%level_set_function%set_num_dimensions(num_dime)
-    call this%level_set_function%set_tolerance(1.0e-10)
+    call this%level_set_function%set_tolerance(1.0e-6)
 
     ! Set options of the derived classes
     levset => this%level_set_function

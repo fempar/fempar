@@ -353,9 +353,17 @@ subroutine fe_map_update_face_map(this,local_face_id,reference_fe,quadrature)
           &                         sqrt(dot_product(this%normals(:,evaluation_point_id),         &
           &                                          this%normals(:,evaluation_point_id)))
 
-     ! Normalize the normal vector and make it point in the correct direction
+     ! Normalize the normal vector (safely handling degenerated cases)
+     if (this%det_jacobian(evaluation_point_id) .ne. 0.0_rp) then
+       this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id)/               &
+          &                                                 this%det_jacobian(evaluation_point_id)
+     else
+       this%normals (:,evaluation_point_id) = 0.0_rp
+     end if
+     
+     ! and make it point in the correct direction
      this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
-          &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
+          &                                                             real(reorientation_factor) 
   end do
 end subroutine fe_map_update_face_map
 

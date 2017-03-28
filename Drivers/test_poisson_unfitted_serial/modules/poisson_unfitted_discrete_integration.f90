@@ -346,6 +346,18 @@ end subroutine evaluate_monomials
 
            ! Solve the eigenvalue problem
            lambdas => eigs%solve(elmatB,elmatV,istat)
+           if (istat .ne. 0) then
+             write(*,*) 'istat = ', istat
+             write(*,*) 'lid   = ', fe%get_lid()
+             write(*,*) 'elmatB = '
+             do idof = 1,size(elmatB,1)
+               write(*,*) elmatB(idof,:)
+             end do
+             write(*,*) 'elmatV = '
+             do idof = 1,size(elmatV,1)
+               write(*,*) elmatV(idof,:)
+             end do
+           end if
            check(istat == 0)
 
            ! The eigenvalue should be real. Thus, it is save to take only the real part.
