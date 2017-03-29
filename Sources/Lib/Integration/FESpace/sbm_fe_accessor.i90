@@ -489,7 +489,7 @@ function fe_accessor_get_quadrature ( this )
   type(quadrature_t), pointer      :: fe_accessor_get_quadrature
   integer(ip) :: fe_quadratures_position
   integer(ip) :: istat
-  call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_per_fe(this%get_lid()), &
+  call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid()), &
                                                           val=fe_quadratures_position, &
                                                           stat=istat)
   assert ( .not. istat == key_not_found )
@@ -502,7 +502,7 @@ function fe_accessor_get_fe_map ( this )
   type(fe_map_t), pointer :: fe_accessor_get_fe_map
   integer(ip) :: fe_maps_position
   integer(ip) :: istat
-  call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_per_fe(this%get_lid()), &
+  call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid()), &
                                                           val=fe_maps_position, &
                                                           stat=istat)
   assert ( .not. istat == key_not_found )
@@ -519,7 +519,7 @@ function fe_accessor_get_volume_integrator ( this, field_id )
   integer(ip) :: istat
   
   fe_volume_integrators_position_key = &
-        this%fe_space%generate_fe_volume_integrators_position_key(this%fe_space%max_order_per_fe(this%get_lid()), &
+        this%fe_space%generate_fe_volume_integrators_position_key(this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid()), &
                                                                   this%fe_space%reference_fe_id_per_fe(field_id, this%get_lid()))
   
   call this%fe_space%fe_volume_integrators_position%get(key=fe_volume_integrators_position_key, &

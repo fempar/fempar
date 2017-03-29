@@ -2112,7 +2112,7 @@ subroutine bst_print ( this )
       end if
       nullify(this%p_env)
       end if
-
+      call this%geometry%free()
    end subroutine bst_free
 
    function bst_get_number_reference_fes_geo ( this ) 

@@ -410,7 +410,7 @@ contains
 
      ! Read mesh
      call mesh_distribution_compose_name ( prefix, name )
-     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' ); check(lunio>0)
      call f_msh_dist%read_file(lunio)
      call io_close(lunio)
    end subroutine mesh_distribution_read
@@ -508,7 +508,7 @@ contains
     do i=1,nparts
        rename=name
        call numbered_filename_compose(i,nparts,rename)
-       lunio = io_open (trim(dir_path) // '/' // trim(rename))
+       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
        call parts(i)%write (lunio)
        call io_close (lunio)
     end do
@@ -536,7 +536,7 @@ contains
     do i=1,nparts
        rename=name
        call numbered_filename_compose(i,nparts,rename)
-       lunio = io_open (trim(dir_path) // '/' // trim(rename))
+       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
        call parts(i)%read_file (lunio)
        call io_close (lunio)
     end do
