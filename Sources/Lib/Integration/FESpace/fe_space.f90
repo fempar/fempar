@@ -317,7 +317,9 @@ module fe_space_names
      class(base_static_triangulation_t), pointer :: triangulation =>  NULL()
    contains
      procedure,                  private :: serial_fe_space_create_same_reference_fes_on_all_cells
-     generic                             :: create                                       => serial_fe_space_create_same_reference_fes_on_all_cells
+     procedure,                  private :: serial_fe_space_create_different_between_cells
+     generic                             :: create                                       => serial_fe_space_create_same_reference_fes_on_all_cells,&
+                                                                                            serial_fe_space_create_different_between_cells
      procedure                           :: free                                         => serial_fe_space_free
      procedure                           :: print                                        => serial_fe_space_print
      procedure, non_overridable, private :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
@@ -327,6 +329,7 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_ref_fe_id_per_fe                    => serial_fe_space_allocate_ref_fe_id_per_fe
      procedure, non_overridable, private :: free_ref_fe_id_per_fe                        => serial_fe_space_free_ref_fe_id_per_fe
      procedure, non_overridable, private :: fill_ref_fe_id_per_fe_same_on_all_cells      => serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
+     procedure, non_overridable, private :: fill_ref_fe_id_per_fe_different_between_cells=> serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells
      procedure, non_overridable, private :: check_cell_vs_fe_topology_consistency        => serial_fe_space_check_cell_vs_fe_topology_consistency
      procedure, non_overridable, private :: allocate_and_fill_fe_space_type_per_field    => serial_fe_space_allocate_and_fill_fe_space_type_per_field
      procedure, non_overridable, private :: free_fe_space_type_per_field                 => serial_fe_space_free_fe_space_type_per_field
@@ -368,6 +371,7 @@ module fe_space_names
      procedure, non_overridable          :: get_field_type                               => serial_fe_space_get_field_type 
      procedure, non_overridable          :: get_number_components                        => serial_fe_space_get_number_components
      procedure, non_overridable          :: get_max_number_shape_functions               => serial_fe_space_get_max_number_shape_functions
+     procedure, non_overridable          :: get_max_number_dofs_on_a_cell                => serial_fe_space_get_max_number_dofs_on_a_cell
      procedure, non_overridable          :: get_max_number_quadrature_points             => serial_fe_space_get_max_number_quadrature_points
      procedure, non_overridable          :: get_max_number_nodal_quadrature_points       => serial_fe_space_get_max_number_nodal_quadrature_points
      procedure, non_overridable          :: get_max_number_face_quadrature_points        => serial_fe_space_get_max_number_face_quadrature_points     

@@ -42,6 +42,9 @@ module test_poisson_void_fe_driver_names
   implicit none
   private
 
+  integer(ip), parameter :: SET_ID_FULL = 1
+  integer(ip), parameter :: SET_ID_VOID = 2
+
   type test_poisson_void_fe_driver_t 
      private 
      
@@ -148,9 +151,9 @@ contains
       x = cell_coords(1)%get(1)
       y = cell_coords(1)%get(2)
       if (x>=0.5 .and. y>=0.5) then
-        set_id = 1
+        set_id = SET_ID_FULL
       else
-        set_id = 2
+        set_id = SET_ID_VOID
       end if
       this%cell_set_ids(cell%get_lid()) = set_id
       call cell_iter%next()
@@ -176,7 +179,7 @@ contains
     character(:), allocatable :: field_type
     
 
-    allocate(this%reference_fes(1), stat=istat)
+    allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
     
     continuity = .true.
@@ -206,8 +209,15 @@ contains
     !call poly_old%print()
     !call poly%print()
     ! END Checking ...
-    
-    this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+
+    this%reference_fes(SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                 fe_type = fe_type_lagrangian, &
+                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 order = this%test_params%get_reference_fe_order(), &
+                                                 field_type = field_type, &
+                                                 continuity = continuity )
+
+    this%reference_fes(SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_void, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = -1, & ! this%test_params%get_reference_fe_order(), & 
@@ -218,19 +228,26 @@ contains
   subroutine setup_fe_space(this)
     implicit none
     class(test_poisson_void_fe_driver_t), intent(inout) :: this
-    
+
+    integer(ip) :: set_ids_to_reference_fes(1,2)
+
+    set_ids_to_reference_fes(1,SET_ID_FULL) = SET_ID_FULL
+    set_ids_to_reference_fes(1,SET_ID_VOID) = SET_ID_VOID
+
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
       call this%poisson_void_fe_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%poisson_void_fe_conditions%set_boundary_function(this%poisson_void_fe_analytical_functions%get_boundary_function())
-      call this%fe_space%create( triangulation       = this%triangulation, &
-                                 conditions          = this%poisson_void_fe_conditions, &
-                                 reference_fes       = this%reference_fes)
+      call this%fe_space%create( triangulation            = this%triangulation, &
+                                 conditions               = this%poisson_void_fe_conditions, &
+                                 reference_fes            = this%reference_fes,&
+                                 set_ids_to_reference_fes = set_ids_to_reference_fes)
     else
       call this%vector_poisson_void_fe_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%vector_poisson_void_fe_conditions%set_boundary_function(this%vector_poisson_void_fe_analytical_functions%get_boundary_function()) 
-      call this%fe_space%create( triangulation       = this%triangulation, &
-                                 conditions          = this%vector_poisson_void_fe_conditions, &
-                                 reference_fes       = this%reference_fes)
+      call this%fe_space%create( triangulation            = this%triangulation, &
+                                 conditions               = this%vector_poisson_void_fe_conditions, &
+                                 reference_fes            = this%reference_fes,&
+                                 set_ids_to_reference_fes = set_ids_to_reference_fes)
     end if
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()    
