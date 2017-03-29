@@ -473,11 +473,6 @@ module reference_fe_names
      procedure :: get_nodes_n_face   =>   reference_fe_get_nodes_n_face
      procedure :: create_nodes_n_face_iterator => reference_fe_create_nodes_n_face_iterator
      
-     ! Usefull for FEs having the same number of nodes in each n-face of same dim
-     procedure :: has_constant_num_nodes_per_n_face_of_dim => reference_fe_has_constant_num_nodes_per_n_face_of_dim
-     procedure :: get_num_nodes_per_n_face_of_dim => reference_fe_get_num_nodes_per_n_face_of_dim
-     procedure :: get_nodes_of_all_n_faces_of_dim => reference_fe_get_nodes_of_all_n_faces_of_dim
-     
      procedure :: get_n_faces_n_face   =>   reference_fe_get_n_faces_n_face
      procedure :: get_number_vertices_n_face => reference_fe_get_number_vertices_n_face
      procedure :: get_number_nodes_n_face => reference_fe_get_number_nodes_n_face

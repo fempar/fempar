@@ -345,7 +345,6 @@ subroutine serial_unfitted_triangulation_serial_triangulation_create ( this, par
   check(.false.)
 end subroutine serial_unfitted_triangulation_serial_triangulation_create
 
-
 !========================================================================================
 function serial_unfitted_triangulation_fulfills_assumptions(this) result (fulfills)
   implicit none
@@ -477,8 +476,9 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   type(point_t), allocatable :: Xe_phys(:), Xe_ref(:)
   integer(ip), parameter :: edge_dim = 1
-  integer(ip), allocatable :: edges2nodes(:,:)
-  integer(ip) :: num_edge_nodes, num_edges, iedge, inode, num_nodes
+  integer(ip) :: inode, num_nodes
+  integer(ip) :: iedge, first_edge, last_edge, cell_node, edge_node
+  type(list_iterator_t) :: nodes_in_edge_iterator
   integer(ip) :: num_cells, ipoin, num_int_points
   integer(ip) :: icase, istat, num_nodes_outside
   integer(ip), parameter :: num_nodes_in_edge = 2
@@ -488,17 +488,10 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   ! To be safe
   call this%mc_runtime_info_free()
 
-  ! Get edges to nodes table on the reference element.
+  ! Get the nodal coordinates in the reference element
   cell_iter = this%create_cell_iterator()
   call cell_iter%current(cell)
   reference_fe_geo => cell%get_reference_fe_geo()
-  num_edges      = reference_fe_geo%get_number_n_faces_of_dimension(edge_dim)
-  num_edge_nodes = reference_fe_geo%get_num_nodes_per_n_face_of_dim(edge_dim)
-  assert(num_edge_nodes == 2_ip)
-  call memalloc (num_edge_nodes, num_edges, edges2nodes, __FILE__, __LINE__ )
-  call reference_fe_geo%get_nodes_of_all_n_faces_of_dim( edge_dim, edges2nodes )
-
-  ! Get the nodal coordinates in the reference element
   num_nodes = cell%get_num_nodes()
   allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
   call cell%get_coordinates_ref_space( Xe_ref )
@@ -518,7 +511,8 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
       if (phi_node > 0.0_rp) num_nodes_outside = num_nodes_outside + 1
     end do
     if ( num_nodes_outside == 0_ip ) then
-      ! This is to avoid to set as cut an element that has negative and zero nodes (which is in fact a full interior element)
+      ! This is to avoid to set as cut an element that has negative and zero nodes 
+      ! (which is in fact a full interior element)
       this%mc_case_per_cell(cell%get_lid()) = this%mc_table_num_cases
     else
       this%mc_case_per_cell(cell%get_lid()) = icase + 1
@@ -553,29 +547,53 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   ipoin = 1
   do while ( .not. cell_iter%has_finished() )
     call cell_iter%current(cell)
-    ! Only execute this iteration for cut elements
+
+    ! Only execute this loop for cut elements
     if ( this%mc_case_per_cell(cell%get_lid())==1 .or. this%mc_case_per_cell(cell%get_lid())==this%mc_table_num_cases ) then
       call cell_iter%next()
       cycle
     end if
+
+    ! Get nodal coordinates
     call cell%get_coordinates(Xe_phys)
-    do iedge = 1, num_edges
-      nodes_in_edge(:) = edges2nodes(:,iedge)
-      do inode = 1,num_nodes_in_edge
-        call this%level_set_function%get_value(Xe_phys(nodes_in_edge(inode)),phi_edge(inode))
+
+    ! Prepare Loop in cell edges
+    reference_fe_geo => cell%get_reference_fe_geo()
+    first_edge = reference_fe_geo%get_first_n_face_id_of_dimension(edge_dim)
+    last_edge  = first_edge + reference_fe_geo%get_number_n_faces_of_dimension(edge_dim) - 1
+
+    ! Loop in cell edges
+    do iedge = first_edge, last_edge
+
+      ! Loop in edge nodes
+      nodes_in_edge_iterator = reference_fe_geo%create_nodes_n_face_iterator(iedge)
+      do while (.not. nodes_in_edge_iterator%is_upper_bound())
+        edge_node = nodes_in_edge_iterator%get_distance_to_lower_bound()
+        cell_node = nodes_in_edge_iterator%get_current()
+
+        ! Evaluate the levelset
+        call this%level_set_function%get_value(Xe_phys(cell_node),phi_edge(edge_node))
+
+        ! Store the nodes ids of the current edge
+        nodes_in_edge(edge_node) = cell_node
+
+        call nodes_in_edge_iterator%next()
       end do
+
+      ! Compute the intersection points of the edge
       if ( (phi_edge(1) >= 0 .and. phi_edge(2) < 0) .or. (phi_edge(2) >= 0 .and. phi_edge(1) < 0)   ) then
         this%mc_intersection_points(ipoin) = Xe_ref(nodes_in_edge(1)) + &
         (abs(phi_edge(1))/(abs(phi_edge(1))+abs(phi_edge(2))))*( Xe_ref(nodes_in_edge(2)) - Xe_ref(nodes_in_edge(1)) )
         ipoin = ipoin + 1
       end if
+
     end do
+
     call cell_iter%next()
   end do
 
   deallocate( Xe_ref, stat=istat );  check(istat == 0)
   deallocate( Xe_phys, stat=istat ); check(istat == 0)
-  call memfree (edges2nodes, __FILE__, __LINE__ )
 
   this%mc_runtime_init = .true.
 
