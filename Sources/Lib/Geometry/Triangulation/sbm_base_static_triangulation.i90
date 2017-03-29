@@ -1950,13 +1950,6 @@ subroutine bst_create_cell_accessor ( this, cell )
   call cell%create(this)
 end subroutine bst_create_cell_accessor
 
-function bst_create_cell_iterator ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(in)    :: this
-  type(cell_iterator_t) :: bst_create_cell_iterator
-  call bst_create_cell_iterator%create(1, this)
-end function bst_create_cell_iterator
-
 function bst_create_vef_iterator ( this )
   implicit none
   class(base_static_triangulation_t), intent(in)    :: this

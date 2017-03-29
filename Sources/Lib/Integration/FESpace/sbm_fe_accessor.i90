@@ -32,6 +32,16 @@ subroutine fe_accessor_cell_accessor_create ( this, base_static_triangulation )
   check(.false.)
 end subroutine fe_accessor_cell_accessor_create
 
+subroutine fe_accessor_assign ( this, that )
+  implicit none
+  class(fe_accessor_t)  , intent(inout) :: this
+  class(fe_accessor_t)  , intent(in) :: that
+  call this%free()
+  call this%create(that%fe_space%triangulation)
+  call this%set_lid(that%get_lid())
+  this%fe_space => that%fe_space
+end subroutine fe_accessor_assign
+
 subroutine fe_accessor_create ( this, fe_space )
   implicit none
   class(fe_accessor_t)                , intent(inout) :: this

@@ -138,19 +138,6 @@ module base_static_triangulation_names
     procedure, non_overridable           :: fill_internal_nodes_new       => cell_accessor_fill_internal_nodes_new
   end type cell_accessor_t
   
-  type cell_iterator_t
-    private
-    type(cell_accessor_t) :: current_cell_accessor
-  contains
-     procedure, non_overridable, private ::                 cell_iterator_current
-     procedure, non_overridable, private :: create       => cell_iterator_create
-     procedure, non_overridable          :: free         => cell_iterator_free
-     procedure, non_overridable          :: init         => cell_iterator_init
-     procedure, non_overridable          :: next         => cell_iterator_next
-     procedure, non_overridable          :: has_finished => cell_iterator_has_finished
-     generic                             :: current      => cell_iterator_current
-  end type cell_iterator_t  
-  
   type vef_accessor_t
     private
     integer(ip)                                 :: lid = -1
@@ -205,7 +192,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: first                     => edge_accessor_first
      procedure, non_overridable          :: next                      => edge_accessor_next
   end type edge_accessor_t
-
+  
   ! This will include functions to ask for orientation, rotation, etc.
   type, extends(vef_accessor_t) :: face_accessor_t
     private
@@ -220,6 +207,15 @@ module base_static_triangulation_names
     procedure, non_overridable, private :: set_face_rotation                => face_accessor_set_face_rotation
   end type face_accessor_t
 
+  type, extends(vef_accessor_t) :: itfc_vef_accessor_t
+    private
+    integer(ip)  :: itfc_lid = -1
+    contains
+     procedure, non_overridable          :: first    => itfc_vef_accessor_first
+     procedure, non_overridable          :: next     => itfc_vef_accessor_next
+  end type itfc_vef_accessor_t
+
+  
   ! In order to define iterators over vertices, edges and faces as extensions of vef_iterator
   ! we need to overwrite init and next. The alternative is to repeat all TBPs.
   type vef_iterator_t
@@ -428,7 +424,6 @@ module base_static_triangulation_names
 
      ! Cell traversals-related TBPs
      procedure, non_overridable          :: create_cell_accessor                => bst_create_cell_accessor
-     procedure, non_overridable          :: create_cell_iterator                => bst_create_cell_iterator
   
      ! Vef traversals-related TBPs
      procedure, non_overridable          :: create_vef_iterator                 => bst_create_vef_iterator
@@ -568,13 +563,12 @@ module base_static_triangulation_names
   public :: serial_triangulation_t
   public :: coarse_triangulation_t 
   public :: par_triangulation_t
-  public :: cell_iterator_t, vef_iterator_t, face_iterator_t, itfc_vef_iterator_t, object_iterator_t, vefs_on_object_iterator_t
+  public :: vef_iterator_t, face_iterator_t, itfc_vef_iterator_t, object_iterator_t, vefs_on_object_iterator_t
   public :: cell_accessor_t, vef_accessor_t, face_accessor_t, object_accessor_t
   
 contains
 
 #include "sbm_cell_accessor.i90"
-#include "sbm_cell_iterator.i90"
 #include "sbm_vef_accessor.i90"
 #include "sbm_vef_iterator.i90"
 #include "sbm_object_accessor.i90"

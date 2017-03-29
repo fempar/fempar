@@ -133,6 +133,8 @@ module fe_space_names
     procedure, private, non_overridable :: fe_accessor_create
     generic                             :: create                                     => fe_accessor_create
     procedure                           :: cell_accessor_create                       => fe_accessor_cell_accessor_create
+    procedure                           :: assign                                     => fe_accessor_assign
+    generic                             :: assignment(=)                              => assign
     procedure                           :: free                                       => fe_accessor_free
     procedure, non_overridable, private :: fill_own_dofs                              => fe_accessor_fill_own_dofs
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => fe_accessor_fill_own_dofs_on_vef
@@ -178,20 +180,7 @@ module fe_space_names
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_accessor_impose_strong_dirichlet_bcs
   end type fe_accessor_t
-  
-  type fe_iterator_t
-    private
-    type(fe_accessor_t) :: fe_accessor
-  contains
-    procedure, non_overridable, private :: create       => fe_iterator_create
-    procedure, non_overridable          :: free         => fe_iterator_free
-    procedure, non_overridable          :: init         => fe_iterator_init
-    procedure, non_overridable          :: next         => fe_iterator_next
-    procedure, non_overridable          :: has_finished => fe_iterator_has_finished
-    procedure, non_overridable, private :: fe_iterator_current
-    generic                             :: current      => fe_iterator_current
-  end type fe_iterator_t
-  
+   
   type, extends(vef_accessor_t) :: fe_vef_accessor_t
     private
     class(serial_fe_space_t), pointer :: fe_space
@@ -203,19 +192,6 @@ module fe_space_names
      procedure, non_overridable, private :: fe_vef_accessor_get_cell_around
      generic                             :: get_cell_around                   => fe_vef_accessor_get_cell_around
   end type fe_vef_accessor_t
-  
-  type fe_vef_iterator_t
-    private
-    type(fe_vef_accessor_t) :: current_fe_vef_accessor
-  contains
-     procedure, non_overridable, private :: create       => fe_vef_iterator_create
-     procedure, non_overridable          :: free         => fe_vef_iterator_free
-     procedure, non_overridable          :: init         => fe_vef_iterator_init
-     procedure, non_overridable          :: next         => fe_vef_iterator_next
-     procedure, non_overridable          :: has_finished => fe_vef_iterator_has_finished
-     procedure, non_overridable, private :: fe_vef_iterator_current
-     generic                             :: current      => fe_vef_iterator_current
-  end type fe_vef_iterator_t  
   
   type :: itfc_fe_vef_iterator_t
     private
@@ -230,7 +206,6 @@ module fe_space_names
     procedure, non_overridable, private :: itfc_fe_vef_iterator_current
     generic                             :: current      => itfc_fe_vef_iterator_current
   end type itfc_fe_vef_iterator_t
-  
   
   type, extends(face_accessor_t) :: fe_face_accessor_t
     private
@@ -377,15 +352,14 @@ module fe_space_names
      
      ! fes and fe_faces traversals-related TBPs
      procedure, non_overridable          :: create_fe_accessor                           => serial_fe_space_create_fe_accessor
-     procedure, non_overridable          :: create_fe_iterator                           => serial_fe_space_create_fe_iterator
-     procedure, non_overridable          :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator
+     procedure, non_overridable          :: create_fe_vef_accessor                       => serial_fe_space_create_fe_vef_accessor     
      procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator
      procedure, non_overridable          :: create_fe_face_iterator                      => serial_fe_space_create_fe_face_iterator
  end type serial_fe_space_t  
  
  public :: serial_fe_space_t   
- public :: fe_iterator_t, fe_accessor_t
- public :: fe_vef_iterator_t, itfc_fe_vef_iterator_t, fe_vef_accessor_t
+ public :: fe_accessor_t
+ public :: itfc_fe_vef_iterator_t, fe_vef_accessor_t
  public :: fe_face_iterator_t, fe_face_accessor_t
  
  type, extends(object_accessor_t) :: fe_object_accessor_t
@@ -844,7 +818,6 @@ contains
 #include "sbm_base_fe_space.i90"
 #include "sbm_serial_fe_space.i90"
 #include "sbm_fe_accessor.i90"
-#include "sbm_fe_iterator.i90"
 #include "sbm_fe_face_accessor.i90"
 #include "sbm_fe_face_iterator.i90"
 #include "sbm_fe_vef_accessor.i90"

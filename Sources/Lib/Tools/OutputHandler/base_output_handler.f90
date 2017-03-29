@@ -56,7 +56,7 @@ USE FPL
 USE types_names
 USE memor_names
 USE reference_fe_names,          only: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t, fe_accessor_t
+USE fe_space_names,              only: serial_fe_space_t, fe_accessor_t
 USE fe_function_names,           only: fe_function_t
 USE output_handler_fe_field_names
 USE output_handler_patch_names

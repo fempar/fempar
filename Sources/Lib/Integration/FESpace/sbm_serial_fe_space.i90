@@ -1930,19 +1930,18 @@ subroutine serial_fe_space_create_fe_accessor ( this, fe )
   call fe%create(this)
 end subroutine serial_fe_space_create_fe_accessor
 
-function serial_fe_space_create_fe_iterator ( this )
+subroutine serial_fe_space_create_fe_vef_accessor ( this, fe_vef )
   implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  type(fe_iterator_t) :: serial_fe_space_create_fe_iterator
-  call serial_fe_space_create_fe_iterator%create(1, this)
-end function serial_fe_space_create_fe_iterator
-
-function serial_fe_space_create_fe_vef_iterator ( this )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  type(fe_vef_iterator_t) :: serial_fe_space_create_fe_vef_iterator
-  call serial_fe_space_create_fe_vef_iterator%create(1, this)
-end function serial_fe_space_create_fe_vef_iterator
+  class(serial_fe_space_t)             , intent(in)  :: this
+  class(fe_vef_accessor_t), allocatable, intent(inout) :: fe_vef
+  integer(ip) :: istat
+  if(allocated(fe_vef)) then
+     call fe_vef%free()
+     deallocate(fe_vef, stat=istat); check(istat==0)
+  end if
+  allocate(fe_vef_accessor_t :: fe_vef, stat=istat); check(istat==0)
+  call fe_vef%create(this)
+end subroutine serial_fe_space_create_fe_vef_accessor
 
 function serial_fe_space_create_itfc_fe_vef_iterator ( this )
   implicit none

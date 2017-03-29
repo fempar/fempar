@@ -273,15 +273,6 @@ subroutine face_accessor_first (this)
   call this%set_lid(this%base_static_triangulation%num_vertices+this%base_static_triangulation%num_edges+1)
 end subroutine face_accessor_first
 
-
-
-
-
-
-
-
-
-
 subroutine face_accessor_get_coordinates (this, face_coordinates)
   implicit none
   class(face_accessor_t), intent(in)    :: this
@@ -387,3 +378,25 @@ end subroutine face_accessor_set_face_rotation
 !     call vertices_iterator%next()
 !  enddo
 !end subroutine vef_accessor_get_vertices
+
+subroutine itfc_vef_accessor_first (this) 
+  implicit none
+  class(itfc_vef_accessor_t), intent(inout) :: this
+  this%itfc_lid = 1
+  if ( this%base_static_triangulation%num_itfc_vefs == 0 ) then
+     call this%set_lid(lid=this%base_static_triangulation%num_vefs+1)
+  else
+     call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
+  end if
+end subroutine itfc_vef_accessor_first
+
+subroutine itfc_vef_accessor_next ( this ) 
+  implicit none
+  class(itfc_vef_accessor_t), intent(inout)    :: this
+  this%itfc_lid = this%itfc_lid + 1
+  if ( this%itfc_lid > this%base_static_triangulation%num_itfc_vefs ) then
+     call this%set_lid(lid=this%base_static_triangulation%num_vefs+1)
+  else
+     call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
+  end if
+end subroutine itfc_vef_accessor_next

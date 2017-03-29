@@ -25,47 +25,47 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine fe_vef_iterator_create ( this, lid, fe_space ) 
-  implicit none
-  class(fe_vef_iterator_t)    , intent(inout) :: this
-  integer(ip)                 , intent(in)    :: lid
-  class(serial_fe_space_t), intent(in)    :: fe_space
-  call this%free()
-  call this%current_fe_vef_accessor%create(fe_space )
-  call this%current_fe_vef_accessor%set_lid(lid)
-end subroutine fe_vef_iterator_create
+!subroutine fe_vef_iterator_create ( this, lid, fe_space ) 
+!  implicit none
+!  class(fe_vef_iterator_t)    , intent(inout) :: this
+!  integer(ip)                 , intent(in)    :: lid
+!  class(serial_fe_space_t), intent(in)    :: fe_space
+!  call this%free()
+!  call this%current_fe_vef_accessor%create(fe_space )
+!  call this%current_fe_vef_accessor%set_lid(lid)
+!end subroutine fe_vef_iterator_create
 
-subroutine fe_vef_iterator_free ( this ) 
-  implicit none
-  class(fe_vef_iterator_t), intent(inout) :: this
-  call this%current_fe_vef_accessor%free()
-end subroutine fe_vef_iterator_free
+!subroutine fe_vef_iterator_free ( this ) 
+!  implicit none
+!  class(fe_vef_iterator_t), intent(inout) :: this
+!  call this%current_fe_vef_accessor%free()
+!end subroutine fe_vef_iterator_free
 
-subroutine fe_vef_iterator_init ( this ) 
-  implicit none
-  class(fe_vef_iterator_t), intent(inout) :: this
-  call this%current_fe_vef_accessor%set_lid(lid=1)
-end subroutine fe_vef_iterator_init
+!subroutine fe_vef_iterator_init ( this ) 
+!  implicit none
+!  class(fe_vef_iterator_t), intent(inout) :: this
+!  call this%current_fe_vef_accessor%set_lid(lid=1)
+!end subroutine fe_vef_iterator_init
 
-subroutine fe_vef_iterator_next ( this ) 
-  implicit none
-  class(fe_vef_iterator_t), intent(inout) :: this
-  call this%current_fe_vef_accessor%next()
-end subroutine fe_vef_iterator_next
+!subroutine fe_vef_iterator_next ( this ) 
+!  implicit none
+!  class(fe_vef_iterator_t), intent(inout) :: this
+!  call this%current_fe_vef_accessor%next()
+!end subroutine fe_vef_iterator_next
 
-function fe_vef_iterator_has_finished ( this ) 
-  implicit none
-  class(fe_vef_iterator_t), intent(in) :: this
-  logical                                  :: fe_vef_iterator_has_finished
-  fe_vef_iterator_has_finished = this%current_fe_vef_accessor%past_the_end()
-end function fe_vef_iterator_has_finished
+!function fe_vef_iterator_has_finished ( this ) 
+!  implicit none
+!  class(fe_vef_iterator_t), intent(in) :: this
+!  logical                                  :: fe_vef_iterator_has_finished
+!  fe_vef_iterator_has_finished = this%current_fe_vef_accessor%past_the_end()
+!end function fe_vef_iterator_has_finished
 
-subroutine fe_vef_iterator_current ( this, fe_vef ) 
-  implicit none
-  class(fe_vef_iterator_t), target, intent(in) :: this
-  type(fe_vef_accessor_t), intent(inout) :: fe_vef
-  fe_vef = this%current_fe_vef_accessor
-end subroutine fe_vef_iterator_current
+!subroutine fe_vef_iterator_current ( this, fe_vef ) 
+!  implicit none
+!  class(fe_vef_iterator_t), target, intent(in) :: this
+!  type(fe_vef_accessor_t), intent(inout) :: fe_vef
+!  fe_vef = this%current_fe_vef_accessor
+!end subroutine fe_vef_iterator_current
 
 subroutine itfc_fe_vef_iterator_create ( this, fe_space ) 
   implicit none

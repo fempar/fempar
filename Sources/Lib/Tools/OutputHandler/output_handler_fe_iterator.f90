@@ -55,7 +55,7 @@ module output_handler_fe_iterator_names
 !
 !---------------------------------------------------------------------
 
-use fe_space_names, only: fe_iterator_t, fe_accessor_t, serial_fe_space_t
+use fe_space_names, only: fe_accessor_t, serial_fe_space_t
 
 implicit none
 #include "debug.i90"
@@ -75,11 +75,12 @@ private
     ! over the finite elements in [[serial_fe_space_t(type)]]
     !-----------------------------------------------------------------
     private
-        type(fe_iterator_t) :: fe_iterator
+        !type(fe_iterator_t) :: fe_iterator
+        class(fe_accessor_t), allocatable :: fe_accessor
     contains
     private
         procedure, public :: create          => output_handler_fe_iterator_create
-        procedure, public :: get_fe_iterator => output_handler_fe_iterator_get_fe_iterator
+        !procedure, public :: get_fe_iterator => output_handler_fe_iterator_get_fe_iterator
         procedure, public :: free            => output_handler_fe_iterator_free
         procedure, public :: init            => output_handler_fe_iterator_init
         procedure, public :: next            => output_handler_fe_iterator_next
@@ -101,19 +102,20 @@ contains
         class(serial_fe_space_t)           , intent(in)    :: fe_space
     !-----------------------------------------------------------------
         call this%free()
-        this%fe_iterator = fe_space%create_fe_iterator()
+        !this%fe_iterator = fe_space%create_fe_iterator()
+        call fe_space%create_fe_accessor(this%fe_accessor)
     end subroutine output_handler_fe_iterator_create
 
 
-    function output_handler_fe_iterator_get_fe_iterator(this) result(fe_iterator)
-    !-----------------------------------------------------------------
-    !< Return a pointer to [[output_handler_fe_iterator_t(type)]]
-    !-----------------------------------------------------------------
-        class(output_handler_fe_iterator_t), target, intent(in) :: this
-        type(fe_iterator_t), pointer                            :: fe_iterator
-    !-----------------------------------------------------------------
-        fe_iterator => this%fe_iterator 
-    end function output_handler_fe_iterator_get_fe_iterator
+    !function output_handler_fe_iterator_get_fe_iterator(this) result(fe_iterator)
+    !!-----------------------------------------------------------------
+    !!< Return a pointer to [[output_handler_fe_iterator_t(type)]]
+    !!-----------------------------------------------------------------
+    !    class(output_handler_fe_iterator_t), target, intent(in) :: this
+    !    type(fe_iterator_t), pointer                            :: fe_iterator
+    !!-----------------------------------------------------------------
+    !    fe_iterator => this%fe_iterator 
+    !end function output_handler_fe_iterator_get_fe_iterator
 
 
     subroutine output_handler_fe_iterator_free(this)
@@ -122,7 +124,7 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        call this%fe_iterator%free()
+        call this%fe_accessor%free()
     end subroutine output_handler_fe_iterator_free
 
 
@@ -132,7 +134,7 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        call this%fe_iterator%init()
+        call this%fe_accessor%first()
     end subroutine output_handler_fe_iterator_init
 
 
@@ -142,7 +144,7 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_fe_iterator_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        call this%fe_iterator%next()
+        call this%fe_accessor%next()
     end subroutine output_handler_fe_iterator_next
 
 
@@ -153,7 +155,7 @@ contains
         class(output_handler_fe_iterator_t), intent(inout) :: this
         logical                                            :: has_finished
     !-----------------------------------------------------------------
-        has_finished = this%fe_iterator%has_finished()
+        has_finished = this%fe_accessor%past_the_end()
     end function output_handler_fe_iterator_has_finished
 
 
@@ -164,7 +166,8 @@ contains
         class(output_handler_fe_iterator_t), intent(in)    :: this
         type(fe_accessor_t),                 intent(inout) :: fe_accessor
     !-----------------------------------------------------------------
-        call this%fe_iterator%current(fe_accessor)
+        !call this%fe_iterator%current(fe_accessor)
+        fe_accessor = this%fe_accessor
     end subroutine output_handler_fe_iterator_current
 
 end module output_handler_fe_iterator_names
