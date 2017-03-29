@@ -283,11 +283,11 @@ module fe_space_names
      type(volume_integrator_t)     , allocatable :: fe_volume_integrators(:)
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
-     integer(ip)                   , allocatable :: reference_fe_id_per_fe(:,:)      ! (number_fields, number_fes)
-     integer(ip)                   , allocatable :: max_order_per_fe(:)              ! Stores Key=max_order_within_fe for all FEs
-     type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position ! Key = max_order_within_fe
-     type(hash_table_ip_ip_t)                    :: fe_volume_integrators_position   ! Key = [max_order_within_fe,
-                                                                                     !       reference_fe_id]
+     integer(ip)                   , allocatable :: reference_fe_id_per_fe(:,:)         ! (number_fields, number_fes)
+     integer(ip)                   , allocatable :: max_order_reference_fe_id_per_fe(:) ! Stores Key=max_order_reference_fe_id for all FEs
+     type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position    ! Key = max_order_reference_fe_id
+     type(hash_table_ip_ip_t)                    :: fe_volume_integrators_position      ! Key = [max_order_reference_fe_id,
+                                                                                        !       reference_fe_id]
      
      ! Finite Face-related integration containers
      type(quadrature_t)            , allocatable :: fe_face_quadratures(:)
