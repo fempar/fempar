@@ -207,11 +207,13 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
 
   integer(ip)             :: field_id
   integer(ip)             :: ivef
-  integer(ip)             :: component_id, offset_component
+  integer(ip)             :: component_id
+  integer(ip), allocatable :: offset_component_per_field(:)
   integer(ip)             :: istat
   type(fe_iterator_t)     :: fe_iterator
   type(fe_accessor_t)     :: fe, source_fe
   type(vef_accessor_t)    :: vef
+  class(reference_fe_t), pointer :: reference_fe
 
   type(i1p_t)          , allocatable :: elem2dof(:)
   logical              , allocatable :: components_code(:)
@@ -229,67 +231,80 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   allocate ( elem2dof(this%get_number_fields()), stat=istat ) 
   check ( istat == 0 )
 
+  call memalloc (this%get_number_fields(),offset_component_per_field,__FILE__,__LINE__)
   call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
-  visited_vef_to_fe_map = -1
 
   ! Count number_strong_dirichlet_dofs
   this%number_strong_dirichlet_dofs = 0
 
   call source_fe%create(1, this)
-
-
   fe_iterator = this%create_fe_iterator()
-  do while (.not. fe_iterator%has_finished() )
-     call fe_iterator%current(fe)
 
-     if ( fe%is_local() ) then
-
-        ! TO-DO: This call should ONLY be performed
-        !        if current cell is at the boundary. 
-        !        type(fe_accessor_t) does NOT currently 
-        !        provide any means to answer such a question.
-        call fe%get_elem2dof(elem2dof)
-
-        do ivef = 1, fe%get_num_vefs()
-           call fe%get_vef(ivef, vef)
-
-           ! Check whether a set_id different from 0 has been set for current vef. 
-           ! TO-DO: Should we also ask whether current vef is at the boundary?
-           !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
-           if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )
-
-              ! Get components code corresponding to set_id assigned to current vef
-              ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
-              ! a more clever strategy. Does pay off to look carefully at this?
-              call conditions%get_components_code( vef%get_set_id(), components_code )
-
-              offset_component = 0
-              do field_id = 1, this%get_number_fields()
-
-                ! Auxiliary function containing the work done at each innermost iteration
-                call this%set_up_strong_dirichlet_bcs_on_vef_and_field(&
-                  fe,vef,ivef,field_id,components_code,&
-                  offset_component,this%number_strong_dirichlet_dofs,&
-                  visited_vef_to_fe_map,elem2dof,source_fe)
-
-              end do
-
-              if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-                 visited_vef_to_fe_map ( 1, vef%get_lid() ) = fe%get_lid()
-                 visited_vef_to_fe_map ( 2, vef%get_lid() ) = ivef
-              end if
-
-           end if
-        end do
-     end if
-     call fe_iterator%next()
+  ! Precompute the offsets
+  call fe_iterator%current(fe)
+  offset_component_per_field(1) = 0
+  do field_id = 1, (this%get_number_fields()-1)
+    reference_fe => fe%get_reference_fe(field_id)
+    offset_component_per_field(field_id+1) = offset_component_per_field(field_id) + reference_fe%get_number_field_components()
   end do
+
+  do field_id = 1, this%get_number_fields()
+
+    ! Initialize
+    visited_vef_to_fe_map = -1
+
+    call fe_iterator%init()
+    do while (.not. fe_iterator%has_finished() )
+      call fe_iterator%current(fe)
+
+      if ( fe%is_local() ) then
+
+         ! TO-DO: This call should ONLY be performed
+         !        if current cell is at the boundary. 
+         !        type(fe_accessor_t) does NOT currently 
+         !        provide any means to answer such a question.
+         call fe%get_elem2dof(elem2dof)
+
+         do ivef = 1, fe%get_num_vefs()
+            call fe%get_vef(ivef, vef)
+
+            ! Check whether a set_id different from 0 has been set for current vef. 
+            ! TO-DO: Should we also ask whether current vef is at the boundary?
+            !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
+            if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )
+
+               ! Get components code corresponding to set_id assigned to current vef
+               ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
+               ! a more clever strategy. Does pay off to look carefully at this?
+               call conditions%get_components_code( vef%get_set_id(), components_code )
+
+               ! Auxiliary function containing the work done at each innermost iteration
+               call this%set_up_strong_dirichlet_bcs_on_vef_and_field(&
+                 fe,vef,ivef,field_id,components_code,&
+                 offset_component_per_field(field_id),this%number_strong_dirichlet_dofs,&
+                 visited_vef_to_fe_map,elem2dof,source_fe)
+
+               if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
+                  visited_vef_to_fe_map ( 1, vef%get_lid() ) = fe%get_lid()
+                  visited_vef_to_fe_map ( 2, vef%get_lid() ) = ivef
+               end if
+
+            end if
+         end do
+      end if
+
+      call fe_iterator%next()
+    end do ! Loop if FEs
+
+  end do ! Loop in fields
+
 
   call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
   call this%strong_dirichlet_values%init(0.0_rp)
 
   call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
+  call memfree (offset_component_per_field,__FILE__,__LINE__)
   deallocate ( elem2dof, stat=istat ) 
   check ( istat == 0 )
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
@@ -305,7 +320,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   integer(ip),              intent(in)    :: ivef
   integer(ip),              intent(in)    :: field_id
   logical,                  intent(in)    :: components_code(:)
-  integer(ip),              intent(inout) :: offset_component
+  integer(ip),              intent(in)    :: offset_component
   integer(ip),              intent(inout) :: number_strong_dirichlet_dofs
   integer(ip),              intent(inout) :: visited_vef_to_fe_map(:,:)
   type(i1p_t),              intent(inout) :: elem2dof(:)
@@ -315,6 +330,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   class(reference_fe_t), pointer  :: reference_fe
   integer(ip)                     :: component_id
   integer(ip)                     :: local_within_ref_fe_dof_id
+  integer(ip) :: ifield
 
   ! TO-DO: there is no need to call `get_reference_fe` for each inner loop iteration.
   !        We could use an allocatable array of type(p_reference_fe_t) items, and
@@ -356,7 +372,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
              field_id)
      end if
   end select
-  offset_component = offset_component + reference_fe%get_number_field_components()
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
 
 subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time, fields_to_interpolate)
