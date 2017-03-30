@@ -207,19 +207,15 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
 
   integer(ip)             :: field_id
   integer(ip)             :: ivef
-  integer(ip)             :: local_within_ref_fe_dof_id
   integer(ip)             :: component_id, offset_component
   integer(ip)             :: istat
-  type(list_iterator_t)   :: own_dofs_on_vef_iterator
   type(fe_iterator_t)     :: fe_iterator
   type(fe_accessor_t)     :: fe, source_fe
   type(vef_accessor_t)    :: vef
 
   type(i1p_t)          , allocatable :: elem2dof(:)
   logical              , allocatable :: components_code(:)
-  class(reference_fe_t), pointer     :: reference_fe
   integer(ip), allocatable           :: visited_vef_to_fe_map(:,:)
-
 
   ! For every component of every field, we go through all FEs and look for DoFs 
   ! subject to strong Dirichlet BCs. It would be desirable (for efficiency) to 
@@ -269,53 +265,20 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
 
               offset_component = 0
               do field_id = 1, this%get_number_fields()
-                 ! TO-DO: there is no need to call this function for each inner loop iteration.
-                 !        We could use an allocatable array of type(p_reference_fe_t) items, and
-                 !        allocate/initialize it from the beginning.
-                 reference_fe => fe%get_reference_fe(field_id)
 
-                 select type ( reference_fe )
-                    class is ( nedelec_reference_fe_t )
-                    component_id = offset_component + 1
-                    if ( components_code(component_id) ) then
-                       if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-                          call fe%fill_own_strong_dirichlet_dofs_on_vef ( ivef, field_id, this%number_strong_dirichlet_dofs  ) 
-                       else
-                          call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
-                          call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
-                               source_fe, &
-                               visited_vef_to_fe_map(2,vef%get_lid()), &
-                               field_id) 
-                       end if
-                    end if
-                    class is ( lagrangian_reference_fe_t )
-                    if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-                       own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-                       do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-                          local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
-                          component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
-                          if ( components_code(component_id) ) then 
-                             this%number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs+1 
-                             elem2dof(field_id)%p(local_within_ref_fe_dof_id) = -this%number_strong_dirichlet_dofs
-                             this%at_strong_dirichlet_boundary_per_fe(field_id,fe%get_lid()) = .true.
-                          end if
-                          call own_dofs_on_vef_iterator%next()
-                       end do
-                    else
-                       call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
-                       call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
-                            source_fe, &
-                            visited_vef_to_fe_map(2,vef%get_lid()), &
-                            field_id)
-                    end if
-                 end select
-                 offset_component = offset_component + reference_fe%get_number_field_components()
+                ! Auxiliary function containing the work done at each innermost iteration
+                call this%set_up_strong_dirichlet_bcs_on_vef_and_field(&
+                  fe,vef,ivef,field_id,components_code,&
+                  offset_component,this%number_strong_dirichlet_dofs,&
+                  visited_vef_to_fe_map,elem2dof,source_fe)
+
               end do
 
               if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
                  visited_vef_to_fe_map ( 1, vef%get_lid() ) = fe%get_lid()
                  visited_vef_to_fe_map ( 2, vef%get_lid() ) = ivef
               end if
+
            end if
         end do
      end if
@@ -330,6 +293,71 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   deallocate ( elem2dof, stat=istat ) 
   check ( istat == 0 )
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
+
+subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
+                fe,vef,ivef,field_id,components_code,&
+                offset_component,number_strong_dirichlet_dofs,&
+                visited_vef_to_fe_map,elem2dof,source_fe)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  type(fe_accessor_t),      intent(inout) :: fe
+  type(vef_accessor_t),     intent(in)    :: vef
+  integer(ip),              intent(in)    :: ivef
+  integer(ip),              intent(in)    :: field_id
+  logical,                  intent(in)    :: components_code(:)
+  integer(ip),              intent(inout) :: offset_component
+  integer(ip),              intent(inout) :: number_strong_dirichlet_dofs
+  integer(ip),              intent(inout) :: visited_vef_to_fe_map(:,:)
+  type(i1p_t),              intent(inout) :: elem2dof(:)
+  type(fe_accessor_t),      intent(inout) :: source_fe
+
+  type(list_iterator_t)           :: own_dofs_on_vef_iterator
+  class(reference_fe_t), pointer  :: reference_fe
+  integer(ip)                     :: component_id
+  integer(ip)                     :: local_within_ref_fe_dof_id
+
+  ! TO-DO: there is no need to call `get_reference_fe` for each inner loop iteration.
+  !        We could use an allocatable array of type(p_reference_fe_t) items, and
+  !        allocate/initialize it from the beginning.
+  reference_fe => fe%get_reference_fe(field_id)
+
+  select type ( reference_fe )
+     class is ( nedelec_reference_fe_t )
+     component_id = offset_component + 1
+     if ( components_code(component_id) ) then
+        if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
+           call fe%fill_own_strong_dirichlet_dofs_on_vef ( ivef, field_id, number_strong_dirichlet_dofs  ) 
+        else
+           call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
+           call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                source_fe, &
+                visited_vef_to_fe_map(2,vef%get_lid()), &
+                field_id) 
+        end if
+     end if
+     class is ( lagrangian_reference_fe_t )
+     if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
+        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+           local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
+           component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
+           if ( components_code(component_id) ) then 
+              number_strong_dirichlet_dofs = number_strong_dirichlet_dofs+1 
+              elem2dof(field_id)%p(local_within_ref_fe_dof_id) = -number_strong_dirichlet_dofs
+              this%at_strong_dirichlet_boundary_per_fe(field_id,fe%get_lid()) = .true.
+           end if
+           call own_dofs_on_vef_iterator%next()
+        end do
+     else
+        call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
+        call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+             source_fe, &
+             visited_vef_to_fe_map(2,vef%get_lid()), &
+             field_id)
+     end if
+  end select
+  offset_component = offset_component + reference_fe%get_number_field_components()
+end subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
 
 subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time, fields_to_interpolate)
   implicit none
