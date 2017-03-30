@@ -1408,7 +1408,7 @@ function tet_nedelec_reference_fe_set_number_quadrature_points( this, order, dim
   integer(ip) :: tet_nedelec_reference_fe_set_number_quadrature_points
   
   tet_nedelec_reference_fe_set_number_quadrature_points = & 
-       & this%compute_number_nodes_scalar( order, dimension )
+       & this%compute_number_nodes_scalar( order+1, dimension )
   !if( dimension .eq. 2 ) then
   !   if( order .eq. 3 ) then
   !      tet_nedelec_reference_fe_set_number_quadrature_points = 13
@@ -1726,8 +1726,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
                       continuity        = .true. )
 
  call this%create_edge_quadrature( edge_quadrature )
- 
- ! For higher order, need to update interpolation 1D values in the physical edge (scaled)
+
  call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
  
  call edge_map%create_edge_map( edge_quadrature, d_fe_geo )

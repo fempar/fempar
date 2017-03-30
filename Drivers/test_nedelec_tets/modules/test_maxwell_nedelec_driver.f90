@@ -50,8 +50,8 @@ module test_maxwell_nedelec_driver_names
      type(maxwell_nedelec_analytical_functions_t) :: problem_functions
 
      ! Discrete weak problem integration-related data type instances 
-     type(serial_fe_space_t)                     :: fe_space 
-     type(p_reference_fe_t) , allocatable        :: reference_fes(:) 
+     type(serial_fe_space_t)                      :: fe_space 
+     type(p_reference_fe_t) , allocatable         :: reference_fes(:) 
      type(maxwell_nedelec_discrete_integration_t) :: maxwell_nedelec_integration
      type(maxwell_nedelec_conditions_t)           :: maxwell_nedelec_conditions
 
@@ -123,7 +123,7 @@ contains
        do while ( .not. vef_iterator%has_finished() )
           call vef_iterator%current(vef)
           if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
+            call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
@@ -150,7 +150,7 @@ contains
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	end if 
     call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
-    !call this%fe_space%print()
+    ! call this%fe_space%print()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
