@@ -398,7 +398,7 @@ subroutine face_integrator_apply_change_sign(this, icell_around, face_lid, ishap
   if ( this%is_boundary ) then 
   call this%volume_integrator_face_restriction(1)%apply_change_sign(face_lid, ishape)
   else
-  write(*,*) 'Subroutine only implemented for boundary faces integrates'
+  write(*,*) 'Subroutine still implemented for boundary faces integrates'
   assert(.false.) 
   end if
 end subroutine face_integrator_apply_change_sign 

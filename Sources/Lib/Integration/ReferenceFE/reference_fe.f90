@@ -1329,8 +1329,9 @@ procedure, private :: fill_quadrature                                    &
 procedure, private :: fill_interpolation                                 &
 & => tet_nedelec_reference_fe_fill_interpolation
 procedure, private :: fill_interpolation_pre_basis                       &
-& => tet_nedelec_reference_fe_fill_interpolation_pre_basis
-procedure, private :: conform_k_order_polynomial_basis                
+& => tet_nedelec_reference_fe_fill_interpolation_pre_basis    
+procedure, private :: create_and_fill_basis_Sk_indices                   & 
+& => tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices 
 procedure, private :: fill_face_interpolation                            &
 & => tet_nedelec_reference_fe_fill_face_interpolation
 procedure, private :: fill_edge_interpolation                            &
@@ -1356,8 +1357,6 @@ procedure, private, non_overridable :: nedelec_get_n_face_orientation           
 & => tet_nedelec_reference_fe_get_n_face_orientation
 procedure, private :: change_basis                                                  &
 & => tet_nedelec_reference_fe_change_basis
-procedure, private :: create_and_fill_basis_Sk_indices                              & 
-& => tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices 
 procedure :: update_interpolation_signs                                             &
 & => tet_nedelec_reference_fe_update_interpolation_signs 
 end type tet_nedelec_reference_fe_t
