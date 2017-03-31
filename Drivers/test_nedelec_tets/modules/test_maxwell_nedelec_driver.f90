@@ -150,7 +150,7 @@ contains
 	call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	end if 
     call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
-    ! call this%fe_space%print()
+    call this%fe_space%print()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)

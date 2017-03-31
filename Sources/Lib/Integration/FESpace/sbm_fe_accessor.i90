@@ -319,7 +319,6 @@ subroutine fe_accessor_apply_edge_rotation_change_basis(this, field_id)
   class(lagrangian_reference_fe_t) , pointer  :: source_ref_fe, target_ref_fe
   integer(ip)                        :: relative_rotation, ishape, istat, idof
   type(list_iterator_t)              :: dofs_on_edge_iterator
-  integer(ip), allocatable           :: dofs_to_swap(:)
 
   ref_fe => this%fe_space%get_reference_fe(field_id) 
   volume_integrator => this%get_volume_integrator(field_id) 

@@ -273,6 +273,15 @@ subroutine volume_integrator_face_restriction_update(this, fe_map, face_lid)
 end subroutine volume_integrator_face_restriction_update
 
 !==================================================================================================
+subroutine volume_integrator_face_restriction_apply_change_sign(this, iface, ishape)
+  implicit none
+  class(volume_integrator_face_restriction_t), intent(inout) :: this
+  integer(ip)                                , intent(in)    :: iface 
+  integer(ip)                                , intent(in)    :: ishape
+  call this%volume_integrator(iface)%apply_sign_change(ishape)
+end subroutine volume_integrator_face_restriction_apply_change_sign 
+
+!==================================================================================================
 subroutine volume_integrator_face_restriction_free(this)
   implicit none
   ! Parameters
@@ -331,14 +340,15 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   ! within a face corresponds  to the number of interior nodes in a face for a reference FE with 
   ! order+3 (instead of order+2)
   
+  ! Temporary till QUADRATURES are fixed, added 1 order to every one 
   ! BUG: quadrature defined on the face, dim<3--- if ((quadrature%number_dimensions.eq.3).and.(left_reference_fe%topology.eq.topology_tet)) then 
    if ( ( left_reference_fe%number_dimensions .eq. 3) .and. (left_reference_fe%topology.eq.topology_tet) ) then 
-     call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+3, &
+     call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+4, &
                                                           quadrature%number_dimensions,        &
                                                           left_reference_fe%polytope,          &
                                                           this%qpoints_perm )
   else
-     call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
+     call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+3, &
                                                           quadrature%number_dimensions,        &
                                                           left_reference_fe%polytope,          &
                                                           this%qpoints_perm )
@@ -374,6 +384,24 @@ subroutine face_integrator_update(this,face_lid,face_map,relative_orientation,re
      call this%volume_integrator_face_restriction(2)%update(face_map%fe_maps(2)%get_active_fe_map(),face_lid(2))
   end if
 end subroutine face_integrator_update
+
+!==================================================================================================
+subroutine face_integrator_apply_change_sign(this, icell_around, face_lid, ishape)
+  implicit none
+  ! Parameters
+  class(face_integrator_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: icell_around 
+  integer(ip)             , intent(in)    :: face_lid
+  integer(ip)             , intent(in)    :: ishape 
+  
+  assert(icell_around ==1) 
+  if ( this%is_boundary ) then 
+  call this%volume_integrator_face_restriction(1)%apply_change_sign(face_lid, ishape)
+  else
+  write(*,*) 'Subroutine only implemented for boundary faces integrates'
+  assert(.false.) 
+  end if
+end subroutine face_integrator_apply_change_sign 
 
 !==================================================================================================
 subroutine face_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scalar_field)

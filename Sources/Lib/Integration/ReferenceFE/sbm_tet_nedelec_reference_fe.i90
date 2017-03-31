@@ -1990,8 +1990,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
                                                  num_cols_own_node_permutations)
  
      if ( this%continuity ) then
-        call this%node_array%fill_permutations( this%order+1, &
-                                                idime, &
+        call this%node_array%fill_permutations( this%order+1,  &
+                                                idime,         &
                                                 this%polytope, &
                                                 this%own_node_permutations(idime) )
     end if

@@ -244,6 +244,7 @@ module fe_space_names
     generic                             :: get_cell_around                            => fe_face_accessor_get_fe_around
     procedure, private, non_overridable :: fe_face_accessor_get_fe_around
     procedure         , non_overridable :: update_integration                         => fe_face_accessor_update_integration 
+	procedure         , non_overridable :: apply_edge_rotation_change_basis           => fe_face_accessor_apply_edge_rotation_change_basis 
     procedure         , non_overridable :: get_fe_space                               => fe_face_accessor_get_fe_space
     procedure         , non_overridable :: get_elem2dof                               => fe_face_accessor_get_elem2dof
     procedure         , non_overridable :: get_quadrature                             => fe_face_accessor_get_quadrature

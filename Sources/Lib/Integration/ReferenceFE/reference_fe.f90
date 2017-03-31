@@ -1470,6 +1470,7 @@ public :: volume_integrator_t, p_volume_integrator_t
    contains
      procedure, non_overridable :: create  => volume_integrator_face_restriction_create
      procedure, non_overridable :: update  => volume_integrator_face_restriction_update
+	 procedure, non_overridable :: apply_change_sign => volume_integrator_face_restriction_apply_change_sign 
      procedure, non_overridable :: free    => volume_integrator_face_restriction_free
      procedure, non_overridable :: get_active_volume_integrator => volume_integrator_face_restriction_get_active_volume_integrator
   end type volume_integrator_face_restriction_t
@@ -1513,6 +1514,7 @@ type face_integrator_t
 contains
   procedure, non_overridable :: create            => face_integrator_create
   procedure, non_overridable :: update            => face_integrator_update
+  procedure, non_overridable :: apply_sign_change => face_integrator_apply_change_sign 
   procedure, non_overridable :: free              => face_integrator_free
   procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
   procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
