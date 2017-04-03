@@ -575,7 +575,7 @@ function fe_accessor_get_max_order_reference_fe_id(this)
   fe_accessor_get_max_order_reference_fe_id = -1
   do field_id=1, this%get_number_fields()
     reference_fe => this%get_reference_fe(field_id)
-    if ( reference_fe%get_max_order() > max_order ) then
+    if ( reference_fe%get_max_order() >= max_order ) then
       max_order = reference_fe%get_max_order()
       fe_accessor_get_max_order_reference_fe_id = this%get_reference_fe_id(field_id)
     end if
