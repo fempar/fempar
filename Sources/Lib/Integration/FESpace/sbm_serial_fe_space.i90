@@ -1764,7 +1764,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
 
   ! Local variables
   integer(ip) :: ivef, vef_lid, ielem
-  integer(ip) :: iblock, init_dof_block, current_dof_block
+  integer(ip) :: iblock, init_dof_block, current_dof_block, previous_dof_block
   integer(ip), allocatable :: visited_vef_to_fe_map(:,:)
   type(fe_iterator_t) :: fe_iterator
   type(fe_accessor_t) :: fe
@@ -1786,9 +1786,12 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
            do ivef = 1, fe%get_num_vefs()
               vef_lid = fe%get_vef_lid(ivef)
               if ( visited_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
+                 previous_dof_block = current_dof_block
                  call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block  )
+                 if (current_dof_block > previous_dof_block) then
                    visited_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
                    visited_vef_to_fe_map ( 2, vef_lid ) = ivef
+                 end if
               else 
                  call source_fe%set_lid(visited_vef_to_fe_map(1,vef_lid))
                  call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
