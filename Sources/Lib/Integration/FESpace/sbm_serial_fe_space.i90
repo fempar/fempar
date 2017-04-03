@@ -1274,9 +1274,8 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   do while ( .not. fe_iterator%has_finished() ) 
      call fe_iterator%current(fe)
      max_order = -1
-     max_order_reference_fe_id_within_fe = 1
      do field_id=1, this%get_number_fields()
-        if ( max_order < fe%get_max_order(field_id) ) then
+        if ( max_order <= fe%get_max_order(field_id) ) then
            max_order = fe%get_max_order(field_id)
            max_order_reference_fe_id_within_fe = fe%get_reference_fe_id(field_id)
         end if
@@ -1329,7 +1328,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
                                                     stat=istat)
      if (istat == now_stored) then
         ! Create quadrature and fe_map associated to current max_order_within_fe
-        reference_fe => fe%get_reference_fe(max_order_reference_fe_id_within_fe)
+        reference_fe => this%reference_fes(max_order_reference_fe_id_within_fe)%p
         call reference_fe%create_quadrature(this%fe_quadratures(current_quadrature_and_map))
         call this%fe_maps(current_quadrature_and_map)%create(this%fe_quadratures(current_quadrature_and_map),&
              fe%get_reference_fe_geo())
