@@ -426,7 +426,10 @@ function void_reference_fe_check_compatibility_of_n_faces                   &
   integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
   integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
   logical :: void_reference_fe_check_compatibility_of_n_faces
-  check(.false.)
+  ! If we end up here means that the terget element is void.
+  ! Return always true since the void element will never recover data from the source.
+  ! Thus, no compatibility issues will arise.
+  void_reference_fe_check_compatibility_of_n_faces = .true.
 end function void_reference_fe_check_compatibility_of_n_faces
 
 !=================================================================================================
