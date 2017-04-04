@@ -141,7 +141,8 @@ contains
           call cell%get_coordinates(cell_coords)
           x = cell_coords(1)%get(1)
           y = cell_coords(1)%get(2)
-          if (x>=0.25 .and. y>=0.5) then
+          !if (x>=0.25 .and. y>=0.5) then
+          if (y>=0.5) then
             set_id = PAR_POISSON_SET_ID_FULL
           else
             set_id = PAR_POISSON_SET_ID_VOID
@@ -241,17 +242,24 @@ contains
     type(cell_accessor_t)                     :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     
-    allocate(this%reference_fes(1), stat=istat)
+    allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
       cell_iterator = this%triangulation%create_cell_iterator()
       call cell_iterator%current(cell)
       reference_fe_geo => cell%get_reference_fe_geo()
-      this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+      this%reference_fes(PAR_POISSON_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = this%test_params%get_reference_fe_order(), &
+                                                   field_type = field_type_scalar, &
+                                                   continuity = .true. )
+
+      this%reference_fes(PAR_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                   fe_type = fe_type_void, &
+                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   order = -1, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
     end if  
@@ -260,11 +268,18 @@ contains
   subroutine setup_fe_space(this)
     implicit none
     class(par_test_poisson_void_fe_fe_driver_t), intent(inout) :: this
+
+    integer(ip) :: set_ids_to_reference_fes(1,2)
+
+    set_ids_to_reference_fes(1,PAR_POISSON_SET_ID_FULL) = PAR_POISSON_SET_ID_FULL
+    set_ids_to_reference_fes(1,PAR_POISSON_SET_ID_VOID) = PAR_POISSON_SET_ID_VOID
+
     
-    call this%fe_space%create( triangulation       = this%triangulation, &
-                               conditions          = this%poisson_void_fe_conditions, &
-                               reference_fes       = this%reference_fes, &
-                               coarse_fe_handler   = this%l1_coarse_fe_handler)
+    call this%fe_space%create( triangulation            = this%triangulation, &
+                               conditions               = this%poisson_void_fe_conditions, &
+                               reference_fes            = this%reference_fes, &
+                               set_ids_to_reference_fes = set_ids_to_reference_fes, &
+                               coarse_fe_handler        = this%l1_coarse_fe_handler)
     
     call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)

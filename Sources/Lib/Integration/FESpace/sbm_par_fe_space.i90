@@ -41,6 +41,24 @@ subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this, &
   assert(.false.)
 end subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells
 
+subroutine par_fe_space_serial_create_different_between_cells( this, &
+     triangulation, &
+     conditions, &
+     reference_fes, &
+     set_ids_to_reference_fes,&
+     field_blocks, &
+     field_coupling )
+  implicit none
+  class(par_fe_space_t)                    , intent(inout) :: this
+  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
+  class(conditions_t)                         , intent(in)    :: conditions
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
+  integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
+  check(.false.)
+end subroutine par_fe_space_serial_create_different_between_cells
+
 subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
                                                                 triangulation, &
                                                                 conditions, &
@@ -86,6 +104,57 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
      call this%strong_dirichlet_values%create_and_allocate(0)
   end if
 end subroutine par_fe_space_create_same_reference_fes_on_all_cells
+
+subroutine par_fe_space_create_different_between_cells( this, &
+                                                                triangulation, &
+                                                                conditions, &
+                                                                reference_fes, &
+                                                                set_ids_to_reference_fes, &
+                                                                coarse_fe_handler, &
+                                                                field_blocks, &
+                                                                field_coupling )
+  implicit none
+  class(par_fe_space_t)                     , intent(inout)  :: this
+  class(base_static_triangulation_t), target, intent(in)     :: triangulation
+  class(conditions_t)                       , intent(in)     :: conditions
+  type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
+  integer(ip)                               , intent(in)     :: set_ids_to_reference_fes(:,:)
+  class(l1_coarse_fe_handler_t)     , target, intent(in)     :: coarse_fe_handler
+  integer(ip)                     , optional, intent(in)     :: field_blocks(:)
+  logical                         , optional, intent(in)     :: field_coupling(:,:)
+
+  type(environment_t), pointer :: par_environment
+
+  call this%free()
+
+  ! This is a little bit DIRTY. Many type(par_fe_space_t) TBPs require that
+  ! coarse-grid tasks also associate this (superclass') member variable to a
+  ! target
+  this%triangulation     => triangulation
+  this%coarse_fe_handler => coarse_fe_handler 
+  par_environment    => this%get_par_environment()
+  if ( par_environment%am_i_l1_task() ) then
+     call this%serial_fe_space_t%create( triangulation, &
+                                         conditions, &
+                                         reference_fes, &
+                                         set_ids_to_reference_fes,&
+                                         field_blocks, &
+                                         field_coupling )
+  else
+     this%number_blocks = 1
+     if (present(field_blocks)) this%number_blocks = maxval(field_blocks)
+
+     ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
+     ! tasks also know how many fields there are
+     this%number_fields = size(set_ids_to_reference_fes,1)
+
+     ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
+     ! requires that strong_dirichlet_values is created and allocated
+     call this%strong_dirichlet_values%create_and_allocate(0)
+  end if
+
+end subroutine par_fe_space_create_different_between_cells
+
 
 subroutine par_fe_space_free( this )
   implicit none
@@ -202,6 +271,9 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   type(fe_accessor_t)     :: source_fe
   type(fe_vef_accessor_t) :: vef 
 
+  class(reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t)          :: own_dofs_on_vef_iterator
+
 #ifdef DEBUG
   type(environment_t), pointer :: par_environment
   par_environment => this%get_par_environment()
@@ -226,11 +298,20 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
                 call vef%get_cell_around(ielem, source_fe)
                 if ( source_fe%is_local() ) then
                   ivef_in_source_fe = source_fe%find_lpos_vef_lid(vef%get_lid()) 
-                  call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
-                                                                source_fe, & 
-                                                                ivef_in_source_fe, &
-                                                                field_id )    
-                  exit
+
+                  ! Check that the source fe has at least one dof on this vef
+                  ! This check can be omitted if we implement a new iterator that for a given vef and field if, 
+                  ! iterate only over the neighbor FEs that are non void
+                  reference_fe => source_fe%get_reference_fe(field_id)
+                  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
+                  if (own_dofs_on_vef_iterator%get_size() .ne. 0) then
+                    call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                                                                  source_fe, & 
+                                                                  ivef_in_source_fe, &
+                                                                  field_id )    
+                    exit
+                  end if
+
                 end if
               end do
             end if
