@@ -28,12 +28,12 @@
 subroutine fe_faces_on_object_iterator_create ( this, lid, fe_space ) 
   implicit none
   class(fe_faces_on_object_iterator_t), intent(inout) :: this
-  integer(ip)                        ,    intent(in) :: lid
-  type(par_fe_space_t)           , intent(in)    :: fe_space
-  type(vef_accessor_t)                               :: vef
+  integer(ip)                        ,  intent(in)    :: lid
+  type(par_fe_space_t)               , intent(in)     :: fe_space
+  type(face_accessor_t)                               :: face
   call this%free()
   this%vefs_on_object_iterator = fe_space%triangulation%create_vefs_on_object_iterator(lid)
-  call this%current_fe_face_accessor%create(fe_space )
+  call this%current_fe_face_accessor%create(fe_space, face)
   call this%current_fe_face_accessor%set_lid(1)
   call this%next()
 end subroutine fe_faces_on_object_iterator_create

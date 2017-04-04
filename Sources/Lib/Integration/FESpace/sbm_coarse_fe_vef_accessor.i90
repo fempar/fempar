@@ -36,14 +36,21 @@ subroutine coarse_fe_vef_accessor_create ( this, coarse_fe_space )
   implicit none
   class(coarse_fe_vef_accessor_t)     , intent(inout) :: this
   type(coarse_fe_space_t), target     , intent(in)    :: coarse_fe_space
-  call this%vef_accessor_t%create(coarse_fe_space%coarse_triangulation)
+  integer(ip) :: istat
+  call this%free()
+  allocate(vef_accessor_t :: this%vef, stat=istat); check(istat==0)
+  call this%vef%create(coarse_fe_space%coarse_triangulation)
   this%coarse_fe_space => coarse_fe_space
 end subroutine coarse_fe_vef_accessor_create
 
 subroutine coarse_fe_vef_accessor_free ( this)
   implicit none
   class(coarse_fe_vef_accessor_t), intent(inout) :: this
-  call this%vef_accessor_t%free()
+  integer(ip) :: istat
+  if(allocated(this%vef)) then
+     call this%vef%free()
+     deallocate(this%vef, stat=istat); check(istat==0)
+  end if
   nullify(this%coarse_fe_space)
 end subroutine coarse_fe_vef_accessor_free
 

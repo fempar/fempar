@@ -395,7 +395,6 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   class(base_static_triangulation_t), pointer :: triangulation
   type(cell_import_t)       , pointer :: cell_import
   class(reference_fe_t)        , pointer :: reference_fe
-  type(itfc_fe_vef_iterator_t) :: itfc_vef_iterator
   type(fe_vef_accessor_t)      :: vef
   type(fe_accessor_t)          :: fe
   
@@ -410,13 +409,11 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
                   touched_neighbours, &
                   __FILE__, __LINE__ )
 
-  itfc_vef_iterator = this%create_itfc_fe_vef_iterator()
-  result = 0 
   ! Traverse vefs on the interface
-  do while ( .not. itfc_vef_iterator%has_finished() )
-     call itfc_vef_iterator%current(vef)
+  call this%create_itfc_fe_vef_accessor(vef)
+  result = 0 
+  do while(.not. vef%past_the_end())
      touched_neighbours = .false.
-
      do ielem=1, vef%get_num_cells_around()
         call vef%get_cell_around(ielem,fe)
         part_id = fe%get_my_part()
@@ -430,8 +427,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
            end if
         end if
      end do
-
-     call itfc_vef_iterator%next()
+     call vef%next()
   end do
   pfs_compute_ubound_num_itfc_couplings_by_continuity = result
 
@@ -594,7 +590,7 @@ function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity( this, fie
   class(base_static_triangulation_t), pointer :: triangulation
   type(cell_import_t)       , pointer :: cell_import
   class(reference_fe_t)        , pointer :: reference_fe
-  type(itfc_fe_vef_iterator_t) :: itfc_vef_iterator
+  !type(itfc_vef_accessor_t)    :: itfc_vef
   type(fe_vef_accessor_t)      :: vef
   type(fe_accessor_t)          :: fe
   
@@ -608,13 +604,11 @@ function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity( this, fie
   call memalloc ( cell_import%get_number_neighbours(), &
                   touched_neighbours, &
                   __FILE__, __LINE__ )
-  
-  itfc_vef_iterator = this%create_itfc_fe_vef_iterator()
-  
-  result = 0 
+
   ! Traverse vefs on the interface
-  do while ( .not. itfc_vef_iterator%has_finished() )
-     call itfc_vef_iterator%current(vef)
+  call this%create_itfc_fe_vef_accessor(vef)
+  result = 0 
+  do while(.not. vef%past_the_end())
      if ( vef%is_at_boundary() .and. vef%is_at_interface() ) then
         touched_neighbours = .false.
         do ielem=1, vef%get_num_cells_around()
@@ -631,7 +625,7 @@ function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity( this, fie
            end if
         end do
      end if
-     call itfc_vef_iterator%next()
+     call vef%next()
   end do
   pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity = result
 
@@ -681,7 +675,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
   type(cell_import_t)       , pointer :: cell_import
   class(reference_fe_t)        , pointer :: reference_fe
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator
-  type(itfc_fe_vef_iterator_t)           :: itfc_vef_iterator
+  !type(itfc_vef_accessor_t)              :: itfc_vef
   type(fe_vef_accessor_t)                :: vef
   type(fe_accessor_t)                    :: fe
   type(i1p_t)              , allocatable :: elem2dof(:)
@@ -712,12 +706,10 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
   
   current_col  = offset + 1
   local_idof   = 0
-  
-  itfc_vef_iterator = this%create_itfc_fe_vef_iterator()
 
   ! Traverse vefs on the interface
-  do while ( .not. itfc_vef_iterator%has_finished() )
-     call itfc_vef_iterator%current(vef)
+  call this%create_itfc_fe_vef_accessor(vef)
+  do while(.not. vef%past_the_end())
      if ( vef%is_at_boundary() .and. vef%is_at_interface() ) then
 
         touched_neighbours = .false.
@@ -783,7 +775,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
            end do
         end do
      end if
-     call itfc_vef_iterator%next()
+     call vef%next()
   end do
 
   deallocate(elem2dof, stat=istat ) 
@@ -864,7 +856,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   type(cell_import_t)       , pointer :: cell_import
   class(reference_fe_t)        , pointer :: reference_fe
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator
-  type(itfc_fe_vef_iterator_t)           :: itfc_vef_iterator
+  !type(itfc_vef_accessor_t)              :: itfc_vef
   type(fe_vef_accessor_t)                :: vef
   type(fe_accessor_t)                    :: fe
   type(i1p_t)              , allocatable :: elem2dof(:)
@@ -895,12 +887,10 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   
   current_col  = offset + 1
   local_idof   = 0
-  
-  itfc_vef_iterator = this%create_itfc_fe_vef_iterator()
 
   ! Traverse vefs on the interface
-  do while ( .not. itfc_vef_iterator%has_finished() )
-     call itfc_vef_iterator%current(vef)
+  call this%create_itfc_fe_vef_accessor(vef)
+  do while(.not. vef%past_the_end())
      touched_neighbours = .false.
      num_parts = 0
      max_part_id = mypart_id
@@ -961,7 +951,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
            current_col = current_col + 1
         end do
      end do
-     call itfc_vef_iterator%next()
+     call vef%next()
   end do
 
   deallocate(elem2dof, stat=istat ) 
@@ -1286,7 +1276,6 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
-  type(fe_face_iterator_t) :: fe_face_iterator
   type(fe_face_accessor_t) :: fe_face
   type(fe_accessor_t)      :: fe
   
@@ -1373,9 +1362,9 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
 
      ! Create data structures
      call projected_nodal_values%create_and_allocate(par_environment, dof_import)
-     fe_face_iterator = this%create_fe_face_iterator()
-     do while ( .not. fe_face_iterator%has_finished() )
-        call fe_face_iterator%current(fe_face)
+ 
+     call this%create_fe_face_accessor(fe_face)
+     do while ( .not. fe_face%past_the_end() )
         if ( fe_face%is_at_boundary() ) then
            if ( fe_face%get_set_id() /= 0 ) then
               call fe_face%update_integration() 
@@ -1432,7 +1421,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
               end do
            end if
         end if
-        call fe_face_iterator%next()
+        call fe_face%next()
      end do
 
      call matrix%convert(csr_format)

@@ -25,45 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!==================================================================================================
-subroutine fe_face_accessor_vef_accessor_create ( this, base_static_triangulation )
-  implicit none
-  class(fe_face_accessor_t)                 , intent(inout) :: this
-  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
-  check(.false.)
-end subroutine fe_face_accessor_vef_accessor_create
-
-!==================================================================================================
-subroutine fe_face_accessor_create ( this, fe_space )
-  implicit none
-  class(fe_face_accessor_t)                , intent(inout) :: this
-  class(serial_fe_space_t), target, intent(in)    :: fe_space
-  call this%face_accessor_t%create(fe_space%triangulation)
-  this%fe_space => fe_space
-end subroutine fe_face_accessor_create
-
-!==================================================================================================
-subroutine fe_face_accessor_free (this)
-  implicit none
-  class(fe_face_accessor_t), intent(inout) :: this
-  call this%face_accessor_t%free()
-  nullify(this%fe_space)
-end subroutine fe_face_accessor_free
-
-!==================================================================================================
-subroutine fe_face_accessor_get_fe_around (this, icell_around, fe)
-  implicit none
-  class(fe_face_accessor_t), intent(in)    :: this
-  integer(ip)              , intent(in)    :: icell_around 
-  type(fe_accessor_t)      , intent(inout) :: fe
-  type(cell_accessor_t)                    :: cell
-  call this%get_cell_around(icell_around, cell)
-  call fe%create(this%fe_space)
-  call fe%set_lid(cell%get_lid())
-end subroutine fe_face_accessor_get_fe_around
-
-!==================================================================================================
 subroutine fe_face_accessor_update_integration( this )
   implicit none
   class(fe_face_accessor_t), intent(inout) :: this 

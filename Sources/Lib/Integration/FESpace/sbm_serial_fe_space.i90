@@ -549,10 +549,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
-  !type(fe_iterator_t)      :: fe_iterator
   type(fe_accessor_t)      :: fe
-
-  type(fe_face_iterator_t) :: fe_face_iterator
   type(fe_face_accessor_t) :: fe_face
 
   type(i1p_t), allocatable :: elem2dof(:)
@@ -627,9 +624,8 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
 
   ! Create data structures
   call projected_nodal_values%create_and_allocate(number_subset_strong_dirichlet_dofs)
-  fe_face_iterator = this%create_fe_face_iterator()
-  do while ( .not. fe_face_iterator%has_finished() )
-     call fe_face_iterator%current(fe_face)
+  call this%create_fe_face_accessor(fe_face)
+  do while ( .not. fe_face%past_the_end() )
      if ( fe_face%is_at_boundary() ) then
         if ( fe_face%get_set_id() /= 0 ) then
            call fe_face%update_integration() 
@@ -686,7 +682,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
            end do
         end if
      end if
-     call fe_face_iterator%next()
+     call fe_face%next()
   end do
 
   call matrix%convert(csr_format)
@@ -1304,7 +1300,6 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
 
-  type(fe_face_iterator_t) :: fe_face_iterator
   type(fe_face_accessor_t) :: fe_face
   type(fe_accessor_t)      :: fe
 
@@ -1341,10 +1336,8 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   current_fe_face_map = 1
   current_fe_face_integrator = 1
 
-  fe_face_iterator = this%create_fe_face_iterator()
-  do while ( .not. fe_face_iterator%has_finished() ) 
-     call fe_face_iterator%current(fe_face)
-
+  call this%create_fe_face_accessor(fe_face)
+  do while ( .not. fe_face%past_the_end() ) 
      max_order_fes_around_fe_face = -1
      reference_fes_geo_id(2) = 0 
      do icell_around = 1, fe_face%get_num_cells_around()
@@ -1398,7 +1391,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
         end if
      end do
 
-     call fe_face_iterator%next()
+     call fe_face%next()
   end do
 
   allocate ( this%fe_face_quadratures(current_fe_face_quadrature-1), stat=istat)
@@ -1417,9 +1410,8 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   current_fe_face_map = 1
   current_fe_face_integrator = 1
 
-  call fe_face_iterator%init()
-  do while ( .not. fe_face_iterator%has_finished() ) 
-     call fe_face_iterator%current(fe_face)
+  call fe_face%first()
+  do while ( .not. fe_face%past_the_end() ) 
      max_order_fes_around_fe_face = -1
      reference_fes_geo_id(2) = 0 
      nullify(reference_fes_geo(2)%p)
@@ -1485,7 +1477,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
         end if
      end do
 
-     call fe_face_iterator%next()
+     call fe_face%next()
   end do
 
 end subroutine serial_fe_space_initialize_fe_face_integration
@@ -1932,27 +1924,36 @@ end subroutine serial_fe_space_create_fe_accessor
 
 subroutine serial_fe_space_create_fe_vef_accessor ( this, fe_vef )
   implicit none
-  class(serial_fe_space_t)             , intent(in)  :: this
-  class(fe_vef_accessor_t), allocatable, intent(inout) :: fe_vef
+  class(serial_fe_space_t), target, intent(in)    :: this
+  class(fe_vef_accessor_t), intent(inout) :: fe_vef
   integer(ip) :: istat
-  if(allocated(fe_vef)) then
-     call fe_vef%free()
-     deallocate(fe_vef, stat=istat); check(istat==0)
-  end if
-  allocate(fe_vef_accessor_t :: fe_vef, stat=istat); check(istat==0)
-  call fe_vef%create(this)
+  call fe_vef%free()
+  allocate(vef_accessor_t :: fe_vef%vef, stat=istat); check(istat==0)
+  call fe_vef%vef%create(this%triangulation)
+  fe_vef%fe_space => this
 end subroutine serial_fe_space_create_fe_vef_accessor
 
-function serial_fe_space_create_itfc_fe_vef_iterator ( this )
+subroutine serial_fe_space_create_itfc_fe_vef_accessor ( this, fe_vef )
   implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  type(itfc_fe_vef_iterator_t) :: serial_fe_space_create_itfc_fe_vef_iterator
-  call serial_fe_space_create_itfc_fe_vef_iterator%create(this)
-end function serial_fe_space_create_itfc_fe_vef_iterator
+  class(serial_fe_space_t), target, intent(in)    :: this
+  class(fe_vef_accessor_t), intent(inout) :: fe_vef
+  integer(ip) :: istat
+  call fe_vef%free()
+  allocate(itfc_vef_accessor_t :: fe_vef%vef, stat=istat); check(istat==0)
+  call fe_vef%vef%create(this%triangulation)
+  fe_vef%fe_space => this
+end subroutine serial_fe_space_create_itfc_fe_vef_accessor
 
-function serial_fe_space_create_fe_face_iterator ( this )
+subroutine serial_fe_space_create_fe_face_accessor ( this, fe_face )
   implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  type(fe_face_iterator_t) :: serial_fe_space_create_fe_face_iterator
-  call serial_fe_space_create_fe_face_iterator%create(this)
-end function serial_fe_space_create_fe_face_iterator
+  class(serial_fe_space_t) , target, intent(in)    :: this
+  class(fe_face_accessor_t), target, intent(inout) :: fe_face
+  integer(ip) :: istat
+  call fe_face%free()
+  allocate(face_accessor_t :: fe_face%vef, stat=istat); check(istat==0)
+  call fe_face%vef%create(this%triangulation)
+  fe_face%fe_space => this
+end subroutine serial_fe_space_create_fe_face_accessor
+
+
+

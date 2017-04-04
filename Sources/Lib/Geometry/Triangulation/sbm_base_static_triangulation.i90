@@ -808,7 +808,6 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   
-  type(face_iterator_t) :: face_iterator
   type(face_accessor_t) :: face
   
   type(cell_accessor_t)          :: first_cell
@@ -879,9 +878,8 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     type(cell_accessor_t)                     :: cell 
     integer(ip)                               :: num_rows_parts_itfc_vefs
     integer(ip), allocatable                  :: work1(:), work2(:)
-    type(itfc_vef_iterator_t)                 :: itfc_vef_iterator
-    type(vef_accessor_t)                      :: current_itfc_vef
-    
+    type(itfc_vef_accessor_t)                 :: current_itfc_vef
+
     assert ( this%p_env%am_i_l1_task() )
     
     if (allocated(parts_itfc_vefs)) call memfree(parts_itfc_vefs,__FILE__,__LINE__)
@@ -899,16 +897,15 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memalloc ( num_rows_parts_itfc_vefs, this%num_itfc_vefs, parts_itfc_vefs, __FILE__, __LINE__ )
     parts_itfc_vefs = 0
     
-    
-    itfc_vef_iterator = this%create_itfc_vef_iterator()
+
+    call current_itfc_vef%create(this)
     ivef_itfc = 1
-    do while ( .not. itfc_vef_iterator%has_finished() )
-      call itfc_vef_iterator%current(current_itfc_vef)
+    do while(.not. current_itfc_vef%past_the_end() )
+    
       touched_neighbours = .false.
       
       nparts_around = 1 
       parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
-      
       do icell=1, current_itfc_vef%get_num_cells_around()
         call current_itfc_vef%get_cell_around(icell,cell)
         part_id       = cell%get_my_part()
@@ -925,7 +922,8 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       ! Sort list of parts in increasing order by part identifiers
       ! This is required by the call to icomp subroutine below 
       call sort ( nparts_around, parts_itfc_vefs(2:nparts_around+1, ivef_itfc) )
-      call itfc_vef_iterator%next()
+      !call itfc_vef_iterator%next()
+      call current_itfc_vef%next()
       ivef_itfc = ivef_itfc + 1
     end do
     call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
@@ -948,6 +946,8 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
+    call current_itfc_vef%free()
+
   end subroutine bst_compute_parts_itfc_vefs
   
   subroutine bst_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, perm_itfc_vefs )
@@ -963,8 +963,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     type(cell_accessor_t)                     :: cell 
     integer(ip)                               :: num_rows_subparts_itfc_vefs
     integer(ip), allocatable                  :: work1(:), work2(:)
-    type(itfc_vef_iterator_t)                 :: itfc_vef_iterator
-    type(vef_accessor_t)                      :: current_itfc_vef
+    type(itfc_vef_accessor_t)                 :: current_itfc_vef
     
     integer(ip)                               :: num_subparts
     integer(ip)                               :: cur_subpart_lid
@@ -979,18 +978,18 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
     cur_subpart_lid = 1
     call this%g2l_subparts%init()
-    itfc_vef_iterator = this%create_itfc_vef_iterator()
-    do while ( .not. itfc_vef_iterator%has_finished() )
-      call itfc_vef_iterator%current(current_itfc_vef)
-      do icell=1, current_itfc_vef%get_num_cells_around()
-        call current_itfc_vef%get_cell_around(icell,cell)
-        subpart_gid = cell%get_my_subpart()
-        call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
-        if (istat == now_stored) then
-          cur_subpart_lid = cur_subpart_lid + 1
-        end if
-      end do
-      call itfc_vef_iterator%next()
+
+    call current_itfc_vef%create(this)
+    do while(.not. current_itfc_vef%past_the_end() )
+       do icell=1, current_itfc_vef%get_num_cells_around()
+         call current_itfc_vef%get_cell_around(icell,cell)
+         subpart_gid = cell%get_my_subpart()
+         call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
+         if (istat == now_stored) then
+           cur_subpart_lid = cur_subpart_lid + 1
+         end if
+       end do
+       call current_itfc_vef%next()
     end do
     
     num_subparts = cur_subpart_lid-1
@@ -1002,11 +1001,11 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memalloc ( num_rows_subparts_itfc_vefs, this%num_itfc_vefs, subparts_itfc_vefs, __FILE__, __LINE__ )
     subparts_itfc_vefs = 0
     
-    
-    itfc_vef_iterator = this%create_itfc_vef_iterator()
+
     ivef_itfc = 1
-    do while ( .not. itfc_vef_iterator%has_finished() )
-      call itfc_vef_iterator%current(current_itfc_vef)
+    call current_itfc_vef%first()
+    do while(.not. current_itfc_vef%past_the_end() )
+
       touched_subparts = .false.
       
       nsubparts_around = 0
@@ -1025,7 +1024,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       ! Sort list of parts in increasing order by part identifiers
       ! This is required by the call to icomp subroutine below 
       call sort ( nsubparts_around, subparts_itfc_vefs(2:nsubparts_around+1, ivef_itfc) )
-      call itfc_vef_iterator%next()
+      call current_itfc_vef%next()
       ivef_itfc = ivef_itfc + 1
     end do
     call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
@@ -1048,6 +1047,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_subparts, __FILE__, __LINE__ )
+    call current_itfc_vef%free()
 
   end subroutine bst_compute_subparts_itfc_vefs
   
@@ -1950,40 +1950,6 @@ subroutine bst_create_cell_accessor ( this, cell )
   call cell%create(this)
 end subroutine bst_create_cell_accessor
 
-function bst_create_vef_iterator ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(in)    :: this
-  type(vef_iterator_t) :: bst_create_vef_iterator
-  call bst_create_vef_iterator%create(1, this)
-end function bst_create_vef_iterator
-
-function bst_create_itfc_vef_iterator ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(in)    :: this
-  type(itfc_vef_iterator_t) :: bst_create_itfc_vef_iterator
-  call bst_create_itfc_vef_iterator%create(this)
-end function bst_create_itfc_vef_iterator
-
-function bst_create_vertex_iterator ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(in)    :: this
-  type(vertex_iterator_t) :: bst_create_vertex_iterator
-  call bst_create_vertex_iterator%create(1, this)
-end function bst_create_vertex_iterator
-
-function bst_create_edge_iterator ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(in)    :: this
-  type(edge_iterator_t) :: bst_create_edge_iterator
-  call bst_create_edge_iterator%create(this%num_vertices+1, this)
-end function bst_create_edge_iterator
-
-function bst_create_face_iterator ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(in)    :: this
-  type(face_iterator_t) :: bst_create_face_iterator
-  call bst_create_face_iterator%create(this%num_vertices+this%num_edges+1, this)
-end function bst_create_face_iterator
 
   function bst_create_object_iterator(this)
     implicit none

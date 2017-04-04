@@ -96,8 +96,7 @@ module base_static_triangulation_names
     ! extends type(cell_accessor_t), requires to call these TBPs and cannot be placed
     ! either within this module or within a submodule of base_static_triangulation_names
     ! due to module dependencies cycle
-    procedure                            :: cell_accessor_create
-    generic                              :: create                  => cell_accessor_create
+    procedure                            :: create                  => cell_accessor_create
     procedure                            :: free                    => cell_accessor_free
     procedure, non_overridable           :: next                    => cell_accessor_next
     procedure, non_overridable           :: first                   => cell_accessor_first
@@ -120,22 +119,21 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_set_id              => cell_accessor_get_set_id
     procedure, non_overridable           :: get_num_vefs            => cell_accessor_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_accessor_get_num_nodes
-    procedure, non_overridable           :: get_num_vertices        => cell_accessor_get_num_vertices    
     procedure, non_overridable           :: get_node_lid            => cell_accessor_get_node_lid
     procedure, non_overridable           :: get_vef_lid             => cell_accessor_get_vef_lid
     procedure, non_overridable           :: get_vef_lids            => cell_accessor_get_vef_lids
     procedure, non_overridable           :: get_vef_gid             => cell_accessor_get_vef_gid
     procedure, non_overridable           :: find_lpos_vef_lid       => cell_accessor_find_lpos_vef_lid
     procedure, non_overridable           :: find_lpos_vef_gid       => cell_accessor_find_lpos_vef_gid
-    generic                              :: get_vef                 => cell_accessor_get_vef
+    procedure, non_overridable           :: get_vef                 => cell_accessor_get_vef
     procedure, non_overridable           :: is_local                => cell_accessor_is_local
     procedure, non_overridable           :: is_ghost                => cell_accessor_is_ghost
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_accessor_get_scan_sum_number_vefs
 
-    procedure, non_overridable           :: fill_nodes_on_vertices        => cell_accessor_fill_nodes_on_vertices
-    procedure, non_overridable           :: fill_nodes_on_vef_new         => cell_accessor_fill_nodes_on_vef_new
-    procedure, non_overridable           :: fill_nodes_on_vef_from_source => cell_accessor_fill_nodes_on_vef_from_source
-    procedure, non_overridable           :: fill_internal_nodes_new       => cell_accessor_fill_internal_nodes_new
+    procedure, non_overridable, private  :: fill_nodes_on_vertices        => cell_accessor_fill_nodes_on_vertices
+    procedure, non_overridable, private  :: fill_nodes_on_vef_new         => cell_accessor_fill_nodes_on_vef_new
+    procedure, non_overridable, private  :: fill_nodes_on_vef_from_source => cell_accessor_fill_nodes_on_vef_from_source
+    procedure, non_overridable, private  :: fill_internal_nodes_new       => cell_accessor_fill_internal_nodes_new
   end type cell_accessor_t
   
   type vef_accessor_t
@@ -143,11 +141,8 @@ module base_static_triangulation_names
     integer(ip)                                 :: lid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
-     ! create/free/next/set_lid/past_the_end/get_triangulation CANNOT longer be private as 
-     ! type(coarse_fe_vef_accessor_t) extends type(vef_accessor_t), requires to call these TBPs
      procedure                           :: vef_accessor_create
-     procedure, non_overridable          :: vef_accessor_get_cell_around
-     generic                             :: create => vef_accessor_create
+     generic                             :: create                    => vef_accessor_create
      procedure                           :: free                      => vef_accessor_free
      procedure                           :: first                     => vef_accessor_first
      procedure                           :: next                      => vef_accessor_next
@@ -176,8 +171,15 @@ module base_static_triangulation_names
      procedure, non_overridable          :: is_face                   => vef_accessor_is_face
      
      procedure, non_overridable          :: get_num_cells_around      => vef_accessor_get_num_cells_around
+     procedure, non_overridable          :: vef_accessor_get_cell_around
      generic                             :: get_cell_around           => vef_accessor_get_cell_around
-     !procedure, non_overridable          :: get_vertices              => vef_accessor_get_vertices
+
+     ! Methods of face extension
+     procedure          :: get_coordinates                  => vef_face_accessor_get_coordinates
+     procedure          :: get_face_lid                     => vef_face_accessor_get_face_lid
+     procedure          :: get_face_lpos_within_cell_around => vef_face_accessor_get_face_lpos_within_cell_around
+     procedure          :: get_face_orientation             => vef_face_accessor_get_face_orientation
+     procedure          :: get_face_rotation                => vef_face_accessor_get_face_rotation
   end type vef_accessor_t
 
   type, extends(vef_accessor_t) :: vertex_accessor_t
@@ -193,7 +195,6 @@ module base_static_triangulation_names
      procedure, non_overridable          :: next                      => edge_accessor_next
   end type edge_accessor_t
   
-  ! This will include functions to ask for orientation, rotation, etc.
   type, extends(vef_accessor_t) :: face_accessor_t
     private
   contains
@@ -214,57 +215,6 @@ module base_static_triangulation_names
      procedure, non_overridable          :: first    => itfc_vef_accessor_first
      procedure, non_overridable          :: next     => itfc_vef_accessor_next
   end type itfc_vef_accessor_t
-
-  
-  ! In order to define iterators over vertices, edges and faces as extensions of vef_iterator
-  ! we need to overwrite init and next. The alternative is to repeat all TBPs.
-  type vef_iterator_t
-    private
-    type(vef_accessor_t) :: current_vef_accessor
-  contains
-     procedure, non_overridable, private ::                 vef_iterator_current
-     procedure, non_overridable          :: create       => vef_iterator_create
-     procedure, non_overridable          :: free         => vef_iterator_free
-     procedure                           :: init         => vef_iterator_init
-     procedure                           :: next         => vef_iterator_next
-     procedure, non_overridable          :: has_finished => vef_iterator_has_finished
-     generic                             :: current      => vef_iterator_current
-  end type vef_iterator_t
-  
-  type :: itfc_vef_iterator_t
-    private
-    integer(ip)          :: itfc_lid = -1
-    type(vef_accessor_t) :: current_vef_accessor
-  contains
-    procedure, non_overridable, private ::                 itfc_vef_iterator_current
-    procedure, non_overridable          :: create       => itfc_vef_iterator_create
-    procedure, non_overridable          :: free         => itfc_vef_iterator_free
-    procedure, non_overridable          :: init         => itfc_vef_iterator_init
-    procedure, non_overridable          :: next         => itfc_vef_iterator_next
-    procedure, non_overridable          :: has_finished => itfc_vef_iterator_has_finished
-    generic                             :: current      => itfc_vef_iterator_current
-  end type itfc_vef_iterator_t
-
-  type, extends(vef_iterator_t) :: vertex_iterator_t
-    private
-  contains
-    procedure, non_overridable          :: next         => vertex_iterator_next
-  end type vertex_iterator_t
-
-  type, extends(vef_iterator_t) :: edge_iterator_t
-    private
-  contains
-    procedure, non_overridable          :: init         => edge_iterator_init
-    procedure, non_overridable          :: next         => edge_iterator_next
-  end type edge_iterator_t
-
-  type, extends(vef_iterator_t) :: face_iterator_t
-    private
-  contains
-    procedure, non_overridable          :: init         => face_iterator_init
-    procedure, non_overridable, private :: face_iterator_current
-    generic                             :: current      => face_iterator_current
-  end type face_iterator_t
 
 
   type object_accessor_t
@@ -424,13 +374,6 @@ module base_static_triangulation_names
 
      ! Cell traversals-related TBPs
      procedure, non_overridable          :: create_cell_accessor                => bst_create_cell_accessor
-  
-     ! Vef traversals-related TBPs
-     procedure, non_overridable          :: create_vef_iterator                 => bst_create_vef_iterator
-     procedure, non_overridable          :: create_vertex_iterator              => bst_create_vertex_iterator
-     procedure, non_overridable          :: create_edge_iterator                => bst_create_edge_iterator
-     procedure, non_overridable          :: create_face_iterator                => bst_create_face_iterator
-     procedure, non_overridable          :: create_itfc_vef_iterator            => bst_create_itfc_vef_iterator
 
      ! Objects-related traversals
      procedure, non_overridable          :: create_object_iterator              => bst_create_object_iterator
@@ -563,14 +506,14 @@ module base_static_triangulation_names
   public :: serial_triangulation_t
   public :: coarse_triangulation_t 
   public :: par_triangulation_t
-  public :: vef_iterator_t, face_iterator_t, itfc_vef_iterator_t, object_iterator_t, vefs_on_object_iterator_t
-  public :: cell_accessor_t, vef_accessor_t, face_accessor_t, object_accessor_t
+  !public :: vef_iterator_t, face_iterator_t, itfc_vef_iterator_t
+  public :: object_iterator_t, vefs_on_object_iterator_t
+  public :: cell_accessor_t, vef_accessor_t, itfc_vef_accessor_t, face_accessor_t, object_accessor_t
   
 contains
 
 #include "sbm_cell_accessor.i90"
 #include "sbm_vef_accessor.i90"
-#include "sbm_vef_iterator.i90"
 #include "sbm_object_accessor.i90"
 #include "sbm_object_iterator.i90"
 #include "sbm_vefs_on_object_iterator.i90"

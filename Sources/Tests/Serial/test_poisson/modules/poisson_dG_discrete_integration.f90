@@ -69,7 +69,6 @@ contains
 
     ! FE space traversal-related data types
     class(fe_accessor_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face_iterator
     type(fe_face_accessor_t) :: fe_face
     
     ! FE integration-related data types
@@ -200,11 +199,9 @@ contains
     allocate( test_elem2dof(number_fields), stat=istat); check(istat==0);
     
     ! Search for the first interior face
-    fe_face_iterator = fe_space%create_fe_face_iterator()
-    call fe_face_iterator%current(fe_face)
+    call fe_space%create_fe_face_accessor(fe_face)
     do while ( fe_face%is_at_boundary() ) 
-       call fe_face_iterator%next()
-       call fe_face_iterator%current(fe_face)
+       call fe_face%next()
     end do
     
     quad            => fe_face%get_quadrature()
@@ -212,8 +209,7 @@ contains
     face_map        => fe_face%get_face_map()
     face_int        => fe_face%get_face_integrator(1)
     
-    do while ( .not. fe_face_iterator%has_finished() ) 
-       call fe_face_iterator%current(fe_face)
+    do while ( .not. fe_face%past_the_end() ) 
        
        if ( .not. fe_face%is_at_boundary() ) then
          facemat = 0.0_rp
@@ -282,24 +278,21 @@ contains
          end do
        end if
          
-       call fe_face_iterator%next()
+       call fe_face%next()
     end do
     
     ! Search for the first boundary face
-    call fe_face_iterator%init()
-    call fe_face_iterator%current(fe_face)
+    call fe_face%first()
     do while ( .not. fe_face%is_at_boundary() ) 
-       call fe_face_iterator%next()
-       call fe_face_iterator%current(fe_face)
+       call fe_face%next()
     end do
-    
+
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
     face_map        => fe_face%get_face_map()
     face_int        => fe_face%get_face_integrator(1)
    
-    do while ( .not. fe_face_iterator%has_finished() )
-       call fe_face_iterator%current(fe_face)
+    do while ( .not. fe_face%past_the_end() )
        
        if ( fe_face%is_at_boundary() ) then
          facemat = 0.0_rp
@@ -345,7 +338,7 @@ contains
                                                    facemat(:,:,1,1), &
                                                    facevec(:,1) )            
        end if
-       call fe_face_iterator%next()
+       call fe_face%next()
     end do
     
     call boundary_fe_function%free()

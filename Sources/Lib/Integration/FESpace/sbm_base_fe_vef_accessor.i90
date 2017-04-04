@@ -1,0 +1,127 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Methods based on vef_t
+!
+subroutine base_fe_vef_accessor_first(this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(inout) :: this
+  call this%vef%first()
+end subroutine base_fe_vef_accessor_first
+
+subroutine base_fe_vef_accessor_next(this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(inout) :: this
+  call this%vef%next()
+end subroutine base_fe_vef_accessor_next
+
+subroutine base_fe_vef_accessor_set_lid(this, lid)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: lid
+  call this%vef%set_lid(lid)
+end subroutine base_fe_vef_accessor_set_lid
+
+function base_fe_vef_accessor_past_the_end(this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  logical :: base_fe_vef_accessor_past_the_end
+  base_fe_vef_accessor_past_the_end = this%vef%past_the_end()
+end function base_fe_vef_accessor_past_the_end
+
+function base_fe_vef_accessor_get_lid (this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  integer(ip) :: base_fe_vef_accessor_get_lid
+  base_fe_vef_accessor_get_lid = this%vef%get_lid()
+end function base_fe_vef_accessor_get_lid
+
+function base_fe_vef_accessor_get_set_id(this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  integer(ip) :: base_fe_vef_accessor_get_set_id
+  base_fe_vef_accessor_get_set_id = this%vef%get_set_id()
+end function base_fe_vef_accessor_get_set_id  
+
+function base_fe_vef_accessor_get_dimension(this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  integer(ip) :: base_fe_vef_accessor_get_dimension
+  base_fe_vef_accessor_get_dimension  = this%vef%get_dimension()
+end function base_fe_vef_accessor_get_dimension
+
+function base_fe_vef_accessor_is_at_boundary (this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  logical :: base_fe_vef_accessor_is_at_boundary 
+  base_fe_vef_accessor_is_at_boundary  = this%vef%is_at_boundary()
+end function base_fe_vef_accessor_is_at_boundary
+
+function base_fe_vef_accessor_is_local (this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  logical :: base_fe_vef_accessor_is_local 
+  base_fe_vef_accessor_is_local  = this%vef%is_local()
+end function base_fe_vef_accessor_is_local
+
+function base_fe_vef_accessor_is_at_interface (this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  logical :: base_fe_vef_accessor_is_at_interface 
+  base_fe_vef_accessor_is_at_interface  = this%vef%is_at_interface()
+end function base_fe_vef_accessor_is_at_interface
+
+function base_fe_vef_accessor_is_face (this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  logical :: base_fe_vef_accessor_is_face
+  base_fe_vef_accessor_is_face  = this%vef%is_face()
+end function base_fe_vef_accessor_is_face
+
+function base_fe_vef_accessor_is_ghost (this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  logical :: base_fe_vef_accessor_is_ghost 
+  base_fe_vef_accessor_is_ghost  = this%vef%is_ghost()
+end function base_fe_vef_accessor_is_ghost
+
+function base_fe_vef_accessor_get_num_cells_around (this)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in) :: this
+  integer(ip) :: base_fe_vef_accessor_get_num_cells_around
+  base_fe_vef_accessor_get_num_cells_around = this%vef%get_num_cells_around()
+end function base_fe_vef_accessor_get_num_cells_around
+
+subroutine base_fe_vef_accessor_get_cell_around (this, icell_around, cell)
+  implicit none
+  class(base_fe_vef_accessor_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: icell_around
+  type(cell_accessor_t)   , intent(inout) :: cell
+  call this%vef%get_cell_around(icell_around,cell)
+end subroutine base_fe_vef_accessor_get_cell_around
+

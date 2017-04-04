@@ -275,7 +275,6 @@ contains
 
     ! Integration loop 
     class(fe_accessor_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face_iterator
     type(fe_face_accessor_t) :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
@@ -369,11 +368,9 @@ contains
        call this%fe_space%initialize_fe_face_integration()
 
        ! Search for the first boundary face
-       fe_face_iterator = this%fe_space%create_fe_face_iterator()
-       call fe_face_iterator%current(fe_face)
+       call fe_space%create_fe_face_accessor(fe_face)
        do while ( .not. fe_face%is_at_boundary() ) 
-          call fe_face_iterator%next()
-          call fe_face_iterator%current(fe_face)
+          call fe_face%next()
        end do
 
        num_dofs              =  fe%get_number_dofs() 
@@ -383,9 +380,8 @@ contains
        face_map        => fe_face%get_face_map()
        face_int_H      => fe_face%get_face_integrator(1)
 
-       do while ( .not. fe_face_iterator%has_finished() )
+       do while ( .not. fe_face%past_the_end() )
           facevec = 0.0_rp
-          call fe_face_iterator%current(fe_face)
           if ( fe_face%is_at_boundary() .and. fe_face%get_set_id() == 0 ) then
              
              call fe_face%get_cell_around(1, fe)
@@ -413,7 +409,7 @@ contains
 
              end if
           end if
-          call fe_face_iterator%next()
+          call fe_face%next()
        end do
 
        call fe%free()

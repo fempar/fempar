@@ -25,43 +25,74 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine fe_vef_accessor_vef_accessor_create(this, base_static_triangulation )
+subroutine fe_vef_accessor_create ( this, fe_space, vef )
   implicit none
-  class(fe_vef_accessor_t)                  , intent(inout) :: this
-  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
-  check(.false.)
-end subroutine fe_vef_accessor_vef_accessor_create
-
-subroutine fe_vef_accessor_create ( this, fe_space )
-  implicit none
-  class(fe_vef_accessor_t)         , intent(inout) :: this
-  class(serial_fe_space_t) , target, intent(in)    :: fe_space
-  call this%vef_accessor_t%create(fe_space%get_triangulation())
+  class(fe_vef_accessor_t) , intent(inout)      :: this
+  class(serial_fe_space_t) , target, intent(in) :: fe_space
+  class(vef_accessor_t)    , intent(in)         :: vef
+  integer(ip) :: istat
   this%fe_space => fe_space
+  allocate(this%vef, source=vef, stat=istat); check(istat==0)
+  call this%vef%create(fe_space%triangulation)
 end subroutine fe_vef_accessor_create
-
-!subroutine fe_vef_accessor_set_lid ( this, lid)
-!  implicit none
-!  class(fe_vef_accessor_t), intent(inout) :: this
-!  integer(ip)             , intent(in)    :: lid
-!  call this%vef_accessor_t%set_lid(lid)
-!end subroutine fe_vef_accessor_create
 
 subroutine fe_vef_accessor_free ( this)
   implicit none
   class(fe_vef_accessor_t), intent(inout) :: this
-  call this%vef_accessor_t%free()
+  integer(ip) :: istat
+  if(allocated(this%vef)) then
+     call this%vef%free()
+     deallocate(this%vef, stat=istat); check(istat==0)
+  end if
   nullify(this%fe_space)
 end subroutine fe_vef_accessor_free
 
-subroutine fe_vef_accessor_get_cell_around (this, ife_around, fe)
+subroutine fe_vef_accessor_get_fe_around (this, ife_around, fe)
   implicit none
   class(fe_vef_accessor_t)          , intent(in)     :: this
   integer(ip)                       , intent(in)     :: ife_around
-  type(fe_accessor_t)               ,  intent(inout) :: fe
+  type(fe_accessor_t)               , intent(inout)  :: fe
   type(cell_accessor_t)                              :: cell
-  call this%get_cell_around(ife_around,cell)
+  call this%vef%get_cell_around(ife_around,cell)
   call fe%create(this%fe_space)
   call fe%set_lid(cell%get_lid())
-end subroutine fe_vef_accessor_get_cell_around
+end subroutine fe_vef_accessor_get_fe_around
 
+! Exploiting ("inherited from") face_accessor_t
+subroutine fe_face_accessor_get_coordinates (this, face_coordinates)
+  implicit none
+  class(fe_face_accessor_t), intent(in)     :: this
+  type(point_t)            ,  intent(inout) :: face_coordinates(:)
+  call this%vef%get_coordinates(face_coordinates)
+end subroutine fe_face_accessor_get_coordinates
+
+function fe_face_accessor_get_face_lid (this) result(face_lid)
+  implicit none
+  class(fe_face_accessor_t), intent(in)    :: this
+  integer(ip) :: face_lid
+  face_lid = this%vef%get_face_lid()
+end function fe_face_accessor_get_face_lid
+
+function fe_face_accessor_get_face_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
+  implicit none
+  class(fe_face_accessor_t), intent(in)    :: this
+  integer(ip)              , intent(in)    :: icell_around
+  integer(ip)                              :: face_lpos_within_cell_around
+  face_lpos_within_cell_around = this%vef%get_face_lpos_within_cell_around(icell_around)
+end function fe_face_accessor_get_face_lpos_within_cell_around
+
+function fe_face_accessor_get_face_orientation ( this ) result(face_orientation)
+  implicit none
+  class(fe_face_accessor_t), intent(in) :: this
+  integer(ip)                           :: face_orientation
+  face_orientation = this%vef%get_face_orientation ( )
+end function fe_face_accessor_get_face_orientation 
+
+function fe_face_accessor_get_face_rotation ( this ) result(face_rotation)
+  implicit none
+  class(fe_face_accessor_t), intent(in) :: this
+  integer(ip)                           :: face_rotation
+  face_rotation = this%vef%get_face_rotation( )
+end function fe_face_accessor_get_face_rotation
+
+!==================================================================================================

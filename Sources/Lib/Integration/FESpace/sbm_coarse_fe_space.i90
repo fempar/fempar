@@ -922,7 +922,6 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
   logical, allocatable                :: touched_neighbours(:)
   type(environment_t), pointer    :: par_environment
   type(cell_import_t)    , pointer    :: cell_import
-  type(itfc_coarse_fe_vef_iterator_t) :: itfc_coarse_fe_vef_iterator
   type(coarse_fe_vef_accessor_t)      :: coarse_fe_vef
   type(coarse_fe_accessor_t)          :: coarse_fe
   type(list_iterator_t)               :: own_dofs_on_vef_iterator
@@ -941,11 +940,10 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
                   touched_neighbours, &
                   __FILE__, __LINE__ )
 
-  itfc_coarse_fe_vef_iterator = this%create_itfc_coarse_fe_vef_iterator()
-  result = 0 
-  do while ( .not. itfc_coarse_fe_vef_iterator%has_finished() )
+  call this%create_itfc_coarse_fe_vef_accessor(coarse_fe_vef)
+  result = 0
+  do while ( .not. coarse_fe_vef%past_the_end() )
     touched_neighbours = .false.
-    coarse_fe_vef = itfc_coarse_fe_vef_iterator%current()
     do ielem=1, coarse_fe_vef%get_num_coarse_fes_around()
        coarse_fe = coarse_fe_vef%get_coarse_fe_around(ielem)
        if ( coarse_fe%get_my_part() /= mypart_id ) then
@@ -959,12 +957,13 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
           end if       
        end if
     end do
-    call itfc_coarse_fe_vef_iterator%next()
+    call coarse_fe_vef%next()
   end do 
   
   coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity = result
 
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
+  call coarse_fe_vef%free()
 end function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity
 
 function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
@@ -999,7 +998,6 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
   integer(ip)               :: base_pos_lst_dofs
   type(environment_t), pointer :: par_environment
   type(cell_import_t) , pointer :: cell_import
-  type(itfc_coarse_fe_vef_iterator_t) :: itfc_coarse_fe_vef_iterator
   type(coarse_fe_vef_accessor_t)      :: coarse_fe_vef
   type(list_iterator_t)               :: own_dofs_on_vef_iterator
   type(coarse_fe_accessor_t)          :: coarse_fe
@@ -1024,9 +1022,8 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
   
   current_col  = offset + 1
 
-  itfc_coarse_fe_vef_iterator = this%create_itfc_coarse_fe_vef_iterator()
-  do while ( .not. itfc_coarse_fe_vef_iterator%has_finished() )
-     coarse_fe_vef = itfc_coarse_fe_vef_iterator%current()
+  call this%create_itfc_coarse_fe_vef_accessor(coarse_fe_vef)
+  do while ( .not. coarse_fe_vef%past_the_end() )
      touched_neighbours = .false.
      num_parts = 0
      max_part_id = mypart_id
@@ -1066,12 +1063,13 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
         end do
         call own_dofs_on_vef_iterator%next()
      end do     
-  call itfc_coarse_fe_vef_iterator%next()
+  call coarse_fe_vef%next()
 end do
   
   ! Free touch arrays
   call memfree ( parts_visited, __FILE__, __LINE__ )
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
+  call coarse_fe_vef%free()
 
   call this%raw_interface_data_by_continuity_decide_owner (offset, &
                                                            current_col-1, &
@@ -1804,19 +1802,43 @@ function coarse_fe_space_create_coarse_fe_iterator ( this )
   call coarse_fe_space_create_coarse_fe_iterator%create(1, this)
 end function coarse_fe_space_create_coarse_fe_iterator
 
-function coarse_fe_space_create_coarse_fe_vef_iterator ( this )
-  implicit none
-  class(coarse_fe_space_t), intent(in) :: this
-  type(coarse_fe_vef_iterator_t) :: coarse_fe_space_create_coarse_fe_vef_iterator
-  call coarse_fe_space_create_coarse_fe_vef_iterator%create(1, this)
-end function coarse_fe_space_create_coarse_fe_vef_iterator
+!
+! Not needed so far...
+!
+! subroutine serial_fe_space_create_coarse_fe_accessor ( this, coarse_fe )
+!   implicit none
+!   class(serial_fe_space_t)         , intent(in)  :: this
+!   class(coarse_fe_accessor_t), allocatable, intent(inout) :: coarse_fe
+!   integer(ip) :: istat
+!   if(allocated(coarse_fe)) then
+!      call coarse_fe%free()
+!      deallocate(coarse_fe, stat=istat); check(istat==0)
+!   end if
+!   allocate(coarse_fe_accessor_t :: coarse_fe, stat=istat); check(istat==0)
+!   call coarse_fe%create(this)
+! end subroutine serial_fe_space_create_coarse_fe_accessor
 
-function coarse_fe_space_create_itfc_coarse_fe_vef_iterator ( this )
+subroutine coarse_fe_space_create_coarse_fe_vef_accessor ( this, coarse_fe_vef )
   implicit none
-  class(coarse_fe_space_t), intent(in) :: this
-  type(itfc_coarse_fe_vef_iterator_t) :: coarse_fe_space_create_itfc_coarse_fe_vef_iterator
-  call coarse_fe_space_create_itfc_coarse_fe_vef_iterator%create(this)
-end function coarse_fe_space_create_itfc_coarse_fe_vef_iterator
+  class(coarse_fe_space_t), target, intent(in)    :: this
+  class(coarse_fe_vef_accessor_t), intent(inout) :: coarse_fe_vef
+  integer(ip) :: istat
+  call coarse_fe_vef%free()
+  allocate(vef_accessor_t :: coarse_fe_vef%vef, stat=istat); check(istat==0)
+  call coarse_fe_vef%vef%create(this%coarse_triangulation)
+  coarse_fe_vef%coarse_fe_space => this
+end subroutine coarse_fe_space_create_coarse_fe_vef_accessor
+
+subroutine coarse_fe_space_create_itfc_coarse_fe_vef_accessor ( this, coarse_fe_vef )
+  implicit none
+  class(coarse_fe_space_t), target, intent(in)    :: this
+  class(coarse_fe_vef_accessor_t), intent(inout) :: coarse_fe_vef
+  integer(ip) :: istat
+  call coarse_fe_vef%free()
+  allocate(itfc_vef_accessor_t :: coarse_fe_vef%vef, stat=istat); check(istat==0)
+  call coarse_fe_vef%vef%create(this%coarse_triangulation)
+  coarse_fe_vef%coarse_fe_space => this
+end subroutine coarse_fe_space_create_itfc_coarse_fe_vef_accessor
 
   function coarse_fe_space_create_coarse_fe_object_iterator(this)
     implicit none

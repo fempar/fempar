@@ -67,7 +67,6 @@ contains
 
     ! FE space traversal-related data types
     class(fe_accessor_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face_iterator
     type(fe_face_accessor_t) :: fe_face
     
     ! FE integration-related data types
@@ -173,11 +172,9 @@ contains
     call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
     
     ! Search for the first boundary face
-    fe_face_iterator = fe_space%create_fe_face_iterator()
-    call fe_face_iterator%current(fe_face)
+    call fe_space%create_fe_face_accessor(fe_face)
     do while ( .not. fe_face%is_at_boundary() ) 
-       call fe_face_iterator%next()
-       call fe_face_iterator%current(fe_face)
+       call fe_face%next()
     end do
     
     quad            => fe_face%get_quadrature()
@@ -185,10 +182,9 @@ contains
     face_map        => fe_face%get_face_map()
     face_int        => fe_face%get_face_integrator(1)
     
-    do while ( .not. fe_face_iterator%has_finished() )
+    do while ( .not. fe_face%past_the_end() )
        facemat = 0.0_rp
        facevec = 0.0_rp
-       call fe_face_iterator%current(fe_face)
        if ( fe_face%is_at_boundary() .and. fe_face%get_set_id() == 0 ) then
          call fe_face%update_integration()    
          quad_coords => face_map%get_quadrature_coordinates()
@@ -211,7 +207,7 @@ contains
                                                    facemat(:,:,1,1), &
                                                    facevec(:,1) )            
        end if
-       call fe_face_iterator%next()
+       call fe_face%next()
     end do
     
     deallocate(elem2dof, stat=istat); check(istat==0);

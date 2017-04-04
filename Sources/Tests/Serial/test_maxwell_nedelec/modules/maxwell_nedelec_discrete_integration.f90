@@ -58,8 +58,6 @@ contains
 
     ! FE space traversal-related data types
     class(fe_accessor_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face_iterator
-    type(fe_face_accessor_t) :: fe_face
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map

@@ -31,6 +31,7 @@ subroutine vef_accessor_create ( this, base_static_triangulation )
   class(base_static_triangulation_t), target, intent(in) :: base_static_triangulation
   call this%free()
   this%base_static_triangulation => base_static_triangulation
+  call this%first()
 end subroutine vef_accessor_create
 
 subroutine vef_accessor_free ( this)
@@ -238,6 +239,59 @@ subroutine vef_accessor_get_cell_around (this, icell_around, cell)
   call cell%set_lid(icell)
 end subroutine vef_accessor_get_cell_around
 
+!
+! void methods corresponding to face extension
+!
+subroutine vef_face_accessor_get_coordinates (this, face_coordinates)
+  implicit none
+  class(vef_accessor_t), intent(in)    :: this
+  type(point_t)        ,  intent(inout) :: face_coordinates(:)
+  check(.false.)
+end subroutine vef_face_accessor_get_coordinates
+
+function vef_face_accessor_get_face_lid (this) result(face_lid)
+  implicit none
+  class(vef_accessor_t), intent(in)    :: this
+  integer(ip) :: face_lid
+  check(.false.)
+end function vef_face_accessor_get_face_lid
+
+function vef_face_accessor_get_face_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
+  implicit none
+  class(vef_accessor_t), intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  integer(ip)                           :: face_lpos_within_cell_around
+  check(.false.)
+end function vef_face_accessor_get_face_lpos_within_cell_around
+
+function vef_face_accessor_get_face_orientation ( this ) result(face_orientation)
+  implicit none
+  class(vef_accessor_t), intent(in)    :: this
+  integer(ip)                           :: face_orientation
+  check(.false.)
+end function vef_face_accessor_get_face_orientation 
+
+function vef_face_accessor_get_face_rotation ( this ) result(face_rotation)
+  implicit none
+  class(vef_accessor_t), intent(in)    :: this
+  integer(ip)                           :: face_rotation
+  check(.false.)
+end function vef_face_accessor_get_face_rotation
+
+subroutine vef_face_accessor_set_face_orientation (this, face_orientation)
+  implicit none
+  class(vef_accessor_t), intent(inout)    :: this
+  integer(ip)           , intent(in)       :: face_orientation
+  check(.false.)
+end subroutine vef_face_accessor_set_face_orientation 
+
+subroutine vef_face_accessor_set_face_rotation ( this, face_rotation)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: face_rotation
+  check(.false.)
+end subroutine vef_face_accessor_set_face_rotation
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Extensions
 !
@@ -267,6 +321,11 @@ subroutine edge_accessor_next ( this )
   end if
 end subroutine edge_accessor_next
 
+
+!=============================================================================================================
+!
+! Face extension methods
+!
 subroutine face_accessor_first (this) 
   implicit none
   class(face_accessor_t), intent(inout) :: this
