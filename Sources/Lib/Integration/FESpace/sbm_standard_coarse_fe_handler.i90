@@ -45,6 +45,12 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator
   integer(ip), pointer                   :: elem2dof(:)
   logical                                :: use_vertices, use_edges, use_faces
+
+  ! These where added to support void fes
+  logical, allocatable                   :: touched_dofs_lids_local(:), touched_dofs_lids_ghost(:)
+  integer(ip), pointer                   :: field2block(:)
+  integer(ip)                            :: num_dofs_block
+  integer(ip)                            :: ielem
   
   par_environment => par_fe_space%get_par_environment()
   assert ( associated ( par_environment ) )
@@ -59,7 +65,13 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
   ! To think where field_id should come from? Temporarily let us assume that we have
   ! a single-field PDE problem
   field_id = 1
-  
+
+  ! Allocate touch arrays. Some memory can be saved by using hash tables.
+  field2block => par_fe_space%get_field_blocks()
+  num_dofs_block = par_fe_space%get_block_number_dofs(field2block(field_id))
+  call memalloc(num_dofs_block, touched_dofs_lids_local,__FILE__,__LINE__)
+  call memalloc(num_dofs_block, touched_dofs_lids_ghost,__FILE__,__LINE__)
+
   ! First, count how many coarse_dofs there are on the interface of my subdomain
   num_coarse_dofs = 0
   object_iterator = par_fe_space%create_fe_object_iterator()
@@ -79,48 +91,78 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
          call object_iterator%next(); cycle
        end if  
      end select
-     
-     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+
      dofs_on_vef = .false.
+     touched_dofs_lids_local(:) = .false.
+     touched_dofs_lids_ghost(:) = .false.
+
+     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
      do while ( .not. vefs_on_object_iterator%has_finished() )
         call vefs_on_object_iterator%current(vef)
 
-        ! To deal with void elements we need:
+        ! To deal with void elements we follow:
         ! A coarse object will have a dof, if and only if it has at least 1 vef such that:
         ! The vef has a local free dof which is shared by another subdomain.
 
-        ! Now it is implemented like this:
+        ! It used to be implemented like this:
         ! A coarse object will have a dof, if and only if it has at least 1 vef such that:
-        ! The vef has a free dof (no mather wheter this dof is local, or shared by other subdomains)
+        ! The vef has a free dof (no matter whether this dof is local, or shared by other subdomains)
+        ! This was enough assuming that all cells around were non void.
 
-        ! TODO Loop in local cells around to find a local free dof
+        ! Loop in cells around to find free dofs
+        do ielem=1, vef%get_num_cells_around()
 
-        ! TODO Loop in ghost cells around to find if the local dof is shared by another subdomain
+          call vef%get_cell_around(ielem,fe)
+          ivef = fe%find_lpos_vef_lid(vef%get_lid())
+          call fe%get_field_elem2dof(field_id, elem2dof )
 
-        call vef%get_cell_around(1,fe)
-        call fe%get_field_elem2dof(field_id, elem2dof)
-        ivef = fe%find_lpos_vef_lid(vef%get_lid())
+          ! Loop in the dofs of the vef as seen by each of the cells around
+          own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
+          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+             idof =  own_dofs_on_vef_iterator%get_current()
+             dof_lid = elem2dof(idof)
 
-        own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
-        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-           idof    = own_dofs_on_vef_iterator%get_current()
-           dof_lid = elem2dof(idof)
-           if ( dof_lid > 0 ) then           
-               dofs_on_vef = .true.
-              exit
-           end if
-           call own_dofs_on_vef_iterator%next()
-        end do
+             ! Check that the dof is free
+             if ( dof_lid > 0 ) then
 
+               ! If the current cell around is local, touch the (free) dof as local, if not touch it as ghost
+               if (fe%is_local()) then
+                 touched_dofs_lids_local(dof_lid) = .true.
+               else
+                 touched_dofs_lids_ghost(dof_lid) = .true.
+               end if
+
+               ! Check if so far we have found a local free dof shared by another subdomain
+               if ( touched_dofs_lids_local(dof_lid) .and. touched_dofs_lids_ghost(dof_lid)) then
+                 dofs_on_vef = .true.
+                 exit
+               end if
+
+             end if
+
+             call own_dofs_on_vef_iterator%next()
+          end do
+
+          ! If we have found what we wanted, exit the loop over cells around
+          if ( dofs_on_vef ) exit
+
+        end do ! End of the loop in cells around
+
+        ! If we have found what we wanted, set the number of dofs of this object to 1, and move on to next object
         if ( dofs_on_vef ) then
            ! It must be thought for more general cases (vectors, tensor product...)
            num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 1
            exit
         end if
+
         call vefs_on_object_iterator%next()
      end do
      call object_iterator%next()
   end do
+
+  call memfree(touched_dofs_lids_local,__FILE__,__LINE__)
+  call memfree(touched_dofs_lids_ghost,__FILE__,__LINE__)
+
 end subroutine standard_l1_get_num_coarse_dofs
 
 subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
