@@ -300,7 +300,7 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
                   ivef_in_source_fe = source_fe%find_lpos_vef_lid(vef%get_lid()) 
 
                   ! Check that the source fe has at least one dof on this vef
-                  ! This check can be omitted if we implement a new iterator that for a given vef and field if, 
+                  ! This check can be omitted if we implement a new iterator that for a given vef and field id, 
                   ! iterate only over the neighbor FEs that are non void
                   reference_fe => source_fe%get_reference_fe(field_id)
                   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
