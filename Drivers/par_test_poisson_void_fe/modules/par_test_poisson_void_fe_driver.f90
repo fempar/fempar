@@ -141,8 +141,8 @@ contains
           call cell%get_coordinates(cell_coords)
           x = cell_coords(1)%get(1)
           y = cell_coords(1)%get(2)
-          !if (x>=0.25 .and. y>=0.5) then
-          if (y>=0.5) then
+          if (x>=0.25 .and. y>=0.5) then
+          !if (y>=0.5) then
             set_id = PAR_POISSON_SET_ID_FULL
           else
             set_id = PAR_POISSON_SET_ID_VOID
