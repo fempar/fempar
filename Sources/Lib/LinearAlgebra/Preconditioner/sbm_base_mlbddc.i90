@@ -386,8 +386,10 @@ subroutine base_mlbddc_setup_coarse_grid_basis ( this )
      j = j + 1 
   end do
 
-  call this%constrained_neumann_solver%solve(work1, &
-       work2)
+  if (fe_space%get_block_number_coarse_dofs(1)>0) then
+    call this%constrained_neumann_solver%solve(work1, &
+         work2)
+  end if
 
   call this%allocate_coarse_grid_basis()
   this%Phi = work2 (1:fe_space%get_block_number_dofs(1),:) 
