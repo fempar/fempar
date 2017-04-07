@@ -84,7 +84,7 @@ contains
     error = error + this%list%set(key = dir_path_out_key              , value = '.')
     error = error + this%list%set(key = number_of_dimensions_key      , value =  2)
     error = error + this%list%set(key = interpolation_order_key       , value =  1)
-    tmp = [4,2,0]; error = error + this%list%set(key = number_of_cells_per_dir_key   , value = tmp)
+    tmp = [4,4,0]; error = error + this%list%set(key = number_of_cells_per_dir_key   , value = tmp)
     tmp = [3,1,1]; error = error + this%list%set(key = number_of_parts_per_dir_key   , value = tmp)
     tmp = [0,1,0]; error = error + this%list%set(key = is_dir_periodic_key           , value = tmp)
 
@@ -237,6 +237,7 @@ program partitioner
   use test_mesh_gen_input_names
   implicit none
   type(test_mesh_gen_input_t)    :: input
+  type(uniform_hex_mesh_t) :: uniform_hex_mesh
   type(ParameterList_t), pointer :: parameters
   integer(ip)                  :: num_local_cells
   integer(ip)                  :: num_local_vefs
@@ -255,7 +256,7 @@ program partitioner
   integer(ip) , allocatable    :: ptr_ext_neighs_per_itfc_cell(:)
   integer(igp), allocatable    :: lst_ext_neighs_gids(:)
   integer(ip) , allocatable    :: lst_ext_neighs_part_ids(:)
-  real(rp)    , pointer        :: coordinates(:,:)
+  real(rp)    , allocatable    :: coordinates(:,:)
 
   integer(ip) :: icell, ivef, error
   !integer(ip) :: n(SPACE_DIM)
@@ -285,7 +286,10 @@ program partitioner
   !      lst_ext_neighs_part_ids,      &
   !      2)
 
-  call uniform_hex_mesh_generator_generate_connectivities(parameters,        &
+
+     call uniform_hex_mesh%get_data_from_parameter_list(parameters)
+
+     call uniform_hex_mesh%generate_connectivities(  &
        num_local_cells,       &
        num_local_vefs,        &
        num_vertices,          &
@@ -295,6 +299,8 @@ program partitioner
        lst_vefs_lids,         &
        boundary_id,           &
        coordinates)
+  num_ghost_cells = 0
+     
   call memalloc(num_local_cells+num_ghost_cells,cell_gids,__FILE__,__LINE__)
   call memalloc(num_local_vefs,vefs_gids,__FILE__,__LINE__)
   cell_gids=0

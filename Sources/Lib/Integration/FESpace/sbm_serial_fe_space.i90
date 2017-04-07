@@ -1151,7 +1151,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   integer(ip)         :: current_volume_integrator
 
   integer(ip)         :: field_id
-  integer(ip)         :: max_order_within_fe, max_order_field_id
+  integer(ip)         :: max_order, max_order_reference_fe_id_within_fe
   integer(ip)         :: fe_volume_integrators_position_key
   integer(ip)         :: istat
 
@@ -1160,7 +1160,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   call this%free_fe_integration()
 
   call memalloc ( this%triangulation%get_num_cells(), &
-       this%max_order_per_fe, &
+       this%max_order_reference_fe_id_per_fe, &
        __FILE__, __LINE__ )
 
   ! Determine the size of fe_quadratures, fe_maps, and fe_volume_integrators 
@@ -1172,24 +1172,25 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   fe_iterator = this%create_fe_iterator()
   do while ( .not. fe_iterator%has_finished() ) 
      call fe_iterator%current(fe)
-     max_order_within_fe = -1
+     max_order = -1
      do field_id=1, this%get_number_fields()
-        if ( max_order_within_fe < fe%get_max_order(field_id) ) then
-           max_order_within_fe = fe%get_max_order(field_id)
+        if ( max_order <= fe%get_max_order(field_id) ) then
+           max_order = fe%get_max_order(field_id)
+           max_order_reference_fe_id_within_fe = fe%get_reference_fe_id(field_id)
         end if
      end do
-     this%max_order_per_fe(fe%get_lid()) = max_order_within_fe
+     this%max_order_reference_fe_id_per_fe(fe%get_lid()) = max_order_reference_fe_id_within_fe
 
-     call this%fe_quadratures_and_maps_position%put(key = max_order_within_fe, &
-          val=current_quadrature_and_map, &
-          stat=istat)
+     call this%fe_quadratures_and_maps_position%put(key = max_order_reference_fe_id_within_fe, &
+                                                          val=current_quadrature_and_map, &
+                                                          stat=istat)
      if (istat == now_stored) then
         current_quadrature_and_map = current_quadrature_and_map + 1
      end if
 
      do field_id=1, this%get_number_fields()
         fe_volume_integrators_position_key = &
-             this%generate_fe_volume_integrators_position_key(max_order_within_fe, &
+             this%generate_fe_volume_integrators_position_key(max_order_reference_fe_id_within_fe, &
              this%reference_fe_id_per_fe(field_id, fe%get_lid()))
         call this%fe_volume_integrators_position%put(key=fe_volume_integrators_position_key, &
              val=current_volume_integrator, &
@@ -1219,21 +1220,14 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   call fe_iterator%init()
   do while ( .not. fe_iterator%has_finished() ) 
      call fe_iterator%current(fe)
-     max_order_within_fe = -1
-     max_order_field_id  = -1
-     do field_id=1, this%get_number_fields()
-        if ( max_order_within_fe < fe%get_max_order(field_id) ) then
-           max_order_within_fe = fe%get_max_order(field_id)
-           max_order_field_id = field_id
-        end if
-     end do
+     max_order_reference_fe_id_within_fe = this%max_order_reference_fe_id_per_fe(fe%get_lid())
 
-     call this%fe_quadratures_and_maps_position%put(key=max_order_within_fe, &
-          val=current_quadrature_and_map, &
-          stat=istat)
+     call this%fe_quadratures_and_maps_position%put(key=max_order_reference_fe_id_within_fe, &
+                                                    val=current_quadrature_and_map, &
+                                                    stat=istat)
      if (istat == now_stored) then
         ! Create quadrature and fe_map associated to current max_order_within_fe
-        reference_fe => fe%get_reference_fe(max_order_field_id)
+        reference_fe => this%reference_fes(max_order_reference_fe_id_within_fe)%p
         call reference_fe%create_quadrature(this%fe_quadratures(current_quadrature_and_map))
         call this%fe_maps(current_quadrature_and_map)%create(this%fe_quadratures(current_quadrature_and_map),&
              fe%get_reference_fe_geo())
@@ -1242,7 +1236,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
 
      do field_id=1, this%get_number_fields()
         fe_volume_integrators_position_key = &
-             this%generate_fe_volume_integrators_position_key(max_order_within_fe, &
+             this%generate_fe_volume_integrators_position_key(max_order_reference_fe_id_within_fe, &
              this%reference_fe_id_per_fe(field_id, fe%get_lid()))
         call this%fe_volume_integrators_position%put(key=fe_volume_integrators_position_key, &
              val=current_volume_integrator, &
@@ -1264,7 +1258,7 @@ subroutine serial_fe_space_free_fe_integration ( this )
 
   class(reference_fe_t), pointer :: reference_fe
 
-  if (allocated(this%max_order_per_fe)) call memfree ( this%max_order_per_fe, __FILE__, __LINE__ )
+  if (allocated(this%max_order_reference_fe_id_per_fe)) call memfree ( this%max_order_reference_fe_id_per_fe, __FILE__, __LINE__ )
   call this%fe_quadratures_and_maps_position%free()
   call this%fe_volume_integrators_position%free()
 
@@ -1294,16 +1288,16 @@ subroutine serial_fe_space_free_fe_integration ( this )
 end subroutine serial_fe_space_free_fe_integration
 
 ! Some comments:
-!   * max_order_within_fe >= 0 
+!   * max_order_reference_fe_id_within_fe can range from 1 to this%reference_fes_size
 !   * reference_fe_id can range from 1 to this%reference_fes_size
-function serial_fe_space_generate_fe_volume_integrators_position_key ( this, max_order_within_fe, reference_fe_id )
+function serial_fe_space_generate_fe_volume_integrators_position_key ( this, max_order_reference_fe_id_within_fe, reference_fe_id )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
-  integer(ip)                 , intent(in) :: max_order_within_fe
+  integer(ip)                 , intent(in) :: max_order_reference_fe_id_within_fe
   integer(ip)                 , intent(in) :: reference_fe_id
   integer(ip) :: serial_fe_space_generate_fe_volume_integrators_position_key
   serial_fe_space_generate_fe_volume_integrators_position_key =  &
-       reference_fe_id + (max_order_within_fe)*this%reference_fes_size
+       reference_fe_id + (max_order_reference_fe_id_within_fe)*this%reference_fes_size
 end function serial_fe_space_generate_fe_volume_integrators_position_key
 
 subroutine serial_fe_space_initialize_fe_face_integration ( this )

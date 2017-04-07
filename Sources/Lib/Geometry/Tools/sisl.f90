@@ -10,7 +10,15 @@ module sisl_names
        real(c_double)       , intent(in) :: knots(*),coef(*)
      end function new_curve
 
-     subroutine point_intersection(pc1, pt1, idim, aepsge, jpt, gpar1, jcrv, wcurve, jstat) & 
+
+     type(c_ptr) function new_surface(number1, number2, order1, order2, knot1, knot2, coef, kind, dim, copy) & 
+          & bind(c,NAME='newSurf')
+       use iso_c_binding
+       integer(c_int), value, intent(in) :: number1, number2, order1, order2, kind, dim, copy
+       real(c_double)       , intent(in) :: knot1(*), knot2(*), coef(*)
+     end function new_surface
+
+     subroutine curve_point_intersection(pc1, pt1, idim, aepsge, jpt, gpar1, jcrv, wcurve, jstat) & 
           & bind(c,NAME='s1871')
        use iso_c_binding
        type(c_ptr)   , value, intent(in) :: pc1
@@ -22,7 +30,7 @@ module sisl_names
        integer(c_int)       , intent(out) :: jcrv
        type(c_ptr)          , intent(out) :: wcurve
        integer(c_int)       , intent(out) :: jstat
-     end subroutine point_intersection
+     end subroutine curve_point_intersection
      ! void s1871(pc1, pt1, idim, aepsge, jpt, gpar1, jcrv, wcurve, jstat)
      ! SISLCurve *pc1;
      ! double *pt1;
@@ -65,6 +73,52 @@ module sisl_names
      ! double epsge;
      ! double *length;
      ! int *stat;
+
+
+     subroutine surface_left_evaluation(surf, der, parvalue, leftknot1, leftknot2, derive, normal, stat) & 
+          & bind(c,NAME='s1421')
+       use iso_c_binding
+       type(c_ptr)   , value, intent(in)    :: surf
+       integer(c_int), value, intent(in)    :: der
+       real(c_double)       , intent(in)    :: parvalue(2)
+       integer(c_int)       , intent(inout) :: leftknot1
+       integer(c_int)       , intent(inout) :: leftknot2
+       real(c_double)       , intent(out)   :: derive(*)
+       real(c_double)       , intent(out)   :: normal(*)
+       integer(c_int)       , intent(out)   :: stat
+     end subroutine surface_left_evaluation
+     ! SISLSurf *surf;
+     ! int der;
+     ! double parvalue[ ];
+     ! int *leftknot1;
+     ! int *leftknot2;
+     ! double derive[ ];
+     ! double normal[ ];
+     ! int *stat;
+
+     subroutine surface_point_intersection(ps1, pt1, idim, aepsge, jpt, gpar1, jcrv, wcurve, jstat) & 
+          & bind(c,NAME='s1871')
+       use iso_c_binding
+       type(c_ptr)   , value, intent(in) :: ps1
+       real(c_double)       , intent(in) :: pt1(idim)
+       integer(c_int), value, intent(in) :: idim
+       real(c_double), value, intent(in) :: aepsge
+       integer(c_int)       , intent(out) :: jpt
+       type(c_ptr)          , intent(out) :: gpar1
+       integer(c_int)       , intent(out) :: jcrv
+       type(c_ptr)          , intent(out) :: wcurve
+       integer(c_int)       , intent(out) :: jstat
+     end subroutine surface_point_intersection
+     ! SISLSurf *ps1;
+     ! double *pt1;
+     ! int idim;
+     ! double aepsge;
+     ! int *jpt;
+     ! double **gpar1;
+     ! int *jcrv;
+     ! SISLIntcurve ***wcurve;
+     ! int *jstat;
+
   end interface
 
 end module sisl_names
