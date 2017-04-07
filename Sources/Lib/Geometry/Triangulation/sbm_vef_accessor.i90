@@ -294,16 +294,19 @@ end subroutine vef_face_accessor_set_face_rotation
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Extensions
-!
-subroutine vertex_accessor_next ( this ) 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine vertex_accessor_first ( this ) 
   implicit none
   class(vertex_accessor_t), intent(inout)    :: this
-  if ( this%lid >= this%base_static_triangulation%num_vertices ) then
-     call this%set_lid(this%base_static_triangulation%num_vefs+1)
-  else
-     this%lid = this%lid + 1
-  end if
-end subroutine vertex_accessor_next
+  this%lid = 1
+end subroutine vertex_accessor_first
+
+function vertex_accessor_past_the_end ( this ) 
+  implicit none
+  class(vertex_accessor_t), intent(in)    :: this
+  logical :: vertex_accessor_past_the_end
+  vertex_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_vertices)
+end function vertex_accessor_past_the_end
 
 subroutine edge_accessor_first (this) 
   implicit none
@@ -311,16 +314,12 @@ subroutine edge_accessor_first (this)
   call this%set_lid(this%base_static_triangulation%num_vertices+1)
 end subroutine edge_accessor_first
 
-subroutine edge_accessor_next ( this ) 
+function edge_accessor_past_the_end ( this ) 
   implicit none
-  class(edge_accessor_t), intent(inout)    :: this
-  if ( this%lid >= this%base_static_triangulation%num_vertices + this%base_static_triangulation%num_edges ) then
-     call this%set_lid(this%base_static_triangulation%num_vefs+1)
-  else
-     this%lid = this%lid + 1
-  end if
-end subroutine edge_accessor_next
-
+  class(edge_accessor_t), intent(in)    :: this
+  logical :: edge_accessor_past_the_end
+  edge_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_vertices + this%base_static_triangulation%num_edges)
+end function edge_accessor_past_the_end
 
 !=============================================================================================================
 !
@@ -331,6 +330,13 @@ subroutine face_accessor_first (this)
   class(face_accessor_t), intent(inout) :: this
   call this%set_lid(this%base_static_triangulation%num_vertices+this%base_static_triangulation%num_edges+1)
 end subroutine face_accessor_first
+
+function face_accessor_past_the_end ( this ) 
+  implicit none
+  class(face_accessor_t), intent(in)    :: this
+  logical :: face_accessor_past_the_end
+  face_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_vefs)
+end function face_accessor_past_the_end
 
 subroutine face_accessor_get_coordinates (this, face_coordinates)
   implicit none
@@ -442,10 +448,8 @@ subroutine itfc_vef_accessor_first (this)
   implicit none
   class(itfc_vef_accessor_t), intent(inout) :: this
   this%itfc_lid = 1
-  if ( this%base_static_triangulation%num_itfc_vefs == 0 ) then
-     call this%set_lid(lid=this%base_static_triangulation%num_vefs+1)
-  else
-     call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
+  if ( .not. this%past_the_end() ) then
+    call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
   end if
 end subroutine itfc_vef_accessor_first
 
@@ -453,9 +457,14 @@ subroutine itfc_vef_accessor_next ( this )
   implicit none
   class(itfc_vef_accessor_t), intent(inout)    :: this
   this%itfc_lid = this%itfc_lid + 1
-  if ( this%itfc_lid > this%base_static_triangulation%num_itfc_vefs ) then
-     call this%set_lid(lid=this%base_static_triangulation%num_vefs+1)
-  else
-     call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
+  if ( .not. this%past_the_end() ) then
+    call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
   end if
 end subroutine itfc_vef_accessor_next
+
+function itfc_vef_accessor_past_the_end ( this ) 
+  implicit none
+  class(itfc_vef_accessor_t), intent(in)    :: this
+  logical :: itfc_vef_accessor_past_the_end
+  itfc_vef_accessor_past_the_end = (this%itfc_lid > this%base_static_triangulation%num_itfc_vefs)
+end function itfc_vef_accessor_past_the_end

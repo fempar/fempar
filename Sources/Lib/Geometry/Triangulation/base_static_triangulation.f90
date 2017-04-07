@@ -147,7 +147,7 @@ module base_static_triangulation_names
      procedure                           :: first                     => vef_accessor_first
      procedure                           :: next                      => vef_accessor_next
      procedure, non_overridable          :: set_lid                   => vef_accessor_set_lid
-     procedure, non_overridable          :: past_the_end              => vef_accessor_past_the_end
+     procedure                           :: past_the_end              => vef_accessor_past_the_end
      procedure, non_overridable          :: get_triangulation         => vef_accessor_get_triangulation
      procedure, non_overridable          :: get_lid                   => vef_accessor_get_lid
      procedure, non_overridable          :: get_gid                   => vef_accessor_get_gid
@@ -185,20 +185,22 @@ module base_static_triangulation_names
   type, extends(vef_accessor_t) :: vertex_accessor_t
     private
     contains
-     procedure                          :: next                             => vertex_accessor_next
+     procedure          :: first                     => vertex_accessor_first
+     procedure          :: past_the_end              => vertex_accessor_past_the_end
   end type vertex_accessor_t
 
   type, extends(vef_accessor_t) :: edge_accessor_t
     private
     contains
-     procedure :: first => edge_accessor_first
-     procedure :: next  => edge_accessor_next
+     procedure          :: first                     => edge_accessor_first
+     procedure          :: past_the_end              => edge_accessor_past_the_end
   end type edge_accessor_t
   
   type, extends(vef_accessor_t) :: face_accessor_t
     private
   contains
     procedure                           :: first                            => face_accessor_first
+    procedure                           :: past_the_end                     => face_accessor_past_the_end
     procedure                           :: get_coordinates                  => face_accessor_get_coordinates
     procedure                           :: get_face_lid                     => face_accessor_get_face_lid
     procedure                           :: get_face_lpos_within_cell_around => face_accessor_get_face_lpos_within_cell_around
@@ -212,8 +214,9 @@ module base_static_triangulation_names
     private
     integer(ip)  :: itfc_lid = -1
     contains
-     procedure :: first => itfc_vef_accessor_first
-     procedure :: next  => itfc_vef_accessor_next
+     procedure          :: first          => itfc_vef_accessor_first
+     procedure          :: next           => itfc_vef_accessor_next
+     procedure          :: past_the_end   => itfc_vef_accessor_past_the_end
   end type itfc_vef_accessor_t
 
 
