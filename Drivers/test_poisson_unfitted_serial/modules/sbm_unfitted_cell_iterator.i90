@@ -26,13 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine unfitted_cell_iterator_create ( this, lid, base_static_triangulation ) 
+subroutine unfitted_cell_iterator_create ( this, lid, marching_cubes ) 
   implicit none
   class(unfitted_cell_iterator_t)   , intent(inout) :: this
   integer(ip)                       , intent(in)    :: lid
-  class(base_static_triangulation_t), intent(in)    :: base_static_triangulation
+  class(marching_cubes_t), target, intent(in) :: marching_cubes
   call this%free()
-  call this%current_cell_accessor%create(lid=lid, base_static_triangulation=base_static_triangulation )
+  call this%current_cell_accessor%create(lid=lid, marching_cubes=marching_cubes )
 end subroutine unfitted_cell_iterator_create
 
 subroutine unfitted_cell_iterator_free ( this ) 

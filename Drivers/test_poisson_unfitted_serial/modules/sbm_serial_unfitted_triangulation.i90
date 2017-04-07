@@ -27,55 +27,44 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_create(this, parameters, level_set_function)
+subroutine marching_cubes_create(this, triangulation, level_set_function)
   implicit none
-  class(serial_unfitted_triangulation_t), target, intent(inout) :: this
-  type(ParameterList_t)                         , intent(inout) :: parameters
-  class(level_set_function_t),            target, intent(in)    :: level_set_function
-
-  ! Allocate and fill data managed by the parent class
+  class(marching_cubes_t),            target,  intent(inout)  :: this
+  class(base_static_triangulation_t), pointer, intent(in)     :: triangulation
+  class(level_set_function_t),        target,  intent(in)     :: level_set_function
   call this%free()
-  call this%serial_triangulation_t%create(parameters)
-
-  ! Check that the triangulation fulfills the assumptions made by this class
+  this%triangulation => triangulation
   assert(this%fulfills_assumptions())
-
-  ! Allocate and fill member variables which are managed by this derived data type
   this%level_set_function => level_set_function
   call this%mc_tables_create()
   call this%mc_runtime_info_create()
   call this%subnodes_data_create()
-
-end subroutine serial_unfitted_triangulation_create
+end subroutine marching_cubes_create
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_free(this)
+subroutine marching_cubes_free(this)
   implicit none
-  class(serial_unfitted_triangulation_t), target, intent(inout) :: this
-
-  ! Free memory managed by the parent class
-  call this%serial_triangulation_t%free()
-
-  ! Free memory managed by this class
+  class(marching_cubes_t), target, intent(inout) :: this
+  this%triangulation => null()
+  this%level_set_function => null()
   call this%mc_tables_free()
   call this%mc_runtime_info_free()
   call this%subnodes_data_free()
-
-end subroutine serial_unfitted_triangulation_free
+end subroutine marching_cubes_free
 
 !========================================================================================
-function serial_unfitted_triangulation_create_unfitted_cell_iterator ( this ) result (cell_iter)
+function marching_cubes_create_unfitted_cell_iterator ( this ) result (cell_iter)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   type(unfitted_cell_iterator_t) :: cell_iter
   call cell_iter%create(1, this)
-end function serial_unfitted_triangulation_create_unfitted_cell_iterator
+end function marching_cubes_create_unfitted_cell_iterator
 
 !========================================================================================
-function serial_unfitted_triangulation_get_num_cut_cells( this ) result ( num_cut_cells )
+function marching_cubes_get_num_cut_cells( this ) result ( num_cut_cells )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
 
   integer(ip) :: num_cut_cells
   type(unfitted_cell_iterator_t)  :: cell_iter
@@ -92,13 +81,13 @@ function serial_unfitted_triangulation_get_num_cut_cells( this ) result ( num_cu
   end do
   call cell_iter%free()
 
-end function serial_unfitted_triangulation_get_num_cut_cells
+end function marching_cubes_get_num_cut_cells
 
 !========================================================================================
-function serial_unfitted_triangulation_get_num_interior_cells( this ) result ( num_interior_cells )
+function marching_cubes_get_num_interior_cells( this ) result ( num_interior_cells )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: num_interior_cells
 
   type(unfitted_cell_iterator_t)  :: cell_iter
@@ -115,13 +104,13 @@ function serial_unfitted_triangulation_get_num_interior_cells( this ) result ( n
   end do
   call cell_iter%free()
 
-end function serial_unfitted_triangulation_get_num_interior_cells
+end function marching_cubes_get_num_interior_cells
 
 !========================================================================================
-function serial_unfitted_triangulation_get_num_exterior_cells( this ) result ( num_exterior_cells )
+function marching_cubes_get_num_exterior_cells( this ) result ( num_exterior_cells )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: num_exterior_cells
 
   type(unfitted_cell_iterator_t)  :: cell_iter
@@ -138,29 +127,29 @@ function serial_unfitted_triangulation_get_num_exterior_cells( this ) result ( n
   end do
   call cell_iter%free()
 
-end function serial_unfitted_triangulation_get_num_exterior_cells
+end function marching_cubes_get_num_exterior_cells
 
 !========================================================================================
-function serial_unfitted_triangulation_get_max_subcells_in_cell( this ) result ( max_subcells_in_cell )
+function marching_cubes_get_max_subcells_in_cell( this ) result ( max_subcells_in_cell )
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_subcells_in_cell
   max_subcells_in_cell = this%mc_table_max_num_subcells
-end function serial_unfitted_triangulation_get_max_subcells_in_cell
+end function marching_cubes_get_max_subcells_in_cell
 
 !========================================================================================
-function serial_unfitted_triangulation_get_max_nodes_in_subcell( this ) result ( max_nodes_in_subcell )
+function marching_cubes_get_max_nodes_in_subcell( this ) result ( max_nodes_in_subcell )
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_nodes_in_subcell
   max_nodes_in_subcell = this%mc_table_num_nodes_subcell
-end function serial_unfitted_triangulation_get_max_nodes_in_subcell
+end function marching_cubes_get_max_nodes_in_subcell
 
 !========================================================================================
-function serial_unfitted_triangulation_get_total_num_of_subcells( this ) result ( total_num )
+function marching_cubes_get_total_num_of_subcells( this ) result ( total_num )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: total_num
 
   type(unfitted_cell_iterator_t)  :: cell_iter
@@ -176,29 +165,29 @@ function serial_unfitted_triangulation_get_total_num_of_subcells( this ) result 
   end do
   call cell_iter%free()
 
-end function serial_unfitted_triangulation_get_total_num_of_subcells
+end function marching_cubes_get_total_num_of_subcells
 
 !========================================================================================
-function serial_unfitted_triangulation_get_max_subfaces_in_cell( this ) result ( max_subfaces_in_cell )
+function marching_cubes_get_max_subfaces_in_cell( this ) result ( max_subfaces_in_cell )
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_subfaces_in_cell
   max_subfaces_in_cell = this%mc_table_max_num_subfaces
-end function serial_unfitted_triangulation_get_max_subfaces_in_cell
+end function marching_cubes_get_max_subfaces_in_cell
 
 !========================================================================================
-function serial_unfitted_triangulation_get_max_nodes_in_subface( this ) result ( max_nodes_in_subface)
+function marching_cubes_get_max_nodes_in_subface( this ) result ( max_nodes_in_subface)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_nodes_in_subface
   max_nodes_in_subface = this%mc_table_num_nodes_subface
-end function serial_unfitted_triangulation_get_max_nodes_in_subface
+end function marching_cubes_get_max_nodes_in_subface
 
 !========================================================================================
-function serial_unfitted_triangulation_get_total_num_of_subfaces( this ) result ( total_num )
+function marching_cubes_get_total_num_of_subfaces( this ) result ( total_num )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: total_num
 
   type(unfitted_cell_iterator_t)  :: cell_iter
@@ -214,47 +203,47 @@ function serial_unfitted_triangulation_get_total_num_of_subfaces( this ) result 
   end do
   call cell_iter%free()
 
-end function serial_unfitted_triangulation_get_total_num_of_subfaces
+end function marching_cubes_get_total_num_of_subfaces
 
 !========================================================================================
-function serial_unfitted_triangulation_get_max_subnodes_in_cell( this ) result ( max_subnodes_in_cell )
+function marching_cubes_get_max_subnodes_in_cell( this ) result ( max_subnodes_in_cell )
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_subnodes_in_cell
-  max_subnodes_in_cell = this%get_max_number_shape_functions() + this%mc_table_max_num_cut_edges
-end function serial_unfitted_triangulation_get_max_subnodes_in_cell
+  max_subnodes_in_cell = this%triangulation%get_max_number_shape_functions() + this%mc_table_max_num_cut_edges
+end function marching_cubes_get_max_subnodes_in_cell
 
 !========================================================================================
-function serial_unfitted_triangulation_get_num_mc_cases(this) result (mc_cases)
+function marching_cubes_get_num_mc_cases(this) result (mc_cases)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: mc_cases
   mc_cases = this%mc_table_num_cases
-end function serial_unfitted_triangulation_get_num_mc_cases
+end function marching_cubes_get_num_mc_cases
 
 !========================================================================================
-function serial_unfitted_triangulation_get_num_subcells_mc_case(this,mc_case) result (num_subcells)
+function marching_cubes_get_num_subcells_mc_case(this,mc_case) result (num_subcells)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in) :: this
+  class(marching_cubes_t), intent(in) :: this
   integer(ip), intent(in) :: mc_case
   integer(ip) :: num_subcells
   num_subcells = this%mc_table_num_subcells_per_case(mc_case)
-end function serial_unfitted_triangulation_get_num_subcells_mc_case
+end function marching_cubes_get_num_subcells_mc_case
 
 !========================================================================================
-function serial_unfitted_triangulation_get_num_subfaces_mc_case(this,mc_case) result (num_subfaces)
+function marching_cubes_get_num_subfaces_mc_case(this,mc_case) result (num_subfaces)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in) :: this
+  class(marching_cubes_t), intent(in) :: this
   integer(ip), intent(in) :: mc_case
   integer(ip) :: num_subfaces
   num_subfaces = this%mc_table_num_subfaces_per_case(mc_case)
-end function serial_unfitted_triangulation_get_num_subfaces_mc_case
+end function marching_cubes_get_num_subfaces_mc_case
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_print ( this )
+subroutine marching_cubes_print ( this )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
 
   type(unfitted_cell_iterator_t)  :: cell_iter
   type(unfitted_cell_accessor_t)  :: cell
@@ -263,16 +252,16 @@ subroutine serial_unfitted_triangulation_print ( this )
 
   ! Print basic info of triangulation
   write(*,*) " "
-  write (*,'(a)') '**** print type(serial_unfitted_triangulation_t) [begin] ****'
+  write (*,'(a)') '**** print type(marching_cubes_t) [begin] ****'
   write(*,*) " "
-  write (*,'(a,i10)') 'num_dimensions:           ', this%get_num_dimensions()
-  write (*,'(a,i10)') 'num_cells:                ', this%get_num_cells()
-  write (*,'(a,i10)') 'num_local_cells:          ', this%get_num_local_cells()
-  write (*,'(a,i10)') 'num_ghost_cells:          ', this%get_num_ghost_cells()
+  write (*,'(a,i10)') 'num_dimensions:           ', this%triangulation%get_num_dimensions()
+  write (*,'(a,i10)') 'num_cells:                ', this%triangulation%get_num_cells()
+  write (*,'(a,i10)') 'num_local_cells:          ', this%triangulation%get_num_local_cells()
+  write (*,'(a,i10)') 'num_ghost_cells:          ', this%triangulation%get_num_ghost_cells()
   write (*,'(a,i10)') 'num_cut_cells:            ', this%get_num_cut_cells()
   write (*,'(a,i10)') 'num_interior_cells:       ', this%get_num_interior_cells()
   write (*,'(a,i10)') 'num_exterior_cells:       ', this%get_num_exterior_cells()
-  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%get_max_number_shape_functions()
+  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%triangulation%get_max_number_shape_functions()
   write (*,'(a,i10)') 'max_num_subcells_in_cell: ', this%get_max_num_subcells_in_cell()
   write (*,'(a,i10)') 'max_num_nodes_in_subcell: ', this%get_max_num_nodes_in_subcell()
   write (*,'(a,i10)') 'max_num_subfaces_in_cell: ', this%get_max_num_subfaces_in_cell()
@@ -291,7 +280,7 @@ subroutine serial_unfitted_triangulation_print ( this )
   end do
   write(*,*) " "
 
-  call memalloc( this%get_max_number_shape_functions(), cell_coords   , __FILE__, __LINE__ )
+  call memalloc( this%triangulation%get_max_number_shape_functions(), cell_coords   , __FILE__, __LINE__ )
   call memalloc( this%get_max_num_nodes_in_subcell()  , subcell_coords, __FILE__, __LINE__ )
   call memalloc( this%get_max_num_nodes_in_subface()  , subface_coords, __FILE__, __LINE__ )
 
@@ -316,7 +305,7 @@ subroutine serial_unfitted_triangulation_print ( this )
   end do
 
   write(*,*) " "
-  write (*,'(a)') '**** print type(serial_unfitted_triangulation_t) [end] ****'
+  write (*,'(a)') '**** print type(marching_cubes_t) [end] ****'
   write(*,*) " "
 
  call memfree( cell_coords   , __FILE__, __LINE__ )
@@ -324,31 +313,24 @@ subroutine serial_unfitted_triangulation_print ( this )
  call memfree( subface_coords, __FILE__, __LINE__ )
  call cell_iter%free()
 
-end subroutine serial_unfitted_triangulation_print
+end subroutine marching_cubes_print
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_print_to_vtk_file ( this )
+subroutine marching_cubes_print_to_vtk_file ( this )
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  write(*,*) "serial_unfitted_triangulation_t: Writing vtu file ..."
+  class(marching_cubes_t), intent(in)    :: this
+  write(*,*) "marching_cubes_t: Writing vtu file ..."
   call this%print_vtk_subcells()
   call this%print_vtk_subfaces()
-  write(*,*) "serial_unfitted_triangulation_t: Writing vtu file ... OK"
-end subroutine serial_unfitted_triangulation_print_to_vtk_file
+  write(*,*) "marching_cubes_t: Writing vtu file ... OK"
+end subroutine marching_cubes_print_to_vtk_file
 
 ! Private TBP
-!========================================================================================
-subroutine serial_unfitted_triangulation_serial_triangulation_create ( this, parameters)
-  implicit none
-  class(serial_unfitted_triangulation_t), target, intent(inout) :: this
-  type(ParameterList_t)             , intent(inout) :: parameters
-  check(.false.)
-end subroutine serial_unfitted_triangulation_serial_triangulation_create
 
 !========================================================================================
-function serial_unfitted_triangulation_fulfills_assumptions(this) result (fulfills)
+function marching_cubes_fulfills_assumptions(this) result (fulfills)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in) :: this
+  class(marching_cubes_t), intent(in) :: this
   logical :: fulfills
 
   type(cell_iterator_t)  :: cell_iter
@@ -359,8 +341,8 @@ function serial_unfitted_triangulation_fulfills_assumptions(this) result (fulfil
 
   ! Hypothesis: All cells in the mesh are either bi-linear qua or tri-linear hex
   fulfills = .true.
-  cell_iter= this%create_cell_iterator()
-  num_dim  = this%get_num_dimensions()
+  cell_iter= this%triangulation%create_cell_iterator()
+  num_dim  = this%triangulation%get_num_dimensions()
   if ( (num_dim .ne. 2) .and. (num_dim .ne. 3) ) fulfills = .false.
   do while ( .not. cell_iter%has_finished() )
     call cell_iter%current(cell)
@@ -375,12 +357,12 @@ function serial_unfitted_triangulation_fulfills_assumptions(this) result (fulfil
       call cell_iter%next()
   end do
 
-end function serial_unfitted_triangulation_fulfills_assumptions
+end function marching_cubes_fulfills_assumptions
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_mc_tables_create(this)
+subroutine marching_cubes_mc_tables_create(this)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(inout) :: this
+  class(marching_cubes_t), intent(inout) :: this
 
   type(cell_iterator_t)  :: cell_iter
   type(cell_accessor_t)  :: cell
@@ -391,7 +373,7 @@ subroutine serial_unfitted_triangulation_mc_tables_create(this)
   call this%mc_tables_free()
 
   ! Get element type, we assume hex-like topology
-  num_dim  = this%get_num_dimensions()
+  num_dim  = this%triangulation%get_num_dimensions()
 
   ! Fill in the sizes of the tables
   if (num_dim == 2_ip) then
@@ -448,12 +430,12 @@ subroutine serial_unfitted_triangulation_mc_tables_create(this)
 
   this%mc_tables_init = .true.
 
-end subroutine serial_unfitted_triangulation_mc_tables_create
+end subroutine marching_cubes_mc_tables_create
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_mc_tables_free(this)
+subroutine marching_cubes_mc_tables_free(this)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(inout) :: this
+  class(marching_cubes_t), intent(inout) :: this
 
   if (allocated (this%mc_table_num_subcells_per_case    )) call memfree (this%mc_table_num_subcells_per_case    , __FILE__, __LINE__)
   if (allocated (this%mc_table_num_subfaces_per_case    )) call memfree (this%mc_table_num_subfaces_per_case    , __FILE__, __LINE__)
@@ -464,12 +446,12 @@ subroutine serial_unfitted_triangulation_mc_tables_free(this)
 
   this%mc_tables_init = .false.
 
-end subroutine serial_unfitted_triangulation_mc_tables_free
+end subroutine marching_cubes_mc_tables_free
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
+subroutine marching_cubes_mc_runtime_info_create(this)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(inout) :: this
+  class(marching_cubes_t), intent(inout) :: this
 
   type(cell_iterator_t)  :: cell_iter
   type(cell_accessor_t)  :: cell
@@ -489,7 +471,7 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   call this%mc_runtime_info_free()
 
   ! Get the nodal coordinates in the reference element
-  cell_iter = this%create_cell_iterator()
+  cell_iter = this%triangulation%create_cell_iterator()
   call cell_iter%current(cell)
   reference_fe_geo => cell%get_reference_fe_geo()
   num_nodes = cell%get_num_nodes()
@@ -497,7 +479,7 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
   call cell%get_coordinates_ref_space( Xe_ref )
 
   ! Allocate and fill marching cube cases
-  num_cells = this%get_num_local_cells() + this%get_num_ghost_cells()
+  num_cells = this%triangulation%get_num_local_cells() + this%triangulation%get_num_ghost_cells()
   call memalloc (num_cells, this%mc_case_per_cell, __FILE__, __LINE__ )
   allocate ( Xe_phys(num_nodes), stat=istat ); check(istat == 0)
   do while ( .not. cell_iter%has_finished() )
@@ -597,12 +579,12 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_create(this)
 
   this%mc_runtime_init = .true.
 
-end subroutine serial_unfitted_triangulation_mc_runtime_info_create
+end subroutine marching_cubes_mc_runtime_info_create
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_mc_runtime_info_free(this)
+subroutine marching_cubes_mc_runtime_info_free(this)
   implicit none
-  class(serial_unfitted_triangulation_t), intent(inout) :: this
+  class(marching_cubes_t), intent(inout) :: this
   integer(ip) :: istat, i
   if (allocated (this%mc_case_per_cell       )) call memfree ( this%mc_case_per_cell        , __FILE__, __LINE__ )
   if (allocated (this%mc_ptr_to_intersections)) call memfree ( this%mc_ptr_to_intersections , __FILE__, __LINE__ )
@@ -610,13 +592,13 @@ subroutine serial_unfitted_triangulation_mc_runtime_info_free(this)
     deallocate(this%mc_intersection_points, stat=istat); check(istat==0)
   end if
   this%mc_runtime_init = .false.
-end subroutine serial_unfitted_triangulation_mc_runtime_info_free
+end subroutine marching_cubes_mc_runtime_info_free
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_subnodes_data_create( this )
+subroutine marching_cubes_subnodes_data_create( this )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(inout) :: this
+  class(marching_cubes_t), intent(inout) :: this
 
   integer(ip) :: istat, icase
   type(cell_iterator_t)  :: cell_iter
@@ -634,11 +616,11 @@ subroutine serial_unfitted_triangulation_subnodes_data_create( this )
   allocate( this%subnodes_fe_maps          (1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
 
   ! Initialize each one of the quadratures
-  cell_iter = this%create_cell_iterator()
+  cell_iter = this%triangulation%create_cell_iterator()
   call cell_iter%current(cell)
   do icase=1, this%get_num_mc_cases()
     n_subnodes =  this%mc_table_num_cut_edges_per_case(icase) + cell%get_num_nodes()
-    call this%subnodes_nodal_quadratures(icase)%create(this%get_num_dimensions(),n_subnodes)
+    call this%subnodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dimensions(),n_subnodes)
   end do
 
   ! Initialize each one of the fe_maps
@@ -658,13 +640,13 @@ subroutine serial_unfitted_triangulation_subnodes_data_create( this )
   call memalloc(n_subcells,this%subcell_has_been_reoriented,__FILE__,__LINE__)
   allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
 
-end subroutine serial_unfitted_triangulation_subnodes_data_create
+end subroutine marching_cubes_subnodes_data_create
 
 !========================================================================================
-subroutine serial_unfitted_triangulation_subnodes_data_free( this )
+subroutine marching_cubes_subnodes_data_free( this )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(inout) :: this
+  class(marching_cubes_t), intent(inout) :: this
   integer(ip) :: istat, i
 
   if ( allocated(this%subnodes_ref_coords) ) then
@@ -689,14 +671,14 @@ subroutine serial_unfitted_triangulation_subnodes_data_free( this )
   if(allocated(this%subfaces_nodal_connectivities  )) call memfree(this%subfaces_nodal_connectivities  ,__FILE__,__LINE__)
   if(allocated(this%subcell_has_been_reoriented)) call memfree(this%subcell_has_been_reoriented,__FILE__,__LINE__)
 
-end subroutine serial_unfitted_triangulation_subnodes_data_free
+end subroutine marching_cubes_subnodes_data_free
 
 !========================================================================================
 ! TODO put all of this in vtw writer
-subroutine serial_unfitted_triangulation_print_vtk_subcells( this )
+subroutine marching_cubes_print_vtk_subcells( this )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
 
   integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
   integer(ip) :: istat, icell, inode, ino, isubcell
@@ -723,8 +705,8 @@ subroutine serial_unfitted_triangulation_print_vtk_subcells( this )
   cell_iter = this%create_unfitted_cell_iterator()
   call cell_iter%current(cell)
 
-  num_dime = this%get_num_dimensions()
-  num_cells = this%get_num_cells()
+  num_dime = this%triangulation%get_num_dimensions()
+  num_cells = this%triangulation%get_num_cells()
   num_cell_nodes = cell%get_num_nodes()
   num_subcells = this%get_total_num_of_subcells()
   num_subcell_nodes = this%get_max_num_nodes_in_subcell()
@@ -845,14 +827,14 @@ subroutine serial_unfitted_triangulation_print_vtk_subcells( this )
 
   call cell_iter%free()
 
-end subroutine serial_unfitted_triangulation_print_vtk_subcells
+end subroutine marching_cubes_print_vtk_subcells
 
 !========================================================================================
 ! TODO put all of this in vtw writer
-subroutine serial_unfitted_triangulation_print_vtk_subfaces( this )
+subroutine marching_cubes_print_vtk_subfaces( this )
 
   implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(marching_cubes_t), intent(in)    :: this
 
   integer(ip) :: num_subfaces, num_subface_nodes, num_dime
   integer(ip) :: istat, iface, inode, ino, isubface
@@ -877,7 +859,7 @@ subroutine serial_unfitted_triangulation_print_vtk_subfaces( this )
   cell_iter = this%create_unfitted_cell_iterator()
   call cell_iter%current(cell)
 
-  num_dime = this%get_num_dimensions()
+  num_dime = this%triangulation%get_num_dimensions()
   num_subfaces = this%get_total_num_of_subfaces()
   num_subface_nodes = this%get_max_num_nodes_in_subface()
   Ne = num_subfaces
@@ -950,5 +932,5 @@ subroutine serial_unfitted_triangulation_print_vtk_subfaces( this )
   deallocate ( subface_coords, stat = istat ); check(istat == 0)
   call cell_iter%free()
 
-end subroutine serial_unfitted_triangulation_print_vtk_subfaces
+end subroutine marching_cubes_print_vtk_subfaces
 
