@@ -86,11 +86,11 @@ subroutine fe_face_accessor_update_integration( this )
 
   do icell_around=1, this%get_num_cells_around()
     face_lpos_within_cells_around(icell_around) = &
-      this%get_face_lpos_within_cell_around(icell_around)  
-    call this%get_cell_around(icell_around,fe)  
+      this%get_face_lpos_within_cell_around(icell_around)
+    call this%get_cell_around(icell_around,fe)
     coords => face_map%get_coordinates_neighbour(icell_around, &
                                                  face_lpos_within_cells_around(icell_around))
-    call fe%get_coordinates(coords)    
+    call fe%get_coordinates(coords)
   end do
 
   call this%get_cell_around(1, fe)
@@ -184,6 +184,9 @@ function fe_face_accessor_get_face_integrator(this, field_id)
   integer(ip)                           :: fe_face_integrators_position_key
   integer(ip)                           :: fe_face_integrators_position
   integer(ip)                           :: reference_fes_id(2)
+  type(p_reference_fe_t)                :: reference_fes(2)
+  integer(ip), pointer :: left_vefs(:), right_vefs(:)
+  integer(ip)          :: left_ivef, right_ivef, rel_rotations, rel_orientations
   
   assert ( field_id >= 1 .and. field_id <= this%fe_space%get_number_fields() )
   
@@ -193,10 +196,30 @@ function fe_face_accessor_get_face_integrator(this, field_id)
      reference_fes_id(icell_around) = this%fe_space%reference_fe_id_per_fe(field_id, fe%get_lid())
   end do
   
+  call this%get_cell_around(1, fe)
+  left_vefs => fe%get_vef_lids()
+  reference_fes(1)%p => fe%get_reference_fe(field_id)
+  left_ivef = this%get_face_lpos_within_cell_around(1)
+  left_ivef = left_ivef + reference_fes(1)%p%get_first_n_face_id_of_dimension(this%get_dimension())-1
+  if (this%get_num_cells_around().eq.2) then
+     call this%get_cell_around(2, fe)
+     right_vefs => fe%get_vef_lids()
+     reference_fes(2)%p => fe%get_reference_fe(field_id)
+     right_ivef = this%get_face_lpos_within_cell_around(2)
+     right_ivef = right_ivef + reference_fes(2)%p%get_first_n_face_id_of_dimension(this%get_dimension())-1
+     rel_rotations = reference_fes(1)%p%compute_relative_rotation(reference_fes(2)%p,right_ivef,left_ivef,right_vefs,left_vefs)
+     rel_orientations = reference_fes(1)%p%compute_relative_orientation(reference_fes(2)%p,right_ivef,left_ivef)
+  else
+     nullify(right_vefs)
+     right_ivef = 0
+     rel_rotations = 0
+     rel_orientations = 0
+  end if
+        
   fe_face_integrators_position_key = &
        this%fe_space%generate_fe_face_integrators_position_key(this%fe_space%max_order_per_fe_face(this%get_face_lid()), &
                                                                reference_fes_id(1), &
-                                                               reference_fes_id(2) )
+                                                               reference_fes_id(2), rel_rotations, rel_orientations )
        
   call this%fe_space%fe_face_integrators_position%get(key=fe_face_integrators_position_key, &
                                                       val=fe_face_integrators_position, &

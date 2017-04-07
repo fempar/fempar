@@ -299,13 +299,16 @@ end function volume_integrator_face_restriction_get_active_volume_integrator
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !face_integrator_t type procedures
-subroutine face_integrator_create(this,quadrature,left_reference_fe,right_reference_fe)
+subroutine face_integrator_create(this,quadrature,left_reference_fe,right_reference_fe,rel_rotation,rel_orientation)
   implicit none
   ! Parameters
   class(face_integrator_t)      , intent(inout) :: this
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
-
+  integer(ip)                   , intent(in)    :: rel_rotation, rel_orientation
+  type(polytope_tree_t)    :: aux_polytope
+  type(quadrature_t)       :: aux_quadrature
+  integer(ip) :: num_rotations, num_orientations
   call this%free()
 
   this%is_boundary = (.not. associated(right_reference_fe))
@@ -314,33 +317,27 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
 
   if (.not. this%is_boundary) then
      this%reference_fe(2)%p => right_reference_fe
-     call this%volume_integrator_face_restriction(2)%create(quadrature,this%reference_fe(2)%p)
+     call right_reference_fe%create_rotated_quadrature(quadrature, aux_quadrature,rel_rotation,rel_orientation)
+     call this%volume_integrator_face_restriction(2)%create(aux_quadrature,this%reference_fe(2)%p)
+     call aux_quadrature%free()
   end if
 
   this%current_qpoints_perm_cols = 1
   ! @sbadia: order+2 only works for topology_hex. When the work for high order TETS with face 
   ! integration will be performed, it has to be corrected. @jbonilla: this workaround still works
-  ! if quadratures for topology_hex plus Duffy transformation is used. Whenever, symmetric 
-  ! quadrature points for TETs are used it has to be corrected.
+  ! if quadratures for topology_hex plus Duffy transformation is used. Whenever symmetric 
+  ! quadrature points for TETs are used, this has to be corrected.
   ! (For hex topology + lagrangian FE) the number of quadrature points within a face corresponds 
   ! to the number of interior nodes in a face for a reference FE with order+2 (instead of order+1)
   
   ! assert ( left_reference_fe%topology == topology_hex )
-  
-  ! For tet topology and 3D, the quadrature used is order+2, thus the number of quadrature points
-  ! within a face corresponds  to the number of interior nodes in a face for a reference FE with 
-  ! order+3 (instead of order+2)
-  if ((quadrature%number_dimensions.eq.3).and.(left_reference_fe%topology.eq.topology_tet)) then
-     call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+3, &
-                                                          quadrature%number_dimensions,        &
-                                                          left_reference_fe%polytope,          &
-                                                          this%qpoints_perm )
-  else
-     call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
-                                                          quadrature%number_dimensions,        &
-                                                          left_reference_fe%polytope,          &
-                                                          this%qpoints_perm )
-  end if
+  call aux_polytope%create(left_reference_fe%number_dimensions, 2**left_reference_fe%number_dimensions-1)
+  call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
+                                                       quadrature%number_dimensions,        &
+                                                       aux_polytope,          &
+                                                       this%qpoints_perm )
+
+  call aux_polytope%free()
 end subroutine face_integrator_create
 
 !==================================================================================================
@@ -366,9 +363,19 @@ subroutine face_integrator_update(this,face_lid,face_map,relative_orientation,re
   type(face_map_t)        , intent(in)    :: face_map
   call this%volume_integrator_face_restriction(1)%update(face_map%fe_maps(1)%get_active_fe_map(),face_lid(1))
   if (.not. this%is_boundary) then
-     this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
-         & this%reference_fe(2)%p%number_rotations_per_dimension(this%reference_fe(2)%p%number_dimensions-1)  &
-         & * relative_orientation
+     ! Map tris rotation & orientation to quad rotation & permutaion
+     if ((this%reference_fe(2)%p%fe_type.eq.fe_type_new_tet) .and. (this%reference_fe(2)%p%number_dimensions.eq.3)) then
+        if ((relative_orientation.eq.0).and.(relative_rotation.gt.1)) then
+           this%current_qpoints_perm_cols(2) = relative_rotation + 1
+        else 
+           this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
+               & 4 * relative_orientation     
+        end if
+     else
+        this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
+            & this%reference_fe(2)%p%number_rotations_per_dimension(this%reference_fe(2)%p%number_dimensions-1)  &
+            & * relative_orientation
+     end if
      call this%volume_integrator_face_restriction(2)%update(face_map%fe_maps(2)%get_active_fe_map(),face_lid(2))
   end if
 end subroutine face_integrator_update
