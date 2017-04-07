@@ -31,6 +31,7 @@ subroutine fe_vef_accessor_create ( this, fe_space, vef )
   class(serial_fe_space_t) , target, intent(in) :: fe_space
   class(vef_accessor_t)    , intent(in)         :: vef
   integer(ip) :: istat
+  call this%free()
   this%fe_space => fe_space
   allocate(this%vef, source=vef, stat=istat); check(istat==0)
   call this%vef%create(fe_space%triangulation)

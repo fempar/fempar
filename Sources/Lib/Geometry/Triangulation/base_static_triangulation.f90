@@ -185,25 +185,25 @@ module base_static_triangulation_names
   type, extends(vef_accessor_t) :: vertex_accessor_t
     private
     contains
-     procedure, non_overridable          :: next                      => vertex_accessor_next
+     procedure                          :: next                             => vertex_accessor_next
   end type vertex_accessor_t
 
   type, extends(vef_accessor_t) :: edge_accessor_t
     private
     contains
-     procedure, non_overridable          :: first                     => edge_accessor_first
-     procedure, non_overridable          :: next                      => edge_accessor_next
+     procedure :: first => edge_accessor_first
+     procedure :: next  => edge_accessor_next
   end type edge_accessor_t
   
   type, extends(vef_accessor_t) :: face_accessor_t
     private
   contains
-    procedure, non_overridable          :: first                            => face_accessor_first
-    procedure, non_overridable          :: get_coordinates                  => face_accessor_get_coordinates
-    procedure, non_overridable          :: get_face_lid                     => face_accessor_get_face_lid
-    procedure, non_overridable          :: get_face_lpos_within_cell_around => face_accessor_get_face_lpos_within_cell_around
-    procedure, non_overridable          :: get_face_orientation             => face_accessor_get_face_orientation
-    procedure, non_overridable          :: get_face_rotation                => face_accessor_get_face_rotation
+    procedure                           :: first                            => face_accessor_first
+    procedure                           :: get_coordinates                  => face_accessor_get_coordinates
+    procedure                           :: get_face_lid                     => face_accessor_get_face_lid
+    procedure                           :: get_face_lpos_within_cell_around => face_accessor_get_face_lpos_within_cell_around
+    procedure                           :: get_face_orientation             => face_accessor_get_face_orientation
+    procedure                           :: get_face_rotation                => face_accessor_get_face_rotation
     procedure, non_overridable, private :: set_face_orientation             => face_accessor_set_face_orientation
     procedure, non_overridable, private :: set_face_rotation                => face_accessor_set_face_rotation
   end type face_accessor_t
@@ -212,8 +212,8 @@ module base_static_triangulation_names
     private
     integer(ip)  :: itfc_lid = -1
     contains
-     procedure, non_overridable          :: first    => itfc_vef_accessor_first
-     procedure, non_overridable          :: next     => itfc_vef_accessor_next
+     procedure :: first => itfc_vef_accessor_first
+     procedure :: next  => itfc_vef_accessor_next
   end type itfc_vef_accessor_t
 
 
