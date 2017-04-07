@@ -88,16 +88,16 @@ subroutine unfitted_cell_accessor_update_sub_triangulation( this )
 
   ! Recover connectivities of the sub-cells
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
-  this%serial_unfitted_triangulation%subcells_node_ids(:,:) = 0
+  this%serial_unfitted_triangulation%subcells_nodal_connectivities(:,:) = 0
   do subcell=1,this%get_number_of_subcells()
-    this%serial_unfitted_triangulation%subcells_node_ids(:,subcell) = &
+    this%serial_unfitted_triangulation%subcells_nodal_connectivities(:,subcell) = &
     this%serial_unfitted_triangulation%mc_table_subcell_node_ids_per_case(:,subcell,mc_case)
   end do
 
   ! Recover connectivities of the sub-faces
-  this%serial_unfitted_triangulation%subfaces_node_ids(:,:) = 0
+  this%serial_unfitted_triangulation%subfaces_nodal_connectivities(:,:) = 0
   do subface=1,this%get_number_of_subfaces()
-    this%serial_unfitted_triangulation%subfaces_node_ids(:,subface) = &
+    this%serial_unfitted_triangulation%subfaces_nodal_connectivities(:,subface) = &
     this%serial_unfitted_triangulation%mc_table_subface_node_ids_per_case(:,subface,mc_case)
   end do
 
@@ -105,20 +105,20 @@ subroutine unfitted_cell_accessor_update_sub_triangulation( this )
   if (this%serial_unfitted_triangulation%get_num_dimensions()==3) then
 
     ! Search for inverted sub-cells and reorient them
-    this%serial_unfitted_triangulation%is_inverted_subcell(:)=.false.
+    this%serial_unfitted_triangulation%subcell_has_been_reoriented(:)=.false.
     do subcell=1,this%get_number_of_subcells()
-      if (this%is_inverted_subcell(subcell)) then
-        this%serial_unfitted_triangulation%is_inverted_subcell(subcell)=.true.
-        subcell_nodes(:) = this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
-        this%serial_unfitted_triangulation%subcells_node_ids(:,subcell) = subcell_nodes([1,3,2,4])
+      if (this%subcell_has_been_reoriented(subcell)) then
+        this%serial_unfitted_triangulation%subcell_has_been_reoriented(subcell)=.true.
+        subcell_nodes(:) = this%serial_unfitted_triangulation%subcells_nodal_connectivities(:,subcell)
+        this%serial_unfitted_triangulation%subcells_nodal_connectivities(:,subcell) = subcell_nodes([1,3,2,4])
       end if
     end do
 
     ! Find sub-faces belonging to inverted sub-cells and reorient them
     do subface=1,this%get_number_of_subfaces()
-      if (this%is_neighbour_inverted_subcell(subface)) then
-        subface_nodes(:) = this%serial_unfitted_triangulation%subfaces_node_ids(:,subface)
-        this%serial_unfitted_triangulation%subfaces_node_ids(:,subface) = subface_nodes([1,3,2])
+      if (this%subface_touches_interior_reoriented_subcell(subface)) then
+        subface_nodes(:) = this%serial_unfitted_triangulation%subfaces_nodal_connectivities(:,subface)
+        this%serial_unfitted_triangulation%subfaces_nodal_connectivities(:,subface) = subface_nodes([1,3,2])
       end if
     end do
 
@@ -190,7 +190,7 @@ subroutine unfitted_cell_accessor_get_phys_coords_of_subcell( this, subcell, poi
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
   fe_map => this%serial_unfitted_triangulation%subnodes_fe_maps(mc_case)
   subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
-  subcell_node_ids =>  this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
+  subcell_node_ids =>  this%serial_unfitted_triangulation%subcells_nodal_connectivities(:,subcell)
   points(:) = subnodes_phys_coords(subcell_node_ids(:))
 
 end subroutine unfitted_cell_accessor_get_phys_coords_of_subcell
@@ -214,7 +214,7 @@ subroutine unfitted_cell_accessor_get_ref_coords_of_subcell( this, subcell, poin
   assert( (1_ip <= subcell) .and. (subcell <= this%get_number_of_subcells())  )
 
   subnodes_ref_coords => this%serial_unfitted_triangulation%subnodes_ref_coords
-  subcell_node_ids =>  this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
+  subcell_node_ids =>  this%serial_unfitted_triangulation%subcells_nodal_connectivities(:,subcell)
   points(:) = subnodes_ref_coords(subcell_node_ids(:))
 
 end subroutine unfitted_cell_accessor_get_ref_coords_of_subcell
@@ -262,7 +262,7 @@ subroutine unfitted_cell_accessor_get_phys_coords_of_subface( this, subface, poi
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
   fe_map => this%serial_unfitted_triangulation%subnodes_fe_maps(mc_case)
   subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
-  subface_node_ids =>  this%serial_unfitted_triangulation%subfaces_node_ids(:,subface)
+  subface_node_ids =>  this%serial_unfitted_triangulation%subfaces_nodal_connectivities(:,subface)
   points(:) = subnodes_phys_coords(subface_node_ids(:))
 
 end subroutine unfitted_cell_accessor_get_phys_coords_of_subface
@@ -287,7 +287,7 @@ subroutine unfitted_cell_accessor_get_ref_coords_of_subface( this, subface, poin
 
   subnodes_ref_coords => this%serial_unfitted_triangulation%subnodes_ref_coords
   mc_case = this%serial_unfitted_triangulation%mc_case_per_cell(this%get_lid())
-  subface_node_ids =>  this%serial_unfitted_triangulation%subfaces_node_ids(:,subface)
+  subface_node_ids =>  this%serial_unfitted_triangulation%subfaces_nodal_connectivities(:,subface)
   points(:) = subnodes_ref_coords(subface_node_ids(:))
 
 end subroutine unfitted_cell_accessor_get_ref_coords_of_subface
@@ -380,7 +380,7 @@ function unfitted_cell_accessor_get_number_of_subnodes( this ) result (num_subno
 end function unfitted_cell_accessor_get_number_of_subnodes
 
 !========================================================================================
-function unfitted_cell_accessor_is_inverted_subcell(this,subcell) result (is_inverted)
+function unfitted_cell_accessor_subcell_has_been_reoriented(this,subcell) result (is_inverted)
 
   implicit none
   class(unfitted_cell_accessor_t), intent(in) :: this
@@ -400,7 +400,7 @@ function unfitted_cell_accessor_is_inverted_subcell(this,subcell) result (is_inv
 
   ! Get connectivities and coordinates
   ! We assume that update_triangulation was called for this cell
-  Te => this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
+  Te => this%serial_unfitted_triangulation%subcells_nodal_connectivities(:,subcell)
   Xe(:) = this%serial_unfitted_triangulation%subnodes_ref_coords(Te)
 
   ! Compute (signed) volume
@@ -412,10 +412,10 @@ function unfitted_cell_accessor_is_inverted_subcell(this,subcell) result (is_inv
   ! Check if inverted
   is_inverted = vol < 0.0_rp
 
-end function unfitted_cell_accessor_is_inverted_subcell
+end function unfitted_cell_accessor_subcell_has_been_reoriented
 
 !========================================================================================
-function unfitted_cell_accessor_is_neighbour_inverted_subcell(this,subface) result (is_neighbour)
+function unfitted_cell_accessor_subface_touches_reoriented_subcell(this,subface) result (is_neighbour)
 
   implicit none
   class(unfitted_cell_accessor_t), intent(in) :: this
@@ -436,17 +436,17 @@ function unfitted_cell_accessor_is_neighbour_inverted_subcell(this,subface) resu
   is_neighbour= .false.
 
   ! Get connectivities of the sub-face
-  Tf => this%serial_unfitted_triangulation%subfaces_node_ids(:,subface)
+  Tf => this%serial_unfitted_triangulation%subfaces_nodal_connectivities(:,subface)
 
   ! Do a loop in sub-cell
   do subcell=1,this%get_number_of_subcells()
 
     ! Find the sub-cells that have the three nodes of the face
-    Te => this%serial_unfitted_triangulation%subcells_node_ids(:,subcell)
+    Te => this%serial_unfitted_triangulation%subcells_nodal_connectivities(:,subcell)
     has_the_subface = (any(Te == Tf(1)) .and. any(Te == Tf(2)) .and. any(Te == Tf(3)))
 
     ! Check if it has been reoriented
-    has_been_reoriented = this%serial_unfitted_triangulation%is_inverted_subcell(subcell)
+    has_been_reoriented = this%serial_unfitted_triangulation%subcell_has_been_reoriented(subcell)
 
     !Check if it is interior
     is_interior = this%is_interior_subcell(subcell)
@@ -456,7 +456,7 @@ function unfitted_cell_accessor_is_neighbour_inverted_subcell(this,subface) resu
 
   end do
 
-end function unfitted_cell_accessor_is_neighbour_inverted_subcell
+end function unfitted_cell_accessor_subface_touches_reoriented_subcell
 
 
 

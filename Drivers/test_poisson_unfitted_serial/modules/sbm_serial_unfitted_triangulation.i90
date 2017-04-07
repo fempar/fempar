@@ -622,41 +622,41 @@ subroutine serial_unfitted_triangulation_subnodes_data_create( this )
   type(cell_iterator_t)  :: cell_iter
   type(cell_accessor_t)  :: cell
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-  integer(ip) :: n_subcells, n_subfaces, n_nodes_subcell, n_nodes_subface
+  integer(ip) :: n_subcells, n_subfaces, n_subnodes, n_nodes_subcell, n_nodes_subface  
 
   assert(this%mc_tables_init)
   assert(this%mc_runtime_init)
 
   call this%subnodes_data_free()
-
-  allocate( this%subnodes_ref_coords(1:this%get_max_num_subnodes_in_cell()) , stat=istat); check(istat==0_ip)
-
-  !TODO Not really needed to allocate for all cases. There are a lot of cases having the same number of subnodes
-  allocate( this%subnodes_nodal_quadratures(1:this%mc_table_num_cases), stat=istat); check(istat==0_ip)
-  allocate( this%subnodes_fe_maps          (1:this%mc_table_num_cases), stat=istat); check(istat==0_ip)
+  
+  ! TODO we don't really need to allocate for all the mc cases
+  allocate( this%subnodes_nodal_quadratures(1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
+  allocate( this%subnodes_fe_maps          (1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
 
   ! Initialize each one of the quadratures
   cell_iter = this%create_cell_iterator()
   call cell_iter%current(cell)
-  do icase=1, this%mc_table_num_cases
-    call this%subnodes_nodal_quadratures(icase)%create( &
-      this%get_num_dimensions(), this%mc_table_num_cut_edges_per_case(icase) + cell%get_num_nodes() )
+  do icase=1, this%get_num_mc_cases()
+    n_subnodes =  this%mc_table_num_cut_edges_per_case(icase) + cell%get_num_nodes()
+    call this%subnodes_nodal_quadratures(icase)%create(this%get_num_dimensions(),n_subnodes)
   end do
 
   ! Initialize each one of the fe_maps
   reference_fe_geo => cell%get_reference_fe_geo()
-  do icase=1, this%mc_table_num_cases
+  do icase=1, this%get_num_mc_cases()
     call this%subnodes_fe_maps(icase)%create( this%subnodes_nodal_quadratures(icase), reference_fe_geo)
   end do
 
   !Allocate place holders for the sub-mesh
   n_subcells      = this%get_max_num_subcells_in_cell()
   n_subfaces      = this%get_max_num_subfaces_in_cell()
+  n_subnodes      = this%get_max_num_subnodes_in_cell()
   n_nodes_subcell = this%get_max_num_nodes_in_subcell()
   n_nodes_subface = this%get_max_num_nodes_in_subface()
-  call memalloc(n_nodes_subcell,n_subcells,this%subcells_node_ids,__FILE__,__LINE__)
-  call memalloc(n_nodes_subface,n_subfaces,this%subfaces_node_ids,__FILE__,__LINE__)
-  call memalloc(n_subcells,this%is_inverted_subcell,__FILE__,__LINE__)
+  call memalloc(n_nodes_subcell,n_subcells,this%subcells_nodal_connectivities,__FILE__,__LINE__)
+  call memalloc(n_nodes_subface,n_subfaces,this%subfaces_nodal_connectivities,__FILE__,__LINE__)
+  call memalloc(n_subcells,this%subcell_has_been_reoriented,__FILE__,__LINE__)
+  allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
 
 end subroutine serial_unfitted_triangulation_subnodes_data_create
 
@@ -685,9 +685,9 @@ subroutine serial_unfitted_triangulation_subnodes_data_free( this )
     deallocate( this%subnodes_fe_maps, stat=istat ); check( istat==0_ip )
   end if
 
-  if(allocated(this%subcells_node_ids  )) call memfree(this%subcells_node_ids  ,__FILE__,__LINE__)
-  if(allocated(this%subfaces_node_ids  )) call memfree(this%subfaces_node_ids  ,__FILE__,__LINE__)
-  if(allocated(this%is_inverted_subcell)) call memfree(this%is_inverted_subcell,__FILE__,__LINE__)
+  if(allocated(this%subcells_nodal_connectivities  )) call memfree(this%subcells_nodal_connectivities  ,__FILE__,__LINE__)
+  if(allocated(this%subfaces_nodal_connectivities  )) call memfree(this%subfaces_nodal_connectivities  ,__FILE__,__LINE__)
+  if(allocated(this%subcell_has_been_reoriented)) call memfree(this%subcell_has_been_reoriented,__FILE__,__LINE__)
 
 end subroutine serial_unfitted_triangulation_subnodes_data_free
 

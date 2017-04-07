@@ -45,27 +45,34 @@ module serial_unfitted_fe_space_names
 
   contains
 
+    ! Creation methods
     procedure, private :: fe_accessor_create => unfitted_fe_accessor_create
     procedure          :: fe_accessor_free   => unfitted_fe_accessor_free
-
+    
+    ! Access to the aggregated object
     procedure, non_overridable :: get_unfitted_cell_accessor => unfitted_fe_accessor_get_unfitted_cell_accessor
 
+    ! Getters that override
     procedure          :: get_quadrature        => unfitted_fe_accessor_get_quadrature
     procedure          :: get_fe_map            => unfitted_fe_accessor_get_fe_map
     procedure          :: get_volume_integrator => unfitted_fe_accessor_get_volume_integrator
 
+    ! Getters that extend
     procedure          :: get_boundary_quadrature          => unfitted_fe_accessor_get_boundary_quadrature
     procedure          :: get_boundary_piecewise_fe_map    => unfitted_fe_accessor_get_boundary_piecewise_fe_map
     procedure          :: get_boundary_fe_map              => unfitted_fe_accessor_get_boundary_fe_map
     procedure          :: get_boundary_volume_integrator   => unfitted_fe_accessor_get_boundary_volume_integrator
 
+    ! Updater that overrides
     procedure :: update_integration     => unfitted_fe_accessor_update_integration
+    
+    ! Updater that extends
     procedure :: update_boundary_integration  => unfitted_fe_accessor_update_boundary_integration
 
+    ! Private TBPs
     procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_accessor_update_cut_quadratures
     procedure, non_overridable, private :: update_cut_fe_maps     => unfitted_fe_accessor_update_cut_fe_maps
     procedure, non_overridable, private :: update_cut_vol_integrators  => unfitted_fe_accessor_update_cut_vol_integrators
-
     procedure, non_overridable, private :: update_cut_boundary_quadratures => unfitted_fe_accessor_update_cut_boundary_quadratures
     procedure, non_overridable, private :: update_cut_boundary_fe_maps     => unfitted_fe_accessor_update_cut_boundary_fe_maps
     procedure, non_overridable, private :: update_cut_boundary_vol_integrators  => &
@@ -113,8 +120,7 @@ module serial_unfitted_fe_space_names
 
     ! The exterior elements do not contribute to the integral
     ! We achieve this with empty quadratures and related things
-    ! TODO @fverdugo DRIVER PRIORITY LOW EFFORT HIGH
-    ! A better way of doing this?
+    ! TODO Use the void fe in the future
     type(quadrature_t)             :: empty_quadrature
     type(fe_map_t)                 :: empty_fe_map
     type(piecewise_fe_map_t)       :: empty_piecewise_fe_map
@@ -123,15 +129,18 @@ module serial_unfitted_fe_space_names
     contains
 
     ! Public TBPs
-    ! TODO @fverdugo FEMPAR PRIORITY LOW EFFORT HIGH
-    ! We only override one of the possible generic bindings of create of the father...
+    ! TODO We only override one of the possible generic bindings of create of the father...
+    ! Override the other generic binding if any
     procedure,  private         :: serial_fe_space_create_same_reference_fes_on_all_cells => &
                                    serial_unfitted_fe_space_create_same_reference_fes_on_all_cells ! TODO this one is in fact public..
     procedure                   :: free                         => serial_unfitted_fe_space_free
+    
+    ! Creation of the itrator
     procedure, non_overridable  :: create_unfitted_fe_iterator  => serial_unfitted_fe_space_create_unfitted_fe_iterator
 
+    ! Printer
+    ! TODO move to output handler
     procedure, non_overridable :: print_boundary_quad_points => serial_unfitted_fe_space_print_boundary_quad_points
-
 
     !Private TBPs
     procedure, non_overridable, private :: check_assumptions      => serial_unfitted_fe_space_check_assumptions
