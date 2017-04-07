@@ -1640,8 +1640,10 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
 
   if ( par_environment%am_i_lgt1_task() ) then
      ! lgt1 MPI tasks (recursively) build coarse triangulation
-     allocate  ( this%coarse_fe_space, stat = istat )
-     check( istat == 0 )
+     if ( .not. associated(this%coarse_fe_space) ) then
+        allocate  ( this%coarse_fe_space, stat = istat )
+        check( istat == 0 )
+     end if
      triangulation        => this%get_triangulation()
      coarse_triangulation => triangulation%get_coarse_triangulation()
      call this%coarse_fe_space%create (coarse_triangulation, &
