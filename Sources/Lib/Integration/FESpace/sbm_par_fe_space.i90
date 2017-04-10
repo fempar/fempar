@@ -304,7 +304,7 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
                   ! iterate only over the neighbor FEs that are non void
                   reference_fe => source_fe%get_reference_fe(field_id)
                   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
-                  if (own_dofs_on_vef_iterator%get_size() .ne. 0) then
+                  if (own_dofs_on_vef_iterator%get_size() > 0) then
                     call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
                                                                   source_fe, & 
                                                                   ivef_in_source_fe, &
