@@ -28,8 +28,8 @@
 module poisson_unfitted_cG_discrete_integration_names
   use fempar_names
   use poisson_unfitted_analytical_functions_names
-  use serial_unfitted_triangulation_names
-  use serial_unfitted_fe_space_names
+  use unfitted_triangulations_names
+  use unfitted_fe_spaces_names
   use piecewise_fe_map_names
   use blas77_interfaces_names
   use gen_eigenvalue_solver_names

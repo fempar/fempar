@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_poisson_unfitted_driver_names
   use fempar_names
-  use serial_unfitted_triangulation_names
-  use serial_unfitted_fe_space_names
+  use unfitted_triangulations_names
+  use unfitted_fe_spaces_names
   use level_set_functions_gallery_names
   use poisson_unfitted_vtk_writer_names
   use unfitted_solution_checker_names

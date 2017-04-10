@@ -29,8 +29,8 @@
 module poisson_unfitted_vtk_writer_names
 
   use fempar_names
-  use serial_unfitted_triangulation_names
-  use serial_unfitted_fe_space_names
+  use unfitted_triangulations_names
+  use unfitted_fe_spaces_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO ! VTK_IO
 

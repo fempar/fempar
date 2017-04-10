@@ -29,7 +29,7 @@
 !***************************************************************************************************
 module unfitted_solution_checker_names
   use fempar_names
-  use serial_unfitted_fe_space_names
+  use unfitted_fe_spaces_names
   implicit none
 # include "debug.i90"
   private

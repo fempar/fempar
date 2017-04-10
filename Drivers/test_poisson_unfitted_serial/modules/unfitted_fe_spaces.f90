@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module serial_unfitted_fe_space_names
+module unfitted_fe_spaces_names
   use fempar_names
-  use serial_unfitted_triangulation_names
+  use unfitted_triangulations_names
   use piecewise_fe_map_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO ! VTK_IO
@@ -190,4 +190,4 @@ contains
 #include "sbm_unfitted_integration_manager.i90"
 #include "sbm_serial_unfitted_fe_space.i90"
 
-end module serial_unfitted_fe_space_names
+end module unfitted_fe_spaces_names

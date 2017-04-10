@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module serial_unfitted_triangulation_names
+module unfitted_triangulations_names
   use fempar_names
   use level_set_functions_gallery_names
   use IR_Precision ! VTK_IO
@@ -239,5 +239,5 @@ contains
 #include "sbm_marching_cubes.i90"
 #include "sbm_serial_unfitted_triangulation.i90"
 
-end module serial_unfitted_triangulation_names
+end module unfitted_triangulations_names
 
