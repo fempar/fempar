@@ -27,69 +27,48 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_create_same_reference_fes_on_all_cells(&
-  this, &
-  triangulation, &
-  conditions, &
-  reference_fes, &
-  field_blocks, &
-  field_coupling )
-
+subroutine uim_create(this,fe_space,marching_cubes)
   implicit none
-  class(serial_unfitted_fe_space_t)           , intent(inout) :: this
-  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
-  class(conditions_t)                         , intent(in)    :: conditions
-  type(p_reference_fe_t)                      ,  intent(in)   :: reference_fes(:)
-  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
-  logical                           , optional, intent(in)    :: field_coupling(:,:)
-
-  call this%free()
-  ! Initialize the member variables of the father
-  call this%serial_fe_space_t%create(triangulation,conditions,reference_fes,field_blocks,field_coupling)
-  ! Check assumptions
+  class(unfitted_integration_manager_t),intent(inout) :: this
+  class(serial_fe_space_t), target, intent(in)    :: fe_space
+  class(marching_cubes_t), target,  intent(in)    :: marching_cubes
+  this%fe_space => fe_space
+  this%marching_cubes => marching_cubes
 #ifdef DEBUG
   call this%check_assumptions()
 #endif
-  select type(triangulation)
-  class is (serial_unfitted_triangulation_t)
-    this%unfitted_triangulation => triangulation
-    ! Initialize the member variables of this class
-    call this%init_reference_subelem()
-    call this%init_reference_subface()
-    call this%init_cut_integration()
-    call this%init_cut_boundary_integration()
-  class default
-    check(.false.)
-  end select
+  call this%init_reference_subelem()
+  call this%init_reference_subface()
+  call this%init_cut_integration()
+  call this%init_cut_boundary_integration()
 
-end subroutine serial_unfitted_fe_space_create_same_reference_fes_on_all_cells
+end subroutine uim_create
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_free( this )
+subroutine uim_free( this )
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
-  ! Free the father
-  call this%serial_fe_space_t%free()
-  ! Free the memory managed by this class
+  class(unfitted_integration_manager_t), intent(inout) :: this
   call this%free_reference_subelem()
   call this%free_reference_subface()
   call this%free_cut_integration()
   call this%free_cut_boundary_integration()
-end subroutine serial_unfitted_fe_space_free
+  this%fe_space => null()
+  this%marching_cubes => null()
+end subroutine uim_free
 
 !========================================================================================
-function serial_unfitted_fe_space_create_unfitted_fe_iterator( this ) result( unfitted_fe_iterator )
+function uim_create_unfitted_fe_iterator( this ) result( unfitted_fe_iterator )
   implicit none
-  class(serial_unfitted_fe_space_t), intent(in) :: this
+  class(unfitted_integration_manager_t), intent(in) :: this
   type(unfitted_fe_iterator_t) :: unfitted_fe_iterator
   call unfitted_fe_iterator%create(1, this)
-end function serial_unfitted_fe_space_create_unfitted_fe_iterator
+end function uim_create_unfitted_fe_iterator
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_print_boundary_quad_points( this )
+subroutine uim_print_boundary_quad_points( this )
 
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(in) :: this
 
   type(unfitted_fe_iterator_t) :: fe_iterator
   type(unfitted_fe_accessor_t) :: fe
@@ -116,10 +95,10 @@ subroutine serial_unfitted_fe_space_print_boundary_quad_points( this )
   real(rp),    allocatable, dimension(:) :: v_y
   real(rp),    allocatable, dimension(:) :: v_z
 
-  write(*,*) "serial_unfitted_fe_space_t: Writing boundary data into vtu file ..."
+  write(*,*) "unfitted_integration_manager_t: Writing boundary data into vtu file ..."
 
-  num_dime       = this%unfitted_triangulation%get_num_dimensions()
-  num_subfaces   = this%unfitted_triangulation%get_total_num_of_subfaces()
+  num_dime       = this%marching_cubes%get_num_dimensions()
+  num_subfaces   = this%marching_cubes%get_total_num_of_subfaces()
   num_gp_subface = this%quadrature_subface%get_number_quadrature_points()
 
   Ne = num_subfaces*num_gp_subface
@@ -195,14 +174,14 @@ subroutine serial_unfitted_fe_space_print_boundary_quad_points( this )
   call memfree ( v_y        , __FILE__, __LINE__ )
   call memfree ( v_z        , __FILE__, __LINE__ )
 
-  write(*,*) "serial_unfitted_fe_space_t: Writing boundary data into vtu file ... OK"
+  write(*,*) "unfitted_integration_manager_t: Writing boundary data into vtu file ... OK"
 
-end subroutine serial_unfitted_fe_space_print_boundary_quad_points
+end subroutine uim_print_boundary_quad_points
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_check_assumptions(this)
+subroutine uim_check_assumptions(this)
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(inout) :: this
 
   type(fe_iterator_t) :: fe_it
   type(fe_accessor_t) :: fe
@@ -216,8 +195,8 @@ subroutine serial_unfitted_fe_space_check_assumptions(this)
   ! Same geom ref element in all cells
   ! Same ref elem in all cells, but possible different among fields
 
-  fe_it = this%create_fe_iterator()
-  num_fields = this%get_number_fields()
+  fe_it = this%fe_space%create_fe_iterator()
+  num_fields = this%fe_space%get_number_fields()
 
   ! Check geom ref element
   ! TODO how to check the fe_type?
@@ -252,12 +231,12 @@ subroutine serial_unfitted_fe_space_check_assumptions(this)
     end do
   end do
 
-end subroutine serial_unfitted_fe_space_check_assumptions
+end subroutine uim_check_assumptions
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_init_reference_subelem( this )
+subroutine uim_init_reference_subelem( this )
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(inout) :: this
 
   ! Cubic quadrature for triangles enough to integrate x^2 and y^2 (stiffness matrix of qua4)
   real(rp), target ::  tri_xg(3) = [ 0.5000000000000000, 0.0000000000000000, 0.5000000000000000]
@@ -288,7 +267,7 @@ subroutine serial_unfitted_fe_space_init_reference_subelem( this )
 
   ! Now the quadrature of the sub-element is hard-codded in this procedure
   ! TODO: Use fempar's quadrature generators instead
-  num_dim = this%get_num_dimensions()
+  num_dim = this%marching_cubes%get_num_dimensions()
   if (num_dim == 2) then
     xg => tri_xg
     yg => tri_yg
@@ -326,22 +305,22 @@ subroutine serial_unfitted_fe_space_init_reference_subelem( this )
   ! Create the fe map
   call this%fe_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
 
-end subroutine serial_unfitted_fe_space_init_reference_subelem
+end subroutine uim_init_reference_subelem
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_free_reference_subelem( this )
+subroutine uim_free_reference_subelem( this )
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(inout) :: this
   call this%fe_map_subelem%free()
   call this%geo_reference_subelem%free()
   call this%quadrature_subelem%free()
-end subroutine serial_unfitted_fe_space_free_reference_subelem
+end subroutine uim_free_reference_subelem
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_init_reference_subface( this )
+subroutine uim_init_reference_subface( this )
 
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(inout) :: this
 
   real(rp), pointer ::  xg(:)
   real(rp), pointer ::  yg(:)
@@ -372,7 +351,7 @@ subroutine serial_unfitted_fe_space_init_reference_subface( this )
 
   ! Now the quadrature of the sub-face is hard-codded in this procedure
   ! TODO: Use fempar's quadrature generators instead
-  num_dim = this%get_num_dimensions()
+  num_dim = this%marching_cubes%get_num_dimensions()
   if (num_dim == 2) then
     xg => xg_seg
     yg => yg_seg
@@ -393,19 +372,19 @@ subroutine serial_unfitted_fe_space_init_reference_subface( this )
   points_in_quadrature(2,:) = yg(:)
   weights_in_quadrature(:)  = wg(:)
 
-end subroutine serial_unfitted_fe_space_init_reference_subface
+end subroutine uim_init_reference_subface
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_free_reference_subface( this )
+subroutine uim_free_reference_subface( this )
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(inout) :: this
   call this%quadrature_subface%free()
-end subroutine serial_unfitted_fe_space_free_reference_subface
+end subroutine uim_free_reference_subface
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_init_cut_integration( this )
+subroutine uim_init_cut_integration( this )
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(inout) :: this
 
   integer(ip) :: num_dim, num_gp, num_gp_subelem, num_subelems, num_fields
   integer(ip) :: mc_case, mc_num_cases, istat, ifield
@@ -416,19 +395,19 @@ subroutine serial_unfitted_fe_space_init_cut_integration( this )
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
   call this%free_cut_integration()
-  num_dim = this%get_num_dimensions()
+  num_dim = this%marching_cubes%get_num_dimensions()
   num_gp_subelem = this%quadrature_subelem%get_number_quadrature_points()
-  mc_num_cases = this%unfitted_triangulation%get_num_mc_cases()
+  mc_num_cases = this%marching_cubes%get_num_mc_cases()
 
   allocate( this%cut_quadratures(1:mc_num_cases), stat=istat ); check(istat==0_ip)
   do mc_case = 1, mc_num_cases
-    num_gp = num_gp_subelem*this%unfitted_triangulation%get_num_subcells_mc_case(mc_case)
+    num_gp = num_gp_subelem*this%marching_cubes%get_num_subcells_mc_case(mc_case)
     call this%cut_quadratures(mc_case)%create( num_dim, num_gp )
   end do
 
   ! We assume that the same geom ref element is in all the mesh
   ! We assume that the same ref element is in all the mesh (but can be different amnong fields)
-  fe_iterator = this%create_fe_iterator()
+  fe_iterator = this%fe_space%create_fe_iterator()
   call fe_iterator%current(fe)
   geo_reference_elem => fe%get_reference_fe_geo()
 
@@ -442,7 +421,7 @@ subroutine serial_unfitted_fe_space_init_cut_integration( this )
   end do
 
   ! Volume integrators
-  num_fields = this%get_number_fields()
+  num_fields = this%fe_space%get_number_fields()
   allocate( this%cut_vol_integrators(1:mc_num_cases,1:num_fields), stat=istat ); check(istat==0_ip)
   do ifield = 1,num_fields
     reference_elem => fe%get_reference_fe(field_id=ifield)
@@ -460,13 +439,13 @@ subroutine serial_unfitted_fe_space_init_cut_integration( this )
     call this%empty_vol_integrator(ifield)%create( this%empty_quadrature, reference_elem )
   end do
 
-end subroutine serial_unfitted_fe_space_init_cut_integration
+end subroutine uim_init_cut_integration
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_free_cut_integration( this )
+subroutine uim_free_cut_integration( this )
 
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(inout) :: this
 
   integer(ip) :: ind, istat, jnd
 
@@ -503,13 +482,13 @@ subroutine serial_unfitted_fe_space_free_cut_integration( this )
     deallocate( this%empty_vol_integrator, stat=istat ); check(istat==0_ip)
   end if
 
-end subroutine serial_unfitted_fe_space_free_cut_integration
+end subroutine uim_free_cut_integration
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
+subroutine uim_init_cut_boundary_integration( this )
 
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(inout) :: this
 
   type(fe_iterator_t) :: fe_iterator
   type(fe_accessor_t) :: fe
@@ -525,9 +504,9 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
   call this%free_cut_boundary_integration()
 
   num_gp = this%quadrature_subface%get_number_quadrature_points()
-  num_dim = this%get_num_dimensions()
-  mc_num_cases = this%unfitted_triangulation%get_num_mc_cases()
-  num_fields = this%get_number_fields()
+  num_dim = this%marching_cubes%get_num_dimensions()
+  mc_num_cases = this%marching_cubes%get_num_mc_cases()
+  num_fields = this%fe_space%get_number_fields()
 
   !TODO not needed to allocate for all the mc cases
   allocate( this%cut_boundary_quadratures_cell_dim    (1:mc_num_cases), stat = istat ); check(istat==0)
@@ -536,13 +515,13 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
   allocate( this%cut_boundary_vol_integrators         (1:mc_num_cases,1:num_fields), stat = istat ); check(istat==0)
 
   do mc_case = 1, mc_num_cases
-    num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+    num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
     call this%cut_boundary_quadratures_cell_dim(mc_case)%create(num_dim,     num_gp*num_subfaces)
   end do
 
   ! Fill the quadratures with the values of the reference subface
   do mc_case = 1, mc_num_cases
-    num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+    num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
     sub_quad_coords => this%quadrature_subface%get_coordinates()
     sub_quad_weight => this%quadrature_subface%get_weights()
     quad_coords     => this%cut_boundary_quadratures_cell_dim(mc_case)%get_coordinates()
@@ -557,7 +536,7 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
 
 
   ! We assume that the same ref element is in all the mesh, but possibly different in all fields
-  fe_iterator = this%create_fe_iterator()
+  fe_iterator = this%fe_space%create_fe_iterator()
   call fe_iterator%current(fe)
   geo_reference_elem => fe%get_reference_fe_geo()
 
@@ -565,13 +544,13 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
   select case (num_dim)
   case (2)
     do mc_case = 1, mc_num_cases
-      num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+      num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
       call this%cut_boundary_piecewise_fe_maps(mc_case)%create_face_map(&
            this%quadrature_subface, geo_reference_elem, num_subfaces  )
     end do
   case (3)
     do mc_case = 1, mc_num_cases
-      num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+      num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
       call this%cut_boundary_piecewise_fe_maps(mc_case)%create_face_map(&
            this%quadrature_subface, this%geo_reference_subelem, num_subfaces  )
     end do
@@ -580,7 +559,7 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
   end select
 
   do mc_case = 1, mc_num_cases
-    num_subfaces = this%unfitted_triangulation%get_num_subfaces_mc_case(mc_case)
+    num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
     call this%cut_boundary_fe_maps(mc_case)%create(&
          this%cut_boundary_quadratures_cell_dim(mc_case), geo_reference_elem)
   end do
@@ -595,13 +574,13 @@ subroutine serial_unfitted_fe_space_init_cut_boundary_integration( this )
 
   call this%empty_piecewise_fe_map%create_face_map( this%empty_quadrature, geo_reference_elem, 0 )
 
-end subroutine serial_unfitted_fe_space_init_cut_boundary_integration
+end subroutine uim_init_cut_boundary_integration
 
 !========================================================================================
-subroutine serial_unfitted_fe_space_free_cut_boundary_integration( this )
+subroutine uim_free_cut_boundary_integration( this )
 
   implicit none
-  class(serial_unfitted_fe_space_t), intent(inout) :: this
+  class(unfitted_integration_manager_t), intent(inout) :: this
 
   integer(ip) :: id, istat, jd
 
@@ -637,4 +616,4 @@ subroutine serial_unfitted_fe_space_free_cut_boundary_integration( this )
 
   call this%empty_piecewise_fe_map%free()
 
-end subroutine serial_unfitted_fe_space_free_cut_boundary_integration
+end subroutine uim_free_cut_boundary_integration

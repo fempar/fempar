@@ -214,6 +214,14 @@ function marching_cubes_get_max_num_subnodes_in_cell( this ) result ( max_subnod
 end function marching_cubes_get_max_num_subnodes_in_cell
 
 !========================================================================================
+function marching_cubes_get_num_dimensions(this) result (val)
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%triangulation%get_num_dimensions()
+end function marching_cubes_get_num_dimensions
+
+!========================================================================================
 function marching_cubes_get_num_mc_cases(this) result (mc_cases)
   implicit none
   class(marching_cubes_t), intent(in)    :: this

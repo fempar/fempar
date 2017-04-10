@@ -40,13 +40,15 @@ module serial_unfitted_fe_space_names
   type, extends(fe_accessor_t) :: unfitted_fe_accessor_t
 
     private
-    class(serial_unfitted_fe_space_t), pointer     :: unfitted_fe_space => NULL()
+    class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
     type(unfitted_cell_accessor_t)                 :: unfitted_cell_accessor
 
   contains
 
-    ! Creation methods
-    procedure, private :: fe_accessor_create => unfitted_fe_accessor_create
+    ! Creation / deletion methods
+    generic            :: create => unfitted_fe_accessor_create
+    procedure, private :: unfitted_fe_accessor_create
+    procedure, private :: fe_accessor_create => unfitted_fe_accessor_fe_accessor_create
     procedure          :: fe_accessor_free   => unfitted_fe_accessor_free
     
     ! Access to the aggregated object
@@ -97,11 +99,12 @@ module serial_unfitted_fe_space_names
 
   end type unfitted_fe_iterator_t
 
-  type, extends(serial_fe_space_t) :: serial_unfitted_fe_space_t
+  type :: unfitted_integration_manager_t
 
     private
 
-    class(serial_unfitted_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
+    class(serial_fe_space_t), pointer :: fe_space       => NULL()
+    class(marching_cubes_t),  pointer :: marching_cubes => NULL()
 
     ! All the machinery for integrating in subcells
     type(quadrature_t)                     :: quadrature_subelem
@@ -128,32 +131,53 @@ module serial_unfitted_fe_space_names
 
     contains
 
-    ! Public TBPs
-    ! TODO We only override one of the possible generic bindings of create of the father...
-    ! Override the other generic binding if any
-    procedure,  private         :: serial_fe_space_create_same_reference_fes_on_all_cells => &
-                                   serial_unfitted_fe_space_create_same_reference_fes_on_all_cells ! TODO this one is in fact public..
-    procedure                   :: free                         => serial_unfitted_fe_space_free
+      ! Creation / Deletion methods
+      procedure, non_overridable :: create => uim_create
+      procedure, non_overridable :: free   => uim_free
     
-    ! Creation of the itrator
-    procedure, non_overridable  :: create_unfitted_fe_iterator  => serial_unfitted_fe_space_create_unfitted_fe_iterator
+      ! Creation of the itrator
+      procedure, non_overridable  :: create_unfitted_fe_iterator  => uim_create_unfitted_fe_iterator
 
-    ! Printer
-    ! TODO move to output handler
-    procedure, non_overridable :: print_boundary_quad_points => serial_unfitted_fe_space_print_boundary_quad_points
+      ! Printer
+      ! TODO move to output handler
+      procedure, non_overridable :: print_boundary_quad_points => uim_print_boundary_quad_points
 
-    !Private TBPs
-    procedure, non_overridable, private :: check_assumptions      => serial_unfitted_fe_space_check_assumptions
-    procedure, non_overridable, private :: init_reference_subelem => serial_unfitted_fe_space_init_reference_subelem
-    procedure, non_overridable, private :: free_reference_subelem => serial_unfitted_fe_space_free_reference_subelem
-    procedure, non_overridable, private :: init_reference_subface => serial_unfitted_fe_space_init_reference_subface
-    procedure, non_overridable, private :: free_reference_subface => serial_unfitted_fe_space_free_reference_subface
-    procedure, non_overridable, private :: init_cut_integration   => serial_unfitted_fe_space_init_cut_integration
-    procedure, non_overridable, private :: free_cut_integration   => serial_unfitted_fe_space_free_cut_integration
-    procedure, non_overridable, private :: init_cut_boundary_integration   => serial_unfitted_fe_space_init_cut_boundary_integration
-    procedure, non_overridable, private :: free_cut_boundary_integration   => serial_unfitted_fe_space_free_cut_boundary_integration
+      !Private TBPs
+      procedure, non_overridable, private :: check_assumptions      => uim_check_assumptions
+      procedure, non_overridable, private :: init_reference_subelem => uim_init_reference_subelem
+      procedure, non_overridable, private :: free_reference_subelem => uim_free_reference_subelem
+      procedure, non_overridable, private :: init_reference_subface => uim_init_reference_subface
+      procedure, non_overridable, private :: free_reference_subface => uim_free_reference_subface
+      procedure, non_overridable, private :: init_cut_integration   => uim_init_cut_integration
+      procedure, non_overridable, private :: free_cut_integration   => uim_free_cut_integration
+      procedure, non_overridable, private :: init_cut_boundary_integration   => uim_init_cut_boundary_integration
+      procedure, non_overridable, private :: free_cut_boundary_integration   => uim_free_cut_boundary_integration
+
+  end type unfitted_integration_manager_t
+
+  type, extends(serial_fe_space_t) :: serial_unfitted_fe_space_t
+    private
+
+      class(serial_unfitted_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
+      type(unfitted_integration_manager_t) :: unfitted_integration
+
+    contains
+
+      ! Creation / deletion methods
+      procedure,  private :: serial_fe_space_create_same_reference_fes_on_all_cells => sufs_create_same_reference_fes_on_all_cells
+      procedure           :: free  => sufs_free
+
+      ! Creation of the iterator
+      procedure, non_overridable  :: create_unfitted_fe_iterator  => sufs_create_unfitted_fe_iterator
+
+      ! Printer
+      ! TODO move to output handler
+      procedure, non_overridable :: print_boundary_quad_points => sufs_print_boundary_quad_points
+
 
   end type serial_unfitted_fe_space_t
+
+
 
   public :: unfitted_fe_accessor_t
   public :: unfitted_fe_iterator_t
@@ -163,6 +187,7 @@ contains
 
 #include "sbm_unfitted_fe_accessor.i90"
 #include "sbm_unfitted_fe_iterator.i90"
+#include "sbm_unfitted_integration_manager.i90"
 #include "sbm_serial_unfitted_fe_space.i90"
 
 end module serial_unfitted_fe_space_names

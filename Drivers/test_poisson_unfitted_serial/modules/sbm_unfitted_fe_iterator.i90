@@ -26,13 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine unfitted_fe_iterator_create ( this, lid, fe_space ) 
+subroutine unfitted_fe_iterator_create ( this, lid, unfitted_integration_manager ) 
   implicit none
   class(unfitted_fe_iterator_t) , intent(inout) :: this
   integer(ip)                   , intent(in)    :: lid
-  class(serial_fe_space_t)      , intent(in)    :: fe_space
+  class(unfitted_integration_manager_t)      , intent(in)    :: unfitted_integration_manager
   call this%free()
-  call this%unfitted_fe_accessor%create(lid=lid, fe_space=fe_space)
+  call this%unfitted_fe_accessor%create(lid,unfitted_integration_manager)
 end subroutine unfitted_fe_iterator_create
 
 subroutine unfitted_fe_iterator_free ( this ) 

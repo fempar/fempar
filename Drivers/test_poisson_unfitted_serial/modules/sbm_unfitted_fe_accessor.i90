@@ -27,38 +27,35 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !=============================================================================================
-subroutine unfitted_fe_accessor_create( this, lid, fe_space )
+subroutine unfitted_fe_accessor_create( this, lid, unfitted_integration_manager )
+  implicit none
+  class(unfitted_fe_accessor_t)   , intent(inout) :: this
+  integer(ip)                     , intent(in)    :: lid
+  class(unfitted_integration_manager_t), target, intent(in)    :: unfitted_integration_manager
+  class(base_static_triangulation_t), pointer     :: triangulation
+  class(marching_cubes_t), pointer :: marching_cubes
+  call this%free()
+  call this%fe_accessor_t%create(lid,unfitted_integration_manager%fe_space)
+  call this%unfitted_cell_accessor%create(lid,unfitted_integration_manager%marching_cubes)
+  this%unfitted_integration_manager => unfitted_integration_manager
+end subroutine unfitted_fe_accessor_create
+
+!=============================================================================================
+subroutine unfitted_fe_accessor_fe_accessor_create( this, lid, fe_space )
   implicit none
   class(unfitted_fe_accessor_t)   , intent(inout) :: this
   integer(ip)                     , intent(in)    :: lid
   class(serial_fe_space_t), target, intent(in)    :: fe_space
-  class(base_static_triangulation_t), pointer     :: triangulation
-  class(marching_cubes_t), pointer :: marching_cubes
-  call this%free()
-  call this%fe_accessor_t%create(lid,fe_space)
-  select type(fe_space)
-    class is (serial_unfitted_fe_space_t)
-      this%unfitted_fe_space => fe_space
-      triangulation => this%unfitted_fe_space%get_triangulation()
-      select type(triangulation)
-        class is (serial_unfitted_triangulation_t)
-          marching_cubes => triangulation%get_marching_cubes()
-          call this%unfitted_cell_accessor%create(lid,marching_cubes)
-        class default
-          check(.false.)
-      end select
-    class default
-      check(.false.)
-  end select
-end subroutine unfitted_fe_accessor_create
+  check(.false.)
+end subroutine unfitted_fe_accessor_fe_accessor_create
 
 !=============================================================================================
 subroutine unfitted_fe_accessor_free( this )
   implicit none
   class(unfitted_fe_accessor_t)   , intent(inout) :: this
-  call this%fe_accessor_t%free()
-  nullify ( this%unfitted_fe_space )
+  this%unfitted_integration_manager => null()
   call this%unfitted_cell_accessor%free()
+  call this%fe_accessor_t%free()
 end subroutine unfitted_fe_accessor_free
 
 !=============================================================================================
@@ -80,11 +77,11 @@ function unfitted_fe_accessor_get_quadrature(this) result (quadrature)
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
-    quadrature => this%unfitted_fe_space%cut_quadratures(mc_case)
+    quadrature => this%unfitted_integration_manager%cut_quadratures(mc_case)
   else if ( cell%is_interior() ) then
     quadrature => this%fe_accessor_t%get_quadrature()
   else if ( cell%is_exterior() ) then
-    quadrature => this%unfitted_fe_space%empty_quadrature
+    quadrature => this%unfitted_integration_manager%empty_quadrature
   else
     check(.false.)
   end if
@@ -100,11 +97,11 @@ function unfitted_fe_accessor_get_fe_map(this) result (fe_map)
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
-    fe_map => this%unfitted_fe_space%cut_fe_maps(mc_case)
+    fe_map => this%unfitted_integration_manager%cut_fe_maps(mc_case)
   else if ( cell%is_interior() ) then
     fe_map => this%fe_accessor_t%get_fe_map()
   else if ( cell%is_exterior() ) then
-    fe_map => this%unfitted_fe_space%empty_fe_map
+    fe_map => this%unfitted_integration_manager%empty_fe_map
   else
     check(.false.)
   end if
@@ -121,11 +118,11 @@ function unfitted_fe_accessor_get_volume_integrator(this, field_id) result (vol_
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
-    vol_int => this%unfitted_fe_space%cut_vol_integrators(mc_case,field_id)
+    vol_int => this%unfitted_integration_manager%cut_vol_integrators(mc_case,field_id)
   else if ( cell%is_interior() ) then
     vol_int => this%fe_accessor_t%get_volume_integrator(field_id)
   else if ( cell%is_exterior() ) then
-    vol_int => this%unfitted_fe_space%empty_vol_integrator(field_id)
+    vol_int => this%unfitted_integration_manager%empty_vol_integrator(field_id)
   else
     check(.false.)
   end if
@@ -141,9 +138,9 @@ function unfitted_fe_accessor_get_boundary_quadrature(this) result (quadrature)
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
-    quadrature => this%unfitted_fe_space%cut_boundary_quadratures_cell_dim(mc_case)
+    quadrature => this%unfitted_integration_manager%cut_boundary_quadratures_cell_dim(mc_case)
   else
-    quadrature => this%unfitted_fe_space%empty_quadrature
+    quadrature => this%unfitted_integration_manager%empty_quadrature
   end if
 end function unfitted_fe_accessor_get_boundary_quadrature
 
@@ -157,9 +154,9 @@ function unfitted_fe_accessor_get_boundary_piecewise_fe_map(this) result (fe_map
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
-    fe_map => this%unfitted_fe_space%cut_boundary_piecewise_fe_maps(mc_case)
+    fe_map => this%unfitted_integration_manager%cut_boundary_piecewise_fe_maps(mc_case)
   else
-    fe_map => this%unfitted_fe_space%empty_piecewise_fe_map
+    fe_map => this%unfitted_integration_manager%empty_piecewise_fe_map
   end if
 end function unfitted_fe_accessor_get_boundary_piecewise_fe_map
 
@@ -174,9 +171,9 @@ function unfitted_fe_accessor_get_boundary_fe_map(this) result (fe_map)
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
-    fe_map => this%unfitted_fe_space%cut_boundary_fe_maps(mc_case)
+    fe_map => this%unfitted_integration_manager%cut_boundary_fe_maps(mc_case)
   else
-    fe_map => this%unfitted_fe_space%empty_fe_map
+    fe_map => this%unfitted_integration_manager%empty_fe_map
   end if
 end function unfitted_fe_accessor_get_boundary_fe_map
 
@@ -192,9 +189,9 @@ function unfitted_fe_accessor_get_boundary_volume_integrator(this, field_id) res
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
-    vol_int => this%unfitted_fe_space%cut_boundary_vol_integrators(mc_case,field_id)
+    vol_int => this%unfitted_integration_manager%cut_boundary_vol_integrators(mc_case,field_id)
   else
-    vol_int => this%unfitted_fe_space%empty_vol_integrator(field_id)
+    vol_int => this%unfitted_integration_manager%empty_vol_integrator(field_id)
   end if
 end function unfitted_fe_accessor_get_boundary_volume_integrator
 
@@ -281,7 +278,7 @@ subroutine unfitted_fe_accessor_update_cut_quadratures( this )
   num_dim                =  quadrature%get_number_dimensions()
 
   ! Recover info about the quadrature of the sub-element
-  quadrature_subelem => this%unfitted_fe_space%quadrature_subelem
+  quadrature_subelem => this%unfitted_integration_manager%quadrature_subelem
   quadrature_weights_subelem     => quadrature_subelem%get_weights()
   num_gp_subelem                 =  quadrature_subelem%get_number_quadrature_points()
   num_dim_subelem                =  quadrature_subelem%get_number_dimensions()
@@ -291,7 +288,7 @@ subroutine unfitted_fe_accessor_update_cut_quadratures( this )
   assert( num_gp  == num_gp_subelem*cell%get_number_of_subcells() )
 
   ! Recover the fe map between the reference sub-element and the reference element
-  fe_map_subelem                   => this%unfitted_fe_space%fe_map_subelem
+  fe_map_subelem                   => this%unfitted_integration_manager%fe_map_subelem
   nodal_coords_subelem             => fe_map_subelem%get_coordinates()
   mapped_quadrature_coords_subelem => fe_map_subelem%get_quadrature_points_coordinates()
 
@@ -437,7 +434,7 @@ subroutine unfitted_fe_accessor_update_cut_boundary_fe_maps( this )
 
   ! Update the piecewise fe map
   reference_fe_geometry => cell%get_reference_fe_geo()
-  call pw_fe_map%update_face_map(this%unfitted_fe_space%quadrature_subface, reference_fe_geometry)
+  call pw_fe_map%update_face_map(this%unfitted_integration_manager%quadrature_subface, reference_fe_geometry)
 
   ! At this point the piecewise fe map contains the det_jacobian, coordinates of quad points on phys space and the normals
 
