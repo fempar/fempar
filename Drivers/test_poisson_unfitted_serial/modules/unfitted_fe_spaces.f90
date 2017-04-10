@@ -174,9 +174,28 @@ module unfitted_fe_spaces_names
       ! TODO move to output handler
       procedure, non_overridable :: print_boundary_quad_points => sufs_print_boundary_quad_points
 
-
   end type serial_unfitted_fe_space_t
 
+  type, extends(par_fe_space_t) :: par_unfitted_fe_space_t
+    private
+
+      class(par_unfitted_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
+      type(unfitted_integration_manager_t) :: unfitted_integration
+
+    contains
+
+      ! Creation / deletion methods
+      procedure,  private :: par_fe_space_create_same_reference_fes_on_all_cells => pufs_create_same_reference_fes_on_all_cells
+      procedure           :: free  => pufs_free
+
+      ! Creation of the iterator
+      procedure, non_overridable  :: create_unfitted_fe_iterator  => pufs_create_unfitted_fe_iterator
+
+      ! Printer
+      ! TODO move to output handler
+      procedure, non_overridable :: print_boundary_quad_points => pufs_print_boundary_quad_points
+
+  end type par_unfitted_fe_space_t
 
 
   public :: unfitted_fe_accessor_t
@@ -189,5 +208,6 @@ contains
 #include "sbm_unfitted_fe_iterator.i90"
 #include "sbm_unfitted_integration_manager.i90"
 #include "sbm_serial_unfitted_fe_space.i90"
+#include "sbm_par_unfitted_fe_space.i90"
 
 end module unfitted_fe_spaces_names

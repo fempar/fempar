@@ -121,7 +121,7 @@ module unfitted_triangulations_names
     integer(ip),   allocatable :: mc_table_num_cut_edges_per_case(:)
     integer(ip),   allocatable :: mc_table_inout_subcells_per_case(:,:)
     integer(ip),   allocatable :: mc_table_subcell_node_ids_per_case(:,:,:)
-    integer(ip),   allocatable :: mc_table_subface_node_ids_per_case(:,:,:) !TODO Provide also boundary sub-faces??
+    integer(ip),   allocatable :: mc_table_subface_node_ids_per_case(:,:,:)
     logical :: mc_tables_init = .false.
 
     ! Info related to cut cells on this triangulation (this is computed at runtime)
@@ -222,15 +222,60 @@ module unfitted_triangulations_names
 
       ! Printers
       procedure :: print                     => sut_print
+
+      ! TODO move to the vtk writer
       procedure :: print_to_vtk_file         => sut_print_to_vtk_file
 
   end type serial_unfitted_triangulation_t
 
+  type, extends(par_triangulation_t) :: par_unfitted_triangulation_t
+    private
+      type(marching_cubes_t) :: marching_cubes
+    contains
+
+      ! Creation / deletion methods
+      generic             :: create                       => put_create
+      procedure           :: free                         => put_free
+      procedure,  private :: par_triangulation_create     => put_par_triangulation_create
+      procedure,  private :: put_create
+
+      ! Generate iterator
+      procedure, non_overridable :: create_unfitted_cell_iterator => put_create_unfitted_cell_iterator
+
+      ! Getters
+      procedure, non_overridable :: get_marching_cubes            => put_get_marching_cubes
+      procedure, non_overridable :: get_num_cut_cells             => put_get_num_cut_cells
+      procedure, non_overridable :: get_num_interior_cells        => put_get_num_interior_cells
+      procedure, non_overridable :: get_num_exterior_cells        => put_get_num_exterior_cells
+      procedure, non_overridable :: get_max_num_subcells_in_cell  => put_get_max_num_subcells_in_cell
+      procedure, non_overridable :: get_max_num_nodes_in_subcell  => put_get_max_num_nodes_in_subcell
+      procedure, non_overridable :: get_total_num_of_subcells     => put_get_total_num_of_subcells
+      procedure, non_overridable :: get_max_num_subfaces_in_cell  => put_get_max_num_subfaces_in_cell
+      procedure, non_overridable :: get_max_num_nodes_in_subface  => put_get_max_num_nodes_in_subface
+      procedure, non_overridable :: get_total_num_of_subfaces     => put_get_total_num_of_subfaces
+      procedure, non_overridable :: get_max_num_subnodes_in_cell  => put_get_max_num_subnodes_in_cell
+
+      ! TODO this getters should be removed in the future
+      ! Now the fe space uses them.
+      ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
+      procedure, non_overridable :: get_num_mc_cases              => put_get_num_mc_cases
+      procedure, non_overridable :: get_num_subcells_mc_case      => put_get_num_subcells_mc_case
+      procedure, non_overridable :: get_num_subfaces_mc_case      => put_get_num_subfaces_mc_case
+
+      ! Printers
+      procedure :: print                     => put_print
+
+      !TODO move to the vtk writer
+      procedure :: print_to_vtk_file         => put_print_to_vtk_file
+
+  end type par_unfitted_triangulation_t
+
   ! Derived types
   public :: unfitted_cell_accessor_t
   public :: unfitted_cell_iterator_t
-  public :: serial_unfitted_triangulation_t
   public :: marching_cubes_t 
+  public :: serial_unfitted_triangulation_t
+  public :: par_unfitted_triangulation_t
 
 contains
 
@@ -238,6 +283,7 @@ contains
 #include "sbm_unfitted_cell_iterator.i90"
 #include "sbm_marching_cubes.i90"
 #include "sbm_serial_unfitted_triangulation.i90"
+#include "sbm_par_unfitted_triangulation.i90"
 
 end module unfitted_triangulations_names
 

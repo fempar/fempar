@@ -1,0 +1,193 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!========================================================================================
+subroutine put_create(this, parameters, level_set_function, par_environment)
+  !$ use omp_lib
+  implicit none
+  class(par_unfitted_triangulation_t), target, intent(inout) :: this
+  type(ParameterList_t),                       intent(inout) :: parameters
+  class(level_set_function_t),         target, intent(in)    :: level_set_function
+  type(environment_t), optional,       target, intent(in)    :: par_environment
+  call this%free()
+  call this%par_triangulation_t%create(parameters,par_environment)
+  call this%marching_cubes%create(this, level_set_function)
+end subroutine put_create
+
+!========================================================================================
+subroutine put_free(this)
+  implicit none
+  class(par_unfitted_triangulation_t), target, intent(inout) :: this
+  call this%par_triangulation_t%free()
+  call this%marching_cubes%free()
+end subroutine put_free
+
+!========================================================================================
+subroutine put_par_triangulation_create( this, parameters, par_environment)
+  implicit none
+  class(par_unfitted_triangulation_t), target, intent(inout) :: this
+  type(ParameterList_t),                       intent(inout) :: parameters
+  type(environment_t), optional,       target, intent(in)    :: par_environment
+  check(.false.)
+end subroutine put_par_triangulation_create
+
+!========================================================================================
+function put_create_unfitted_cell_iterator ( this ) result (cell_iter)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  type(unfitted_cell_iterator_t) :: cell_iter
+  cell_iter = this%marching_cubes%create_unfitted_cell_iterator()
+end function put_create_unfitted_cell_iterator
+
+!========================================================================================
+function put_get_marching_cubes(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), target, intent(in)    :: this
+  class(marching_cubes_t), pointer :: val
+  val => this%marching_cubes
+end function put_get_marching_cubes
+
+!========================================================================================
+function put_get_num_cut_cells(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_num_cut_cells()
+end function put_get_num_cut_cells
+
+!========================================================================================
+function put_get_num_interior_cells(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_num_interior_cells()
+end function put_get_num_interior_cells
+
+!========================================================================================
+function put_get_num_exterior_cells(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_num_exterior_cells()
+end function put_get_num_exterior_cells
+
+!========================================================================================
+function put_get_max_num_subcells_in_cell(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_subcells_in_cell()
+end function put_get_max_num_subcells_in_cell
+
+!========================================================================================
+function put_get_max_num_nodes_in_subcell(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_nodes_in_subcell()
+end function put_get_max_num_nodes_in_subcell
+
+!========================================================================================
+function put_get_total_num_of_subcells(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_total_num_of_subcells()
+end function put_get_total_num_of_subcells
+
+!========================================================================================
+function put_get_max_num_subfaces_in_cell(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_subfaces_in_cell()
+end function put_get_max_num_subfaces_in_cell
+
+!========================================================================================
+function put_get_max_num_nodes_in_subface(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_nodes_in_subface()
+end function put_get_max_num_nodes_in_subface
+
+!========================================================================================
+function put_get_total_num_of_subfaces(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_total_num_of_subfaces()
+end function put_get_total_num_of_subfaces
+
+!========================================================================================
+function put_get_max_num_subnodes_in_cell(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_subnodes_in_cell()
+end function put_get_max_num_subnodes_in_cell
+
+!========================================================================================
+function put_get_num_mc_cases(this) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_num_mc_cases()
+end function put_get_num_mc_cases
+
+!========================================================================================
+function put_get_num_subcells_mc_case(this,mc_case) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: mc_case
+  integer(ip) :: val
+  val = this%marching_cubes%get_num_subcells_mc_case(mc_case)
+end function put_get_num_subcells_mc_case
+
+!========================================================================================
+function put_get_num_subfaces_mc_case(this,mc_case) result (val)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: mc_case
+  integer(ip) :: val
+  val = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
+end function put_get_num_subfaces_mc_case
+
+!========================================================================================
+subroutine put_print(this)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  call this%marching_cubes%print()
+end subroutine put_print
+
+!========================================================================================
+subroutine put_print_to_vtk_file(this)
+  implicit none
+  class(par_unfitted_triangulation_t), intent(in)    :: this
+  call this%marching_cubes%print_to_vtk_file()
+end subroutine put_print_to_vtk_file

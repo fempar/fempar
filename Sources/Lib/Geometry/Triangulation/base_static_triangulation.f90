@@ -546,7 +546,8 @@ module base_static_triangulation_names
   
   type, extends(fine_triangulation_t) :: par_triangulation_t
   contains
-     procedure, non_overridable          :: create                              => par_triangulation_create
+     generic                             :: create                              => par_triangulation_create
+     procedure, private                  :: par_triangulation_create
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => par_triangulation_allocate_and_fill_lst_vefs_lids 
   end type par_triangulation_t
 
