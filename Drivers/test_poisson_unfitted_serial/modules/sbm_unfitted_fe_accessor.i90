@@ -33,15 +33,22 @@ subroutine unfitted_fe_accessor_create( this, lid, fe_space )
   integer(ip)                     , intent(in)    :: lid
   class(serial_fe_space_t), target, intent(in)    :: fe_space
   class(base_static_triangulation_t), pointer     :: triangulation
+  class(marching_cubes_t), pointer :: marching_cubes
   call this%free()
   call this%fe_accessor_t%create(lid,fe_space)
   select type(fe_space)
-  class is (serial_unfitted_fe_space_t)
-    this%unfitted_fe_space => fe_space
-    triangulation => this%unfitted_fe_space%get_triangulation()
-    call this%unfitted_cell_accessor%create(lid,triangulation)
-  class default
-    check(.false.)
+    class is (serial_unfitted_fe_space_t)
+      this%unfitted_fe_space => fe_space
+      triangulation => this%unfitted_fe_space%get_triangulation()
+      select type(triangulation)
+        class is (serial_unfitted_triangulation_t)
+          marching_cubes => triangulation%get_marching_cubes()
+          call this%unfitted_cell_accessor%create(lid,marching_cubes)
+        class default
+          check(.false.)
+      end select
+    class default
+      check(.false.)
   end select
 end subroutine unfitted_fe_accessor_create
 

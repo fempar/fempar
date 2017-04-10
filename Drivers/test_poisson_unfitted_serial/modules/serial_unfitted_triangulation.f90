@@ -47,13 +47,13 @@ module serial_unfitted_triangulation_names
     
   contains
 
-    ! Creation /deletion methods
+    ! Creation / deletion methods
     generic :: create => unfitted_cell_accessor_create
     procedure, private :: unfitted_cell_accessor_create
     procedure :: cell_accessor_create  => unfitted_cell_accessor_cell_accessor_create
     procedure :: free   => unfitted_cell_accessor_cell_accessor_free
     
-    ! To be called each time the lid changes
+    ! Updater: to be called each time the lid changes
     procedure, non_overridable :: update_sub_triangulation    => unfitted_cell_accessor_update_sub_triangulation
 
     ! TODO this one should be private in the future
@@ -61,18 +61,19 @@ module serial_unfitted_triangulation_names
     ! The goal is that the fe accessor does not assume that the mc algorithm is used to subdivide the elements
     procedure, non_overridable :: get_mc_case   => unfitted_cell_accessor_get_mc_case
     
-    ! TBPs related with the subcells
+    ! Getters related with the subcells
     procedure, non_overridable :: get_number_of_subcells      => unfitted_cell_accessor_get_number_of_subcells
     procedure, non_overridable :: get_number_of_subcell_nodes => unfitted_cell_accessor_get_number_of_subcell_nodes
     procedure, non_overridable :: get_phys_coords_of_subcell  => unfitted_cell_accessor_get_phys_coords_of_subcell
     procedure, non_overridable :: get_ref_coords_of_subcell   => unfitted_cell_accessor_get_ref_coords_of_subcell
     
-    ! TBPs related with the subfaces
+    ! Getters related with the subfaces
     procedure, non_overridable :: get_number_of_subfaces      => unfitted_cell_accessor_get_number_of_subfaces
     procedure, non_overridable :: get_number_of_subface_nodes => unfitted_cell_accessor_get_number_of_subface_nodes
     procedure, non_overridable :: get_phys_coords_of_subface  => unfitted_cell_accessor_get_phys_coords_of_subface
     procedure, non_overridable :: get_ref_coords_of_subface   => unfitted_cell_accessor_get_ref_coords_of_subface
     
+    ! Checkers
     procedure, non_overridable :: is_cut      => unfitted_cell_accessor_is_cut
     procedure, non_overridable :: is_interior => unfitted_cell_accessor_is_interior
     procedure, non_overridable :: is_exterior => unfitted_cell_accessor_is_exterior
@@ -152,17 +153,15 @@ module serial_unfitted_triangulation_names
     procedure, non_overridable :: get_num_cut_cells             => marching_cubes_get_num_cut_cells
     procedure, non_overridable :: get_num_interior_cells        => marching_cubes_get_num_interior_cells
     procedure, non_overridable :: get_num_exterior_cells        => marching_cubes_get_num_exterior_cells
-    procedure, non_overridable :: get_max_num_subcells_in_cell  => marching_cubes_get_max_subcells_in_cell
-    procedure, non_overridable :: get_max_num_nodes_in_subcell  => marching_cubes_get_max_nodes_in_subcell
+    procedure, non_overridable :: get_max_num_subcells_in_cell  => marching_cubes_get_max_num_subcells_in_cell
+    procedure, non_overridable :: get_max_num_nodes_in_subcell  => marching_cubes_get_max_num_nodes_in_subcell
     procedure, non_overridable :: get_total_num_of_subcells     => marching_cubes_get_total_num_of_subcells
-    procedure, non_overridable :: get_max_num_subfaces_in_cell  => marching_cubes_get_max_subfaces_in_cell
-    procedure, non_overridable :: get_max_num_nodes_in_subface  => marching_cubes_get_max_nodes_in_subface
+    procedure, non_overridable :: get_max_num_subfaces_in_cell  => marching_cubes_get_max_num_subfaces_in_cell
+    procedure, non_overridable :: get_max_num_nodes_in_subface  => marching_cubes_get_max_num_nodes_in_subface
     procedure, non_overridable :: get_total_num_of_subfaces     => marching_cubes_get_total_num_of_subfaces
-    procedure, non_overridable :: get_max_num_subnodes_in_cell  => marching_cubes_get_max_subnodes_in_cell
+    procedure, non_overridable :: get_max_num_subnodes_in_cell  => marching_cubes_get_max_num_subnodes_in_cell
     
-    ! TODO this getters should be private in the future
-    ! Now the fe space uses them.
-    ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
+    ! Getters related with the mc algorithm
     procedure, non_overridable :: get_num_mc_cases              => marching_cubes_get_num_mc_cases
     procedure, non_overridable :: get_num_subcells_mc_case      => marching_cubes_get_num_subcells_mc_case
     procedure, non_overridable :: get_num_subfaces_mc_case      => marching_cubes_get_num_subfaces_mc_case
@@ -192,34 +191,37 @@ module serial_unfitted_triangulation_names
     contains
 
       ! Creation / deletion methods
-      generic             :: create                       => nsut_create
-      procedure           :: free                         => nsut_free
-      procedure,  private :: serial_triangulation_create  => nsut_serial_triangulation_create
-      procedure,  private :: nsut_create
+      generic             :: create                       => sut_create
+      procedure           :: free                         => sut_free
+      procedure,  private :: serial_triangulation_create  => sut_serial_triangulation_create
+      procedure,  private :: sut_create
 
       ! Generate iterator
-      procedure, non_overridable :: create_unfitted_cell_iterator => nsut_create_unfitted_cell_iterator
+      procedure, non_overridable :: create_unfitted_cell_iterator => sut_create_unfitted_cell_iterator
 
-      ! Getters needed by other classes
-      ! TODO put here all the other getters of the aggregate
-
-      ! By vtk writer
-      procedure, non_overridable :: get_max_num_nodes_in_subcell  => nsut_get_max_num_nodes_in_subcell
-      procedure, non_overridable :: get_total_num_of_subcells     => nsut_get_total_num_of_subcells
-
-      ! By unfitted fe space
-      procedure, non_overridable :: get_total_num_of_subfaces     => nsut_get_total_num_of_subfaces
+      ! Getters
+      procedure, non_overridable :: get_marching_cubes            => sut_get_marching_cubes
+      procedure, non_overridable :: get_num_cut_cells             => sut_get_num_cut_cells
+      procedure, non_overridable :: get_num_interior_cells        => sut_get_num_interior_cells
+      procedure, non_overridable :: get_num_exterior_cells        => sut_get_num_exterior_cells
+      procedure, non_overridable :: get_max_num_subcells_in_cell  => sut_get_max_num_subcells_in_cell
+      procedure, non_overridable :: get_max_num_nodes_in_subcell  => sut_get_max_num_nodes_in_subcell
+      procedure, non_overridable :: get_total_num_of_subcells     => sut_get_total_num_of_subcells
+      procedure, non_overridable :: get_max_num_subfaces_in_cell  => sut_get_max_num_subfaces_in_cell
+      procedure, non_overridable :: get_max_num_nodes_in_subface  => sut_get_max_num_nodes_in_subface
+      procedure, non_overridable :: get_total_num_of_subfaces     => sut_get_total_num_of_subfaces
+      procedure, non_overridable :: get_max_num_subnodes_in_cell  => sut_get_max_num_subnodes_in_cell
 
       ! TODO this getters should be removed in the future
       ! Now the fe space uses them.
       ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
-      procedure, non_overridable :: get_num_mc_cases              => nsut_get_num_mc_cases
-      procedure, non_overridable :: get_num_subcells_mc_case      => nsut_get_num_subcells_mc_case
-      procedure, non_overridable :: get_num_subfaces_mc_case      => nsut_get_num_subfaces_mc_case
+      procedure, non_overridable :: get_num_mc_cases              => sut_get_num_mc_cases
+      procedure, non_overridable :: get_num_subcells_mc_case      => sut_get_num_subcells_mc_case
+      procedure, non_overridable :: get_num_subfaces_mc_case      => sut_get_num_subfaces_mc_case
 
       ! Printers
-      procedure :: print                     => nsut_print
-      procedure :: print_to_vtk_file         => nsut_print_to_vtk_file
+      procedure :: print                     => sut_print
+      procedure :: print_to_vtk_file         => sut_print_to_vtk_file
 
   end type serial_unfitted_triangulation_t
 
@@ -227,113 +229,14 @@ module serial_unfitted_triangulation_names
   public :: unfitted_cell_accessor_t
   public :: unfitted_cell_iterator_t
   public :: serial_unfitted_triangulation_t
+  public :: marching_cubes_t 
 
 contains
 
 #include "sbm_unfitted_cell_accessor.i90"
 #include "sbm_unfitted_cell_iterator.i90"
+#include "sbm_marching_cubes.i90"
 #include "sbm_serial_unfitted_triangulation.i90"
-
-! TODO put these in a submodule (or not?)
-
-!========================================================================================
-subroutine nsut_create(this, parameters, level_set_function)
-  implicit none
-  class(serial_unfitted_triangulation_t), target, intent(inout) :: this
-  type(ParameterList_t)                         , intent(inout) :: parameters
-  class(level_set_function_t),            target, intent(in)    :: level_set_function
-  call this%free()
-  call this%serial_triangulation_t%create(parameters)
-  call this%marching_cubes%create(this, level_set_function)
-end subroutine nsut_create
-
-!========================================================================================
-subroutine nsut_free(this)
-  implicit none
-  class(serial_unfitted_triangulation_t), target, intent(inout) :: this
-  call this%serial_triangulation_t%free()
-  call this%marching_cubes%free()
-end subroutine nsut_free
-
-!========================================================================================
-subroutine nsut_serial_triangulation_create( this, parameters)
-  implicit none
-  class(serial_unfitted_triangulation_t), target, intent(inout) :: this
-  type(ParameterList_t)             , intent(inout) :: parameters
-  check(.false.)
-end subroutine nsut_serial_triangulation_create
-
-!========================================================================================
-function nsut_create_unfitted_cell_iterator ( this ) result (cell_iter)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  type(unfitted_cell_iterator_t) :: cell_iter
-  cell_iter = this%marching_cubes%create_unfitted_cell_iterator()
-end function nsut_create_unfitted_cell_iterator
-
-!========================================================================================
-function nsut_get_max_num_nodes_in_subcell(this) result (val)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_max_num_nodes_in_subcell()
-end function nsut_get_max_num_nodes_in_subcell
-
-!========================================================================================
-function nsut_get_total_num_of_subcells(this) result (val)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_total_num_of_subcells()
-end function nsut_get_total_num_of_subcells
-
-!========================================================================================
-function nsut_get_num_mc_cases(this) result (val)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_num_mc_cases()
-end function nsut_get_num_mc_cases
-
-!========================================================================================
-function nsut_get_total_num_of_subfaces(this) result (val)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_total_num_of_subfaces()
-end function nsut_get_total_num_of_subfaces
-
-!========================================================================================
-function nsut_get_num_subcells_mc_case(this,mc_case) result (val)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  integer(ip) :: val
-  val = this%marching_cubes%get_num_subcells_mc_case(mc_case)
-end function nsut_get_num_subcells_mc_case
-
-!========================================================================================
-function nsut_get_num_subfaces_mc_case(this,mc_case) result (val)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  integer(ip) :: val
-  val = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
-end function nsut_get_num_subfaces_mc_case
-
-!========================================================================================
-subroutine nsut_print(this)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  call this%marching_cubes%print()
-end subroutine nsut_print
-
-!========================================================================================
-subroutine nsut_print_to_vtk_file(this)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  call this%marching_cubes%print_to_vtk_file()
-end subroutine nsut_print_to_vtk_file
 
 end module serial_unfitted_triangulation_names
 
