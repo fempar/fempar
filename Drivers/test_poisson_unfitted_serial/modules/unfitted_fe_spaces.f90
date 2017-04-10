@@ -30,8 +30,6 @@ module unfitted_fe_spaces_names
   use fempar_names
   use unfitted_triangulations_names
   use piecewise_fe_map_names
-  use IR_Precision ! VTK_IO
-  use Lib_VTK_IO ! VTK_IO
 
   implicit none
 # include "debug.i90"
@@ -138,10 +136,6 @@ module unfitted_fe_spaces_names
       ! Creation of the itrator
       procedure, non_overridable  :: create_unfitted_fe_iterator  => uim_create_unfitted_fe_iterator
 
-      ! Printer
-      ! TODO move to output handler
-      procedure, non_overridable :: print_boundary_quad_points => uim_print_boundary_quad_points
-
       !Private TBPs
       procedure, non_overridable, private :: check_assumptions      => uim_check_assumptions
       procedure, non_overridable, private :: init_reference_subelem => uim_init_reference_subelem
@@ -170,10 +164,6 @@ module unfitted_fe_spaces_names
       ! Creation of the iterator
       procedure, non_overridable  :: create_unfitted_fe_iterator  => sufs_create_unfitted_fe_iterator
 
-      ! Printer
-      ! TODO move to output handler
-      procedure, non_overridable :: print_boundary_quad_points => sufs_print_boundary_quad_points
-
   end type serial_unfitted_fe_space_t
 
   type, extends(par_fe_space_t) :: par_unfitted_fe_space_t
@@ -190,10 +180,6 @@ module unfitted_fe_spaces_names
 
       ! Creation of the iterator
       procedure, non_overridable  :: create_unfitted_fe_iterator  => pufs_create_unfitted_fe_iterator
-
-      ! Printer
-      ! TODO move to output handler
-      procedure, non_overridable :: print_boundary_quad_points => pufs_print_boundary_quad_points
 
   end type par_unfitted_fe_space_t
 

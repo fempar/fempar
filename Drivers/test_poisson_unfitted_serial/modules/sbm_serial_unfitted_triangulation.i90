@@ -182,9 +182,3 @@ subroutine sut_print(this)
   call this%marching_cubes%print()
 end subroutine sut_print
 
-!========================================================================================
-subroutine sut_print_to_vtk_file(this)
-  implicit none
-  class(serial_unfitted_triangulation_t), intent(in)    :: this
-  call this%marching_cubes%print_to_vtk_file()
-end subroutine sut_print_to_vtk_file

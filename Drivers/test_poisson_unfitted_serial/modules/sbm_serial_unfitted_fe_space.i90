@@ -71,9 +71,3 @@ function sufs_create_unfitted_fe_iterator(this) result(unfitted_fe_iterator)
   unfitted_fe_iterator = this%unfitted_integration%create_unfitted_fe_iterator()
 end function sufs_create_unfitted_fe_iterator
 
-!========================================================================================
-subroutine sufs_print_boundary_quad_points(this)
-  implicit none
-  class(serial_unfitted_fe_space_t), intent(in) :: this
-  call this%unfitted_integration%print_boundary_quad_points()
-end subroutine sufs_print_boundary_quad_points

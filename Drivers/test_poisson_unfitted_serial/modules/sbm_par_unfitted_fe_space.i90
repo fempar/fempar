@@ -73,9 +73,3 @@ function pufs_create_unfitted_fe_iterator(this) result(unfitted_fe_iterator)
   unfitted_fe_iterator = this%unfitted_integration%create_unfitted_fe_iterator()
 end function pufs_create_unfitted_fe_iterator
 
-!========================================================================================
-subroutine pufs_print_boundary_quad_points(this)
-  implicit none
-  class(par_unfitted_fe_space_t), intent(in) :: this
-  call this%unfitted_integration%print_boundary_quad_points()
-end subroutine pufs_print_boundary_quad_points

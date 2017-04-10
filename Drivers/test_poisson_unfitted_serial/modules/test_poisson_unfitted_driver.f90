@@ -172,7 +172,6 @@ contains
     ! New call for unfitted triangulation
     call this%triangulation%create(this%parameter_list,this%level_set_function)
     if ( this%triangulation%get_num_cells() <= 100 ) call this%triangulation%print() ! TODO. Remove this. This is only for debugging
-    if ( this%triangulation%get_num_cells() <= 100000 ) call this%triangulation%print_to_vtk_file() ! TODO. Remove this. This is only for debugging
 
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()
@@ -280,9 +279,6 @@ contains
     else
       call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_unfitted_conditions)
     end if
-
-    !TODO debug only
-    if ( this%triangulation%get_num_cells() <= 100000 ) call this%fe_space%print_boundary_quad_points()
 
   end subroutine setup_fe_space
 
@@ -531,7 +527,18 @@ contains
     scal_fun => this%poisson_unfitted_analytical_functions%get_solution_function()
     !call this%solution%interpolate_function(fe_space_ptr,fieldid,scal_fun)
 
-    !call vtk_writer%attach_triangulation(this%triangulation)
+    call vtk_writer%attach_triangulation(this%triangulation)
+    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh.vtu')
+    call vtk_writer%free()
+
+    call vtk_writer%attach_boundary_faces(this%triangulation)
+    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh_boundary.vtu')
+    call vtk_writer%free()
+
+    call vtk_writer%attach_boundary_quad_points(this%fe_space)
+    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh_boundary_normals.vtu')
+    call vtk_writer%free()
+
     call vtk_writer%attach_fe_function(this%solution,this%fe_space)
     if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
     call vtk_writer%free()

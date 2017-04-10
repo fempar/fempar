@@ -31,6 +31,7 @@ module poisson_unfitted_vtk_writer_names
   use fempar_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
+  use piecewise_fe_map_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO ! VTK_IO
 
@@ -52,13 +53,18 @@ module poisson_unfitted_vtk_writer_names
     integer(ip), allocatable, dimension(:) :: connect
     real(rp),    allocatable, dimension(:) :: cell_data
     real(rp),    allocatable, dimension(:) :: point_data
+    real(rp),    allocatable, dimension(:) :: v_x
+    real(rp),    allocatable, dimension(:) :: v_y
+    real(rp),    allocatable, dimension(:) :: v_z
 
   contains
 
-    procedure, non_overridable :: attach_triangulation => puvtk_attach_triangulation
-    procedure, non_overridable :: attach_fe_function   => puvtk_attach_fe_function
-    procedure, non_overridable :: write_to_vtk_file    => puvtk_write_to_vtk_file
-    procedure, non_overridable :: free                 => puvtk_free
+    procedure, non_overridable :: attach_triangulation  => puvtk_attach_triangulation
+    procedure, non_overridable :: attach_boundary_faces => puvtk_attach_boundary_faces
+    procedure, non_overridable :: attach_boundary_quad_points => puvtk_attach_boundary_quad_points
+    procedure, non_overridable :: attach_fe_function    => puvtk_attach_fe_function
+    procedure, non_overridable :: write_to_vtk_file     => puvtk_write_to_vtk_file
+    procedure, non_overridable :: free                  => puvtk_free
 
   end type poisson_unfitted_vtk_writer_t
 
@@ -66,7 +72,7 @@ module poisson_unfitted_vtk_writer_names
 
 contains
 
-  !------------------------------------------------------------------
+!========================================================================================  
   subroutine  puvtk_attach_triangulation(this,triangulation)
 
     implicit none
@@ -192,7 +198,87 @@ contains
 
   end subroutine  puvtk_attach_triangulation
 
-  !------------------------------------------------------------------
+!========================================================================================
+  subroutine puvtk_attach_boundary_faces( this, triangulation )
+  
+    implicit none
+    class(poisson_unfitted_vtk_writer_t),   intent(inout) :: this
+    class(serial_unfitted_triangulation_t), intent(in)    :: triangulation
+  
+    integer(ip) :: num_subfaces, num_subface_nodes, num_dime
+    integer(ip) :: istat, iface, inode, ino, isubface
+    type(unfitted_cell_iterator_t)  :: cell_iter
+    type(unfitted_cell_accessor_t)  :: cell
+    type(point_t), allocatable, dimension(:) :: subface_coords
+    integer(ip) :: the_subface_type
+  
+  
+    cell_iter = triangulation%create_unfitted_cell_iterator()
+    call cell_iter%current(cell)
+  
+    num_dime = triangulation%get_num_dimensions()
+    num_subfaces = triangulation%get_total_num_of_subfaces()
+    num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
+    this%Ne = num_subfaces
+    this%Nn = num_subface_nodes*num_subfaces
+  
+    call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%z, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
+    allocate ( subface_coords(1:num_subface_nodes), stat = istat ); check(istat == 0)
+  
+    select case (num_dime)
+      case(3)
+        the_subface_type = 5_I1P
+      case(2)
+        the_subface_type = 3_I1P
+      case default
+      check(.false.)
+    end select
+  
+    ! Fill date to be passed to vtkio
+    call cell_iter%init()
+    iface = 1
+    inode = 1
+    do while ( .not. cell_iter%has_finished() )
+  
+      call cell_iter%current(cell)
+  
+      call cell%update_sub_triangulation()
+  
+      do isubface = 1, cell%get_number_of_subfaces()
+        call cell%get_phys_coords_of_subface(isubface,subface_coords)
+  
+        do ino = 1, num_subface_nodes
+          this%x(inode) = subface_coords(ino)%get(1)
+          this%y(inode) = subface_coords(ino)%get(2)
+          this%z(inode) = subface_coords(ino)%get(3)
+          this%connect(inode) = inode - 1
+          inode = inode + 1
+        end do
+  
+        this%offset(iface)        = inode - 1
+        this%cell_type(iface)     = the_subface_type
+  
+        iface = iface + 1
+  
+      end do
+  
+      call cell_iter%next()
+    end do
+  
+  
+    if (num_dime == 2_ip) this%z(:) = 0
+  
+    deallocate ( subface_coords, stat = istat ); check(istat == 0)
+    call cell_iter%free()
+  
+  end subroutine puvtk_attach_boundary_faces
+
+!========================================================================================  
   subroutine  puvtk_attach_fe_function(this,fe_function,fe_space)
 
     implicit none
@@ -296,7 +382,100 @@ contains
 
   end subroutine  puvtk_attach_fe_function
 
-  !------------------------------------------------------------------
+!========================================================================================
+  subroutine puvtk_attach_boundary_quad_points( this, fe_space )
+  
+    implicit none
+    class(poisson_unfitted_vtk_writer_t),   intent(inout) :: this
+    class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
+  
+    type(unfitted_fe_iterator_t) :: fe_iterator
+    type(unfitted_fe_accessor_t) :: fe
+    type(quadrature_t), pointer :: quadrature
+    type(point_t), pointer :: quadrature_coordinates(:)
+    type(piecewise_fe_map_t),     pointer :: fe_map
+    integer(ip) :: num_dime, num_subfaces, num_gp_subface
+    integer(ip) :: qpoint, num_quad_points
+    integer(ip) :: ipoint
+    type(vector_field_t)  :: normal_vec
+    integer(ip), parameter :: the_point_type = 1
+
+    class(base_static_triangulation_t), pointer :: triangulation
+
+    num_dime       = triangulation%get_num_dimensions()
+    triangulation => fe_space%get_triangulation()
+    select type(triangulation)
+      class is (serial_unfitted_triangulation_t)
+        num_subfaces   = triangulation%get_total_num_of_subfaces()
+      class default
+      check(.false.)
+    end select
+  
+    fe_iterator = fe_space%create_unfitted_fe_iterator()
+    num_gp_subface = 0
+    do while ( .not. fe_iterator%has_finished() )
+       call fe_iterator%current(fe)
+       call fe%update_boundary_integration()
+       quadrature => fe%get_boundary_quadrature()
+       num_gp_subface = quadrature%get_number_quadrature_points()
+       if (num_gp_subface > 0) exit
+       call fe_iterator%next()
+    end do
+  
+    this%Ne = num_subfaces*num_gp_subface
+    this%Nn = num_subfaces*num_gp_subface
+  
+    call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%z, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%v_x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%v_y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%v_z, __FILE__, __LINE__ )
+  
+    ipoint = 1
+    fe_iterator = fe_space%create_unfitted_fe_iterator()
+    do while ( .not. fe_iterator%has_finished() )
+  
+       ! Get current FE
+       call fe_iterator%current(fe)
+  
+       ! Update FE-integration related data structures
+       call fe%update_boundary_integration()
+  
+       ! As the quadrature changes elem by elem, this has to be inside the loop
+       quadrature => fe%get_boundary_quadrature()
+       num_quad_points = quadrature%get_number_quadrature_points()
+       fe_map => fe%get_boundary_piecewise_fe_map()
+  
+       ! Physical coordinates of the quadrature points
+       quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
+  
+       do qpoint = 1, num_quad_points
+         this%x(ipoint) = quadrature_coordinates(qpoint)%get(1)
+         this%y(ipoint) = quadrature_coordinates(qpoint)%get(2)
+         this%z(ipoint) = quadrature_coordinates(qpoint)%get(3)
+         call fe_map%get_normal(qpoint,normal_vec)
+         this%v_x(ipoint) = normal_vec%get(1)
+         this%v_y(ipoint) = normal_vec%get(2)
+         this%v_z(ipoint) = normal_vec%get(3)
+         this%cell_type(ipoint) = the_point_type
+         this%offset(ipoint) = ipoint
+         this%connect(ipoint) = ipoint - 1
+         ipoint = ipoint + 1
+       end do
+  
+       call fe_iterator%next()
+    end do
+  
+    if (num_dime == 2_ip) this%z(:) = 0
+    if (num_dime == 2_ip) this%v_z(:) = 0
+  
+  end subroutine puvtk_attach_boundary_quad_points
+
+!========================================================================================  
   subroutine puvtk_write_to_vtk_file(this,filename)
 
     implicit none
@@ -328,6 +507,12 @@ contains
       E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'CLOSE')
     end if
 
+    if (allocated(this%v_x)) then
+      E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'opeN')
+      E_IO = VTK_VAR_XML(NC_NN = this%Nn, varname = 'point_vectors', varX = this%v_x, varY = this%v_y, varZ = this%v_z )
+      E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'CLOSE')
+    end if
+
     E_IO = VTK_GEO_XML()
     E_IO = VTK_END_XML()
 
@@ -347,6 +532,9 @@ contains
     if (allocated(this%connect   )) call memfree ( this%connect    , __FILE__, __LINE__ )
     if (allocated(this%cell_data )) call memfree ( this%cell_data  , __FILE__, __LINE__ )
     if (allocated(this%point_data)) call memfree ( this%point_data , __FILE__, __LINE__ )
+    if (allocated(this%v_x       )) call memfree ( this%v_x        , __FILE__, __LINE__ )
+    if (allocated(this%v_y       )) call memfree ( this%v_y        , __FILE__, __LINE__ )
+    if (allocated(this%v_z       )) call memfree ( this%v_z        , __FILE__, __LINE__ )
 
   end subroutine puvtk_free
 

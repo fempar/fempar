@@ -29,8 +29,6 @@
 module unfitted_triangulations_names
   use fempar_names
   use level_set_functions_gallery_names
-  use IR_Precision ! VTK_IO
-  use Lib_VTK_IO ! VTK_IO
   
   implicit none
 # include "debug.i90"
@@ -169,8 +167,6 @@ module unfitted_triangulations_names
     
     ! Printers
     procedure :: print                     => marching_cubes_print
-    ! TODO move to output hadler
-    procedure :: print_to_vtk_file         => marching_cubes_print_to_vtk_file
     
     ! Private TBP
     procedure, non_overridable, private :: fulfills_assumptions           => marching_cubes_fulfills_assumptions
@@ -180,8 +176,6 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: mc_runtime_info_free           => marching_cubes_mc_runtime_info_free
     procedure, non_overridable, private :: subnodes_data_create           => marching_cubes_subnodes_data_create
     procedure, non_overridable, private :: subnodes_data_free             => marching_cubes_subnodes_data_free
-    procedure, non_overridable, private :: print_vtk_subcells             => marching_cubes_print_vtk_subcells
-    procedure, non_overridable, private :: print_vtk_subfaces             => marching_cubes_print_vtk_subfaces
     
 
   end type marching_cubes_t
@@ -223,9 +217,6 @@ module unfitted_triangulations_names
       ! Printers
       procedure :: print                     => sut_print
 
-      ! TODO move to the vtk writer
-      procedure :: print_to_vtk_file         => sut_print_to_vtk_file
-
   end type serial_unfitted_triangulation_t
 
   type, extends(par_triangulation_t) :: par_unfitted_triangulation_t
@@ -264,9 +255,6 @@ module unfitted_triangulations_names
 
       ! Printers
       procedure :: print                     => put_print
-
-      !TODO move to the vtk writer
-      procedure :: print_to_vtk_file         => put_print_to_vtk_file
 
   end type par_unfitted_triangulation_t
 

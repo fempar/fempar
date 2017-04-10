@@ -185,9 +185,3 @@ subroutine put_print(this)
   call this%marching_cubes%print()
 end subroutine put_print
 
-!========================================================================================
-subroutine put_print_to_vtk_file(this)
-  implicit none
-  class(par_unfitted_triangulation_t), intent(in)    :: this
-  call this%marching_cubes%print_to_vtk_file()
-end subroutine put_print_to_vtk_file
