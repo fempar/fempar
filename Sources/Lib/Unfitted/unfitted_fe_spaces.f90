@@ -189,6 +189,7 @@ module unfitted_fe_spaces_names
   public :: unfitted_fe_accessor_t
   public :: unfitted_fe_iterator_t
   public :: serial_unfitted_fe_space_t
+  public :: par_unfitted_fe_space_t
 
 contains
 

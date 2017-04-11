@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module poisson_unfitted_cG_discrete_integration_names
   use fempar_names
+  use unfitted_temporary_names
   use poisson_unfitted_analytical_functions_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
@@ -47,78 +48,6 @@ module poisson_unfitted_cG_discrete_integration_names
   public :: poisson_unfitted_cG_discrete_integration_t
 
 contains
-
-!========================================================================================
-! TODO @fverdugo FEMPAR PRIORITY MEDIUM EFFORT HIGH
-! A better way to do this?
-! This subroutine assumes ref elem with hex topology and linear order
-! Where to put this info? At the reference element?
-subroutine evaluate_monomials(points,monomials)
-  implicit none
-  type(quadrature_t), intent(in) :: points
-  real(rp), allocatable, intent(inout) :: monomials(:,:)
-  integer(ip) :: q_point
-  real(rp), pointer :: quad_coords(:,:)
-  assert(allocated(monomials))
-  assert(size(monomials,1)==points%get_number_quadrature_points())
-  quad_coords => points%get_coordinates()
-  select case(points%get_number_dimensions())
-    case(1)
-      assert(size(monomials,2)==2)
-      do q_point = 1, points%get_number_quadrature_points()
-        monomials(q_point,1) = 1 ! 1
-        monomials(q_point,2) = quad_coords(1,q_point) ! x
-      end do
-    case(2)
-      assert(size(monomials,2)==4)
-      do q_point = 1, points%get_number_quadrature_points()
-        monomials(q_point,1) = 1 ! 1
-        monomials(q_point,2) = quad_coords(1,q_point) ! x
-        monomials(q_point,3) = quad_coords(2,q_point) ! y
-        monomials(q_point,4) = quad_coords(1,q_point)*quad_coords(2,q_point) ! xy
-      end do
-    case(3)
-      assert(size(monomials,2)==8)
-      do q_point = 1, points%get_number_quadrature_points()
-        monomials(q_point,1) = 1 ! 1
-        monomials(q_point,2) = quad_coords(1,q_point) ! x
-        monomials(q_point,3) = quad_coords(2,q_point) ! y
-        monomials(q_point,5) = quad_coords(1,q_point)*quad_coords(2,q_point) ! xy
-        monomials(q_point,4) = quad_coords(3,q_point) ! z
-        monomials(q_point,6) = quad_coords(1,q_point)*quad_coords(3,q_point) ! xz
-        monomials(q_point,7) = quad_coords(2,q_point)*quad_coords(3,q_point) ! yz
-        monomials(q_point,8) = quad_coords(1,q_point)*quad_coords(2,q_point)*quad_coords(3,q_point) ! xyz
-      end do
-    case default
-      check(.false.)
-  end select
-end subroutine evaluate_monomials
-
-!========================================================================================
-  subroutine At_times_B_times_A(A,B,C)
-  !TODO @fverdugo FEMPAR PRIORITY HIGH EFFORT LOW
-  ! Is there a way in FEMPAR to multiply two dense matrices?
-  ! This can be optimized
-    implicit none
-    real(rp), intent(in)    :: A(:,:)
-    real(rp), intent(in)    :: B(:,:)
-    real(rp), intent(inout) :: C(:,:)
-    integer(ip) :: i,j,m,n
-    assert( lbound(C,1)==lbound(A,2) .and. ubound(C,1)==ubound(A,2) )
-    assert( lbound(A,1)==lbound(B,1) .and. ubound(A,1)==ubound(B,1) )
-    assert( lbound(B,2)==lbound(A,1) .and. ubound(B,2)==ubound(A,1) )
-    assert( lbound(C,2)==lbound(A,2) .and. ubound(C,2)==ubound(A,2) )
-    do i = lbound(C,1), ubound(C,1)
-      do j = lbound(C,2), ubound(C,2)
-        C(i,j) = 0
-        do m = lbound(A,1), ubound(A,1)
-          do n = lbound(A,1), ubound(A,1)
-            C(i,j) = C(i,j) + A(m,i)*B(m,n)*A(n,j)
-          end do
-        end do
-      end do
-    end do
-  end subroutine At_times_B_times_A
 
 !========================================================================================
   subroutine set_analytical_functions ( this, analytical_functions )

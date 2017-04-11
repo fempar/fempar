@@ -26,8 +26,19 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_test_poisson_unfitted_driver_names
+
+  ! Fempar modules
   use fempar_names
   use list_types_names
+
+  ! Unfitted modules
+  use unfitted_triangulations_names
+  use unfitted_fe_spaces_names
+  use level_set_functions_gallery_names
+  use unfitted_vtk_writer_names
+  use unfitted_solution_checker_names
+
+  ! Driver modules
   use par_poisson_unfitted_static_parameters_names
   use par_test_poisson_unfitted_params_names
   use poisson_unfitted_discrete_integration_names
@@ -46,11 +57,12 @@ module par_test_poisson_unfitted_driver_names
      type(ParameterList_t), pointer       :: parameter_list
      
      ! Cells and lower dimension objects container
-     type(par_triangulation_t)             :: triangulation
+     type(par_unfitted_triangulation_t)        :: triangulation
      integer(ip), allocatable                  :: cell_set_ids(:)
+     class(level_set_function_t), allocatable :: level_set_function
      
      ! Discrete weak problem integration-related data type instances 
-     type(par_fe_space_t)                      :: fe_space 
+     type(par_unfitted_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
      type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
      type(poisson_unfitted_CG_discrete_integration_t)   :: poisson_unfitted_integration
@@ -78,6 +90,7 @@ module par_test_poisson_unfitted_driver_names
    contains
      procedure                  :: run_simulation
      procedure        , private :: parse_command_line_parameters
+     procedure        , private :: setup_levelset
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -103,57 +116,84 @@ contains
     !call this%test_params%parse(this%parameter_list)
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
+
+  subroutine setup_levelset(this)
+    implicit none
+    class(par_test_poisson_unfitted_fe_driver_t ), target, intent(inout) :: this
+
+    integer(ip) :: num_dime
+    integer(ip) :: istat
+    class(level_set_function_t), pointer :: levset
+
+    ! Get number of dimensions form input
+    assert( this%parameter_list%isPresent    (key = number_of_dimensions_key) )
+    assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
+
+    !TODO we assume it is a sphere
+    select case ('sphere')
+      case ('sphere')
+        allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0)
+      case ('cylinder')
+        allocate( level_set_cylinder_t:: this%level_set_function, stat= istat ); check(istat==0)
+      case ('cheese_block')
+        allocate( level_set_cheese_block_t:: this%level_set_function, stat= istat ); check(istat==0)
+      case default
+        check(.false.)
+    end select
+
+    ! Set options of the base class
+    call this%level_set_function%set_num_dimensions(num_dime)
+    call this%level_set_function%set_tolerance(1.0e-6)
+
+    ! Set options of the derived classes
+    levset => this%level_set_function
+    select type ( levset )
+      class is (level_set_sphere_t)
+        call levset%set_radius(0.9)!0.625_rp)
+      class default
+        check(.false.)
+    end select
+
+  end subroutine setup_levelset
    
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
 
-    type(cell_iterator_t) :: cell_iter
-    type(cell_accessor_t) :: cell
-    type(point_t), allocatable :: cell_coords(:)
+    type(unfitted_cell_iterator_t) :: cell_iter
+    type(unfitted_cell_accessor_t) :: cell
     integer(ip) :: istat
     integer(ip) :: set_id
-    real(rp) :: x, y
-    integer(ip) :: num_void_neigs
 
-    integer(ip)           :: ivef
+    real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
+
     type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef, vef_of_vef
-    type(list_t), pointer :: vefs_of_vef
-    type(list_t), pointer :: vertices_of_line
-    type(list_iterator_t) :: vefs_of_vef_iterator
-    type(list_iterator_t) :: vertices_of_line_iterator
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-    integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
-    integer(ip) :: vertex_pos_in_cell, icell_arround
-    integer(ip) :: inode, num
+    type(vef_accessor_t)  :: vef
+    integer(ip) :: inode
 
-    call this%triangulation%create(this%parameter_list)
+    ! Create a structured mesh with a custom domain
+    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+
+    ! Create the unfitted triangulation
+    call this%triangulation%create(this%parameter_list,this%level_set_function)
     this%par_environment => this%triangulation%get_par_environment()
 
     ! Set the cell ids
     if ( this%par_environment%am_i_l1_task() ) then
       call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-      cell_iter = this%triangulation%create_cell_iterator()
+      cell_iter = this%triangulation%create_unfitted_cell_iterator()
       call cell_iter%current(cell)
-      allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
       do while( .not. cell_iter%has_finished() )
         call cell_iter%current(cell)
-        if (cell%is_local()) then
+        if (cell%is_exterior()) then
           set_id = PAR_POISSON_UNFITTED_SET_ID_VOID
-          call cell%get_coordinates(cell_coords)
-          do inode = 1,cell%get_num_nodes()
-            if ( this%ls_fun(cell_coords(inode),&
-              this%triangulation%get_num_dimensions()) < 0.0 ) then
-              set_id = PAR_POISSON_UNFITTED_SET_ID_FULL
-              exit
-            end if
-          end do
-          this%cell_set_ids(cell%get_lid()) = set_id
+        else
+          set_id = PAR_POISSON_UNFITTED_SET_ID_FULL
         end if
+        this%cell_set_ids(cell%get_lid()) = set_id
         call cell_iter%next()
       end do
-      deallocate(cell_coords, stat = istat); check(istat == 0)
       call this%triangulation%fill_cells_set(this%cell_set_ids)
     end if
 
@@ -175,63 +215,7 @@ contains
       end do
     end if
 
-    ! Set all the vefs on the interface between full/void
-    vef_iterator = this%triangulation%create_vef_iterator()
-    do while ( .not. vef_iterator%has_finished() )
-       call vef_iterator%current(vef)
-       ! If it is an INTERIOR face
-       if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
-
-         ! Compute number of void neighbors
-         num_void_neigs = 0
-         do icell_arround = 1,vef%get_num_cells_around()
-           call vef%get_cell_around(icell_arround,cell)
-           if (cell%get_set_id() == PAR_POISSON_UNFITTED_SET_ID_VOID) num_void_neigs = num_void_neigs + 1
-         end do
-
-         if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
-
-             ! Set this face as Dirichlet boundary
-             call vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_DIRI)
-
-             ! Do a loop on all edges in 3D (vertex in 2D) of the face
-             ivef = vef%get_lid()
-             call vef%get_cell_around(1,cell) ! There is always one cell around
-             reference_fe_geo => cell%get_reference_fe_geo()
-             ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
-             vefs_of_vef => reference_fe_geo%get_n_faces_n_face()
-             vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
-             do while( .not. vefs_of_vef_iterator%is_upper_bound() )
-
-                ! Set edge (resp. vertex) as Dirichlet
-                vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
-                call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
-                call vef_of_vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_DIRI)
-
-                ! If 3D, traverse vertices of current line
-                if ( this%triangulation%get_num_dimensions() == 3 ) then
-                  vertices_of_line          => reference_fe_geo%get_vertices_n_face()
-                  vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
-                  do while( .not. vertices_of_line_iterator%is_upper_bound() )
-
-                    ! Set vertex as Dirichlet
-                    vertex_pos_in_cell = vertices_of_line_iterator%get_current()
-                    call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
-                    call vef_of_vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_DIRI)
-
-                    call vertices_of_line_iterator%next()
-                  end do ! Loop in vertices in 3D only
-                end if
-
-                call vefs_of_vef_iterator%next()
-             end do ! Loop in edges (resp. vertices)
-
-         end if ! If face on void/full boundary
-       end if ! If vef is an interior face
-
-       call vef_iterator%next()
-    end do ! Loop in vefs
-
+    ! Setup the coarse triangulation
     call this%triangulation%setup_coarse_triangulation()
     
   end subroutine setup_triangulation
@@ -396,69 +380,69 @@ contains
   subroutine check_solution(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
-    type(error_norms_scalar_t) :: error_norm 
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
-    
-    call error_norm%create(this%fe_space,1)    
-    mean = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
-    if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-04 )
-    end if  
-    call error_norm%free()
+    !type(error_norms_scalar_t) :: error_norm 
+    !real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    !
+    !call error_norm%create(this%fe_space,1)    
+    !mean = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+    !l1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    !l2 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    !lp = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    !linfty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    !h1_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    !h1 = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    !w1p_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    !w1p = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    !w1infty_s = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    !w1infty = error_norm%compute(this%poisson_unfitted_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
+    !if ( this%par_environment%am_i_l1_root() ) then
+    !  write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-04 )
+    !  write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-04 )
+    !end if  
+    !call error_norm%free()
   end subroutine check_solution
   
   subroutine write_solution(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(in) :: this
 
-    type(output_handler_t)                          :: oh
-    real(rp),allocatable :: cell_vector(:)
-    real(rp),allocatable :: mypart_vector(:)
-    integer(ip) :: istat
+    !type(output_handler_t)                          :: oh
+    !real(rp),allocatable :: cell_vector(:)
+    !real(rp),allocatable :: mypart_vector(:)
+    !integer(ip) :: istat
 
-    if(this%test_params%get_write_solution() .and. &
-       this%par_environment%am_i_l1_task()) then
+    !if(this%test_params%get_write_solution() .and. &
+    !   this%par_environment%am_i_l1_task()) then
 
-        allocate(cell_vector(1:size(this%cell_set_ids)),stat=istat ); check(istat == 0)
-        cell_vector(:) = this%cell_set_ids(:)
+    !    allocate(cell_vector(1:size(this%cell_set_ids)),stat=istat ); check(istat == 0)
+    !    cell_vector(:) = this%cell_set_ids(:)
 
-        allocate(mypart_vector(1:size(this%cell_set_ids)),stat=istat ); check(istat == 0)
-        mypart_vector(:) = this%par_environment%get_l1_rank()
+    !    allocate(mypart_vector(1:size(this%cell_set_ids)),stat=istat ); check(istat == 0)
+    !    mypart_vector(:) = this%par_environment%get_l1_rank()
 
-        call oh%create()
-        call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'solution')
-        call oh%add_cell_vector(cell_vector,'cell_set_ids')
-        call oh%add_cell_vector(mypart_vector,'l1_rank')
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
-        call oh%write()
-        call oh%close()
-        call oh%free()
+    !    call oh%create()
+    !    call oh%attach_fe_space(this%fe_space)
+    !    call oh%add_fe_function(this%solution, 1, 'solution')
+    !    call oh%add_cell_vector(cell_vector,'cell_set_ids')
+    !    call oh%add_cell_vector(mypart_vector,'l1_rank')
+    !    call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+    !    call oh%write()
+    !    call oh%close()
+    !    call oh%free()
 
-        deallocate(cell_vector,stat=istat); check(istat == 0)
-        deallocate(mypart_vector,stat=istat); check(istat == 0)
+    !    deallocate(cell_vector,stat=istat); check(istat == 0)
+    !    deallocate(mypart_vector,stat=istat); check(istat == 0)
 
-    endif
+    !endif
 
   end subroutine write_solution
   
@@ -502,6 +486,9 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
+    if ( allocated(this%level_set_function) ) then
+      deallocate( this%level_set_function, stat=istat ); check(istat == 0)
+    end if
     call this%test_params%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
     call this%par_environment%free() 
