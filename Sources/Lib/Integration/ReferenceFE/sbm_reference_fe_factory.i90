@@ -40,7 +40,7 @@
     type(p_reference_fe_t)             :: make_reference_fe
     
     assert ( topology == topology_hex .or. topology == topology_tet )
-    assert ( fe_type  == fe_type_lagrangian .or. fe_type == fe_type_raviart_thomas .or. fe_type == fe_type_nedelec  )
+    assert ( fe_type  == fe_type_lagrangian .or. fe_type == fe_type_raviart_thomas .or. fe_type == fe_type_nedelec .or. fe_type == fe_type_void )
     
     if ( fe_type == fe_type_lagrangian ) then
        if ( topology == topology_hex ) then
@@ -63,7 +63,9 @@
           !allocate ( tet_nedelec_reference_fe_t :: make_reference_fe%p )
           ! Not implemented !
           check(.false.)
-       end if   
+       end if 
+    else if ( fe_type == fe_type_void ) then
+       allocate ( void_reference_fe_t :: make_reference_fe%p )
     end if
     call make_reference_fe%p%create( topology, number_dimensions, order, field_type, continuity, enable_face_integration )
   

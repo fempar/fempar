@@ -1,4 +1,4 @@
-module par_test_poisson_params_names
+module par_test_poisson_void_fe_params_names
   use fempar_names
 
   implicit none
@@ -8,34 +8,30 @@ module par_test_poisson_params_names
   character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key         = 'write_solution'        
-  character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'
-  character(len=*), parameter :: use_void_fes_key           = 'use_void_fes'
-  character(len=*), parameter :: use_void_fes_case_key      = 'use_void_fes_case'
+  character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
 
-  type, extends(parameter_handler_t) :: par_test_poisson_params_t
+  type, extends(parameter_handler_t) :: par_test_poisson_void_fe_params_t
      private
      contains
-       procedure :: define_parameters  => par_test_poisson_params_define_parameters
+       procedure :: define_parameters  => par_test_poisson_void_fe_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
-       procedure, non_overridable             :: get_use_void_fes
-       procedure, non_overridable             :: get_use_void_fes_case
        !procedure, non_overridable             :: get_num_dimensions
-  end type par_test_poisson_params_t
+  end type par_test_poisson_void_fe_params_t
 
   ! Types
-  public :: par_test_poisson_params_t
+  public :: par_test_poisson_void_fe_params_t
 
 contains
 
   !==================================================================================================
-  subroutine par_test_poisson_params_define_parameters(this)
+  subroutine par_test_poisson_void_fe_params_define_parameters(this)
     implicit none
-    class(par_test_poisson_params_t), intent(inout) :: this
+    class(par_test_poisson_void_fe_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip)    :: error
     character(len=:), allocatable            :: msg
@@ -62,8 +58,6 @@ contains
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
-    error = list%set(key = use_void_fes_key                  , value =  .false.)                     ; check(error==0)
-    error = list%set(key = use_void_fes_case_key             , value =  'popcorn')                   ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -81,9 +75,7 @@ contains
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
-    error = switches%set(key = use_void_fes_key              , value = '--use-void-fes' )            ; check(error==0)
-    error = switches%set(key = use_void_fes_case_key         , value = '--use-void-fes-case' )       ; check(error==0)
-
+                                                             
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
     error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
@@ -99,8 +91,6 @@ contains
     error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
     error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
-    error = switches_ab%set(key = use_void_fes_key              , value = '-use-voids' )  ; check(error==0)
-    error = switches_ab%set(key = use_void_fes_case_key         , value = '-use-voids-case' ); check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -115,8 +105,6 @@ contains
     error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
     error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
-    error = helpers%set(key = use_void_fes_key              , value  = 'Use a hybrid FE space formed by full and void FEs' )  ; check(error==0)
-    error = helpers%set(key = use_void_fes_case_key         , value  = 'Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter` ' ); check(error==0)
     
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -144,15 +132,13 @@ contains
     error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
-    error = required%set(key = use_void_fes_key              , value = .false.) ; check(error==0)
-    error = required%set(key = use_void_fes_case_key         , value = .false.) ; check(error==0)
 
-  end subroutine par_test_poisson_params_define_parameters
+  end subroutine par_test_poisson_void_fe_params_define_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(par_test_poisson_params_t) , intent(in) :: this
+    class(par_test_poisson_void_fe_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -165,7 +151,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(par_test_poisson_params_t) , intent(in) :: this
+    class(par_test_poisson_void_fe_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -178,7 +164,7 @@ contains
     !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(par_test_poisson_params_t) , intent(in) :: this
+    class(par_test_poisson_void_fe_params_t) , intent(in) :: this
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -191,7 +177,7 @@ contains
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(par_test_poisson_params_t) , intent(in) :: this
+    class(par_test_poisson_void_fe_params_t) , intent(in) :: this
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -204,7 +190,7 @@ contains
   !==================================================================================================
   function get_write_solution(this)
     implicit none
-    class(par_test_poisson_params_t) , intent(in) :: this
+    class(par_test_poisson_void_fe_params_t) , intent(in) :: this
     logical                                       :: get_write_solution
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -220,7 +206,7 @@ contains
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
-    class(par_test_poisson_params_t) , intent(in) :: this
+    class(par_test_poisson_void_fe_params_t) , intent(in) :: this
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -230,30 +216,4 @@ contains
     assert(error==0)
   end function get_triangulation_type 
 
-  !==================================================================================================
-  function get_use_void_fes(this)
-    implicit none
-    class(par_test_poisson_params_t) , intent(in) :: this
-    logical                                       :: get_use_void_fes
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => this%get_values()
-    assert(list%isAssignable(use_void_fes_key, get_use_void_fes))
-    error = list%Get(key = use_void_fes_key, Value = get_use_void_fes)
-    assert(error==0)
-  end function get_use_void_fes
-
-  !==================================================================================================
-  function get_use_void_fes_case(this)
-    implicit none
-    class(par_test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable                 :: get_use_void_fes_case
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => this%get_values()
-    assert(list%isAssignable(use_void_fes_case_key, 'string'))
-    error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
-    assert(error==0)
-  end function get_use_void_fes_case
-
-end module par_test_poisson_params_names
+end module par_test_poisson_void_fe_params_names

@@ -25,35 +25,35 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_discrete_integration_names
+module poisson_void_fe_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
+  use poisson_void_fe_analytical_functions_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: poisson_cG_discrete_integration_t
-     type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
+  type, extends(discrete_integration_t) :: poisson_void_fe_cG_discrete_integration_t
+     type(poisson_void_fe_analytical_functions_t), pointer :: analytical_functions => NULL()
    contains
      procedure :: set_analytical_functions
      procedure :: integrate
-  end type poisson_cG_discrete_integration_t
+  end type poisson_void_fe_cG_discrete_integration_t
   
-  public :: poisson_cG_discrete_integration_t
+  public :: poisson_void_fe_cG_discrete_integration_t
   
 contains
    
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
-     class(poisson_cG_discrete_integration_t)    ,intent(inout)  :: this
-     type(poisson_analytical_functions_t), target, intent(in)    :: analytical_functions
+     class(poisson_void_fe_cG_discrete_integration_t)    ,intent(inout)  :: this
+     type(poisson_void_fe_analytical_functions_t), target, intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
 
 
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
-    class(poisson_cG_discrete_integration_t), intent(in)    :: this
+    class(poisson_void_fe_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
     class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
 
@@ -158,4 +158,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate
   
-end module poisson_discrete_integration_names
+end module poisson_void_fe_discrete_integration_names

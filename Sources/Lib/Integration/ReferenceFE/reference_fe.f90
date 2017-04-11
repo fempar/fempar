@@ -316,6 +316,7 @@ module reference_fe_names
   character(*), parameter :: fe_type_lagrangian = "Lagrangian"
   character(*), parameter :: fe_type_raviart_thomas = "Raviart_Thomas"
   character(*), parameter :: fe_type_nedelec = "Nedelec"
+  character(*), parameter :: fe_type_void = "Void"
 
 
   ! Abstract reference_fe
@@ -792,7 +793,7 @@ module reference_fe_names
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_raviart_thomas, fe_type_nedelec
+  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_raviart_thomas, fe_type_nedelec, fe_type_void
 
   type p_lagrangian_reference_fe_t
      class(lagrangian_reference_fe_t), pointer :: p => NULL()
@@ -955,7 +956,6 @@ abstract interface
     class(lagrangian_reference_fe_t), intent(in)    :: this 
     type(point_t)                   , intent(inout) :: values(:)     
   end subroutine blending_interface
-
 end interface
 
 public :: lagrangian_reference_fe_t, p_lagrangian_reference_fe_t 
@@ -1293,6 +1293,53 @@ end type hex_nedelec_reference_fe_t
 
 public :: hex_nedelec_reference_fe_t
 
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(reference_fe_t) :: void_reference_fe_t
+  private
+contains
+  ! Additional deferred methods
+  !procedure (fill_scalar_interface)                 , private, deferred :: fill_scalar
+  !procedure (fill_quadrature_interface)             , private, deferred :: fill_quadrature
+  !procedure (fill_interpolation_interface)          , private, deferred :: fill_interpolation
+  !procedure (fill_face_interpolation_interface)     , private, deferred :: fill_face_interpolation
+  !procedure (set_number_quadrature_points_interface), private, deferred :: set_number_quadrature_points
+  procedure :: create                      => void_reference_fe_create
+  procedure :: create_quadrature           => void_reference_fe_create_quadrature
+  procedure :: create_face_quadrature      => void_reference_fe_create_face_quadrature
+  procedure :: create_interpolation        => void_reference_fe_create_interpolation
+  procedure :: create_face_interpolation   => void_reference_fe_create_face_interpolation
+  procedure :: create_face_local_interpolation  => void_reference_fe_create_face_local_interpolation
+  procedure :: create_edge_local_interpolation  => void_reference_fe_create_edge_local_interpolation
+  procedure :: update_interpolation             => void_reference_fe_update_interpolation
+  procedure :: get_component_node               => void_reference_fe_get_component_node
+  procedure :: get_scalar_from_vector_node => void_reference_fe_get_scalar_from_vector_node
+  procedure :: get_max_order               => void_reference_fe_get_max_order
+  procedure :: get_value_scalar            => void_reference_fe_get_value_scalar
+  procedure :: get_value_vector            => void_reference_fe_get_value_vector
+  procedure :: get_values_scalar           => void_reference_fe_get_values_scalar
+  procedure :: get_values_vector           => void_reference_fe_get_values_vector
+  procedure :: get_gradient_scalar         => void_reference_fe_get_gradient_scalar
+  procedure :: get_gradient_vector         => void_reference_fe_get_gradient_vector
+  procedure :: get_gradients_scalar        => void_reference_fe_get_gradients_scalar
+  procedure :: get_gradients_vector        => void_reference_fe_get_gradients_vector
+  procedure :: get_divergence_vector       => void_reference_fe_get_divergence_vector
+  procedure :: get_divergences_vector      => void_reference_fe_get_divergences_vector
+  procedure :: get_curl_vector             => void_reference_fe_get_curl_vector
+  procedure :: get_curls_vector            => void_reference_fe_get_curls_vector
+  procedure :: evaluate_fe_function_scalar => void_reference_fe_evaluate_fe_function_scalar
+  procedure :: evaluate_fe_function_vector => void_reference_fe_evaluate_fe_function_vector
+  procedure :: evaluate_fe_function_tensor => void_reference_fe_evaluate_fe_function_tensor
+  procedure :: evaluate_gradient_fe_function_scalar => void_reference_fe_evaluate_gradient_fe_function_scalar
+  procedure :: evaluate_gradient_fe_function_vector => void_reference_fe_evaluate_gradient_fe_function_vector
+  procedure :: check_compatibility_of_n_faces       => void_reference_fe_check_compatibility_of_n_faces
+  procedure :: get_characteristic_length            => void_reference_fe_get_characteristic_length       
+  procedure :: free                                 => void_reference_fe_free
+  ! Concrete TBPs of this derived data type
+  procedure, private :: fill                        => void_reference_fe_fill
+end type void_reference_fe_t
+
+public :: void_reference_fe_t
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type volume_integrator_t 
 private
@@ -1490,6 +1537,8 @@ contains
 #include "sbm_interpolation.i90"
 
 #include "sbm_reference_fe.i90"
+
+#include "sbm_void_reference_fe.i90"
 
 #include "sbm_lagrangian_reference_fe.i90"
 
