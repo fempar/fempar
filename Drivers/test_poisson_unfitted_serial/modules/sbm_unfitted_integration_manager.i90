@@ -80,13 +80,13 @@ subroutine uim_check_assumptions(this)
 
   ! Hypothesis:
   ! Same geom ref element in all cells
-  ! Same ref elem in all cells, but possible different among fields
+  ! Same ref elem in all cells, but possibly different among fields
 
   fe_it = this%fe_space%create_fe_iterator()
   num_fields = this%fe_space%get_number_fields()
 
   ! Check geom ref element
-  ! TODO how to check the fe_type?
+  ! TODO how to check the fe_type? EDIT: I think it is not necessary
   call fe_it%init()
   call fe_it%current(fe)
   geo_ref_fe_1 => fe%get_reference_fe_geo()
@@ -101,21 +101,30 @@ subroutine uim_check_assumptions(this)
     call fe_it%next()
   end do
 
-  ! Check ref elems
   do ifield = 1, num_fields
+
+    ! Find first non-empty fe in this field
     call fe_it%init()
-    call fe_it%current(fe)
-    ref_fe_1     => fe%get_reference_fe(ifield)
+    do while (.not. fe_it%has_finished())
+      call fe_it%current(fe)
+      ref_fe_1  => fe%get_reference_fe(ifield)
+      if ( ref_fe_1%get_order() > 0) exit
+      call fe_it%next()
+    end do
+
+    ! Check ref elems
+    call fe_it%init()
     do while (.not. fe_it%has_finished())
       call fe_it%current(fe)
       ref_fe     => fe%get_reference_fe(ifield)
       assert( ref_fe_1%get_topology()          ==    ref_fe%get_topology()         )
       assert( ref_fe_1%get_number_dimensions() ==    ref_fe%get_number_dimensions())
-      assert( ref_fe_1%get_order()             ==    ref_fe%get_order()            )
+      assert( ref_fe_1%get_order()==ref_fe%get_order() .or.  ref_fe%get_order()<0  )
       assert( ref_fe_1%get_field_type()        ==    ref_fe%get_field_type()       )
       assert( ref_fe_1%get_continuity()        .eqv. ref_fe%get_continuity()       )
       call fe_it%next()
     end do
+
   end do
 
 end subroutine uim_check_assumptions
@@ -296,7 +305,7 @@ subroutine uim_init_cut_integration( this )
   ! We assume that the same ref element is in all the mesh (but can be different amnong fields)
   fe_iterator = this%fe_space%create_fe_iterator()
   call fe_iterator%current(fe)
-  geo_reference_elem => fe%get_reference_fe_geo()
+  geo_reference_elem => fe%get_reference_fe_geo() !This is safe since the geo_reference_elem is always non void
 
   ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
   ! Now we allocate in function of the number of mc cases. 
@@ -311,10 +320,19 @@ subroutine uim_init_cut_integration( this )
   num_fields = this%fe_space%get_number_fields()
   allocate( this%cut_vol_integrators(1:mc_num_cases,1:num_fields), stat=istat ); check(istat==0_ip)
   do ifield = 1,num_fields
-    reference_elem => fe%get_reference_fe(field_id=ifield)
+
+    ! Find the fist non void ref FE in the field
+    do while( .not. fe_iterator%has_finished())
+      call fe_iterator%current(fe)
+      reference_elem => fe%get_reference_fe(field_id=ifield)
+      if (reference_elem%get_order() > 0) exit
+      call fe_iterator%next()
+    end do
+
     do mc_case = 1, mc_num_cases
       call this%cut_vol_integrators(mc_case,ifield)%create( this%cut_quadratures(mc_case), reference_elem )
     end do
+
   end do
 
   ! Create empty dummy objects
@@ -422,10 +440,10 @@ subroutine uim_init_cut_boundary_integration( this )
   end do
 
 
-  ! We assume that the same ref element is in all the mesh, but possibly different in all fields
+  !We assume that the same ref element is in all the mesh (discarding void FEs), but possibly different in all fields
   fe_iterator = this%fe_space%create_fe_iterator()
   call fe_iterator%current(fe)
-  geo_reference_elem => fe%get_reference_fe_geo()
+  geo_reference_elem => fe%get_reference_fe_geo() ! This is safe since the geo_reference_fe is always non-void
 
   !TODO it is very counter intuitive that the reference element is here a tet4 (3d), a quad4 (2d)
   select case (num_dim)
@@ -452,11 +470,20 @@ subroutine uim_init_cut_boundary_integration( this )
   end do
 
   do ifield = 1, num_fields
-    reference_elem => fe%get_reference_fe(field_id=ifield)
+
+    ! Find the fist non void ref FE in the field
+    do while( .not. fe_iterator%has_finished())
+      call fe_iterator%current(fe)
+      reference_elem => fe%get_reference_fe(field_id=ifield)
+      if (reference_elem%get_order() > 0) exit
+      call fe_iterator%next()
+    end do
+
     do mc_case = 1, mc_num_cases
     call this%cut_boundary_vol_integrators(mc_case,ifield)%create(&
            this%cut_boundary_quadratures_cell_dim(mc_case), reference_elem )
     end do
+
   end do
 
   call this%empty_piecewise_fe_map%create_face_map( this%empty_quadrature, geo_reference_elem, 0 )

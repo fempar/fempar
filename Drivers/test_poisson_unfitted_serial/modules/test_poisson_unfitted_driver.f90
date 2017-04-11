@@ -49,6 +49,9 @@ module test_poisson_unfitted_driver_names
   implicit none
   private
 
+  integer(ip), parameter :: SERIAL_UNF_POISSON_SET_ID_FULL = 1
+  integer(ip), parameter :: SERIAL_UNF_POISSON_SET_ID_VOID = 2
+
   type test_poisson_unfitted_driver_t
      private
 
@@ -58,6 +61,7 @@ module test_poisson_unfitted_driver_names
 
      ! Cells and lower dimension objects container
      type(serial_unfitted_triangulation_t)              :: triangulation
+     integer(ip), allocatable                  :: cell_set_ids(:)
 
      ! Level set funciton describing the gemetry
      class(level_set_function_t), allocatable :: level_set_function
@@ -166,13 +170,34 @@ contains
     integer(ip) :: istat
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
-    ! TODO is it correct?
+    type(unfitted_cell_iterator_t) :: cell_iter
+    type(unfitted_cell_accessor_t) :: cell
+    integer(ip) :: set_id
+
+    ! Create a structured mesh with a custom domain
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
 
     ! New call for unfitted triangulation
     call this%triangulation%create(this%parameter_list,this%level_set_function)
-    if ( this%triangulation%get_num_cells() <= 100 ) call this%triangulation%print() ! TODO. Remove this. This is only for debugging
+    !if ( this%triangulation%get_num_cells() <= 100 ) call this%triangulation%print()
 
+    ! Set the cell ids
+    call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
+    cell_iter = this%triangulation%create_unfitted_cell_iterator()
+    call cell_iter%current(cell)
+    do while( .not. cell_iter%has_finished() )
+      call cell_iter%current(cell)
+      if (cell%is_exterior()) then
+        set_id = SERIAL_UNF_POISSON_SET_ID_VOID
+      else
+        set_id = SERIAL_UNF_POISSON_SET_ID_FULL
+      end if
+      this%cell_set_ids(cell%get_lid()) = set_id
+      call cell_iter%next()
+    end do
+    call this%triangulation%fill_cells_set(this%cell_set_ids)
+
+    ! Impose Dirichlet in the boundary of the background mesh
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()
        do while ( .not. vef_iterator%has_finished() )
@@ -204,7 +229,7 @@ contains
     character(:), allocatable :: field_type
 
 
-    allocate(this%reference_fes(1), stat=istat)
+    allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
 
     continuity = .true.
@@ -235,17 +260,29 @@ contains
     !call poly%print()
     ! END Checking ...
 
-    this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+    this%reference_fes(SERIAL_UNF_POISSON_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
                                                  continuity = continuity )
+
+    this%reference_fes(SERIAL_UNF_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                 fe_type = fe_type_void, &
+                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 order = -1, & ! this%test_params%get_reference_fe_order(), & 
+                                                 field_type = field_type, &
+                                                 continuity = continuity ) 
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
     implicit none
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
+
+    integer(ip) :: set_ids_to_reference_fes(1,2)
+
+    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
+    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
 
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
      !call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
@@ -264,7 +301,8 @@ contains
       call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
       call this%fe_space%create( triangulation       = this%triangulation, &
                                  conditions          = this%poisson_unfitted_conditions, &
-                                 reference_fes       = this%reference_fes)
+                                 reference_fes            = this%reference_fes,&
+                                 set_ids_to_reference_fes = set_ids_to_reference_fes)
     else
       !call this%vector_poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%vector_poisson_unfitted_conditions%set_boundary_function(this%vector_poisson_unfitted_analytical_functions%get_boundary_function())
@@ -712,6 +750,7 @@ end subroutine compute_domain_surface
       deallocate( this%level_set_function, stat=istat ); check(istat == 0)
     end if
     call this%test_params%free()
+    if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free
 
 end module test_poisson_unfitted_driver_names

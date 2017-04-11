@@ -44,17 +44,58 @@ subroutine pufs_create_same_reference_fes_on_all_cells(&
   integer(ip)                     , optional, intent(in)     :: field_blocks(:)
   logical                         , optional, intent(in)     :: field_coupling(:,:)
   class(marching_cubes_t), pointer :: marching_cubes
+  type(environment_t), pointer :: par_environment
+  par_environment    => this%get_par_environment()
   call this%free()
   call this%par_fe_space_t%create(triangulation,conditions,reference_fes,coarse_fe_handler,field_blocks,field_coupling)
   select type(triangulation)
   class is (par_unfitted_triangulation_t)
-    this%unfitted_triangulation => triangulation
-    marching_cubes => triangulation%get_marching_cubes()
-    call this%unfitted_integration%create(this,marching_cubes)
+    if ( par_environment%am_i_l1_task() ) then
+      this%unfitted_triangulation => triangulation
+      marching_cubes => triangulation%get_marching_cubes()
+      call this%unfitted_integration%create(this,marching_cubes)
+    end if
   class default
     check(.false.)
   end select
 end subroutine pufs_create_same_reference_fes_on_all_cells
+
+!========================================================================================
+subroutine pufs_create_different_between_cells( &
+    this, &
+    triangulation, &
+    conditions, &
+    reference_fes, &
+    set_ids_to_reference_fes, &
+    coarse_fe_handler, &
+    field_blocks, &
+    field_coupling )
+  implicit none
+  class(par_unfitted_fe_space_t)            , intent(inout)  :: this
+  class(base_static_triangulation_t), target, intent(in)     :: triangulation
+  class(conditions_t)                       , intent(in)     :: conditions
+  type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
+  integer(ip)                               , intent(in)     :: set_ids_to_reference_fes(:,:)
+  class(l1_coarse_fe_handler_t)     , target, intent(in)     :: coarse_fe_handler
+  integer(ip)                     , optional, intent(in)     :: field_blocks(:)
+  logical                         , optional, intent(in)     :: field_coupling(:,:)
+  class(marching_cubes_t), pointer :: marching_cubes
+  type(environment_t), pointer :: par_environment
+  par_environment    => this%get_par_environment()
+  call this%free()
+  call this%par_fe_space_t%create(&
+    triangulation,conditions,reference_fes,set_ids_to_reference_fes,coarse_fe_handler,field_blocks,field_coupling)
+  select type(triangulation)
+  class is (par_unfitted_triangulation_t)
+    if ( par_environment%am_i_l1_task() ) then
+      this%unfitted_triangulation => triangulation
+      marching_cubes => triangulation%get_marching_cubes()
+      call this%unfitted_integration%create(this,marching_cubes)
+    end if
+  class default
+    check(.false.)
+  end select
+end subroutine pufs_create_different_between_cells
 
 !========================================================================================
 subroutine pufs_free(this)

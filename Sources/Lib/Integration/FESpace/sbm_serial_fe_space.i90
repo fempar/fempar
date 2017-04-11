@@ -1830,7 +1830,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
      fe_iterator = this%create_fe_iterator()
      do while ( .not. fe_iterator%has_finished() )
         call fe_iterator%current(fe)
-        if ( fe%is_local() .and. fe%is_active() ) then
+        if ( fe%is_local() ) then
            call fe%fill_own_dofs ( field_id, current_dof_block )
            do ivef = 1, fe%get_num_vefs()
               vef_lid = fe%get_vef_lid(ivef)

@@ -70,9 +70,9 @@ end function unfitted_fe_accessor_get_unfitted_cell_accessor
 !=============================================================================================
 function unfitted_fe_accessor_get_quadrature(this) result (quadrature)
   implicit none
-  class(unfitted_fe_accessor_t),  intent(in) :: this ! TODO why does it work without target ?
-  type(quadrature_t), pointer      :: quadrature
-  class(unfitted_cell_accessor_t), pointer :: cell
+  class(unfitted_fe_accessor_t),  intent(in) :: this
+  type(quadrature_t),              pointer   :: quadrature
+  class(unfitted_cell_accessor_t), pointer   :: cell
   integer(ip) :: mc_case
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
@@ -81,7 +81,8 @@ function unfitted_fe_accessor_get_quadrature(this) result (quadrature)
   else if ( cell%is_interior() ) then
     quadrature => this%fe_accessor_t%get_quadrature()
   else if ( cell%is_exterior() ) then
-    quadrature => this%unfitted_integration_manager%empty_quadrature
+    quadrature => this%fe_accessor_t%get_quadrature()
+    assert(quadrature%get_number_quadrature_points() == 0)
   else
     check(.false.)
   end if
@@ -98,10 +99,8 @@ function unfitted_fe_accessor_get_fe_map(this) result (fe_map)
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
     fe_map => this%unfitted_integration_manager%cut_fe_maps(mc_case)
-  else if ( cell%is_interior() ) then
+  else if ( cell%is_interior() .or. cell%is_exterior() ) then
     fe_map => this%fe_accessor_t%get_fe_map()
-  else if ( cell%is_exterior() ) then
-    fe_map => this%unfitted_integration_manager%empty_fe_map
   else
     check(.false.)
   end if
@@ -119,10 +118,8 @@ function unfitted_fe_accessor_get_volume_integrator(this, field_id) result (vol_
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
     vol_int => this%unfitted_integration_manager%cut_vol_integrators(mc_case,field_id)
-  else if ( cell%is_interior() ) then
+  else if ( cell%is_interior() .or. cell%is_exterior() ) then
     vol_int => this%fe_accessor_t%get_volume_integrator(field_id)
-  else if ( cell%is_exterior() ) then
-    vol_int => this%unfitted_integration_manager%empty_vol_integrator(field_id)
   else
     check(.false.)
   end if
@@ -208,8 +205,6 @@ subroutine unfitted_fe_accessor_update_integration( this )
   type(volume_integrator_t), pointer :: volume_integrator
   class(unfitted_cell_accessor_t), pointer :: cell
 
-  ! TODO @fverdugo DRIVER PRIORITY MEDIUM EFFORT HIGH
-  ! where is the safe place to put this update?
   cell => this%get_unfitted_cell_accessor()
   call cell%update_sub_triangulation()
 
@@ -217,9 +212,6 @@ subroutine unfitted_fe_accessor_update_integration( this )
   call this%update_cut_fe_maps()
   call this%update_cut_vol_integrators()
 
-  ! TODO @fverdugo DRIVER PRIORITY LOW EFFORT HIGH
-  ! we are duplicating code from the father
-  ! A better way to do it?
   fe_map      => this%get_fe_map()
   coordinates => fe_map%get_coordinates()
   call this%get_coordinates(coordinates)
@@ -238,8 +230,6 @@ subroutine unfitted_fe_accessor_update_boundary_integration( this )
   implicit none
   class(unfitted_fe_accessor_t), intent(inout) :: this
   class(unfitted_cell_accessor_t), pointer :: cell
-  ! TODO @fverdugo DRIVER PRIORITY MEDIUM EFFORT HIGH
-  ! where is the safe place to put this update?
   cell => this%get_unfitted_cell_accessor()
   call cell%update_sub_triangulation()
   call this%update_cut_boundary_quadratures()

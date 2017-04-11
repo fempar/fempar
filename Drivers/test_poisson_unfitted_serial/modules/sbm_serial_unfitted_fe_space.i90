@@ -35,10 +35,10 @@ subroutine sufs_create_same_reference_fes_on_all_cells(&
   field_blocks, &
   field_coupling )
   implicit none
-  class(serial_unfitted_fe_space_t)              , intent(inout) :: this
+  class(serial_unfitted_fe_space_t)           , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   class(conditions_t)                         , intent(in)    :: conditions
-  type(p_reference_fe_t)                      ,  intent(in)   :: reference_fes(:)
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                       , optional, intent(in)    :: field_blocks(:)
   logical                           , optional, intent(in)    :: field_coupling(:,:)
   class(marching_cubes_t), pointer :: marching_cubes
@@ -53,6 +53,37 @@ subroutine sufs_create_same_reference_fes_on_all_cells(&
     check(.false.)
   end select
 end subroutine sufs_create_same_reference_fes_on_all_cells
+
+!========================================================================================
+subroutine sufs_space_create_different_between_cells(&
+    this, &
+    triangulation, &
+    conditions, &
+    reference_fes, &
+    set_ids_to_reference_fes,&
+    field_blocks, &
+    field_coupling )
+  implicit none
+  class(serial_unfitted_fe_space_t)           , intent(inout) :: this
+  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
+  class(conditions_t)                         , intent(in)    :: conditions
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
+  integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
+  class(marching_cubes_t), pointer :: marching_cubes
+  call this%free()
+  call this%serial_fe_space_t%create(&
+    triangulation,conditions,reference_fes,set_ids_to_reference_fes,field_blocks,field_coupling)
+  select type(triangulation)
+  class is (serial_unfitted_triangulation_t)
+    this%unfitted_triangulation => triangulation
+    marching_cubes => triangulation%get_marching_cubes()
+    call this%unfitted_integration%create(this,marching_cubes)
+  class default
+    check(.false.)
+  end select
+end subroutine sufs_space_create_different_between_cells
 
 !========================================================================================
 subroutine sufs_free(this)

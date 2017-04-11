@@ -112,12 +112,7 @@
       call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
       cells_set = 0
       call this%fill_cells_set(cells_set)
-      call memfree (cells_set, __FILE__, __LINE__)
-      
-      !TODO Needed in coarse triangulation?
-      call this%allocate_cells_active_flag()
-      call this%fill_cells_active_flag()
-      
+      call memfree (cells_set, __FILE__, __LINE__)      
     end if
     call this%setup_coarse_triangulation()
     !call this%print()

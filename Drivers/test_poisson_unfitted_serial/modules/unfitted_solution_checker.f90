@@ -116,12 +116,6 @@ contains
        ! Get current FE
        call fe_iterator%current(fe)
 
-       ! Check if active
-       if (.not. fe%is_active()) then
-         call fe_iterator%next()
-         cycle
-       end if
-
        ! Update FE-integration related data structures
        call fe%update_integration()
 

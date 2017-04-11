@@ -206,7 +206,16 @@ end subroutine evaluate_monomials
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
 
-    call fe_iterator%current(fe) ! TODO assumes constant element ....
+    ! Find the first non-void FE
+    do while ( .not. fe_iterator%has_finished() )
+       call fe_iterator%current(fe)
+       quad            => fe%get_quadrature()
+       num_quad_points = quad%get_number_quadrature_points()
+       if (num_quad_points > 0) exit
+       call fe_iterator%next()
+    end do
+
+    ! TODO We assume that all non-void FEs are the same...
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
@@ -214,14 +223,12 @@ end subroutine evaluate_monomials
     call fe%get_number_dofs_per_field(num_dofs_per_field)
 
     !This is for the Nitsche's BCs
-    ! TODO @fverdugo DRIVER PRIORITY LOW EFFORT HIGH
-    ! We assume same ref element for all cells, and for all fields
+    ! TODO  We assume same ref element for all cells, and for all fields
     ref_fe => fe%get_reference_fe(1)
     nodal_quad => ref_fe%get_nodal_quadrature()
     call memalloc ( num_dofs, num_dofs  , shape2mono, __FILE__, __LINE__ )
     call evaluate_monomials(nodal_quad,shape2mono)
-    ! TODO @fverdugo DRIVER PRIORITY LOW EFFORT HIGH
-    ! We assume that the constant monomial is the first
+    ! TODO  We assume that the constant monomial is the first
     shape2mono_fixed => shape2mono(:,2:)
     ! Allocate the eigenvalue solver
     call eigs%create(num_dofs - 1)
@@ -230,16 +237,10 @@ end subroutine evaluate_monomials
     call memalloc ( num_dofs-1, num_dofs-1, elmatB, __FILE__, __LINE__ )
     call memalloc ( num_dofs-1, num_dofs-1, elmatV, __FILE__, __LINE__ )
 
+    call fe_iterator%init()
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
        call fe_iterator%current(fe)
-
-       ! Assemble only for active elements
-       ! TODO a better way to do that? with a custom iterator?
-       if (.not. fe%is_active()) then
-         call fe_iterator%next()
-         cycle
-       end if
 
        ! Update FE-integration related data structures
        call fe%update_integration()
@@ -249,6 +250,8 @@ end subroutine evaluate_monomials
        num_quad_points = quad%get_number_quadrature_points()
        fe_map          => fe%get_fe_map()
        vol_int         => fe%get_volume_integrator(1)
+       num_dofs = fe%get_number_dofs()
+       call fe%get_number_dofs_per_field(num_dofs_per_field)
 
        ! Get DoF numbering within current FE
        call fe%get_elem2dof(elem2dof)
