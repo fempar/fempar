@@ -30,7 +30,7 @@ module test_poisson_unfitted_driver_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
   use level_set_functions_gallery_names
-  use poisson_unfitted_vtk_writer_names
+  use unfitted_vtk_writer_names
   use unfitted_solution_checker_names
   use test_poisson_unfitted_params_names
   use poisson_unfitted_cG_discrete_integration_names
@@ -555,7 +555,7 @@ contains
     implicit none
     class(test_poisson_unfitted_driver_t), target, intent(inout) :: this
 
-    type(poisson_unfitted_vtk_writer_t) :: vtk_writer
+    type(unfitted_vtk_writer_t) :: vtk_writer
     class(serial_fe_space_t), pointer :: fe_space_ptr
     class(scalar_function_t), pointer :: scal_fun
     integer(ip) :: fieldid

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module poisson_unfitted_vtk_writer_names
+module unfitted_vtk_writer_names
 
   use fempar_names
   use unfitted_triangulations_names
@@ -39,7 +39,7 @@ module poisson_unfitted_vtk_writer_names
 # include "debug.i90"
   private
 
-  type :: poisson_unfitted_vtk_writer_t
+  type :: unfitted_vtk_writer_t
     private
 
     ! Used by VTKIO
@@ -59,24 +59,24 @@ module poisson_unfitted_vtk_writer_names
 
   contains
 
-    procedure, non_overridable :: attach_triangulation  => puvtk_attach_triangulation
-    procedure, non_overridable :: attach_boundary_faces => puvtk_attach_boundary_faces
-    procedure, non_overridable :: attach_boundary_quad_points => puvtk_attach_boundary_quad_points
-    procedure, non_overridable :: attach_fe_function    => puvtk_attach_fe_function
-    procedure, non_overridable :: write_to_vtk_file     => puvtk_write_to_vtk_file
-    procedure, non_overridable :: free                  => puvtk_free
+    procedure, non_overridable :: attach_triangulation  => uvtkw_attach_triangulation
+    procedure, non_overridable :: attach_boundary_faces => uvtkw_attach_boundary_faces
+    procedure, non_overridable :: attach_boundary_quad_points => uvtkw_attach_boundary_quad_points
+    procedure, non_overridable :: attach_fe_function    => uvtkw_attach_fe_function
+    procedure, non_overridable :: write_to_vtk_file     => uvtkw_write_to_vtk_file
+    procedure, non_overridable :: free                  => uvtkw_free
 
-  end type poisson_unfitted_vtk_writer_t
+  end type unfitted_vtk_writer_t
 
-  public :: poisson_unfitted_vtk_writer_t
+  public :: unfitted_vtk_writer_t
 
 contains
 
 !========================================================================================  
-  subroutine  puvtk_attach_triangulation(this,triangulation)
+  subroutine  uvtkw_attach_triangulation(this,triangulation)
 
     implicit none
-    class(poisson_unfitted_vtk_writer_t),   intent(inout) :: this
+    class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(serial_unfitted_triangulation_t), intent(in)    :: triangulation
 
     integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
@@ -196,13 +196,13 @@ contains
     call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
     call memfree ( nodesids, __FILE__, __LINE__ )
 
-  end subroutine  puvtk_attach_triangulation
+  end subroutine  uvtkw_attach_triangulation
 
 !========================================================================================
-  subroutine puvtk_attach_boundary_faces( this, triangulation )
+  subroutine uvtkw_attach_boundary_faces( this, triangulation )
   
     implicit none
-    class(poisson_unfitted_vtk_writer_t),   intent(inout) :: this
+    class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(serial_unfitted_triangulation_t), intent(in)    :: triangulation
   
     integer(ip) :: num_subfaces, num_subface_nodes, num_dime
@@ -276,13 +276,13 @@ contains
     deallocate ( subface_coords, stat = istat ); check(istat == 0)
     call cell_iter%free()
   
-  end subroutine puvtk_attach_boundary_faces
+  end subroutine uvtkw_attach_boundary_faces
 
 !========================================================================================  
-  subroutine  puvtk_attach_fe_function(this,fe_function,fe_space)
+  subroutine  uvtkw_attach_fe_function(this,fe_function,fe_space)
 
     implicit none
-    class(poisson_unfitted_vtk_writer_t),   intent(inout) :: this
+    class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(fe_function_t),                   intent(in)    :: fe_function
     class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
 
@@ -380,13 +380,13 @@ contains
     call fe_interpol%free()
 
 
-  end subroutine  puvtk_attach_fe_function
+  end subroutine  uvtkw_attach_fe_function
 
 !========================================================================================
-  subroutine puvtk_attach_boundary_quad_points( this, fe_space )
+  subroutine uvtkw_attach_boundary_quad_points( this, fe_space )
   
     implicit none
-    class(poisson_unfitted_vtk_writer_t),   intent(inout) :: this
+    class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
   
     type(unfitted_fe_iterator_t) :: fe_iterator
@@ -473,13 +473,13 @@ contains
     if (num_dime == 2_ip) this%z(:) = 0
     if (num_dime == 2_ip) this%v_z(:) = 0
   
-  end subroutine puvtk_attach_boundary_quad_points
+  end subroutine uvtkw_attach_boundary_quad_points
 
 !========================================================================================  
-  subroutine puvtk_write_to_vtk_file(this,filename)
+  subroutine uvtkw_write_to_vtk_file(this,filename)
 
     implicit none
-    class(poisson_unfitted_vtk_writer_t), intent(in) :: this
+    class(unfitted_vtk_writer_t), intent(in) :: this
     character(*), intent(in) :: filename
 
     integer(ip) :: E_IO
@@ -516,13 +516,13 @@ contains
     E_IO = VTK_GEO_XML()
     E_IO = VTK_END_XML()
 
-  end subroutine puvtk_write_to_vtk_file
+  end subroutine uvtkw_write_to_vtk_file
 
   !------------------------------------------------------------------
-  subroutine puvtk_free(this)
+  subroutine uvtkw_free(this)
 
     implicit none
-    class(poisson_unfitted_vtk_writer_t), intent(inout) :: this
+    class(unfitted_vtk_writer_t), intent(inout) :: this
 
     if (allocated(this%x         )) call memfree ( this%x          , __FILE__, __LINE__ )
     if (allocated(this%y         )) call memfree ( this%y          , __FILE__, __LINE__ )
@@ -536,9 +536,9 @@ contains
     if (allocated(this%v_y       )) call memfree ( this%v_y        , __FILE__, __LINE__ )
     if (allocated(this%v_z       )) call memfree ( this%v_z        , __FILE__, __LINE__ )
 
-  end subroutine puvtk_free
+  end subroutine uvtkw_free
 
-end module poisson_unfitted_vtk_writer_names
+end module unfitted_vtk_writer_names
 !***************************************************************************************************
 
 
