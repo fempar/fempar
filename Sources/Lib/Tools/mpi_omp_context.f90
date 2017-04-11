@@ -128,6 +128,7 @@ module mpi_omp_context_names
      procedure :: max_scalar_rp      => mpi_omp_context_max_scalar_rp
      procedure :: max_vector_rp      => mpi_omp_context_max_vector_rp
      procedure :: min_scalar_rp      => mpi_omp_context_min_scalar_rp
+     procedure :: max_scalar_ip      => mpi_omp_context_max_scalar_ip
      procedure :: scatter            => mpi_omp_context_scatter_scalar_ip
      procedure :: gather             => mpi_omp_context_gather_scalar_ip
      procedure :: bcast              => mpi_omp_context_bcast_scalar_ip
@@ -726,6 +727,27 @@ contains
     !$OMP BARRIER
     alpha = rp1_buffer(this%current_thread)
   end subroutine mpi_omp_context_min_scalar_rp
+  
+  !=============================================================================
+  subroutine mpi_omp_context_max_scalar_ip (this,n)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(ip)              , intent(inout) :: n
+    integer  :: i, istat
+    integer(ip) :: dat
+    ip1_buffer(this%current_thread) = n
+    !$OMP BARRIER
+    if(this%current_thread==this%root_thread) then
+      do i=0,this%num_threads-1
+          ip1_buffer(this%root_thread) = max(ip1_buffer(this%root_thread),ip1_buffer(i))
+       end  do
+       call mpi_allreduce(ip1_buffer,n,1,mpi_omp_context_ip,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
+       ip1_buffer=n
+    end if
+    !$OMP BARRIER
+    n = ip1_buffer(this%current_thread)
+  end subroutine mpi_omp_context_max_scalar_ip
+  
 
   !=============================================================================
   subroutine mpi_omp_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
