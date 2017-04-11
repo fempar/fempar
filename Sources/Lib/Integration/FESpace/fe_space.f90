@@ -513,15 +513,16 @@ module fe_space_names
    procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
-   procedure       , non_overridable, private  :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
-   procedure       , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
-   procedure       , non_overridable           :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
-   procedure       , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
-   procedure       , non_overridable, private  :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
-   procedure       , non_overridable, private  :: gather_ptr_dofs_per_fe_and_field                => par_fe_space_gather_ptr_dofs_per_fe_and_field
-   procedure       , non_overridable, private  :: gather_coarse_dofs_gids_rcv_counts_and_displs   => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
-   procedure       , non_overridable, private  :: gather_coarse_dofs_gids                         => par_fe_space_gather_coarse_dofs_gids
-   procedure       , non_overridable, private  :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
+   procedure        , non_overridable, private  :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
+   procedure, nopass, non_overridable, private  :: generate_coarse_dof_gid                         => par_fe_space_generate_coarse_dof_gid
+   procedure        , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
+   procedure        , non_overridable           :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
+   procedure        , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
+   procedure        , non_overridable, private  :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
+   procedure        , non_overridable, private  :: gather_ptr_dofs_per_fe_and_field                => par_fe_space_gather_ptr_dofs_per_fe_and_field
+   procedure        , non_overridable, private  :: gather_coarse_dofs_gids_rcv_counts_and_displs   => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
+   procedure        , non_overridable, private  :: gather_coarse_dofs_gids                         => par_fe_space_gather_coarse_dofs_gids
+   procedure        , non_overridable, private  :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
    procedure                                   :: get_total_number_coarse_dofs                    => par_fe_space_get_total_number_coarse_dofs
    procedure                                   :: get_block_number_coarse_dofs                    => par_fe_space_get_block_number_coarse_dofs
    procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
