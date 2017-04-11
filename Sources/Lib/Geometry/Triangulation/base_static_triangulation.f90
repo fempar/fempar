@@ -90,7 +90,7 @@ module base_static_triangulation_names
   type cell_accessor_t
     private
     integer(ip)                                 :: lid = -1
-    class(base_static_triangulation_t), pointer :: base_static_triangulation
+    class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
     ! create/free/next/set_lid CANNOT longer be private as type(coarse_fe_accessor_t)
     ! extends type(cell_accessor_t), requires to call these TBPs and cannot be placed
@@ -98,6 +98,7 @@ module base_static_triangulation_names
     ! due to module dependencies cycle
     procedure                            :: create                  => cell_accessor_create
     procedure                            :: free                    => cell_accessor_free
+    final                                ::                            cell_accessor_free_final
     procedure, non_overridable           :: next                    => cell_accessor_next
     procedure, non_overridable           :: first                   => cell_accessor_first
     procedure, non_overridable           :: last                    => cell_accessor_last
@@ -141,9 +142,9 @@ module base_static_triangulation_names
     integer(ip)                                 :: lid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
-     procedure                           :: vef_accessor_create
-     generic                             :: create                    => vef_accessor_create
+     procedure                           :: create                    => vef_accessor_create
      procedure                           :: free                      => vef_accessor_free
+     !final                              ::                              vef_accessor_free_final
      procedure                           :: first                     => vef_accessor_first
      procedure                           :: next                      => vef_accessor_next
      procedure, non_overridable          :: set_lid                   => vef_accessor_set_lid
@@ -173,13 +174,6 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_num_cells_around      => vef_accessor_get_num_cells_around
      procedure, non_overridable          :: vef_accessor_get_cell_around
      generic                             :: get_cell_around           => vef_accessor_get_cell_around
-
-     ! Methods of face extension
-     procedure          :: get_coordinates                  => vef_face_accessor_get_coordinates
-     procedure          :: get_face_lid                     => vef_face_accessor_get_face_lid
-     procedure          :: get_face_lpos_within_cell_around => vef_face_accessor_get_face_lpos_within_cell_around
-     procedure          :: get_face_orientation             => vef_face_accessor_get_face_orientation
-     procedure          :: get_face_rotation                => vef_face_accessor_get_face_rotation
   end type vef_accessor_t
 
   type, extends(vef_accessor_t) :: vertex_accessor_t
@@ -198,7 +192,10 @@ module base_static_triangulation_names
   
   type, extends(vef_accessor_t) :: face_accessor_t
     private
+    class(cell_accessor_t), allocatable :: cell
   contains
+    procedure                           :: create                           => face_accessor_create
+    procedure                           :: free                             => face_accessor_free
     procedure                           :: first                            => face_accessor_first
     procedure                           :: past_the_end                     => face_accessor_past_the_end
     procedure                           :: get_coordinates                  => face_accessor_get_coordinates
@@ -225,9 +222,9 @@ module base_static_triangulation_names
     integer(ip)                                 :: lid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation
   contains
-    procedure                   :: object_accessor_create
-    generic                     :: create                          => object_accessor_create
+    procedure                   :: create                          => object_accessor_create
     procedure                   :: free                            => object_accessor_free
+    procedure                   :: first                           => object_accessor_first
     procedure                   :: next                            => object_accessor_next
     procedure                   :: set_lid                         => object_accessor_set_lid
     procedure                   :: past_the_end                    => object_accessor_past_the_end
@@ -241,20 +238,7 @@ module base_static_triangulation_names
     procedure, non_overridable  :: get_number_vefs_on_object       => object_accessor_get_number_vefs_on_object
     procedure, non_overridable  :: create_vefs_on_object_iterator  => object_accessor_get_vefs_on_object_iterator
   end type object_accessor_t
-  
-  type object_iterator_t
-    private
-    type(object_accessor_t) :: current_object_accessor
-  contains
-     procedure, non_overridable, private ::                 object_iterator_current
-     procedure, non_overridable          :: create       => object_iterator_create
-     procedure, non_overridable          :: free         => object_iterator_free
-     procedure, non_overridable          :: init         => object_iterator_init
-     procedure, non_overridable          :: next         => object_iterator_next
-     procedure, non_overridable          :: has_finished => object_iterator_has_finished
-     generic                             :: current      => object_iterator_current
-  end type object_iterator_t
-  
+    
   type :: vefs_on_object_iterator_t
     private
     type(list_iterator_t) :: vefs_lids_on_object_iterator
@@ -376,10 +360,20 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_number_objects                  => bst_get_number_objects
 
      ! Cell traversals-related TBPs
-     procedure, non_overridable          :: create_cell_accessor                => bst_create_cell_accessor
-
+     procedure                           :: create_cell_accessor                => bst_create_cell_accessor
+     procedure                           :: free_cell_accessor                  => bst_free_cell_accessor
+     
+     ! Vef traversals-related TBPs
+     procedure                           :: create_vef_accessor              => bst_create_vef_accessor
+     procedure                           :: create_itfc_vef_accessor         => bst_create_itfc_vef_accessor
+     procedure                           :: create_vertex_accessor           => bst_create_vertex_accessor
+     procedure                           :: create_edge_accessor             => bst_create_edge_accessor
+     procedure                           :: create_face_accessor             => bst_create_face_accessor
+     procedure                           :: free_vef_accessor                => bst_free_vef_accessor
+     
+     
      ! Objects-related traversals
-     procedure, non_overridable          :: create_object_iterator              => bst_create_object_iterator
+     procedure, non_overridable          :: create_object_accessor              => bst_create_object_accessor
      procedure, non_overridable          :: create_vefs_on_object_iterator      => bst_create_vefs_on_object_iterator
   
      ! Other
@@ -501,16 +495,13 @@ module base_static_triangulation_names
      ! Private methods for creating vef-related data
      procedure, non_overridable, private :: allocate_and_fill_vefs_dimension    => coarse_triangulation_allocate_and_fill_vefs_dimension
      procedure                           :: print                               => coarse_triangulation_print
-     !procedure, non_overridable, private :: compute_num_itfc_vefs               => coarse_triangulation_compute_num_itfc_vefs
-     !procedure, non_overridable, private :: allocate_and_fill_lst_itfc_vefs     => coarse_triangulation_allocate_and_fill_lst_itfc_vefs
   end type coarse_triangulation_t
 
   public :: base_static_triangulation_t
   public :: serial_triangulation_t
   public :: coarse_triangulation_t 
   public :: par_triangulation_t
-  !public :: vef_iterator_t, face_iterator_t, itfc_vef_iterator_t
-  public :: object_iterator_t, vefs_on_object_iterator_t
+  public :: vefs_on_object_iterator_t
   public :: cell_accessor_t, vef_accessor_t, itfc_vef_accessor_t, face_accessor_t, object_accessor_t
   
 contains
@@ -518,7 +509,6 @@ contains
 #include "sbm_cell_accessor.i90"
 #include "sbm_vef_accessor.i90"
 #include "sbm_object_accessor.i90"
-#include "sbm_object_iterator.i90"
 #include "sbm_vefs_on_object_iterator.i90"
 #include "sbm_base_static_triangulation.i90"
 #include "sbm_fine_triangulation.i90"

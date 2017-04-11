@@ -114,7 +114,7 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     ! Locals 
     integer(ip)                 , allocatable :: cells_set(:) 
-    type(cell_accessor_t)                     :: cell
+    class(cell_accessor_t)      , allocatable :: cell
     type(point_t), allocatable                :: cell_coordinates(:)
     integer(ip)                               :: inode
     integer(ip)       :: icell, icoord 
@@ -126,8 +126,7 @@ contains
 
     ! Assign subset_id to different cells for the created structured mesh 
     allocate(cells_set(this%triangulation%get_num_cells() ), stat=istat); check(istat==0)
-    call cell%create(this)
-    call cell%first()
+    call this%triangulation%create_cell_accessor(cell)
     allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0) 
     
     do while ( .not. cell%past_the_end() )
@@ -154,6 +153,7 @@ contains
     call this%triangulation%fill_cells_set(cells_set)  
     deallocate(cells_set, stat=istat); check(istat==0) 
     deallocate(cell_coordinates, stat=istat); check(istat==0) 
+    call this%triangulation%free_cell_accessor(cell)
   end subroutine setup_triangulation
 
   ! -----------------------------------------------------------------------------------------------
@@ -162,8 +162,6 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat, ivef
     type(vef_accessor_t)  :: vef
-    type(cell_accessor_t) :: cell
-    type(point_t)         :: cell_coordinates(8)
 
     allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
@@ -183,8 +181,7 @@ contains
                                                  continuity = .true. ) 
     
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call vef%create(this%triangulation)
-       call vef%first()
+       call this%triangulation%create_vef_accessor(vef)
        do while ( .not. vef%past_the_end() )
           ! In the 3D case, vefs asociated to faces 21,22 are Neumann boundary (2D case set_id <= 9)
          if ( vef%is_at_boundary() .and. ( vef%get_set_id() .ne. 21 .and. vef%get_set_id() .ne. 22) ) then 
@@ -194,7 +191,7 @@ contains
           end if
           call vef%next()
        end do
-       call vef%free()
+       call this%triangulation%free_vef_accessor(vef)
     end if    
  
   end subroutine setup_reference_fes
@@ -313,7 +310,6 @@ contains
         ! Initialize
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%create_fe_accessor(fe)
-    call fe%first()    
     
     number_fields         =  this%fe_space%get_number_fields()
     num_dofs              =  fe%get_number_dofs()
@@ -359,9 +355,7 @@ contains
 
        end if
        call fe%next()
-    end do
-    call fe%free()
-    
+    end do    
     ! ================================   3D CASE, only integrate over z-normal faces ===================
     elseif ( this%triangulation%get_num_dimensions() == 3) then 
     
@@ -411,17 +405,13 @@ contains
           end if
           call fe_face%next()
        end do
-
-       call fe%free()
-        call memfree ( facevec, __FILE__, __LINE__ )
+       call memfree ( facevec, __FILE__, __LINE__ )
     end if 
-    
+    call this%fe_space%free_fe_accessor(fe)
     ! Sum duplicates, re-order by rows, and leave the matrix in a final state
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 
-    
     ! =============================================================================================
-    
     call memfree ( number_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     deallocate (elem2dof, stat=istat); check(istat==0)
@@ -585,7 +575,6 @@ contains
     call cell_fe_function_current%create(this%fe_space,  1)
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%create_fe_accessor(fe)
-    call fe%first()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
@@ -619,7 +608,7 @@ contains
        end if
        call fe%next()
     end do
-    call fe%free()
+    call this%fe_space%free_fe_accessor(fe)
 
     ! Coordinates of quadrature does influence the constant value Happ(t) 
     boundary_function_Hy => this%problem_functions%get_boundary_function_Hy()

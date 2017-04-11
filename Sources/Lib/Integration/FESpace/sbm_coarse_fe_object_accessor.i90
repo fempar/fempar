@@ -25,20 +25,19 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine coarse_fe_object_accessor_create ( this, lid, coarse_fe_space )
+subroutine coarse_fe_object_accessor_create ( this, coarse_fe_space )
   implicit none
   class(coarse_fe_object_accessor_t)            , intent(inout) :: this
-  integer(ip)                                   , intent(in)    :: lid
   class(coarse_fe_space_t), target              , intent(in)    :: coarse_fe_space
   call this%free()
-  call this%object_accessor_t%create(lid, coarse_fe_space%coarse_triangulation)
+  call this%object%create(coarse_fe_space%coarse_triangulation)
   this%coarse_fe_space => coarse_fe_space
 end subroutine coarse_fe_object_accessor_create
 
 subroutine coarse_fe_object_accessor_free ( this)
   implicit none
   class(coarse_fe_object_accessor_t), intent(inout) :: this
-  call this%object_accessor_t%free()
+  call this%object%free()
   nullify ( this%coarse_fe_space )
 end subroutine coarse_fe_object_accessor_free
 
@@ -46,7 +45,7 @@ function coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object(this)
   implicit none
   class(coarse_fe_object_accessor_t), intent(in) :: this
   integer(ip) :: coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
-  coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object = this%object_accessor_t%get_number_vefs_on_object()
+  coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object = this%object%get_number_vefs_on_object()
 end function coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
 
 function coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator(this)

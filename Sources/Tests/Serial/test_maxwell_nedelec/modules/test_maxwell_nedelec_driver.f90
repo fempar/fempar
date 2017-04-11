@@ -118,8 +118,7 @@ contains
                                                  continuity = .true. ) 
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       call vef%create(this%triangulation)
-       call vef%first()
+       call this%triangulation%create_vef_accessor(vef)
        do while ( .not. vef%past_the_end() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
@@ -128,7 +127,7 @@ contains
           end if
           call vef%next()
        end do
-       call vef%free()
+       call this%triangulation%free_vef_accessor(vef)
     end if    
     
   end subroutine setup_reference_fes

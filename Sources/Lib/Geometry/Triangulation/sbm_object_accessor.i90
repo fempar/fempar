@@ -25,14 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine object_accessor_create ( this, lid, base_static_triangulation )
+subroutine object_accessor_create ( this, base_static_triangulation )
   implicit none
-  class(object_accessor_t)                      , intent(inout) :: this
-  integer(ip)                                   , intent(in)    :: lid
+  class(object_accessor_t)                  , intent(inout) :: this
   class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
   call this%free()
-  this%lid = lid
   this%base_static_triangulation => base_static_triangulation
+  call this%first()
 end subroutine object_accessor_create
 
 subroutine object_accessor_free ( this)
@@ -41,6 +40,12 @@ subroutine object_accessor_free ( this)
   this%lid = -1
   nullify ( this%base_static_triangulation )
 end subroutine object_accessor_free
+
+subroutine object_accessor_first(this)
+  implicit none
+  class(object_accessor_t), intent(inout) :: this
+  this%lid = 1
+end subroutine object_accessor_first
 
 subroutine object_accessor_next(this)
   implicit none

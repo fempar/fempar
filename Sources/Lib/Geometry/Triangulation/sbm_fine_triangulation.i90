@@ -34,9 +34,8 @@ subroutine fine_triangulation_generate_vefs(this,order)
 
   integer(ip)          , allocatable :: ptr_vertices(:)
   integer(ip)          , allocatable :: lst_vertices(:)
-  type(cell_accessor_t)              :: icell
-  type(cell_accessor_t)              :: jcell
-  type(vef_accessor_t)               :: ivef_accessor
+  class(cell_accessor_t), allocatable :: icell
+  class(cell_accessor_t), allocatable :: jcell
   type(vef_accessor_t)               :: vef
 
   type(position_hash_table_t) :: pos_ref_fe
@@ -66,8 +65,8 @@ subroutine fine_triangulation_generate_vefs(this,order)
   ! using a Lagrangian type fe and nodal values are stored into a point_t array.
   call pos_ref_fe%init(max_num_reference_fes_geo)
 
-  call icell%create(this)
-  call icell%first()
+  call this%create_cell_accessor(icell)
+  call this%create_cell_accessor(jcell)
   do while ( .not. icell%past_the_end() )
      ielem = icell%get_lid()
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
@@ -148,7 +147,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
   
   ! Fill dim 1 vefs (this%num_vefs = number of vertices at this point)
   ! they only have two vertices
-  call vef%create(this)
+  call this%create_vef_accessor(vef)
   call icell%first()
   do while ( .not. icell%past_the_end() )
      ielem = icell%get_lid()
@@ -275,7 +274,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
      end do
      this%num_faces=this%num_vefs-this%num_vertices-this%num_edges
   end if
-  call vef%free()
+  call this%free_vef_accessor(vef)
 
   ! Generate the ref fe position hash table using the number of vefs (instead of vertices) as keys
   call  this%reference_fe_geo_index%init(max_num_reference_fes_geo)
@@ -324,7 +323,8 @@ subroutine fine_triangulation_generate_vefs(this,order)
   end if
   call memfree(ptr_vertices,__FILE__,__LINE__)
   call memfree(lst_vertices,__FILE__,__LINE__)
-
+  call this%free_cell_accessor(icell)
+  call this%free_cell_accessor(jcell)
 end subroutine fine_triangulation_generate_vefs
 
 subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs,vefs_geometry,vefs_set)
@@ -337,9 +337,8 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
   integer(ip) , intent(in) :: vefs_set(:)
   integer(ip)                        :: order
 
-  type(cell_accessor_t)              :: icell
-  type(cell_accessor_t)              :: jcell
-  type(vef_accessor_t)               :: vef
+  class(cell_accessor_t), allocatable  :: cell
+  type(vef_accessor_t)                 :: vef
 
   type(list_t), pointer    :: vertices_ivef
   type(list_t), pointer    :: vertices_jvef
@@ -366,7 +365,8 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
      this%vefs_geometry=0
      this%vefs_set=0
 
-     call vef%create(this)
+     call this%create_cell_accessor(cell)
+     call this%create_vef_accessor(vef)
      do iboun=1,given_vefs%get_num_pointers()
         given_vefs_iterator = given_vefs%create_iterator(iboun)
         nnodb=given_vefs%get_sublist_size(iboun)
@@ -380,12 +380,12 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
            vertex_of_ivef(2) = given_vefs_iterator%reach_from_current(1)
            call vef%set_lid(vertex_of_ivef(1))
            elems1: do jelpo = 1, vef%get_num_cells_around()
-              call vef%get_cell_around(jelpo, jcell)
-              jelem = jcell%get_lid()
+              call vef%get_cell_around(jelpo, cell)
+              jelem = cell%get_lid()
               !jelem_num_vertices=ptr_vertices(jelem+1)-ptr_vertices(jelem)
               !call pos_ref_fe%get(key=jelem_num_vertices,val=jelem_type,stat=istat)
               !assert(istat==old_index)
-              call this%reference_fe_geo_index%get(key=jcell%get_num_vefs(),val=jelem_type,stat=istat)
+              call this%reference_fe_geo_index%get(key=cell%get_num_vefs(),val=jelem_type,stat=istat)
               assert(istat==key_found)
               jelem_num_vefs     = this%reference_fe_geo_list(jelem_type)%p%get_number_n_faces_of_dimension(1)
               jelem_first_vef_id = this%reference_fe_geo_list(jelem_type)%p%get_first_n_face_id_of_dimension(1)
@@ -415,12 +415,12 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
            ielem_num_vef_verts = nnodb
            call vef%set_lid(vertex_of_ivef(1))
            elems2: do jelpo = 1, vef%get_num_cells_around()
-              call vef%get_cell_around(jelpo, jcell)
-              jelem = jcell%get_lid()
+              call vef%get_cell_around(jelpo, cell)
+              jelem = cell%get_lid()
               !jelem_num_vertices=ptr_vertices(jelem+1)-ptr_vertices(jelem)
               !call pos_ref_fe%get(key=jelem_num_vertices,val=jelem_type,stat=istat)
               !assert(istat==old_index)
-              call this%reference_fe_geo_index%get(key=jcell%get_num_vefs(),val=jelem_type,stat=istat)
+              call this%reference_fe_geo_index%get(key=cell%get_num_vefs(),val=jelem_type,stat=istat)
               assert(istat==key_found)
               jelem_num_vefs     = this%reference_fe_geo_list(jelem_type)%p%get_number_n_faces_of_dimension(2)
               jelem_first_vef_id = this%reference_fe_geo_list(jelem_type)%p%get_first_n_face_id_of_dimension(2)
@@ -454,8 +454,8 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
            end do elems2
         end if
      end do
-     call vef%free()
-     
+     call this%free_vef_accessor(vef)
+     call this%free_cell_accessor(cell)
 end subroutine fine_triangulation_allocate_and_fill_geometry_and_set
 
 subroutine fine_triangulation_free_geometry_and_set( this )
@@ -470,7 +470,7 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
   class(fine_triangulation_t), intent(inout) :: this
   integer(ip)           :: ivef 
   integer(ip)           :: cell_type, istat
-  type(cell_accessor_t) :: cell
+  class(cell_accessor_t), allocatable :: cell
   type(vef_accessor_t)  :: vef, vef_of_vef
   type(list_t), pointer :: vefs_of_vef
   type(list_t), pointer :: vertices_of_line
@@ -484,8 +484,9 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
   assert ( this%num_vefs >= 0 )
   assert ( allocated(this%vefs_type))
 
-  call vef%create(this)
-  call vef%first()
+  call this%create_cell_accessor(cell)
+  call this%create_vef_accessor(vef)
+  call this%create_vef_accessor(vef_of_vef)
   do while ( .not. vef%past_the_end() )     
      ivef = vef%get_lid()
 
@@ -529,16 +530,15 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
                   call vertices_of_line_iterator%next()
                 end do
               end if 
-              
               call vefs_of_vef_iterator%next()
            end do
-           
          end if
      end if
      call vef%next()
   end do
-  call vef%free()
-
+  call this%free_vef_accessor(vef)
+  call this%free_vef_accessor(vef_of_vef)
+  call this%free_cell_accessor(cell)
 end subroutine fine_triangulation_find_vefs_at_boundary
 
 subroutine fine_triangulation_compute_vefs_dimension (this)
@@ -546,7 +546,7 @@ subroutine fine_triangulation_compute_vefs_dimension (this)
   class(fine_triangulation_t), intent(inout) :: this
   integer(ip)           :: ivef
   integer(ip)           :: cell_type, istat
-  type(cell_accessor_t) :: cell
+  class(cell_accessor_t), allocatable :: cell
   type(vef_accessor_t)  :: vef
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   
@@ -557,8 +557,9 @@ subroutine fine_triangulation_compute_vefs_dimension (this)
   call memalloc(this%num_vefs, this%vefs_type,__FILE__,__LINE__) 
   this%vefs_type = 0
 
-  call vef%create(this)
-  call vef%first()
+  
+  call this%create_cell_accessor(cell)
+  call this%create_vef_accessor(vef)
   do while ( .not. vef%past_the_end() )     
      ivef = vef%get_lid()
 
@@ -577,8 +578,8 @@ subroutine fine_triangulation_compute_vefs_dimension (this)
      end if
      call vef%next()
   end do
-  call vef%free()
-
+  call this%free_vef_accessor(vef)
+  call this%free_cell_accessor(cell)
 end subroutine fine_triangulation_compute_vefs_dimension
 
 subroutine fine_triangulation_allocate_and_fill_nodes(this)
@@ -586,7 +587,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   class(fine_triangulation_t), intent(inout) :: this
   integer(ip)           :: icell 
   integer(ip)           :: cell_type, istat
-  type(cell_accessor_t) :: cell, cell2
+  class(cell_accessor_t), allocatable :: cell, cell2
   type(vef_accessor_t)  :: vef
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
 
@@ -597,8 +598,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_nodes_per_cell, __FILE__, __LINE__ )
 
   this%ptr_nodes_per_cell(1)=1
-  call cell%create(this)
-  call cell%first()
+  call this%create_cell_accessor(cell)
   do while ( .not. cell%past_the_end() )
      reference_fe_geo => cell%get_reference_fe_geo()
      ielem = cell%get_lid()
@@ -618,8 +618,8 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   end do
   this%num_nodes=this%num_vertices
 
-  call vef%create(this)
-  call vef%first()
+  call this%create_cell_accessor(cell2)
+  call this%create_vef_accessor(vef)
   do while ( .not. vef%past_the_end() )     
      if( (vef%get_dimension()>0) .and. (.not.vef%is_ghost()) ) then
         ivef = vef%get_lid()
@@ -641,7 +641,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
      end if
      call vef%next()
   end do
-  call vef%free()
+  call this%free_vef_accessor(vef)
 
   ! Fill nodes on volume
   call cell%first()
@@ -651,9 +651,8 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
       end if 
       call cell%next()  
   end do
-
-  !write(*,*) this%num_nodes
-
+  call this%free_cell_accessor(cell)
+  call this%free_cell_accessor(cell2)
 end subroutine fine_triangulation_allocate_and_fill_nodes
 
 subroutine fine_triangulation_free_nodes (this)
@@ -667,7 +666,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   implicit none
   class(fine_triangulation_t), intent(inout) :: this
   real(rp)                          , intent(in)    :: vertices_coordinates(:,:)
-  type(cell_accessor_t)    :: cell
+  class(cell_accessor_t), allocatable :: cell
   type(vertex_accessor_t)  :: vertex
   type(face_accessor_t)    :: face
   type(line_t), pointer     :: line
@@ -685,14 +684,13 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   call memalloc(this%num_nodes,this%coordinates,__FILE__,__LINE__)
   
   ! Store coordinates of vertices
-  call vertex%create(this)
-  call vertex%first()
+  call this%create_vertex_accessor(vertex)
   do while ( .not. vertex%past_the_end() )
      ivef = vertex%get_lid()
      call this%coordinates(ivef)%init(vertices_coordinates(:,ivef))
      call vertex%next()
   end do
-  call vertex%free()
+  call this%free_vef_accessor(vertex)
 
   ! In the case of a linear (i.e., order == 1) interpolation of the
   ! geometry, skip the rest of steps where the this%geometry member
@@ -705,10 +703,9 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
 
   ! Allocate local coordinates for faces
   call memalloc(order+1, coordinates, __FILE__,__LINE__)
-   
-  !write(*,*) 'Starting face loop'
-  call face%create(this)
-  call face%first()
+  
+  call this%create_cell_accessor(cell)
+  call this%create_face_accessor(face)
   do while ( .not. face%past_the_end() )
      if ( .not. face%is_ghost() ) then
         ivef = face%get_lid()
@@ -764,11 +761,10 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
      end if      
      call face%next()
   end do
-  call face%free()
+  call this%free_vef_accessor(face)
 
   ! Fill internal nodes
   ! write(*,*) 'Fill internal nodes'
-  call cell%create(this)
   call cell%first()
   do while ( .not. cell%past_the_end() )
      if ( cell%is_local() ) then
@@ -790,6 +786,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
      call cell%next()
   end do
   call memfree( coordinates, __FILE__,__LINE__)
+  call this%free_cell_accessor(cell)
 end subroutine fine_triangulation_allocate_and_fill_coordinates
   
 subroutine fine_triangulation_free_coordinates( this )

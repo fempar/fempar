@@ -97,7 +97,6 @@ contains
         
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_accessor(fe)
-    call fe%first()    
    
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -146,7 +145,7 @@ contains
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe%next()
     end do
-    call fe%free()
+    call fe_space%free_fe_accessor(fe)
 
     call memfree(shape_values, __FILE__, __LINE__)
     deallocate (shape_gradients, stat=istat); check(istat==0);

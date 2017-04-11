@@ -58,7 +58,7 @@
   subroutine fe_function_gather_nodal_values ( this, fe_accessor, field_id, nodal_values )
     implicit none
     class(fe_function_t)       , intent(in)    :: this 
-    type(fe_accessor_t)        , intent(in)    :: fe_accessor
+    class(fe_accessor_t)       , intent(in)    :: fe_accessor
     integer(ip)                , intent(in)    :: field_id
     real(rp)                   , intent(inout) :: nodal_values(:)
     
@@ -151,7 +151,6 @@
   block_id = field_blocks(field_id)
   
   call fe_space%create_fe_accessor(fe)
-  call fe%first()
   
   ! Loop over the elements
   do while ( .not. fe%past_the_end())
@@ -209,7 +208,7 @@
      ! Go to next FE
      call fe%next()
   end do
-  call fe%free()
+  call fe_space%free_fe_accessor(fe)
 
   do i=1, size(fe_maps)
     call fe_maps(i)%free()
@@ -287,7 +286,6 @@ subroutine fe_function_interpolate_vector_function( this, &
   block_id = field_blocks(field_id)
   
   call fe_space%create_fe_accessor(fe)
-  call fe%first()
   
   ! Loop over the elements
   do while ( .not. fe%past_the_end())
@@ -352,7 +350,7 @@ subroutine fe_function_interpolate_vector_function( this, &
      ! Go to next FE
      call fe%next()
   end do   
-  call fe%free()
+  call fe_space%free_fe_accessor(fe)
 
   do i=1, size(fe_maps)
     call fe_maps(i)%free()

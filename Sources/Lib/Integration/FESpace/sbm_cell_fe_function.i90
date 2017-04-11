@@ -97,7 +97,7 @@ end subroutine cell_fe_function_scalar_move_alloc_gradients_out
 subroutine cell_fe_function_scalar_update ( this, fe_accessor, fe_function )
   implicit none
   class(cell_fe_function_scalar_t), intent(inout) :: this
-  type(fe_accessor_t)             , intent(in)    :: fe_accessor
+  class(fe_accessor_t)            , intent(in)    :: fe_accessor
   type(fe_function_t)             , intent(in)    :: fe_function
   integer(ip)                        :: inode, field_id
   integer(ip)                        :: number_nodes_field, number_quadrature_points
@@ -252,7 +252,7 @@ end subroutine cell_fe_function_vector_create
 subroutine cell_fe_function_vector_update ( this, fe_accessor, fe_function)
   implicit none
   class(cell_fe_function_vector_t), intent(inout) :: this
-  type(fe_accessor_t)             , intent(in)    :: fe_accessor
+  class(fe_accessor_t)             , intent(in)    :: fe_accessor
   type(fe_function_t)             , intent(in)    :: fe_function
   
   integer(ip)                        :: field_id

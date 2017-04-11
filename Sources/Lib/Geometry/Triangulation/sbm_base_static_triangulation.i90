@@ -281,7 +281,7 @@ end subroutine bst_free_cells_set
     integer(ip)  , pointer     :: snd_leids(:)
     integer(ip)  , pointer     :: rcv_ptrs(:)
     integer(ip)  , pointer     :: rcv_leids(:)
-    type(cell_accessor_t)      :: cell
+    class(cell_accessor_t), allocatable :: cell
     integer(ip)                :: icell, first, last, extra_data_size_per_vef
     integer(ip)                :: start_buf, end_buf, current, i, j, number_neighbours
     
@@ -341,7 +341,7 @@ end subroutine bst_free_cells_set
     call memalloc ( number_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
     call memalloc ( number_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
     
-    call cell%create(this)
+    call this%create_cell_accessor(cell)    
     
     snd_ptrs_buf = 0
     do i=1, number_neighbours
@@ -488,7 +488,7 @@ end subroutine bst_free_cells_set
             end do
          end do
      endif
-     
+     call this%free_cell_accessor(cell)
      call memfree ( cell_sizes, __FILE__, __LINE__ )
      call memfree ( snd_ptrs_buf, __FILE__, __LINE__ )
      call memfree ( rcv_ptrs_buf, __FILE__, __LINE__ )
@@ -498,7 +498,7 @@ end subroutine bst_free_cells_set
   
   function bst_cell_size ( cell )
     implicit none
-    type(cell_accessor_t) , intent(in)  :: cell
+    class(cell_accessor_t) , intent(in)  :: cell
     integer(ip) :: bst_cell_size
     bst_cell_size = size_of_ip + size_of_igp + &
                                      size_of_igp*(cell%get_num_vefs()) ! + size_of_ip*(cell%get_num_vefs())
@@ -506,11 +506,11 @@ end subroutine bst_free_cells_set
   
   subroutine bst_cell_pack_vef_gids (cell, buffer, vef_gids, buffer_offset)
     implicit none
-    type(cell_accessor_t), intent(in)  :: cell
-    integer(igp)         , intent(in)  :: vef_gids(:)
-    integer(ieep)        , intent(out) :: buffer(:)
-    integer(ip), optional, intent(out) :: buffer_offset
-    integer(ip)                        :: first, last
+    class(cell_accessor_t), intent(in)  :: cell
+    integer(igp)          , intent(in)  :: vef_gids(:)
+    integer(ieep)         , intent(out) :: buffer(:)
+    integer(ip), optional , intent(out) :: buffer_offset
+    integer(ip)                         :: first, last
         
     first = 1
     last   = first + size_of_igp -1
@@ -528,10 +528,10 @@ end subroutine bst_free_cells_set
 
   subroutine bst_cell_pack_vef_gids_and_dimension (cell, buffer, vef_gids, vef_dimensions)
     implicit none
-    type(cell_accessor_t), intent(in)  :: cell
-    integer(igp)         , intent(in)  :: vef_gids(:)
-    integer(ip)          , intent(in)  :: vef_dimensions(:)
-    integer(ieep)        , intent(out) :: buffer(:)
+    class(cell_accessor_t), intent(in)  :: cell
+    integer(igp)          , intent(in)  :: vef_gids(:)
+    integer(ip)           , intent(in)  :: vef_dimensions(:)
+    integer(ieep)         , intent(out) :: buffer(:)
     integer(ip)                        :: first, last
         
     call bst_cell_pack_vef_gids(cell,buffer,vef_gids, buffer_offset=last)
@@ -544,10 +544,10 @@ end subroutine bst_free_cells_set
 
   subroutine bst_cell_pack_vef_gids_and_coordinates (cell, buffer, vef_gids, coordinates)
     implicit none
-    type(cell_accessor_t), intent(in)  :: cell
-    integer(igp)         , intent(in)  :: vef_gids(:)
-    real(rp)             , intent(in)  :: coordinates(:,:)
-    integer(ieep)        , intent(out) :: buffer(:)
+    class(cell_accessor_t), intent(in)  :: cell
+    integer(igp)          , intent(in)  :: vef_gids(:)
+    real(rp)              , intent(in)  :: coordinates(:,:)
+    integer(ieep)         , intent(out) :: buffer(:)
     integer(ip)                        :: first, last, ivef
         
     call bst_cell_pack_vef_gids(cell,buffer,vef_gids, buffer_offset=last)
@@ -561,10 +561,10 @@ end subroutine bst_free_cells_set
   
   subroutine bst_cell_unpack_vef_gids (cell, buffer, vef_gids, buffer_offset)
     implicit none
-    type(cell_accessor_t), intent(inout) :: cell
-    integer(ieep)        , intent(in)    :: buffer(:)
-    integer(igp)         , intent(out)   :: vef_gids(:)
-    integer(ip), optional, intent(out)   :: buffer_offset
+    class(cell_accessor_t), intent(inout) :: cell
+    integer(ieep)         , intent(in)    :: buffer(:)
+    integer(igp)          , intent(out)   :: vef_gids(:)
+    integer(ip), optional , intent(out)   :: buffer_offset
     integer(ip)                          :: first, last
     integer(igp)                         :: gid
     integer(ip)                          :: mypart
@@ -590,11 +590,11 @@ end subroutine bst_free_cells_set
 
   subroutine bst_cell_unpack_vef_gids_and_dimension (cell, buffer, vef_gids, vef_dimensions)
     implicit none
-    type(cell_accessor_t), intent(inout) :: cell
-    integer(ieep)        , intent(in)    :: buffer(:)
-    integer(igp)         , intent(out)   :: vef_gids(:)
-    integer(ip)          , intent(out)   :: vef_dimensions(:)
-    integer(ip)                          :: first, last, ivef
+    class(cell_accessor_t), intent(inout) :: cell
+    integer(ieep)         , intent(in)    :: buffer(:)
+    integer(igp)          , intent(out)   :: vef_gids(:)
+    integer(ip)           , intent(out)   :: vef_dimensions(:)
+    integer(ip)                           :: first, last, ivef
     
     call bst_cell_unpack_vef_gids(cell, buffer, vef_gids, buffer_offset=last)
     first = last + 1
@@ -606,11 +606,11 @@ end subroutine bst_free_cells_set
 
   subroutine bst_cell_unpack_vef_gids_and_coordinates (cell, buffer, vef_gids, coordinates)
     implicit none
-    type(cell_accessor_t), intent(inout) :: cell
-    integer(ieep)        , intent(in)    :: buffer(:)
-    integer(igp)         , intent(out)   :: vef_gids(:)
-    real(rp)             , intent(out)   :: coordinates(:,:)
-    integer(ip)                          :: first, last, ivef
+    class(cell_accessor_t), intent(inout) :: cell
+    integer(ieep)         , intent(in)    :: buffer(:)
+    integer(igp)          , intent(out)   :: vef_gids(:)
+    real(rp)              , intent(out)   :: coordinates(:,:)
+    integer(ip)                           :: first, last, ivef
     
     call bst_cell_unpack_vef_gids(cell, buffer, vef_gids, buffer_offset=last)
     do ivef=1,cell%get_num_vefs()
@@ -618,7 +618,6 @@ end subroutine bst_free_cells_set
        last = first +SPACE_DIM*size_of_rp - 1
        coordinates(:,ivef) = transfer(buffer(first:last), coordinates(:,ivef))
     end do
-    
   end subroutine bst_cell_unpack_vef_gids_and_coordinates
 
 
@@ -632,15 +631,11 @@ subroutine bst_compute_num_vefs ( this )
   class(base_static_triangulation_t), intent(inout) :: this
   type(hash_table_ip_ip_t) :: visited_vefs
   integer(ip) :: icell, ivef, vef_lid, istat
-  !class(cell_accessor_t), allocatable :: cell
-  type(cell_accessor_t) :: cell
+  class(cell_accessor_t), allocatable :: cell
   
   call visited_vefs%init(max(5,int(real(this%num_local_cells,rp)*0.2_rp,ip))) 
   this%num_vefs = 0
-
-  !call this%create_cell_accessor(cell)
-  call cell%create(this)
-  call cell%first()
+  call this%create_cell_accessor(cell)
   do while( .not. cell%past_the_end() )
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
@@ -650,8 +645,7 @@ subroutine bst_compute_num_vefs ( this )
      call cell%next()
   end do
   call visited_vefs%free()
-  call cell%free()
-  
+  call this%free_cell_accessor(cell)
 end subroutine bst_compute_num_vefs
 
 subroutine bst_allocate_and_fill_vefs_gid ( this, lst_vefs_gid )
@@ -661,15 +655,14 @@ subroutine bst_allocate_and_fill_vefs_gid ( this, lst_vefs_gid )
   integer(ip)                                       :: icell, ivef, vef_lid, current
   integer(igp)                                      :: vef_gid
 
-  type(cell_accessor_t) :: cell
+  class(cell_accessor_t), allocatable       :: cell
 
   assert ( this%num_vefs >= 0 ) 
 
   call this%free_vefs_gid()
   call memalloc(this%num_vefs, this%vefs_gid,__FILE__,__LINE__)
 
-  call cell%create(this)
-  call cell%first()
+  call this%create_cell_accessor(cell)
   current = 1
   do while( .not. cell%past_the_end() )
      do ivef=1, cell%get_num_vefs()
@@ -680,6 +673,7 @@ subroutine bst_allocate_and_fill_vefs_gid ( this, lst_vefs_gid )
      end do
      call cell%next()
   end do
+  call this%free_cell_accessor(cell)
 end subroutine bst_allocate_and_fill_vefs_gid
 
 subroutine bst_free_vefs_gid( this )
@@ -698,15 +692,14 @@ subroutine bst_allocate_and_fill_cells_around ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout)  :: this
   integer(ip)                                        :: ivef, vef_lid
-  type(cell_accessor_t) :: cell
+  class(cell_accessor_t), allocatable       :: cell
 
   call this%free_cells_around()
 
   call memalloc ( this%num_vefs+1, this%ptrs_cells_around, __FILE__, __LINE__ )
   this%ptrs_cells_around = 0
 
-  call cell%create(this)
-  call cell%first()
+  call this%create_cell_accessor(cell)
   do while( .not. cell%past_the_end() )
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
@@ -736,7 +729,9 @@ subroutine bst_allocate_and_fill_cells_around ( this )
      this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef-1)
   end do
   this%ptrs_cells_around(1) = 1
-
+  
+  call this%free_cell_accessor(cell)
+  
 end subroutine bst_allocate_and_fill_cells_around
 
 subroutine bst_free_cells_around(this)
@@ -750,17 +745,18 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   integer(ip)           :: ivef,icell
-  type(cell_accessor_t) :: cell
+  class(cell_accessor_t), allocatable :: cell
   type(vef_accessor_t)  :: vef
   logical               :: vef_is_local, vef_is_ghost
 
   assert ( this%num_vefs >= 0 )
   assert ( allocated(this%vefs_type))
 
+  call this%create_cell_accessor(cell)
+  
   ! Find vefs at interfaces and count them
   this%num_itfc_vefs  = 0
-  call vef%create(this)
-  call vef%first()
+  call this%create_vef_accessor(vef)
   do while ( .not. vef%past_the_end() )
      vef_is_local = .true.
      vef_is_ghost = .true.
@@ -782,6 +778,7 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
      end if
      call vef%next()
   end do
+  call this%free_cell_accessor(cell)
 
   call memalloc(this%num_itfc_vefs, this%lst_itfc_vefs,__FILE__,__LINE__) 
   this%num_itfc_vefs = 0
@@ -794,7 +791,7 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
      end if
      call vef%next()
   end do
-  call vef%free()
+  call this%free_vef_accessor(vef)
   
 end subroutine bst_find_and_list_vefs_at_interfaces
 
@@ -810,8 +807,8 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
   
   type(face_accessor_t) :: face
   
-  type(cell_accessor_t)          :: first_cell
-  type(cell_accessor_t)          :: second_cell
+  class(cell_accessor_t), allocatable :: first_cell
+  class(cell_accessor_t), allocatable :: second_cell
   class(lagrangian_reference_fe_t), pointer :: first_reference_fe_geo
   class(lagrangian_reference_fe_t), pointer :: second_reference_fe_geo
   integer(ip)                    :: face_orientation
@@ -823,8 +820,9 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
   call memalloc(this%num_faces, this%face_rotation, __FILE__, __LINE__)
   this%face_rotation = -1
   
-  call face%create(this)
-  call face%first()
+  call this%create_cell_accessor(first_cell)
+  call this%create_cell_accessor(second_cell)
+  call this%create_face_accessor(face)
   do while ( .not. face%past_the_end() )
     if ( .not. face%is_ghost() .and. face%get_num_cells_around() == 2 ) then
       call face%get_cell_around(1, first_cell)
@@ -849,8 +847,9 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
     end if
     call face%next()
   end do
-  call face%free()
-  
+  call this%free_vef_accessor(face)
+  call this%free_cell_accessor(first_cell)
+  call this%free_cell_accessor(second_cell)
 end subroutine bst_allocate_and_fill_face_orientation_rotation
 
 subroutine bst_free_face_orientation_rotation ( this )
@@ -875,10 +874,10 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     logical, allocatable                      :: touched_neighbours(:)
     integer(ip)                               :: nparts_around, mypart_id, part_id, local_part_id
     integer(ip)                               :: ivef_itfc, icell, vef_lid
-    type(cell_accessor_t)                     :: cell 
+    class(cell_accessor_t), allocatable       :: cell 
     integer(ip)                               :: num_rows_parts_itfc_vefs
     integer(ip), allocatable                  :: work1(:), work2(:)
-    type(itfc_vef_accessor_t)                 :: current_itfc_vef
+    type(itfc_vef_accessor_t)                 :: itfc_vef
 
     assert ( this%p_env%am_i_l1_task() )
     
@@ -896,18 +895,18 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     num_rows_parts_itfc_vefs = num_neighbours + 2
     call memalloc ( num_rows_parts_itfc_vefs, this%num_itfc_vefs, parts_itfc_vefs, __FILE__, __LINE__ )
     parts_itfc_vefs = 0
-    
-
-    call current_itfc_vef%create(this)
+   
+    call this%create_cell_accessor(cell) 
+    call this%create_itfc_vef_accessor(itfc_vef)
     ivef_itfc = 1
-    do while(.not. current_itfc_vef%past_the_end() )
+    do while(.not. itfc_vef%past_the_end() )
     
       touched_neighbours = .false.
       
       nparts_around = 1 
       parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
-      do icell=1, current_itfc_vef%get_num_cells_around()
-        call current_itfc_vef%get_cell_around(icell,cell)
+      do icell=1, itfc_vef%get_num_cells_around()
+        call itfc_vef%get_cell_around(icell,cell)
         part_id       = cell%get_my_part()
         if ( part_id /= mypart_id ) then
          local_part_id = this%cell_import%get_local_neighbour_id(part_id)
@@ -923,7 +922,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       ! This is required by the call to icomp subroutine below 
       call sort ( nparts_around, parts_itfc_vefs(2:nparts_around+1, ivef_itfc) )
       !call itfc_vef_iterator%next()
-      call current_itfc_vef%next()
+      call itfc_vef%next()
       ivef_itfc = ivef_itfc + 1
     end do
     call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
@@ -946,8 +945,8 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
-    call current_itfc_vef%free()
-
+    call this%free_vef_accessor(itfc_vef)
+    call this%free_cell_accessor(cell)
   end subroutine bst_compute_parts_itfc_vefs
   
   subroutine bst_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, perm_itfc_vefs )
@@ -960,10 +959,10 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     logical, allocatable                      :: touched_subparts(:)
     integer(ip)                               :: nsubparts_around
     integer(ip)                               :: ivef_itfc, icell, vef_lid
-    type(cell_accessor_t)                     :: cell 
+    class(cell_accessor_t), allocatable       :: cell 
     integer(ip)                               :: num_rows_subparts_itfc_vefs
     integer(ip), allocatable                  :: work1(:), work2(:)
-    type(itfc_vef_accessor_t)                 :: current_itfc_vef
+    type(itfc_vef_accessor_t)                 :: itfc_vef
     
     integer(ip)                               :: num_subparts
     integer(ip)                               :: cur_subpart_lid
@@ -979,17 +978,18 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     cur_subpart_lid = 1
     call this%g2l_subparts%init()
 
-    call current_itfc_vef%create(this)
-    do while(.not. current_itfc_vef%past_the_end() )
-       do icell=1, current_itfc_vef%get_num_cells_around()
-         call current_itfc_vef%get_cell_around(icell,cell)
+    call this%create_cell_accessor(cell)
+    call this%create_itfc_vef_accessor(itfc_vef)
+    do while(.not. itfc_vef%past_the_end() )
+       do icell=1, itfc_vef%get_num_cells_around()
+         call itfc_vef%get_cell_around(icell,cell)
          subpart_gid = cell%get_my_subpart()
          call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
          if (istat == now_stored) then
            cur_subpart_lid = cur_subpart_lid + 1
          end if
        end do
-       call current_itfc_vef%next()
+       call itfc_vef%next()
     end do
     
     num_subparts = cur_subpart_lid-1
@@ -1003,14 +1003,14 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
 
     ivef_itfc = 1
-    call current_itfc_vef%first()
-    do while(.not. current_itfc_vef%past_the_end() )
+    call itfc_vef%first()
+    do while(.not. itfc_vef%past_the_end() )
 
       touched_subparts = .false.
       
       nsubparts_around = 0
-      do icell=1, current_itfc_vef%get_num_cells_around()
-        call current_itfc_vef%get_cell_around(icell,cell)
+      do icell=1, itfc_vef%get_num_cells_around()
+        call itfc_vef%get_cell_around(icell,cell)
         subpart_gid = cell%get_my_subpart()
         call this%g2l_subparts%get(key=subpart_gid, val=subpart_lid, stat=istat)
         assert ( istat == key_found )
@@ -1024,7 +1024,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       ! Sort list of parts in increasing order by part identifiers
       ! This is required by the call to icomp subroutine below 
       call sort ( nsubparts_around, subparts_itfc_vefs(2:nsubparts_around+1, ivef_itfc) )
-      call current_itfc_vef%next()
+      call itfc_vef%next()
       ivef_itfc = ivef_itfc + 1
     end do
     call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
@@ -1047,8 +1047,8 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_subparts, __FILE__, __LINE__ )
-    call current_itfc_vef%free()
-
+    call this%free_vef_accessor(itfc_vef)
+    call this%free_cell_accessor(cell)
   end subroutine bst_compute_subparts_itfc_vefs
   
   
@@ -1264,7 +1264,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     type(vef_accessor_t) :: vef
     
     call memalloc ( this%number_objects, this%objects_dimension, __FILE__, __LINE__ )
-    call vef%create(this)
+    call this%create_vef_accessor(vef)
     do iobj=1, this%number_objects
       vefs_object_iterator = this%vefs_object%create_iterator(iobj)
       this%objects_dimension(iobj) = 0
@@ -1276,6 +1276,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
         call vefs_object_iterator%next()
        end do
     end do
+    call this%free_vef_accessor(vef)
   end subroutine bst_compute_objects_dimension
   
   subroutine bst_compute_objects_neighbours_exchange_data ( this, &
@@ -1937,7 +1938,18 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
 ! Traversals
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
 subroutine bst_create_cell_accessor ( this, cell )
+  implicit none
+  class(base_static_triangulation_t) , intent(in)    :: this
+  class(cell_accessor_t), allocatable, intent(inout) :: cell
+  integer(ip) :: istat
+  call this%free_cell_accessor(cell)
+  allocate(cell_accessor_t :: cell, stat=istat); check(istat==0)
+  call cell%create(this)
+end subroutine bst_create_cell_accessor
+
+subroutine bst_free_cell_accessor ( this, cell )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
   class(cell_accessor_t), allocatable, intent(inout) :: cell
@@ -1946,26 +1958,69 @@ subroutine bst_create_cell_accessor ( this, cell )
      call cell%free()
      deallocate(cell, stat=istat); check(istat==0)
   end if
-  allocate(cell_accessor_t :: cell, stat=istat); check(istat==0)
-  call cell%create(this)
-end subroutine bst_create_cell_accessor
+end subroutine bst_free_cell_accessor
 
+subroutine bst_create_vef_accessor ( this, vef )
+  implicit none
+  class(base_static_triangulation_t) , intent(in)    :: this
+  type(vef_accessor_t)               , intent(inout) :: vef
+  call this%free_vef_accessor(vef)
+  call vef%create(this)
+end subroutine bst_create_vef_accessor
 
-  function bst_create_object_iterator(this)
-    implicit none
-    class(base_static_triangulation_t), intent(in) :: this
-    type(object_iterator_t) :: bst_create_object_iterator
-    call bst_create_object_iterator%create(lid=1, &
-                                                            base_static_triangulation=this)
-  end function bst_create_object_iterator
+subroutine bst_create_itfc_vef_accessor ( this, itfc_vef )
+  implicit none
+  class(base_static_triangulation_t) , intent(in)    :: this
+  type(itfc_vef_accessor_t)          , intent(inout) :: itfc_vef
+  call this%free_vef_accessor(itfc_vef)
+  call itfc_vef%create(this)
+end subroutine bst_create_itfc_vef_accessor
+
+subroutine bst_create_vertex_accessor ( this, vertex )
+  implicit none
+  class(base_static_triangulation_t) , intent(in)    :: this
+  type(vertex_accessor_t)          , intent(inout) :: vertex
+  call this%free_vef_accessor(vertex)
+  call vertex%create(this)
+end subroutine bst_create_vertex_accessor
+
+subroutine bst_create_edge_accessor ( this, edge )
+  implicit none
+  class(base_static_triangulation_t) , intent(in)    :: this
+  type(edge_accessor_t)          , intent(inout) :: edge
+  call this%free_vef_accessor(edge)
+  call edge%create(this)
+end subroutine bst_create_edge_accessor
+
+subroutine bst_create_face_accessor ( this, face )
+  implicit none
+  class(base_static_triangulation_t) , intent(in)    :: this
+  type(face_accessor_t)          , intent(inout) :: face
+  call this%free_vef_accessor(face)
+  call face%create(this)
+end subroutine bst_create_face_accessor
+
+subroutine bst_free_vef_accessor ( this, vef )
+  implicit none
+  class(base_static_triangulation_t) , intent(in)    :: this
+  class(vef_accessor_t)              , intent(inout) :: vef
+  call vef%free()
+end subroutine bst_free_vef_accessor
+
+subroutine bst_create_object_accessor(this, object)
+  implicit none
+  class(base_static_triangulation_t), intent(in)    :: this
+  type(object_accessor_t)           , intent(inout) :: object
+  call object%create(this)
+end subroutine bst_create_object_accessor
   
-  function bst_create_vefs_on_object_iterator(this, lid)
-    implicit none
-    class(base_static_triangulation_t), intent(in) :: this
-    integer(ip)                           , intent(in) :: lid
-    type(vefs_on_object_iterator_t)                    :: bst_create_vefs_on_object_iterator
-    call bst_create_vefs_on_object_iterator%create(lid, this)
-  end function bst_create_vefs_on_object_iterator
+function bst_create_vefs_on_object_iterator(this, lid)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip)                           , intent(in) :: lid
+  type(vefs_on_object_iterator_t)                    :: bst_create_vefs_on_object_iterator
+  call bst_create_vefs_on_object_iterator%create(lid, this)
+end function bst_create_vefs_on_object_iterator
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -1977,9 +2032,8 @@ subroutine bst_print ( this )
    class(base_static_triangulation_t), intent(in) :: this
    integer(ip) :: ivef,inode
    type(vef_accessor_t)  :: vef
-   type(cell_accessor_t) :: cell
+   class(cell_accessor_t), allocatable       :: cell
    type(point_t), allocatable :: cell_coordinates(:)
-   !type(vef_accessor_t)  :: vef
    integer(ip) :: vef_lid
 
    write (*,'(a)') '****print type(static_triangulation_t)****'
@@ -1989,8 +2043,7 @@ subroutine bst_print ( this )
    write (*,'(a,i10)') 'num_itfc_vefs:  ', this%num_itfc_vefs
    write (*,'(a)') '**** Cells ****'
 
-   call cell%create(this)
-   call cell%first()
+   call this%create_cell_accessor(cell)
    write (*,'(a)') '       id      is_local   is_ghost  num_vefs    vef        vef  ....'
    do while ( .not. cell%past_the_end() )
        write(*,'(i10,2l10,10(2x,i10))') cell%get_lid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_lid(ivef),ivef=1,cell%get_num_vefs())
@@ -2015,17 +2068,16 @@ subroutine bst_print ( this )
 
     write (*,'(a)') '**** Vefs ****'
     write (*,'(a)') '        id          dim    is_local    is_at_interface  is_ghost   is_at_bound       set        geom '
-    call vef%create(this)
-    call vef%first()
+    call this%create_vef_accessor(vef)
     do while ( .not. vef%past_the_end() )
        vef_lid = vef%get_lid()
        write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dimension(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary(), vef%get_set_id(),this%vefs_geometry(vef_lid)
        call vef%next()
     end do
-    call vef%free()
+    call this%free_vef_accessor(vef)
     
     call memfree(cell_coordinates,__FILE__,__LINE__)
-
+    call this%free_cell_accessor(cell)
   end subroutine bst_print
 
 

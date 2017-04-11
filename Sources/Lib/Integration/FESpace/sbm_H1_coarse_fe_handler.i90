@@ -32,11 +32,10 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, con
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
   type(environment_t), pointer :: par_environment
-  type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
   type(fe_vef_accessor_t)                :: vef
-  type(fe_accessor_t)                    :: fe
+  class(fe_accessor_t), allocatable      :: fe
   type(list_iterator_t)                  :: own_coarse_dofs_iterator
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
   integer(ip)                            :: off
@@ -92,10 +91,9 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, con
   call constraint_matrix%create ( num_rows, num_cols )
 
   ! Fill constraint matrix entries (transposed)
-  object_iterator = par_fe_space%create_fe_object_iterator()
-  do while ( .not. object_iterator%has_finished() )
-     call object_iterator%current(object)
-
+  call par_fe_space%create_fe_object_accessor(object)
+  call par_fe_space%create_fe_accessor(fe)
+  do while ( .not. object%past_the_end() )
      if ( object%get_number_coarse_dofs(field_id) > 0 ) then
 
         own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
@@ -180,8 +178,9 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, con
 
         end if
      end if
-     call object_iterator%next()
+     call object%next()
   end do
+  call par_fe_space%free_fe_accessor(fe)
   deallocate (test_elem2dof, stat=istat); check(istat==0);
   call memfree(facevec, __FILE__, __LINE__ )
   call constraint_matrix%sort_and_compress()
@@ -195,7 +194,6 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   integer(ip) :: field_id
-  type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
   type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
   type(fe_vef_accessor_t)                :: vef
@@ -243,7 +241,6 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
   par_env =>  par_fe_space%get_par_environment()
 
   call par_fe_space%create_fe_accessor(fe)
-  call fe%first()
   do while ( .not. fe%past_the_end())
      subpart = fe%get_my_subpart()
      subpart = fe%get_my_subpart_lid()
@@ -258,11 +255,9 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
      end if
      call fe%next()
   end do
-  call fe%free()
   
-  object_iterator = par_fe_space%create_fe_object_iterator()
-  do while ( .not. object_iterator%has_finished() )
-     call object_iterator%current(object)
+  call par_fe_space%create_fe_object_accessor(object)
+  do while ( .not. object%past_the_end() )
      weigh = 0.0_rp
      denom = 0.0_rp
      ! Compute the weighting operator based on the physical coefficient for
@@ -296,8 +291,9 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
         end do
         call vefs_on_object_iterator%next()
      end do
-     call object_iterator%next()
+     call object%next()
   end do
+  call par_fe_space%free_fe_accessor(fe)
   call memfree( is_subpart_local, __FILE__ , __LINE__ )
   call memfree( touch_subpart, __FILE__ , __LINE__ )
   call memfree( subpart_viscosity, __FILE__ , __LINE__ )

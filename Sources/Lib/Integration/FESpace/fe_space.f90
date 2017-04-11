@@ -114,7 +114,7 @@ module fe_space_names
     procedure, non_overridable                 :: get_block_number_interior_dofs                  => base_fe_space_get_block_number_interior_dofs
     procedure, non_overridable                 :: get_block_number_interface_dofs                 => base_fe_space_get_block_number_interface_dofs
     procedure, non_overridable                 :: get_block_dof_import                            => base_fe_space_get_block_dof_import
-	   procedure, non_overridable                 :: get_coarse_fe_space                             => base_fe_space_get_coarse_fe_space
+    procedure, non_overridable                 :: get_coarse_fe_space                             => base_fe_space_get_coarse_fe_space
     
     ! These three TBPs are (currently) though to be overriden by subclasses.
     ! In the future, once we harmonize type(coarse_fe_space_t) and type(serial/par_fe_space_t),
@@ -163,12 +163,13 @@ module fe_space_names
   
   type, extends(base_fe_accessor_t) :: fe_accessor_t
     private
-    class(serial_fe_space_t), pointer    :: fe_space
+    class(serial_fe_space_t), pointer    :: fe_space => NULL()
   contains
     procedure                           :: create                                     => fe_accessor_create
     procedure                           :: assign                                     => fe_accessor_assign
     generic                             :: assignment(=)                              => assign
     procedure                           :: free                                       => fe_accessor_free
+    final                               :: fe_accessor_free_final
     procedure, non_overridable, private :: fill_own_dofs                              => fe_accessor_fill_own_dofs
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => fe_accessor_fill_own_dofs_on_vef
     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_fe        => fe_accessor_fill_own_dofs_on_vef_from_source_fe
@@ -237,15 +238,13 @@ module fe_space_names
      procedure, non_overridable          :: get_num_cells_around      => base_fe_vef_accessor_get_num_cells_around
      procedure, non_overridable          :: base_fe_vef_accessor_get_cell_around
      generic                             :: get_cell_around           => base_fe_vef_accessor_get_cell_around
-     
   end type base_fe_vef_accessor_t
 
   type , extends(base_fe_vef_accessor_t) :: fe_vef_accessor_t
     private
-    class(serial_fe_space_t), pointer :: fe_space
+    class(serial_fe_space_t), pointer :: fe_space => NULL()
   contains
-     procedure                           :: fe_vef_accessor_create
-     generic                             :: create                    => fe_vef_accessor_create
+     procedure                           :: create                    => fe_vef_accessor_create
      procedure                           :: free                      => fe_vef_accessor_free
      procedure, non_overridable, private :: fe_vef_accessor_get_fe_around
      generic                             :: get_cell_around           => fe_vef_accessor_get_fe_around
@@ -253,7 +252,11 @@ module fe_space_names
     
   type, extends(fe_vef_accessor_t) :: fe_face_accessor_t
     private
-  contains
+    class(fe_accessor_t)  , allocatable :: fe
+    class(face_accessor_t), pointer     :: face
+   contains
+    procedure                           :: create                                     => fe_face_accessor_create
+    procedure                           :: free                                       => fe_face_accessor_free
     procedure         , non_overridable :: update_integration                         => fe_face_accessor_update_integration 
     procedure         , non_overridable :: get_fe_space                               => fe_face_accessor_get_fe_space
     procedure         , non_overridable :: get_elem2dof                               => fe_face_accessor_get_elem2dof
@@ -379,11 +382,12 @@ module fe_space_names
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      
      ! fes, fe_vefs and fe_faces traversals-related TBPs
-     procedure, non_overridable          :: create_fe_accessor                           => serial_fe_space_create_fe_accessor
+     procedure                           :: create_fe_accessor                           => serial_fe_space_create_fe_accessor
+     procedure                           :: free_fe_accessor                             => serial_fe_space_free_fe_accessor
      procedure, non_overridable          :: create_fe_vef_accessor                       => serial_fe_space_create_fe_vef_accessor     
      procedure, non_overridable          :: create_itfc_fe_vef_accessor                  => serial_fe_space_create_itfc_fe_vef_accessor     
      procedure, non_overridable          :: create_fe_face_accessor                      => serial_fe_space_create_fe_face_accessor
-     
+     procedure, non_overridable          :: free_fe_vef_accessor                         => serial_fe_space_free_fe_vef_accessor
  end type serial_fe_space_t  
  
  public :: serial_fe_space_t   
@@ -391,31 +395,40 @@ module fe_space_names
  public :: fe_vef_accessor_t
  public :: fe_face_accessor_t
  
- type, extends(object_accessor_t) :: fe_object_accessor_t
+ type base_fe_object_accessor_t
+   private
+   type(object_accessor_t) :: object
+ contains
+   ! Methods "inherited" from object_accessor_t
+   procedure                            :: first                                 => base_fe_object_accessor_first
+   procedure                            :: next                                  => base_fe_object_accessor_next
+   procedure                            :: set_lid                               => base_fe_object_accessor_set_lid
+   procedure                            :: past_the_end                          => base_fe_object_accessor_past_the_end
+   procedure, non_overridable           :: get_lid                               => base_fe_object_accessor_get_lid
+   procedure, non_overridable           :: get_gid                               => base_fe_object_accessor_get_gid
+   procedure, non_overridable           :: get_dimension                         => base_fe_object_accessor_get_dimension
+   procedure, non_overridable           :: get_number_parts_around               => base_fe_object_accessor_get_number_parts_around
+   procedure, non_overridable           :: get_number_subparts_around            => base_fe_object_accessor_get_number_subparts_around
+   procedure, non_overridable           :: create_parts_around_iterator          => base_fe_object_accessor_create_parts_around_iterator
+   procedure, non_overridable           :: create_subparts_around_iterator       => base_fe_object_accessor_create_subparts_around_iterator
+   procedure, non_overridable           :: get_number_vefs_on_object             => base_fe_object_accessor_get_number_vefs_on_object
+   procedure, non_overridable           :: create_vefs_on_object_iterator        => base_fe_object_accessor_create_vefs_on_object_iterator
+ end type base_fe_object_accessor_t
+ 
+ 
+ type, extends(base_fe_object_accessor_t) :: fe_object_accessor_t
     private
     type(par_fe_space_t), pointer :: fe_space
   contains
-    procedure                            :: fe_object_accessor_create
-    generic                              :: create                                => fe_object_accessor_create
+    procedure                            :: create                                => fe_object_accessor_create
     procedure                            :: free                                  => fe_object_accessor_free
+    ! Own methods of fe_object_accessor_t
     procedure, non_overridable           :: get_number_fe_vefs_on_object          => fe_object_accessor_get_number_fe_vefs_on_object
     procedure, non_overridable           :: create_fe_vefs_on_object_iterator     => fe_object_accessor_create_fe_vefs_on_object_iterator
     procedure, non_overridable           :: create_fe_faces_on_object_iterator    => fe_object_accessor_create_fe_faces_on_object_iterator
     procedure, non_overridable           :: get_number_coarse_dofs                => fe_object_accessor_get_number_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_accessor_create_own_coarse_dofs_iterator
   end type fe_object_accessor_t
-  
-  type fe_object_iterator_t
-    private
-    type(fe_object_accessor_t) :: current_fe_object_accessor
-  contains
-    procedure, non_overridable          :: create       => fe_object_iterator_create
-    procedure, non_overridable          :: free         => fe_object_iterator_free
-    procedure, non_overridable          :: init         => fe_object_iterator_init
-    procedure, non_overridable          :: next         => fe_object_iterator_next
-    procedure, non_overridable          :: has_finished => fe_object_iterator_has_finished
-    procedure, non_overridable          :: current      => fe_object_iterator_current
-  end type fe_object_iterator_t
   
   type :: fe_vefs_on_object_iterator_t
     private
@@ -531,12 +544,11 @@ module fe_space_names
    procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
 
    ! Objects-related traversals
-   procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
-   procedure, non_overridable                  :: create_fe_vefs_on_object_iterator               => par_fe_space_create_fe_vefs_on_object_iterator
+   procedure, non_overridable                  :: create_fe_object_accessor                       => par_fe_space_create_fe_object_accessor
  end type par_fe_space_t
  
  public :: par_fe_space_t
- public :: fe_object_accessor_t, fe_object_iterator_t, fe_vefs_on_object_iterator_t, fe_faces_on_object_iterator_t
+ public :: fe_object_accessor_t, fe_vefs_on_object_iterator_t, fe_faces_on_object_iterator_t
  
   type, abstract :: l1_coarse_fe_handler_t
   contains
@@ -596,13 +608,11 @@ module fe_space_names
     
   type , extends(base_fe_accessor_t) :: coarse_fe_accessor_t
     private
-    type(coarse_fe_space_t), pointer :: coarse_fe_space
+    type(coarse_fe_space_t), pointer :: coarse_fe_space => NULL()
   contains
-    !procedure, private, non_overridable :: coarse_fe_accessor_create
     procedure, private, non_overridable :: create                                     => coarse_fe_accessor_create
-    !procedure                           :: cell_accessor_create                       => coarse_fe_accessor_cell_accessor_create
     procedure                           :: free                                       => coarse_fe_accessor_free
-    procedure, non_overridable, private :: create_own_dofs_on_vef_iterator            => coarse_fe_accessor_create_own_dofs_on_vef_iterator
+    procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => coarse_fe_accessor_create_own_dofs_on_vef_iterator
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => coarse_fe_accessor_fill_own_dofs_on_vef
     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_coarse_fe => coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe
     procedure, non_overridable, private :: renumber_dofs_block                        => coarse_fe_accessor_renumber_dofs_block
@@ -612,55 +622,29 @@ module fe_space_names
     procedure, non_overridable          :: get_number_fe_spaces                       => coarse_fe_accessor_get_number_fe_spaces
     procedure, non_overridable          :: get_number_dofs                            => coarse_fe_accessor_get_number_dofs
     procedure, non_overridable          :: get_elem2dof                               => coarse_fe_accessor_get_elem2dof
+    procedure, non_overridable          :: get_field_elem2dof                         => coarse_fe_accessor_get_field_elem2dof
     procedure, non_overridable          :: get_coarse_fe_vef                          => coarse_fe_accessor_get_coarse_fe_vef
   end type coarse_fe_accessor_t
   
-  type coarse_fe_iterator_t
-    private
-    type(coarse_fe_accessor_t) :: current_coarse_fe_accessor
-  contains
-    procedure, non_overridable, private :: create       => coarse_fe_iterator_create
-    procedure, non_overridable          :: free         => coarse_fe_iterator_free
-    procedure, non_overridable          :: init         => coarse_fe_iterator_init
-    procedure, non_overridable          :: next         => coarse_fe_iterator_next
-    procedure, non_overridable          :: has_finished => coarse_fe_iterator_has_finished
-    procedure, non_overridable          :: current      => coarse_fe_iterator_current
-  end type coarse_fe_iterator_t
-  
   type, extends(base_fe_vef_accessor_t) :: coarse_fe_vef_accessor_t
     private
-    type(coarse_fe_space_t), pointer    :: coarse_fe_space
+    type(coarse_fe_space_t), pointer    :: coarse_fe_space => NULL()
   contains
-     procedure :: coarse_fe_vef_accessor_create
-     procedure :: vef_accessor_create                                 => coarse_fe_vef_accessor_vef_accessor_create
-     generic   :: create                                              => coarse_fe_vef_accessor_create
+     procedure :: create                                              => coarse_fe_vef_accessor_create
      procedure :: free                                                => coarse_fe_vef_accessor_free
-     procedure, non_overridable          :: get_num_coarse_fes_around => coarse_fe_vef_accessor_get_num_coarse_fes_around
      procedure, non_overridable          :: get_coarse_fe_around      => coarse_fe_vef_accessor_get_coarse_fe_around
+     generic                             :: get_cell_around           => get_coarse_fe_around
   end type coarse_fe_vef_accessor_t
   
-  type, extends(object_accessor_t) :: coarse_fe_object_accessor_t
+  type, extends(base_fe_object_accessor_t) :: coarse_fe_object_accessor_t
     private
-    type(coarse_fe_space_t), pointer :: coarse_fe_space
+    type(coarse_fe_space_t), pointer :: coarse_fe_space => NULL()
   contains
-    procedure                            :: coarse_fe_object_accessor_create
-    generic                              :: create                                   => coarse_fe_object_accessor_create
+    procedure                            :: create                                   => coarse_fe_object_accessor_create
     procedure                            :: free                                     => coarse_fe_object_accessor_free
     procedure, non_overridable           :: get_number_coarse_fe_vefs_on_object      => coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
     procedure, non_overridable           :: create_coarse_fe_vefs_on_object_iterator => coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator
   end type coarse_fe_object_accessor_t
-  
-  type coarse_fe_object_iterator_t
-    private
-    type(coarse_fe_object_accessor_t) :: current_coarse_fe_object_accessor
-  contains
-     procedure, non_overridable          :: create       => coarse_fe_object_iterator_create
-     procedure, non_overridable          :: free         => coarse_fe_object_iterator_free
-     procedure, non_overridable          :: init         => coarse_fe_object_iterator_init
-     procedure, non_overridable          :: next         => coarse_fe_object_iterator_next
-     procedure, non_overridable          :: has_finished => coarse_fe_object_iterator_has_finished
-     procedure, non_overridable          :: current      => coarse_fe_object_iterator_current
-  end type coarse_fe_object_iterator_t
   
   type :: coarse_fe_vefs_on_object_iterator_t
     private
@@ -675,31 +659,31 @@ module fe_space_names
     procedure, non_overridable          :: current      => coarse_fe_vefs_on_object_iterator_current
   end type coarse_fe_vefs_on_object_iterator_t
   
- type, extends(coarse_fe_object_accessor_t) :: coarse_dof_object_accessor_t
-   private
-   integer(ip)                      :: field_id
-   integer(ip)                      :: coarse_dof_object_lid
- contains
-    procedure  :: coarse_dof_object_accessor_create
-    generic    :: create                      => coarse_dof_object_accessor_create
-    procedure  :: free                        => coarse_dof_object_accessor_free
-    procedure  :: next                        => coarse_dof_object_accessor_next
-    procedure  :: set_lid                     => coarse_dof_object_accessor_set_lid
-    procedure  :: get_number_dofs_on_object   => coarse_dof_object_accessor_get_number_dofs_on_object
-    procedure  :: get_dofs_on_object_iterator => coarse_dof_object_accessor_get_dofs_on_object_iterator
- end type coarse_dof_object_accessor_t
+ !type, extends(coarse_fe_object_accessor_t) :: coarse_dof_object_accessor_t
+ !  private
+ !  integer(ip)                      :: field_id
+ !  integer(ip)                      :: coarse_dof_object_lid
+ !contains
+ !   procedure  :: coarse_dof_object_accessor_create
+ !   generic    :: create                      => coarse_dof_object_accessor_create
+ !   procedure  :: free                        => coarse_dof_object_accessor_free
+ !   procedure  :: next                        => coarse_dof_object_accessor_next
+ !   procedure  :: set_lid                     => coarse_dof_object_accessor_set_lid
+ !   procedure  :: get_number_dofs_on_object   => coarse_dof_object_accessor_get_number_dofs_on_object
+ !   procedure  :: get_dofs_on_object_iterator => coarse_dof_object_accessor_get_dofs_on_object_iterator
+ !end type coarse_dof_object_accessor_t
  
- type coarse_dof_object_iterator_t
-    private
-    type(coarse_dof_object_accessor_t) :: current_coarse_dof_object_accessor
-  contains
-     procedure, non_overridable          :: create       => coarse_dof_object_iterator_create
-     procedure, non_overridable          :: free         => coarse_dof_object_iterator_free
-     procedure, non_overridable          :: init         => coarse_dof_object_iterator_init
-     procedure, non_overridable          :: next         => coarse_dof_object_iterator_next
-     procedure, non_overridable          :: has_finished => coarse_dof_object_iterator_has_finished
-     procedure, non_overridable          :: current      => coarse_dof_object_iterator_current
-  end type coarse_dof_object_iterator_t
+ !type coarse_dof_object_iterator_t
+ !   private
+ !   type(coarse_dof_object_accessor_t) :: current_coarse_dof_object_accessor
+ ! contains
+ !    procedure, non_overridable          :: create       => coarse_dof_object_iterator_create
+ !    procedure, non_overridable          :: free         => coarse_dof_object_iterator_free
+ !    procedure, non_overridable          :: init         => coarse_dof_object_iterator_init
+ !    procedure, non_overridable          :: next         => coarse_dof_object_iterator_next
+ !    procedure, non_overridable          :: has_finished => coarse_dof_object_iterator_has_finished
+ !    procedure, non_overridable          :: current      => coarse_dof_object_iterator_current
+ ! end type coarse_dof_object_iterator_t
   
   
   type, extends(base_fe_space_t) :: coarse_fe_space_t
@@ -711,15 +695,23 @@ module fe_space_names
 	   ! Pointer to coarse triangulation this coarse_fe_space has been built from
     type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
 	
-	   ! Multilevel fe space   
-    integer(ip)                   , allocatable :: num_coarse_dofs_per_field(:)
-   	
-    ! Aggregation of fine DoFs into coarse DoFs
-    type(list_t)                  , allocatable :: fine_dofs_coarse_dofs_per_field(:) 
+    ! It is the equivalent to the "element_to_dof" at the finer level
+    ! Pointers to the start/end of coarse DoFs LIDs of each field (lst_coarse_dofs)
+    integer(ip)                   , allocatable :: ptr_coarse_dofs_per_field(:)	
+    ! List of coarse DoFs LIDs
+    integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
+    
+    ! Coarse DoFs LIDs on top of coarse n_faces per field
+    ! It provides (for every field) what we get from the reference_fe_t at the
+    ! finer level
+    type(list_t), allocatable                   :: own_coarse_dofs_per_field(:)
+   
+    
     ! GIDs of the coarse DoFs. For their generation, we though to be a good idea 
     ! to take as basis the GIDs of the VEFs objects they are built from (instead of
     ! generating them from scratch, which in turn would imply further communication).
     type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_per_field(:)
+
     ! LIDs of the VEFs objects the coarse DoFs are put on top of
     type(allocatable_array_ip1_t) , allocatable :: coarse_n_face_lids_coarse_dofs_per_field(:)
   contains
@@ -752,15 +744,16 @@ module fe_space_names
     procedure, non_overridable, private         :: raw_interface_data_by_continuity_decide_owner   => coarse_fe_space_raw_interface_data_by_continuity_decide_owner
     
     procedure, non_overridable                  :: setup_coarse_dofs                               => coarse_fe_space_setup_coarse_dofs
-    procedure, non_overridable, private         :: setup_dofs_objects_by_continuity                => coarse_fe_space_setup_dofs_objects_by_continuity
+    !procedure, non_overridable, private         :: setup_dofs_objects_by_continuity                => coarse_fe_space_setup_dofs_objects_by_continuity
     procedure, non_overridable                  :: setup_constraint_matrix                         => coarse_fe_space_setup_constraint_matrix
     procedure, non_overridable, private         :: setup_coarse_fe_space                           => coarse_fe_space_setup_coarse_fe_space
-    procedure, non_overridable, private         :: transfer_number_fields                          => coarse_fe_space_transfer_number_fields
-    procedure, non_overridable, private         :: transfer_fe_space_type                          => coarse_fe_space_transfer_fe_space_type
-    procedure, non_overridable, private         :: gather_ptr_dofs_per_fe_and_field                => coarse_fe_space_gather_ptr_dofs_per_fe_and_field
-    procedure, non_overridable, private         :: gather_coarse_dofs_gids_rcv_counts_and_displs   => coarse_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
-    procedure, non_overridable, private         :: gather_coarse_dofs_gids                         => coarse_fe_space_gather_coarse_dofs_gids
-    procedure, non_overridable, private         :: gather_vefs_gids_dofs_objects                   => coarse_fe_space_gather_vefs_gids_dofs_objects
+    !procedure, non_overridable, private         :: transfer_number_fields                          => coarse_fe_space_transfer_number_fields
+    !procedure, non_overridable, private         :: transfer_fe_space_type                          => coarse_fe_space_transfer_fe_space_type
+    !procedure, non_overridable, private         :: gather_ptr_dofs_per_fe_and_field                => coarse_fe_space_gather_ptr_dofs_per_fe_and_field
+    !procedure, non_overridable, private         :: gather_coarse_dofs_gids_rcv_counts_and_displs   => coarse_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
+    !procedure, non_overridable, private         :: gather_coarse_dofs_gids                         => coarse_fe_space_gather_coarse_dofs_gids
+    !procedure, non_overridable, private         :: gather_vefs_gids_dofs_objects                   => coarse_fe_space_gather_vefs_gids_dofs_objects
+
     procedure                                   :: get_total_number_coarse_dofs                    => coarse_fe_space_get_total_number_coarse_dofs
     procedure                                   :: get_block_number_coarse_dofs                    => coarse_fe_space_get_block_number_coarse_dofs
 	   procedure, non_overridable, private         :: free_coarse_dofs                                => coarse_fe_space_free_coarse_dofs
@@ -769,16 +762,20 @@ module fe_space_names
     procedure                         , private :: renumber_dofs_block                             => coarse_fe_space_renumber_dofs_block
     
     ! Coarse FE traversals-related TBPs
-    procedure, non_overridable                  :: create_coarse_fe_iterator                       => coarse_fe_space_create_coarse_fe_iterator
+    procedure, non_overridable                  :: create_coarse_fe_accessor                       => coarse_fe_space_create_coarse_fe_accessor
+    procedure, non_overridable                  :: free_coarse_fe_accessor                         => coarse_fe_space_free_coarse_fe_accessor
+
     
     ! Coarse FE VEFS traversals-related TBPs
     procedure, non_overridable                  :: create_coarse_fe_vef_accessor                   => coarse_fe_space_create_coarse_fe_vef_accessor
     procedure, non_overridable                  :: create_itfc_coarse_fe_vef_accessor              => coarse_fe_space_create_itfc_coarse_fe_vef_accessor
+    procedure, non_overridable                  :: free_coarse_fe_vef_accessor                     => coarse_fe_space_free_coarse_fe_vef_accessor
+    
     
      ! Objects-related traversals
-     procedure, non_overridable                 :: create_coarse_fe_object_iterator                => coarse_fe_space_create_coarse_fe_object_iterator
+     procedure, non_overridable                 :: create_coarse_fe_object_accessor                => coarse_fe_space_create_coarse_fe_object_accessor
      procedure, non_overridable                 :: create_coarse_fe_vefs_on_object_iterator        => coarse_fe_space_create_coarse_fe_vefs_on_object_iterator
-     procedure, non_overridable                 :: create_field_dofs_object_iterator               => coarse_fe_space_create_field_dofs_object_iterator
+     !procedure, non_overridable                 :: create_field_dofs_object_iterator               => coarse_fe_space_create_field_dofs_object_iterator
      
      ! Getters
      procedure, non_overridable                 :: get_number_local_coarse_fes                     => coarse_fe_space_get_number_local_coarse_fes
@@ -789,8 +786,8 @@ module fe_space_names
      procedure                                  :: get_environment                                 => coarse_fe_space_get_environment
  end type coarse_fe_space_t
  
- public :: coarse_fe_space_t, coarse_fe_accessor_t, coarse_fe_iterator_t
- public :: coarse_fe_object_accessor_t, coarse_dof_object_accessor_t, coarse_dof_object_iterator_t
+ public :: coarse_fe_space_t, coarse_fe_accessor_t, coarse_fe_vef_accessor_t, coarse_fe_vefs_on_object_iterator_t
+ public :: coarse_fe_object_accessor_t
  public :: coarse_space_use_vertices_key, coarse_space_use_edges_key, coarse_space_use_faces_key
  
  type, abstract :: lgt1_coarse_fe_handler_t
@@ -826,8 +823,8 @@ contains
 #include "sbm_base_fe_vef_accessor.i90"
 #include "sbm_fe_vef_accessor.i90"
 #include "sbm_par_fe_space.i90"
+#include "sbm_base_fe_object_accessor.i90"
 #include "sbm_fe_object_accessor.i90"
-#include "sbm_fe_object_iterator.i90"
 #include "sbm_fe_vefs_on_object_iterator.i90"
 #include "sbm_fe_faces_on_object_iterator.i90"
 #include "sbm_standard_coarse_fe_handler.i90"
@@ -835,12 +832,8 @@ contains
 
 #include "sbm_coarse_fe_space.i90"
 #include "sbm_coarse_fe_object_accessor.i90"
-#include "sbm_coarse_fe_object_iterator.i90"
 #include "sbm_coarse_fe_vefs_on_object_iterator.i90"
 #include "sbm_coarse_fe_accessor.i90"
-#include "sbm_coarse_fe_iterator.i90"
 #include "sbm_coarse_fe_vef_accessor.i90"
-#include "sbm_coarse_dof_object_accessor.i90"
-#include "sbm_coarse_dof_object_iterator.i90"
 
 end module fe_space_names

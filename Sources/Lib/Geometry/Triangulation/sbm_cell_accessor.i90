@@ -29,11 +29,9 @@ subroutine cell_accessor_create ( this, base_static_triangulation )
   implicit none
   class(cell_accessor_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
-  !write(*,*) 'cell_accessor_create :: begining'
   call this%free()
-  !write(*,*) 'cell_accessor_create :: after free'
   this%base_static_triangulation => base_static_triangulation
-  !write(*,*) 'cell_accessor_create :: end'
+  call this%first()
 end subroutine cell_accessor_create
 
 subroutine cell_accessor_free ( this)
@@ -42,6 +40,13 @@ subroutine cell_accessor_free ( this)
   this%lid = -1
   nullify ( this%base_static_triangulation )
 end subroutine cell_accessor_free
+
+subroutine cell_accessor_free_final(this)
+  implicit none
+  type(cell_accessor_t), intent(inout) :: this
+  assert(this%lid == -1)
+  assert(.not. associated(this%base_static_triangulation ))
+end subroutine cell_accessor_free_final
 
 subroutine cell_accessor_next(this)
   implicit none
@@ -312,7 +317,6 @@ subroutine cell_accessor_get_vef (this, ivef, vef)
   integer(ip),            intent(in)    :: ivef
   type(vef_accessor_t),   intent(inout) :: vef
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  call vef%create(this%base_static_triangulation)
   call vef%set_lid(this%get_vef_lid(ivef))
 end subroutine cell_accessor_get_vef
 

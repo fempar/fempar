@@ -101,8 +101,7 @@ contains
 
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_accessor(fe)
-    call fe%first()    
-
+    
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
@@ -160,7 +159,7 @@ contains
        end if
        call fe%next()
     end do
-    call fe%free()
+    call fe_space%free_fe_accessor(fe)
     deallocate (elem2dof, stat=istat); check(istat==0);
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )

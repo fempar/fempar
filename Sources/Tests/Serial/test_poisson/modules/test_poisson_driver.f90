@@ -116,8 +116,7 @@ contains
     !call this%triangulation%print()
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       call vef%create(this%triangulation)
-       call vef%first()
+       call this%triangulation%create_vef_accessor(vef)
        do while ( .not. vef%past_the_end() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
@@ -126,9 +125,8 @@ contains
           end if
           call vef%next()
        end do
-       call vef%free()
-    end if    
-    
+       call this%triangulation%free_vef_accessor(vef)
+    end if
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -141,7 +139,7 @@ contains
     ! Locals
     integer(ip) :: istat    
     logical                                   :: continuity
-    type(cell_accessor_t)                     :: cell
+    class(cell_accessor_t)      , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     character(:), allocatable :: field_type
     
@@ -159,23 +157,8 @@ contains
       field_type = field_type_vector
     end if
     
-    call cell%create(this%triangulation)
-    call cell%first()
+    call this%triangulation%create_cell_accessor(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
-    
-    
-         
-    ! BEGIN Checking new polytope_tree_t
-    !if ( reference_fe_geo%get_topology() == topology_hex ) then
-    ! topology = 2**this%triangulation%get_num_dimensions()-1
-    !elseif ( reference_fe_geo%get_topology() == topology_tet ) then
-    ! topology = 0
-    !end if
-    !call poly_old%create_old(this%triangulation%get_num_dimensions(), topology )
-    !call poly%create(this%triangulation%get_num_dimensions(), topology )
-    !call poly_old%print()
-    !call poly%print()
-    ! END Checking ...
     
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
@@ -183,6 +166,8 @@ contains
                                                  order = this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
                                                  continuity = continuity ) 
+    
+    call this%triangulation%free_cell_accessor(cell)
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)

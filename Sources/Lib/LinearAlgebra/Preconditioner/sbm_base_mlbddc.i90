@@ -167,7 +167,6 @@ subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
   class(base_mlbddc_t)           , intent(inout) :: this
   type(environment_t)   , pointer       :: L1_environment
   type(environment_t)   , pointer       :: L2_environment
-  type(coarse_fe_iterator_t) :: iterator
   type(coarse_fe_accessor_t) :: coarse_fe
   type(i1p_t), allocatable :: elem2dof(:)
   logical, pointer :: field_coupling(:,:)
@@ -188,9 +187,8 @@ subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
 
   field_coupling => coarse_fe_space%get_field_coupling()
 
-  iterator  = coarse_fe_space%create_coarse_fe_iterator()
-  do while ( .not. iterator%has_finished() )
-     coarse_fe = iterator%current()
+  call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
+  do while ( .not. coarse_fe%past_the_end() )
      call coarse_fe%get_elem2dof(elem2dof)
      do ifield=1, coarse_fe_space%get_number_fields()
         do jfield=1, coarse_fe_space%get_number_fields()
@@ -204,15 +202,14 @@ subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
            end if
         end do
      end do
-     call iterator%next()
+     call coarse_fe%next()
   end do
+  call coarse_fe_space%free_coarse_fe_accessor(coarse_fe)
 
   deallocate ( elem2dof, stat=istat )
-  check(istat==0)     
-
+  check(istat==0)
+  
   call this%coarse_grid_matrix%convert(csr_format)
-
-  !call this%coarse_grid_matrix%print(6)
 end subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly
 
 subroutine base_mlbddc_symbolic_setup_mlbddc_coarse(this)
@@ -466,7 +463,6 @@ subroutine base_mlbddc_compute_subdomain_elmat_counts_and_displs ( this, counts,
   integer(ip), allocatable  , intent(inout) :: displs(:)
   type(environment_t), pointer :: par_environment
   integer(ip) :: i, l1_to_l2_size
-  type(coarse_fe_iterator_t) :: iterator
   type(coarse_fe_accessor_t) :: coarse_fe
 
   class(base_fe_space_t)   , pointer :: fe_space
@@ -485,15 +481,16 @@ subroutine base_mlbddc_compute_subdomain_elmat_counts_and_displs ( this, counts,
 
   i = 1
   counts(l1_to_l2_size) = 0
-  iterator = coarse_fe_space%create_coarse_fe_iterator()
-  do while ( .not. iterator%has_finished() )
-     coarse_fe = iterator%current()
+  call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
+  do while ( .not. coarse_fe%past_the_end() )
      if ( coarse_fe%is_local() ) then
         counts(i) = coarse_fe%get_number_dofs()**2    
         i = i +1
      end if
-     call iterator%next()
+     call coarse_fe%next()
   end do
+  call coarse_fe_space%free_coarse_fe_accessor(coarse_fe)
+
 
   displs(1) = 0
   do i=2, l1_to_l2_size
@@ -573,7 +570,6 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
 
   type(environment_t)   , pointer       :: L1_environment
   type(environment_t)   , pointer       :: L2_environment
-  type(coarse_fe_iterator_t) :: iterator
   type(coarse_fe_accessor_t) :: coarse_fe
   type(i1p_t), allocatable :: elem2dof(:)
   logical, pointer :: field_coupling(:,:)
@@ -593,9 +589,8 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
   check(istat==0)     
   field_coupling => coarse_fe_space%get_field_coupling()
   current = 1
-  iterator  = coarse_fe_space%create_coarse_fe_iterator()
-  do while ( .not. iterator%has_finished() )
-     coarse_fe = iterator%current()
+  call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
+  do while ( .not. coarse_fe%past_the_end() )
      call coarse_fe%get_elem2dof(elem2dof)
      if ( coarse_fe%is_local() ) then
         do ifield=1, coarse_fe_space%get_number_fields()
@@ -613,8 +608,9 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
            end do
         end do
      end if
-     call iterator%next()
+     call coarse_fe%next()
   end do
+  call coarse_fe_space%free_coarse_fe_accessor(coarse_fe)
   deallocate ( elem2dof, stat=istat )
   check(istat==0)     
   call this%coarse_grid_matrix%convert(csr_format)
@@ -919,7 +915,6 @@ subroutine base_mlbddc_compute_coarse_dofs_values_counts_and_displs ( this, coun
   integer(ip), allocatable  , intent(inout) :: displs(:)
   type(environment_t), pointer :: par_environment
   integer(ip) :: i, l1_to_l2_size
-  type(coarse_fe_iterator_t) :: iterator
   type(coarse_fe_accessor_t) :: coarse_fe
   class(base_fe_space_t)   , pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
@@ -937,16 +932,15 @@ subroutine base_mlbddc_compute_coarse_dofs_values_counts_and_displs ( this, coun
 
   i=1
   counts(l1_to_l2_size) = 0
-  iterator = coarse_fe_space%create_coarse_fe_iterator()
-  do while ( .not. iterator%has_finished() )
-     coarse_fe = iterator%current()
+  call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
+  do while ( .not. coarse_fe%past_the_end() )
      if ( coarse_fe%is_local() ) then
         counts(i) = coarse_fe%get_number_dofs()
         i=i+1
      end if
-     call iterator%next()
+     call coarse_fe%next()
   end do
-
+  call coarse_fe_space%free_coarse_fe_accessor(coarse_fe)
   displs(1) = 0
   do i=2, l1_to_l2_size
      displs(i) = displs(i-1) + counts(i-1)
@@ -1007,7 +1001,6 @@ subroutine base_mlbddc_coarse_grid_residual_assembly ( this, coarse_dofs_values_
 
   type(environment_t)   , pointer       :: L1_environment
   type(environment_t)   , pointer       :: L2_environment
-  type(coarse_fe_iterator_t)                :: iterator
   type(coarse_fe_accessor_t)                :: coarse_fe
   class(base_fe_space_t)   , pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
@@ -1025,9 +1018,8 @@ subroutine base_mlbddc_coarse_grid_residual_assembly ( this, coarse_dofs_values_
   allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
   check(istat==0)     
   current = 1
-  iterator  = coarse_fe_space%create_coarse_fe_iterator()
-  do while ( .not. iterator%has_finished() )
-     coarse_fe = iterator%current()
+  call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
+  do while ( .not. coarse_fe%past_the_end() )
      call coarse_fe%get_elem2dof(elem2dof)
      if ( coarse_fe%is_local() ) then
         do ifield=1, coarse_fe_space%get_number_fields()
@@ -1038,8 +1030,9 @@ subroutine base_mlbddc_coarse_grid_residual_assembly ( this, coarse_dofs_values_
            end do
         end do
      end if
-     call iterator%next()
+     call coarse_fe%next()
   end do
+  call coarse_fe_space%free_coarse_fe_accessor(coarse_fe)
   deallocate ( elem2dof, stat=istat )
   check(istat==0)
   call coarse_grid_vector%comm()
@@ -1127,7 +1120,6 @@ subroutine base_mlbddc_fill_coarse_dofs_values_scattered ( this, coarse_grid_vec
   real(rp)                 , intent(inout)  :: coarse_dofs_values_scattered(*)
   type(environment_t), pointer    :: par_environment
   type(i1p_t)           , allocatable :: elem2dof(:)
-  type(coarse_fe_iterator_t)          :: iterator
   type(coarse_fe_accessor_t)          :: coarse_fe
   integer(ip)                         :: istat, current, ifield
   class(base_fe_space_t)   , pointer :: fe_space
@@ -1143,9 +1135,8 @@ subroutine base_mlbddc_fill_coarse_dofs_values_scattered ( this, coarse_grid_vec
   check(istat==0)
 
   current = 1
-  iterator  = coarse_fe_space%create_coarse_fe_iterator()
-  do while ( .not. iterator%has_finished() )
-     coarse_fe = iterator%current()
+  call coarse_fe_space%create_coarse_fe_accessor(coarse_fe) 
+  do while ( .not. coarse_fe%past_the_end() )
      call coarse_fe%get_elem2dof(elem2dof)
      if ( coarse_fe%is_local() ) then
         do ifield=1, coarse_fe_space%get_number_fields()
@@ -1156,9 +1147,9 @@ subroutine base_mlbddc_fill_coarse_dofs_values_scattered ( this, coarse_grid_vec
            current = current + size(elem2dof(ifield)%p)
         end do
      end if
-     call iterator%next()
+     call coarse_fe%next()
   end do
-
+  call coarse_fe_space%free_coarse_fe_accessor(coarse_fe)
   deallocate ( elem2dof, stat=istat )
   check(istat==0)
 end subroutine base_mlbddc_fill_coarse_dofs_values_scattered

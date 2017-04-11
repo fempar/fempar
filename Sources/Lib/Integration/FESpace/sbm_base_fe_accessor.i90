@@ -28,18 +28,21 @@
 subroutine base_fe_accessor_next(this)
   implicit none
   class(base_fe_accessor_t), intent(inout) :: this
+  assert(allocated(this%cell))
   call this%cell%next()
 end subroutine base_fe_accessor_next
 
 subroutine base_fe_accessor_first(this)
   implicit none
   class(base_fe_accessor_t), intent(inout) :: this
+  assert(allocated(this%cell))
   call this%cell%first()
 end subroutine base_fe_accessor_first
 
 subroutine base_fe_accessor_last(this)
   implicit none
   class(base_fe_accessor_t), intent(inout) :: this
+  assert(allocated(this%cell))
   call this%cell%last()
 end subroutine base_fe_accessor_last
 
@@ -47,6 +50,7 @@ subroutine base_fe_accessor_set_lid(this, lid)
   implicit none
   class(base_fe_accessor_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
+  assert(allocated(this%cell))
   call this%cell%set_lid(lid)
 end subroutine base_fe_accessor_set_lid
 
@@ -54,6 +58,7 @@ function base_fe_accessor_past_the_end(this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   logical :: base_fe_accessor_past_the_end
+  assert(allocated(this%cell))
   base_fe_accessor_past_the_end = this%cell%past_the_end()
 end function base_fe_accessor_past_the_end
 
@@ -61,6 +66,7 @@ function base_fe_accessor_get_reference_fe_geo (this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   class(lagrangian_reference_fe_t), pointer :: base_fe_accessor_get_reference_fe_geo
+  assert(allocated(this%cell))
   base_fe_accessor_get_reference_fe_geo => this%cell%get_reference_fe_geo()
 end function base_fe_accessor_get_reference_fe_geo
 
@@ -69,6 +75,7 @@ function base_fe_accessor_get_reference_fe_geo_id (this)
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_accessor_get_reference_fe_geo_id
   integer(ip) :: istat
+  assert(allocated(this%cell))
   base_fe_accessor_get_reference_fe_geo_id = this%cell%get_reference_fe_geo_id()
 end function base_fe_accessor_get_reference_fe_geo_id
 
@@ -76,6 +83,7 @@ subroutine base_fe_accessor_get_coordinates (this, cell_coordinates)
   implicit none
   class(base_fe_accessor_t), intent(in)     :: this
   type(point_t)       ,  intent(inout) :: cell_coordinates(:)
+  assert(allocated(this%cell))
   call this%cell%get_coordinates(cell_coordinates)
 end subroutine base_fe_accessor_get_coordinates
 
@@ -83,6 +91,7 @@ subroutine base_fe_accessor_set_coordinates (this, cell_coordinates)
   implicit none
   class(base_fe_accessor_t), intent(inout) :: this
   type(point_t)       ,  intent(in)   :: cell_coordinates(:)
+  assert(allocated(this%cell))
   call this%cell%set_coordinates(cell_coordinates)
 end subroutine base_fe_accessor_set_coordinates
 
@@ -90,6 +99,7 @@ pure function base_fe_accessor_get_lid (this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_accessor_get_lid
+  !assert(allocated(this%cell))
   base_fe_accessor_get_lid = this%cell%get_lid()
 end function base_fe_accessor_get_lid
 
@@ -97,6 +107,7 @@ function base_fe_accessor_get_gid (this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   integer(igp) :: base_fe_accessor_get_gid
+  assert(allocated(this%cell))
   base_fe_accessor_get_gid = this%cell%get_gid()
 end function base_fe_accessor_get_gid
 
@@ -104,6 +115,7 @@ pure function base_fe_accessor_get_mypart (this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_accessor_get_mypart
+  !assert(allocated(this%cell))
   base_fe_accessor_get_mypart = this%cell%get_my_part()
 end function base_fe_accessor_get_mypart
 
@@ -111,6 +123,7 @@ function base_fe_accessor_get_mysubpart ( this )
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_accessor_get_mysubpart
+  assert(allocated(this%cell))
   base_fe_accessor_get_mysubpart = this%cell%get_my_subpart()
 end function base_fe_accessor_get_mysubpart
 
@@ -118,6 +131,7 @@ function base_fe_accessor_get_mysubpart_lid ( this )
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_accessor_get_mysubpart_lid
+  assert(allocated(this%cell))
   base_fe_accessor_get_mysubpart_lid = this%cell%get_my_subpart_lid ()
 end function base_fe_accessor_get_mysubpart_lid
 
@@ -125,6 +139,7 @@ function base_fe_accessor_get_set_id(this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_accessor_get_set_id
+  assert(allocated(this%cell))
   base_fe_accessor_get_set_id = this%cell%get_set_id()
 end function base_fe_accessor_get_set_id
 
@@ -132,6 +147,7 @@ pure function base_fe_accessor_get_num_vefs (this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip)                        :: base_fe_accessor_get_num_vefs
+  !assert(allocated(this%cell))
   base_fe_accessor_get_num_vefs = this%cell%get_num_vefs ()
 end function base_fe_accessor_get_num_vefs
 
@@ -140,6 +156,7 @@ function base_fe_accessor_get_vef_lid (this, ivef)
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip)                      :: ivef
   integer(ip)                      :: base_fe_accessor_get_vef_lid
+  assert(allocated(this%cell))
   base_fe_accessor_get_vef_lid = this%cell%get_vef_lid (ivef)
 end function base_fe_accessor_get_vef_lid
 
@@ -148,6 +165,7 @@ function base_fe_accessor_get_vef_lids (this)
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip)                        :: ivef
   integer(ip), pointer               :: base_fe_accessor_get_vef_lids(:)
+  assert(allocated(this%cell))
   base_fe_accessor_get_vef_lids => this%cell%get_vef_lids()
 end function base_fe_accessor_get_vef_lids
 
@@ -156,6 +174,7 @@ function base_fe_accessor_get_vef_gid (this, ivef)
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip)                        :: ivef
   integer(igp)                       :: base_fe_accessor_get_vef_gid
+  assert(allocated(this%cell))
   base_fe_accessor_get_vef_gid = this%cell%get_vef_gid (ivef)
 end function base_fe_accessor_get_vef_gid
 
@@ -164,6 +183,7 @@ function base_fe_accessor_find_lpos_vef_lid (this, vef_lid)
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip)                      :: vef_lid
   integer(ip)                      :: base_fe_accessor_find_lpos_vef_lid
+  assert(allocated(this%cell))
   base_fe_accessor_find_lpos_vef_lid = this%cell%find_lpos_vef_lid (vef_lid)
 end function base_fe_accessor_find_lpos_vef_lid
 
@@ -172,6 +192,7 @@ function base_fe_accessor_find_lpos_vef_gid (this, vef_gid)
   class(base_fe_accessor_t), intent(in) :: this
   integer(igp)                     :: vef_gid
   integer(ip)                      :: base_fe_accessor_find_lpos_vef_gid
+  assert(allocated(this%cell))
   base_fe_accessor_find_lpos_vef_gid = this%cell%find_lpos_vef_gid (vef_gid)
 end function base_fe_accessor_find_lpos_vef_gid
 
@@ -179,6 +200,7 @@ function base_fe_accessor_is_local (this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   logical                          :: base_fe_accessor_is_local
+  assert(allocated(this%cell))
   base_fe_accessor_is_local = this%cell%is_local()
 end function base_fe_accessor_is_local
 
@@ -186,6 +208,7 @@ function base_fe_accessor_is_ghost (this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   logical                          :: base_fe_accessor_is_ghost
+  assert(allocated(this%cell))
   base_fe_accessor_is_ghost = this%cell%is_ghost()
 end function base_fe_accessor_is_ghost
 
@@ -199,6 +222,7 @@ function base_fe_accessor_get_scan_sum_number_vefs(this)
   implicit none
   class(base_fe_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_accessor_get_scan_sum_number_vefs
+  assert(allocated(this%cell))
   base_fe_accessor_get_scan_sum_number_vefs = this%cell%scan_sum_number_vefs()
 end function base_fe_accessor_get_scan_sum_number_vefs
 
@@ -207,6 +231,7 @@ subroutine base_fe_accessor_get_vef (this, ivef, vef)
   class(base_fe_accessor_t), intent(in)    :: this
   integer(ip),            intent(in)    :: ivef
   type(vef_accessor_t),   intent(inout) :: vef
+  assert(allocated(this%cell))
   call this%cell%get_vef(ivef, vef)
 end subroutine base_fe_accessor_get_vef
 

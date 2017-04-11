@@ -135,7 +135,6 @@ contains
     
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_accessor(fe)
-    call fe%first()    
     
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -189,7 +188,7 @@ contains
        
        call fe%next()
     end do
-    call fe%free()
+    call fe_space%free_fe_accessor(fe)
     
     call fe_space%initialize_fe_face_integration()
     
@@ -340,7 +339,7 @@ contains
        end if
        call fe_face%next()
     end do
-    
+    call fe_face%free()
     call boundary_fe_function%free()
     call boundary_face_fe_function%free()
     call memfree(shape_values_first, __FILE__, __LINE__) 

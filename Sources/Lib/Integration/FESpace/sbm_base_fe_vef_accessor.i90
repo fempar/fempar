@@ -31,12 +31,14 @@
 subroutine base_fe_vef_accessor_first(this)
   implicit none
   class(base_fe_vef_accessor_t), intent(inout) :: this
+  assert(allocated(this%vef))
   call this%vef%first()
 end subroutine base_fe_vef_accessor_first
 
 subroutine base_fe_vef_accessor_next(this)
   implicit none
   class(base_fe_vef_accessor_t), intent(inout) :: this
+  assert(allocated(this%vef))
   call this%vef%next()
 end subroutine base_fe_vef_accessor_next
 
@@ -44,6 +46,7 @@ subroutine base_fe_vef_accessor_set_lid(this, lid)
   implicit none
   class(base_fe_vef_accessor_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: lid
+  assert(allocated(this%vef))
   call this%vef%set_lid(lid)
 end subroutine base_fe_vef_accessor_set_lid
 
@@ -51,6 +54,7 @@ function base_fe_vef_accessor_past_the_end(this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   logical :: base_fe_vef_accessor_past_the_end
+  assert(allocated(this%vef))
   base_fe_vef_accessor_past_the_end = this%vef%past_the_end()
 end function base_fe_vef_accessor_past_the_end
 
@@ -58,6 +62,7 @@ function base_fe_vef_accessor_get_lid (this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_vef_accessor_get_lid
+  assert(allocated(this%vef))
   base_fe_vef_accessor_get_lid = this%vef%get_lid()
 end function base_fe_vef_accessor_get_lid
 
@@ -65,6 +70,7 @@ function base_fe_vef_accessor_get_set_id(this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_vef_accessor_get_set_id
+  assert(allocated(this%vef))
   base_fe_vef_accessor_get_set_id = this%vef%get_set_id()
 end function base_fe_vef_accessor_get_set_id  
 
@@ -72,6 +78,7 @@ function base_fe_vef_accessor_get_dimension(this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_vef_accessor_get_dimension
+  assert(allocated(this%vef))
   base_fe_vef_accessor_get_dimension  = this%vef%get_dimension()
 end function base_fe_vef_accessor_get_dimension
 
@@ -79,6 +86,7 @@ function base_fe_vef_accessor_is_at_boundary (this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   logical :: base_fe_vef_accessor_is_at_boundary 
+  assert(allocated(this%vef))
   base_fe_vef_accessor_is_at_boundary  = this%vef%is_at_boundary()
 end function base_fe_vef_accessor_is_at_boundary
 
@@ -86,6 +94,7 @@ function base_fe_vef_accessor_is_local (this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   logical :: base_fe_vef_accessor_is_local 
+  assert(allocated(this%vef))
   base_fe_vef_accessor_is_local  = this%vef%is_local()
 end function base_fe_vef_accessor_is_local
 
@@ -93,6 +102,7 @@ function base_fe_vef_accessor_is_at_interface (this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   logical :: base_fe_vef_accessor_is_at_interface 
+  assert(allocated(this%vef))
   base_fe_vef_accessor_is_at_interface  = this%vef%is_at_interface()
 end function base_fe_vef_accessor_is_at_interface
 
@@ -100,6 +110,7 @@ function base_fe_vef_accessor_is_face (this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   logical :: base_fe_vef_accessor_is_face
+  assert(allocated(this%vef))
   base_fe_vef_accessor_is_face  = this%vef%is_face()
 end function base_fe_vef_accessor_is_face
 
@@ -107,6 +118,7 @@ function base_fe_vef_accessor_is_ghost (this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   logical :: base_fe_vef_accessor_is_ghost 
+  assert(allocated(this%vef))
   base_fe_vef_accessor_is_ghost  = this%vef%is_ghost()
 end function base_fe_vef_accessor_is_ghost
 
@@ -114,6 +126,7 @@ function base_fe_vef_accessor_get_num_cells_around (this)
   implicit none
   class(base_fe_vef_accessor_t), intent(in) :: this
   integer(ip) :: base_fe_vef_accessor_get_num_cells_around
+  assert(allocated(this%vef))
   base_fe_vef_accessor_get_num_cells_around = this%vef%get_num_cells_around()
 end function base_fe_vef_accessor_get_num_cells_around
 
@@ -121,7 +134,8 @@ subroutine base_fe_vef_accessor_get_cell_around (this, icell_around, cell)
   implicit none
   class(base_fe_vef_accessor_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: icell_around
-  type(cell_accessor_t)   , intent(inout) :: cell
+  class(cell_accessor_t)  , intent(inout) :: cell
+  assert(allocated(this%vef))
   call this%vef%get_cell_around(icell_around,cell)
 end subroutine base_fe_vef_accessor_get_cell_around
 

@@ -109,8 +109,7 @@ contains
     this%par_environment => this%triangulation%get_par_environment()
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call vef%create(this%triangulation)
-       call vef%first()
+       call this%triangulation%create_vef_accessor(vef)
        do while ( .not. vef%past_the_end() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
@@ -119,26 +118,23 @@ contains
           end if
           call vef%next()
        end do
+       call this%triangulation%free_vef_accessor(vef)
     end if  
-    call vef%free()
-
     call this%triangulation%setup_coarse_triangulation()
-    
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(cell_accessor_t)                     :: cell
+    class(cell_accessor_t), allocatable       :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
-      call cell%create(this%triangulation)
-      call cell%first()
+      call this%triangulation%create_cell_accessor(cell)
       reference_fe_geo => cell%get_reference_fe_geo()
       this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
@@ -146,6 +142,7 @@ contains
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
+      call this%triangulation%free_cell_accessor(cell)
     end if  
   end subroutine setup_reference_fes
 

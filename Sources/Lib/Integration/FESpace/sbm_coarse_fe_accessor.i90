@@ -25,29 +25,25 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!subroutine coarse_fe_accessor_cell_accessor_create ( this, base_static_triangulation )
-!  implicit none
-!  class(coarse_fe_accessor_t)               , intent(inout) :: this
-!  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
-!  check(.false.)
-!end subroutine coarse_fe_accessor_cell_accessor_create
 
 subroutine coarse_fe_accessor_create ( this, coarse_fe_space )
   implicit none
   class(coarse_fe_accessor_t), intent(inout) :: this
   type(coarse_fe_space_t)    , target, intent(in)    :: coarse_fe_space
-  !call this%cell_accessor_t%create(coarse_fe_space%coarse_triangulation)
-  this%coarse_fe_space => coarse_fe_space
+  call this%free()
+  assert(associated(coarse_fe_space%coarse_triangulation))
   call coarse_fe_space%coarse_triangulation%create_cell_accessor(this%cell)
+  this%coarse_fe_space => coarse_fe_space
 end subroutine coarse_fe_accessor_create
 
 subroutine coarse_fe_accessor_free (this)
   implicit none
   class(coarse_fe_accessor_t), intent(inout) :: this
-  integer(ip) :: istat 
-  if(allocated(this%cell)) then
-     call this%cell%free()
-     deallocate(this%cell,stat=istat); check(istat==0)
+  integer(ip) :: istat  
+  if ( associated(this%coarse_fe_space) ) then
+    if ( associated(this%coarse_fe_space%coarse_triangulation) ) then
+      call this%coarse_fe_space%coarse_triangulation%free_cell_accessor(this%cell)
+    end if
   end if
   nullify(this%coarse_fe_space)
 end subroutine coarse_fe_accessor_free
@@ -227,14 +223,23 @@ subroutine coarse_fe_accessor_get_elem2dof( this, elem2dof )
   end do
 end subroutine coarse_fe_accessor_get_elem2dof
 
-function coarse_fe_accessor_get_coarse_fe_vef(this, ivef)
+subroutine coarse_fe_accessor_get_field_elem2dof( this, field_id, elem2dof )
   implicit none
-  class(coarse_fe_accessor_t), intent(in) :: this
-  integer(ip)                , intent(in) :: ivef
-  type(coarse_fe_vef_accessor_t)          :: coarse_fe_accessor_get_coarse_fe_vef
-  !type(vef_accessor_t) :: vef_accessor
-  !call this%get_vef(ivef, vef_accessor)
-  call coarse_fe_accessor_get_coarse_fe_vef%create(this%coarse_fe_space)
-  !call coarse_fe_accessor_get_coarse_fe_vef%set_lid(vef_accessor%get_lid())
-  call coarse_fe_accessor_get_coarse_fe_vef%set_lid(this%cell%get_vef_lid(ivef)  )
-end function coarse_fe_accessor_get_coarse_fe_vef
+  class(coarse_fe_accessor_t), intent(in)    :: this
+  integer(ip)                , intent(in)    :: field_id
+  integer(ip), pointer       , intent(inout) :: elem2dof(:)
+  integer(ip) :: j, spos, epos
+  j = (this%get_lid()-1)*this%coarse_fe_space%number_fields+field_id
+  spos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j)
+  epos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j+1)-1
+  elem2dof => this%coarse_fe_space%lst_dofs_lids(spos:epos)
+end subroutine coarse_fe_accessor_get_field_elem2dof
+
+
+subroutine coarse_fe_accessor_get_coarse_fe_vef(this, ivef, coarse_fe_vef)
+  implicit none
+  class(coarse_fe_accessor_t)   , intent(in)    :: this
+  integer(ip)                   , intent(in)    :: ivef
+  type(coarse_fe_vef_accessor_t), intent(inout) :: coarse_fe_vef
+  call coarse_fe_vef%set_lid(this%cell%get_vef_lid(ivef))
+end subroutine coarse_fe_accessor_get_coarse_fe_vef

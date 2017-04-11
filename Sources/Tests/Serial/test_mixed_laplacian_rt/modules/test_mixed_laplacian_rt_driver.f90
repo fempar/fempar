@@ -342,7 +342,6 @@ contains
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     
     call this%fe_space%create_fe_accessor(fe)
-    call fe%first()
     do while ( .not. fe%past_the_end())
        
        ! Get DoF numbering within current FE
@@ -363,7 +362,7 @@ contains
        
        call fe%next()
     end do
-    call fe%free()
+    call this%fe_space%free_fe_accessor(fe)
 
     deallocate( elem2dof, stat=istat); check(istat==0);
     call memfree ( nodal_values_rt, __FILE__, __LINE__ )

@@ -70,9 +70,9 @@ function coarse_fe_vefs_on_object_iterator_has_finished ( this )
   coarse_fe_vefs_on_object_iterator_has_finished = this%current_coarse_fe_vef_accessor%past_the_end()
 end function coarse_fe_vefs_on_object_iterator_has_finished
 
-function coarse_fe_vefs_on_object_iterator_current ( this ) 
+subroutine coarse_fe_vefs_on_object_iterator_current ( this, vef ) 
   implicit none
   class(coarse_fe_vefs_on_object_iterator_t), target, intent(in) :: this
-  type(coarse_fe_vef_accessor_t) :: coarse_fe_vefs_on_object_iterator_current
-  coarse_fe_vefs_on_object_iterator_current = this%current_coarse_fe_vef_accessor
-end function coarse_fe_vefs_on_object_iterator_current
+  type(coarse_fe_vef_accessor_t)                    , intent(inout) :: vef
+  vef = this%current_coarse_fe_vef_accessor
+end subroutine coarse_fe_vefs_on_object_iterator_current

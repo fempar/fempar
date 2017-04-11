@@ -44,9 +44,10 @@ module face_fe_function_names
   
   type face_fe_function_scalar_t
    private
-   logical                         :: is_boundary
-   type(i1p_t)                     :: quadrature_points_permutation(2)   
-   type(cell_fe_function_scalar_t) :: cell_fe_function(2)
+   logical                           :: is_boundary
+   type(i1p_t)                       :: quadrature_points_permutation(2)   
+   type(cell_fe_function_scalar_t)   :: cell_fe_function(2)
+   class(fe_accessor_t), allocatable :: fe
   contains
      procedure, non_overridable :: create                                => face_fe_function_scalar_create
      procedure, non_overridable :: update                                => face_fe_function_scalar_update
@@ -63,9 +64,10 @@ module face_fe_function_names
   
   type face_fe_function_vector_t
    private
-   logical                         :: is_boundary
-   type(i1p_t)                     :: quadrature_points_permutation(2)  
-   type(cell_fe_function_vector_t) :: cell_fe_function(2)
+   logical                           :: is_boundary
+   type(i1p_t)                       :: quadrature_points_permutation(2)  
+   type(cell_fe_function_vector_t)   :: cell_fe_function(2)
+   class(fe_accessor_t), allocatable :: fe
   contains
      procedure, non_overridable :: create                                => face_fe_function_vector_create
      procedure, non_overridable :: update                                => face_fe_function_vector_update
@@ -82,9 +84,10 @@ module face_fe_function_names
   
   type face_fe_function_tensor_t
    private
-   logical                         :: is_boundary
-   type(i1p_t)                     :: quadrature_points_permutation(2)    
-   type(cell_fe_function_tensor_t) :: cell_fe_function(2)
+   logical                           :: is_boundary
+   type(i1p_t)                       :: quadrature_points_permutation(2)    
+   type(cell_fe_function_tensor_t)   :: cell_fe_function(2)
+   class(fe_accessor_t), allocatable :: fe
   contains
      procedure, non_overridable :: create                                => face_fe_function_tensor_create
      procedure, non_overridable :: update                                => face_fe_function_tensor_update
