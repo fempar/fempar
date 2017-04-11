@@ -79,6 +79,7 @@ module execution_context_names
      procedure (execution_context_max_scalar_rp     ) , deferred :: max_scalar_rp
      procedure (execution_context_max_vector_rp     ) , deferred :: max_vector_rp
      procedure (execution_context_min_scalar_rp     ) , deferred :: min_scalar_rp
+     procedure (execution_context_max_scalar_ip     ) , deferred :: max_scalar_ip
      procedure (execution_context_scatter_scalar_ip ) , deferred :: scatter           
      procedure (execution_context_gather_scalar_ip  ) , deferred :: gather            
      procedure (execution_context_bcast_scalar_ip   ) , deferred :: bcast             
@@ -240,6 +241,14 @@ module execution_context_names
        class(execution_context_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha
      end subroutine execution_context_min_scalar_rp
+     
+     !=============================================================================
+     subroutine execution_context_max_scalar_ip (this,n)
+       import :: execution_context_t, ip
+       implicit none
+       class(execution_context_t) , intent(in)    :: this
+       integer(ip)                , intent(inout) :: n
+     end subroutine execution_context_max_scalar_ip
 
      !=============================================================================
      subroutine execution_context_max_vector_rp(this,alpha)
