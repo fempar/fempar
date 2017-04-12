@@ -67,9 +67,9 @@ subroutine new_tet_lagrangian_reference_fe_create( this, topology, number_dimens
   call this%set_fe_type( fe_type_new_tet )
   call this%fill()
   call this%create_nodal_quadrature()
-  !if ( this%continuity ) then
+  ! if ( this%continuity ) then
     call this%change_basis()
-  !end if
+  ! end if
   
 end subroutine new_tet_lagrangian_reference_fe_create
 
@@ -144,10 +144,10 @@ subroutine new_tet_lagrangian_reference_fe_change_basis(this)
   type(interpolation_t)   :: interpolation
   integer(ip)             :: i, j
   
-  call memalloc(this%number_shape_functions,this%number_shape_functions,this%change_basis_matrix,__FILE__,__LINE__)
+  call memalloc(this%node_array%number_nodes,this%node_array%number_nodes,this%change_basis_matrix,__FILE__,__LINE__)
   call this%create_interpolation(this%nodal_quadrature,interpolation)
-  do i=1,this%number_shape_functions
-     do j=1,this%number_shape_functions
+  do i=1,this%node_array%number_nodes 
+     do j=1,this%node_array%number_nodes 
         !write(*,*) 'Shape',j,'point',i
         !write(*,*) interpolation%shape_functions(1,j,i)
         this%change_basis_matrix(i,j) = interpolation%shape_functions(1,j,i)
@@ -169,44 +169,44 @@ subroutine new_tet_lagrangian_reference_fe_invert_change_basis_matrix(this)
   integer(ip) :: i
   
   assert ( allocated(this%change_basis_matrix) )
-  assert ( size(this%change_basis_matrix,1) == this%number_shape_functions )
-  assert ( size(this%change_basis_matrix,2) == this%number_shape_functions )
+  assert ( size(this%change_basis_matrix,1) == this%node_array%number_nodes  )
+  assert ( size(this%change_basis_matrix,2) == this%node_array%number_nodes  )
   
   ! Solve linear system with several RHS
   ! Compute LU factorization of this%change_basis_matrix
 #ifdef ENABLE_LAPACK
-  call memalloc ( this%number_shape_functions, ipiv, __FILE__,__LINE__ )
+  call memalloc ( this%node_array%number_nodes , ipiv, __FILE__,__LINE__ )
    
-  call memalloc ( this%number_shape_functions, & 
-                  this%number_shape_functions, &
+  call memalloc ( this%node_array%number_nodes, & 
+                  this%node_array%number_nodes, &
                   inverse_change_basis_matrix, &
                    __FILE__,__LINE__ )
 
-  call DGETRF( this%number_shape_functions, & 
-               this%number_shape_functions, &
+  call DGETRF( this%node_array%number_nodes, & 
+               this%node_array%number_nodes, &
                this%change_basis_matrix, &
-               this%number_shape_functions, &
+               this%node_array%number_nodes, &
                ipiv, &
                error )
   check ( error == 0 )
   
   inverse_change_basis_matrix = 0.0_rp
-  do i=1, this%number_shape_functions
+  do i=1, this%node_array%number_nodes
     inverse_change_basis_matrix(i,i) = 1.0_rp
   end do  
  
   call DGETRS( 'N', & 
-               this%number_shape_functions, &
-               this%number_shape_functions, &
+               this%node_array%number_nodes, &
+               this%node_array%number_nodes, &
                this%change_basis_matrix, &
-               this%number_shape_functions, &
+               this%node_array%number_nodes, &
                ipiv, &
                inverse_change_basis_matrix, &
-               this%number_shape_functions, &
+               this%node_array%number_nodes, &
                error )
   check ( error == 0 )
   
-  !do i=1, this%number_shape_functions
+  !do i=1, this%this%node_array%number_nodes 
   !   this%change_basis_matrix(i,:) = 0.0_rp!inverse_change_basis_matrix(:,i)
   !end do
   
@@ -236,32 +236,28 @@ subroutine new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, i
   type(interpolation_t)                   , intent(inout) :: interpolation
   
   integer(ip)           :: i, j, idime, jdime, qpoint
-
+	
   ! Initialize both shape functions and derivatives to zero.
   interpolation%shape_functions   = 0.0_rp
   interpolation%shape_derivatives = 0.0_rp
-  
+
   ! Compute shape functions
   do qpoint = 1, interpolation%number_quadrature_points
-     do i=1, this%number_shape_functions
-        do j=1, this%number_shape_functions
-           do idime=1, this%number_dimensions
-              interpolation%shape_functions(idime, i, qpoint) = interpolation%shape_functions(idime, i, qpoint) + &
-                   this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
-           end do
+     do i=1, this%node_array%number_nodes
+        do j=1, this%node_array%number_nodes
+              interpolation%shape_functions(1, i, qpoint) = interpolation%shape_functions(1, i, qpoint) + &
+                   this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(1, j, qpoint)
         end do
      end do
   end do
   
   ! Compute shape derivatives
   do qpoint = 1, interpolation%number_quadrature_points
-     do i=1, this%number_shape_functions
-        do j=1, this%number_shape_functions
-           do idime=1, this%number_dimensions
+     do i=1, this%node_array%number_nodes
+        do j=1, this%node_array%number_nodes
               do jdime=1, this%number_dimensions
-                 interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
-                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
-              end do
+                 interpolation%shape_derivatives(1, jdime, i, qpoint) = interpolation%shape_derivatives(1, jdime, i, qpoint) + &
+                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(1, jdime, j, qpoint)
            end do
         end do
      end do

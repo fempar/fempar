@@ -1404,12 +1404,12 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   
   ! Local variables required by edge boundary moments integration
   type(new_tet_lagrangian_reference_fe_t) :: fe_1D
-  type(quadrature_t)                  :: edge_quadrature
-  type(interpolation_t)               :: interpolation_1D, edge_interpolation
-  type(fe_map_t)                      :: edge_map
-  type(point_t), pointer              :: edge_map_coordinates(:)
-  real(rp)                            :: shape_test
-  type(vector_field_t)                :: tangent
+  type(quadrature_t)                      :: edge_quadrature
+  type(interpolation_t)                   :: interpolation_1D, edge_interpolation
+  type(fe_map_t)                          :: edge_map
+  type(point_t), pointer                  :: edge_map_coordinates(:)
+  real(rp)                                :: shape_test
+  type(vector_field_t)                    :: tangent
   
   ! Local variables required by face boundary moments integration
   type(new_tet_lagrangian_reference_fe_t) :: fe_2D
@@ -1553,9 +1553,9 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
  
     ! P_{k-2,k-2} x P_{k-2,k-2}
     call fe_2D%create(topology          = this%get_topology(), &
-                      number_dimensions = 2, &
-                      order             = this%order-2, &
-                      field_type        = field_type_scalar, &
+                      number_dimensions = 2,                   &
+                      order             = this%order-2,        &
+                      field_type        = field_type_scalar,   &
                       continuity        = .false. )
     
     call this%create_face_quadrature( face_quadrature )
@@ -1627,7 +1627,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
         end do
      end do
 	 end do ! iproj 
-     d = d + interpolation_2D%number_shape_functions*fe_2D%number_dimensions
+     d = d + fe_2D%number_dimensions
   end do
  end if
    
@@ -1647,13 +1647,13 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   ! VOL in 2D: P_{k-2,k-2} x P_{k-2,k-2}
   ! VOL in 3D: P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}
  
-     call fe%create(topology          = this%get_topology(), &
-                      number_dimensions  = this%number_dimensions, &
-                      order              = this%order-this%number_dimensions, &
-                      field_type         = field_type_vector, &
-                      continuity         = .false. )
+     call fe%create(topology           = this%get_topology(),               &
+                    number_dimensions  = this%number_dimensions,            &
+                    order              = this%order-this%number_dimensions, &
+                    field_type         = field_type_vector,                 &
+                    continuity         = .true.                            )
 
-    call this%create_quadrature(cell_quadrature)
+    call this%create_quadrature( cell_quadrature )
     call fe%create_interpolation( cell_quadrature, interpolation )
   
  ! Create PRE-BASIS cell-interpolation from this NEDELEC REF FE 
