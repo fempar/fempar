@@ -120,7 +120,7 @@ contains
 
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => fe_map%get_quadrature_coordinates()
-       
+    
        ! Evaluate pressure source term at quadrature points
        call this%source_term%get_values_set(quad_coords, source_term_values)
        
@@ -135,7 +135,7 @@ contains
           do idof=1, num_dofs_per_field(1)
             do jdof=1, num_dofs_per_field(1)
               elmat(idof,jdof) = elmat(idof,jdof) + &
-                                 ( H_shape_values(idof,qpoint)*H_shape_values(jdof,qpoint) + H_shape_curls(jdof,qpoint)*H_shape_curls(idof,qpoint) )*factor
+                                 ( H_shape_values(idof,qpoint)*H_shape_values(jdof,qpoint) + 0.0_rp*H_shape_curls(jdof,qpoint)*H_shape_curls(idof,qpoint) )*factor
             end do
             ! \int_(curl(v).f)
             elvec(idof) = elvec(idof) + H_shape_values(idof,qpoint) * source_term_values(qpoint) * factor
@@ -145,6 +145,7 @@ contains
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe_iterator%next()
     end do
+
     deallocate(H_shape_curls, stat=istat); check(istat==0);
     deallocate(H_shape_values, stat=istat); check(istat==0);
     deallocate (source_term_values, stat=istat); check(istat==0);

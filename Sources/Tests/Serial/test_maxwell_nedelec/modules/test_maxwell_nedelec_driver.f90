@@ -123,7 +123,7 @@ contains
        do while ( .not. vef_iterator%has_finished() )
           call vef_iterator%current(vef)
           if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
+		  call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if

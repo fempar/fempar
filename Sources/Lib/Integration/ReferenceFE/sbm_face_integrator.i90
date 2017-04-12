@@ -340,8 +340,6 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   ! within a face corresponds  to the number of interior nodes in a face for a reference FE with 
   ! order+3 (instead of order+2)
   
-  ! Temporary till QUADRATURES are fixed, added 1 order to every one 
-  ! BUG: quadrature defined on the face, dim<3--- if ((quadrature%number_dimensions.eq.3).and.(left_reference_fe%topology.eq.topology_tet)) then 
    if ( ( left_reference_fe%number_dimensions .eq. 3) .and. (left_reference_fe%topology.eq.topology_tet) ) then 
      call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+4, &
                                                           quadrature%number_dimensions,        &

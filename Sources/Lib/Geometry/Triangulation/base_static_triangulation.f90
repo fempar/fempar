@@ -134,6 +134,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: fill_nodes_on_vef_from_source => cell_accessor_fill_nodes_on_vef_from_source
     procedure, non_overridable           :: fill_internal_nodes_new       => cell_accessor_fill_internal_nodes_new
 	procedure, non_overridable           :: compute_relative_rotation     => cell_accessor_compute_relative_rotation 
+	procedure, non_overridable           :: compute_relative_orientation  => cell_accessor_compute_relative_orientation 
   end type cell_accessor_t
   
   type cell_iterator_t

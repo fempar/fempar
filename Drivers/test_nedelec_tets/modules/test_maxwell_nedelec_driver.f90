@@ -59,11 +59,11 @@ module test_maxwell_nedelec_driver_names
      type(fe_affine_operator_t)                  :: fe_affine_operator
 
      ! Direct and Iterative linear solvers data type
-#ifdef ENABLE_MKL     
+!#ifdef ENABLE_MKL     
      type(direct_solver_t)                     :: direct_solver
-#else     
-     type(iterative_linear_solver_t)           :: iterative_linear_solver
-#endif     
+!#else     
+!     type(iterative_linear_solver_t)           :: iterative_linear_solver
+!#endif     
 
      ! Poisson problem solution FE function
      type(fe_function_t)                         :: solution
@@ -111,8 +111,8 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,      &
-                                                 fe_type = fe_type_nedelec,    &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,       &
+                                                 fe_type  = fe_type_nedelec,    &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_vector, &
@@ -175,7 +175,7 @@ contains
     class(matrix_t), pointer       :: matrix
     
     call parameter_list%init()
-#ifdef ENABLE_MKL    
+!#ifdef ENABLE_MKL    
     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
@@ -193,15 +193,15 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
-#else
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-10_rp)
-    FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
-    assert(FPLError == 0)
-    call this%iterative_linear_solver%create(this%fe_space%get_environment())
-    call this%iterative_linear_solver%set_type_from_string(minres_name)
-    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-#endif    
+!#else
+    !FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-10_rp)
+    !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
+    !assert(FPLError == 0)
+    !call this%iterative_linear_solver%create(this%fe_space%get_environment())
+    !call this%iterative_linear_solver%set_type_from_string(minres_name)
+    !call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+    !call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+!#endif    
     call parameter_list%free()
   end subroutine setup_solver
 
@@ -231,12 +231,12 @@ contains
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_dof_values()
-#ifdef ENABLE_MKL    
+!#ifdef ENABLE_MKL    
     call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
-#else
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-                                            dof_values)
-#endif    
+!#else
+!    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+!                                            dof_values)
+!#endif    
 	
 	! select type (matrix)
     !class is (sparse_matrix_t)  
@@ -244,7 +244,7 @@ contains
     !class DEFAULT
     !   assert(.false.) 
     !end select
-    !	  
+    !!	  
     !select type (rhs)
     !class is (serial_scalar_array_t)  
     !   call rhs%print_matrix_market(6)
@@ -347,11 +347,11 @@ contains
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     call this%solution%free()
-#ifdef ENABLE_MKL        
+!#ifdef ENABLE_MKL        
     call this%direct_solver%free()
-#else
-    call this%iterative_linear_solver%free()
-#endif    
+!#else
+!    call this%iterative_linear_solver%free()
+!#endif    
     call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then

@@ -298,12 +298,12 @@ subroutine fe_accessor_update_integration( this )
   do field_id = 1, this%get_number_fields()
      volume_integrator => this%get_volume_integrator(field_id) 
      call volume_integrator%update(fe_map)
-     call this%apply_edge_rotation_change_basis(field_id)
+     call this%apply_rotation_change_basis(field_id)
   end do
 
 end subroutine fe_accessor_update_integration
 
-subroutine fe_accessor_apply_edge_rotation_change_basis(this, field_id)
+subroutine fe_accessor_apply_rotation_change_basis(this, field_id)
   implicit none 
   class(fe_accessor_t), intent(inout) :: this 
   integer(ip)         , intent(in)    :: field_id 
@@ -317,12 +317,14 @@ subroutine fe_accessor_apply_edge_rotation_change_basis(this, field_id)
   integer(ip)                        :: source_vef_lid, target_vef_lid
   integer(ip), pointer               :: source_vefs(:), target_vefs(:)
   class(lagrangian_reference_fe_t) , pointer  :: source_ref_fe, target_ref_fe
-  integer(ip)                        :: relative_rotation, ishape, istat, idof
-  type(list_iterator_t)              :: dofs_on_edge_iterator
+  integer(ip)                        :: relative_rotation, relative_orientation 
+  integer(ip)                        :: ishape, istat, idof
+  type(list_iterator_t)              :: dofs_on_edge_iterator, dofs_on_face_iterator 
 
   ref_fe => this%fe_space%get_reference_fe(field_id) 
   volume_integrator => this%get_volume_integrator(field_id) 
 
+  ! Apply change of sign due to rotation on edges
   do ivef = ref_fe%get_first_n_face_id_of_dimension(1),  ref_fe%get_first_n_face_id_of_dimension(2)-1
      call this%cell_accessor_t%get_vef(ivef, vef)
      allocate( cells_around(vef%get_num_cells_around()), stat=istat )
@@ -339,6 +341,7 @@ subroutine fe_accessor_apply_edge_rotation_change_basis(this, field_id)
      ! Compute relative rotation between current cell and cell w/ min number identifier
      relative_rotation = cells_around(icell_w_min_lid)%compute_relative_rotation( vef%get_lid(), this%cell_accessor_t )
      if (relative_rotation == 2) then 
+	! WRITE(*,*) 'EDGE', ivef, 'CELL', this%cell_accessor_t%get_lid(), 'w.r.t.', cells_around(icell_w_min_lid)%get_lid() ,'face_ROT-ORI', relative_rotation, relative_orientation
         ! Apply rotation and change of sign to rotated edges to DOFS on top of the VEF
         dofs_on_edge_iterator = this%create_own_dofs_on_vef_iterator(ivef, field_id)
 		 do while ( .not. dofs_on_edge_iterator%is_upper_bound() )
@@ -349,8 +352,44 @@ subroutine fe_accessor_apply_edge_rotation_change_basis(this, field_id)
 
      deallocate( cells_around, stat=istat )
   end do
+  
+  if (ref_fe%get_number_dimensions() == 3) then 
+    ! Apply change of sign due to rotation on faces 
+  do ivef = ref_fe%get_first_n_face_id_of_dimension(2),  ref_fe%get_first_n_face_id_of_dimension(3)-1
+     call this%cell_accessor_t%get_vef(ivef, vef)
+	 if ( vef%get_num_cells_around() .gt. 1 ) then 
+     allocate( cells_around(vef%get_num_cells_around()), stat=istat )
 
-end subroutine fe_accessor_apply_edge_rotation_change_basis
+     ! Identify CELL around w/ minimum lid, master vef will indicate the sign  
+     icell_w_min_lid = 1
+     do icell=1, vef%get_num_cells_around() 
+        call vef%get_cell_around(icell, cells_around(icell) )
+        if ( cells_around(icell)%get_lid() .le. cells_around(icell_w_min_lid)%get_lid() ) then 
+           icell_w_min_lid = icell  
+        end if
+     end do
+
+     ! Compute relative rotation between current cell and cell w/ min number identifier
+     relative_rotation    = cells_around(icell_w_min_lid)%compute_relative_rotation( vef%get_lid(), this%cell_accessor_t )
+	 relative_orientation = cells_around(icell_w_min_lid)%compute_relative_orientation( vef%get_lid(), this%cell_accessor_t )
+	 ! Apply rotation and change of sign to rotated faces to DOFs on top of the VEF: the same orientation means Normals point 
+	 ! outwards in both cases, therefore one sign must change  
+	 if (this%cell_accessor_t%get_lid() .gt. cells_around(icell_w_min_lid)%get_lid() ) then 
+        dofs_on_face_iterator = this%create_own_dofs_on_vef_iterator(ivef, field_id)
+	!	WRITE(*,*) 'FACE', ivef, 'CELL', this%cell_accessor_t%get_lid(), 'w.r.t.', cells_around(icell_w_min_lid)%get_lid() ,'face_ROT-ORI', relative_rotation, relative_orientation
+		do while ( .not. dofs_on_face_iterator%is_upper_bound() )
+		   call volume_integrator%apply_sign_change( dofs_on_face_iterator%get_current() )
+           call dofs_on_face_iterator%next() 
+        end do
+     !end if
+	 end if 
+
+     deallocate( cells_around, stat=istat )
+	 end if 
+  end do
+end if 
+  
+end subroutine fe_accessor_apply_rotation_change_basis
 
 function fe_accessor_get_fe_space(this)
   implicit none
