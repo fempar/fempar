@@ -482,6 +482,7 @@ module reference_fe_names
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: get_permuted_own_node_n_face  => reference_fe_get_permuted_own_node_n_face
 	 procedure :: update_interpolation_signs => reference_fe_update_interpolation_signs
+     procedure :: create_rotated_quadrature => reference_fe_create_rotated_quadrature
 
   end type reference_fe_t
 
@@ -1172,6 +1173,10 @@ type, extends(tet_lagrangian_reference_fe_t) :: new_tet_lagrangian_reference_fe_
                       & => new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
    procedure, private :: set_number_quadrature_points                                   &
                       & => new_tet_lagrangian_reference_fe_set_number_quadrature_points
+   procedure, private :: fill_face_interpolation                                        &
+                      & => new_tet_lagrangian_reference_fe_fill_face_interpolation
+   procedure :: create_rotated_quadrature                                        &
+                      & => new_tet_lagrangian_reference_fe_create_rotated_quadrature
 end type new_tet_lagrangian_reference_fe_t
 
 public :: tet_lagrangian_reference_fe_t, new_tet_lagrangian_reference_fe_t

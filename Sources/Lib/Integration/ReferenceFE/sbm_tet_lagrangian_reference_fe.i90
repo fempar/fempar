@@ -822,7 +822,7 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, local_quad
            end do
         else 
            ! Non-orthogonal face in the reference element
-           global_coordinates(1) = 1 - local_quadrature%coordinates(1,iquad)
+           global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
            global_coordinates(2:face_interpolation%number_dimensions) = &
                 & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
         end if

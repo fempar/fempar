@@ -67,9 +67,9 @@ subroutine new_tet_lagrangian_reference_fe_create( this, topology, number_dimens
   call this%set_fe_type( fe_type_new_tet )
   call this%fill()
   call this%create_nodal_quadrature()
-  if ( this%continuity ) then
+  !if ( this%continuity ) then
     call this%change_basis()
-  end if
+  !end if
   
 end subroutine new_tet_lagrangian_reference_fe_create
 
@@ -284,7 +284,12 @@ subroutine new_tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
 
   if (get_quadratures_from_hex(quadrature)) then
      call hex_lagrangian_rfe%fill_quadrature ( quadrature ) 
-     if (quadrature%number_dimensions.eq.2) then
+     if (quadrature%number_dimensions.eq.1) then
+        ! x' = (x+1)/2
+        quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp        
+        ! w' = w/2
+        quadrature%weight = quadrature%weight / 2.0_rp
+     elseif (quadrature%number_dimensions.eq.2) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
         ! y' = (1-x')(y+1)/2
@@ -376,3 +381,84 @@ function get_quadratures_from_hex(quadrature)
   !   get_quadratures_from_hex = .false.
   !end if
 end function
+
+!==================================================================================================
+subroutine new_tet_lagrangian_reference_fe_fill_face_interpolation (this, local_quadrature, local_face_id, face_interpolation)
+  implicit none
+  class(new_tet_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                      , intent(in)    :: local_quadrature
+  integer(ip)                             , intent(in)    :: local_face_id
+  type(interpolation_t)                   , intent(inout) :: face_interpolation
+  type(quadrature_t) :: aux_quadrature
+  integer(ip) :: c,idime,iface,n_face_index
+  ! Add offset to have same numbering as in polytope
+  n_face_index = local_face_id+this%get_first_face_id()-1
+  
+  ! Create a d-dimensional quadrature as follows
+  call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
+  c = 0
+  do idime = 0,this%number_dimensions-1
+     if ( this%polytope%n_face_dir_is_fixed( n_face_index, idime ) == 1 ) then
+        c = c+1
+        aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(c,:)
+     else if ( this%polytope%n_face_dir_coordinate( n_face_index, idime ) == 0 ) then
+        aux_quadrature%coordinates(idime+1,:) = 0.0_rp
+     else 
+        aux_quadrature%coordinates(idime+1,:) = 1 - sum(local_quadrature%coordinates(:,:),1)
+     end if
+  end do
+  
+  !if ( .not. this%basis_changed ) call this%fill_interpolation_pre_basis ( aux_quadrature, face_interpolation ) !( aux_quadrature, face_interpolation ) 
+  call this%fill_interpolation( aux_quadrature, face_interpolation ) 
+  call aux_quadrature%free()
+  
+end subroutine new_tet_lagrangian_reference_fe_fill_face_interpolation
+
+!==================================================================================================
+subroutine new_tet_lagrangian_reference_fe_create_rotated_quadrature(this, ref_quad, rotated_quad, num_rotations, num_orientations )
+  implicit none
+  class (new_tet_lagrangian_reference_fe_t), intent(in)    :: this
+  type (quadrature_t)   , intent(in)    :: ref_quad
+  type (quadrature_t)   , intent(inout) :: rotated_quad
+  integer(ip)           , intent(in)    :: num_rotations
+  integer(ip)           , intent(in)    :: num_orientations
+  type(hex_lagrangian_reference_fe_t)                :: hex_lagrangian_rfe
+
+  call rotated_quad%free()
+  call rotated_quad%create(ref_quad%get_number_dimensions(), ref_quad%get_number_quadrature_points())
+  
+  
+  if (ref_quad%number_dimensions.eq.1) then
+     rotated_quad%coordinates = ref_quad%coordinates
+     rotated_quad%weight = ref_quad%weight
+  
+  elseif (ref_quad%number_dimensions.eq.2) then
+     if ((num_rotations + mod(num_orientations,2)).eq.2) then
+        call hex_lagrangian_rfe%fill_quadrature ( rotated_quad ) 
+        ! y' = (y+1)/2
+        rotated_quad%coordinates(2,:) = (rotated_quad%coordinates(2,:)+1.0_rp) / 2.0_rp
+        ! x' = (1-y')(x+1)/2
+        rotated_quad%coordinates(1,:) = (1.0_rp - rotated_quad%coordinates(2,:)) * &
+                                     ((1.0_rp + rotated_quad%coordinates(1,:)) / 2.0_rp)
+        ! w' = (1-y')/4
+        rotated_quad%weight = (1.0_rp - rotated_quad%coordinates(2,:)) /4.0_rp * &
+                            rotated_quad%weight
+        
+     elseif ((num_rotations + mod(num_orientations,2)).eq.3) then
+        call hex_lagrangian_rfe%fill_quadrature ( rotated_quad ) 
+        ! w' = (x+1)/2
+        rotated_quad%weight = (rotated_quad%coordinates(1,:) + 1.0_rp) /4.0_rp * &
+                               rotated_quad%weight
+        ! y' = (x+1)/2 * (y+1)/2
+        rotated_quad%coordinates(2,:) = (rotated_quad%coordinates(1,:) + 1.0_rp)/ 2.0_rp * &
+                                        (rotated_quad%coordinates(2,:) + 1.0_rp)/ 2.0_rp
+        ! x' = (x+1)/2 - y'
+        rotated_quad%coordinates(1,:) = (rotated_quad%coordinates(1,:) + 1.0_rp)/ 2.0_rp - &
+                                         rotated_quad%coordinates(2,:)
+     else
+        rotated_quad%coordinates = ref_quad%coordinates
+        rotated_quad%weight = ref_quad%weight
+     end if
+   end if
+        
+end subroutine new_tet_lagrangian_reference_fe_create_rotated_quadrature
