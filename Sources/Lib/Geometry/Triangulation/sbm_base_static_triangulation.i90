@@ -2013,15 +2013,14 @@ subroutine bst_create_object_accessor(this, object)
   type(object_accessor_t)           , intent(inout) :: object
   call object%create(this)
 end subroutine bst_create_object_accessor
-  
-function bst_create_vefs_on_object_iterator(this, lid)
-  implicit none
-  class(base_static_triangulation_t), intent(in) :: this
-  integer(ip)                           , intent(in) :: lid
-  type(vefs_on_object_iterator_t)                    :: bst_create_vefs_on_object_iterator
-  call bst_create_vefs_on_object_iterator%create(lid, this)
-end function bst_create_vefs_on_object_iterator
 
+subroutine bst_free_object_accessor(this, object)
+  implicit none
+  class(base_static_triangulation_t), intent(in)    :: this
+  type(object_accessor_t)           , intent(inout) :: object
+  call object%free()
+end subroutine bst_free_object_accessor
+  
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Other

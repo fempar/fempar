@@ -1551,6 +1551,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
        end do
        call object%next()
      end do
+     call this%free_fe_object_accessor(object)
   end do
   
   call memfree ( num_coarse_dofs, __FILE__, __LINE__ )
@@ -1764,7 +1765,7 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
       end do
     else
       call par_environment%l2_from_l1_gather( input_data  = this%ptr_coarse_dofs_per_field(this%number_fields+1)-1, &
-                                                           output_data = dummy_integer_array ) 
+                                              output_data = dummy_integer_array ) 
     end if
   end subroutine par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
   
@@ -1852,6 +1853,7 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
           end do
           call object%next()
         end do
+        call this%free_fe_object_accessor(object)
       end do
     
       call par_environment%l2_from_l1_gather( input_data_size = size(buffer), &
@@ -1906,3 +1908,10 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
     type(fe_object_accessor_t), intent(inout) :: fe_object
     call fe_object%create(this)
  end subroutine par_fe_space_create_fe_object_accessor
+ 
+ subroutine par_fe_space_free_fe_object_accessor (this,fe_object)
+    implicit none
+    class(par_fe_space_t)     , intent(in)    :: this
+    type(fe_object_accessor_t), intent(inout) :: fe_object
+    call fe_object%free()
+ end subroutine par_fe_space_free_fe_object_accessor

@@ -181,6 +181,7 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, con
      call object%next()
   end do
   call par_fe_space%free_fe_accessor(fe)
+  call par_fe_space%free_fe_object_accessor(object)
   deallocate (test_elem2dof, stat=istat); check(istat==0);
   call memfree(facevec, __FILE__, __LINE__ )
   call constraint_matrix%sort_and_compress()
@@ -294,6 +295,7 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
      call object%next()
   end do
   call par_fe_space%free_fe_accessor(fe)
+  call par_fe_space%free_fe_object_accessor(object)
   call memfree( is_subpart_local, __FILE__ , __LINE__ )
   call memfree( touch_subpart, __FILE__ , __LINE__ )
   call memfree( subpart_viscosity, __FILE__ , __LINE__ )

@@ -144,7 +144,7 @@ module base_static_triangulation_names
   contains
      procedure                           :: create                    => vef_accessor_create
      procedure                           :: free                      => vef_accessor_free
-     !final                              ::                              vef_accessor_free_final
+     !final                               ::                              vef_accessor_free_final
      procedure                           :: first                     => vef_accessor_first
      procedure                           :: next                      => vef_accessor_next
      procedure, non_overridable          :: set_lid                   => vef_accessor_set_lid
@@ -371,11 +371,10 @@ module base_static_triangulation_names
      procedure                           :: create_face_accessor             => bst_create_face_accessor
      procedure                           :: free_vef_accessor                => bst_free_vef_accessor
      
-     
      ! Objects-related traversals
      procedure, non_overridable          :: create_object_accessor              => bst_create_object_accessor
-     procedure, non_overridable          :: create_vefs_on_object_iterator      => bst_create_vefs_on_object_iterator
-  
+     procedure, non_overridable          :: free_object_accessor                => bst_free_object_accessor
+       
      ! Other
      procedure                           :: print                               => bst_print    
      procedure                           :: free                                => bst_free

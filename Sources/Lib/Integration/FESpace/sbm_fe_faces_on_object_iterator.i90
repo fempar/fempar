@@ -32,7 +32,7 @@ subroutine fe_faces_on_object_iterator_create ( this, lid, fe_space )
   type(par_fe_space_t)               , intent(in)     :: fe_space
   type(face_accessor_t)                               :: face
   call this%free()
-  this%vefs_on_object_iterator = fe_space%triangulation%create_vefs_on_object_iterator(lid)
+  call this%vefs_on_object_iterator%create(lid, fe_space%triangulation)
   call this%current_fe_face_accessor%create(fe_space, face)
   call this%current_fe_face_accessor%set_lid(1)
   call this%next()

@@ -32,7 +32,7 @@ subroutine coarse_fe_vefs_on_object_iterator_create ( this, lid, coarse_fe_space
   type(coarse_fe_space_t)                   , intent(in)    :: coarse_fe_space
   type(vef_accessor_t)                                      :: vef
   call this%free()
-  this%vefs_on_object_iterator = coarse_fe_space%coarse_triangulation%create_vefs_on_object_iterator(lid)
+  call this%vefs_on_object_iterator%create(lid,coarse_fe_space%coarse_triangulation)
   call this%vefs_on_object_iterator%current(vef)
   call this%current_coarse_fe_vef_accessor%create(coarse_fe_space )
   call this%current_coarse_fe_vef_accessor%set_lid(vef%get_lid())

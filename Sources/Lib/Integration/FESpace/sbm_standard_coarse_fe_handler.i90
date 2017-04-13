@@ -109,6 +109,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
      call object%next()
   end do
   call par_fe_space%free_fe_accessor(fe)
+  call par_fe_space%free_fe_object_accessor(object)
 end subroutine standard_l1_get_num_coarse_dofs
 
 subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
@@ -204,6 +205,7 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
   end do
   call constraint_matrix%sort_and_compress()
   call par_fe_space%free_fe_accessor(fe)
+  call par_fe_space%free_fe_object_accessor(object)
 end subroutine standard_l1_setup_constraint_matrix
 
 subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
@@ -259,6 +261,7 @@ subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_li
      call object%next()
   end do
   call par_fe_space%free_fe_accessor(fe)
+  call par_fe_space%free_fe_object_accessor(object)
 end subroutine standard_l1_setup_weighting_operator
 
 subroutine standard_get_coarse_space_use_vertices_edges_faces ( parameter_list, use_vertices, use_edges, use_faces )

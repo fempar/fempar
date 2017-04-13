@@ -73,6 +73,8 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
   integer(ip) :: ivef, idof, dof_lid
   type(coarse_fe_space_t), pointer :: fe_space
   
+  fe_space => this%get_coarse_fe_space()  
+
   ! To-think where field_id should come from? Temporarily let us assume that we have
   ! a single-field PDE problem
   field_id = 1
@@ -80,7 +82,6 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
   call memalloc(fe_space%get_block_number_dofs(1), this%W, __FILE__, __LINE__ )
   this%W = 1.0_rp
   
-  fe_space => this%get_coarse_fe_space()  
   call fe_space%create_coarse_fe_accessor(fe)
   call fe_space%create_coarse_fe_object_accessor(object)
   do while ( .not. object%past_the_end() )
@@ -94,9 +95,7 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    = own_dofs_on_vef_iterator%get_current()
            dof_lid = elem2dof(idof)
-           if ( dof_lid > 0 ) then
-             this%W(dof_lid) = this%W(dof_lid)/real(object%get_number_parts_around(),rp)
-           end if
+           this%W(dof_lid) = this%W(dof_lid)/real(object%get_number_parts_around(),rp)
            call own_dofs_on_vef_iterator%next()
         end do
         call vefs_on_object_iterator%next()
@@ -104,6 +103,7 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
      call object%next()
   end do
   call fe_space%free_coarse_fe_accessor(fe)
+  call fe_space%free_coarse_fe_object_accessor(object)
 end subroutine mlbddc_coarse_setup_weighting_operator
 
 ! Helper function that extracts a run-time polymorphic class(matrix_t)
