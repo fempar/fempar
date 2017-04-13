@@ -1329,6 +1329,8 @@ procedure, private :: fill                                               &
 &   => tet_nedelec_reference_fe_fill 
 procedure, private :: fill_vector                                        & 
 &   => tet_nedelec_reference_fe_fill_vector
+procedure, private :: set_number_quadrature_points                       &
+& => tet_nedelec_reference_fe_set_number_quadrature_points
 procedure, private :: fill_quadrature                                    &
 & => tet_nedelec_reference_fe_fill_quadrature
 procedure, private :: fill_interpolation                                 &
@@ -1343,8 +1345,6 @@ procedure, private :: fill_edge_interpolation                            &
 & => tet_nedelec_reference_fe_fill_edge_interpolation
 procedure, private :: set_permutation_2D                                 &
 & => tet_nedelec_reference_fe_set_permutation_2D
-procedure, private :: set_number_quadrature_points                       &
-& => tet_nedelec_reference_fe_set_number_quadrature_points
 procedure, private :: compute_number_nodes_scalar                        &
  & => tet_nedelec_reference_fe_compute_number_nodes_scalar
 procedure, private :: get_node_local_id                                  &

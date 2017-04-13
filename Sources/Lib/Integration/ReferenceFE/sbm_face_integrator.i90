@@ -341,7 +341,7 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   
   ! assert ( left_reference_fe%topology == topology_hex )
   call aux_polytope%create(left_reference_fe%number_dimensions, 2**left_reference_fe%number_dimensions-1)
-  call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+3, &
+  call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
                                                        quadrature%number_dimensions,        &
                                                        aux_polytope,          &
                                                        this%qpoints_perm )

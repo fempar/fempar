@@ -98,10 +98,11 @@ subroutine tet_nedelec_reference_fe_fill (this)
   class(tet_nedelec_reference_fe_t), intent(inout) :: this
   integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
   integer(ip) :: column, inode, idime, inode_scalar, num_columns
-  ! Here we put a k-1,k-1,k-1 order_vector.
+  ! Here we put a k-1,k-1,k-1 order_vector to fill the homogeneous part node array.
   this%order_vector = this%order-1
-  call this%fill_vector()
-   
+  call this%fill_vector()  
+  ! Now we assign an order vector equal to the order of the element for computation purposes
+  this%order_vector = this%order
 end subroutine tet_nedelec_reference_fe_fill
 
 subroutine tet_nedelec_reference_fe_fill_vector (this)
@@ -281,566 +282,73 @@ subroutine tet_nedelec_reference_fe_fill_vector (this)
   end if
 end subroutine tet_nedelec_reference_fe_fill_vector
 
+!=================================================================================================
+function tet_nedelec_reference_fe_set_number_quadrature_points( this, order, dimension )
+  implicit none
+  class(tet_nedelec_reference_fe_t), intent(in)    :: this
+  integer(ip)                             , intent(in)    :: order
+  integer(ip)                             , intent(in)    :: dimension
+  integer(ip) :: tet_nedelec_reference_fe_set_number_quadrature_points
+  
+  if( dimension .eq. 1 ) then
+        tet_nedelec_reference_fe_set_number_quadrature_points = order + 1
+  elseif( dimension .eq. 2 ) then
+        tet_nedelec_reference_fe_set_number_quadrature_points = (order+1)**2
+  elseif( dimension .eq. 3 ) then
+        tet_nedelec_reference_fe_set_number_quadrature_points = (order+2)**3
+  end if
+  
+end function tet_nedelec_reference_fe_set_number_quadrature_points
+
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_quadrature ( this, quadrature ) 
+subroutine tet_nedelec_reference_fe_fill_quadrature( this, quadrature )
   !-----------------------------------------------------------------------
   ! 
   !     This routine sets up the integration constants of open rules for
-  !     triangles and tetrahedra
-  ! 
-  !             NDIME = 2             NDIME = 3
-  ! 
-  !          NGAUS  EXACT POL.     NGAUS  EXACT POL. 
-  !          -----  ----------     -----  ----------
-  !            1       p1            1       p1
-  !            3       p2            4       p2
-  !            4       p3            5       p3
-  !            6       p4           11       p4
-  !            7       p5           14       p5
-  !           13       p7
-  !           19       p9
-  !           28       p11
+  !     triangles and tetrahedra mapping hexahedra quadratures
   !
   !-----------------------------------------------------------------------
   implicit none
-  class(tet_nedelec_reference_fe_t)   , intent(in)    :: this
-  type(quadrature_t)                  , intent(inout) :: quadrature
-  real(rp)    :: a,b,c,d,e,f,g,h,p,q,r,s,t,u,v,w,x,y,z
-  real(rp)    :: w1,w2,w3,w4,w5,w6,w7,w8
-  real(rp)    :: ex1,et1,ez1,ex2,et2,ez2
-  integer(ip) :: ndime,ngaus
-
-  ndime = quadrature%number_dimensions
-  ngaus = quadrature%number_quadrature_points
-	 
-  ! Line integral (the same as for brick elements)
-  if(ndime==1) then
-     if(ngaus==1) then
-        quadrature%coordinates(1,1)=0.5_rp
-        quadrature%weight(  1)=1.0_rp
-     else if(ngaus==2) then
-        quadrature%coordinates(1,1)= 0.211324865405187_rp
-        quadrature%coordinates(1,2)= 0.788675134594813_rp
-        quadrature%weight(  1)= 0.5_rp
-        quadrature%weight(  2)= 0.5_rp
-     else if(ngaus==3) then
-        quadrature%coordinates(1,1)= 0.112701665379258_rp
-        quadrature%coordinates(1,2)= 0.5_rp
-        quadrature%coordinates(1,3)= 0.887298334620742_rp
-        quadrature%weight(  1)= 0.277777777777778_rp
-        quadrature%weight(  2)= 0.444444444444444_rp
-        quadrature%weight(  3)= 0.277777777777778_rp
-     else
-        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
-        check(.false.)
+  class(tet_nedelec_reference_fe_t)       , intent(in)     :: this
+  type(quadrature_t)                      , intent(inout)  :: quadrature
+  type(hex_lagrangian_reference_fe_t)                      :: hex_lagrangian_rfe
+  
+  ! Fill quadrature corresponding to a hex element 
+  call hex_lagrangian_rfe%fill_quadrature ( quadrature ) 
+  
+  ! Transform quadrature to the tet element 
+     if (quadrature%number_dimensions.eq.1) then
+        ! x' = (x+1)/2
+        quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp        
+        ! w' = w/2
+        quadrature%weight = quadrature%weight / 2.0_rp
+     elseif (quadrature%number_dimensions.eq.2) then
+        ! x' = (x+1)/2
+        quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
+        ! y' = (1-x')(y+1)/2
+        quadrature%coordinates(2,:) = (1.0_rp - quadrature%coordinates(1,:)) * &
+                                     ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
+        ! w' = (1-x')/4
+        quadrature%weight = (1.0_rp - quadrature%coordinates(1,:)) /4.0_rp * &
+                            quadrature%weight
+        
+     elseif (quadrature%number_dimensions.eq.3) then
+        ! x' = (x+1)/2
+        quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
+        ! y' = (1-x')(y+1)/2
+        quadrature%coordinates(2,:) = (1.0_rp - quadrature%coordinates(1,:)) * &
+                                     ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
+        ! z' = (1-x'-y')(z+1)/2
+        quadrature%coordinates(3,:) = (1.0_rp - quadrature%coordinates(1,:)    &
+                                              - quadrature%coordinates(2,:)) * &
+                                     ((1.0_rp + quadrature%coordinates(3,:)) / 2.0_rp)
+        ! w' = ((1-x')^2+y'(x'-1))/8
+        quadrature%weight = ((1.0_rp - quadrature%coordinates(1,:))**2.0_rp + &
+                        quadrature%coordinates(2,:)*(quadrature%coordinates(1,:) - 1.0_rp)) / 8.0_rp * &
+                        quadrature%weight
      end if
 
-     ! Area integral (triangles)
-  else if(ndime==2) then
-     if(ngaus==1) then
-        quadrature%coordinates(1,1)= 1.0_rp/3.0_rp
-        quadrature%coordinates(2,1)= 1.0_rp/3.0_rp
-        quadrature%weight(  1)= 1.0_rp/2.0_rp
-     else if(ngaus==3) then
-        quadrature%coordinates(1,2)= 2.0_rp/3.0_rp
-        quadrature%coordinates(2,2)= 1.0_rp/6.0_rp
-        quadrature%coordinates(1,3)= 1.0_rp/6.0_rp
-        quadrature%coordinates(2,3)= 2.0_rp/3.0_rp
-        quadrature%coordinates(1,1)= 1.0_rp/6.0_rp
-        quadrature%coordinates(2,1)= 1.0_rp/6.0_rp
-        quadrature%weight(  2)= 1.0_rp/6.0_rp
-        quadrature%weight(  3)= 1.0_rp/6.0_rp
-        quadrature%weight(  1)= 1.0_rp/6.0_rp
-     else if(ngaus==4) then
-        quadrature%coordinates(1,1)= 1.0_rp/3.0_rp
-        quadrature%coordinates(2,1)= 1.0_rp/3.0_rp
-        quadrature%coordinates(1,2)= 1.0_rp/5.0_rp
-        quadrature%coordinates(2,2)= 1.0_rp/5.0_rp
-        quadrature%coordinates(1,3)= 3.0_rp/5.0_rp
-        quadrature%coordinates(2,3)= 1.0_rp/5.0_rp
-        quadrature%coordinates(1,4)= 1.0_rp/5.0_rp
-        quadrature%coordinates(2,4)= 3.0_rp/5.0_rp
-        quadrature%weight(  1)=-27.0_rp/96.0_rp
-        quadrature%weight(  2)= 25.0_rp/96.0_rp
-        quadrature%weight(  3)= 25.0_rp/96.0_rp
-        quadrature%weight(  4)= 25.0_rp/96.0_rp 
-     else if(ngaus==6) then
-        ex1 = 0.816847572980459_rp
-        et1 = 0.091576213509771_rp
-        ez1 = 0.091576213509771_rp
-        ex2 = 0.108103018168070_rp
-        et2 = 0.445948490915965_rp
-        ez2 = 0.445948490915965_rp
-        quadrature%coordinates(1,3)= ex1
-        quadrature%coordinates(2,3)= et1
-        quadrature%coordinates(1,1)= et1
-        quadrature%coordinates(2,1)= ez1
-        quadrature%coordinates(1,6)= ez1
-        quadrature%coordinates(2,6)= ex1
-        quadrature%coordinates(1,4)= ex2
-        quadrature%coordinates(2,4)= et2
-        quadrature%coordinates(1,5)= et2
-        quadrature%coordinates(2,5)= ez2
-        quadrature%coordinates(1,2)= ez2
-        quadrature%coordinates(2,2)= ex2
-        a = 0.054975870996713638_rp
-        b = 0.1116907969117165_rp    
-        quadrature%weight(3)  = a
-        quadrature%weight(1)  = a
-        quadrature%weight(6)  = a
-        quadrature%weight(4)  = b
-        quadrature%weight(5)  = b
-        quadrature%weight(2)  = b
-     else if(ngaus==7) then
-        a = 1.0_rp / 3.0_rp
-        b = ( 9.0_rp + 2.0_rp * sqrt ( 15.0_rp ) ) / 21.0_rp
-        c = ( 6.0_rp -          sqrt ( 15.0_rp ) ) / 21.0_rp
-        d = ( 9.0_rp - 2.0_rp * sqrt ( 15.0_rp ) ) / 21.0_rp
-        e = ( 6.0_rp +          sqrt ( 15.0_rp ) ) / 21.0_rp
-        w1 = 0.1125_rp
-        w2 = ( 155.0_rp - sqrt ( 15.0_rp ) ) / 2400.0_rp
-        w3 = ( 155.0_rp + sqrt ( 15.0_rp ) ) / 2400.0_rp
-        quadrature%coordinates(1,1)= a
-        quadrature%coordinates(2,1)= a
-        quadrature%coordinates(1,2)= b
-        quadrature%coordinates(2,2)= c
-        quadrature%coordinates(1,3)= c
-        quadrature%coordinates(2,3)= b
-        quadrature%coordinates(1,4)= c
-        quadrature%coordinates(2,4)= c
-        quadrature%coordinates(1,5)= d
-        quadrature%coordinates(2,5)= e
-        quadrature%coordinates(1,6)= e
-        quadrature%coordinates(2,6)= d
-        quadrature%coordinates(1,7)= e
-        quadrature%coordinates(2,7)= e
-        quadrature%weight(  1)= w1
-        quadrature%weight(  2)= w2
-        quadrature%weight(  3)= w2
-        quadrature%weight(  4)= w2
-        quadrature%weight(  5)= w3
-        quadrature%weight(  6)= w3
-        quadrature%weight(  7)= w3
-     else if(ngaus==13) then
-        a = 0.333333333333333_rp
-        b = 0.479308067841923_rp
-        c = 0.869739794195568_rp
-        d = 0.638444188569809_rp
-        e = 0.260345966079038_rp
-        f = 0.065130102902216_rp
-        g = 0.312865496004875_rp
-        h = 0.048690315425316_rp
-        w1=-0.149570044467670_rp/2.0_rp
-        w2= 0.175615257433204_rp/2.0_rp
-        w3= 0.053347235608839_rp/2.0_rp
-        w4= 0.077113760890257_rp/2.0_rp
-        quadrature%coordinates(1, 1)= a
-        quadrature%coordinates(2, 1)= a         
-        quadrature%coordinates(1, 2)= e
-        quadrature%coordinates(2, 2)= e
-        quadrature%coordinates(1, 3)= b
-        quadrature%coordinates(2, 3)= e        
-        quadrature%coordinates(1, 4)= e
-        quadrature%coordinates(2, 4)= b        
-        quadrature%coordinates(1, 5)= f
-        quadrature%coordinates(2, 5)= f        
-        quadrature%coordinates(1, 6)= c
-        quadrature%coordinates(2, 6)= f        
-        quadrature%coordinates(1, 7)= f
-        quadrature%coordinates(2, 7)= c        
-        quadrature%coordinates(1, 8)= d
-        quadrature%coordinates(2, 8)= g        
-        quadrature%coordinates(1, 9)= d
-        quadrature%coordinates(2, 9)= h        
-        quadrature%coordinates(1,10)= g
-        quadrature%coordinates(2,10)= d        
-        quadrature%coordinates(1,11)= g
-        quadrature%coordinates(2,11)= h        
-        quadrature%coordinates(1,12)= h
-        quadrature%coordinates(2,12)= d        
-        quadrature%coordinates(1,13)= h
-        quadrature%coordinates(2,13)= g
-        quadrature%weight( 1) = w1
-        quadrature%weight( 2) = w2
-        quadrature%weight( 3) = w2
-        quadrature%weight( 4) = w2
-        quadrature%weight( 5) = w3
-        quadrature%weight( 6) = w3
-        quadrature%weight( 7) = w3
-        quadrature%weight( 8) = w4
-        quadrature%weight( 9) = w4
-        quadrature%weight(10) = w4
-        quadrature%weight(11) = w4
-        quadrature%weight(12) = w4
-        quadrature%weight(13) = w4
-     else if(ngaus.eq.19) then
-        a = 1.0_rp / 3.0_rp
-        b = 0.02063496160252593_rp
-        c = 0.4896825191987370_rp
-        d = 0.1258208170141290_rp
-        e = 0.4370895914929355_rp
-        f = 0.6235929287619356_rp
-        g = 0.1882035356190322_rp
-        r = 0.9105409732110941_rp
-        s = 0.04472951339445297_rp
-        t = 0.7411985987844980_rp
-        u = 0.03683841205473626_rp
-        v = 0.22196288916076574_rp
-
-        w1 = 0.09713579628279610_rp/2.0_rp
-        w2 = 0.03133470022713983_rp/2.0_rp
-        w3 = 0.07782754100477543_rp/2.0_rp
-        w4 = 0.07964773892720910_rp/2.0_rp
-        w5 = 0.02557767565869810_rp/2.0_rp
-        w6 = 0.04328353937728940_rp/2.0_rp
-
-        quadrature%coordinates(1, 1) = a 
-        quadrature%coordinates(1, 2) = b
-        quadrature%coordinates(1, 3) = c 
-        quadrature%coordinates(1, 4) = c 
-        quadrature%coordinates(1, 5) = d 
-        quadrature%coordinates(1, 6) = e
-        quadrature%coordinates(1, 7) = e
-        quadrature%coordinates(1, 8) = f 
-        quadrature%coordinates(1, 9) = g 
-        quadrature%coordinates(1,10) = g
-        quadrature%coordinates(1,11) = r
-        quadrature%coordinates(1,12) = s
-        quadrature%coordinates(1,13) = s
-        quadrature%coordinates(1,14) = t
-        quadrature%coordinates(1,15) = t
-        quadrature%coordinates(1,16) = u
-        quadrature%coordinates(1,17) = u
-        quadrature%coordinates(1,18) = v
-        quadrature%coordinates(1,19) = v
-
-        quadrature%coordinates(2, 1) = a
-        quadrature%coordinates(2, 2) = c
-        quadrature%coordinates(2, 3) = b
-        quadrature%coordinates(2, 4) = c
-        quadrature%coordinates(2, 5) = e
-        quadrature%coordinates(2, 6) = d
-        quadrature%coordinates(2, 7) = e
-        quadrature%coordinates(2, 8) = g
-        quadrature%coordinates(2, 9) = f
-        quadrature%coordinates(2,10) = g
-        quadrature%coordinates(2,11) = s
-        quadrature%coordinates(2,12) = r
-        quadrature%coordinates(2,13) = s
-        quadrature%coordinates(2,14) = u
-        quadrature%coordinates(2,15) = v
-        quadrature%coordinates(2,16) = t
-        quadrature%coordinates(2,17) = v
-        quadrature%coordinates(2,18) = t
-        quadrature%coordinates(2,19) = u
-
-        quadrature%weight( 1) = w1
-        quadrature%weight( 2) = w2
-        quadrature%weight( 3) = w2
-        quadrature%weight( 4) = w2
-        quadrature%weight( 5) = w3
-        quadrature%weight( 6) = w3
-        quadrature%weight( 7) = w3
-        quadrature%weight( 8) = w4
-        quadrature%weight( 9) = w4
-        quadrature%weight(10) = w4
-        quadrature%weight(11) = w5
-        quadrature%weight(12) = w5
-        quadrature%weight(13) = w5
-        quadrature%weight(14) = w6
-        quadrature%weight(15) = w6
-        quadrature%weight(16) = w6
-        quadrature%weight(17) = w6
-        quadrature%weight(18) = w6
-        quadrature%weight(19) = w6
-     else if(ngaus.eq.28) then
-        a = 1.0_rp / 3.0_rp
-        b = 0.9480217181434233_rp
-        c = 0.02598914092828833_rp
-        d = 0.8114249947041546_rp
-        e = 0.09428750264792270_rp
-        f = 0.01072644996557060_rp
-        g = 0.4946367750172147_rp
-        p = 0.5853132347709715_rp
-        q = 0.2073433826145142_rp
-        r = 0.1221843885990187_rp
-        s = 0.4389078057004907_rp
-        t = 0.6779376548825902_rp
-        u = 0.04484167758913055_rp
-        v = 0.27722066752827925_rp
-        w = 0.8588702812826364_rp
-        x = 0.0_rp
-        y = 0.1411297187173636_rp
-
-        w1 = 0.08797730116222190_rp/2.0_rp
-        w2 = 0.008744311553736190_rp/2.0_rp
-        w3 = 0.03808157199393533_rp/2.0_rp
-        w4 = 0.01885544805613125_rp/2.0_rp
-        w5 = 0.07215969754474100_rp/2.0_rp
-        w6 = 0.06932913870553720_rp/2.0_rp
-        w7 = 0.04105631542928860_rp/2.0_rp
-        w8 = 0.007362383783300573_rp/2.0_rp
-
-        quadrature%coordinates(1, 1) = a  
-        quadrature%coordinates(1, 2) = b  
-        quadrature%coordinates(1, 3) = c  
-        quadrature%coordinates(1, 4) = c  
-        quadrature%coordinates(1, 5) = d  
-        quadrature%coordinates(1, 6) = e  
-        quadrature%coordinates(1, 7) = e  
-        quadrature%coordinates(1, 8) = f  
-        quadrature%coordinates(1, 9) = g
-        quadrature%coordinates(1,10) = g
-        quadrature%coordinates(1,11) = p 
-        quadrature%coordinates(1,12) = q 
-        quadrature%coordinates(1,13) = q
-        quadrature%coordinates(1,14) = r 
-        quadrature%coordinates(1,15) = s 
-        quadrature%coordinates(1,16) = s 
-        quadrature%coordinates(1,17) = t 
-        quadrature%coordinates(1,18) = t 
-        quadrature%coordinates(1,19) = u 
-        quadrature%coordinates(1,20) = u 
-        quadrature%coordinates(1,21) = v 
-        quadrature%coordinates(1,22) = v 
-        quadrature%coordinates(1,23) = w 
-        quadrature%coordinates(1,24) = w 
-        quadrature%coordinates(1,25) = x 
-        quadrature%coordinates(1,26) = x 
-        quadrature%coordinates(1,27) = y 
-        quadrature%coordinates(1,28) = y
-
-        quadrature%coordinates(2, 1) = a  
-        quadrature%coordinates(2, 2) = c  
-        quadrature%coordinates(2, 3) = b  
-        quadrature%coordinates(2, 4) = c  
-        quadrature%coordinates(2, 5) = e  
-        quadrature%coordinates(2, 6) = d  
-        quadrature%coordinates(2, 7) = e  
-        quadrature%coordinates(2, 8) = g  
-        quadrature%coordinates(2, 9) = f  
-        quadrature%coordinates(2,10) = g  
-        quadrature%coordinates(2,11) = q  
-        quadrature%coordinates(2,12) = p  
-        quadrature%coordinates(2,13) = q
-        quadrature%coordinates(2,14) = s  
-        quadrature%coordinates(2,15) = r  
-        quadrature%coordinates(2,16) = s  
-        quadrature%coordinates(2,17) = u  
-        quadrature%coordinates(2,18) = v  
-        quadrature%coordinates(2,19) = t  
-        quadrature%coordinates(2,20) = v  
-        quadrature%coordinates(2,21) = t  
-        quadrature%coordinates(2,22) = u  
-        quadrature%coordinates(2,23) = x  
-        quadrature%coordinates(2,24) = y  
-        quadrature%coordinates(2,25) = w  
-        quadrature%coordinates(2,26) = y  
-        quadrature%coordinates(2,27) = w  
-        quadrature%coordinates(2,28) = x
-
-        quadrature%weight( 1) = w1 
-        quadrature%weight( 2) = w2
-        quadrature%weight( 3) = w2 
-        quadrature%weight( 4) = w2 
-        quadrature%weight( 5) = w3 
-        quadrature%weight( 6) = w3 
-        quadrature%weight( 7) = w3 
-        quadrature%weight( 8) = w4 
-        quadrature%weight( 9) = w4 
-        quadrature%weight(10) = w4 
-        quadrature%weight(11) = w5 
-        quadrature%weight(12) = w5 
-        quadrature%weight(13) = w5
-        quadrature%weight(14) = w6 
-        quadrature%weight(15) = w6 
-        quadrature%weight(16) = w6 
-        quadrature%weight(17) = w7 
-        quadrature%weight(18) = w7 
-        quadrature%weight(19) = w7 
-        quadrature%weight(20) = w7 
-        quadrature%weight(21) = w7 
-        quadrature%weight(22) = w7 
-        quadrature%weight(23) = w8 
-        quadrature%weight(24) = w8 
-        quadrature%weight(25) = w8 
-        quadrature%weight(26) = w8 
-        quadrature%weight(27) = w8 
-        quadrature%weight(28) = w8
-     else
-        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
-        check(.false.)
-     end if
-
-     ! Volume integral ( tetrahedra )
-  else if(ndime==3) then
-     if(ngaus==1) then
-        quadrature%coordinates(1,1)= 1.0_rp/4.0_rp
-        quadrature%coordinates(2,1)= 1.0_rp/4.0_rp
-        quadrature%coordinates(3,1)= 1.0_rp/4.0_rp
-        quadrature%weight(1)  = 1.0_rp/6.0_rp
-     else if(ngaus==4) then
-        a=0.5854101966249685_rp
-        b=0.1381966011250105_rp
-        quadrature%coordinates(1,1)= b
-        quadrature%coordinates(2,1)= b
-        quadrature%coordinates(3,1)= b
-        quadrature%coordinates(1,2)= a
-        quadrature%coordinates(2,2)= b
-        quadrature%coordinates(3,2)= b
-        quadrature%coordinates(1,3)= b
-        quadrature%coordinates(2,3)= a
-        quadrature%coordinates(3,3)= b
-        quadrature%coordinates(1,4)= b
-        quadrature%coordinates(2,4)= b
-        quadrature%coordinates(3,4)= a
-        quadrature%weight(  1)= 1.0_rp/24.0_rp
-        quadrature%weight(  2)= 1.0_rp/24.0_rp
-        quadrature%weight(  3)= 1.0_rp/24.0_rp
-        quadrature%weight(  4)= 1.0_rp/24.0_rp
-     else if(ngaus==5) then
-        quadrature%coordinates(1,1)= 1.0_rp/4.0_rp
-        quadrature%coordinates(2,1)= 1.0_rp/4.0_rp
-        quadrature%coordinates(3,1)= 1.0_rp/4.0_rp
-        quadrature%coordinates(1,2)= 1.0_rp/6.0_rp
-        quadrature%coordinates(2,2)= 1.0_rp/6.0_rp
-        quadrature%coordinates(3,2)= 1.0_rp/6.0_rp
-        quadrature%coordinates(1,3)= 1.0_rp/2.0_rp
-        quadrature%coordinates(2,3)= 1.0_rp/6.0_rp
-        quadrature%coordinates(3,3)= 1.0_rp/6.0_rp
-        quadrature%coordinates(1,4)= 1.0_rp/6.0_rp
-        quadrature%coordinates(2,4)= 1.0_rp/2.0_rp
-        quadrature%coordinates(3,4)= 1.0_rp/6.0_rp
-        quadrature%coordinates(1,5)= 1.0_rp/6.0_rp
-        quadrature%coordinates(2,5)= 1.0_rp/6.0_rp
-        quadrature%coordinates(3,5)= 1.0_rp/2.0_rp
-        quadrature%weight(  1)=-2.0_rp/15.0_rp
-        quadrature%weight(  2)= 1.5_rp/20.0_rp
-        quadrature%weight(  3)= 1.5_rp/20.0_rp
-        quadrature%weight(  4)= 1.5_rp/20.0_rp
-        quadrature%weight(  5)= 1.5_rp/20.0_rp
-     else if(ngaus==11) then
-        a=0.3994035761667992_rp
-        b=0.1005964238332008_rp
-        c=343.0_rp/7500.0_rp/6.0_rp
-        d=56.0_rp/375.0_rp/6.0_rp
-        quadrature%coordinates(1,1) = 1.0_rp/4.0_rp
-        quadrature%coordinates(2,1) = 1.0_rp/4.0_rp
-        quadrature%coordinates(3,1) = 1.0_rp/4.0_rp
-        quadrature%coordinates(1,2) = 11.0_rp/14.0_rp
-        quadrature%coordinates(2,2) = 1.0_rp/14.0_rp
-        quadrature%coordinates(3,2) = 1.0_rp/14.0_rp
-        quadrature%coordinates(1,3) = 1.0_rp/14.0_rp
-        quadrature%coordinates(2,3) = 11.0_rp/14.0_rp
-        quadrature%coordinates(3,3) = 1.0_rp/14.0_rp
-        quadrature%coordinates(1,4) = 1.0_rp/14.0_rp
-        quadrature%coordinates(2,4) = 1.0_rp/14.0_rp
-        quadrature%coordinates(3,4) = 11.0_rp/14.0_rp
-        quadrature%coordinates(1,5) = 1.0_rp/14.0_rp
-        quadrature%coordinates(2,5) = 1.0_rp/14.0_rp
-        quadrature%coordinates(3,5) = 1.0_rp/14.0_rp
-        quadrature%coordinates(1,6) = a
-        quadrature%coordinates(2,6) = a
-        quadrature%coordinates(3,6) = b
-        quadrature%coordinates(1,7) = a
-        quadrature%coordinates(2,7) = b
-        quadrature%coordinates(3,7) = a
-        quadrature%coordinates(1,8) = a
-        quadrature%coordinates(2,8) = b
-        quadrature%coordinates(3,8) = b
-        quadrature%coordinates(1,9) = b
-        quadrature%coordinates(2,9) = a
-        quadrature%coordinates(3,9) = a
-        quadrature%coordinates(1,10)= b
-        quadrature%coordinates(2,10)= a
-        quadrature%coordinates(3,10)= b
-        quadrature%coordinates(1,11)= b
-        quadrature%coordinates(2,11)= b
-        quadrature%coordinates(3,11)= a
-        quadrature%weight(1)   =-148.0_rp/1875.0_rp/6.0_rp
-        quadrature%weight(2)   = c
-        quadrature%weight(3)   = c
-        quadrature%weight(4)   = c
-        quadrature%weight(5)   = c
-        quadrature%weight(6)   = d
-        quadrature%weight(7)   = d
-        quadrature%weight(8)   = d
-        quadrature%weight(9)   = d
-        quadrature%weight(10)  = d
-        quadrature%weight(11)  = d
-     else if(ngaus==14) then
-        a=0.0673422422100983_rp
-        b=0.3108859192633005_rp
-        c=0.7217942490673264_rp
-        d=0.0927352503108912_rp
-        e=0.4544962958743506_rp
-        f=0.0455037041256494_rp
-        p=0.1126879257180162_rp/6.0_rp
-        q=0.0734930431163619_rp/6.0_rp
-        r=0.0425460207770812_rp/6.0_rp
-        quadrature%coordinates(1,1) = a
-        quadrature%coordinates(2,1) = b
-        quadrature%coordinates(3,1) = b
-        quadrature%coordinates(1,2) = b
-        quadrature%coordinates(2,2) = a
-        quadrature%coordinates(3,2) = b
-        quadrature%coordinates(1,3) = b
-        quadrature%coordinates(2,3) = b
-        quadrature%coordinates(3,3) = a
-        quadrature%coordinates(1,4) = b
-        quadrature%coordinates(2,4) = b
-        quadrature%coordinates(3,4) = b
-        quadrature%coordinates(1,5) = c
-        quadrature%coordinates(2,5) = d
-        quadrature%coordinates(3,5) = d
-        quadrature%coordinates(1,6) = d
-        quadrature%coordinates(2,6) = c
-        quadrature%coordinates(3,6) = d
-        quadrature%coordinates(1,7) = d
-        quadrature%coordinates(2,7) = d
-        quadrature%coordinates(3,7) = c
-        quadrature%coordinates(1,8) = d
-        quadrature%coordinates(2,8) = d
-        quadrature%coordinates(3,8) = d
-        quadrature%coordinates(1,9) = e
-        quadrature%coordinates(2,9) = e
-        quadrature%coordinates(3,9) = f
-        quadrature%coordinates(1,10)= e
-        quadrature%coordinates(2,10)= f
-        quadrature%coordinates(3,10)= e
-        quadrature%coordinates(1,11)= e
-        quadrature%coordinates(2,11)= f
-        quadrature%coordinates(3,11)= f
-        quadrature%coordinates(1,12)= f
-        quadrature%coordinates(2,12)= e
-        quadrature%coordinates(3,12)= e
-        quadrature%coordinates(1,13)= f
-        quadrature%coordinates(2,13)= e
-        quadrature%coordinates(3,13)= f
-        quadrature%coordinates(1,14)= f
-        quadrature%coordinates(2,14)= f
-        quadrature%coordinates(3,14)= e
-        quadrature%weight(1)   = p
-        quadrature%weight(2)   = p
-        quadrature%weight(3)   = p
-        quadrature%weight(4)   = p
-        quadrature%weight(5)   = q
-        quadrature%weight(6)   = q
-        quadrature%weight(7)   = q
-        quadrature%weight(8)   = q
-        quadrature%weight(9)   = r
-        quadrature%weight(10)  = r
-        quadrature%weight(11)  = r
-        quadrature%weight(12)  = r
-        quadrature%weight(13)  = r
-        quadrature%weight(14)  = r
-     else
-        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
-        check(.false.)
-     end if
-  end if
-
-end subroutine tet_nedelec_reference_fe_fill_quadrature
+end subroutine tet_nedelec_reference_fe_fill_quadrature 
 
 !==================================================================================================
 subroutine tet_nedelec_reference_fe_fill_interpolation( this, quadrature, interpolation, order_vector )
@@ -895,7 +403,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 
   ! First subspace, create polynomial prebase of order (k-1) 
   do idime=1,interpolation%number_dimensions
-     call monomial_1D%generate_basis(this%order_vector(idime), monomial_1D_basis(idime) )
+     call monomial_1D%generate_basis(this%order_vector(idime)-1, monomial_1D_basis(idime) )
   end do
 
   call tet_polynomial_prebase_1%create(interpolation%number_dimensions,monomial_1D_basis)
@@ -932,7 +440,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 
   ! Second subspace, create polynomial prebase of order k 
   do idime=1,interpolation%number_dimensions
-     call monomial_1D%generate_basis(this%order_vector(idime)+1, monomial_1D_basis(idime) )
+     call monomial_1D%generate_basis(this%order_vector(idime), monomial_1D_basis(idime) )
   end do
 
   call tet_polynomial_prebase_2%create(interpolation%number_dimensions,monomial_1D_basis)
@@ -1166,27 +674,6 @@ subroutine tet_nedelec_reference_fe_set_permutation_2D( this, permutation, numbe
   end do
 
 end subroutine tet_nedelec_reference_fe_set_permutation_2D
-
-!=================================================================================================
-function tet_nedelec_reference_fe_set_number_quadrature_points( this, order, dimension )
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: order
-  integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: tet_nedelec_reference_fe_set_number_quadrature_points
-  
-  tet_nedelec_reference_fe_set_number_quadrature_points = & 
-       & this%compute_number_nodes_scalar( order+1, dimension )
-  !if( dimension .eq. 2 ) then
-  !   if( order .eq. 3 ) then
-  !      tet_nedelec_reference_fe_set_number_quadrature_points = 13
-  !   end if
-  !elseif( dimension .eq. 3 ) then
-     if( dimension .eq. 3) then
-        tet_nedelec_reference_fe_set_number_quadrature_points = 11
-     end if
-    
-end function tet_nedelec_reference_fe_set_number_quadrature_points
 
 !=================================================================================================
 recursive function tet_nedelec_reference_fe_compute_number_nodes_scalar(this, order, dimension)
@@ -1633,10 +1120,10 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
    
  ! compute number shape functions for reduced order element
  if ( this%number_dimensions .eq. 2) then 
-     num_interior_moments = (this%order_vector(1)+1)*this%order_vector(1) ! k(k-1)
+     num_interior_moments = this%order_vector(1)*(this%order_vector(1)-1) ! k(k-1)
  elseif (this%number_dimensions .eq. 3) then 
-     num_face_moments     = (this%order_vector(1)+1)*this%order_vector(1) ! k(k-1)
-     num_interior_moments = (this%order_vector(1)+1)*this%order_vector(1)*(this%order_vector(1)-1)/2 ! k(k-1)(k-2)/2
+     num_face_moments     = this%order_vector(1)*(this%order_vector(1)-1) ! k(k-1)
+     num_interior_moments = this%order_vector(1)*(this%order_vector(1)-1)*(this%order_vector(1)-2)/2 ! k(k-1)(k-2)/2
 	 else 
  check(.false.)
  end if 
