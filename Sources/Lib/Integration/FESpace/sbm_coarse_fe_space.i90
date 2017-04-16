@@ -1304,14 +1304,15 @@ subroutine coarse_fe_space_setup_num_coarse_dofs ( this, num_coarse_dofs )
   ! a single-field PDE problem
   field_id = 1
 
-  call this%create_coarse_fe_accessor(fe)
   
   ! First, count how many coarse_dofs there are on the interface of my subdomain
   num_coarse_dofs = 0
   call this%create_coarse_fe_object_accessor(object)
+  call this%create_coarse_fe_accessor(fe)
+  call this%create_coarse_fe_vef_accessor(vef)
   do while ( .not. object%past_the_end() )
      
-     vefs_on_object_iterator = object%create_coarse_fe_vefs_on_object_iterator()
+     call object%create_coarse_fe_vefs_on_object_iterator(vefs_on_object_iterator)
      dofs_on_vef = .false.
      do while ( .not. vefs_on_object_iterator%has_finished() )
         call vefs_on_object_iterator%current(vef)
@@ -1332,6 +1333,7 @@ subroutine coarse_fe_space_setup_num_coarse_dofs ( this, num_coarse_dofs )
      call object%next()
   end do
   call this%free_coarse_fe_accessor(fe)
+  call this%free_coarse_fe_vef_accessor(vef)
   call this%free_coarse_fe_object_accessor(object)
 end subroutine coarse_fe_space_setup_num_coarse_dofs
 
@@ -1372,6 +1374,7 @@ subroutine coarse_fe_space_setup_constraint_matrix ( this, &
   ! Fill constraint matrix entries (transposed)
   call this%create_coarse_fe_object_accessor(object)
   call this%create_coarse_fe_accessor(fe)
+  call this%create_coarse_fe_vef_accessor(vef)
   do while ( .not. object%past_the_end() )
      
      if ( object%get_number_coarse_dofs(field_id) > 0 ) then
@@ -1383,7 +1386,7 @@ subroutine coarse_fe_space_setup_constraint_matrix ( this, &
      
        num_fine_dofs_on_coarse_dof = 0 
        ! Count how many fine DoFs current coarse DoF aggregates
-       vefs_on_object_iterator = object%create_coarse_fe_vefs_on_object_iterator()
+       call object%create_coarse_fe_vefs_on_object_iterator(vefs_on_object_iterator)
        do while ( .not. vefs_on_object_iterator%has_finished() )
           call vefs_on_object_iterator%current(vef)
           call vef%get_cell_around(1,fe)
@@ -1402,7 +1405,7 @@ subroutine coarse_fe_space_setup_constraint_matrix ( this, &
           call vefs_on_object_iterator%next()
        end do
        
-       vefs_on_object_iterator = object%create_coarse_fe_vefs_on_object_iterator()
+       call vefs_on_object_iterator%init()
        do while ( .not. vefs_on_object_iterator%has_finished() )
           call vefs_on_object_iterator%current(vef)
           call vef%get_cell_around(1,fe)
@@ -1424,6 +1427,7 @@ subroutine coarse_fe_space_setup_constraint_matrix ( this, &
   end do
   call constraint_matrix%sort_and_compress()
   call this%free_coarse_fe_accessor(fe)
+  call this%free_coarse_fe_vef_accessor(vef)
   call this%free_coarse_fe_object_accessor(object)
 end subroutine coarse_fe_space_setup_constraint_matrix
 

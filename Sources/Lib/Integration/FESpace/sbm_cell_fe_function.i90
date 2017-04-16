@@ -489,7 +489,7 @@ end subroutine cell_fe_function_tensor_create
 subroutine cell_fe_function_tensor_update ( this, fe_accessor, fe_function )
   implicit none
   class(cell_fe_function_tensor_t), intent(inout) :: this
-  type(fe_accessor_t)             , intent(in)    :: fe_accessor
+  class(fe_accessor_t)             , intent(in)    :: fe_accessor
   type(fe_function_t)             , intent(in)    :: fe_function
 
   integer(ip)                        :: inode, field_id

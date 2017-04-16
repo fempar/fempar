@@ -27,19 +27,16 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine vefs_on_object_iterator_create ( this, lid, base_static_triangulation ) 
   implicit none
-  class(vefs_on_object_iterator_t)      , intent(inout) :: this
-  integer(ip)                           , intent(in)    :: lid
+  class(vefs_on_object_iterator_t)  , intent(inout) :: this
+  integer(ip)                       , intent(in)    :: lid
   class(base_static_triangulation_t), intent(in)    :: base_static_triangulation
   call this%free()
   this%vefs_lids_on_object_iterator = base_static_triangulation%vefs_object%create_iterator(lid)
-  call base_static_triangulation%create_vef_accessor(this%current_vef_accessor)
-  call this%current_vef_accessor%set_lid(this%vefs_lids_on_object_iterator%get_current())
 end subroutine vefs_on_object_iterator_create
 
 subroutine vefs_on_object_iterator_free ( this ) 
   implicit none
   class(vefs_on_object_iterator_t), intent(inout) :: this
-  call this%current_vef_accessor%free()
   call this%vefs_lids_on_object_iterator%free()
 end subroutine vefs_on_object_iterator_free
 
@@ -47,32 +44,25 @@ subroutine vefs_on_object_iterator_init ( this )
   implicit none
   class(vefs_on_object_iterator_t), intent(inout) :: this
   call this%vefs_lids_on_object_iterator%begin()
-  call this%current_vef_accessor%set_lid( this%vefs_lids_on_object_iterator%get_current() )
 end subroutine vefs_on_object_iterator_init
 
 subroutine vefs_on_object_iterator_next ( this ) 
   implicit none
   class(vefs_on_object_iterator_t), intent(inout) :: this
   class(base_static_triangulation_t), pointer :: triangulation
-  call this%vefs_lids_on_object_iterator%next()
-  if ( this%vefs_lids_on_object_iterator%is_upper_bound() ) then
-     triangulation => this%current_vef_accessor%get_triangulation()
-     call this%current_vef_accessor%set_lid(lid=triangulation%num_vefs+1)
-  else
-     call this%current_vef_accessor%set_lid(this%vefs_lids_on_object_iterator%get_current() )
-  end if   
+  call this%vefs_lids_on_object_iterator%next()   
 end subroutine vefs_on_object_iterator_next
 
 function vefs_on_object_iterator_has_finished ( this ) 
   implicit none
   class(vefs_on_object_iterator_t), intent(in) :: this
   logical                                      :: vefs_on_object_iterator_has_finished
-  vefs_on_object_iterator_has_finished = this%current_vef_accessor%past_the_end()
+  vefs_on_object_iterator_has_finished = this%vefs_lids_on_object_iterator%is_upper_bound()
 end function vefs_on_object_iterator_has_finished
 
 subroutine vefs_on_object_iterator_current ( this, current ) 
   implicit none
-  class(vefs_on_object_iterator_t), target, intent(in)    :: this
-  type(vef_accessor_t),                     intent(inout) :: current
-  current = this%current_vef_accessor
+  class(vefs_on_object_iterator_t), intent(in)    :: this
+  type(vef_accessor_t)            , intent(inout) :: current
+  call current%set_lid(this%vefs_lids_on_object_iterator%get_current())
 end subroutine vefs_on_object_iterator_current

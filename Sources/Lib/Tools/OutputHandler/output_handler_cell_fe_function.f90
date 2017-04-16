@@ -103,7 +103,7 @@ private
         integer(ip)                                    :: number_dimensions     = 0
         integer(ip)                                    :: number_nodes          = 0
         integer(ip)                                    :: number_cells          = 0
-        type(fe_accessor_t), pointer                   :: current_fe            => NULL()
+        class(fe_accessor_t), pointer                  :: current_fe            => NULL()
         type(quadrature_t),        allocatable         :: quadratures(:)
         type(fe_map_t),            allocatable         :: fe_maps(:)
         type(volume_integrator_t), allocatable         :: volume_integrators(:)
@@ -185,7 +185,6 @@ contains
         type(output_handler_fe_field_t),          intent(in)    :: fe_fields(1:number_fields)
         integer(ip), optional,                    intent(in)    :: num_refinements
         class(base_static_triangulation_t), pointer             :: triangulation
-        type(fe_accessor_t)                                     :: fe
         class(reference_fe_t),            pointer               :: reference_fe
         class(lagrangian_reference_fe_t), pointer               :: reference_fe_geo
         class(lagrangian_reference_fe_t), pointer               :: previous_reference_fe_geo
@@ -199,7 +198,9 @@ contains
         integer(ip)                                             :: number_field
         character(len=:), allocatable                           :: field_type
         character(len=:), allocatable                           :: diff_operator
-    !-----------------------------------------------------------------
+        class(fe_accessor_t), allocatable                       :: fe
+        
+        !-----------------------------------------------------------------
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
             call this%free()
@@ -220,6 +221,7 @@ contains
 
             call output_handler_fe_iterator%init()
             nullify(previous_reference_fe_geo)
+            call fe_space%create_fe_accessor(fe)
             do while ( .not. output_handler_fe_iterator%has_finished() ) 
                 call output_handler_fe_iterator%current(fe)
                 reference_fe_geo => fe%get_reference_fe_geo()
@@ -266,7 +268,7 @@ contains
                 endif
                 call output_handler_fe_iterator%next()
             end do
-
+            call fe_space%free_fe_accessor(fe)
             ! Configure fill_patch_field strategy for each field
             if(allocated(this%fill_patch_field)) deallocate(this%fill_patch_field)
             allocate(this%fill_patch_field(number_fields))
@@ -331,7 +333,7 @@ contains
     !< and field data per cell.
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t),  intent(inout) :: this
-        type(fe_accessor_t),               target, intent(in)    :: fe_accessor
+        class(fe_accessor_t),             target,  intent(in)    :: fe_accessor
         integer(ip),                               intent(in)    :: number_fields
         type(output_handler_fe_field_t),           intent(in)    :: fe_fields(1:number_fields)
         integer(ip),                               intent(in)    :: number_cell_vectors

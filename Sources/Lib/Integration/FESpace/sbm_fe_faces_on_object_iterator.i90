@@ -28,45 +28,44 @@
 subroutine fe_faces_on_object_iterator_create ( this, lid, fe_space ) 
   implicit none
   class(fe_faces_on_object_iterator_t), intent(inout) :: this
-  integer(ip)                        ,  intent(in)    :: lid
-  type(par_fe_space_t)               , intent(in)     :: fe_space
-  type(face_accessor_t)                               :: face
+  integer(ip)                         , intent(in)    :: lid
+  type(par_fe_space_t)                , intent(in)    :: fe_space
   call this%free()
   call this%vefs_on_object_iterator%create(lid, fe_space%triangulation)
-  call this%current_fe_face_accessor%create(fe_space, face)
-  call this%current_fe_face_accessor%set_lid(1)
-  call this%next()
+  call fe_space%triangulation%create_vef_accessor(this%vef)
 end subroutine fe_faces_on_object_iterator_create
 
 subroutine fe_faces_on_object_iterator_free ( this ) 
   implicit none
   class(fe_faces_on_object_iterator_t), intent(inout) :: this
   call this%vefs_on_object_iterator%free()
-  call this%current_fe_face_accessor%free()
+  call this%vef%free()
 end subroutine fe_faces_on_object_iterator_free
 
 subroutine fe_faces_on_object_iterator_init ( this ) 
   implicit none
   class(fe_faces_on_object_iterator_t), intent(inout) :: this
-  type(vef_accessor_t)                                      :: vef
+  class(base_static_triangulation_t), pointer :: triangulation
+  triangulation => this%vef%get_triangulation()
   call this%vefs_on_object_iterator%init()
-  call this%next()
+  do while ( .not. this%vefs_on_object_iterator%has_finished() )
+     call this%vefs_on_object_iterator%current(this%vef)
+     if ( this%vef%get_dimension() /= triangulation%get_num_dimensions()-1) then
+         call this%vefs_on_object_iterator%next()
+     end if
+  end do
 end subroutine fe_faces_on_object_iterator_init
 
 subroutine fe_faces_on_object_iterator_next ( this ) 
   implicit none
   class(fe_faces_on_object_iterator_t), intent(inout) :: this
-  type(vef_accessor_t)                                :: vef
-  ! Point current_fe_face_accessor to the last face + 1
-  call this%current_fe_face_accessor%set_lid(this%current_fe_face_accessor%fe_space%triangulation%get_num_vefs()+1)
+  class(base_static_triangulation_t), pointer :: triangulation
+  triangulation => this%vef%get_triangulation()
+  call this%vefs_on_object_iterator%next()
   do while ( .not. this%vefs_on_object_iterator%has_finished() )
-     call this%vefs_on_object_iterator%current(vef)
-     if ( vef%get_dimension() == this%current_fe_face_accessor%fe_space%triangulation%get_num_dimensions()-1) then
-         call this%current_fe_face_accessor%set_lid(vef%get_lid())
-         call this%vefs_on_object_iterator%next()  
-       exit
-     else 
-         call this%vefs_on_object_iterator%next() 
+     call this%vefs_on_object_iterator%current(this%vef)
+     if ( this%vef%get_dimension() /= triangulation%get_num_dimensions()-1) then
+         call this%vefs_on_object_iterator%next()
      end if
   end do
 end subroutine fe_faces_on_object_iterator_next
@@ -75,12 +74,12 @@ function fe_faces_on_object_iterator_has_finished ( this )
   implicit none
   class(fe_faces_on_object_iterator_t), intent(in) :: this
   logical                                      :: fe_faces_on_object_iterator_has_finished
-  fe_faces_on_object_iterator_has_finished = this%current_fe_face_accessor%past_the_end()
+  fe_faces_on_object_iterator_has_finished = this%vefs_on_object_iterator%has_finished()
 end function fe_faces_on_object_iterator_has_finished
 
 subroutine fe_faces_on_object_iterator_current ( this, fe_face ) 
   implicit none
-  class(fe_faces_on_object_iterator_t), target, intent(in)    :: this
-  type(fe_face_accessor_t)                    , intent(inout) :: fe_face
-  fe_face = this%current_fe_face_accessor
+  class(fe_faces_on_object_iterator_t), intent(in)    :: this
+  type(fe_face_accessor_t)            , intent(inout) :: fe_face
+  call fe_face%set_lid(this%vef%get_lid())
 end subroutine fe_faces_on_object_iterator_current

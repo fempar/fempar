@@ -48,12 +48,12 @@ function coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object(this)
   coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object = this%object%get_number_vefs_on_object()
 end function coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
 
-function coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator(this)
+subroutine coarse_fe_object_accessor_create_coarse_fe_vefs_on_object_it(this,iterator)
   implicit none
   class(coarse_fe_object_accessor_t), intent(in) :: this
-  type(coarse_fe_vefs_on_object_iterator_t) :: coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator
-  call coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator%create(this%get_lid(), this%coarse_fe_space)
-end function coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator
+  type(coarse_fe_vefs_on_object_iterator_t), intent(inout) :: iterator
+  call iterator%create(this%get_lid(), this%coarse_fe_space)
+end subroutine coarse_fe_object_accessor_create_coarse_fe_vefs_on_object_it
 
 function coarse_fe_object_accessor_get_number_coarse_dofs(this, field_id)
   implicit none

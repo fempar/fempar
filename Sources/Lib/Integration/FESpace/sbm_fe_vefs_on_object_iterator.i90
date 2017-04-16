@@ -29,50 +29,39 @@ subroutine fe_vefs_on_object_iterator_create ( this, lid, fe_space )
   implicit none
   class(fe_vefs_on_object_iterator_t), intent(inout) :: this
   integer(ip)                        , intent(in)    :: lid
-  type(par_fe_space_t)               , intent(in)    :: fe_space
-  type(vef_accessor_t)                               :: vef
+  class(par_fe_space_t)              , intent(in)    :: fe_space
   call this%free()
   call this%vefs_on_object_iterator%create(lid,fe_space%triangulation)
-  call this%vefs_on_object_iterator%current(vef)
-  call this%current_fe_vef_accessor%create(fe_space, vef)
-  call this%current_fe_vef_accessor%set_lid(vef%get_lid())
 end subroutine fe_vefs_on_object_iterator_create
 
 subroutine fe_vefs_on_object_iterator_free ( this ) 
   implicit none
   class(fe_vefs_on_object_iterator_t), intent(inout) :: this
-  call this%current_fe_vef_accessor%free()
   call this%vefs_on_object_iterator%free()
 end subroutine fe_vefs_on_object_iterator_free
 
 subroutine fe_vefs_on_object_iterator_init ( this ) 
   implicit none
   class(fe_vefs_on_object_iterator_t), intent(inout) :: this
-  type(vef_accessor_t)                                      :: vef
   call this%vefs_on_object_iterator%init()
-  call this%vefs_on_object_iterator%current(vef)
-  call this%current_fe_vef_accessor%set_lid( vef%get_lid() )
 end subroutine fe_vefs_on_object_iterator_init
 
 subroutine fe_vefs_on_object_iterator_next ( this ) 
   implicit none
   class(fe_vefs_on_object_iterator_t), intent(inout) :: this
-  type(vef_accessor_t)                                      :: vef
   call this%vefs_on_object_iterator%next()
-  call this%vefs_on_object_iterator%current(vef)
-  call this%current_fe_vef_accessor%set_lid( vef%get_lid() )
 end subroutine fe_vefs_on_object_iterator_next
 
 function fe_vefs_on_object_iterator_has_finished ( this ) 
   implicit none
   class(fe_vefs_on_object_iterator_t), intent(in) :: this
   logical                                      :: fe_vefs_on_object_iterator_has_finished
-  fe_vefs_on_object_iterator_has_finished = this%current_fe_vef_accessor%past_the_end()
+  fe_vefs_on_object_iterator_has_finished = this%vefs_on_object_iterator%has_finished()
 end function fe_vefs_on_object_iterator_has_finished
 
 subroutine fe_vefs_on_object_iterator_current ( this, fe_vef ) 
   implicit none
-  class(fe_vefs_on_object_iterator_t), target, intent(in)    :: this
-  type(fe_vef_accessor_t)                    , intent(inout) :: fe_vef
-  fe_vef = this%current_fe_vef_accessor
+  class(fe_vefs_on_object_iterator_t), intent(in)    :: this
+  type(fe_vef_accessor_t)            , intent(inout) :: fe_vef
+  call this%vefs_on_object_iterator%current(fe_vef%vef)
 end subroutine fe_vefs_on_object_iterator_current

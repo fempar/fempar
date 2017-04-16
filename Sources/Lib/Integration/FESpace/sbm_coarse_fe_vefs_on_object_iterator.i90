@@ -28,51 +28,40 @@
 subroutine coarse_fe_vefs_on_object_iterator_create ( this, lid, coarse_fe_space ) 
   implicit none
   class(coarse_fe_vefs_on_object_iterator_t), intent(inout) :: this
-  integer(ip)                               ,    intent(in) :: lid
+  integer(ip)                               , intent(in) :: lid
   type(coarse_fe_space_t)                   , intent(in)    :: coarse_fe_space
-  type(vef_accessor_t)                                      :: vef
   call this%free()
   call this%vefs_on_object_iterator%create(lid,coarse_fe_space%coarse_triangulation)
-  call this%vefs_on_object_iterator%current(vef)
-  call this%current_coarse_fe_vef_accessor%create(coarse_fe_space )
-  call this%current_coarse_fe_vef_accessor%set_lid(vef%get_lid())
 end subroutine coarse_fe_vefs_on_object_iterator_create
 
 subroutine coarse_fe_vefs_on_object_iterator_free ( this ) 
   implicit none
   class(coarse_fe_vefs_on_object_iterator_t), intent(inout) :: this
-  call this%current_coarse_fe_vef_accessor%free()
   call this%vefs_on_object_iterator%free()
 end subroutine coarse_fe_vefs_on_object_iterator_free
 
 subroutine coarse_fe_vefs_on_object_iterator_init ( this ) 
   implicit none
   class(coarse_fe_vefs_on_object_iterator_t), intent(inout) :: this
-  type(vef_accessor_t)                                      :: vef
   call this%vefs_on_object_iterator%init()
-  call this%vefs_on_object_iterator%current(vef)
-  call this%current_coarse_fe_vef_accessor%set_lid( vef%get_lid() )
 end subroutine coarse_fe_vefs_on_object_iterator_init
 
 subroutine coarse_fe_vefs_on_object_iterator_next ( this ) 
   implicit none
   class(coarse_fe_vefs_on_object_iterator_t), intent(inout) :: this
-  type(vef_accessor_t)                                      :: vef
   call this%vefs_on_object_iterator%next()
-  call this%vefs_on_object_iterator%current(vef)
-  call this%current_coarse_fe_vef_accessor%set_lid( vef%get_lid() )
 end subroutine coarse_fe_vefs_on_object_iterator_next
 
 function coarse_fe_vefs_on_object_iterator_has_finished ( this ) 
   implicit none
   class(coarse_fe_vefs_on_object_iterator_t), intent(in) :: this
   logical                                      :: coarse_fe_vefs_on_object_iterator_has_finished
-  coarse_fe_vefs_on_object_iterator_has_finished = this%current_coarse_fe_vef_accessor%past_the_end()
+  coarse_fe_vefs_on_object_iterator_has_finished = this%vefs_on_object_iterator%has_finished()
 end function coarse_fe_vefs_on_object_iterator_has_finished
 
 subroutine coarse_fe_vefs_on_object_iterator_current ( this, vef ) 
   implicit none
-  class(coarse_fe_vefs_on_object_iterator_t), target, intent(in) :: this
-  type(coarse_fe_vef_accessor_t)                    , intent(inout) :: vef
-  vef = this%current_coarse_fe_vef_accessor
+  class(coarse_fe_vefs_on_object_iterator_t), intent(in) :: this
+  type(coarse_fe_vef_accessor_t), intent(inout) :: vef
+  call this%vefs_on_object_iterator%current(vef%vef)
 end subroutine coarse_fe_vefs_on_object_iterator_current

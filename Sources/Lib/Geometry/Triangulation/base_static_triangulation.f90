@@ -242,15 +242,13 @@ module base_static_triangulation_names
   type :: vefs_on_object_iterator_t
     private
     type(list_iterator_t) :: vefs_lids_on_object_iterator
-    type(vef_accessor_t)  :: current_vef_accessor
   contains
-    procedure, non_overridable, private ::                 vefs_on_object_iterator_current
     procedure, non_overridable          :: create       => vefs_on_object_iterator_create
     procedure, non_overridable          :: free         => vefs_on_object_iterator_free
     procedure, non_overridable          :: init         => vefs_on_object_iterator_init
     procedure, non_overridable          :: next         => vefs_on_object_iterator_next
     procedure, non_overridable          :: has_finished => vefs_on_object_iterator_has_finished
-    generic                             :: current      => vefs_on_object_iterator_current
+    procedure, non_overridable          :: current      => vefs_on_object_iterator_current
   end type vefs_on_object_iterator_t
    
    ! JP-TODO: implement states: discuss with Alberto and Victor.

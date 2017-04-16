@@ -497,7 +497,7 @@ contains
     !-----------------------------------------------------------------
         class(base_output_handler_t), target, intent(inout) :: this
         logical,                              intent(in)    :: update_mesh
-        type(fe_accessor_t)                                 :: fe
+        class(fe_accessor_t), allocatable                   :: fe
         type(output_handler_patch_t)                        :: patch
         type(patch_subcell_iterator_t)                      :: subcell_iterator
     !-----------------------------------------------------------------
@@ -509,7 +509,7 @@ contains
             this%iterator => this%default_iterator
             call this%iterator%create(this%fe_space)
         endif
-
+        
         if(update_mesh) then
             ! Create Output Cell Handler and allocate patch fields
             call this%ohcff%create(this%fe_space, this%iterator, this%number_fields, this%fe_fields(1:this%number_fields))
@@ -520,6 +520,8 @@ contains
         endif
 
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
+        
+        call this%fe_space%create_fe_accessor(fe)
         call patch%create(this%number_fields, this%number_cell_vectors)
         ! Translate coordinates and connectivities to VTK format for every subcell
         call this%iterator%init()
@@ -542,10 +544,8 @@ contains
             endif
             call this%iterator%next()
         end do
-
         call patch%free()
-        call fe%free()
-
+        call this%fe_space%free_fe_accessor(fe)
     end subroutine base_output_handler_fill_data
 
 end module base_output_handler_names

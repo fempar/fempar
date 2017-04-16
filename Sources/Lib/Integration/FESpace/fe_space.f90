@@ -166,8 +166,6 @@ module fe_space_names
     class(serial_fe_space_t), pointer    :: fe_space => NULL()
   contains
     procedure                           :: create                                     => fe_accessor_create
-    procedure                           :: assign                                     => fe_accessor_assign
-    generic                             :: assignment(=)                              => assign
     procedure                           :: free                                       => fe_accessor_free
     final                               :: fe_accessor_free_final
     procedure, non_overridable, private :: fill_own_dofs                              => fe_accessor_fill_own_dofs
@@ -433,7 +431,6 @@ module fe_space_names
   type :: fe_vefs_on_object_iterator_t
     private
     type(vefs_on_object_iterator_t)     :: vefs_on_object_iterator
-    type(fe_vef_accessor_t)             :: current_fe_vef_accessor
   contains
     procedure, non_overridable          :: create       => fe_vefs_on_object_iterator_create
     procedure, non_overridable          :: free         => fe_vefs_on_object_iterator_free
@@ -445,8 +442,8 @@ module fe_space_names
   
   type :: fe_faces_on_object_iterator_t
     private
+    type(vef_accessor_t)            :: vef
     type(vefs_on_object_iterator_t) :: vefs_on_object_iterator
-    type(fe_face_accessor_t)        :: current_fe_face_accessor
   contains
     procedure, non_overridable          :: create       => fe_faces_on_object_iterator_create
     procedure, non_overridable          :: free         => fe_faces_on_object_iterator_free
@@ -644,7 +641,7 @@ module fe_space_names
     procedure                            :: create                                   => coarse_fe_object_accessor_create
     procedure                            :: free                                     => coarse_fe_object_accessor_free
     procedure, non_overridable           :: get_number_coarse_fe_vefs_on_object      => coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
-    procedure, non_overridable           :: create_coarse_fe_vefs_on_object_iterator => coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator
+    procedure, non_overridable           :: create_coarse_fe_vefs_on_object_iterator => coarse_fe_object_accessor_create_coarse_fe_vefs_on_object_it
     procedure, non_overridable           :: get_number_coarse_dofs                   => coarse_fe_object_accessor_get_number_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator          => coarse_fe_object_accessor_create_own_coarse_dofs_iterator
     
@@ -653,7 +650,6 @@ module fe_space_names
   type :: coarse_fe_vefs_on_object_iterator_t
     private
     type(vefs_on_object_iterator_t)     :: vefs_on_object_iterator
-    type(coarse_fe_vef_accessor_t)      :: current_coarse_fe_vef_accessor
   contains
     procedure, non_overridable          :: create       => coarse_fe_vefs_on_object_iterator_create
     procedure, non_overridable          :: free         => coarse_fe_vefs_on_object_iterator_free

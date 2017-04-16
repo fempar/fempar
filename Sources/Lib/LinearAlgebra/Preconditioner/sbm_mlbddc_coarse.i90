@@ -84,8 +84,9 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
   
   call fe_space%create_coarse_fe_accessor(fe)
   call fe_space%create_coarse_fe_object_accessor(object)
+  call fe_space%create_coarse_fe_vef_accessor(vef)
   do while ( .not. object%past_the_end() )
-     vefs_on_object_iterator = object%create_coarse_fe_vefs_on_object_iterator()
+     call object%create_coarse_fe_vefs_on_object_iterator(vefs_on_object_iterator)
      do while ( .not. vefs_on_object_iterator%has_finished() )
         call vefs_on_object_iterator%current(vef)
         call vef%get_cell_around(1,fe)
@@ -102,6 +103,7 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
      end do
      call object%next()
   end do
+  call fe_space%free_coarse_fe_vef_accessor(vef)
   call fe_space%free_coarse_fe_accessor(fe)
   call fe_space%free_coarse_fe_object_accessor(object)
 end subroutine mlbddc_coarse_setup_weighting_operator

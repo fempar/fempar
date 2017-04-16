@@ -13,8 +13,6 @@ subroutine runend
     call mpi_finalized(finalized_mpi, ierror)
 #ifdef __GFORTRAN__
     call backtrace()
-#elif defined __INTEL_COMPILER
-    call TRACEBACKQQ("",code)
 #endif 
     if(initialized_mpi .and. .not. finalized_mpi) then
         call mpi_abort(mpi_comm_world,code,info)

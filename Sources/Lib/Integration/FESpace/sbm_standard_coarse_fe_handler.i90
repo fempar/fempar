@@ -59,11 +59,13 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
   ! a single-field PDE problem
   field_id = 1
 
-  call par_fe_space%create_fe_accessor(fe)
+  
   
   ! First, count how many coarse_dofs there are on the interface of my subdomain
   num_coarse_dofs = 0
   call par_fe_space%create_fe_object_accessor(object)
+  call par_fe_space%create_fe_accessor(fe)
+  call par_fe_space%create_fe_vef_accessor(vef)
   do while ( .not. object%past_the_end() )
      select case ( object%get_dimension() )
      case (0)
@@ -80,7 +82,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
        end if  
      end select
      
-     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+     call object%create_fe_vefs_on_object_iterator(vefs_on_object_iterator)
      dofs_on_vef = .false.
      do while ( .not. vefs_on_object_iterator%has_finished() )
         call vefs_on_object_iterator%current(vef)
@@ -108,6 +110,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
      end do
      call object%next()
   end do
+  call par_fe_space%free_fe_vef_accessor(vef)
   call par_fe_space%free_fe_accessor(fe)
   call par_fe_space%free_fe_object_accessor(object)
 end subroutine standard_l1_get_num_coarse_dofs
@@ -154,6 +157,7 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
   ! Fill constraint matrix entries (transposed)
   call par_fe_space%create_fe_object_accessor(object)
   call par_fe_space%create_fe_accessor(fe)
+  call par_fe_space%create_fe_vef_accessor(vef)
   do while ( .not. object%past_the_end() )
      
      if ( object%get_number_coarse_dofs(field_id) > 0 ) then
@@ -165,7 +169,7 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
      
        num_fine_dofs_on_coarse_dof = 0 
        ! Count how many fine DoFs current coarse DoF aggregates
-       vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+       call object%create_fe_vefs_on_object_iterator(vefs_on_object_iterator)
        do while ( .not. vefs_on_object_iterator%has_finished() )
           call vefs_on_object_iterator%current(vef)
           call vef%get_cell_around(1,fe)
@@ -183,7 +187,7 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
           call vefs_on_object_iterator%next()
        end do
        
-       vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+       call vefs_on_object_iterator%init()
        do while ( .not. vefs_on_object_iterator%has_finished() )
           call vefs_on_object_iterator%current(vef)
           call vef%get_cell_around(1,fe)
@@ -206,6 +210,7 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
   call constraint_matrix%sort_and_compress()
   call par_fe_space%free_fe_accessor(fe)
   call par_fe_space%free_fe_object_accessor(object)
+  call par_fe_space%free_fe_vef_accessor(vef)
 end subroutine standard_l1_setup_constraint_matrix
 
 subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
@@ -239,9 +244,10 @@ subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_li
   ! Fill constraint matrix entries (transposed)
   call par_fe_space%create_fe_accessor(fe)
   call par_fe_space%create_fe_object_accessor(object)
+  call par_fe_space%create_fe_vef_accessor(vef)
   do while ( .not. object%past_the_end() )
      ! Count how many fine DoFs current coarse DoF aggregates
-     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+     call object%create_fe_vefs_on_object_iterator(vefs_on_object_iterator)
      do while ( .not. vefs_on_object_iterator%has_finished() )
         call vefs_on_object_iterator%current(vef)
         call vef%get_cell_around(1,fe)
@@ -262,6 +268,7 @@ subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_li
   end do
   call par_fe_space%free_fe_accessor(fe)
   call par_fe_space%free_fe_object_accessor(object)
+  call par_fe_space%free_fe_vef_accessor(vef)
 end subroutine standard_l1_setup_weighting_operator
 
 subroutine standard_get_coarse_space_use_vertices_edges_faces ( parameter_list, use_vertices, use_edges, use_faces )
