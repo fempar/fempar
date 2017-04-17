@@ -476,6 +476,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   type(itfc_fe_vef_iterator_t) :: itfc_vef_iterator
   type(fe_vef_accessor_t)      :: vef
   type(fe_accessor_t)          :: fe
+  integer(ip)                  :: result_previous
   
   par_environment   => this%get_par_environment()
   triangulation => this%get_triangulation()
@@ -501,10 +502,11 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
         if ( part_id /= mypart_id ) then
            local_part_id = cell_import%get_local_neighbour_id(part_id)
            if (.not. touched_neighbours (local_part_id)) then
-              touched_neighbours (local_part_id) = .true.
               ivef = fe%find_lpos_vef_lid(vef%get_lid())
               reference_fe => fe%get_reference_fe(field_id)
+              result_previous = result
               result = result + reference_fe%get_number_own_nodes_n_face(ivef)
+              if (result>result_previous) touched_neighbours (local_part_id) = .true.
            end if
         end if
      end do

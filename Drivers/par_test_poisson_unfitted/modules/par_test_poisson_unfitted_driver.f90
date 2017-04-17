@@ -186,12 +186,14 @@ contains
       call cell_iter%current(cell)
       do while( .not. cell_iter%has_finished() )
         call cell_iter%current(cell)
-        if (cell%is_exterior()) then
-          set_id = PAR_POISSON_UNFITTED_SET_ID_VOID
-        else
-          set_id = PAR_POISSON_UNFITTED_SET_ID_FULL
+        if (cell%is_local()) then
+          if (cell%is_exterior()) then
+            set_id = PAR_POISSON_UNFITTED_SET_ID_VOID
+          else
+            set_id = PAR_POISSON_UNFITTED_SET_ID_FULL
+          end if
+          this%cell_set_ids(cell%get_lid()) = set_id
         end if
-        this%cell_set_ids(cell%get_lid()) = set_id
         call cell_iter%next()
       end do
       call this%triangulation%fill_cells_set(this%cell_set_ids)
@@ -453,6 +455,7 @@ contains
     call this%parse_command_line_parameters()
     !call this%setup_context()
     !call this%setup_par_environment()
+    call this%setup_levelset()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()

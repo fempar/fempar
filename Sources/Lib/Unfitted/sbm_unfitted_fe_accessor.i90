@@ -74,6 +74,7 @@ function unfitted_fe_accessor_get_quadrature(this) result (quadrature)
   type(quadrature_t),              pointer   :: quadrature
   class(unfitted_cell_accessor_t), pointer   :: cell
   integer(ip) :: mc_case
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
@@ -95,6 +96,7 @@ function unfitted_fe_accessor_get_fe_map(this) result (fe_map)
   type(fe_map_t), pointer :: fe_map
   class(unfitted_cell_accessor_t), pointer :: cell
   integer(ip) :: mc_case
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
@@ -114,6 +116,7 @@ function unfitted_fe_accessor_get_volume_integrator(this, field_id) result (vol_
   type(volume_integrator_t), pointer :: vol_int
   class(unfitted_cell_accessor_t), pointer :: cell
   integer(ip) :: mc_case
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
@@ -132,6 +135,7 @@ function unfitted_fe_accessor_get_boundary_quadrature(this) result (quadrature)
   type(quadrature_t), pointer      :: quadrature
   class(unfitted_cell_accessor_t), pointer :: cell
   integer(ip) :: mc_case
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
@@ -148,6 +152,7 @@ function unfitted_fe_accessor_get_boundary_piecewise_fe_map(this) result (fe_map
   type(piecewise_fe_map_t), pointer :: fe_map
   class(unfitted_cell_accessor_t), pointer :: cell
   integer(ip) :: mc_case
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
@@ -165,6 +170,7 @@ function unfitted_fe_accessor_get_boundary_fe_map(this) result (fe_map)
   type(fe_map_t), pointer :: fe_map
   class(unfitted_cell_accessor_t), pointer :: cell
   integer(ip) :: mc_case
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
@@ -183,6 +189,7 @@ function unfitted_fe_accessor_get_boundary_volume_integrator(this, field_id) res
   type(volume_integrator_t), pointer :: vol_int
   class(unfitted_cell_accessor_t), pointer :: cell
   integer(ip) :: mc_case
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_cut() ) then
     mc_case = cell%get_mc_case()
@@ -205,6 +212,7 @@ subroutine unfitted_fe_accessor_update_integration( this )
   type(volume_integrator_t), pointer :: volume_integrator
   class(unfitted_cell_accessor_t), pointer :: cell
 
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   call cell%update_sub_triangulation()
 
@@ -230,6 +238,7 @@ subroutine unfitted_fe_accessor_update_boundary_integration( this )
   implicit none
   class(unfitted_fe_accessor_t), intent(inout) :: this
   class(unfitted_cell_accessor_t), pointer :: cell
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   call cell%update_sub_triangulation()
   call this%update_cut_boundary_quadratures()
@@ -257,6 +266,7 @@ subroutine unfitted_fe_accessor_update_cut_quadratures( this )
   integer(ip)                 :: subcell, idi
   real(rp)                    :: coef, dV_subelem
 
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   if ( cell%is_interior() .or. cell%is_exterior() ) return
 
@@ -332,6 +342,7 @@ subroutine unfitted_fe_accessor_update_cut_fe_maps( this )
   type(fe_map_t), pointer :: fe_map
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
+  assert(this%is_local())
   fe_map => this%get_fe_map()
   quadrature => this%get_quadrature()
   geo_reference_elem => this%get_reference_fe_geo()
@@ -349,6 +360,7 @@ subroutine unfitted_fe_accessor_update_cut_vol_integrators( this )
   type(volume_integrator_t), pointer :: vol_integrator
   integer(ip) :: field_id
 
+  assert(this%is_local())
   quadrature => this%get_quadrature()
   do field_id = 1, this%get_number_fields()
     vol_integrator => this%get_volume_integrator(field_id)
@@ -370,6 +382,7 @@ subroutine unfitted_fe_accessor_update_cut_boundary_quadratures( this )
   real(rp), pointer :: quad_coords_aux(:,:)
   type(quadrature_t), pointer :: quad
 
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   quad => this%get_boundary_quadrature()
   pw_fe_map => this%get_boundary_piecewise_fe_map()
@@ -411,6 +424,7 @@ subroutine unfitted_fe_accessor_update_cut_boundary_fe_maps( this )
   integer(ip) :: subface, nini, nend
   class  (lagrangian_reference_fe_t), pointer  :: reference_fe_geometry
 
+  assert(this%is_local())
   cell => this%get_unfitted_cell_accessor()
   pw_fe_map => this%get_boundary_piecewise_fe_map()
   nodal_coords => pw_fe_map%get_coordinates()
@@ -444,6 +458,7 @@ subroutine unfitted_fe_accessor_update_cut_boundary_vol_integrators( this )
   integer(ip) :: field_id
   type(point_t), pointer :: coordinates(:)
 
+  assert(this%is_local())
   quad => this%get_boundary_quadrature()
   fe_map => this%get_boundary_fe_map()
   cell => this%get_unfitted_cell_accessor()

@@ -73,7 +73,7 @@ switch elem_type
     case 'HEX8'        
         width = 16;        
     otherwise
-        width = mc_ncases;
+        width = round(mc_ncases/2);
 end
 
 write_long_vector(fid,mc_num_sub_cells_per_case,width,0);
@@ -93,9 +93,9 @@ fprintf(fid,'\n');
 
 switch elem_type
     case 'HEX8'        
-        width = mc_max_sub_cells*mc_num_nodes_per_subcell/2;        
+        width = round(mc_max_sub_cells*mc_num_nodes_per_subcell/4);        
     otherwise
-        width = mc_max_sub_cells*mc_num_nodes_per_subcell;
+        width = round(mc_max_sub_cells*mc_num_nodes_per_subcell/2);
 end
 
 %fprintf(fid,'integer(ip), parameter :: MC_%s_SUBCELLS_PER_CASE(MC_%s_NUM_NODES_SUBCELL,MC_%s_MAX_NUM_SUBCELLS,MC_%s_NUM_CASES) = reshape( &\n',elem_type,elem_type,elem_type,elem_type);

@@ -32,15 +32,22 @@ subroutine uim_create(this,fe_space,marching_cubes)
   class(unfitted_integration_manager_t),intent(inout) :: this
   class(serial_fe_space_t), target, intent(in)    :: fe_space
   class(marching_cubes_t), target,  intent(in)    :: marching_cubes
+  class(base_static_triangulation_t), pointer :: triangulation
+  type(environment_t), pointer :: par_environment
+  call this%free()
   this%fe_space => fe_space
   this%marching_cubes => marching_cubes
+  triangulation => fe_space%get_triangulation()
+  par_environment => triangulation%get_par_environment()
+  if ( par_environment%am_i_l1_task() ) then
 #ifdef DEBUG
-  call this%check_assumptions()
+    call this%check_assumptions()
 #endif
-  call this%init_reference_subelem()
-  call this%init_reference_subface()
-  call this%init_cut_integration()
-  call this%init_cut_boundary_integration()
+    call this%init_reference_subelem()
+    call this%init_reference_subface()
+    call this%init_cut_integration()
+    call this%init_cut_boundary_integration()
+  end if
 
 end subroutine uim_create
 
@@ -92,12 +99,14 @@ subroutine uim_check_assumptions(this)
   geo_ref_fe_1 => fe%get_reference_fe_geo()
   do while (.not. fe_it%has_finished())
     call fe_it%current(fe)
-    geo_ref_fe => fe%get_reference_fe_geo()
-    assert( geo_ref_fe_1%get_topology()          ==    geo_ref_fe%get_topology()          )
-    assert( geo_ref_fe_1%get_number_dimensions() ==    geo_ref_fe%get_number_dimensions() )
-    assert( geo_ref_fe_1%get_order()             ==    geo_ref_fe%get_order()             )
-    assert( geo_ref_fe_1%get_field_type()        ==    geo_ref_fe%get_field_type()        )
-    assert( geo_ref_fe_1%get_continuity()        .eqv. geo_ref_fe%get_continuity()        )
+    if (fe%is_local()) then
+      geo_ref_fe => fe%get_reference_fe_geo()
+      assert( geo_ref_fe_1%get_topology()          ==    geo_ref_fe%get_topology()          )
+      assert( geo_ref_fe_1%get_number_dimensions() ==    geo_ref_fe%get_number_dimensions() )
+      assert( geo_ref_fe_1%get_order()             ==    geo_ref_fe%get_order()             )
+      assert( geo_ref_fe_1%get_field_type()        ==    geo_ref_fe%get_field_type()        )
+      assert( geo_ref_fe_1%get_continuity()        .eqv. geo_ref_fe%get_continuity()        )
+    end if
     call fe_it%next()
   end do
 
@@ -116,12 +125,14 @@ subroutine uim_check_assumptions(this)
     call fe_it%init()
     do while (.not. fe_it%has_finished())
       call fe_it%current(fe)
-      ref_fe     => fe%get_reference_fe(ifield)
-      assert( ref_fe_1%get_topology()          ==    ref_fe%get_topology()         )
-      assert( ref_fe_1%get_number_dimensions() ==    ref_fe%get_number_dimensions())
-      assert( ref_fe_1%get_order()==ref_fe%get_order() .or.  ref_fe%get_order()<0  )
-      assert( ref_fe_1%get_field_type()        ==    ref_fe%get_field_type()       )
-      assert( ref_fe_1%get_continuity()        .eqv. ref_fe%get_continuity()       )
+      if (fe%is_local()) then
+        ref_fe     => fe%get_reference_fe(ifield)
+        assert( ref_fe_1%get_topology()          ==    ref_fe%get_topology()         )
+        assert( ref_fe_1%get_number_dimensions() ==    ref_fe%get_number_dimensions())
+        assert( ref_fe_1%get_order()==ref_fe%get_order() .or.  ref_fe%get_order()<0  )
+        assert( ref_fe_1%get_field_type()        ==    ref_fe%get_field_type()       )
+        assert( ref_fe_1%get_continuity()        .eqv. ref_fe%get_continuity()       )
+      end if
       call fe_it%next()
     end do
 
@@ -324,8 +335,10 @@ subroutine uim_init_cut_integration( this )
     ! Find the fist non void ref FE in the field
     do while( .not. fe_iterator%has_finished())
       call fe_iterator%current(fe)
-      reference_elem => fe%get_reference_fe(field_id=ifield)
-      if (reference_elem%get_order() > 0) exit
+      if (fe%is_local()) then
+        reference_elem => fe%get_reference_fe(field_id=ifield)
+        if (reference_elem%get_order() > 0) exit
+      end if
       call fe_iterator%next()
     end do
 
@@ -474,8 +487,10 @@ subroutine uim_init_cut_boundary_integration( this )
     ! Find the fist non void ref FE in the field
     do while( .not. fe_iterator%has_finished())
       call fe_iterator%current(fe)
-      reference_elem => fe%get_reference_fe(field_id=ifield)
-      if (reference_elem%get_order() > 0) exit
+      if (fe%is_local()) then
+        reference_elem => fe%get_reference_fe(field_id=ifield)
+        if (reference_elem%get_order() > 0) exit
+      end if
       call fe_iterator%next()
     end do
 

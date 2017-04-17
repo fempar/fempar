@@ -122,7 +122,7 @@ function mlbddc_get_par_fe_space(this)
   class(serial_fe_space_t) , pointer    :: fe_space
   fe_space => this%fe_affine_operator%get_fe_space()
   select type(fe_space)
-  type is (par_fe_space_t)
+  class is (par_fe_space_t)
      mlbddc_get_par_fe_space => fe_space
      class default
      check(.false.)
