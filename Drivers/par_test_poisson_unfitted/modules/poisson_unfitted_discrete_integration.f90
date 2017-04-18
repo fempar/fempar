@@ -343,8 +343,8 @@ contains
 
     end do
 
-    write(*,*) "Domain volume    = ", volume
-    write(*,*) "Boundary surface = ", surface
+    !write(*,*) "Domain volume    = ", volume
+    !write(*,*) "Boundary surface = ", surface
 
     ! TODO Why these are not allocated??
     call memfree(shape_values, __FILE__, __LINE__)

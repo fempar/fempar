@@ -37,6 +37,7 @@ module par_test_poisson_unfitted_driver_names
   use level_set_functions_gallery_names
   use unfitted_vtk_writer_names
   use unfitted_solution_checker_names
+  use unfitted_l1_coarse_fe_handler_names
 
   ! Driver modules
   use par_poisson_unfitted_static_parameters_names
@@ -64,7 +65,7 @@ module par_test_poisson_unfitted_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_unfitted_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     type(unfitted_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
      type(poisson_unfitted_CG_discrete_integration_t)   :: poisson_unfitted_integration
      type(poisson_unfitted_conditions_t)                :: poisson_unfitted_conditions
      type(poisson_unfitted_analytical_functions_t)      :: poisson_unfitted_analytical_functions
@@ -282,6 +283,8 @@ contains
   subroutine setup_system (this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
+    class(matrix_t), pointer :: matrix
+
     
     call this%poisson_unfitted_integration%set_analytical_functions(this%poisson_unfitted_analytical_functions)
     
@@ -292,6 +295,8 @@ contains
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_unfitted_integration )
+    matrix => this%fe_affine_operator%get_matrix()
+    call this%l1_coarse_fe_handler%create(matrix)
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -479,6 +484,7 @@ contains
     call this%mlbddc%free()
 !#endif    
     call this%iterative_linear_solver%free()
+    call this%l1_coarse_fe_handler%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
