@@ -225,7 +225,7 @@ contains
             do while ( .not. output_handler_fe_iterator%has_finished() ) 
                 call output_handler_fe_iterator%current(fe)
                 reference_fe_geo => fe%get_reference_fe_geo()
-                max_order_within_fe = fe%get_max_order()
+                max_order_within_fe = fe%get_max_order_all_fields()
                 call this%quadratures_and_maps_position%put(key = max_order_within_fe, &
                                                             val = current_quadrature_and_map, &
                                                             stat = istat)
@@ -360,7 +360,7 @@ contains
         fe_space => fe_accessor%get_fe_space()
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
-            max_order_within_fe =  fe_accessor%get_max_order()
+            max_order_within_fe =  fe_accessor%get_max_order_all_fields()
             reference_fe_geo    => fe_accessor%get_reference_fe_geo()
             fe_map              => this%get_fe_map()
             coordinates         => fe_map%get_coordinates()
@@ -889,7 +889,7 @@ contains
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
         assert ( associated(this%current_fe) )
-        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order(), &
+        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_all_fields(), &
              val=quadratures_position, &
              stat=istat)
         assert ( .not. istat == key_not_found )
@@ -907,7 +907,7 @@ contains
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
         assert ( associated(this%current_fe) )
-        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order(), &
+        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_all_fields(), &
              val=fe_maps_position, &
              stat=istat)
         assert ( .not. istat == key_not_found )
@@ -930,7 +930,7 @@ contains
 
         vol_integ_pos_key = &
              this%generate_vol_integ_pos_key(this%get_number_reference_fes(), &
-             this%current_fe%get_max_order(), &
+             this%current_fe%get_max_order_all_fields(), &
              this%current_fe%get_reference_fe_id(field_id))
 
         call this%volume_integrators_position%get(key=vol_integ_pos_key, &

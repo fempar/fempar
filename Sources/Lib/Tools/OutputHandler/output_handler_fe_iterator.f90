@@ -84,8 +84,7 @@ private
         procedure, public :: init            => output_handler_fe_iterator_init
         procedure, public :: next            => output_handler_fe_iterator_next
         procedure, public :: has_finished    => output_handler_fe_iterator_has_finished
-        procedure         ::                    output_handler_fe_iterator_current
-        generic,   public :: current         => output_handler_fe_iterator_current
+        procedure, public :: current         => output_handler_fe_iterator_current
   end type output_handler_fe_iterator_t
 
 public :: output_handler_fe_iterator_t
