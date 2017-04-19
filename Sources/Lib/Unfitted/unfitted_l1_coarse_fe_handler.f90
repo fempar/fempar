@@ -37,6 +37,8 @@ module unfitted_l1_coarse_fe_handler_names
   use environment_names
   use dof_import_names
   use serial_scalar_array_names
+  use fe_affine_operator_names
+  use list_types_names
 
   implicit none
 # include "debug.i90"
@@ -46,25 +48,27 @@ module unfitted_l1_coarse_fe_handler_names
   type, extends(standard_l1_coarse_fe_handler_t) :: unfitted_l1_coarse_fe_handler_t
     private
 
-    ! A `par_sparse_matrix_t` should be sufficient to handle several fields,
-    ! but not to handle several blocks
-    class(par_sparse_matrix_t), pointer :: matrix => null()
-    !real(rp), allocatable :: flag_ldofs(:)
-    !logical :: is_set_up = .false.
+    class(par_sparse_matrix_t), pointer     :: matrix         => null()
+    class(par_fe_space_t),      pointer     :: par_fe_space   => null()
+    class(parameterlist_t),     pointer     :: parameter_list => null()
+
+    real(rp),                   allocatable :: stiffness_weighting(:)
+    type(list_t)                            :: object_lid_to_dof_lids
+    integer(ip),                allocatable :: dof_lid_to_cdof_id_in_object(:)
 
   contains
 
     ! Public TBPs
-    procedure :: create                   => unfitted_l1_create  
+    procedure :: create                   => unfitted_l1_create
     procedure :: free                     => unfitted_l1_free
-    !procedure :: get_num_coarse_dofs      => unfitted_l1_get_num_coarse_dofs
-    !procedure :: setup_constraint_matrix  => unfitted_l1_setup_constraint_matrix
+    procedure :: get_num_coarse_dofs      => unfitted_l1_get_num_coarse_dofs
+    procedure :: setup_constraint_matrix  => unfitted_l1_setup_constraint_matrix
     procedure :: setup_weighting_operator => unfitted_l1_setup_weighting_operator
 
-    !! Provate TBPs
-    !procedure,private, non_overridable          :: allocate_and_fill_flag_ldofs  => &
-    !  unfitted_l1_allocate_and_fill_flag_ldofs  
-    !procedure, private, non_overridable, nopass :: fill_is_cut_cell => unfitted_l1_fill_is_cut_cell
+    !! Private TBPs
+    procedure, private, non_overridable :: setup_stiffness_weighting          => unfitted_l1_setup_stiffness_weighting
+    procedure, private, non_overridable :: setup_object_lid_to_dof_lids       => unfitted_l1_setup_object_lid_to_dof_lids
+    procedure, private, non_overridable :: setup_dof_lid_to_cdof_id_in_object => unfitted_l1_setup_dof_lid_to_cdof_id_in_object
 
   end type unfitted_l1_coarse_fe_handler_t
 
@@ -73,64 +77,238 @@ module unfitted_l1_coarse_fe_handler_names
 contains
 
 !========================================================================================
-subroutine unfitted_l1_create(this, matrix)
+subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
+
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
-  class(matrix_t), target,     intent(in)    :: matrix
+  class(fe_affine_operator_t), target,    intent(in)    :: fe_affine_operator
+  class(parameterlist_t),      target,    intent(in)    :: parameter_list
+
+  class(matrix_t),            pointer :: matrix
+  class(serial_fe_space_t),   pointer :: fe_space
+  type(environment_t),        pointer :: par_environment
+
   call this%free()
+
+  matrix => fe_affine_operator%get_matrix()
   select type (matrix)
-  class is (par_sparse_matrix_t)
-    this%matrix => matrix
-  class default
-    check(.false.)
+    class is (par_sparse_matrix_t)
+      this%matrix => matrix
+    class default
+      check(.false.)
   end select
+
+  fe_space => fe_affine_operator%get_fe_space()
+  select type (fe_space)
+    class is (par_fe_space_t)
+      this%par_fe_space => fe_space
+    class default
+      check(.false.)
+  end select
+
+  this%parameter_list => parameter_list
+
+  par_environment => this%par_fe_space%get_par_environment()
+  assert (associated(par_environment))
+
+  if (par_environment%am_i_l1_task()) then
+    call this%setup_stiffness_weighting()
+    call this%setup_object_lid_to_dof_lids()
+    call this%setup_dof_lid_to_cdof_id_in_object()
+  end if
+
 end subroutine unfitted_l1_create
 
 !========================================================================================
 subroutine unfitted_l1_free(this)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
-  !call memfree(this%flag_ldofs,__FILE__,__LINE__)
-  this%matrix => null()
-  !this%is_set_up = .false.
+  this%matrix         => null()
+  this%par_fe_space   => null()
+  this%parameter_list => null()
+  if ( allocated(this%stiffness_weighting) ) call memfree(this%stiffness_weighting,__FILE__,__LINE__)
+  if ( allocated(this%dof_lid_to_cdof_id_in_object) ) call memfree(this%dof_lid_to_cdof_id_in_object,__FILE__,__LINE__)
+  call this%object_lid_to_dof_lids%free()
 end subroutine unfitted_l1_free
 
+!========================================================================================
+subroutine unfitted_l1_get_num_coarse_dofs(this,par_fe_space,parameter_list,num_coarse_dofs)
+  implicit none
+  class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
 
-!!========================================================================================
-!subroutine unfitted_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_coarse_dofs)
-!  implicit none
-!  class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
-!  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-!  type(parameterlist_t)                 , intent(in)    :: parameter_list
-!  integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
-!  call this%allocate_and_fill_flag_ldofs(par_fe_space,parameter_list)
-!end subroutine unfitted_l1_get_num_coarse_dofs
+  type(environment_t), pointer  :: par_environment
+  integer(ip)                   :: max_cdof_lid_in_object
+  logical, allocatable          :: visited_cdof_lids_in_object(:)
+  type(list_iterator_t)         :: dofs_in_object_iterator
+  integer(ip)                   :: dof_lid
+  type(fe_object_iterator_t)    :: object_iterator
+  type(fe_object_accessor_t)    :: object
 
-!!========================================================================================
-!subroutine unfitted_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
-!  implicit none
-!  class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
-!  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-!  type(parameterlist_t)                 , intent(in)    :: parameter_list
-!  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
-!end subroutine unfitted_l1_setup_constraint_matrix
+  par_environment => this%par_fe_space%get_par_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )
+  assert ( size(num_coarse_dofs) == this%par_fe_space%get_number_fe_objects() )
+
+  max_cdof_lid_in_object = maxval(this%dof_lid_to_cdof_id_in_object) + 1
+  call memalloc(max_cdof_lid_in_object,visited_cdof_lids_in_object,__FILE__,__LINE__)
+
+  ! Loop in objects
+  object_iterator = par_fe_space%create_fe_object_iterator()
+  do while ( .not. object_iterator%has_finished() )
+    call object_iterator%current(object)
+
+    ! Count how many coarse dofs are on this object:
+    ! i.e., loop on the local dofs of the object and count how many different numbers are found
+    visited_cdof_lids_in_object(:) = .false.
+    dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+    do while (.not. dofs_in_object_iterator%is_upper_bound())
+      dof_lid = dofs_in_object_iterator%get_current()
+      visited_cdof_lids_in_object(this%dof_lid_to_cdof_id_in_object(dof_lid)+1) = .true.
+      call dofs_in_object_iterator%next()
+    end do
+    num_coarse_dofs(object%get_lid()) =  count(visited_cdof_lids_in_object)
+
+    call object_iterator%next()
+  end do
+
+  call memfree(visited_cdof_lids_in_object,__FILE__,__LINE__)
+
+end subroutine unfitted_l1_get_num_coarse_dofs
 
 !========================================================================================
-subroutine unfitted_l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
+subroutine unfitted_l1_setup_constraint_matrix(this,par_fe_space,parameter_list,constraint_matrix)
+  implicit none
+  class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
+
+  type(environment_t), pointer :: par_environment
+  integer(ip)                  :: field_id, block_id
+  integer(ip),         pointer :: field_to_block(:)
+  integer(ip)                  :: num_cols, num_rows
+  integer(ip)                  :: max_cdof_lid_in_object
+  type(list_iterator_t)        :: dofs_in_object_iterator
+  integer(ip)                  :: dof_lid, cdof_lid_in_object
+  integer(ip)                  :: num_fdofs_in_cdof
+  integer(ip)                  :: cdof_lid
+  type(fe_object_iterator_t)   :: object_iterator
+  type(fe_object_accessor_t)   :: object
+
+  par_environment => this%par_fe_space%get_par_environment()
+  assert (associated(par_environment))
+  assert (par_environment%am_i_l1_task())
+
+  ! We assume a single field for the moment
+  field_id = 1
+  assert(this%par_fe_space%get_number_fields() == 1)
+
+  ! Free any dynamic memory that constraint_matrix may have inside
+  call constraint_matrix%free()
+
+  ! Create constraint matrix (transposed)
+  field_to_block => this%par_fe_space%get_field_blocks()
+  block_id = field_to_block(field_id)
+  num_cols = this%par_fe_space%get_block_number_dofs(block_id)
+  num_rows = this%par_fe_space%get_block_number_coarse_dofs(block_id)
+  call constraint_matrix%create ( num_cols, num_rows )
+
+  cdof_lid = 0
+  max_cdof_lid_in_object = maxval(this%dof_lid_to_cdof_id_in_object) + 1
+
+  ! Loop in objects
+  object_iterator = this%par_fe_space%create_fe_object_iterator()
+  do while ( .not. object_iterator%has_finished() )
+    call object_iterator%current(object)
+
+    ! Loop in all possible values of cdof_lid_in_object
+    ! TODO Maybe these are too many loops
+    do cdof_lid_in_object = 0,max_cdof_lid_in_object
+
+      ! Count how many fine dofs are on this c dof
+      ! i.e., do a loop in the fine dofs on this object and count how many time the current
+      ! coarse dof is found
+      num_fdofs_in_cdof = 0
+      dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+      do while (.not. dofs_in_object_iterator%is_upper_bound())
+        dof_lid = dofs_in_object_iterator%get_current()
+        if ( cdof_lid_in_object == this%dof_lid_to_cdof_id_in_object(dof_lid) ) num_fdofs_in_cdof = num_fdofs_in_cdof + 1
+        call dofs_in_object_iterator%next()
+      end do
+
+      ! If there are 0 then cycle
+      if (num_fdofs_in_cdof == 0) cycle
+
+      ! Increment in 1 the current row
+      cdof_lid = cdof_lid + 1
+
+      ! Loop in all fine dofs of this object
+        ! If a fine dof is in the current cdof_lid_in_object add 1/num_fdofs_in_cdof in the constaint matrix
+      dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+      do while (.not. dofs_in_object_iterator%is_upper_bound())
+        dof_lid = dofs_in_object_iterator%get_current()
+        if ( cdof_lid_in_object == this%dof_lid_to_cdof_id_in_object(dof_lid) ) then
+          call constraint_matrix%insert(dof_lid,cdof_lid, 1.0_rp/real(num_fdofs_in_cdof,rp))
+        end if
+        call dofs_in_object_iterator%next()
+      end do
+
+    end do
+
+    call object_iterator%next()
+  end do
+  call constraint_matrix%sort_and_compress()
+end subroutine unfitted_l1_setup_constraint_matrix
+
+!========================================================================================
+subroutine unfitted_l1_setup_weighting_operator(this,par_fe_space,parameter_list,weighting_operator)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
 
-  type(par_scalar_array_t) :: par_array
-  type(environment_t), pointer :: p_env
-  type(dof_import_t),  pointer :: dof_import
+  integer(ip)                            :: field_id, block_id
+  integer(ip), pointer                   :: field_to_block(:)
+  integer(ip)                            :: num_dofs
+
+  ! Clean up
+  if (allocated(weighting_operator) ) then
+    call memfree ( weighting_operator, __FILE__, __LINE__ )
+  end if
+
+  ! We assume a single field for the moment
+  field_id = 1
+  assert(this%par_fe_space%get_number_fields() == 1)
+
+  ! Allocate the weighting
+  field_to_block => this%par_fe_space%get_field_blocks()
+  block_id = field_to_block(field_id)
+  num_dofs = this%par_fe_space%get_block_number_dofs(block_id)
+  call memalloc(num_dofs,weighting_operator,__FILE__,__LINE__)
+
+  ! Set the weighting with the stored value
+  weighting_operator(:) = this%stiffness_weighting(:)
+
+end subroutine unfitted_l1_setup_weighting_operator
+
+!========================================================================================
+subroutine unfitted_l1_setup_stiffness_weighting(this)
+
+  implicit none
+  class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
+
+  type(par_scalar_array_t)             :: par_array
+  type(environment_t), pointer         :: p_env
+  type(dof_import_t),  pointer         :: dof_import
   type(serial_scalar_array_t), pointer :: serial_array
-  real(rp), pointer     :: assembled_diag(:)
-  real(rp), allocatable :: sub_assembled_diag(:)
-  integer(ip) :: istat
-  integer(ip) :: block_id
+  real(rp), pointer                    :: assembled_diag(:)
+  real(rp), allocatable                :: sub_assembled_diag(:)
+  integer(ip)                          :: istat
+  integer(ip)                          :: block_id
 
   ! We assume a single block (for the moment)
   block_id = 1
@@ -139,8 +317,8 @@ subroutine unfitted_l1_setup_weighting_operator(this, par_fe_space, parameter_li
   call this%matrix%extract_diagonal(sub_assembled_diag)
 
   ! Communicate to compute the fully assembled diagonal
-  p_env => par_fe_space%get_environment()
-  dof_import => par_fe_space%get_block_dof_import(block_id)
+  p_env => this%par_fe_space%get_environment()
+  dof_import => this%par_fe_space%get_block_dof_import(block_id)
   call par_array%create_and_allocate(p_env, dof_import)
   serial_array   => par_array%get_serial_scalar_array()
   assembled_diag => serial_array%get_entries()
@@ -148,271 +326,225 @@ subroutine unfitted_l1_setup_weighting_operator(this, par_fe_space, parameter_li
   call par_array%comm()
 
   ! Compute the weighting
-  if (allocated(weighting_operator) ) then
-    call memfree ( weighting_operator, __FILE__, __LINE__ )
-  end if
-  call memalloc(size(sub_assembled_diag),weighting_operator, __FILE__, __LINE__ )
-  weighting_operator(:) = sub_assembled_diag(:)/assembled_diag(:)
+  call memalloc(size(sub_assembled_diag),this%stiffness_weighting, __FILE__, __LINE__ )
+  this%stiffness_weighting(:) = sub_assembled_diag(:)/assembled_diag(:)
 
   ! Clean up
   deallocate(sub_assembled_diag,stat=istat); check(istat == 0)
   call par_array%free()
 
-end subroutine unfitted_l1_setup_weighting_operator
+end subroutine unfitted_l1_setup_stiffness_weighting
 
-!!========================================================================================
-!subroutine unfitted_l1_allocate_and_fill_flag_ldofs(this,par_fe_space,parameter_list)
-!  implicit none
-!  class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
-!  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-!  type(parameterlist_t)                 , intent(in)    :: parameter_list
-!
-!  type(environment_t), pointer           :: par_environment
-!  integer(ip)                            :: field_id, block_id
-!  integer(ip), pointer                   :: field_to_block(:)
-!  integer(ip)                            :: num_lfdofs
-!  class(base_static_triangulation_t), pointer :: triangulation
-!  type(cell_import_t), pointer           :: cell_import
-!  integer(ip)                            :: max_num_parts_arround
-!  logical, allocatable                   :: visited_lparts(:)
-!  integer(ip), allocatable               :: l2g_parts(:)
-!  integer(ip)                            :: num_total_cells
-!  logical                                :: is_cut_cell(:)
-!  logical                                :: use_vertices, use_edges, use_faces
-!  integer(ip)                            :: icell_around
-!  integer(ip)                            :: ivef
-!  integer(ip)                            :: idof, dof_lid
-!  logical                                :: dofs_on_vef
-!  type(fe_object_iterator_t)             :: object_iterator
-!  type(fe_object_accessor_t)             :: object
-!  type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
-!  type(fe_vef_accessor_t)                :: vef
-!  type(fe_accessor_t)                    :: fe
-!  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
-!  integer(ip), pointer                   :: elem2dof(:)
-!  integer(ip)                            :: mypart_id, part_id, local_part_id
-!  logical                                :: is_the_smallest
-!  integer(ip)                            :: new_corner_id
-!  logical(ip)                            :: vef_touches_cut_cell
-!
-!  par_environment   => par_fe_space%get_par_environment()
-!  assert ( par_environment%am_i_l1_task() )
-!  assert ( associated ( par_environment ) )
-!
-!  ! We assume a single field for the moment
-!  field_id = 1
-!  assert(par_fe_space%get_number_fields() == 1)
-!
-!  ! Allocate the local dofs flag array
-!  field_to_block => par_fe_space%get_field_block()
-!  block_id = field_to_block(field_id)
-!  num_lfdofs = par_fe_space%get_block_number_dofs(block_id)
-!  call memalloc(num_lfdofs,this%flag_ldofs,__FILE__,__LINE__)
-!
-!  ! We mark all the local dofs with a negative value
-!  this%flag_ldofs(:) = -1 
-!
-!  ! Allocate work vector for tracking visited parts
-!  triangulation     => par_fe_space%get_triangulation()
-!  cell_import       => triangulation%get_cell_import()
-!  max_num_parts_arround = cell_import%get_number_neighbours()
-!  call memalloc(max_num_parts_arround,visited_lparts,__FILE__,__LINE__)
-!  call memalloc(max_num_parts_arround,l2g_parts,__FILE__,__LINE__)
-!
-!  ! Compute a vector of flags identifying cut/non cut cells for both local and ghost cells
-!  ! This requires communication
-!  num_total_cells = triangulation%get_num_local_cells() + triangulation%get_num_ghost_cells()
-!  call memalloc(num_total_cells,is_cut_cell,__FILE__,__LINE__)
-!  call this%fill_is_cut_cell(triangulation,is_cut_cell)
-!
-!  ! Recover options
-!  call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
-!                                                      use_vertices, &
-!                                                      use_edges, &
-!                                                      use_faces)
-!  ! Loop in objects
-!  object_iterator = par_fe_space%create_fe_object_iterator()
-!  do while ( .not. object_iterator%has_finished() )
-!     call object_iterator%current(object)
-!
-!    ! Check if c, ce, or cef, and skip object accordingly
-!    select case ( object%get_dimension() )
-!    case (0)
-!      if (.not. use_vertices) then
-!        call object_iterator%next(); cycle
-!      end if  
-!    case (1)
-!      if (.not. use_edges) then
-!        call object_iterator%next(); cycle
-!      end if  
-!    case (2)
-!      if (.not. use_faces) then
-!        call object_iterator%next(); cycle
-!      end if  
-!    end select
-!
-!    ! First stage ----------------
-!    visited_lparts(:) = .false.
-!    l2g_parts(:) = 0
-!    
-!    ! Loop in vefs of the object
-!    vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
-!    do while ( .not. vefs_on_object_iterator%has_finished() )
-!      call vefs_on_object_iterator%current(vef)
-!
-!      ! Loop in ghost cells around the vef
-!      do icell_around=1, vef%get_num_cells_around()
-!        call vef%get_cell_around(icell_around,fe)
-!        if ( fe%is_ghost() ) then 
-!
-!          part_id = fe%get_my_part()
-!          local_part_id = cell_import%get_local_neighbour_id(part_id)
-!           
-!          ! Loop in own dofs in the vef as seen from the ghost element
-!          call fe%get_field_elem2dof(field_id, elem2dof)
-!          ivef = fe%find_lpos_vef_lid(vef%get_lid())
-!          own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
-!          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-!            idof    = own_dofs_on_vef_iterator%get_current()
-!            dof_lid = elem2dof(idof)
-!
-!            ! Mark the dofs of the vef with a 0 and mark the current part as visited
-!            if ( dof_lid > 0 ) then
-!              flag_ldofs(dof_lid) = 0
-!              visited_lparts(local_part_id) = .true.
-!              l2g_parts(local_part_id) = part_id
-!            end if
-!
-!             call own_dofs_on_vef_iterator%next()
-!          end do
-!           
-!        end if
-!      end do
-!
-!      call vefs_on_object_iterator%next()
-!    end do
-!
-!    ! At this point all the dofs of the current object that are also in another subdomain are marked with 0
-!
-!    ! Second stage --------------
-!
-!    ! (only if the object is an edge)
-!    if ( object%get_dimension() .ne. 1 )
-!      call object_iterator%next(); cycle
-!    end if
-!
-!    ! (and only if the current part id is smaller than all the visited parts)
-!   is_the_smallest = .true.
-!   mypart_id = par_environment%get_l1_rank() + 1
-!   do local_part_id = 1,cell_import%get_number_neighbours()
-!     if (visited_lparts(local_part_id)) then
-!       if ( l2g_parts(local_part_id) < mypart_id) is_the_smallest = .false.
-!     end if
-!   end do
-!   if (.not. is_the_smallest) then
-!      call object_iterator%next(); cycle
-!   end if
-!
-!    ! Initialize to 1 the counter of new corners
-!    new_corner_id = 1
-!
-!    ! Loop in vefs of the object
-!    vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
-!    do while ( .not. vefs_on_object_iterator%has_finished() )
-!      call vefs_on_object_iterator%current(vef)
-!
-!      ! Check if the vef touches a cut cell (local or ghost)
-!      vef_touches_cut_cell = .false.
-!      do icell_around=1, vef%get_num_cells_around()
-!        call vef%get_cell_around(icell_around,fe)
-!        if ( is_cut_cell(fe%get_lid()) ) then
-!          vef_touches_cut_cell = .true.
-!          exit
-!        end if
-!      end do
-!
-!      ! Only if the current vef touches a cut cell:
-!      if (.not. vef_touches_cut_cell) then
-!        call vefs_on_object_iterator%next(); cycle
-!      end if
-!    
-!      ! Loop in ghost cells around the vef
-!      do icell_around=1, vef%get_num_cells_around()
-!        call vef%get_cell_around(icell_around,fe)
-!        if ( fe%is_local() ) then 
-!           
-!          ! Loop in own dofs in the vef as seen from the ghost cell
-!          call fe%get_field_elem2dof(field_id, elem2dof)
-!          ivef = fe%find_lpos_vef_lid(vef%get_lid())
-!          own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
-!          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-!            idof    = own_dofs_on_vef_iterator%get_current()
-!            dof_lid = elem2dof(idof)
-!
-!            if ( dof_lid > 0 ) then
-!
-!              ! If flag corresponding to the current dof is 0
-!              ! (i.e. a dof on the interface that is not yet marked as a new corner),
-!              if (flag_ldofs(dof_lid)==0) then
-!
-!                ! Mark this dof with the counter of new corners
-!                flag_ldofs(dof_lid) = new_corner_id
-!
-!                ! Increment the counter of new corners
-!                new_corner_id = new_corner_id + 1
-!
-!              end if
-!            end if
-!
-!             call own_dofs_on_vef_iterator%next()
-!          end do
-!           
-!        end if
-!      end do
-!
-!      call vefs_on_object_iterator%next()
-!    end do
-!
-!    call object_iterator%next()
-!  end do
-!
-!  ! Communicate the value of the flag
-!
-!  ! At this point we have identified all the coarse dofs inside each object
-!  ! A dof is classified in function of the flag as follows:
-!  ! flag == -1 the dof is interior (is not in any other subdomain)
-!  ! flag == 0 dof is in another subdomain but it is not a new corner
-!  ! flag > 0  dof is in another subdomain and it is a new corner
-!
-!
-!  ! Loop in objects
-!
-!    ! Recover the dofs of the object
-!
-!
-!
-!
-!
-!
-!
-!  ! Clean up
-!  call memfree(visited_lparts,__FILE__,__LINE__)
-!  call memfree(is_cut_cell   ,__FILE__,__LINE__)
-!  call memfree(l2g_parts     ,__FILE__,__LINE__)
-!
-!  ! Mark as set up
-!  this%is_set_up = .true.
-!
-!end subroutine unfitted_l1_setup
+!========================================================================================
+subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
 
-!!========================================================================================
-!subroutine unfitted_l1_fill_is_cut_cell(triangulation,is_cut_cell)
-!  implicit none
-!  class(base_static_triangulation_t), pointer, intent(in) :: triangulation
-!  logical, allocatable, intent(inout) :: is_cut_cell
-!  !TODO
-!  mcheck(.false.,"Not yet implemented")
-!end subroutine unfitted_l1_fill_is_cut_cell
+  implicit none
+  class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
+
+  integer(ip)                        :: num_objects
+  integer(ip), allocatable           :: object_lid_to_num_dofs_in_object(:)
+  integer(ip)                        :: icell_around
+  integer(ip)                        :: ivef
+  integer(ip)                        :: idof, dof_lid
+  logical                            :: dofs_on_vef
+  type(environment_t), pointer       :: par_environment
+  type(fe_object_iterator_t)         :: object_iterator
+  type(fe_object_accessor_t)         :: object
+  type(fe_vefs_on_object_iterator_t) :: vefs_on_object_iterator
+  type(fe_vef_accessor_t)            :: vef
+  type(fe_accessor_t)                :: fe
+  type(list_iterator_t)              :: own_dofs_on_vef_iterator
+  integer(ip), pointer               :: elem2dof(:)
+  logical                            :: use_vertices, use_edges, use_faces
+  logical, allocatable               :: visited_dofs(:)
+  integer(ip)                        :: field_id, block_id
+  integer(ip), pointer               :: field_to_block(:)
+  integer(ip)                        :: num_dofs, num_dofs_in_object
+  integer(ip), allocatable           :: dof_lids(:)
+  integer(ip)                        :: icount
+  type(list_iterator_t)              :: dofs_in_object_iterator
+
+  ! We assume a single field for the moment
+  field_id = 1
+  assert(this%par_fe_space%get_number_fields() == 1)
+
+  ! Auxiliary
+  field_to_block => this%par_fe_space%get_field_blocks()
+  block_id = field_to_block(field_id)
+  num_dofs  = this%par_fe_space%get_block_number_dofs(block_id)
+  num_objects = this%par_fe_space%get_number_fe_objects()
+  call memalloc(num_dofs,visited_dofs,__FILE__,__LINE__)
+  call memalloc(num_dofs,dof_lids,__FILE__,__LINE__)
+  call memalloc(num_objects,object_lid_to_num_dofs_in_object,__FILE__,__LINE__)
+  icount = 0
+
+  call this%get_coarse_space_use_vertices_edges_faces(this%parameter_list,& 
+                                                      use_vertices, &
+                                                      use_edges, &
+                                                      use_faces)
+
+  ! Fill the auxiliary data
+  object_iterator = this%par_fe_space%create_fe_object_iterator()
+  do while ( .not. object_iterator%has_finished() )
+    call object_iterator%current(object)
+
+    ! Check if c, ce, or cef, and skip object accordingly
+    select case ( object%get_dimension() )
+    case (0)
+      if (.not. use_vertices) then
+        call object_iterator%next(); cycle
+      end if
+    case (1)
+      if (.not. use_edges) then
+        call object_iterator%next(); cycle
+      end if
+    case (2)
+      if (.not. use_faces) then
+        call object_iterator%next(); cycle
+      end if
+    end select
+
+    ! Loop in vefs of the object
+    vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+    visited_dofs(:) = .false.
+    num_dofs_in_object = 0
+    do while ( .not. vefs_on_object_iterator%has_finished() )
+      call vefs_on_object_iterator%current(vef)
+
+      ! Loop in ghost cells around the vef
+      do icell_around=1, vef%get_num_cells_around()
+        call vef%get_cell_around(icell_around,fe)
+        if ( fe%is_ghost() ) then
+
+          call fe%get_field_elem2dof(field_id, elem2dof)
+          ivef = fe%find_lpos_vef_lid(vef%get_lid())
+
+          ! Loop in own dofs in the vef as seen from the ghost element
+          own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
+          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+            idof    = own_dofs_on_vef_iterator%get_current()
+            dof_lid = elem2dof(idof)
+            if ( dof_lid > 0 ) then
+              if(.not. visited_dofs(dof_lid)) then
+                visited_dofs(dof_lid) = .true.
+                icount = icount + 1
+                num_dofs_in_object = num_dofs_in_object + 1
+                dof_lids(icount) = dof_lid
+              end if
+            end if
+            call own_dofs_on_vef_iterator%next()
+          end do
+
+        end if
+      end do
+
+      call vefs_on_object_iterator%next()
+    end do
+    object_lid_to_num_dofs_in_object(object%get_lid()) = num_dofs_in_object
+    call object_iterator%next()
+  end do
+
+  ! Initialize the list
+  call this%object_lid_to_dof_lids%free()
+  call this%object_lid_to_dof_lids%create(this%par_fe_space%get_number_fe_objects())
+  object_iterator = this%par_fe_space%create_fe_object_iterator()
+  do while ( .not. object_iterator%has_finished() )
+    call this%object_lid_to_dof_lids%sum_to_pointer_index(&
+      object%get_lid(),object_lid_to_num_dofs_in_object(object%get_lid()))
+    call object_iterator%next()
+  end do
+  call this%object_lid_to_dof_lids%calculate_header()
+  call this%object_lid_to_dof_lids%allocate_list_from_pointer()
+
+  ! Fill the list
+  icount = 0
+  object_iterator = this%par_fe_space%create_fe_object_iterator()
+  do while ( .not. object_iterator%has_finished() )
+    call object_iterator%current(object)
+
+    dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+    do while (.not. dofs_in_object_iterator%is_upper_bound())
+      icount = icount + 1
+      call dofs_in_object_iterator%set_current(dof_lids(icount))
+      call dofs_in_object_iterator%next()
+    end do
+
+    call object_iterator%next()
+  end do
+
+  ! Clean up
+  call memfree(object_lid_to_num_dofs_in_object,__FILE__,__LINE__)
+  call memfree(dof_lids,__FILE__,__LINE__)
+  call memfree(visited_dofs,__FILE__,__LINE__)
+
+end subroutine unfitted_l1_setup_object_lid_to_dof_lids
+
+!========================================================================================
+subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
+
+  implicit none
+  class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
+
+  real(rp), allocatable      :: standard_weighting(:)
+  logical, allocatable       :: is_problematic_dof(:)
+  type(fe_object_iterator_t) :: object_iterator
+  type(fe_object_accessor_t) :: object
+  type(list_iterator_t)      :: dofs_in_object_iterator
+  integer(ip)                :: dof_lid
+  integer(ip)                :: field_id, block_id
+  integer(ip), pointer       :: field_to_block(:)
+  integer(ip)                :: num_dofs
+  integer(ip)                :: new_corner_counter
+
+  ! We assume a single field for the moment
+  field_id = 1
+  assert(this%par_fe_space%get_number_fields() == 1)
+
+  ! Allocate and initialize the member variable
+  field_to_block => this%par_fe_space%get_field_blocks()
+  block_id = field_to_block(field_id)
+  num_dofs = this%par_fe_space%get_block_number_dofs(block_id)
+  call memalloc(num_dofs,this%dof_lid_to_cdof_id_in_object,__FILE__,__LINE__)
+  this%dof_lid_to_cdof_id_in_object(:) = 0
+
+  ! Compute the standard weighting operator
+  call this%standard_l1_coarse_fe_handler_t%setup_weighting_operator(&
+    this%par_fe_space,this%parameter_list,standard_weighting)
+
+  ! Identify which dofs are problematic
+  call memalloc(size(standard_weighting),is_problematic_dof,__FILE__,__LINE__)
+  is_problematic_dof(:) = abs( this%stiffness_weighting(:) - standard_weighting(:)  ) > 1.0e-9
+
+  ! Loop in objects
+  object_iterator = this%par_fe_space%create_fe_object_iterator()
+  do while ( .not. object_iterator%has_finished() )
+    call object_iterator%current(object)
+
+    ! Skip objects that are not edges
+    if (object%get_dimension() .ne. 1) then
+      call object_iterator%next(); cycle
+    end if
+
+    ! Loop in fine dofs on this object
+      ! If the dof is problematic, mark it as a new corner
+    new_corner_counter = 0
+    dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+    do while (.not. dofs_in_object_iterator%is_upper_bound())
+      dof_lid = dofs_in_object_iterator%get_current()
+      if ( is_problematic_dof(dof_lid) ) then
+        new_corner_counter = new_corner_counter + 1
+        this%dof_lid_to_cdof_id_in_object(dof_lid) = new_corner_counter
+      end if
+      call dofs_in_object_iterator%next()
+    end do
+
+    call object_iterator%next()
+  end do
+
+  call memfree(standard_weighting,__FILE__,__LINE__)
+  call memfree(is_problematic_dof,__FILE__,__LINE__)
+
+end subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object
 
 end module unfitted_l1_coarse_fe_handler_names
 !***************************************************************************************************

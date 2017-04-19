@@ -271,7 +271,6 @@ contains
                                coarse_fe_handler        = this%l1_coarse_fe_handler)
     
     call this%fe_space%fill_dof_info() 
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
     
     call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
@@ -283,7 +282,6 @@ contains
   subroutine setup_system (this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
-    class(matrix_t), pointer :: matrix
 
     
     call this%poisson_unfitted_integration%set_analytical_functions(this%poisson_unfitted_analytical_functions)
@@ -295,9 +293,37 @@ contains
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_unfitted_integration )
-    matrix => this%fe_affine_operator%get_matrix()
-    call this%l1_coarse_fe_handler%create(matrix)
+
+
   end subroutine setup_system
+
+  subroutine assemble_system (this)
+
+    implicit none
+    class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
+
+    class(matrix_t)                  , pointer       :: matrix
+    class(vector_t)                  , pointer       :: rhs
+
+    call this%fe_affine_operator%numerical_setup()
+    rhs                => this%fe_affine_operator%get_translation()
+    matrix             => this%fe_affine_operator%get_matrix()
+
+    !select type(matrix)
+    !class is (sparse_matrix_t)  
+    !   call matrix%print_matrix_market(6) 
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
+    
+    !select type(rhs)
+    !class is (serial_scalar_array_t)  
+    !   call rhs%print(6) 
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
+
+  end subroutine assemble_system
   
   subroutine setup_solver (this)
     implicit none
@@ -305,8 +331,12 @@ contains
     type(parameterlist_t) :: parameter_list
     integer(ip) :: FPLError
 
-!#ifdef ENABLE_MKL   
     ! Set-up MLBDDC preconditioner
+!#ifdef ENABLE_MKL   
+    ! The unfitted coarse fe handler has to be created after the system is assembled
+    ! but prior to the setup of the coarse space
+    call this%l1_coarse_fe_handler%create(this%fe_affine_operator,this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
@@ -330,29 +360,6 @@ contains
   end subroutine setup_solver
   
   
-  subroutine assemble_system (this)
-    implicit none
-    class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
-    class(matrix_t)                  , pointer       :: matrix
-    class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
-    
-    !select type(matrix)
-    !class is (sparse_matrix_t)  
-    !   call matrix%print_matrix_market(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    
-    !select type(rhs)
-    !class is (serial_scalar_array_t)  
-    !   call rhs%print(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-  end subroutine assemble_system
   
   
   subroutine solve_system(this)
