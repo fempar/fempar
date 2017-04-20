@@ -39,6 +39,10 @@ module unfitted_l1_coarse_fe_handler_names
   use serial_scalar_array_names
   use fe_affine_operator_names
   use list_types_names
+  use base_static_triangulation_names
+  use unfitted_triangulations_names
+  use unfitted_fe_spaces_names
+  use cell_import_names
 
   implicit none
 # include "debug.i90"
@@ -69,6 +73,7 @@ module unfitted_l1_coarse_fe_handler_names
     procedure, private, non_overridable :: setup_stiffness_weighting          => unfitted_l1_setup_stiffness_weighting
     procedure, private, non_overridable :: setup_object_lid_to_dof_lids       => unfitted_l1_setup_object_lid_to_dof_lids
     procedure, private, non_overridable :: setup_dof_lid_to_cdof_id_in_object => unfitted_l1_setup_dof_lid_to_cdof_id_in_object
+    procedure, private, non_overridable :: identify_problematic_dofs          => unfitted_l1_identify_problematic_dofs
 
   end type unfitted_l1_coarse_fe_handler_t
 
@@ -152,6 +157,7 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,par_fe_space,parameter_list,num_
   assert ( par_environment%am_i_l1_task() )
   assert ( size(num_coarse_dofs) == this%par_fe_space%get_number_fe_objects() )
 
+
   max_cdof_lid_in_object = maxval(this%dof_lid_to_cdof_id_in_object) + 1
   call memalloc(max_cdof_lid_in_object,visited_cdof_lids_in_object,__FILE__,__LINE__)
 
@@ -175,6 +181,8 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,par_fe_space,parameter_list,num_
   end do
 
   call memfree(visited_cdof_lids_in_object,__FILE__,__LINE__)
+
+  !call this%standard_l1_coarse_fe_handler_t%get_num_coarse_dofs(par_fe_space,parameter_list,num_coarse_dofs)
 
 end subroutine unfitted_l1_get_num_coarse_dofs
 
@@ -261,6 +269,9 @@ subroutine unfitted_l1_setup_constraint_matrix(this,par_fe_space,parameter_list,
     call object_iterator%next()
   end do
   call constraint_matrix%sort_and_compress()
+
+  !call this%standard_l1_coarse_fe_handler_t%setup_constraint_matrix(par_fe_space,parameter_list,constraint_matrix)
+
 end subroutine unfitted_l1_setup_constraint_matrix
 
 !========================================================================================
@@ -449,6 +460,7 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
   call this%object_lid_to_dof_lids%create(this%par_fe_space%get_number_fe_objects())
   object_iterator = this%par_fe_space%create_fe_object_iterator()
   do while ( .not. object_iterator%has_finished() )
+    call object_iterator%current(object)
     call this%object_lid_to_dof_lids%sum_to_pointer_index(&
       object%get_lid(),object_lid_to_num_dofs_in_object(object%get_lid()))
     call object_iterator%next()
@@ -485,7 +497,6 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
 
-  real(rp), allocatable      :: standard_weighting(:)
   logical, allocatable       :: is_problematic_dof(:)
   type(fe_object_iterator_t) :: object_iterator
   type(fe_object_accessor_t) :: object
@@ -507,13 +518,12 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   call memalloc(num_dofs,this%dof_lid_to_cdof_id_in_object,__FILE__,__LINE__)
   this%dof_lid_to_cdof_id_in_object(:) = 0
 
-  ! Compute the standard weighting operator
-  call this%standard_l1_coarse_fe_handler_t%setup_weighting_operator(&
-    this%par_fe_space,this%parameter_list,standard_weighting)
-
   ! Identify which dofs are problematic
-  call memalloc(size(standard_weighting),is_problematic_dof,__FILE__,__LINE__)
-  is_problematic_dof(:) = abs( this%stiffness_weighting(:) - standard_weighting(:)  ) > 1.0e-9
+  call memalloc(num_dofs,is_problematic_dof,__FILE__,__LINE__)
+  call this%identify_problematic_dofs(is_problematic_dof)
+
+  !KK
+  is_problematic_dof(:) = .true.
 
   ! Loop in objects
   object_iterator = this%par_fe_space%create_fe_object_iterator()
@@ -541,10 +551,90 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
     call object_iterator%next()
   end do
 
-  call memfree(standard_weighting,__FILE__,__LINE__)
   call memfree(is_problematic_dof,__FILE__,__LINE__)
 
 end subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object
+
+!========================================================================================
+subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
+
+  implicit none
+  class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
+  logical, allocatable,                   intent(inout) :: is_problematic_dof(:)
+
+  integer(ip), allocatable :: is_cut_cell(:)
+  integer(ip) :: field_id
+  class(par_fe_space_t), pointer :: par_fe_space
+  class(par_unfitted_fe_space_t), pointer :: par_unf_fe_space
+  class(base_static_triangulation_t), pointer :: triangulation
+  type(unfitted_fe_iterator_t) :: fe_iterator
+  type(unfitted_fe_accessor_t) :: fe
+  type(unfitted_cell_accessor_t), pointer :: cell
+  integer(ip) :: num_total_cells
+  type(environment_t), pointer :: par_environment
+  type(cell_import_t), pointer :: cell_import
+  integer(ip), pointer :: elem2dof(:)
+
+  ! We assume a single field for the moment
+  field_id = 1
+  assert(this%par_fe_space%get_number_fields() == 1)
+
+  ! Recover the unfitted par fe space
+  par_fe_space => this%par_fe_space
+  select type(par_fe_space)
+    class is (par_unfitted_fe_space_t)
+      par_unf_fe_space => par_fe_space
+    class default
+      check(.false.)
+  end select
+
+  ! Mark the local cut elements
+  triangulation => par_fe_space%get_triangulation()
+  num_total_cells = triangulation%get_num_local_cells() + triangulation%get_num_ghost_cells()
+  call memalloc(num_total_cells,is_cut_cell,__FILE__,__LINE__)
+  is_cut_cell(:) = 0
+  fe_iterator = par_unf_fe_space%create_unfitted_fe_iterator()
+  do while ( .not. fe_iterator%has_finished() )
+    call fe_iterator%current(fe)
+    if ( fe%is_ghost() ) then
+      call fe_iterator%next(); cycle
+    end if
+    cell => fe%get_unfitted_cell_accessor()
+    if (cell%is_cut()) is_cut_cell(cell%get_lid()) = 1
+    call fe_iterator%next()
+  end do
+
+  ! Communicate so that the ghost also have this info
+  ! TODO this could be avoided if ghost cells have also the coordinates
+  ! For the structured triangulation seems to be true, but for the unstructured?
+  par_environment => triangulation%get_par_environment()
+  cell_import => triangulation%get_cell_import()
+  if(par_environment%get_l1_size()>1) &
+  call par_environment%l1_neighbours_exchange ( cell_import%get_number_neighbours(), &
+                                                cell_import%get_neighbours_ids(),    &
+                                                cell_import%get_rcv_ptrs(),          &
+                                                cell_import%get_rcv_leids(),         &
+                                                cell_import%get_number_neighbours(), &
+                                                cell_import%get_neighbours_ids(),    &
+                                                cell_import%get_snd_ptrs(),          &
+                                                cell_import%get_snd_leids(),         &
+                                                is_cut_cell )
+
+  ! Mark all the dofs belonging to cut elements
+  is_problematic_dof(:) = .false.
+  fe_iterator = par_unf_fe_space%create_unfitted_fe_iterator()
+  do while ( .not. fe_iterator%has_finished() )
+    call fe_iterator%current(fe)
+    call fe%get_field_elem2dof(field_id, elem2dof)
+    if (is_cut_cell(fe%get_lid())==1) is_problematic_dof(pack(elem2dof,elem2dof>0)) = .true.
+    call fe_iterator%next()
+  end do
+
+
+  ! Clean up
+  call memfree(is_cut_cell,__FILE__,__LINE__)
+
+end subroutine unfitted_l1_identify_problematic_dofs
 
 end module unfitted_l1_coarse_fe_handler_names
 !***************************************************************************************************

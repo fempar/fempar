@@ -151,7 +151,7 @@ contains
     levset => this%level_set_function
     select type ( levset )
       class is (level_set_sphere_t)
-        call levset%set_radius(0.9)!0.625_rp)
+        call levset%set_radius(0.95)!0.625_rp)
       class default
         check(.false.)
     end select
