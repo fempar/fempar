@@ -522,9 +522,6 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   call memalloc(num_dofs,is_problematic_dof,__FILE__,__LINE__)
   call this%identify_problematic_dofs(is_problematic_dof)
 
-  !KK
-  is_problematic_dof(:) = .true.
-
   ! Loop in objects
   object_iterator = this%par_fe_space%create_fe_object_iterator()
   do while ( .not. object_iterator%has_finished() )
