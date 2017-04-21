@@ -59,6 +59,7 @@ module unfitted_l1_coarse_fe_handler_names
     real(rp),                   allocatable :: stiffness_weighting(:)
     type(list_t)                            :: object_lid_to_dof_lids
     integer(ip),                allocatable :: dof_lid_to_cdof_id_in_object(:)
+    integer(ip),                allocatable :: object_lid_to_min_neigbour(:) 
 
   contains
 
@@ -133,6 +134,7 @@ subroutine unfitted_l1_free(this)
   this%parameter_list => null()
   if ( allocated(this%stiffness_weighting) ) call memfree(this%stiffness_weighting,__FILE__,__LINE__)
   if ( allocated(this%dof_lid_to_cdof_id_in_object) ) call memfree(this%dof_lid_to_cdof_id_in_object,__FILE__,__LINE__)
+  if ( allocated(this%object_lid_to_min_neigbour) ) call memfree(this%object_lid_to_min_neigbour,__FILE__,__LINE__)
   call this%object_lid_to_dof_lids%free()
 end subroutine unfitted_l1_free
 
@@ -389,6 +391,10 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
   call memalloc(num_objects,object_lid_to_num_dofs_in_object,__FILE__,__LINE__)
   icount = 0
 
+  ! Allocate array of min neighbors and initialize with the biggest integer
+  call memalloc(num_objects,this%object_lid_to_min_neigbour,__FILE__,__LINE__)
+  this%object_lid_to_min_neigbour(:) = huge(num_objects)
+
   call this%get_coarse_space_use_vertices_edges_faces(this%parameter_list,& 
                                                       use_vertices, &
                                                       use_edges, &
@@ -437,10 +443,18 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
             dof_lid = elem2dof(idof)
             if ( dof_lid > 0 ) then
               if(.not. visited_dofs(dof_lid)) then
+
+                ! Store the minimum (active) neighbor part
+                if ( this%object_lid_to_min_neigbour(object%get_lid()) > fe%get_my_part() ) then
+                  this%object_lid_to_min_neigbour(object%get_lid()) = fe%get_my_part()
+                end if
+
+                ! Store the dofs on this object
                 visited_dofs(dof_lid) = .true.
                 icount = icount + 1
                 num_dofs_in_object = num_dofs_in_object + 1
                 dof_lids(icount) = dof_lid
+
               end if
             end if
             call own_dofs_on_vef_iterator%next()
@@ -497,19 +511,29 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
 
-  logical, allocatable       :: is_problematic_dof(:)
-  type(fe_object_iterator_t) :: object_iterator
-  type(fe_object_accessor_t) :: object
-  type(list_iterator_t)      :: dofs_in_object_iterator
-  integer(ip)                :: dof_lid
-  integer(ip)                :: field_id, block_id
-  integer(ip), pointer       :: field_to_block(:)
-  integer(ip)                :: num_dofs
-  integer(ip)                :: new_corner_counter
+  logical, allocatable                 :: is_problematic_dof(:)
+  type(fe_object_iterator_t)           :: object_iterator
+  type(fe_object_accessor_t)           :: object
+  type(list_iterator_t)                :: dofs_in_object_iterator
+  integer(ip)                          :: dof_lid
+  integer(ip)                          :: field_id, block_id
+  integer(ip), pointer                 :: field_to_block(:)
+  integer(ip)                          :: num_dofs
+  integer(ip)                          :: new_corner_counter
+  integer(ip)                          :: my_part_id
+  type(par_scalar_array_t)             :: par_array
+  type(environment_t), pointer         :: p_env
+  type(dof_import_t),  pointer         :: dof_import
+  type(serial_scalar_array_t), pointer :: serial_array
+  real(rp), pointer                    :: array_entries(:)
 
   ! We assume a single field for the moment
   field_id = 1
   assert(this%par_fe_space%get_number_fields() == 1)
+  
+  ! Get my part id
+  p_env => this%par_fe_space%get_par_environment()
+  my_part_id = p_env%get_l1_rank() + 1
 
   ! Allocate and initialize the member variable
   field_to_block => this%par_fe_space%get_field_blocks()
@@ -532,6 +556,12 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
       call object_iterator%next(); cycle
     end if
 
+    ! Skip if we are not the part with minimum id
+    assert( this%object_lid_to_min_neigbour(object%get_lid()) .ne. my_part_id )
+    if ( this%object_lid_to_min_neigbour(object%get_lid()) < my_part_id ) then
+      call object_iterator%next(); cycle
+    end if
+
     ! Loop in fine dofs on this object
       ! If the dof is problematic, mark it as a new corner
     new_corner_counter = 0
@@ -548,7 +578,17 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
     call object_iterator%next()
   end do
 
+  ! Communicate to make it consistent between sub-domains
+  dof_import => this%par_fe_space%get_block_dof_import(block_id)
+  call par_array%create_and_allocate(p_env, dof_import)
+  serial_array   => par_array%get_serial_scalar_array()
+  array_entries => serial_array%get_entries()
+  array_entries(:) = real(this%dof_lid_to_cdof_id_in_object(:),kind=rp)
+  call par_array%comm()
+  this%dof_lid_to_cdof_id_in_object(:) = nint(array_entries,kind=ip)
+
   call memfree(is_problematic_dof,__FILE__,__LINE__)
+  call par_array%free()
 
 end subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object
 
