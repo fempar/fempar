@@ -44,7 +44,7 @@ fprintf(fid,'! This file has been automatically generated in Matlab using the sc
 
 aux = pwd;
 k = strfind(aux,'Driver');
-aux = aux(k:end); 
+aux = aux(k:end);
 fprintf(fid,'! %s/do_tables.sh\n',aux);
 fprintf(fid,'! Do not modify this file by hand! Modify and use the script!\n');
 
@@ -57,9 +57,6 @@ fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_CUT_EDGES = %d\n',elem_type
 fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_NODES_PER_SUBCELL = %d\n',elem_type,mc_num_nodes_per_subcell);
 fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_NODES_PER_SUBFACE = %d\n',elem_type,mc_num_nodes_per_subface);
 
-%fprintf(fid,'\n');
-
-%fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_SUBCELLS_PER_CASE(MC_%s_NUM_CASES) = &\n',elem_type,elem_type);
 if mc_ncases < 50
     endaux = '';
 else
@@ -70,8 +67,8 @@ fprintf(fid,['integer(ip), parameter :: MC_%s_NUM_SUBCELLS_PER_CASE(%d) = ' enda
 
 
 switch elem_type
-    case 'HEX8'        
-        width = 16;        
+    case 'HEX8'
+        width = 16;
     otherwise
         width = round(mc_ncases/2);
 end
@@ -89,33 +86,90 @@ fprintf(fid,['integer(ip), parameter :: MC_%s_NUM_CUT_EDGES_PER_CASE(%d) = ' end
 write_long_vector(fid,mc_num_cut_edges_per_case,width,0);
 fprintf(fid,'\n');
 
-%fprintf(fid,'\n');
-
 switch elem_type
-    case 'HEX8'        
-        width = round(mc_max_sub_cells*mc_num_nodes_per_subcell/4);        
+    case 'HEX8'
+        width = round(mc_max_sub_cells*mc_num_nodes_per_subcell/4);
     otherwise
         width = round(mc_max_sub_cells*mc_num_nodes_per_subcell/2);
 end
 
-%fprintf(fid,'integer(ip), parameter :: MC_%s_SUBCELLS_PER_CASE(MC_%s_NUM_NODES_SUBCELL,MC_%s_MAX_NUM_SUBCELLS,MC_%s_NUM_CASES) = reshape( &\n',elem_type,elem_type,elem_type,elem_type);
-fprintf(fid,'integer(ip), parameter :: MC_%s_SUBCELL_NODE_IDS_PER_CASE(%d,%d,%d) = &\nreshape( ',elem_type,mc_num_nodes_per_subcell,mc_max_sub_cells,mc_ncases);
-write_long_vector(fid,permute(mc_subcells_per_case,[3 2 1]),width,10);
-fprintf(fid,' , [%d,%d,%d] )\n',mc_num_nodes_per_subcell,mc_max_sub_cells,mc_ncases);
+% fprintf(fid,'integer(ip), parameter :: MC_%s_SUBCELL_NODE_IDS_PER_CASE(%d,%d,%d) = &\nreshape( ',elem_type,mc_num_nodes_per_subcell,mc_max_sub_cells,mc_ncases);
+% write_long_vector(fid,permute(mc_subcells_per_case,[3 2 1]),width,10);
+% fprintf(fid,' , [%d,%d,%d] )\n',mc_num_nodes_per_subcell,mc_max_sub_cells,mc_ncases);
 
-%fprintf(fid,'\n');
+varname = sprintf('MC_%s_SUBCELL_NODE_IDS_PER_CASE',elem_type);
+write_long_variable_3D(fid,mc_subcells_per_case,width,varname,mc_num_nodes_per_subcell,mc_max_sub_cells,mc_ncases)
 
-%fprintf(fid,'integer(ip), parameter :: MC_%s_INOUT_SUBCELLS_PER_CASE(MC_%s_MAX_NUM_SUBCELLS,MC_%s_NUM_CASES) = reshape( &\n',elem_type,elem_type,elem_type);
-fprintf(fid,'integer(ip), parameter :: MC_%s_INOUT_SUBCELLS_PER_CASE(%d,%d) = &\nreshape( ',elem_type,mc_max_sub_cells,mc_ncases);
-write_long_vector(fid,mc_inout_subcells_per_case',mc_max_sub_cells,10);
-fprintf(fid,' , [%d,%d] )\n',mc_max_sub_cells,mc_ncases);
+varname = sprintf('MC_%s_INOUT_SUBCELLS_PER_CASE',elem_type);
+write_long_variable_2D(fid,mc_inout_subcells_per_case,mc_max_sub_cells,varname,mc_max_sub_cells,mc_ncases)
 
-fprintf(fid,'integer(ip), parameter :: MC_%s_SUBFACE_NODE_IDS_PER_CASE(%d,%d,%d) = &\nreshape( ',elem_type,mc_num_nodes_per_subface,mc_max_sub_faces,mc_ncases);
-write_long_vector(fid,permute(mc_subfaces_per_case,[3 2 1]),width,10);
-fprintf(fid,' , [%d,%d,%d] )\n',mc_num_nodes_per_subface,mc_max_sub_faces,mc_ncases);
-
+varname = sprintf('MC_%s_SUBFACE_NODE_IDS_PER_CASE',elem_type);
+write_long_variable_3D(fid,mc_subfaces_per_case,width,varname,mc_num_nodes_per_subface,mc_max_sub_faces,mc_ncases)
 
 fc = fclose(fid);
+
+function write_long_variable_3D(fid,mc_data,width,varname,d1,d2,d3)
+
+
+if d3 == 256
+    if d1 == 4
+        aux = 9;
+    else
+        aux= 9*5;
+    end
+    
+    bunch_cases = AUX_compute_cell_bunch(256,aux);
+    
+    disp(' ')
+    
+    for ibunch = 1:length(bunch_cases)
+        d3bunch = length(bunch_cases{ibunch});
+        fprintf(fid,'integer(ip), parameter :: %s_BL%d(%d,%d,%d) = &\nreshape( ',varname,ibunch,d1,d2,d3bunch);
+        data = permute(mc_data(bunch_cases{ibunch},:,:),[3 2 1]);
+        write_long_vector(fid,data,width,10);
+        fprintf(fid,' , [%d,%d,%d] )\n',d1,d2,d3bunch);
+        varname_fempar = lower(strrep(varname,'MC_HEX8','MC_TABLE'));
+        fprintf('this%%%s(:,:,%d:%d) = %s_BL%d(:,:,:)\n',varname_fempar,bunch_cases{ibunch}(1),bunch_cases{ibunch}(end),varname,ibunch)
+    end
+    
+else
+    fprintf(fid,'integer(ip), parameter :: %s(%d,%d,%d) = &\nreshape( ',varname,d1,d2,d3);
+    data = permute(mc_data,[3 2 1]);
+    write_long_vector(fid,data,width,10);
+    fprintf(fid,' , [%d,%d,%d] )\n',d1,d2,d3);
+end
+
+
+function write_long_variable_2D(fid,mc_data,width,varname,d1,d2)
+
+
+if d2 == 256
+    bunch_cases = AUX_compute_cell_bunch(256,9*4);
+    
+    disp(' ')
+    
+    for ibunch = 1:length(bunch_cases)
+        d2bunch = length(bunch_cases{ibunch});
+        fprintf(fid,'integer(ip), parameter :: %s_BL%d(%d,%d) = &\nreshape( ',varname,ibunch,d1,d2bunch);
+        data = (mc_data(bunch_cases{ibunch},:)).';
+        write_long_vector(fid,data,width,10);
+        fprintf(fid,' , [%d,%d] )\n',d1,d2bunch);
+        varname_fempar = lower(strrep(varname,'MC_HEX8','MC_TABLE'));        
+        fprintf('this%%%s(:,%d:%d) = %s_BL%d(:,:)\n',varname_fempar,bunch_cases{ibunch}(1),bunch_cases{ibunch}(end),varname,ibunch)
+    end
+    
+else
+    fprintf(fid,'integer(ip), parameter :: %s(%d,%d) = &\nreshape( ',varname,d1,d2);
+    data = mc_data.';
+    write_long_vector(fid,data,width,10);
+    fprintf(fid,' , [%d,%d] )\n',d1,d2);
+    
+end
+
+
+
+
+
 
 
 function write_long_vector(fid,data,width,skip)
@@ -135,7 +189,7 @@ for ic = 1:length(cell_bunch)
     else
         fprintf(fid,'[');
     end
-        
+    
     for jc = 1:length(cell_bunch{ic})
         if ic == length(cell_bunch) &&  jc == length(cell_bunch{ic})
             str_aux = '%2d';
