@@ -165,9 +165,9 @@ module environment_names
      procedure :: l1_sum_vector_rp            => environment_l1_sum_vector_rp
      procedure :: l1_max_scalar_rp            => environment_l1_max_scalar_rp
      procedure :: l1_max_vector_rp            => environment_l1_max_vector_rp
+     procedure :: l1_max_scalar_ip            => environment_l1_max_scalar_ip
      generic  :: l1_sum                       => l1_sum_scalar_rp, l1_sum_vector_rp
-     generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp
-
+     generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp, l1_max_scalar_ip
   end type environment_t
 
   ! Types
@@ -672,6 +672,15 @@ contains
     assert (this%am_i_l1_task())
     call this%l1_context%max_vector_rp(alpha)
   end subroutine environment_l1_max_vector_rp
+  
+  !=============================================================================
+  subroutine environment_l1_max_scalar_ip (this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: n
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%max_scalar_ip(n)
+  end subroutine environment_l1_max_scalar_ip
 
   !=============================================================================
   !=============================================================================

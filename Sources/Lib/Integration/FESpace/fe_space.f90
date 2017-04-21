@@ -286,11 +286,11 @@ module fe_space_names
      type(volume_integrator_t)     , allocatable :: fe_volume_integrators(:)
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
-     integer(ip)                   , allocatable :: reference_fe_id_per_fe(:,:)      ! (number_fields, number_fes)
-     integer(ip)                   , allocatable :: max_order_per_fe(:)              ! Stores Key=max_order_within_fe for all FEs
-     type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position ! Key = max_order_within_fe
-     type(hash_table_ip_ip_t)                    :: fe_volume_integrators_position   ! Key = [max_order_within_fe,
-                                                                                     !       reference_fe_id]
+     integer(ip)                   , allocatable :: reference_fe_id_per_fe(:,:)         ! (number_fields, number_fes)
+     integer(ip)                   , allocatable :: max_order_reference_fe_id_per_fe(:) ! Stores Key=max_order_reference_fe_id for all FEs
+     type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position    ! Key = max_order_reference_fe_id
+     type(hash_table_ip_ip_t)                    :: fe_volume_integrators_position      ! Key = [max_order_reference_fe_id,
+                                                                                        !       reference_fe_id]
      
      ! Finite Face-related integration containers
      type(quadrature_t)            , allocatable :: fe_face_quadratures(:)
@@ -526,15 +526,16 @@ module fe_space_names
    procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
-   procedure       , non_overridable, private  :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
-   procedure       , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
-   procedure       , non_overridable           :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
-   procedure       , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
-   procedure       , non_overridable, private  :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
-   procedure       , non_overridable, private  :: gather_ptr_dofs_per_fe_and_field                => par_fe_space_gather_ptr_dofs_per_fe_and_field
-   procedure       , non_overridable, private  :: gather_coarse_dofs_gids_rcv_counts_and_displs   => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
-   procedure       , non_overridable, private  :: gather_coarse_dofs_gids                         => par_fe_space_gather_coarse_dofs_gids
-   procedure       , non_overridable, private  :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
+   procedure        , non_overridable, private  :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
+   procedure, nopass, non_overridable, private  :: generate_coarse_dof_gid                         => par_fe_space_generate_coarse_dof_gid
+   procedure        , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
+   procedure        , non_overridable           :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
+   procedure        , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
+   procedure        , non_overridable, private  :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
+   procedure        , non_overridable, private  :: gather_ptr_dofs_per_fe_and_field                => par_fe_space_gather_ptr_dofs_per_fe_and_field
+   procedure        , non_overridable, private  :: gather_coarse_dofs_gids_rcv_counts_and_displs   => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
+   procedure        , non_overridable, private  :: gather_coarse_dofs_gids                         => par_fe_space_gather_coarse_dofs_gids
+   procedure        , non_overridable, private  :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
    procedure                                   :: get_total_number_coarse_dofs                    => par_fe_space_get_total_number_coarse_dofs
    procedure                                   :: get_block_number_coarse_dofs                    => par_fe_space_get_block_number_coarse_dofs
    procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
