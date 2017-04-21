@@ -30,7 +30,7 @@
 subroutine marching_cubes_create(this, triangulation, level_set_function)
   implicit none
   class(marching_cubes_t),            target,  intent(inout)  :: this
-  class(base_static_triangulation_t), pointer, intent(in)     :: triangulation
+  class(base_static_triangulation_t), target,  intent(in)     :: triangulation
   class(level_set_function_t),        target,  intent(in)     :: level_set_function
   type(environment_t), pointer           :: par_environment
   call this%free()
