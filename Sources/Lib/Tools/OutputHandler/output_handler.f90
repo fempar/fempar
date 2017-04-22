@@ -116,6 +116,8 @@ private
         procedure, non_overridable         ::                                   output_handler_create_string
         procedure, non_overridable         ::                                   output_handler_create_mold
         procedure, non_overridable, public :: attach_fe_space                => output_handler_attach_fe_space
+        procedure, non_overridable, public :: set_create_fe_accessor         => output_handler_set_create_fe_accessor
+        procedure, non_overridable, public :: set_free_fe_accessor           => output_handler_set_free_fe_accessor
         procedure, non_overridable, public :: add_fe_function                => output_handler_add_fe_function
         procedure, non_overridable, public :: add_cell_vector                => output_handler_add_cell_vector
         procedure, non_overridable, public :: open                           => output_handler_open
@@ -233,7 +235,18 @@ contains
         assert(allocated(this%state))
         call this%state%attach_fe_space(fe_space)
     end subroutine output_handler_attach_fe_space
+    
+    subroutine output_handler_set_create_fe_accessor(this, create_fe_accessor)
+      class(output_handler_t), intent(inout) :: this
+       procedure(create_fe_accessor_interface) :: create_fe_accessor
+       call this%state%set_create_fe_accessor(create_fe_accessor)
+    end subroutine output_handler_set_create_fe_accessor
 
+    subroutine output_handler_set_free_fe_accessor(this, free_fe_accessor)
+      class(output_handler_t), intent(inout) :: this
+      procedure(free_fe_accessor_interface) :: free_fe_accessor
+      call this%state%set_free_fe_accessor(free_fe_accessor)
+    end subroutine output_handler_set_free_fe_accessor
 
     subroutine output_handler_add_fe_function(this, fe_function, field_id, name, diff_operator)
     !-----------------------------------------------------------------

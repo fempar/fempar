@@ -169,7 +169,7 @@ contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
-    subroutine output_handler_cell_fe_function_create ( this, fe_space, number_fields, fe_fields, num_refinements )
+    subroutine output_handler_cell_fe_function_create ( this, fe, number_fields, fe_fields, num_refinements )
     !-----------------------------------------------------------------
     !< Create output_handler_cell_fe_function. 
     !< This procedure must be called every time the mesh changes.
@@ -178,7 +178,7 @@ contains
     !< *quadratures*, *mixed_cell_topologies*, etc.
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(inout) :: this
-        class(serial_fe_space_t),                 intent(in)    :: fe_space
+        class(fe_accessor_t)                    , intent(inout) :: fe
         integer(ip),                              intent(in)    :: number_fields
         type(output_handler_fe_field_t),          intent(in)    :: fe_fields(1:number_fields)
         integer(ip), optional,                    intent(in)    :: num_refinements
@@ -196,9 +196,10 @@ contains
         integer(ip)                                             :: number_field
         character(len=:), allocatable                           :: field_type
         character(len=:), allocatable                           :: diff_operator
-        class(fe_accessor_t), allocatable                       :: fe
+        class(serial_fe_space_t),  pointer                      :: fe_space
         
         !-----------------------------------------------------------------
+        fe_space    => fe%get_fe_space()
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
             call this%free()
@@ -218,7 +219,7 @@ contains
             current_volume_integrator  = 1
             
             nullify(previous_reference_fe_geo)
-            call fe_space%create_fe_accessor(fe)
+            call fe%first()
             do while ( .not. fe%past_the_end() ) 
                 reference_fe_geo => fe%get_reference_fe_geo()
                 max_order_within_fe = fe%get_max_order_all_fields()
@@ -264,11 +265,9 @@ contains
                 endif
                 call fe%next()
             end do
-            call fe_space%free_fe_accessor(fe)
             ! Configure fill_patch_field strategy for each field
             if(allocated(this%fill_patch_field)) deallocate(this%fill_patch_field)
             allocate(this%fill_patch_field(number_fields))
-
             do number_field = 1, number_fields
                 field_type    = fe_fields(number_field)%get_field_type()
                 diff_operator = fe_fields(number_field)%get_diff_operator()
