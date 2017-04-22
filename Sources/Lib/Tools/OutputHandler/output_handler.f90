@@ -66,7 +66,6 @@ USE types_names
 USE fe_space_names,              only: serial_fe_space_t, fe_accessor_t
 USE fe_function_names,           only: fe_function_t
 USE base_output_handler_names
-USE output_handler_fe_iterator_names
 USE vtk_output_handler_names
 USE xh5_output_handler_names
 
@@ -117,7 +116,6 @@ private
         procedure, non_overridable         ::                                   output_handler_create_string
         procedure, non_overridable         ::                                   output_handler_create_mold
         procedure, non_overridable, public :: attach_fe_space                => output_handler_attach_fe_space
-        procedure, non_overridable, public :: set_iterator                   => output_handler_set_iterator
         procedure, non_overridable, public :: add_fe_function                => output_handler_add_fe_function
         procedure, non_overridable, public :: add_cell_vector                => output_handler_add_cell_vector
         procedure, non_overridable, public :: open                           => output_handler_open
@@ -221,19 +219,6 @@ contains
         call this%free()
         allocate(this%state, mold=mold)
     end subroutine output_handler_create_mold
-
-
-    subroutine output_handler_set_iterator(this, iterator)
-    !-----------------------------------------------------------------
-    !< Set a customized output handler **fe_iterator**
-    !-----------------------------------------------------------------
-        class(output_handler_t),          intent(inout) :: this
-        class(output_handler_fe_iterator_t), intent(in) :: iterator
-    !-----------------------------------------------------------------
-        assert(allocated(this%state))
-        call this%state%set_iterator(iterator)
-    end subroutine output_handler_set_iterator
-
 
     subroutine output_handler_attach_fe_space(this, fe_space)
     !-----------------------------------------------------------------

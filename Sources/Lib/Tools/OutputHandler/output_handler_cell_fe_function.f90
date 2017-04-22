@@ -169,8 +169,7 @@ contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
-    subroutine output_handler_cell_fe_function_create ( this, fe_space, output_handler_fe_iterator, &
-                                                        number_fields, fe_fields, num_refinements )
+    subroutine output_handler_cell_fe_function_create ( this, fe_space, number_fields, fe_fields, num_refinements )
     !-----------------------------------------------------------------
     !< Create output_handler_cell_fe_function. 
     !< This procedure must be called every time the mesh changes.
@@ -180,7 +179,6 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(inout) :: this
         class(serial_fe_space_t),                 intent(in)    :: fe_space
-        class(output_handler_fe_iterator_t),      intent(inout) :: output_handler_fe_iterator
         integer(ip),                              intent(in)    :: number_fields
         type(output_handler_fe_field_t),          intent(in)    :: fe_fields(1:number_fields)
         integer(ip), optional,                    intent(in)    :: num_refinements
@@ -218,12 +216,10 @@ contains
             call this%volume_integrators_position%init()
             current_quadrature_and_map = 1
             current_volume_integrator  = 1
-
-            call output_handler_fe_iterator%init()
+            
             nullify(previous_reference_fe_geo)
             call fe_space%create_fe_accessor(fe)
-            do while ( .not. output_handler_fe_iterator%has_finished() ) 
-                call output_handler_fe_iterator%current(fe)
+            do while ( .not. fe%past_the_end() ) 
                 reference_fe_geo => fe%get_reference_fe_geo()
                 max_order_within_fe = fe%get_max_order_all_fields()
                 call this%quadratures_and_maps_position%put(key = max_order_within_fe, &
@@ -266,7 +262,7 @@ contains
                             this%mixed_cell_topologies = .true.
                     previous_reference_fe_geo => reference_fe_geo
                 endif
-                call output_handler_fe_iterator%next()
+                call fe%next()
             end do
             call fe_space%free_fe_accessor(fe)
             ! Configure fill_patch_field strategy for each field
