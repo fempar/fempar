@@ -38,19 +38,38 @@ subroutine object_accessor_free ( this)
   implicit none
   class(object_accessor_t), intent(inout) :: this
   this%lid = -1
+  call this%vefs_object_iterator%free()
   nullify ( this%base_static_triangulation )
 end subroutine object_accessor_free
+
+subroutine object_accessor_update_vefs_object_iterator(this)
+  implicit none
+  class(object_accessor_t), intent(inout) :: this
+  if ( .not. this%past_the_end() ) &
+    this%vefs_object_iterator = this%base_static_triangulation%vefs_object%create_iterator(this%get_lid()) 
+end subroutine object_accessor_update_vefs_object_iterator
+
+subroutine object_accessor_update_faces_object_iterator(this)
+  implicit none
+  class(object_accessor_t), intent(inout) :: this
+  if ( .not. this%past_the_end() ) &
+    this%faces_object_iterator = this%base_static_triangulation%faces_object%create_iterator(this%get_lid()) 
+end subroutine object_accessor_update_faces_object_iterator
 
 subroutine object_accessor_first(this)
   implicit none
   class(object_accessor_t), intent(inout) :: this
   this%lid = 1
+  call this%update_vefs_object_iterator()
+  call this%update_faces_object_iterator()
 end subroutine object_accessor_first
 
 subroutine object_accessor_next(this)
   implicit none
   class(object_accessor_t), intent(inout) :: this
   this%lid = this%lid + 1
+  call this%update_vefs_object_iterator()
+  call this%update_faces_object_iterator()
 end subroutine object_accessor_next
 
 subroutine object_accessor_set_lid(this, lid)
@@ -58,6 +77,8 @@ subroutine object_accessor_set_lid(this, lid)
   class(object_accessor_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: lid
   this%lid = lid
+  call this%update_vefs_object_iterator()
+  call this%update_faces_object_iterator()
 end subroutine object_accessor_set_lid
 
 function object_accessor_past_the_end(this)
@@ -122,17 +143,38 @@ function object_accessor_create_subparts_around_iterator(this)
   object_accessor_create_subparts_around_iterator = this%base_static_triangulation%subparts_object%create_iterator(this%lid)
 end function object_accessor_create_subparts_around_iterator
 
-function object_accessor_get_number_vefs_on_object(this)
+function object_accessor_get_num_vefs(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
-  integer(ip) :: object_accessor_get_number_vefs_on_object
+  integer(ip) :: object_accessor_get_num_vefs
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  object_accessor_get_number_vefs_on_object = this%base_static_triangulation%vefs_object%get_sublist_size(this%lid)
-end function object_accessor_get_number_vefs_on_object
+  object_accessor_get_num_vefs = this%base_static_triangulation%vefs_object%get_sublist_size(this%lid)
+end function object_accessor_get_num_vefs
 
-function object_accessor_get_vefs_on_object_iterator(this)
+subroutine object_accessor_get_vef(this, ivef, vef)
+  implicit none
+  class(object_accessor_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: ivef
+  type(vef_accessor_t)    , intent(inout) :: vef
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( ivef >= 1 .and. ivef <= this%get_num_vefs() )
+  call vef%set_lid(this%vefs_object_iterator%get_from_current(ivef-1))
+end subroutine object_accessor_get_vef
+
+function object_accessor_get_num_faces(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
-  type(vefs_on_object_iterator_t) :: object_accessor_get_vefs_on_object_iterator
-  call object_accessor_get_vefs_on_object_iterator%create(this%lid, this%base_static_triangulation)
-end function object_accessor_get_vefs_on_object_iterator
+  integer(ip) :: object_accessor_get_num_faces
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  object_accessor_get_num_faces = this%base_static_triangulation%faces_object%get_sublist_size(this%lid)
+end function object_accessor_get_num_faces
+
+subroutine object_accessor_get_face(this, iface, face)
+  implicit none
+  class(object_accessor_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: iface
+  type(face_accessor_t)   , intent(inout) :: face
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( iface >= 1 .and. iface <= this%get_num_faces() )
+  call face%set_lid(this%faces_object_iterator%get_from_current(iface-1))
+end subroutine object_accessor_get_face

@@ -165,8 +165,8 @@ subroutine fine_triangulation_generate_vefs(this,order)
            this%num_vefs=this%num_vefs+1                                                                ! Count it
            this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem)-1+ielem_first_vef_id-1+ivef)=this%num_vefs  ! Fill it
            vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
-           vertex_of_ivef(1) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef_iterator%reach_from_current(0))
-           vertex_of_ivef(2) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef_iterator%reach_from_current(1))
+           vertex_of_ivef(1) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef_iterator%get_from_current(0))
+           vertex_of_ivef(2) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef_iterator%get_from_current(1))
            call vef%set_lid(vertex_of_ivef(1))
            do jelpo = 1, vef%get_num_cells_around()
               call vef%get_cell_around(jelpo, jcell)
@@ -180,8 +180,8 @@ subroutine fine_triangulation_generate_vefs(this,order)
                  vertices_jvef => this%reference_fe_geo_list(jelem_type)%p%get_vertices_n_face()
                  do jvef=1,jelem_num_vefs
                     vertices_jvef_iterator = vertices_ivef%create_iterator(jelem_first_vef_id+jvef-1)
-                    vertex_of_jvef(1) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
-                    vertex_of_jvef(2) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
+                    vertex_of_jvef(1) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef_iterator%get_from_current(0))
+                    vertex_of_jvef(2) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef_iterator%get_from_current(1))
                     !write(*,*) 'vertices of j:',vertex_of_jvef
                     ! Compare, here we are using that edges have two vertices, hard coded
                     equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
@@ -372,12 +372,12 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
         nnodb=given_vefs%get_sublist_size(iboun)
         !write(*,*) iboun,nnodb
         if(nnodb==1) then      ! Vertex
-           ivert=given_vefs_iterator%reach_from_current(0)
+           ivert=given_vefs_iterator%get_from_current(0)
            this%vefs_geometry(ivert)=vefs_geometry(iboun)
            this%vefs_set(ivert)=vefs_set(iboun)
         else if(nnodb==2) then ! Edge
-           vertex_of_ivef(1) = given_vefs_iterator%reach_from_current(0)
-           vertex_of_ivef(2) = given_vefs_iterator%reach_from_current(1)
+           vertex_of_ivef(1) = given_vefs_iterator%get_from_current(0)
+           vertex_of_ivef(2) = given_vefs_iterator%get_from_current(1)
            call vef%set_lid(vertex_of_ivef(1))
            elems1: do jelpo = 1, vef%get_num_cells_around()
               call vef%get_cell_around(jelpo, cell)
@@ -394,8 +394,8 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
                  vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
                  !vertex_of_jvef(1) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
                  !vertex_of_jvef(2) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
-                 vertex_of_jvef(1) = this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
-                 vertex_of_jvef(2) = this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
+                 vertex_of_jvef(1) = this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+vertices_jvef_iterator%get_from_current(0))
+                 vertex_of_jvef(2) = this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+vertices_jvef_iterator%get_from_current(1))
                  ! Compare, here we are using that edges have two vertices, hard coded
                  equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
                       &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
@@ -721,8 +721,8 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
         ! assert(face_num_nodes<=10) ! see declaration of points above
 
         vertices_of_vefs_iterator = vertices_of_vefs%create_iterator(ivef_pos_in_cell)
-        vertex1 = cell%get_vef_lid(  vertices_of_vefs_iterator%reach_from_current(0) )
-        vertex2 = cell%get_vef_lid(  vertices_of_vefs_iterator%reach_from_current(1) )
+        vertex1 = cell%get_vef_lid(  vertices_of_vefs_iterator%get_from_current(0) )
+        vertex2 = cell%get_vef_lid(  vertices_of_vefs_iterator%get_from_current(1) )
         !write(*,*) 'vertices of vef', ivef, vvertex1, vertex2
 
         point1 = this%coordinates(vertex1)

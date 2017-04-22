@@ -34,12 +34,28 @@ subroutine fe_object_accessor_create ( this, fe_space )
   this%fe_space => fe_space
 end subroutine fe_object_accessor_create
 
-subroutine fe_object_accessor_free ( this)
+subroutine fe_object_accessor_free (this)
   implicit none
   class(fe_object_accessor_t), intent(inout) :: this
   call this%object%free()
   nullify ( this%fe_space )
 end subroutine fe_object_accessor_free
+
+subroutine fe_object_accessor_get_fe_vef (this, ivef, fe_vef)
+  implicit none
+  class(fe_object_accessor_t), intent(in)    :: this
+  integer(ip)                , intent(in)    :: ivef
+  type(fe_vef_accessor_t)    , intent(inout) :: fe_vef
+  call this%object%get_vef(ivef, fe_vef%vef)
+end subroutine fe_object_accessor_get_fe_vef
+
+subroutine fe_object_accessor_get_fe_face (this, iface, fe_face)
+  implicit none
+  class(fe_object_accessor_t), intent(in)    :: this
+  integer(ip)                , intent(in)    :: iface
+  type(fe_face_accessor_t)   , intent(inout) :: fe_face
+  call this%get_face(iface, fe_face%face)
+end subroutine fe_object_accessor_get_fe_face
 
 subroutine fe_object_accessor_first(this)
   implicit none
@@ -59,27 +75,6 @@ subroutine fe_object_accessor_set_lid(this, lid)
   integer(ip)             , intent(in)    :: lid
   call this%object%set_lid(lid)
 end subroutine fe_object_accessor_set_lid
-
-function fe_object_accessor_get_number_fe_vefs_on_object(this)
-  implicit none
-  class(fe_object_accessor_t), intent(in) :: this
-  integer(ip) :: fe_object_accessor_get_number_fe_vefs_on_object
-  fe_object_accessor_get_number_fe_vefs_on_object = this%object%get_number_vefs_on_object()
-end function fe_object_accessor_get_number_fe_vefs_on_object
-
-subroutine fe_object_accessor_create_fe_vefs_on_object_iterator(this,iterator)
-  implicit none
-  class(fe_object_accessor_t)       , intent(in)    :: this
-  type(fe_vefs_on_object_iterator_t), intent(inout) :: iterator
-  call iterator%create(this%get_lid(), this%fe_space)
-end subroutine fe_object_accessor_create_fe_vefs_on_object_iterator
-
-subroutine fe_object_accessor_create_fe_faces_on_object_iterator(this,iterator)
-  implicit none
-  class(fe_object_accessor_t)        , intent(in) :: this
-  type(fe_faces_on_object_iterator_t), intent(inout) :: iterator
-  call iterator%create(this%get_lid(), this%fe_space)
-end subroutine fe_object_accessor_create_fe_faces_on_object_iterator
 
 function fe_object_accessor_get_number_coarse_dofs(this, field_id)
   implicit none

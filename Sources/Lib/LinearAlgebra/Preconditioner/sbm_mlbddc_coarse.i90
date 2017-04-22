@@ -65,12 +65,11 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
   class(mlbddc_coarse_t), intent(inout) :: this
   integer(ip) :: field_id
   type(coarse_fe_object_accessor_t) :: object
-  type(coarse_fe_vefs_on_object_iterator_t)  :: vefs_on_object_iterator
   type(coarse_fe_vef_accessor_t) :: vef
   type(coarse_fe_accessor_t) :: fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator 
   integer(ip), pointer :: elem2dof(:)
-  integer(ip) :: ivef, idof, dof_lid
+  integer(ip) :: ivef, ivef_within_object, idof, dof_lid
   type(coarse_fe_space_t), pointer :: fe_space
   
   fe_space => this%get_coarse_fe_space()  
@@ -86,9 +85,8 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
   call fe_space%create_coarse_fe_object_accessor(object)
   call fe_space%create_coarse_fe_vef_accessor(vef)
   do while ( .not. object%past_the_end() )
-     call object%create_coarse_fe_vefs_on_object_iterator(vefs_on_object_iterator)
-     do while ( .not. vefs_on_object_iterator%has_finished() )
-        call vefs_on_object_iterator%current(vef)
+     do ivef_within_object=1, object%get_num_vefs()
+        call object%get_vef(ivef_within_object,vef)
         call vef%get_cell_around(1,fe)
         call fe%get_field_elem2dof(field_id, elem2dof)
         ivef = fe%find_lpos_vef_lid(vef%get_lid())
@@ -99,7 +97,6 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
            this%W(dof_lid) = this%W(dof_lid)/real(object%get_number_parts_around(),rp)
            call own_dofs_on_vef_iterator%next()
         end do
-        call vefs_on_object_iterator%next()
      end do
      call object%next()
   end do

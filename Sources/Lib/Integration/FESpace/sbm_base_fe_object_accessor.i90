@@ -100,23 +100,32 @@ function base_fe_object_accessor_create_subparts_around_iterator(this)
   base_fe_object_accessor_create_subparts_around_iterator = this%object%create_subparts_around_iterator()
 end function base_fe_object_accessor_create_subparts_around_iterator
 
-function base_fe_object_accessor_get_number_vefs_on_object(this)
+function base_fe_object_accessor_get_num_vefs(this)
   implicit none
   class(base_fe_object_accessor_t), intent(in) :: this
-  integer(ip) :: base_fe_object_accessor_get_number_vefs_on_object
-  base_fe_object_accessor_get_number_vefs_on_object = this%object%get_number_vefs_on_object()
-end function base_fe_object_accessor_get_number_vefs_on_object
+  integer(ip) :: base_fe_object_accessor_get_num_vefs
+  base_fe_object_accessor_get_num_vefs = this%object%get_num_vefs()
+end function base_fe_object_accessor_get_num_vefs
 
-function base_fe_object_accessor_create_vefs_on_object_iterator(this)
+function base_fe_object_accessor_get_num_faces(this)
   implicit none
   class(base_fe_object_accessor_t), intent(in) :: this
-  type(vefs_on_object_iterator_t) :: base_fe_object_accessor_create_vefs_on_object_iterator
-  base_fe_object_accessor_create_vefs_on_object_iterator = this%object%create_vefs_on_object_iterator()
-end function base_fe_object_accessor_create_vefs_on_object_iterator
+  integer(ip) :: base_fe_object_accessor_get_num_faces
+  base_fe_object_accessor_get_num_faces = this%object%get_num_faces()
+end function base_fe_object_accessor_get_num_faces
 
-function base_fe_object_accessor_get_number_fe_vefs_on_object(this)
+subroutine base_fe_object_accessor_get_vef(this, ivef, vef)
   implicit none
-  class(base_fe_object_accessor_t), intent(in) :: this
-  integer(ip) :: base_fe_object_accessor_get_number_fe_vefs_on_object
-  base_fe_object_accessor_get_number_fe_vefs_on_object = this%object%get_number_vefs_on_object()
-end function base_fe_object_accessor_get_number_fe_vefs_on_object
+  class(base_fe_object_accessor_t), intent(in)    :: this
+  integer(ip)                     , intent(in)    :: ivef
+  type(vef_accessor_t)            , intent(inout) :: vef
+  call this%object%get_vef(ivef,vef)
+end subroutine base_fe_object_accessor_get_vef
+
+subroutine base_fe_object_accessor_get_face(this, iface, face)
+  implicit none
+  class(base_fe_object_accessor_t), intent(in)    :: this
+  integer(ip)                     , intent(in)    :: iface
+  type(face_accessor_t)           , intent(inout) :: face
+  call this%object%get_face(iface,face)
+end subroutine base_fe_object_accessor_get_face

@@ -41,19 +41,13 @@ subroutine coarse_fe_object_accessor_free ( this)
   nullify ( this%coarse_fe_space )
 end subroutine coarse_fe_object_accessor_free
 
-function coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object(this)
+subroutine coarse_fe_object_accessor_get_fe_vef (this, ivef, fe_vef)
   implicit none
-  class(coarse_fe_object_accessor_t), intent(in) :: this
-  integer(ip) :: coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
-  coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object = this%object%get_number_vefs_on_object()
-end function coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
-
-subroutine coarse_fe_object_accessor_create_coarse_fe_vefs_on_object_it(this,iterator)
-  implicit none
-  class(coarse_fe_object_accessor_t), intent(in) :: this
-  type(coarse_fe_vefs_on_object_iterator_t), intent(inout) :: iterator
-  call iterator%create(this%get_lid(), this%coarse_fe_space)
-end subroutine coarse_fe_object_accessor_create_coarse_fe_vefs_on_object_it
+  class(coarse_fe_object_accessor_t), intent(in)    :: this
+  integer(ip)                       , intent(in)    :: ivef
+  type(coarse_fe_vef_accessor_t)    , intent(inout) :: fe_vef
+  call this%object%get_vef(ivef, fe_vef%vef)
+end subroutine coarse_fe_object_accessor_get_fe_vef
 
 function coarse_fe_object_accessor_get_number_coarse_dofs(this, field_id)
   implicit none

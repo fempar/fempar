@@ -220,37 +220,31 @@ module base_static_triangulation_names
   type object_accessor_t
     private
     integer(ip)                                 :: lid = -1
+    type(list_iterator_t)                       :: vefs_object_iterator
+    type(list_iterator_t)                       :: faces_object_iterator
     class(base_static_triangulation_t), pointer :: base_static_triangulation
   contains
-    procedure                   :: create                          => object_accessor_create
-    procedure                   :: free                            => object_accessor_free
-    procedure                   :: first                           => object_accessor_first
-    procedure                   :: next                            => object_accessor_next
-    procedure                   :: set_lid                         => object_accessor_set_lid
-    procedure                   :: past_the_end                    => object_accessor_past_the_end
-    procedure, non_overridable  :: get_lid                         => object_accessor_get_lid
-    procedure, non_overridable  :: get_gid                         => object_accessor_get_gid
-    procedure, non_overridable  :: get_dimension                   => object_accessor_get_dimension
-    procedure, non_overridable  :: get_number_parts_around         => object_accessor_get_number_parts_around
-    procedure, non_overridable  :: get_number_subparts_around      => object_accessor_get_number_subparts_around
-    procedure, non_overridable  :: create_parts_around_iterator    => object_accessor_create_parts_around_iterator
-    procedure, non_overridable  :: create_subparts_around_iterator => object_accessor_create_subparts_around_iterator
-    procedure, non_overridable  :: get_number_vefs_on_object       => object_accessor_get_number_vefs_on_object
-    procedure, non_overridable  :: create_vefs_on_object_iterator  => object_accessor_get_vefs_on_object_iterator
+    procedure                           :: create                          => object_accessor_create
+    procedure                           :: free                            => object_accessor_free
+    procedure, non_overridable, private :: update_vefs_object_iterator     => object_accessor_update_vefs_object_iterator
+    procedure, non_overridable, private :: update_faces_object_iterator    => object_accessor_update_faces_object_iterator
+    procedure                           :: first                           => object_accessor_first
+    procedure                           :: next                            => object_accessor_next
+    procedure                           :: set_lid                         => object_accessor_set_lid
+    procedure                           :: past_the_end                    => object_accessor_past_the_end
+    procedure, non_overridable          :: get_lid                         => object_accessor_get_lid
+    procedure, non_overridable          :: get_gid                         => object_accessor_get_gid
+    procedure, non_overridable          :: get_dimension                   => object_accessor_get_dimension
+    procedure, non_overridable          :: get_number_parts_around         => object_accessor_get_number_parts_around
+    procedure, non_overridable          :: get_number_subparts_around      => object_accessor_get_number_subparts_around
+    procedure, non_overridable          :: create_parts_around_iterator    => object_accessor_create_parts_around_iterator
+    procedure, non_overridable          :: create_subparts_around_iterator => object_accessor_create_subparts_around_iterator
+    procedure, non_overridable          :: get_num_vefs                    => object_accessor_get_num_vefs
+    procedure, non_overridable          :: get_vef                         => object_accessor_get_vef
+    procedure, non_overridable          :: get_num_faces                   => object_accessor_get_num_faces
+    procedure, non_overridable          :: get_face                        => object_accessor_get_face
   end type object_accessor_t
-    
-  type :: vefs_on_object_iterator_t
-    private
-    type(list_iterator_t) :: vefs_lids_on_object_iterator
-  contains
-    procedure, non_overridable          :: create       => vefs_on_object_iterator_create
-    procedure, non_overridable          :: free         => vefs_on_object_iterator_free
-    procedure, non_overridable          :: init         => vefs_on_object_iterator_init
-    procedure, non_overridable          :: next         => vefs_on_object_iterator_next
-    procedure, non_overridable          :: has_finished => vefs_on_object_iterator_has_finished
-    procedure, non_overridable          :: current      => vefs_on_object_iterator_current
-  end type vefs_on_object_iterator_t
-   
+       
    ! JP-TODO: implement states: discuss with Alberto and Victor.
    !
    ! State transition diagram for type(base_static_triangulation_t). The
@@ -326,6 +320,7 @@ module base_static_triangulation_names
      integer(igp), allocatable               :: objects_gids(:)
      integer(ip) , allocatable               :: objects_dimension(:)
      type(list_t)                            :: vefs_object
+     type(list_t)                            :: faces_object
      type(list_t)                            :: parts_object
      integer(ip)                             :: number_subparts        ! Number of subparts around part (including those subparts which are local)
      type(list_t)                            :: subparts_object        ! Number and list of subparts GIDs around each coarse n_face
@@ -435,6 +430,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: compute_subparts_itfc_vefs                     => bst_compute_subparts_itfc_vefs
      procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => bst_compute_parts_object_from_subparts_object
      procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => bst_compute_part_id_from_subpart_gid
+     procedure, non_overridable, private :: compute_faces_object                           => bst_compute_faces_object
      procedure, non_overridable, private :: compute_objects_dimension                      => bst_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
      procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids
@@ -498,7 +494,6 @@ module base_static_triangulation_names
   public :: serial_triangulation_t
   public :: coarse_triangulation_t 
   public :: par_triangulation_t
-  public :: vefs_on_object_iterator_t
   public :: cell_accessor_t, vef_accessor_t, itfc_vef_accessor_t, face_accessor_t, object_accessor_t
   
 contains
@@ -506,7 +501,6 @@ contains
 #include "sbm_cell_accessor.i90"
 #include "sbm_vef_accessor.i90"
 #include "sbm_object_accessor.i90"
-#include "sbm_vefs_on_object_iterator.i90"
 #include "sbm_base_static_triangulation.i90"
 #include "sbm_fine_triangulation.i90"
 #include "sbm_serial_triangulation.i90"
