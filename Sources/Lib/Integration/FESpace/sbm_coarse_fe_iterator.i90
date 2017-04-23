@@ -26,31 +26,31 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine coarse_fe_accessor_create ( this, coarse_fe_space )
+subroutine coarse_fe_iterator_create ( this, coarse_fe_space )
   implicit none
-  class(coarse_fe_accessor_t), intent(inout) :: this
+  class(coarse_fe_iterator_t), intent(inout) :: this
   type(coarse_fe_space_t)    , target, intent(in)    :: coarse_fe_space
   call this%free()
   assert(associated(coarse_fe_space%coarse_triangulation))
-  call coarse_fe_space%coarse_triangulation%create_cell_accessor(this%cell)
+  call coarse_fe_space%coarse_triangulation%create_cell_iterator(this%cell)
   this%coarse_fe_space => coarse_fe_space
-end subroutine coarse_fe_accessor_create
+end subroutine coarse_fe_iterator_create
 
-subroutine coarse_fe_accessor_free (this)
+subroutine coarse_fe_iterator_free (this)
   implicit none
-  class(coarse_fe_accessor_t), intent(inout) :: this
+  class(coarse_fe_iterator_t), intent(inout) :: this
   integer(ip) :: istat  
   if ( associated(this%coarse_fe_space) ) then
     if ( associated(this%coarse_fe_space%coarse_triangulation) ) then
-      call this%coarse_fe_space%coarse_triangulation%free_cell_accessor(this%cell)
+      call this%coarse_fe_space%coarse_triangulation%free_cell_iterator(this%cell)
     end if
   end if
   nullify(this%coarse_fe_space)
-end subroutine coarse_fe_accessor_free
+end subroutine coarse_fe_iterator_free
 
-function coarse_fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) result(list_iterator)
+function coarse_fe_iterator_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) result(list_iterator)
   implicit none
-  class(coarse_fe_accessor_t), intent(in) :: this
+  class(coarse_fe_iterator_t), intent(in) :: this
   integer(ip)                , intent(in) :: ivef
   integer(ip)                , intent(in) :: field_id
   type(list_iterator_t) :: list_iterator
@@ -66,11 +66,11 @@ function coarse_fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_
   ! 3. The position of the vef in the current cell (ivef)
   position_own_dofs_vef = (this%get_lid()-1) + this%scan_sum_number_vefs() + ivef
   list_iterator = this%coarse_fe_space%own_dofs_vef_per_fe(field_id)%create_iterator(position_own_dofs_vef)
-end function coarse_fe_accessor_create_own_dofs_on_vef_iterator
+end function coarse_fe_iterator_create_own_dofs_on_vef_iterator
 
-subroutine coarse_fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof )
+subroutine coarse_fe_iterator_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof )
   implicit none
-  class(coarse_fe_accessor_t) , intent(inout) :: this
+  class(coarse_fe_iterator_t) , intent(inout) :: this
   integer(ip)                 , intent(in)    :: ivef
   integer(ip)                 , intent(in)    :: field_id
   integer(ip)                 , intent(inout) :: current_dof
@@ -91,13 +91,13 @@ subroutine coarse_fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, curre
     this%coarse_fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) = current_dof
     call own_dofs_on_vef_iterator%next()
   end do
-end subroutine coarse_fe_accessor_fill_own_dofs_on_vef
+end subroutine coarse_fe_iterator_fill_own_dofs_on_vef
 
-subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe ( this, target_ivef, source_fe, source_ivef, field_id )
+subroutine coarse_fe_iterator_fill_own_dofs_on_vef_from_source_coarse_fe ( this, target_ivef, source_fe, source_ivef, field_id )
   implicit none
-  class(coarse_fe_accessor_t) , intent(inout) :: this
+  class(coarse_fe_iterator_t) , intent(inout) :: this
   integer(ip)                 , intent(in)    :: target_ivef
-  class(coarse_fe_accessor_t) , intent(in)    :: source_fe
+  class(coarse_fe_iterator_t) , intent(in)    :: source_fe
   integer(ip)                 , intent(in)    :: source_ivef
   integer(ip)                 , intent(in)    :: field_id
 
@@ -129,18 +129,18 @@ subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe ( this,
     call own_dofs_on_vef_iterator_source%next()
     call own_dofs_on_vef_iterator_target%next()
   end do
-end subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe
+end subroutine coarse_fe_iterator_fill_own_dofs_on_vef_from_source_coarse_fe
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
-subroutine coarse_fe_accessor_renumber_dofs_block ( this, block_id, perm_old2new )
+subroutine coarse_fe_iterator_renumber_dofs_block ( this, block_id, perm_old2new )
   implicit none
   ! Parameters
-  class(coarse_fe_accessor_t), intent(inout) :: this
+  class(coarse_fe_iterator_t), intent(inout) :: this
   integer(ip)                , intent(in)    :: block_id
   ! No way to know the size of perm_old2new() within the local scope
-  ! of class(coarse_fe_accessor_t). This is why I used an assumed-size dummy
+  ! of class(coarse_fe_iterator_t). This is why I used an assumed-size dummy
   ! argument in this context. This will be solved in the future whenever
-  ! class(coarse_fe_accessor_t) also has access to the whole mesh-like container.
+  ! class(coarse_fe_iterator_t) also has access to the whole mesh-like container.
   integer(ip)               , intent(in) :: perm_old2new(*)
   integer(ip)                            :: field_id
   assert ( block_id >= 1 .and. block_id <= this%coarse_fe_space%get_number_blocks() )
@@ -149,18 +149,18 @@ subroutine coarse_fe_accessor_renumber_dofs_block ( this, block_id, perm_old2new
       call this%renumber_dofs_field( field_id, perm_old2new )
     end if
   end do 
-end subroutine coarse_fe_accessor_renumber_dofs_block
+end subroutine coarse_fe_iterator_renumber_dofs_block
 
 ! Renumbers the DoF identifiers corresponding to field with identifier field_id
-subroutine coarse_fe_accessor_renumber_dofs_field ( this, field_id, perm_old2new )
+subroutine coarse_fe_iterator_renumber_dofs_field ( this, field_id, perm_old2new )
   implicit none
   ! Parameters
-  class(coarse_fe_accessor_t), intent(inout) :: this
+  class(coarse_fe_iterator_t), intent(inout) :: this
   integer(ip)               , intent(in) :: field_id
   ! No way to know the size of perm_old2new() within the local scope
-  ! of class(coarse_fe_accessor_t). This is why I used an assumed-size dummy
+  ! of class(coarse_fe_iterator_t). This is why I used an assumed-size dummy
   ! argument in this context. This will be solved in the future whenever
-  ! class(coarse_fe_accessor_t) also has access to the whole mesh-like container.
+  ! class(coarse_fe_iterator_t) also has access to the whole mesh-like container.
   integer(ip)               , intent(in) :: perm_old2new(*)
   integer(ip) :: i, start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
   
@@ -173,44 +173,44 @@ subroutine coarse_fe_accessor_renumber_dofs_field ( this, field_id, perm_old2new
       this%coarse_fe_space%lst_dofs_lids(i) = perm_old2new(this%coarse_fe_space%lst_dofs_lids(i))
     end if
   end do
-end subroutine coarse_fe_accessor_renumber_dofs_field
+end subroutine coarse_fe_iterator_renumber_dofs_field
 
 
 ! Returns the sum of get_number_dofs() over all cells up-to the present one 
 ! (BUT without considering the present one), plus (+) number_dofs() over all fields 
 ! up-to field_id-1 in the present cell. 
-function coarse_fe_accessor_get_scan_sum_number_dofs (this, field_id)
+function coarse_fe_iterator_get_scan_sum_number_dofs (this, field_id)
   implicit none
-  class(coarse_fe_accessor_t), intent(in) :: this
+  class(coarse_fe_iterator_t), intent(in) :: this
   integer(ip), intent(in) :: field_id
-  integer(ip) :: coarse_fe_accessor_get_scan_sum_number_dofs
+  integer(ip) :: coarse_fe_iterator_get_scan_sum_number_dofs
   integer(ip) ::  pos_ptr_dofs
   pos_ptr_dofs = (this%get_lid()-1)*this%coarse_fe_space%number_fields + field_id
-  coarse_fe_accessor_get_scan_sum_number_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs)-1
-end function coarse_fe_accessor_get_scan_sum_number_dofs
+  coarse_fe_iterator_get_scan_sum_number_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs)-1
+end function coarse_fe_iterator_get_scan_sum_number_dofs
 
-function coarse_fe_accessor_get_number_fe_spaces(this)
+function coarse_fe_iterator_get_number_fe_spaces(this)
   implicit none
-  class(coarse_fe_accessor_t), intent(in) :: this
-  integer(ip) :: coarse_fe_accessor_get_number_fe_spaces
-  coarse_fe_accessor_get_number_fe_spaces = this%coarse_fe_space%number_fields
-end function coarse_fe_accessor_get_number_fe_spaces
+  class(coarse_fe_iterator_t), intent(in) :: this
+  integer(ip) :: coarse_fe_iterator_get_number_fe_spaces
+  coarse_fe_iterator_get_number_fe_spaces = this%coarse_fe_space%number_fields
+end function coarse_fe_iterator_get_number_fe_spaces
 
-pure function coarse_fe_accessor_get_number_dofs(this)
+pure function coarse_fe_iterator_get_number_dofs(this)
   implicit none
-  class(coarse_fe_accessor_t), intent(in) :: this
-  integer(ip) :: coarse_fe_accessor_get_number_dofs
+  class(coarse_fe_iterator_t), intent(in) :: this
+  integer(ip) :: coarse_fe_iterator_get_number_dofs
   integer(ip) :: spos
   integer(ip) :: epos
   spos = (this%get_lid()-1)*this%coarse_fe_space%number_fields+1
   epos = (this%get_lid())*this%coarse_fe_space%number_fields+1
-  coarse_fe_accessor_get_number_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(epos)- &
+  coarse_fe_iterator_get_number_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(epos)- &
                                        this%coarse_fe_space%ptr_dofs_per_fe_and_field(spos)
-end function coarse_fe_accessor_get_number_dofs
+end function coarse_fe_iterator_get_number_dofs
 
-subroutine coarse_fe_accessor_get_elem2dof( this, elem2dof )
+subroutine coarse_fe_iterator_get_elem2dof( this, elem2dof )
   implicit none
-  class(coarse_fe_accessor_t), intent(in) :: this
+  class(coarse_fe_iterator_t), intent(in) :: this
   type(i1p_t)                             :: elem2dof(this%coarse_fe_space%number_fields)
   integer(ip) :: field_id, j, spos, epos
   
@@ -221,11 +221,11 @@ subroutine coarse_fe_accessor_get_elem2dof( this, elem2dof )
     elem2dof(field_id)%p => this%coarse_fe_space%lst_dofs_lids(spos:epos)
     j=j+1
   end do
-end subroutine coarse_fe_accessor_get_elem2dof
+end subroutine coarse_fe_iterator_get_elem2dof
 
-subroutine coarse_fe_accessor_get_field_elem2dof( this, field_id, elem2dof )
+subroutine coarse_fe_iterator_get_field_elem2dof( this, field_id, elem2dof )
   implicit none
-  class(coarse_fe_accessor_t), intent(in)    :: this
+  class(coarse_fe_iterator_t), intent(in)    :: this
   integer(ip)                , intent(in)    :: field_id
   integer(ip), pointer       , intent(inout) :: elem2dof(:)
   integer(ip) :: j, spos, epos
@@ -233,13 +233,13 @@ subroutine coarse_fe_accessor_get_field_elem2dof( this, field_id, elem2dof )
   spos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j)
   epos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j+1)-1
   elem2dof => this%coarse_fe_space%lst_dofs_lids(spos:epos)
-end subroutine coarse_fe_accessor_get_field_elem2dof
+end subroutine coarse_fe_iterator_get_field_elem2dof
 
 
-subroutine coarse_fe_accessor_get_coarse_fe_vef(this, ivef, coarse_fe_vef)
+subroutine coarse_fe_iterator_get_coarse_fe_vef(this, ivef, coarse_fe_vef)
   implicit none
-  class(coarse_fe_accessor_t)   , intent(in)    :: this
+  class(coarse_fe_iterator_t)   , intent(in)    :: this
   integer(ip)                   , intent(in)    :: ivef
-  type(coarse_fe_vef_accessor_t), intent(inout) :: coarse_fe_vef
+  type(coarse_fe_vef_iterator_t), intent(inout) :: coarse_fe_vef
   call coarse_fe_vef%set_lid(this%cell%get_vef_lid(ivef))
-end subroutine coarse_fe_accessor_get_coarse_fe_vef
+end subroutine coarse_fe_iterator_get_coarse_fe_vef

@@ -77,7 +77,7 @@ function error_norms_scalar_compute (this, exact_solution, fe_function, norm_typ
   ! Local variables
   real(rp)                      :: exponent_
   real(rp)                      :: time_(1)
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
   real(rp)                      :: values_cell_contribution, values_norm
   real(rp)                      :: gradients_cell_contribution, gradients_norm
   class(environment_t), pointer :: environment
@@ -90,7 +90,7 @@ function error_norms_scalar_compute (this, exact_solution, fe_function, norm_typ
      exponent_ = error_norm_determine_exponent(norm_type, exponent)
      values_norm    = 0.0_rp
      gradients_norm = 0.0_rp
-     call this%fe_space%create_fe_accessor(fe)
+     call this%fe_space%create_fe_iterator(fe)
      do while(.not. fe%has_finished())
         if ( fe%is_local() ) then
            call fe%update_integration()
@@ -107,7 +107,7 @@ function error_norms_scalar_compute (this, exact_solution, fe_function, norm_typ
         end if
         call fe%next() 
      end do
-     call this%fe_space%free_fe_accessor(fe)
+     call this%fe_space%free_fe_iterator(fe)
      call finalize_norm(environment, norm_type, exponent_, values_norm, gradients_norm, norm)
   end if
 end function error_norms_scalar_compute
@@ -122,7 +122,7 @@ subroutine error_norms_scalar_compute_cell_contribution (this, &
      time )
   implicit none
   class(error_norms_scalar_t), intent(inout) :: this
-  class(fe_accessor_t)       , intent(in)    :: fe
+  class(fe_iterator_t)       , intent(in)    :: fe
   class(scalar_function_t)   , intent(in)    :: exact_solution
   character(*)               , intent(in)    :: norm_type
   real(rp)                   , intent(in)    :: exponent

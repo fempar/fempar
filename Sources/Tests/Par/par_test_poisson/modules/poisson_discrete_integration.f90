@@ -58,7 +58,7 @@ contains
     class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    class(fe_accessor_t), allocatable :: fe
+    class(fe_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
@@ -96,7 +96,7 @@ contains
     field_coupling => fe_space%get_field_coupling()
 
     call fe_space%initialize_fe_integration()
-    call fe_space%create_fe_accessor(fe)
+    call fe_space%create_fe_iterator(fe)
     
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -145,7 +145,7 @@ contains
        end if
        call fe%next()
     end do
-    call fe_space%free_fe_accessor(fe)
+    call fe_space%free_fe_iterator(fe)
     call memfree(shape_values, __FILE__, __LINE__)
     deallocate (shape_gradients, stat=istat); check(istat==0);
     deallocate (elem2dof, stat=istat); check(istat==0);

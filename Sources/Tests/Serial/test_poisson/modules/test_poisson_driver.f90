@@ -107,7 +107,7 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    type(vef_accessor_t)  :: vef
+    type(vef_iterator_t)  :: vef
 
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
@@ -116,7 +116,7 @@ contains
     !call this%triangulation%print()
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       call this%triangulation%create_vef_accessor(vef)
+       call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
@@ -125,7 +125,7 @@ contains
           end if
           call vef%next()
        end do
-       call this%triangulation%free_vef_accessor(vef)
+       call this%triangulation%free_vef_iterator(vef)
     end if
   end subroutine setup_triangulation
   
@@ -139,7 +139,7 @@ contains
     ! Locals
     integer(ip) :: istat    
     logical                                   :: continuity
-    class(cell_accessor_t)      , allocatable :: cell
+    class(cell_iterator_t)      , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     character(:), allocatable :: field_type
     
@@ -157,7 +157,7 @@ contains
       field_type = field_type_vector
     end if
     
-    call this%triangulation%create_cell_accessor(cell)
+    call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
     
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
@@ -167,7 +167,7 @@ contains
                                                  field_type = field_type, &
                                                  continuity = continuity ) 
     
-    call this%triangulation%free_cell_accessor(cell)
+    call this%triangulation%free_cell_iterator(cell)
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)

@@ -126,148 +126,148 @@ module fe_space_names
   
   public :: base_fe_space_t
 
-  type :: base_fe_accessor_t
+  type :: base_fe_iterator_t
     private
-    class(cell_accessor_t), allocatable :: cell
+    class(cell_iterator_t), allocatable :: cell
   contains
     ! Methods exploiting ("inherited from") cell_t common to all descendants
-    procedure, non_overridable           :: next                    => base_fe_accessor_next
-    procedure, non_overridable           :: first                   => base_fe_accessor_first
-    procedure, non_overridable           :: last                    => base_fe_accessor_last
-    procedure, non_overridable           :: set_lid                 => base_fe_accessor_set_lid
-    procedure, non_overridable           :: has_finished            => base_fe_accessor_has_finished
-    procedure, non_overridable           :: get_reference_fe_geo    => base_fe_accessor_get_reference_fe_geo
-    procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_accessor_get_reference_fe_geo_id
-    procedure, non_overridable           :: get_coordinates         => base_fe_accessor_get_coordinates
-    procedure, non_overridable           :: set_coordinates         => base_fe_accessor_set_coordinates
-    procedure, non_overridable           :: get_lid                 => base_fe_accessor_get_lid
-    procedure, non_overridable           :: get_gid                 => base_fe_accessor_get_gid
-    procedure, non_overridable           :: get_my_part             => base_fe_accessor_get_mypart
-    procedure, non_overridable           :: get_my_subpart          => base_fe_accessor_get_mysubpart
-    procedure, non_overridable           :: get_my_subpart_lid      => base_fe_accessor_get_mysubpart_lid
-    procedure, non_overridable           :: get_set_id              => base_fe_accessor_get_set_id
-    procedure, non_overridable           :: get_num_vefs            => base_fe_accessor_get_num_vefs
-    procedure, non_overridable           :: get_vef_lid             => base_fe_accessor_get_vef_lid
-    procedure, non_overridable           :: get_vef_lids            => base_fe_accessor_get_vef_lids
-    procedure, non_overridable           :: get_vef_gid             => base_fe_accessor_get_vef_gid
-    procedure, non_overridable           :: find_lpos_vef_lid       => base_fe_accessor_find_lpos_vef_lid
-    procedure, non_overridable           :: find_lpos_vef_gid       => base_fe_accessor_find_lpos_vef_gid
-    procedure, non_overridable           :: is_local                => base_fe_accessor_is_local
-    procedure, non_overridable           :: is_ghost                => base_fe_accessor_is_ghost
-    procedure, non_overridable           :: scan_sum_number_vefs    => base_fe_accessor_get_scan_sum_number_vefs
-    procedure, non_overridable, private  :: base_fe_accessor_get_vef
-    generic                              :: get_vef                 => base_fe_accessor_get_vef
-  end type base_fe_accessor_t
+    procedure, non_overridable           :: next                    => base_fe_iterator_next
+    procedure, non_overridable           :: first                   => base_fe_iterator_first
+    procedure, non_overridable           :: last                    => base_fe_iterator_last
+    procedure, non_overridable           :: set_lid                 => base_fe_iterator_set_lid
+    procedure, non_overridable           :: has_finished            => base_fe_iterator_has_finished
+    procedure, non_overridable           :: get_reference_fe_geo    => base_fe_iterator_get_reference_fe_geo
+    procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_iterator_get_reference_fe_geo_id
+    procedure, non_overridable           :: get_coordinates         => base_fe_iterator_get_coordinates
+    procedure, non_overridable           :: set_coordinates         => base_fe_iterator_set_coordinates
+    procedure, non_overridable           :: get_lid                 => base_fe_iterator_get_lid
+    procedure, non_overridable           :: get_gid                 => base_fe_iterator_get_gid
+    procedure, non_overridable           :: get_my_part             => base_fe_iterator_get_mypart
+    procedure, non_overridable           :: get_my_subpart          => base_fe_iterator_get_mysubpart
+    procedure, non_overridable           :: get_my_subpart_lid      => base_fe_iterator_get_mysubpart_lid
+    procedure, non_overridable           :: get_set_id              => base_fe_iterator_get_set_id
+    procedure, non_overridable           :: get_num_vefs            => base_fe_iterator_get_num_vefs
+    procedure, non_overridable           :: get_vef_lid             => base_fe_iterator_get_vef_lid
+    procedure, non_overridable           :: get_vef_lids            => base_fe_iterator_get_vef_lids
+    procedure, non_overridable           :: get_vef_gid             => base_fe_iterator_get_vef_gid
+    procedure, non_overridable           :: find_lpos_vef_lid       => base_fe_iterator_find_lpos_vef_lid
+    procedure, non_overridable           :: find_lpos_vef_gid       => base_fe_iterator_find_lpos_vef_gid
+    procedure, non_overridable           :: is_local                => base_fe_iterator_is_local
+    procedure, non_overridable           :: is_ghost                => base_fe_iterator_is_ghost
+    procedure, non_overridable           :: scan_sum_number_vefs    => base_fe_iterator_get_scan_sum_number_vefs
+    procedure, non_overridable, private  :: base_fe_iterator_get_vef
+    generic                              :: get_vef                 => base_fe_iterator_get_vef
+  end type base_fe_iterator_t
   
   
-  type, extends(base_fe_accessor_t) :: fe_accessor_t
+  type, extends(base_fe_iterator_t) :: fe_iterator_t
     private
     class(serial_fe_space_t), pointer    :: fe_space => NULL()
   contains
-    procedure                           :: create                                     => fe_accessor_create
-    procedure                           :: free                                       => fe_accessor_free
-    final                               :: fe_accessor_free_final
-    procedure, non_overridable, private :: fill_own_dofs                              => fe_accessor_fill_own_dofs
-    procedure, non_overridable, private :: fill_own_dofs_on_vef                       => fe_accessor_fill_own_dofs_on_vef
-    procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_fe        => fe_accessor_fill_own_dofs_on_vef_from_source_fe
-    procedure, non_overridable, private :: fill_own_strong_dirichlet_dofs_on_vef      => fe_accessor_fill_own_strong_dirichlet_dofs_on_vef
-    procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_accessor_fill_dofs_face_integration_coupling
-    procedure, non_overridable, private :: renumber_dofs_block                        => fe_accessor_renumber_dofs_block
-    procedure, non_overridable, private :: renumber_dofs_field                        => fe_accessor_renumber_dofs_field
-    procedure, non_overridable          :: update_integration                         => fe_accessor_update_integration
+    procedure                           :: create                                     => fe_iterator_create
+    procedure                           :: free                                       => fe_iterator_free
+    final                               :: fe_iterator_free_final
+    procedure, non_overridable, private :: fill_own_dofs                              => fe_iterator_fill_own_dofs
+    procedure, non_overridable, private :: fill_own_dofs_on_vef                       => fe_iterator_fill_own_dofs_on_vef
+    procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_fe        => fe_iterator_fill_own_dofs_on_vef_from_source_fe
+    procedure, non_overridable, private :: fill_own_strong_dirichlet_dofs_on_vef      => fe_iterator_fill_own_strong_dirichlet_dofs_on_vef
+    procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_iterator_fill_dofs_face_integration_coupling
+    procedure, non_overridable, private :: renumber_dofs_block                        => fe_iterator_renumber_dofs_block
+    procedure, non_overridable, private :: renumber_dofs_field                        => fe_iterator_renumber_dofs_field
+    procedure, non_overridable          :: update_integration                         => fe_iterator_update_integration
 
-    procedure, non_overridable          :: get_fe_space                               => fe_accessor_get_fe_space
-    procedure, non_overridable          :: get_number_fields                          => fe_accessor_get_number_fields
-    procedure, non_overridable, private :: get_fe_space_type                          => fe_accessor_get_fe_space_type
-    procedure, non_overridable          :: get_field_type                             => fe_accessor_get_field_type
+    procedure, non_overridable          :: get_fe_space                               => fe_iterator_get_fe_space
+    procedure, non_overridable          :: get_number_fields                          => fe_iterator_get_number_fields
+    procedure, non_overridable, private :: get_fe_space_type                          => fe_iterator_get_fe_space_type
+    procedure, non_overridable          :: get_field_type                             => fe_iterator_get_field_type
 
-    procedure, non_overridable          :: get_field_blocks                           => fe_accessor_get_field_blocks
-    procedure, non_overridable          :: get_number_dofs                            => fe_accessor_get_number_dofs
-    procedure, non_overridable          :: get_number_dofs_per_field                  => fe_accessor_get_number_dofs_per_field
-    procedure, non_overridable          :: get_field_elem2dof                         => fe_accessor_get_field_elem2dof
-    procedure, non_overridable          :: get_elem2dof                               => fe_accessor_get_elem2dof
-    procedure, non_overridable          :: get_order                                  => fe_accessor_get_order
+    procedure, non_overridable          :: get_field_blocks                           => fe_iterator_get_field_blocks
+    procedure, non_overridable          :: get_number_dofs                            => fe_iterator_get_number_dofs
+    procedure, non_overridable          :: get_number_dofs_per_field                  => fe_iterator_get_number_dofs_per_field
+    procedure, non_overridable          :: get_field_elem2dof                         => fe_iterator_get_field_elem2dof
+    procedure, non_overridable          :: get_elem2dof                               => fe_iterator_get_elem2dof
+    procedure, non_overridable          :: get_order                                  => fe_iterator_get_order
     
-    procedure, non_overridable          :: get_max_order_single_field                 => fe_accessor_get_max_order_single_field
-    procedure, non_overridable          :: get_max_order_all_fields                   => fe_accessor_get_max_order_all_fields
+    procedure, non_overridable          :: get_max_order_single_field                 => fe_iterator_get_max_order_single_field
+    procedure, non_overridable          :: get_max_order_all_fields                   => fe_iterator_get_max_order_all_fields
     generic                             :: get_max_order                              => get_max_order_single_field, &
                                                                                          get_max_order_all_fields
 
-    procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_accessor_at_strong_dirichlet_boundary
-    procedure, non_overridable          :: set_at_strong_dirichlet_boundary           => fe_accessor_set_at_strong_dirichlet_boundary
-    procedure, non_overridable          :: unset_at_strong_dirichlet_boundary         => fe_accessor_unset_at_strong_dirichlet_boundary
-    procedure, non_overridable          :: compute_volume                             => fe_accessor_compute_volume
+    procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_iterator_at_strong_dirichlet_boundary
+    procedure, non_overridable          :: set_at_strong_dirichlet_boundary           => fe_iterator_set_at_strong_dirichlet_boundary
+    procedure, non_overridable          :: unset_at_strong_dirichlet_boundary         => fe_iterator_unset_at_strong_dirichlet_boundary
+    procedure, non_overridable          :: compute_volume                             => fe_iterator_compute_volume
     
-    procedure, non_overridable          :: get_quadrature                             => fe_accessor_get_quadrature
-    procedure, non_overridable          :: get_fe_map                                 => fe_accessor_get_fe_map
-    procedure, non_overridable          :: get_volume_integrator                      => fe_accessor_get_volume_integrator    
+    procedure, non_overridable          :: get_quadrature                             => fe_iterator_get_quadrature
+    procedure, non_overridable          :: get_fe_map                                 => fe_iterator_get_fe_map
+    procedure, non_overridable          :: get_volume_integrator                      => fe_iterator_get_volume_integrator    
     
-    procedure, non_overridable, private :: fe_accessor_get_fe_vef
-    generic                             :: get_vef                                    => fe_accessor_get_fe_vef
-    procedure, non_overridable          :: get_reference_fe                           => fe_accessor_get_reference_fe
-    procedure, non_overridable          :: get_max_order_reference_fe                 => fe_accessor_get_max_order_reference_fe
-    procedure, non_overridable          :: get_max_order_reference_fe_id              => fe_accessor_get_max_order_reference_fe_id
-    procedure, non_overridable          :: get_reference_fe_id                        => fe_accessor_get_reference_fe_id
-    procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
-    procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_accessor_impose_strong_dirichlet_bcs
-  end type fe_accessor_t
+    procedure, non_overridable, private :: fe_iterator_get_fe_vef
+    generic                             :: get_vef                                    => fe_iterator_get_fe_vef
+    procedure, non_overridable          :: get_reference_fe                           => fe_iterator_get_reference_fe
+    procedure, non_overridable          :: get_max_order_reference_fe                 => fe_iterator_get_max_order_reference_fe
+    procedure, non_overridable          :: get_max_order_reference_fe_id              => fe_iterator_get_max_order_reference_fe_id
+    procedure, non_overridable          :: get_reference_fe_id                        => fe_iterator_get_reference_fe_id
+    procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
+    procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
+  end type fe_iterator_t
    
-  type :: base_fe_vef_accessor_t
+  type :: base_fe_vef_iterator_t
     private
-    class(vef_accessor_t), allocatable :: vef
+    class(vef_iterator_t), allocatable :: vef
   contains
      ! Methods exploiting ("inherited from") vef_t
-     procedure                           :: first                     => base_fe_vef_accessor_first
-     procedure                           :: next                      => base_fe_vef_accessor_next
-     procedure, non_overridable          :: set_lid                   => base_fe_vef_accessor_set_lid
-     procedure, non_overridable          :: has_finished              => base_fe_vef_accessor_has_finished
-     procedure, non_overridable          :: get_lid                   => base_fe_vef_accessor_get_lid
-     procedure, non_overridable          :: get_set_id                => base_fe_vef_accessor_get_set_id
+     procedure                           :: first                     => base_fe_vef_iterator_first
+     procedure                           :: next                      => base_fe_vef_iterator_next
+     procedure, non_overridable          :: set_lid                   => base_fe_vef_iterator_set_lid
+     procedure, non_overridable          :: has_finished              => base_fe_vef_iterator_has_finished
+     procedure, non_overridable          :: get_lid                   => base_fe_vef_iterator_get_lid
+     procedure, non_overridable          :: get_set_id                => base_fe_vef_iterator_get_set_id
 
-     procedure, non_overridable          :: get_dimension             => base_fe_vef_accessor_get_dimension
-     procedure, non_overridable          :: is_at_boundary            => base_fe_vef_accessor_is_at_boundary
-     procedure, non_overridable          :: is_local                  => base_fe_vef_accessor_is_local
-     procedure, non_overridable          :: is_ghost                  => base_fe_vef_accessor_is_ghost
-     procedure, non_overridable          :: is_at_interface           => base_fe_vef_accessor_is_at_interface
-     procedure, non_overridable          :: is_face                   => base_fe_vef_accessor_is_face
+     procedure, non_overridable          :: get_dimension             => base_fe_vef_iterator_get_dimension
+     procedure, non_overridable          :: is_at_boundary            => base_fe_vef_iterator_is_at_boundary
+     procedure, non_overridable          :: is_local                  => base_fe_vef_iterator_is_local
+     procedure, non_overridable          :: is_ghost                  => base_fe_vef_iterator_is_ghost
+     procedure, non_overridable          :: is_at_interface           => base_fe_vef_iterator_is_at_interface
+     procedure, non_overridable          :: is_face                   => base_fe_vef_iterator_is_face
      
-     procedure, non_overridable          :: get_num_cells_around      => base_fe_vef_accessor_get_num_cells_around
-     procedure, non_overridable          :: base_fe_vef_accessor_get_cell_around
-     generic                             :: get_cell_around           => base_fe_vef_accessor_get_cell_around
-  end type base_fe_vef_accessor_t
+     procedure, non_overridable          :: get_num_cells_around      => base_fe_vef_iterator_get_num_cells_around
+     procedure, non_overridable          :: base_fe_vef_iterator_get_cell_around
+     generic                             :: get_cell_around           => base_fe_vef_iterator_get_cell_around
+  end type base_fe_vef_iterator_t
 
-  type , extends(base_fe_vef_accessor_t) :: fe_vef_accessor_t
+  type , extends(base_fe_vef_iterator_t) :: fe_vef_iterator_t
     private
     class(serial_fe_space_t), pointer :: fe_space => NULL()
   contains
-     procedure                           :: create                    => fe_vef_accessor_create
-     procedure                           :: free                      => fe_vef_accessor_free
-     procedure, non_overridable, private :: fe_vef_accessor_get_fe_around
-     generic                             :: get_cell_around           => fe_vef_accessor_get_fe_around
-  end type fe_vef_accessor_t
+     procedure                           :: create                    => fe_vef_iterator_create
+     procedure                           :: free                      => fe_vef_iterator_free
+     procedure, non_overridable, private :: fe_vef_iterator_get_fe_around
+     generic                             :: get_cell_around           => fe_vef_iterator_get_fe_around
+  end type fe_vef_iterator_t
     
-  type, extends(fe_vef_accessor_t) :: fe_face_accessor_t
+  type, extends(fe_vef_iterator_t) :: fe_face_iterator_t
     private
-    class(fe_accessor_t)  , allocatable :: fe
-    class(face_accessor_t), pointer     :: face
+    class(fe_iterator_t)  , allocatable :: fe
+    class(face_iterator_t), pointer     :: face
    contains
-    procedure                           :: create                                     => fe_face_accessor_create
-    procedure                           :: free                                       => fe_face_accessor_free
-    procedure         , non_overridable :: update_integration                         => fe_face_accessor_update_integration 
-    procedure         , non_overridable :: get_fe_space                               => fe_face_accessor_get_fe_space
-    procedure         , non_overridable :: get_elem2dof                               => fe_face_accessor_get_elem2dof
-    procedure         , non_overridable :: get_quadrature                             => fe_face_accessor_get_quadrature
-    procedure         , non_overridable :: get_face_map                               => fe_face_accessor_get_face_map
-    procedure         , non_overridable :: get_face_integrator                        => fe_face_accessor_get_face_integrator
-    procedure         , non_overridable :: impose_strong_dirichlet_bcs                => fe_face_accessor_impose_strong_dirichlet_bcs
-    procedure         , non_overridable :: compute_surface                            => fe_face_accessor_compute_surface
+    procedure                           :: create                                     => fe_face_iterator_create
+    procedure                           :: free                                       => fe_face_iterator_free
+    procedure         , non_overridable :: update_integration                         => fe_face_iterator_update_integration 
+    procedure         , non_overridable :: get_fe_space                               => fe_face_iterator_get_fe_space
+    procedure         , non_overridable :: get_elem2dof                               => fe_face_iterator_get_elem2dof
+    procedure         , non_overridable :: get_quadrature                             => fe_face_iterator_get_quadrature
+    procedure         , non_overridable :: get_face_map                               => fe_face_iterator_get_face_map
+    procedure         , non_overridable :: get_face_integrator                        => fe_face_iterator_get_face_integrator
+    procedure         , non_overridable :: impose_strong_dirichlet_bcs                => fe_face_iterator_impose_strong_dirichlet_bcs
+    procedure         , non_overridable :: compute_surface                            => fe_face_iterator_compute_surface
      ! Methods exploiting ("inherited from") face_t
-    procedure, non_overridable          :: get_coordinates                  => fe_face_accessor_get_coordinates
-    procedure, non_overridable          :: get_face_lid                     => fe_face_accessor_get_face_lid
-    procedure, non_overridable          :: get_face_lpos_within_cell_around => fe_face_accessor_get_face_lpos_within_cell_around
-    procedure, non_overridable          :: get_face_orientation             => fe_face_accessor_get_face_orientation
-    procedure, non_overridable          :: get_face_rotation                => fe_face_accessor_get_face_rotation
-  end type fe_face_accessor_t
+    procedure, non_overridable          :: get_coordinates                  => fe_face_iterator_get_coordinates
+    procedure, non_overridable          :: get_face_lid                     => fe_face_iterator_get_face_lid
+    procedure, non_overridable          :: get_face_lpos_within_cell_around => fe_face_iterator_get_face_lpos_within_cell_around
+    procedure, non_overridable          :: get_face_orientation             => fe_face_iterator_get_face_orientation
+    procedure, non_overridable          :: get_face_rotation                => fe_face_iterator_get_face_rotation
+  end type fe_face_iterator_t
       
   integer(ip), parameter :: fe_space_type_cg            = 0 ! H^1 conforming FE space
   integer(ip), parameter :: fe_space_type_dg            = 1 ! L^2 conforming FE space + .not. H^1 conforming (weakly imposed via face integration)
@@ -378,58 +378,58 @@ module fe_space_names
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      
      ! fes, fe_vefs and fe_faces traversals-related TBPs
-     procedure                           :: create_fe_accessor                           => serial_fe_space_create_fe_accessor
-     procedure                           :: free_fe_accessor                             => serial_fe_space_free_fe_accessor
-     procedure, non_overridable          :: create_fe_vef_accessor                       => serial_fe_space_create_fe_vef_accessor     
-     procedure, non_overridable          :: create_itfc_fe_vef_accessor                  => serial_fe_space_create_itfc_fe_vef_accessor     
-     procedure, non_overridable          :: create_fe_face_accessor                      => serial_fe_space_create_fe_face_accessor
-     procedure, non_overridable          :: free_fe_vef_accessor                         => serial_fe_space_free_fe_vef_accessor
+     procedure                           :: create_fe_iterator                           => serial_fe_space_create_fe_iterator
+     procedure                           :: free_fe_iterator                             => serial_fe_space_free_fe_iterator
+     procedure, non_overridable          :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
+     procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator     
+     procedure, non_overridable          :: create_fe_face_iterator                      => serial_fe_space_create_fe_face_iterator
+     procedure, non_overridable          :: free_fe_vef_iterator                         => serial_fe_space_free_fe_vef_iterator
  end type serial_fe_space_t  
  
  public :: serial_fe_space_t   
- public :: fe_accessor_t
- public :: fe_vef_accessor_t
- public :: fe_face_accessor_t
+ public :: fe_iterator_t
+ public :: fe_vef_iterator_t
+ public :: fe_face_iterator_t
  
- type base_fe_object_accessor_t
+ type base_fe_object_iterator_t
    private
-   type(object_accessor_t) :: object
+   type(object_iterator_t) :: object
  contains
-   ! Methods "inherited" from object_accessor_t
-   procedure                            :: first                                 => base_fe_object_accessor_first
-   procedure                            :: next                                  => base_fe_object_accessor_next
-   procedure                            :: set_lid                               => base_fe_object_accessor_set_lid
-   procedure                            :: has_finished                          => base_fe_object_accessor_has_finished
-   procedure, non_overridable           :: get_lid                               => base_fe_object_accessor_get_lid
-   procedure, non_overridable           :: get_gid                               => base_fe_object_accessor_get_gid
-   procedure, non_overridable           :: get_dimension                         => base_fe_object_accessor_get_dimension
-   procedure, non_overridable           :: get_number_parts_around               => base_fe_object_accessor_get_number_parts_around
-   procedure, non_overridable           :: get_number_subparts_around            => base_fe_object_accessor_get_number_subparts_around
-   procedure, non_overridable           :: create_parts_around_iterator          => base_fe_object_accessor_create_parts_around_iterator
-   procedure, non_overridable           :: create_subparts_around_iterator       => base_fe_object_accessor_create_subparts_around_iterator
-   procedure, non_overridable           :: get_num_vefs                          => base_fe_object_accessor_get_num_vefs
-   procedure, non_overridable           :: get_num_faces                         => base_fe_object_accessor_get_num_faces
-   procedure, non_overridable, private  :: base_fe_object_accessor_get_vef
-   procedure, non_overridable, private  :: base_fe_object_accessor_get_face
-   generic                              :: get_vef                               => base_fe_object_accessor_get_vef
-   generic                              :: get_face                              => base_fe_object_accessor_get_face
- end type base_fe_object_accessor_t
+   ! Methods "inherited" from object_iterator_t
+   procedure                            :: first                                 => base_fe_object_iterator_first
+   procedure                            :: next                                  => base_fe_object_iterator_next
+   procedure                            :: set_lid                               => base_fe_object_iterator_set_lid
+   procedure                            :: has_finished                          => base_fe_object_iterator_has_finished
+   procedure, non_overridable           :: get_lid                               => base_fe_object_iterator_get_lid
+   procedure, non_overridable           :: get_gid                               => base_fe_object_iterator_get_gid
+   procedure, non_overridable           :: get_dimension                         => base_fe_object_iterator_get_dimension
+   procedure, non_overridable           :: get_number_parts_around               => base_fe_object_iterator_get_number_parts_around
+   procedure, non_overridable           :: get_number_subparts_around            => base_fe_object_iterator_get_number_subparts_around
+   procedure, non_overridable           :: create_parts_around_iterator          => base_fe_object_iterator_create_parts_around_iterator
+   procedure, non_overridable           :: create_subparts_around_iterator       => base_fe_object_iterator_create_subparts_around_iterator
+   procedure, non_overridable           :: get_num_vefs                          => base_fe_object_iterator_get_num_vefs
+   procedure, non_overridable           :: get_num_faces                         => base_fe_object_iterator_get_num_faces
+   procedure, non_overridable, private  :: base_fe_object_iterator_get_vef
+   procedure, non_overridable, private  :: base_fe_object_iterator_get_face
+   generic                              :: get_vef                               => base_fe_object_iterator_get_vef
+   generic                              :: get_face                              => base_fe_object_iterator_get_face
+ end type base_fe_object_iterator_t
  
  
- type, extends(base_fe_object_accessor_t) :: fe_object_accessor_t
+ type, extends(base_fe_object_iterator_t) :: fe_object_iterator_t
     private
     type(par_fe_space_t), pointer :: fe_space
   contains
-    procedure                            :: create                                => fe_object_accessor_create
-    procedure                            :: free                                  => fe_object_accessor_free
-    ! Own methods of fe_object_accessor_t
-    procedure, non_overridable, private  :: fe_object_accessor_get_fe_vef
-    procedure, non_overridable, private  :: fe_object_accessor_get_fe_face
-    generic                              :: get_vef                               => fe_object_accessor_get_fe_vef 
-    generic                              :: get_face                              => fe_object_accessor_get_fe_face
-    procedure, non_overridable           :: get_number_coarse_dofs                => fe_object_accessor_get_number_coarse_dofs
-    procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_accessor_create_own_coarse_dofs_iterator
-  end type fe_object_accessor_t
+    procedure                            :: create                                => fe_object_iterator_create
+    procedure                            :: free                                  => fe_object_iterator_free
+    ! Own methods of fe_object_iterator_t
+    procedure, non_overridable, private  :: fe_object_iterator_get_fe_vef
+    procedure, non_overridable, private  :: fe_object_iterator_get_fe_face
+    generic                              :: get_vef                               => fe_object_iterator_get_fe_vef 
+    generic                              :: get_face                              => fe_object_iterator_get_fe_face
+    procedure, non_overridable           :: get_number_coarse_dofs                => fe_object_iterator_get_number_coarse_dofs
+    procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_iterator_create_own_coarse_dofs_iterator
+  end type fe_object_iterator_t
     
   
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
@@ -521,12 +521,12 @@ module fe_space_names
    procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
 
    ! Objects-related traversals
-   procedure, non_overridable                  :: create_fe_object_accessor                       => par_fe_space_create_fe_object_accessor
-   procedure, non_overridable                  :: free_fe_object_accessor                         => par_fe_space_free_fe_object_accessor
+   procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
+   procedure, non_overridable                  :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
    end type par_fe_space_t
  
  public :: par_fe_space_t
- public :: fe_object_accessor_t
+ public :: fe_object_iterator_t
  
   type, abstract :: l1_coarse_fe_handler_t
   contains
@@ -584,49 +584,49 @@ module fe_space_names
   
   public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t
     
-  type , extends(base_fe_accessor_t) :: coarse_fe_accessor_t
+  type , extends(base_fe_iterator_t) :: coarse_fe_iterator_t
     private
     type(coarse_fe_space_t), pointer :: coarse_fe_space => NULL()
   contains
-    procedure, private, non_overridable :: create                                     => coarse_fe_accessor_create
-    procedure                           :: free                                       => coarse_fe_accessor_free
-    procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => coarse_fe_accessor_create_own_dofs_on_vef_iterator
-    procedure, non_overridable, private :: fill_own_dofs_on_vef                       => coarse_fe_accessor_fill_own_dofs_on_vef
-    procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_coarse_fe => coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe
-    procedure, non_overridable, private :: renumber_dofs_block                        => coarse_fe_accessor_renumber_dofs_block
-    procedure, non_overridable, private :: renumber_dofs_field                        => coarse_fe_accessor_renumber_dofs_field
+    procedure, private, non_overridable :: create                                     => coarse_fe_iterator_create
+    procedure                           :: free                                       => coarse_fe_iterator_free
+    procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => coarse_fe_iterator_create_own_dofs_on_vef_iterator
+    procedure, non_overridable, private :: fill_own_dofs_on_vef                       => coarse_fe_iterator_fill_own_dofs_on_vef
+    procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_coarse_fe => coarse_fe_iterator_fill_own_dofs_on_vef_from_source_coarse_fe
+    procedure, non_overridable, private :: renumber_dofs_block                        => coarse_fe_iterator_renumber_dofs_block
+    procedure, non_overridable, private :: renumber_dofs_field                        => coarse_fe_iterator_renumber_dofs_field
     
-    procedure, non_overridable, private :: get_scan_sum_number_dofs                   => coarse_fe_accessor_get_scan_sum_number_dofs
-    procedure, non_overridable          :: get_number_fe_spaces                       => coarse_fe_accessor_get_number_fe_spaces
-    procedure, non_overridable          :: get_number_dofs                            => coarse_fe_accessor_get_number_dofs
-    procedure, non_overridable          :: get_elem2dof                               => coarse_fe_accessor_get_elem2dof
-    procedure, non_overridable          :: get_field_elem2dof                         => coarse_fe_accessor_get_field_elem2dof
-    procedure, non_overridable          :: get_coarse_fe_vef                          => coarse_fe_accessor_get_coarse_fe_vef
-  end type coarse_fe_accessor_t
+    procedure, non_overridable, private :: get_scan_sum_number_dofs                   => coarse_fe_iterator_get_scan_sum_number_dofs
+    procedure, non_overridable          :: get_number_fe_spaces                       => coarse_fe_iterator_get_number_fe_spaces
+    procedure, non_overridable          :: get_number_dofs                            => coarse_fe_iterator_get_number_dofs
+    procedure, non_overridable          :: get_elem2dof                               => coarse_fe_iterator_get_elem2dof
+    procedure, non_overridable          :: get_field_elem2dof                         => coarse_fe_iterator_get_field_elem2dof
+    procedure, non_overridable          :: get_coarse_fe_vef                          => coarse_fe_iterator_get_coarse_fe_vef
+  end type coarse_fe_iterator_t
   
-  type, extends(base_fe_vef_accessor_t) :: coarse_fe_vef_accessor_t
+  type, extends(base_fe_vef_iterator_t) :: coarse_fe_vef_iterator_t
     private
     type(coarse_fe_space_t), pointer    :: coarse_fe_space => NULL()
   contains
-     procedure :: create                                              => coarse_fe_vef_accessor_create
-     procedure :: free                                                => coarse_fe_vef_accessor_free
-     procedure, non_overridable          :: get_coarse_fe_around      => coarse_fe_vef_accessor_get_coarse_fe_around
+     procedure :: create                                              => coarse_fe_vef_iterator_create
+     procedure :: free                                                => coarse_fe_vef_iterator_free
+     procedure, non_overridable          :: get_coarse_fe_around      => coarse_fe_vef_iterator_get_coarse_fe_around
      generic                             :: get_cell_around           => get_coarse_fe_around
-  end type coarse_fe_vef_accessor_t
+  end type coarse_fe_vef_iterator_t
   
-  type, extends(base_fe_object_accessor_t) :: coarse_fe_object_accessor_t
+  type, extends(base_fe_object_iterator_t) :: coarse_fe_object_iterator_t
     private
     type(coarse_fe_space_t), pointer :: coarse_fe_space => NULL()
   contains
-    procedure                            :: create                                   => coarse_fe_object_accessor_create
-    procedure                            :: free                                     => coarse_fe_object_accessor_free
+    procedure                            :: create                                   => coarse_fe_object_iterator_create
+    procedure                            :: free                                     => coarse_fe_object_iterator_free
     
-    ! Own methods of coarse_fe_object_accessor_t
-    procedure, non_overridable, private  :: coarse_fe_object_accessor_get_fe_vef
-    generic                              :: get_vef                                  => coarse_fe_object_accessor_get_fe_vef 
-    procedure, non_overridable           :: get_number_coarse_dofs                   => coarse_fe_object_accessor_get_number_coarse_dofs
-    procedure, non_overridable           :: create_own_coarse_dofs_iterator          => coarse_fe_object_accessor_create_own_coarse_dofs_iterator
-  end type coarse_fe_object_accessor_t
+    ! Own methods of coarse_fe_object_iterator_t
+    procedure, non_overridable, private  :: coarse_fe_object_iterator_get_fe_vef
+    generic                              :: get_vef                                  => coarse_fe_object_iterator_get_fe_vef 
+    procedure, non_overridable           :: get_number_coarse_dofs                   => coarse_fe_object_iterator_get_number_coarse_dofs
+    procedure, non_overridable           :: create_own_coarse_dofs_iterator          => coarse_fe_object_iterator_create_own_coarse_dofs_iterator
+  end type coarse_fe_object_iterator_t
     
   
   type, extends(base_fe_space_t) :: coarse_fe_space_t
@@ -703,19 +703,19 @@ module fe_space_names
     procedure                         , private :: renumber_dofs_block                             => coarse_fe_space_renumber_dofs_block
     
     ! Coarse FE traversals-related TBPs
-    procedure, non_overridable                  :: create_coarse_fe_accessor                       => coarse_fe_space_create_coarse_fe_accessor
-    procedure, non_overridable                  :: free_coarse_fe_accessor                         => coarse_fe_space_free_coarse_fe_accessor
+    procedure, non_overridable                  :: create_coarse_fe_iterator                       => coarse_fe_space_create_coarse_fe_iterator
+    procedure, non_overridable                  :: free_coarse_fe_iterator                         => coarse_fe_space_free_coarse_fe_iterator
 
     
     ! Coarse FE VEFS traversals-related TBPs
-    procedure, non_overridable                  :: create_coarse_fe_vef_accessor                   => coarse_fe_space_create_coarse_fe_vef_accessor
-    procedure, non_overridable                  :: create_itfc_coarse_fe_vef_accessor              => coarse_fe_space_create_itfc_coarse_fe_vef_accessor
-    procedure, non_overridable                  :: free_coarse_fe_vef_accessor                     => coarse_fe_space_free_coarse_fe_vef_accessor
+    procedure, non_overridable                  :: create_coarse_fe_vef_iterator                   => coarse_fe_space_create_coarse_fe_vef_iterator
+    procedure, non_overridable                  :: create_itfc_coarse_fe_vef_iterator              => coarse_fe_space_create_itfc_coarse_fe_vef_iterator
+    procedure, non_overridable                  :: free_coarse_fe_vef_iterator                     => coarse_fe_space_free_coarse_fe_vef_iterator
     
     
      ! Objects-related traversals
-     procedure, non_overridable                 :: create_coarse_fe_object_accessor                => coarse_fe_space_create_coarse_fe_object_accessor
-     procedure, non_overridable                 :: free_coarse_fe_object_accessor                  => coarse_fe_space_free_coarse_fe_object_accessor
+     procedure, non_overridable                 :: create_coarse_fe_object_iterator                => coarse_fe_space_create_coarse_fe_object_iterator
+     procedure, non_overridable                 :: free_coarse_fe_object_iterator                  => coarse_fe_space_free_coarse_fe_object_iterator
      
      ! Getters
      procedure, non_overridable                 :: get_number_local_coarse_fes                     => coarse_fe_space_get_number_local_coarse_fes
@@ -726,8 +726,8 @@ module fe_space_names
      procedure                                  :: get_environment                                 => coarse_fe_space_get_environment
  end type coarse_fe_space_t
  
- public :: coarse_fe_space_t, coarse_fe_accessor_t, coarse_fe_vef_accessor_t
- public :: coarse_fe_object_accessor_t
+ public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_vef_iterator_t
+ public :: coarse_fe_object_iterator_t
  public :: coarse_space_use_vertices_key, coarse_space_use_edges_key, coarse_space_use_faces_key
  
  type, abstract :: lgt1_coarse_fe_handler_t
@@ -756,21 +756,21 @@ contains
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
 #include "sbm_base_fe_space.i90"
-#include "sbm_base_fe_accessor.i90"
+#include "sbm_base_fe_iterator.i90"
 #include "sbm_serial_fe_space.i90"
-#include "sbm_fe_accessor.i90"
-#include "sbm_fe_face_accessor.i90"
-#include "sbm_base_fe_vef_accessor.i90"
-#include "sbm_fe_vef_accessor.i90"
+#include "sbm_fe_iterator.i90"
+#include "sbm_fe_face_iterator.i90"
+#include "sbm_base_fe_vef_iterator.i90"
+#include "sbm_fe_vef_iterator.i90"
 #include "sbm_par_fe_space.i90"
-#include "sbm_base_fe_object_accessor.i90"
-#include "sbm_fe_object_accessor.i90"
+#include "sbm_base_fe_object_iterator.i90"
+#include "sbm_fe_object_iterator.i90"
 #include "sbm_standard_coarse_fe_handler.i90"
 #include "sbm_H1_coarse_fe_handler.i90"
 
 #include "sbm_coarse_fe_space.i90"
-#include "sbm_coarse_fe_object_accessor.i90"
-#include "sbm_coarse_fe_accessor.i90"
-#include "sbm_coarse_fe_vef_accessor.i90"
+#include "sbm_coarse_fe_object_iterator.i90"
+#include "sbm_coarse_fe_iterator.i90"
+#include "sbm_coarse_fe_vef_iterator.i90"
 
 end module fe_space_names

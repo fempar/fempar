@@ -68,8 +68,8 @@ contains
     class(matrix_array_assembler_t)         , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    class(fe_accessor_t), allocatable :: fe
-    type(fe_face_accessor_t) :: fe_face
+    class(fe_iterator_t), allocatable :: fe
+    type(fe_face_iterator_t) :: fe_face
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer     :: fe_map
@@ -134,7 +134,7 @@ contains
     field_coupling => fe_space%get_field_coupling()
     
     call fe_space%initialize_fe_integration()
-    call fe_space%create_fe_accessor(fe)
+    call fe_space%create_fe_iterator(fe)
     
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -188,7 +188,7 @@ contains
        
        call fe%next()
     end do
-    call fe_space%free_fe_accessor(fe)
+    call fe_space%free_fe_iterator(fe)
     
     call fe_space%initialize_fe_face_integration()
     
@@ -198,7 +198,7 @@ contains
     allocate( test_elem2dof(number_fields), stat=istat); check(istat==0);
     
     ! Search for the first interior face
-    call fe_space%create_fe_face_accessor(fe_face)
+    call fe_space%create_fe_face_iterator(fe_face)
     do while ( fe_face%is_at_boundary() ) 
        call fe_face%next()
     end do

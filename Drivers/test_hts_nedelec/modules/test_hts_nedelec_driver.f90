@@ -114,7 +114,7 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     ! Locals 
     integer(ip)                 , allocatable :: cells_set(:) 
-    class(cell_accessor_t)      , allocatable :: cell
+    class(cell_iterator_t)      , allocatable :: cell
     type(point_t), allocatable                :: cell_coordinates(:)
     integer(ip)                               :: inode
     integer(ip)       :: icell, icoord 
@@ -126,7 +126,7 @@ contains
 
     ! Assign subset_id to different cells for the created structured mesh 
     allocate(cells_set(this%triangulation%get_num_cells() ), stat=istat); check(istat==0)
-    call this%triangulation%create_cell_accessor(cell)
+    call this%triangulation%create_cell_iterator(cell)
     allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0) 
     
     do while ( .not. cell%has_finished() )
@@ -153,7 +153,7 @@ contains
     call this%triangulation%fill_cells_set(cells_set)  
     deallocate(cells_set, stat=istat); check(istat==0) 
     deallocate(cell_coordinates, stat=istat); check(istat==0) 
-    call this%triangulation%free_cell_accessor(cell)
+    call this%triangulation%free_cell_iterator(cell)
   end subroutine setup_triangulation
 
   ! -----------------------------------------------------------------------------------------------
@@ -161,7 +161,7 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat, ivef
-    type(vef_accessor_t)  :: vef
+    type(vef_iterator_t)  :: vef
 
     allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
@@ -181,7 +181,7 @@ contains
                                                  continuity = .true. ) 
     
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call this%triangulation%create_vef_accessor(vef)
+       call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           ! In the 3D case, vefs asociated to faces 21,22 are Neumann boundary (2D case set_id <= 9)
          if ( vef%is_at_boundary() .and. ( vef%get_set_id() .ne. 21 .and. vef%get_set_id() .ne. 22) ) then 
@@ -191,7 +191,7 @@ contains
           end if
           call vef%next()
        end do
-       call this%triangulation%free_vef_accessor(vef)
+       call this%triangulation%free_vef_iterator(vef)
     end if    
  
   end subroutine setup_reference_fes
@@ -271,8 +271,8 @@ contains
     type(sparse_matrix_t), pointer :: coefficient_matrix
 
     ! Integration loop 
-    class(fe_accessor_t), allocatable :: fe
-    type(fe_face_accessor_t) :: fe_face 
+    class(fe_iterator_t), allocatable :: fe
+    type(fe_face_iterator_t) :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
@@ -309,7 +309,7 @@ contains
 
         ! Initialize
     call this%fe_space%initialize_fe_integration()
-    call this%fe_space%create_fe_accessor(fe)
+    call this%fe_space%create_fe_iterator(fe)
     
     number_fields         =  this%fe_space%get_number_fields()
     num_dofs              =  fe%get_number_dofs()
@@ -362,7 +362,7 @@ contains
        call this%fe_space%initialize_fe_face_integration()
 
        ! Search for the first boundary face
-       call fe_space%create_fe_face_accessor(fe_face)
+       call fe_space%create_fe_face_iterator(fe_face)
        do while ( .not. fe_face%is_at_boundary() ) 
           call fe_face%next()
        end do
@@ -407,7 +407,7 @@ contains
        end do
        call memfree ( facevec, __FILE__, __LINE__ )
     end if 
-    call this%fe_space%free_fe_accessor(fe)
+    call this%fe_space%free_fe_iterator(fe)
     ! Sum duplicates, re-order by rows, and leave the matrix in a final state
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 
@@ -549,7 +549,7 @@ contains
     implicit none 
     class(test_hts_nedelec_driver_t)   , intent(inout) :: this
     class(vector_t),      pointer                      :: dof_values_current_solution     
-    class(fe_accessor_t), allocatable :: fe
+    class(fe_iterator_t), allocatable :: fe
     ! Integration loop 
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
@@ -574,7 +574,7 @@ contains
     ! Integrate structures needed 
     call cell_fe_function_current%create(this%fe_space,  1)
     call this%fe_space%initialize_fe_integration()
-    call this%fe_space%create_fe_accessor(fe)
+    call this%fe_space%create_fe_iterator(fe)
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
@@ -608,7 +608,7 @@ contains
        end if
        call fe%next()
     end do
-    call this%fe_space%free_fe_accessor(fe)
+    call this%fe_space%free_fe_iterator(fe)
 
     ! Coordinates of quadrature does influence the constant value Happ(t) 
     boundary_function_Hy => this%problem_functions%get_boundary_function_Hy()

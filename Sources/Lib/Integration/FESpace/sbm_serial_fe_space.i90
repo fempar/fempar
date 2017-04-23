@@ -74,7 +74,7 @@ end subroutine serial_fe_space_free
 
 subroutine serial_fe_space_print ( this )
   class(serial_fe_space_t), intent(in)    :: this
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
   type(i1p_t), allocatable         :: elem2dof(:)
   integer(ip)                      :: field_id, istat
 
@@ -85,7 +85,7 @@ subroutine serial_fe_space_print ( this )
   allocate ( elem2dof(this%get_number_fields()), stat=istat)
   check(istat==0)
 
-  call this%create_fe_accessor(fe)
+  call this%create_fe_iterator(fe)
   do while ( .not. fe%has_finished())
      write(*,'(a,i10,a)') '********* ELEMENT: ',fe%get_lid(),'********'
      write(*,'(a)') '********* ELEMENT 2 DOF********'
@@ -96,7 +96,7 @@ subroutine serial_fe_space_print ( this )
      end do
      call fe%next()
   end do
-  call this%free_fe_accessor(fe) 
+  call this%free_fe_iterator(fe) 
 
   call this%strong_dirichlet_values%print(6)
 
@@ -108,13 +108,13 @@ end subroutine serial_fe_space_print
 subroutine serial_fe_space_allocate_and_fill_fe_space_type_per_field(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
   integer(ip) :: field_id
   class(reference_fe_t), pointer ::reference_fe
 
   call memalloc ( this%number_fields, this%fe_space_type_per_field, __FILE__, __LINE__ )
 
-  call this%create_fe_accessor(fe)
+  call this%create_fe_iterator(fe)
   do field_id=1, this%get_number_fields()
      this%fe_space_type_per_field(field_id) = fe%get_fe_space_type(field_id)
   end do
@@ -128,7 +128,7 @@ subroutine serial_fe_space_allocate_and_fill_fe_space_type_per_field(this)
      call fe%next()
   end do
 #endif  
-  call this%free_fe_accessor(fe)
+  call this%free_fe_iterator(fe)
 end subroutine serial_fe_space_allocate_and_fill_fe_space_type_per_field
 
 subroutine serial_fe_space_free_fe_space_type_per_field(this)
@@ -142,7 +142,7 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
   class(serial_fe_space_t), intent(inout) :: this
 
   integer(ip)                    :: field_id
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe
 
   call memalloc ( this%number_fields, &
@@ -150,7 +150,7 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
        this%ptr_dofs_per_fe, __FILE__, __LINE__ )
 
   this%ptr_dofs_per_fe(1,1) = 1 
-  call this%create_fe_accessor(fe)
+  call this%create_fe_iterator(fe)
   do while ( .not. fe%has_finished())
      do field_id=1, fe%get_number_fields()-1
         reference_fe => fe%get_reference_fe(field_id)
@@ -162,7 +162,7 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
           this%ptr_dofs_per_fe(field_id,fe%get_lid()) + reference_fe%get_number_shape_functions()
      call fe%next()
   end do
-  call this%free_fe_accessor(fe) 
+  call this%free_fe_iterator(fe) 
 
   call memalloc ( this%ptr_dofs_per_fe(1,this%triangulation%get_num_cells()+1)-1,&
        this%lst_dofs_lids, &
@@ -205,8 +205,8 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   integer(ip)             :: component_id, offset_component
   integer(ip)             :: istat
   type(list_iterator_t)   :: own_dofs_on_vef_iterator
-  class(fe_accessor_t), allocatable :: fe, source_fe
-  type(fe_vef_accessor_t)    :: vef
+  class(fe_iterator_t), allocatable :: fe, source_fe
+  type(fe_vef_iterator_t)    :: vef
 
   type(i1p_t)          , allocatable :: elem2dof(:)
   logical              , allocatable :: components_code(:)
@@ -232,15 +232,15 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   ! Count number_strong_dirichlet_dofs
   this%number_strong_dirichlet_dofs = 0
 
-  call this%create_fe_accessor(source_fe)
-  call this%create_fe_accessor(fe)
-  call this%create_fe_vef_accessor(vef)
+  call this%create_fe_iterator(source_fe)
+  call this%create_fe_iterator(fe)
+  call this%create_fe_vef_iterator(vef)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
 
         ! TO-DO: This call should ONLY be performed
         !        if current cell is at the boundary. 
-        !        type(fe_accessor_t) does NOT currently 
+        !        type(fe_iterator_t) does NOT currently 
         !        provide any means to answer such a question.
         call fe%get_elem2dof(elem2dof)
 
@@ -311,9 +311,9 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
      end if
      call fe%next()
   end do
-  call this%free_fe_accessor(source_fe)
-  call this%free_fe_accessor(fe)
-  call this%free_fe_vef_accessor(vef)
+  call this%free_fe_iterator(source_fe)
+  call this%free_fe_iterator(fe)
+  call this%free_fe_vef_iterator(vef)
 
   call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
   call this%strong_dirichlet_values%init(0.0_rp)
@@ -358,8 +358,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
   class(scalar_function_t)     , pointer     :: scalar_function
 
   type(list_iterator_t)    :: own_dofs_on_vef_iterator
-  class(fe_accessor_t), allocatable :: fe
-  type(fe_vef_accessor_t)     :: vef
+  class(fe_iterator_t), allocatable :: fe
+  type(fe_vef_iterator_t)     :: vef
   type(i1p_t), allocatable :: elem2dof(:)
 
   number_components    = this%get_number_components()
@@ -421,8 +421,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
 
   if ( present(time) ) time_(1) = time
 
-  call this%create_fe_accessor(fe)
-  call this%create_fe_vef_accessor(vef)
+  call this%create_fe_iterator(fe)
+  call this%create_fe_vef_iterator(vef)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then 
         do ifield = 1, size(fields_to_interpolate_) 
@@ -502,8 +502,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
      end if
      call fe%next() 
   end do
-  call this%free_fe_accessor(fe) 
-  call this%free_fe_vef_accessor(vef)
+  call this%free_fe_iterator(fe) 
+  call this%free_fe_vef_iterator(vef)
   
   call memfree ( reference_fes_touched, __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
@@ -545,8 +545,8 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
-  class(fe_accessor_t), allocatable  :: fe
-  type(fe_face_accessor_t)           :: fe_face
+  class(fe_iterator_t), allocatable  :: fe
+  type(fe_face_iterator_t)           :: fe_face
 
   type(i1p_t), allocatable :: elem2dof(:)
 
@@ -620,8 +620,8 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
 
   ! Create data structures
   call projected_nodal_values%create_and_allocate(number_subset_strong_dirichlet_dofs)
-  call this%create_fe_face_accessor(fe_face)
-  call this%create_fe_accessor(fe)
+  call this%create_fe_face_iterator(fe_face)
+  call this%create_fe_iterator(fe)
   do while ( .not. fe_face%has_finished() )
      if ( fe_face%is_at_boundary() ) then
         if ( fe_face%get_set_id() /= 0 ) then
@@ -685,7 +685,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
      call fe_face%next()
   end do
   call fe_face%free()
-  call this%free_fe_accessor(fe)
+  call this%free_fe_iterator(fe)
   call matrix%convert(csr_format)
 
   call parameter_list%init()
@@ -808,7 +808,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
 
   integer(ip)              :: ifield, field_id, idof, idof_subset, idof_global
   integer(ip)              :: istat
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
   type(i1p_t), allocatable :: elem2dof(:)
 
 
@@ -821,7 +821,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
 
   ! Count number of Dirichlet DOFs to be projected
   num_subset_strong_dirichlet_dofs = 0
-  call this%create_fe_accessor(fe)
+  call this%create_fe_iterator(fe)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
         do ifield = 1, size(fields_to_project) 
@@ -841,7 +841,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
      end if
      call fe%next()
   end do
-  call this%free_fe_accessor(fe)
+  call this%free_fe_iterator(fe)
   ! Allocate + compute subset2global_dirichlet_dofs from subset2global_dirichlet_dofs
   call memalloc ( num_subset_strong_dirichlet_dofs, subset2global, __FILE__, __LINE__ ) 
   idof_subset=1
@@ -863,8 +863,8 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
                                                             function_scalar_components )
   implicit none
   class(serial_fe_space_t)    , intent(in)    :: this
-  type(fe_face_accessor_t)    , intent(in)    :: fe_face
-  class(fe_accessor_t)        , intent(inout) :: fe
+  type(fe_face_iterator_t)    , intent(in)    :: fe_face
+  class(fe_iterator_t)        , intent(inout) :: fe
   integer(ip)                 , intent(in)    :: field_id
   integer(ip)                 , intent(in)    :: component_id
   class(conditions_t)         , intent(in)    :: conditions
@@ -899,8 +899,8 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
                                                                       time)
   implicit none
   class(serial_fe_space_t) , intent(in)    :: this
-  type(fe_face_accessor_t) , intent(inout) :: fe_face
-  class(fe_accessor_t)     , intent(inout) :: fe
+  type(fe_face_iterator_t) , intent(inout) :: fe_face
+  class(fe_iterator_t)     , intent(inout) :: fe
   integer(ip)              , intent(in)    :: field_id
   type(p_scalar_function_t), intent(in)    :: function_scalar_components(:)
   real(rp)                 , intent(inout) :: scalar_function_values(:,:) ! Work-space
@@ -960,8 +960,8 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
                                                                          elvec)
   implicit none
   class(serial_fe_space_t) , intent(in)    :: this
-  type(fe_face_accessor_t) , intent(inout) :: fe_face
-  class(fe_accessor_t)     , intent(inout) :: fe
+  type(fe_face_iterator_t) , intent(inout) :: fe_face
+  class(fe_iterator_t)     , intent(inout) :: fe
   integer(ip)              , intent(in)    :: field_id
   type(vector_field_t)     , intent(in)    :: vector_function_values(:,:)
   real(rp)                 , intent(inout) :: elmat(:,:)
@@ -1113,13 +1113,13 @@ end subroutine serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
 subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
   implicit none
   class(serial_fe_space_t)          , intent(in) :: this
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe_unkno
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: field_id
 
 #ifdef DEBUG
-  call this%create_fe_accessor(fe)
+  call this%create_fe_iterator(fe)
   call fe%first()
   do while ( .not. fe%has_finished())
      reference_fe_geo => fe%get_reference_fe_geo()
@@ -1138,7 +1138,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this
 
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
   integer(ip)         :: current_quadrature_and_map
   integer(ip)         :: current_volume_integrator
 
@@ -1162,7 +1162,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   current_quadrature_and_map = 1
   current_volume_integrator  = 1
   
-  call this%create_fe_accessor(fe)
+  call this%create_fe_iterator(fe)
   do while ( .not. fe%has_finished())
      max_order = -1
      do field_id=1, this%get_number_fields()
@@ -1240,7 +1240,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
      end do
      call fe%next()
   end do
-  call this%free_fe_accessor(fe)
+  call this%free_fe_iterator(fe)
 end subroutine serial_fe_space_initialize_fe_integration
 
 subroutine serial_fe_space_free_fe_integration ( this )
@@ -1296,8 +1296,8 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
 
-  type(fe_face_accessor_t)          :: fe_face
-  class(fe_accessor_t), allocatable :: fe
+  type(fe_face_iterator_t)          :: fe_face
+  class(fe_iterator_t), allocatable :: fe
 
   integer(ip) :: current_fe_face_quadrature
   integer(ip) :: current_fe_face_map
@@ -1332,8 +1332,8 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   current_fe_face_map = 1
   current_fe_face_integrator = 1
 
-  call this%create_fe_accessor(fe)
-  call this%create_fe_face_accessor(fe_face)
+  call this%create_fe_iterator(fe)
+  call this%create_fe_face_iterator(fe_face)
   do while ( .not. fe_face%has_finished() ) 
      max_order_fes_around_fe_face = -1
      reference_fes_geo_id(2) = 0 
@@ -1474,7 +1474,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
      end do
      call fe_face%next()
   end do
-  call this%free_fe_accessor(fe)
+  call this%free_fe_iterator(fe)
   call fe_face%free()
 end subroutine serial_fe_space_initialize_fe_face_integration
 
@@ -1702,7 +1702,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   integer(ip) :: ivef, vef_lid, ielem
   integer(ip) :: iblock, init_dof_block, current_dof_block
   integer(ip), allocatable :: visited_vef_to_fe_map(:,:)
-  class(fe_accessor_t), allocatable :: fe, source_fe
+  class(fe_iterator_t), allocatable :: fe, source_fe
 
   iblock            = this%field_blocks(field_id)
   init_dof_block    = this%number_dofs_per_block(iblock)
@@ -1712,8 +1712,8 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
      call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
      visited_vef_to_fe_map = -1
 
-     call this%create_fe_accessor(source_fe)
-     call this%create_fe_accessor(fe)
+     call this%create_fe_iterator(source_fe)
+     call this%create_fe_iterator(fe)
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
            call fe%fill_own_dofs ( field_id, current_dof_block )
@@ -1734,18 +1734,18 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
         end if
         call fe%next()
      end do
-     call this%free_fe_accessor(source_fe)
-     call this%free_fe_accessor(fe)
+     call this%free_fe_iterator(source_fe)
+     call this%free_fe_iterator(fe)
      call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
   else 
-     call this%create_fe_accessor(fe)
+     call this%create_fe_iterator(fe)
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
            call fe%fill_own_dofs ( field_id, current_dof_block )
         end if
         call fe%next()
      end do
-     call this%free_fe_accessor(fe)
+     call this%free_fe_iterator(fe)
   end if
   this%number_dofs_per_field(field_id) = current_dof_block - init_dof_block
   this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
@@ -1757,14 +1757,14 @@ subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
   class(serial_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: block_id
   integer(ip)             , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
 
-  call this%create_fe_accessor(fe)
+  call this%create_fe_iterator(fe)
   do while ( .not. fe%has_finished())
      call fe%renumber_dofs_block ( block_id, perm_old2new )
      call fe%next()
   end do
-  call this%free_fe_accessor(fe)
+  call this%free_fe_iterator(fe)
 
 end subroutine serial_fe_space_renumber_dofs_block
 
@@ -1798,31 +1798,31 @@ function serial_fe_space_get_field_type ( this, field_id )
   class(serial_fe_space_t), target, intent(in) :: this
   integer(ip)                     , intent(in) :: field_id
   character(:), pointer :: serial_fe_space_get_field_type
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe
 
-  call this%create_fe_accessor(fe)
+  call this%create_fe_iterator(fe)
   reference_fe => fe%get_reference_fe(field_id)
   serial_fe_space_get_field_type => reference_fe%get_field_type()
-  call this%free_fe_accessor(fe)
+  call this%free_fe_iterator(fe)
 end function serial_fe_space_get_field_type
 
 function serial_fe_space_get_number_components ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
   integer(ip) :: serial_fe_space_get_number_components
-  class(fe_accessor_t), allocatable :: fe
+  class(fe_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe
   integer(ip) :: field_id
 
-  call this%create_fe_accessor(fe)
+  call this%create_fe_iterator(fe)
   serial_fe_space_get_number_components = 0
   do field_id = 1, this%get_number_fields()
      reference_fe => fe%get_reference_fe(field_id)
      serial_fe_space_get_number_components = serial_fe_space_get_number_components + &
           reference_fe%get_number_field_components()
   end do
-  call this%free_fe_accessor(fe)
+  call this%free_fe_iterator(fe)
 end function serial_fe_space_get_number_components
 
 function serial_fe_space_get_max_number_shape_functions( this )
@@ -1903,61 +1903,61 @@ function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichl
   strong_dirichlet_values => this%strong_dirichlet_values
 end function serial_fe_space_get_strong_dirichlet_values
 
-subroutine serial_fe_space_create_fe_accessor ( this, fe )
+subroutine serial_fe_space_create_fe_iterator ( this, fe )
   implicit none
   class(serial_fe_space_t)         , intent(in)  :: this
-  class(fe_accessor_t), allocatable, intent(inout) :: fe
+  class(fe_iterator_t), allocatable, intent(inout) :: fe
   integer(ip) :: istat
-  call this%free_fe_accessor(fe)
-  allocate(fe_accessor_t :: fe, stat=istat); check(istat==0)
+  call this%free_fe_iterator(fe)
+  allocate(fe_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
-end subroutine serial_fe_space_create_fe_accessor
+end subroutine serial_fe_space_create_fe_iterator
 
-subroutine serial_fe_space_free_fe_accessor ( this, fe )
+subroutine serial_fe_space_free_fe_iterator ( this, fe )
   implicit none
   class(serial_fe_space_t)         , intent(in)  :: this
-  class(fe_accessor_t), allocatable, intent(inout) :: fe
+  class(fe_iterator_t), allocatable, intent(inout) :: fe
   integer(ip) :: istat
   if(allocated(fe)) then
      call fe%free()
      deallocate(fe, stat=istat); check(istat==0)
   end if
-end subroutine serial_fe_space_free_fe_accessor
+end subroutine serial_fe_space_free_fe_iterator
 
-subroutine serial_fe_space_create_fe_vef_accessor ( this, fe_vef )
+subroutine serial_fe_space_create_fe_vef_iterator ( this, fe_vef )
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this
-  type(fe_vef_accessor_t)         , intent(inout) :: fe_vef
-  type(vef_accessor_t) :: vef
+  type(fe_vef_iterator_t)         , intent(inout) :: fe_vef
+  type(vef_iterator_t) :: vef
   call fe_vef%free()
   call fe_vef%create(this,vef)
-end subroutine serial_fe_space_create_fe_vef_accessor
+end subroutine serial_fe_space_create_fe_vef_iterator
 
-subroutine serial_fe_space_create_itfc_fe_vef_accessor ( this, fe_vef )
+subroutine serial_fe_space_create_itfc_fe_vef_iterator ( this, fe_vef )
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this
-  type(fe_vef_accessor_t)         , intent(inout) :: fe_vef
-  type(itfc_vef_accessor_t) :: vef
+  type(fe_vef_iterator_t)         , intent(inout) :: fe_vef
+  type(itfc_vef_iterator_t) :: vef
   call fe_vef%free()
   call fe_vef%create(this,vef)
-end subroutine serial_fe_space_create_itfc_fe_vef_accessor
+end subroutine serial_fe_space_create_itfc_fe_vef_iterator
 
-subroutine serial_fe_space_create_fe_face_accessor ( this, fe_face )
+subroutine serial_fe_space_create_fe_face_iterator ( this, fe_face )
   implicit none
   class(serial_fe_space_t) , target, intent(in)    :: this
-  type(fe_face_accessor_t)         , intent(inout) :: fe_face
-  type(face_accessor_t) :: vef
+  type(fe_face_iterator_t)         , intent(inout) :: fe_face
+  type(face_iterator_t) :: vef
   integer(ip) :: istat
   call fe_face%free()
   call fe_face%create(this,vef)
-end subroutine serial_fe_space_create_fe_face_accessor
+end subroutine serial_fe_space_create_fe_face_iterator
 
-subroutine serial_fe_space_free_fe_vef_accessor ( this, fe_vef )
+subroutine serial_fe_space_free_fe_vef_iterator ( this, fe_vef )
   implicit none
   class(serial_fe_space_t), intent(in)    :: this
-  class(fe_vef_accessor_t), intent(inout) :: fe_vef
+  class(fe_vef_iterator_t), intent(inout) :: fe_vef
   call fe_vef%free()
-end subroutine serial_fe_space_free_fe_vef_accessor
+end subroutine serial_fe_space_free_fe_vef_iterator
 
 
 

@@ -105,7 +105,7 @@ contains
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(vef_accessor_t)  :: vef
+    type(vef_iterator_t)  :: vef
 
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
@@ -118,7 +118,7 @@ contains
                                                  continuity = .true. ) 
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       call this%triangulation%create_vef_accessor(vef)
+       call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
@@ -127,7 +127,7 @@ contains
           end if
           call vef%next()
        end do
-       call this%triangulation%free_vef_accessor(vef)
+       call this%triangulation%free_vef_iterator(vef)
     end if    
     
   end subroutine setup_reference_fes

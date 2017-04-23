@@ -25,69 +25,69 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine fe_object_accessor_create ( this, fe_space )
+subroutine fe_object_iterator_create ( this, fe_space )
   implicit none
-  class(fe_object_accessor_t)            , intent(inout) :: this
+  class(fe_object_iterator_t)            , intent(inout) :: this
   type(par_fe_space_t)    , target       , intent(in)    :: fe_space
   call this%free()
   call this%object%create(fe_space%triangulation)
   this%fe_space => fe_space
-end subroutine fe_object_accessor_create
+end subroutine fe_object_iterator_create
 
-subroutine fe_object_accessor_free (this)
+subroutine fe_object_iterator_free (this)
   implicit none
-  class(fe_object_accessor_t), intent(inout) :: this
+  class(fe_object_iterator_t), intent(inout) :: this
   call this%object%free()
   nullify ( this%fe_space )
-end subroutine fe_object_accessor_free
+end subroutine fe_object_iterator_free
 
-subroutine fe_object_accessor_get_fe_vef (this, ivef, fe_vef)
+subroutine fe_object_iterator_get_fe_vef (this, ivef, fe_vef)
   implicit none
-  class(fe_object_accessor_t), intent(in)    :: this
+  class(fe_object_iterator_t), intent(in)    :: this
   integer(ip)                , intent(in)    :: ivef
-  type(fe_vef_accessor_t)    , intent(inout) :: fe_vef
+  type(fe_vef_iterator_t)    , intent(inout) :: fe_vef
   call this%object%get_vef(ivef, fe_vef%vef)
-end subroutine fe_object_accessor_get_fe_vef
+end subroutine fe_object_iterator_get_fe_vef
 
-subroutine fe_object_accessor_get_fe_face (this, iface, fe_face)
+subroutine fe_object_iterator_get_fe_face (this, iface, fe_face)
   implicit none
-  class(fe_object_accessor_t), intent(in)    :: this
+  class(fe_object_iterator_t), intent(in)    :: this
   integer(ip)                , intent(in)    :: iface
-  type(fe_face_accessor_t)   , intent(inout) :: fe_face
+  type(fe_face_iterator_t)   , intent(inout) :: fe_face
   call this%get_face(iface, fe_face%face)
-end subroutine fe_object_accessor_get_fe_face
+end subroutine fe_object_iterator_get_fe_face
 
-subroutine fe_object_accessor_first(this)
+subroutine fe_object_iterator_first(this)
   implicit none
-  class(fe_object_accessor_t), intent(inout) :: this
+  class(fe_object_iterator_t), intent(inout) :: this
   call this%object%first()
-end subroutine fe_object_accessor_first
+end subroutine fe_object_iterator_first
 
-subroutine fe_object_accessor_next(this)
+subroutine fe_object_iterator_next(this)
   implicit none
-  class(fe_object_accessor_t), intent(inout) :: this
+  class(fe_object_iterator_t), intent(inout) :: this
   call this%object%next()
-end subroutine fe_object_accessor_next
+end subroutine fe_object_iterator_next
 
-subroutine fe_object_accessor_set_lid(this, lid)
+subroutine fe_object_iterator_set_lid(this, lid)
   implicit none
-  class(fe_object_accessor_t), intent(inout) :: this
+  class(fe_object_iterator_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: lid
   call this%object%set_lid(lid)
-end subroutine fe_object_accessor_set_lid
+end subroutine fe_object_iterator_set_lid
 
-function fe_object_accessor_get_number_coarse_dofs(this, field_id)
+function fe_object_iterator_get_number_coarse_dofs(this, field_id)
   implicit none
-  class(fe_object_accessor_t), intent(in) :: this
+  class(fe_object_iterator_t), intent(in) :: this
   integer(ip)                , intent(in) :: field_id
-  integer(ip) :: fe_object_accessor_get_number_coarse_dofs
-  fe_object_accessor_get_number_coarse_dofs = this%fe_space%own_coarse_dofs_per_field(field_id)%get_sublist_size(this%get_lid())
-end function fe_object_accessor_get_number_coarse_dofs
+  integer(ip) :: fe_object_iterator_get_number_coarse_dofs
+  fe_object_iterator_get_number_coarse_dofs = this%fe_space%own_coarse_dofs_per_field(field_id)%get_sublist_size(this%get_lid())
+end function fe_object_iterator_get_number_coarse_dofs
 
-function fe_object_accessor_create_own_coarse_dofs_iterator(this, field_id) 
+function fe_object_iterator_create_own_coarse_dofs_iterator(this, field_id) 
   implicit none
-  class(fe_object_accessor_t), intent(in) :: this
+  class(fe_object_iterator_t), intent(in) :: this
   integer(ip)                , intent(in) :: field_id
-  type(list_iterator_t) :: fe_object_accessor_create_own_coarse_dofs_iterator
-  fe_object_accessor_create_own_coarse_dofs_iterator = this%fe_space%own_coarse_dofs_per_field(field_id)%create_iterator(this%get_lid())
-end function fe_object_accessor_create_own_coarse_dofs_iterator
+  type(list_iterator_t) :: fe_object_iterator_create_own_coarse_dofs_iterator
+  fe_object_iterator_create_own_coarse_dofs_iterator = this%fe_space%own_coarse_dofs_per_field(field_id)%create_iterator(this%get_lid())
+end function fe_object_iterator_create_own_coarse_dofs_iterator

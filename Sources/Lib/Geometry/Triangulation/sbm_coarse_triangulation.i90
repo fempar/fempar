@@ -156,8 +156,8 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
   class(coarse_triangulation_t), intent(inout) :: this
   integer(ip)                  , intent(in)    :: lst_vefs_dimension(*)
   integer(ip)                                       :: icell, ivef, vef_lid, current
-  class(cell_accessor_t), allocatable       :: cell
-  type(vef_accessor_t)  :: vef
+  class(cell_iterator_t), allocatable       :: cell
+  type(vef_iterator_t)  :: vef
   
   assert ( this%num_vefs >= 0 )
   call this%free_vefs_type()
@@ -165,8 +165,8 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
   this%vefs_type = 0 
   
   current = 1
-  call this%create_cell_accessor(cell)
-  call this%create_vef_accessor(vef)
+  call this%create_cell_iterator(cell)
+  call this%create_vef_iterator(vef)
   do while(.not.cell%has_finished())
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
@@ -176,16 +176,16 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
      end do
      call cell%next()
   end do
-  call this%free_cell_accessor(cell)
-  call this%free_vef_accessor(vef)
+  call this%free_cell_iterator(cell)
+  call this%free_vef_iterator(vef)
 end subroutine coarse_triangulation_allocate_and_fill_vefs_dimension
 
 
 subroutine coarse_triangulation_print ( this )
    class(coarse_triangulation_t), intent(in) :: this
    integer(ip) :: ivef,inode
-   type(vef_accessor_t)  :: vef
-   class(cell_accessor_t), allocatable :: cell
+   type(vef_iterator_t)  :: vef
+   class(cell_iterator_t), allocatable :: cell
    type(point_t), allocatable :: cell_coordinates(:)
    integer(ip) :: vef_lid
 
@@ -197,22 +197,22 @@ subroutine coarse_triangulation_print ( this )
      write (*,'(a,i10)') 'num_itfc_vefs:  ', this%num_itfc_vefs
      write (*,'(a)') '**** Cells ****'
 
-     call this%create_cell_accessor(cell)
+     call this%create_cell_iterator(cell)
      write (*,'(a)') '       id      is_local   is_ghost  num_vefs    vef        vef  ....'
      do while ( .not. cell%has_finished() )
          write(*,'(i10,2l10,10(2x,i10))') cell%get_lid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_lid(ivef),ivef=1,cell%get_num_vefs())
          call cell%next()
      end do
-     call this%free_cell_accessor(cell)
+     call this%free_cell_iterator(cell)
 
      write (*,'(a)') '**** Vefs ****'
      write (*,'(a)') '        id          dim    is_local    is_at_interface  is_ghost   is_at_bound '
-     call this%create_vef_accessor(vef)
+     call this%create_vef_iterator(vef)
      do while ( .not. vef%has_finished() )
         vef_lid = vef%get_lid()
         write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dimension(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary()
         call vef%next()
      end do
-     call this%free_vef_accessor(vef)
+     call this%free_vef_iterator(vef)
    end if
   end subroutine coarse_triangulation_print

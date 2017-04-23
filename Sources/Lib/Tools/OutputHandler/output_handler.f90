@@ -63,7 +63,7 @@ module output_handler_names
 
 USE FPL
 USE types_names
-USE fe_space_names,              only: serial_fe_space_t, fe_accessor_t
+USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t
 USE fe_function_names,           only: fe_function_t
 USE base_output_handler_names
 USE vtk_output_handler_names
@@ -116,8 +116,8 @@ private
         procedure, non_overridable         ::                                   output_handler_create_string
         procedure, non_overridable         ::                                   output_handler_create_mold
         procedure, non_overridable, public :: attach_fe_space                => output_handler_attach_fe_space
-        procedure, non_overridable, public :: set_create_fe_accessor         => output_handler_set_create_fe_accessor
-        procedure, non_overridable, public :: set_free_fe_accessor           => output_handler_set_free_fe_accessor
+        procedure, non_overridable, public :: set_create_fe_iterator         => output_handler_set_create_fe_iterator
+        procedure, non_overridable, public :: set_free_fe_iterator           => output_handler_set_free_fe_iterator
         procedure, non_overridable, public :: add_fe_function                => output_handler_add_fe_function
         procedure, non_overridable, public :: add_cell_vector                => output_handler_add_cell_vector
         procedure, non_overridable, public :: open                           => output_handler_open
@@ -236,17 +236,17 @@ contains
         call this%state%attach_fe_space(fe_space)
     end subroutine output_handler_attach_fe_space
     
-    subroutine output_handler_set_create_fe_accessor(this, create_fe_accessor)
+    subroutine output_handler_set_create_fe_iterator(this, create_fe_iterator)
       class(output_handler_t), intent(inout) :: this
-       procedure(create_fe_accessor_interface) :: create_fe_accessor
-       call this%state%set_create_fe_accessor(create_fe_accessor)
-    end subroutine output_handler_set_create_fe_accessor
+       procedure(create_fe_iterator_interface) :: create_fe_iterator
+       call this%state%set_create_fe_iterator(create_fe_iterator)
+    end subroutine output_handler_set_create_fe_iterator
 
-    subroutine output_handler_set_free_fe_accessor(this, free_fe_accessor)
+    subroutine output_handler_set_free_fe_iterator(this, free_fe_iterator)
       class(output_handler_t), intent(inout) :: this
-      procedure(free_fe_accessor_interface) :: free_fe_accessor
-      call this%state%set_free_fe_accessor(free_fe_accessor)
-    end subroutine output_handler_set_free_fe_accessor
+      procedure(free_fe_iterator_interface) :: free_fe_iterator
+      call this%state%set_free_fe_iterator(free_fe_iterator)
+    end subroutine output_handler_set_free_fe_iterator
 
     subroutine output_handler_add_fe_function(this, fe_function, field_id, name, diff_operator)
     !-----------------------------------------------------------------

@@ -38,9 +38,9 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
   integer(ip)                            :: idof, dof_lid
   logical                                :: dofs_on_vef
   type(environment_t), pointer           :: par_environment
-  type(fe_object_accessor_t)             :: object
-  type(fe_vef_accessor_t)                :: vef
-  class(fe_accessor_t), allocatable      :: fe
+  type(fe_object_iterator_t)             :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_iterator_t), allocatable      :: fe
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator
   integer(ip), pointer                   :: elem2dof(:)
   logical                                :: use_vertices, use_edges, use_faces
@@ -63,9 +63,9 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
   
   ! First, count how many coarse_dofs there are on the interface of my subdomain
   num_coarse_dofs = 0
-  call par_fe_space%create_fe_object_accessor(object)
-  call par_fe_space%create_fe_accessor(fe)
-  call par_fe_space%create_fe_vef_accessor(vef)
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
      select case ( object%get_dimension() )
      case (0)
@@ -108,9 +108,9 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
      end do
      call object%next()
   end do
-  call par_fe_space%free_fe_vef_accessor(vef)
-  call par_fe_space%free_fe_accessor(fe)
-  call par_fe_space%free_fe_object_accessor(object)
+  call par_fe_space%free_fe_vef_iterator(vef)
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
 end subroutine standard_l1_get_num_coarse_dofs
 
 subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
@@ -120,9 +120,9 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
   type(environment_t), pointer :: par_environment
-  type(fe_object_accessor_t) :: object
-  type(fe_vef_accessor_t)                :: vef
-  class(fe_accessor_t), allocatable      :: fe
+  type(fe_object_iterator_t) :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_iterator_t), allocatable      :: fe
   type(list_iterator_t)                  :: own_coarse_dofs_iterator
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
   integer(ip), pointer                   :: elem2dof(:)
@@ -152,9 +152,9 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
   call constraint_matrix%create ( num_cols, num_rows )
    
   ! Fill constraint matrix entries (transposed)
-  call par_fe_space%create_fe_object_accessor(object)
-  call par_fe_space%create_fe_accessor(fe)
-  call par_fe_space%create_fe_vef_accessor(vef)
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
      
      if ( object%get_number_coarse_dofs(field_id) > 0 ) then
@@ -201,9 +201,9 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
      call object%next()
   end do
   call constraint_matrix%sort_and_compress()
-  call par_fe_space%free_fe_accessor(fe)
-  call par_fe_space%free_fe_object_accessor(object)
-  call par_fe_space%free_fe_vef_accessor(vef)
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_vef_iterator(vef)
 end subroutine standard_l1_setup_constraint_matrix
 
 subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
@@ -213,9 +213,9 @@ subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_li
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   integer(ip)                            :: field_id
-  type(fe_object_accessor_t)             :: object
-  type(fe_vef_accessor_t)                :: vef
-  class(fe_accessor_t), allocatable      :: fe
+  type(fe_object_iterator_t)             :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_iterator_t), allocatable      :: fe
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
   integer(ip), pointer                   :: elem2dof(:)
   integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid
@@ -234,9 +234,9 @@ subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_li
   weighting_operator = 1.0_rp
   
   ! Fill constraint matrix entries (transposed)
-  call par_fe_space%create_fe_accessor(fe)
-  call par_fe_space%create_fe_object_accessor(object)
-  call par_fe_space%create_fe_vef_accessor(vef)
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
      ! Count how many fine DoFs current coarse DoF aggregates
      do ivef_within_object=1, object%get_num_vefs()
@@ -256,9 +256,9 @@ subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_li
      end do
      call object%next()
   end do
-  call par_fe_space%free_fe_accessor(fe)
-  call par_fe_space%free_fe_object_accessor(object)
-  call par_fe_space%free_fe_vef_accessor(vef)
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_vef_iterator(vef)
 end subroutine standard_l1_setup_weighting_operator
 
 subroutine standard_get_coarse_space_use_vertices_edges_faces ( parameter_list, use_vertices, use_edges, use_faces )

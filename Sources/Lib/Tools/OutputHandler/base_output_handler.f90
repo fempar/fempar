@@ -56,7 +56,7 @@ USE FPL
 USE types_names
 USE memor_names
 USE reference_fe_names,          only: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-USE fe_space_names,              only: serial_fe_space_t, fe_accessor_t
+USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t
 USE fe_function_names,           only: fe_function_t
 USE output_handler_fe_field_names
 USE output_handler_patch_names
@@ -113,8 +113,8 @@ private
         type(output_handler_cell_fe_function_t)                  :: ohcff
         type(output_handler_fe_field_t),    allocatable          :: fe_fields(:)
         type(output_handler_cell_vector_t), allocatable          :: cell_vectors(:)
-        procedure(create_fe_accessor_interface), nopass, pointer :: create_fe_accessor    => NULL()
-        procedure(free_fe_accessor_interface)  , nopass, pointer :: free_fe_accessor      => NULL()
+        procedure(create_fe_iterator_interface), nopass, pointer :: create_fe_iterator    => NULL()
+        procedure(free_fe_iterator_interface)  , nopass, pointer :: free_fe_iterator      => NULL()
         integer(ip)                                              :: state                 = BASE_OUTPUT_HANDLER_STATE_INIT
         integer(ip)                                              :: number_fields         = 0
         integer(ip)                                              :: number_cell_vectors   = 0
@@ -133,10 +133,10 @@ private
         procedure, non_overridable         :: resize_fe_fields_if_needed    => base_output_handler_resize_fe_fields_if_needed
         procedure, non_overridable         :: resize_cell_vectors_if_needed => base_output_handler_resize_cell_vectors_if_needed
         procedure, non_overridable, public :: attach_fe_space               => base_output_handler_attach_fe_space
-        procedure, non_overridable, public :: set_create_fe_accessor        => base_output_handler_set_create_fe_accessor
-        procedure, non_overridable, public :: set_free_fe_accessor          => base_output_handler_set_free_fe_accessor
-        procedure, non_overridable, private:: create_fe_accessor_wrapper    => base_output_handler_create_fe_accessor_wrapper
-        procedure, non_overridable, private:: free_fe_accessor_wrapper      => base_output_handler_free_fe_accessor_wrapper
+        procedure, non_overridable, public :: set_create_fe_iterator        => base_output_handler_set_create_fe_iterator
+        procedure, non_overridable, public :: set_free_fe_iterator          => base_output_handler_set_free_fe_iterator
+        procedure, non_overridable, private:: create_fe_iterator_wrapper    => base_output_handler_create_fe_iterator_wrapper
+        procedure, non_overridable, private:: free_fe_iterator_wrapper      => base_output_handler_free_fe_iterator_wrapper
         procedure, non_overridable, public :: add_fe_function               => base_output_handler_add_fe_function
         procedure, non_overridable, public :: add_cell_vector               => base_output_handler_add_cell_vector
         procedure, non_overridable, public :: fill_data                     => base_output_handler_fill_data
@@ -152,15 +152,15 @@ private
     end type
 
     interface
-      subroutine create_fe_accessor_interface(fe)
-        import :: fe_accessor_t
-        class(fe_accessor_t), allocatable, intent(inout) :: fe
-      end subroutine create_fe_accessor_interface
+      subroutine create_fe_iterator_interface(fe)
+        import :: fe_iterator_t
+        class(fe_iterator_t), allocatable, intent(inout) :: fe
+      end subroutine create_fe_iterator_interface
       
-      subroutine free_fe_accessor_interface(fe)
-        import :: fe_accessor_t
-        class(fe_accessor_t), allocatable, intent(inout) :: fe
-      end subroutine free_fe_accessor_interface
+      subroutine free_fe_iterator_interface(fe)
+        import :: fe_iterator_t
+        class(fe_iterator_t), allocatable, intent(inout) :: fe
+      end subroutine free_fe_iterator_interface
     end interface
     
     
@@ -209,7 +209,7 @@ private
         end subroutine
     end interface
 
-public :: base_output_handler_t, create_fe_accessor_interface, free_fe_accessor_interface 
+public :: base_output_handler_t, create_fe_iterator_interface, free_fe_iterator_interface 
 
 contains
 
@@ -233,8 +233,8 @@ contains
         endif
         call this%ohcff%free()
         nullify(this%fe_space)
-        nullify(this%create_fe_accessor)
-        nullify(this%free_fe_accessor)
+        nullify(this%create_fe_iterator)
+        nullify(this%free_fe_iterator)
         this%number_cell_vectors   = 0
         this%number_fields         = 0
         this%state                 = BASE_OUTPUT_HANDLER_STATE_INIT
@@ -352,37 +352,37 @@ contains
         this%fe_space => fe_space
     end subroutine base_output_handler_attach_fe_space
     
-    subroutine base_output_handler_set_create_fe_accessor(this, create_fe_accessor)
+    subroutine base_output_handler_set_create_fe_iterator(this, create_fe_iterator)
       class(base_output_handler_t), intent(inout) :: this
-       procedure(create_fe_accessor_interface) :: create_fe_accessor
-       this%create_fe_accessor => create_fe_accessor
-    end subroutine base_output_handler_set_create_fe_accessor
+       procedure(create_fe_iterator_interface) :: create_fe_iterator
+       this%create_fe_iterator => create_fe_iterator
+    end subroutine base_output_handler_set_create_fe_iterator
 
-    subroutine base_output_handler_set_free_fe_accessor(this, free_fe_accessor)
+    subroutine base_output_handler_set_free_fe_iterator(this, free_fe_iterator)
       class(base_output_handler_t), intent(inout) :: this
-      procedure(free_fe_accessor_interface) :: free_fe_accessor
-      this%free_fe_accessor => free_fe_accessor
-    end subroutine base_output_handler_set_free_fe_accessor
+      procedure(free_fe_iterator_interface) :: free_fe_iterator
+      this%free_fe_iterator => free_fe_iterator
+    end subroutine base_output_handler_set_free_fe_iterator
 
-    subroutine base_output_handler_create_fe_accessor_wrapper(this, fe)
+    subroutine base_output_handler_create_fe_iterator_wrapper(this, fe)
       class(base_output_handler_t)     , intent(inout) :: this
-      class(fe_accessor_t), allocatable, intent(inout) :: fe
-      if (associated(this%create_fe_accessor)) then
-        call this%create_fe_accessor(fe)
+      class(fe_iterator_t), allocatable, intent(inout) :: fe
+      if (associated(this%create_fe_iterator)) then
+        call this%create_fe_iterator(fe)
       else 
-        call this%fe_space%create_fe_accessor(fe)
+        call this%fe_space%create_fe_iterator(fe)
       end if
-    end subroutine base_output_handler_create_fe_accessor_wrapper
+    end subroutine base_output_handler_create_fe_iterator_wrapper
     
-    subroutine base_output_handler_free_fe_accessor_wrapper(this, fe)
+    subroutine base_output_handler_free_fe_iterator_wrapper(this, fe)
       class(base_output_handler_t)     , intent(inout) :: this
-      class(fe_accessor_t), allocatable, intent(inout) :: fe
-      if (associated(this%free_fe_accessor)) then
-        call this%free_fe_accessor(fe)
+      class(fe_iterator_t), allocatable, intent(inout) :: fe
+      if (associated(this%free_fe_iterator)) then
+        call this%free_fe_iterator(fe)
       else 
-        call this%fe_space%free_fe_accessor(fe)
+        call this%fe_space%free_fe_iterator(fe)
       end if
-    end subroutine base_output_handler_free_fe_accessor_wrapper
+    end subroutine base_output_handler_free_fe_iterator_wrapper
     
     function base_output_handler_get_fe_space(this) result(fe_space)
     !-----------------------------------------------------------------
@@ -528,14 +528,14 @@ contains
     !-----------------------------------------------------------------
         class(base_output_handler_t), target, intent(inout) :: this
         logical,                              intent(in)    :: update_mesh
-        class(fe_accessor_t), allocatable                   :: fe
+        class(fe_iterator_t), allocatable                   :: fe
         type(output_handler_patch_t)                        :: patch
         type(patch_subcell_iterator_t)                      :: subcell_iterator
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         assert(associated(this%fe_space))
         
-        call this%create_fe_accessor_wrapper(fe)
+        call this%create_fe_iterator_wrapper(fe)
         if(update_mesh) then
             ! Create Output Cell Handler and allocate patch fields
             call this%ohcff%create(fe, this%number_fields, this%fe_fields(1:this%number_fields))
@@ -568,6 +568,6 @@ contains
             call fe%next()
         end do
         call patch%free()
-        call this%free_fe_accessor_wrapper(fe)
+        call this%free_fe_iterator_wrapper(fe)
     end subroutine base_output_handler_fill_data
 end module base_output_handler_names

@@ -100,14 +100,14 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    class(cell_accessor_t)      , allocatable :: cell
+    class(cell_iterator_t)      , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     integer(ip)                               :: istat
 
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
-    call this%triangulation%create_cell_accessor(cell)
+    call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
     
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
@@ -116,7 +116,7 @@ contains
                                                  order = 1,                                                   &
                                                  field_type = field_type_scalar,                              &
                                                  continuity = .true. )
-    call this%triangulation%free_cell_accessor(cell)
+    call this%triangulation%free_cell_iterator(cell)
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)

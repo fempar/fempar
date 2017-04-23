@@ -320,7 +320,7 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(in) :: this
     class(vector_t), pointer :: dof_values
-    class(fe_accessor_t), allocatable :: fe
+    class(fe_iterator_t), allocatable :: fe
 
     real(rp), allocatable :: nodal_values_rt(:)
     real(rp), allocatable :: nodal_values_pre_basis(:)
@@ -341,7 +341,7 @@ contains
     number_fields = this%fe_space%get_number_fields()
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     
-    call this%fe_space%create_fe_accessor(fe)
+    call this%fe_space%create_fe_iterator(fe)
     do while ( .not. fe%has_finished())
        
        ! Get DoF numbering within current FE
@@ -362,7 +362,7 @@ contains
        
        call fe%next()
     end do
-    call this%fe_space%free_fe_accessor(fe)
+    call this%fe_space%free_fe_iterator(fe)
 
     deallocate( elem2dof, stat=istat); check(istat==0);
     call memfree ( nodal_values_rt, __FILE__, __LINE__ )

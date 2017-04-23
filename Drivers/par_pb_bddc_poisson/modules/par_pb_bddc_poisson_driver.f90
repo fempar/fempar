@@ -105,12 +105,12 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    type(vef_accessor_t)  :: vef
+    type(vef_iterator_t)  :: vef
     
     call this%triangulation%create(this%parameter_list, this%environment)
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call this%triangulation%create_vef_accessor(vef)
+       call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
@@ -119,7 +119,7 @@ contains
           end if
           call vef%next()
        end do
-       call this%triangulation%free_vef_accessor(vef)
+       call this%triangulation%free_vef_iterator(vef)
     end if
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
@@ -136,7 +136,7 @@ contains
   subroutine setup_cell_set_ids(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    class(cell_accessor_t), allocatable       :: cell
+    class(cell_iterator_t), allocatable       :: cell
     integer(ip)                               :: istat
     integer(ip), allocatable                  :: cells_set(:)
     type(point_t), allocatable :: cell_coords(:)
@@ -148,7 +148,7 @@ contains
 
     if ( this%environment%am_i_l1_task() ) then
        call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
-       call this%triangulation%create_cell_accessor(cell)
+       call this%triangulation%create_cell_iterator(cell)
        allocate (cell_coords(cell%get_num_nodes()),stat=istat)
        do while( .not. cell%has_finished() )
           if ( cell%is_local() ) then
@@ -166,7 +166,7 @@ contains
        end do
        call this%triangulation%fill_cells_set( cells_set )
        call memfree( cells_set, __FILE__, __LINE__ )
-       call this%triangulation%free_cell_accessor(cell)
+       call this%triangulation%free_cell_iterator(cell)
     end if
     
   end subroutine setup_cell_set_ids
@@ -278,14 +278,14 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    class(cell_accessor_t), allocatable       :: cell
+    class(cell_iterator_t), allocatable       :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
 
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
     if ( this%environment%am_i_l1_task() ) then
-       call this%triangulation%create_cell_accessor(cell)
+       call this%triangulation%create_cell_iterator(cell)
        reference_fe_geo => cell%get_reference_fe_geo()
        this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
             fe_type = fe_type_lagrangian, &
@@ -293,7 +293,7 @@ contains
             order = this%test_params%get_reference_fe_order(), &
             field_type = field_type_scalar, &
             continuity = .true. )
-       call this%triangulation%free_cell_accessor(cell)
+       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine setup_reference_fes
 
@@ -459,7 +459,7 @@ contains
     type(output_handler_t)                             :: oh
     type(parameterlist_t)                              :: parameter_list
     class(base_static_triangulation_t), pointer        :: triangulation
-    class(fe_accessor_t), allocatable :: fe
+    class(fe_iterator_t), allocatable :: fe
     real(rp), allocatable                              :: set_id_cell_vector(:)
     integer(ip)                                        :: i, istat
     if(this%test_params%get_write_solution()) then
@@ -484,7 +484,7 @@ contains
       triangulation => this%fe_space%get_triangulation()
       call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
       i = 1
-      call this%fe_space%create_fe_accessor(fe)  
+      call this%fe_space%create_fe_iterator(fe)  
       do while ( .not. fe%has_finished())
          if (fe%is_local()) then
             set_id_cell_vector(i) = fe%get_set_id()
@@ -492,7 +492,7 @@ contains
          end if
          call fe%next()
       enddo
-      call this%fe_space%free_fe_accessor(fe)  
+      call this%fe_space%free_fe_iterator(fe)  
     end subroutine build_set_id_cell_vector
 
     subroutine free_set_id_cell_vector()

@@ -25,35 +25,35 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine coarse_fe_vef_accessor_create ( this, coarse_fe_space )
+subroutine coarse_fe_vef_iterator_create ( this, coarse_fe_space )
   implicit none
-  class(coarse_fe_vef_accessor_t)     , intent(inout) :: this
+  class(coarse_fe_vef_iterator_t)     , intent(inout) :: this
   type(coarse_fe_space_t), target     , intent(in)    :: coarse_fe_space
   integer(ip) :: istat
   call this%free()
-  allocate(vef_accessor_t :: this%vef, stat=istat); check(istat==0)
+  allocate(vef_iterator_t :: this%vef, stat=istat); check(istat==0)
   call this%vef%create(coarse_fe_space%coarse_triangulation)
   this%coarse_fe_space => coarse_fe_space
-end subroutine coarse_fe_vef_accessor_create
+end subroutine coarse_fe_vef_iterator_create
 
-subroutine coarse_fe_vef_accessor_free ( this)
+subroutine coarse_fe_vef_iterator_free ( this)
   implicit none
-  class(coarse_fe_vef_accessor_t), intent(inout) :: this
+  class(coarse_fe_vef_iterator_t), intent(inout) :: this
   integer(ip) :: istat
   if(allocated(this%vef)) then
      call this%vef%free()
      deallocate(this%vef, stat=istat); check(istat==0)
   end if
   nullify(this%coarse_fe_space)
-end subroutine coarse_fe_vef_accessor_free
+end subroutine coarse_fe_vef_iterator_free
 
-subroutine coarse_fe_vef_accessor_get_coarse_fe_around (this, icoarse_fe_around, coarse_fe)
+subroutine coarse_fe_vef_iterator_get_coarse_fe_around (this, icoarse_fe_around, coarse_fe)
   implicit none
-  class(coarse_fe_vef_accessor_t), intent(in)    :: this
+  class(coarse_fe_vef_iterator_t), intent(in)    :: this
   integer(ip)                    , intent(in)    :: icoarse_fe_around
-  type(coarse_fe_accessor_t)     , intent(inout) :: coarse_fe
+  type(coarse_fe_iterator_t)     , intent(inout) :: coarse_fe
   assert(allocated(this%vef))
   assert(allocated(coarse_fe%cell))
   call this%vef%get_cell_around(icoarse_fe_around,coarse_fe%cell)
-end subroutine coarse_fe_vef_accessor_get_coarse_fe_around
+end subroutine coarse_fe_vef_iterator_get_coarse_fe_around
 

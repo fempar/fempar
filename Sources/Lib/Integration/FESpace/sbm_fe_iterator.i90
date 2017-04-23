@@ -26,37 +26,37 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine fe_accessor_create ( this, fe_space )
+subroutine fe_iterator_create ( this, fe_space )
   implicit none
-  class(fe_accessor_t)            , intent(inout) :: this
+  class(fe_iterator_t)            , intent(inout) :: this
   class(serial_fe_space_t), target, intent(in)    :: fe_space
   call this%free()
   this%fe_space => fe_space
-  call this%fe_space%triangulation%create_cell_accessor(this%cell)
-end subroutine fe_accessor_create
+  call this%fe_space%triangulation%create_cell_iterator(this%cell)
+end subroutine fe_iterator_create
 
-subroutine fe_accessor_free (this)
+subroutine fe_iterator_free (this)
   implicit none
-  class(fe_accessor_t), intent(inout) :: this
+  class(fe_iterator_t), intent(inout) :: this
   if ( associated(this%fe_space) ) then
     if ( associated(this%fe_space%triangulation) ) then
-      call this%fe_space%triangulation%free_cell_accessor(this%cell)
+      call this%fe_space%triangulation%free_cell_iterator(this%cell)
     end if
   end if
   nullify(this%fe_space)
-end subroutine fe_accessor_free
+end subroutine fe_iterator_free
 
-subroutine fe_accessor_free_final(this)
+subroutine fe_iterator_free_final(this)
   implicit none
-  type(fe_accessor_t), intent(inout) :: this
+  type(fe_iterator_t), intent(inout) :: this
   assert ( .not. allocated(this%cell) )
   assert ( .not. associated(this%fe_space))
-end subroutine fe_accessor_free_final
+end subroutine fe_iterator_free_final
 
-subroutine fe_accessor_fill_own_dofs ( this, field_id, current_dof )
+subroutine fe_iterator_fill_own_dofs ( this, field_id, current_dof )
   implicit none
   ! Parameters
-  class(fe_accessor_t), intent(inout)   :: this
+  class(fe_iterator_t), intent(inout)   :: this
   integer(ip)         , intent(in)      :: field_id
   integer(ip)         , intent(inout)   :: current_dof
 
@@ -83,11 +83,11 @@ subroutine fe_accessor_fill_own_dofs ( this, field_id, current_dof )
     this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) = current_dof
     call own_dofs_on_vef_iterator%next()
   end do
-end subroutine fe_accessor_fill_own_dofs
+end subroutine fe_iterator_fill_own_dofs
 
-subroutine fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof )
+subroutine fe_iterator_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof )
   implicit none
-  class(fe_accessor_t) , intent(inout) :: this
+  class(fe_iterator_t) , intent(inout) :: this
   integer(ip)          , intent(in)    :: ivef
   integer(ip)          , intent(in)    :: field_id
   integer(ip)          , intent(inout) :: current_dof
@@ -116,11 +116,11 @@ subroutine fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof 
     end if  
     call own_dofs_on_vef_iterator%next()
   end do
-end subroutine fe_accessor_fill_own_dofs_on_vef
+end subroutine fe_iterator_fill_own_dofs_on_vef
 
-subroutine fe_accessor_fill_own_strong_dirichlet_dofs_on_vef ( this, ivef, field_id, current_dof )
+subroutine fe_iterator_fill_own_strong_dirichlet_dofs_on_vef ( this, ivef, field_id, current_dof )
   implicit none
-  class(fe_accessor_t) , intent(inout) :: this
+  class(fe_iterator_t) , intent(inout) :: this
   integer(ip)          , intent(in)    :: ivef
   integer(ip)          , intent(in)    :: field_id
   integer(ip)          , intent(inout) :: current_dof
@@ -137,14 +137,14 @@ subroutine fe_accessor_fill_own_strong_dirichlet_dofs_on_vef ( this, ivef, field
   if (current_dof_ /= current_dof) then
     call this%set_at_strong_dirichlet_boundary(field_id)
   end if
-end subroutine fe_accessor_fill_own_strong_dirichlet_dofs_on_vef
+end subroutine fe_iterator_fill_own_strong_dirichlet_dofs_on_vef
 
 
-subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, source_fe, source_ivef, field_id )
+subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, source_fe, source_ivef, field_id )
   implicit none
-  class(fe_accessor_t) , intent(inout) :: this
+  class(fe_iterator_t) , intent(inout) :: this
   integer(ip)          , intent(in)    :: target_ivef
-  class(fe_accessor_t) , intent(in)    :: source_fe
+  class(fe_iterator_t) , intent(in)    :: source_fe
   integer(ip)          , intent(in)    :: source_ivef
   integer(ip)          , intent(in)    :: field_id
 
@@ -205,12 +205,12 @@ subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
      end do
   end if
   if (strong_dirichlet_dof_found) call this%set_at_strong_dirichlet_boundary(field_id)
-end subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe
+end subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe
 
-subroutine fe_accessor_fill_dofs_face_integration_coupling ( this, ivef, field_id, dof_count )
+subroutine fe_iterator_fill_dofs_face_integration_coupling ( this, ivef, field_id, dof_count )
   implicit none
   ! Parameters
-  class(fe_accessor_t), intent(inout)   :: this
+  class(fe_iterator_t), intent(inout)   :: this
   integer(ip)         , intent(in)      :: ivef
   integer(ip)         , intent(in)      :: field_id
   integer(ip)         , intent(inout)   :: dof_count
@@ -231,20 +231,20 @@ subroutine fe_accessor_fill_dofs_face_integration_coupling ( this, ivef, field_i
     this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+idof) = dof_count
     call face_integration_coupling_dofs%next()
   end do
-end subroutine fe_accessor_fill_dofs_face_integration_coupling
+end subroutine fe_iterator_fill_dofs_face_integration_coupling
 
 
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
-subroutine fe_accessor_renumber_dofs_block ( this, block_id, perm_old2new )
+subroutine fe_iterator_renumber_dofs_block ( this, block_id, perm_old2new )
   implicit none
   ! Parameters
-  class(fe_accessor_t)      , intent(inout) :: this
+  class(fe_iterator_t)      , intent(inout) :: this
   integer(ip)               , intent(in)    :: block_id
   ! No way to know the size of perm_old2new() within the local scope
-  ! of class(fe_accessor_t). This is why I used an assumed-size dummy
+  ! of class(fe_iterator_t). This is why I used an assumed-size dummy
   ! argument in this context. This will be solved in the future whenever
-  ! class(fe_accessor_t) also has access to the whole mesh-like container.
+  ! class(fe_iterator_t) also has access to the whole mesh-like container.
   integer(ip)               , intent(in)    :: perm_old2new(*)
   integer(ip)                            :: field_id
   assert ( block_id >= 1 .and. block_id <= this%fe_space%get_number_blocks() )
@@ -253,18 +253,18 @@ subroutine fe_accessor_renumber_dofs_block ( this, block_id, perm_old2new )
       call this%renumber_dofs_field( field_id, perm_old2new )
     end if
   end do 
-end subroutine fe_accessor_renumber_dofs_block
+end subroutine fe_iterator_renumber_dofs_block
 
 ! Renumbers the DoF identifiers corresponding to field with identifier field_id
-subroutine fe_accessor_renumber_dofs_field ( this, field_id, perm_old2new )
+subroutine fe_iterator_renumber_dofs_field ( this, field_id, perm_old2new )
   implicit none
   ! Parameters
-  class(fe_accessor_t), intent(inout) :: this
+  class(fe_iterator_t), intent(inout) :: this
   integer(ip)         , intent(in) :: field_id
   ! No way to know the size of perm_old2new() within the local scope
-  ! of class(fe_accessor_t). This is why I used an assumed-size dummy
+  ! of class(fe_iterator_t). This is why I used an assumed-size dummy
   ! argument in this context. This will be solved in the future whenever
-  ! class(fe_accessor_t) also has access to the whole mesh-like container.
+  ! class(fe_iterator_t) also has access to the whole mesh-like container.
   integer(ip)         , intent(in) :: perm_old2new(*)
   integer(ip) :: i, start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
   
@@ -282,11 +282,11 @@ subroutine fe_accessor_renumber_dofs_field ( this, field_id, perm_old2new )
       this%fe_space%lst_dofs_lids(i) = perm_old2new(this%fe_space%lst_dofs_lids(i))
     end if
   end do
-end subroutine fe_accessor_renumber_dofs_field
+end subroutine fe_iterator_renumber_dofs_field
 
-subroutine fe_accessor_update_integration( this )
+subroutine fe_iterator_update_integration( this )
   implicit none
-  class(fe_accessor_t), intent(inout) :: this 
+  class(fe_iterator_t), intent(inout) :: this 
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
   type(fe_map_t)           , pointer :: fe_map
@@ -304,67 +304,67 @@ subroutine fe_accessor_update_integration( this )
      call volume_integrator%update(fe_map)
   end do
   
-end subroutine fe_accessor_update_integration
+end subroutine fe_iterator_update_integration
 
-function fe_accessor_get_fe_space(this)
+function fe_iterator_get_fe_space(this)
   implicit none
-  class(fe_accessor_t), target, intent(in) :: this
-  class(serial_fe_space_t), pointer :: fe_accessor_get_fe_space
-  fe_accessor_get_fe_space => this%fe_space
-end function fe_accessor_get_fe_space
+  class(fe_iterator_t), target, intent(in) :: this
+  class(serial_fe_space_t), pointer :: fe_iterator_get_fe_space
+  fe_iterator_get_fe_space => this%fe_space
+end function fe_iterator_get_fe_space
 
-function fe_accessor_get_number_fields(this)
+function fe_iterator_get_number_fields(this)
   implicit none
-  class(fe_accessor_t), intent(in) :: this
-  integer(ip) :: fe_accessor_get_number_fields
-  fe_accessor_get_number_fields = this%fe_space%number_fields
-end function fe_accessor_get_number_fields
+  class(fe_iterator_t), intent(in) :: this
+  integer(ip) :: fe_iterator_get_number_fields
+  fe_iterator_get_number_fields = this%fe_space%number_fields
+end function fe_iterator_get_number_fields
 
-function fe_accessor_get_fe_space_type(this, field_id)
+function fe_iterator_get_fe_space_type(this, field_id)
   implicit none
-  class(fe_accessor_t), intent(in) :: this
+  class(fe_iterator_t), intent(in) :: this
   integer(ip)         , intent(in) :: field_id
-  integer(ip)                      :: fe_accessor_get_fe_space_type
+  integer(ip)                      :: fe_iterator_get_fe_space_type
   class(reference_fe_t), pointer   :: reference_fe
   reference_fe => this%get_reference_fe(field_id)
   if ( reference_fe%get_continuity() ) then
-    fe_accessor_get_fe_space_type = fe_space_type_cg
+    fe_iterator_get_fe_space_type = fe_space_type_cg
   else if ( reference_fe%get_conformity() ) then
-    fe_accessor_get_fe_space_type = fe_space_type_dg_conforming
+    fe_iterator_get_fe_space_type = fe_space_type_dg_conforming
   else
-    fe_accessor_get_fe_space_type = fe_space_type_dg
+    fe_iterator_get_fe_space_type = fe_space_type_dg
   end if
-end function fe_accessor_get_fe_space_type
+end function fe_iterator_get_fe_space_type
 
-function fe_accessor_get_field_type(this, field_id)
+function fe_iterator_get_field_type(this, field_id)
   implicit none
-  class(fe_accessor_t), intent(in) :: this
+  class(fe_iterator_t), intent(in) :: this
   integer(ip)         , intent(in) :: field_id
-  character(:), pointer :: fe_accessor_get_field_type
+  character(:), pointer :: fe_iterator_get_field_type
   class(reference_fe_t), pointer :: reference_fe
   reference_fe => this%get_reference_fe(field_id)
-  fe_accessor_get_field_type => reference_fe%get_field_type()
-end function fe_accessor_get_field_type
+  fe_iterator_get_field_type => reference_fe%get_field_type()
+end function fe_iterator_get_field_type
 
-function fe_accessor_get_field_blocks(this)
+function fe_iterator_get_field_blocks(this)
   implicit none
-  class(fe_accessor_t), intent(in) :: this
-  integer(ip), pointer             :: fe_accessor_get_field_blocks(:)
-  fe_accessor_get_field_blocks => this%fe_space%field_blocks
-end function fe_accessor_get_field_blocks
+  class(fe_iterator_t), intent(in) :: this
+  integer(ip), pointer             :: fe_iterator_get_field_blocks(:)
+  fe_iterator_get_field_blocks => this%fe_space%field_blocks
+end function fe_iterator_get_field_blocks
 
 
-function fe_accessor_get_number_dofs(this)
+function fe_iterator_get_number_dofs(this)
   implicit none
-  class(fe_accessor_t), intent(in) :: this
-  integer(ip) :: fe_accessor_get_number_dofs
-  fe_accessor_get_number_dofs = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
+  class(fe_iterator_t), intent(in) :: this
+  integer(ip) :: fe_iterator_get_number_dofs
+  fe_iterator_get_number_dofs = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
                                 this%fe_space%ptr_dofs_per_fe(1, this%get_lid())
-end function fe_accessor_get_number_dofs
+end function fe_iterator_get_number_dofs
 
-subroutine fe_accessor_get_number_dofs_per_field (this, number_dofs_per_field )
+subroutine fe_iterator_get_number_dofs_per_field (this, number_dofs_per_field )
   implicit none
-  class(fe_accessor_t), intent(in)    :: this
+  class(fe_iterator_t), intent(in)    :: this
   integer(ip)         , intent(inout) :: number_dofs_per_field(this%fe_space%number_fields)
   
   integer(ip) :: field_id
@@ -374,11 +374,11 @@ subroutine fe_accessor_get_number_dofs_per_field (this, number_dofs_per_field )
   end do
   number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
                                     this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
-end subroutine fe_accessor_get_number_dofs_per_field
+end subroutine fe_iterator_get_number_dofs_per_field
 
-subroutine fe_accessor_get_field_elem2dof( this, field_id, elem2dof )
+subroutine fe_iterator_get_field_elem2dof( this, field_id, elem2dof )
   implicit none
-  class(fe_accessor_t), intent(in)    :: this
+  class(fe_iterator_t), intent(in)    :: this
   integer(ip)         , intent(in)    :: field_id
   integer(ip), pointer, intent(inout) :: elem2dof(:)
   integer(ip) :: spos, epos
@@ -390,11 +390,11 @@ subroutine fe_accessor_get_field_elem2dof( this, field_id, elem2dof )
      epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
   end if
   elem2dof => this%fe_space%lst_dofs_lids(spos:epos)
-end subroutine fe_accessor_get_field_elem2dof
+end subroutine fe_iterator_get_field_elem2dof
 
-subroutine fe_accessor_get_elem2dof( this, elem2dof )
+subroutine fe_iterator_get_elem2dof( this, elem2dof )
   implicit none
-  class(fe_accessor_t), intent(in)    :: this
+  class(fe_iterator_t), intent(in)    :: this
   type(i1p_t)         , intent(inout) :: elem2dof(:)
   integer(ip) :: field_id, j, spos, epos
   
@@ -407,68 +407,68 @@ subroutine fe_accessor_get_elem2dof( this, elem2dof )
   spos = this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
   epos = this%fe_space%ptr_dofs_per_fe(1         , this%get_lid()+1)-1
   elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
-end subroutine fe_accessor_get_elem2dof
+end subroutine fe_iterator_get_elem2dof
 
-function fe_accessor_get_order( this, field_id )
+function fe_iterator_get_order( this, field_id )
   implicit none
-  class(fe_accessor_t), intent(in) :: this
+  class(fe_iterator_t), intent(in) :: this
   integer(ip)         , intent(in) :: field_id
-  integer(ip) :: fe_accessor_get_order
+  integer(ip) :: fe_iterator_get_order
   class(reference_fe_t), pointer :: reference_fe
   reference_fe => this%get_reference_fe(field_id)
-  fe_accessor_get_order = reference_fe%get_order()
-end function fe_accessor_get_order
+  fe_iterator_get_order = reference_fe%get_order()
+end function fe_iterator_get_order
 
-function fe_accessor_get_max_order_single_field( this, field_id )
+function fe_iterator_get_max_order_single_field( this, field_id )
   implicit none
-  class(fe_accessor_t), intent(in) :: this
+  class(fe_iterator_t), intent(in) :: this
   integer(ip)         , intent(in) :: field_id
-  integer(ip) :: fe_accessor_get_max_order_single_field
+  integer(ip) :: fe_iterator_get_max_order_single_field
   class(reference_fe_t), pointer :: reference_fe
   reference_fe => this%get_reference_fe(field_id)
-  fe_accessor_get_max_order_single_field = reference_fe%get_max_order()
-end function fe_accessor_get_max_order_single_field
+  fe_iterator_get_max_order_single_field = reference_fe%get_max_order()
+end function fe_iterator_get_max_order_single_field
 
-function fe_accessor_get_max_order_all_fields( this )
+function fe_iterator_get_max_order_all_fields( this )
   implicit none
-  class(fe_accessor_t), intent(in) :: this
-  integer(ip) :: fe_accessor_get_max_order_all_fields
+  class(fe_iterator_t), intent(in) :: this
+  integer(ip) :: fe_iterator_get_max_order_all_fields
   integer(ip) :: field_id
-  fe_accessor_get_max_order_all_fields = -1
+  fe_iterator_get_max_order_all_fields = -1
   do field_id=1, this%get_number_fields()
-   if ( fe_accessor_get_max_order_all_fields < this%get_max_order_single_field(field_id) ) then
-        fe_accessor_get_max_order_all_fields = this%get_max_order_single_field(field_id)
+   if ( fe_iterator_get_max_order_all_fields < this%get_max_order_single_field(field_id) ) then
+        fe_iterator_get_max_order_all_fields = this%get_max_order_single_field(field_id)
    end if
   end do
-end function fe_accessor_get_max_order_all_fields
+end function fe_iterator_get_max_order_all_fields
 
-function fe_accessor_at_strong_dirichlet_boundary ( this, field_id )
+function fe_iterator_at_strong_dirichlet_boundary ( this, field_id )
   implicit none
-  class(fe_accessor_t)   , intent(in) :: this
+  class(fe_iterator_t)   , intent(in) :: this
   integer(ip)            , intent(in) :: field_id
-  logical                             :: fe_accessor_at_strong_dirichlet_boundary
-  fe_accessor_at_strong_dirichlet_boundary = this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid())
-end function fe_accessor_at_strong_dirichlet_boundary
+  logical                             :: fe_iterator_at_strong_dirichlet_boundary
+  fe_iterator_at_strong_dirichlet_boundary = this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid())
+end function fe_iterator_at_strong_dirichlet_boundary
 
-subroutine fe_accessor_set_at_strong_dirichlet_boundary ( this, field_id )
+subroutine fe_iterator_set_at_strong_dirichlet_boundary ( this, field_id )
   implicit none
-  class(fe_accessor_t)   , intent(inout) :: this
+  class(fe_iterator_t)   , intent(inout) :: this
   integer(ip)            , intent(in)    :: field_id
   this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid()) = .true.
-end subroutine fe_accessor_set_at_strong_dirichlet_boundary
+end subroutine fe_iterator_set_at_strong_dirichlet_boundary
 
-subroutine fe_accessor_unset_at_strong_dirichlet_boundary ( this, field_id )
+subroutine fe_iterator_unset_at_strong_dirichlet_boundary ( this, field_id )
   implicit none
-  class(fe_accessor_t)   , intent(inout) :: this
+  class(fe_iterator_t)   , intent(inout) :: this
   integer(ip)            , intent(in)    :: field_id
   this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid()) = .false.
-end subroutine fe_accessor_unset_at_strong_dirichlet_boundary
+end subroutine fe_iterator_unset_at_strong_dirichlet_boundary
 
 
-function fe_accessor_compute_volume ( this )
+function fe_iterator_compute_volume ( this )
   implicit none
-  class(fe_accessor_t), intent(in) :: this
-  real(rp) :: fe_accessor_compute_volume
+  class(fe_iterator_t), intent(in) :: this
+  real(rp) :: fe_iterator_compute_volume
   integer(ip)                 :: q_poin, number_quadrature_points
   
   type(quadrature_t), pointer :: quadrature
@@ -478,46 +478,46 @@ function fe_accessor_compute_volume ( this )
   fe_map     => this%get_fe_map()
   
   number_quadrature_points = quadrature%get_number_quadrature_points()
-  fe_accessor_compute_volume = 0.0_rp
+  fe_iterator_compute_volume = 0.0_rp
   do q_poin = 1, number_quadrature_points
-     fe_accessor_compute_volume = fe_accessor_compute_volume + &
+     fe_iterator_compute_volume = fe_iterator_compute_volume + &
           &                          fe_map%get_det_jacobian(q_poin) * &
           &                          quadrature%get_weight(q_poin)
   end do
-end function fe_accessor_compute_volume
+end function fe_iterator_compute_volume
 
 
-function fe_accessor_get_quadrature ( this )
+function fe_iterator_get_quadrature ( this )
   implicit none
-  class(fe_accessor_t), intent(in) :: this
-  type(quadrature_t), pointer      :: fe_accessor_get_quadrature
+  class(fe_iterator_t), intent(in) :: this
+  type(quadrature_t), pointer      :: fe_iterator_get_quadrature
   integer(ip) :: fe_quadratures_position
   integer(ip) :: istat
   call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid()), &
                                                           val=fe_quadratures_position, &
                                                           stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_accessor_get_quadrature => this%fe_space%fe_quadratures(fe_quadratures_position)
-end function fe_accessor_get_quadrature
+  fe_iterator_get_quadrature => this%fe_space%fe_quadratures(fe_quadratures_position)
+end function fe_iterator_get_quadrature
 
-function fe_accessor_get_fe_map ( this )
+function fe_iterator_get_fe_map ( this )
   implicit none
-  class(fe_accessor_t), intent(in) :: this
-  type(fe_map_t), pointer :: fe_accessor_get_fe_map
+  class(fe_iterator_t), intent(in) :: this
+  type(fe_map_t), pointer :: fe_iterator_get_fe_map
   integer(ip) :: fe_maps_position
   integer(ip) :: istat
   call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid()), &
                                                           val=fe_maps_position, &
                                                           stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_accessor_get_fe_map => this%fe_space%fe_maps(fe_maps_position)
-end function fe_accessor_get_fe_map
+  fe_iterator_get_fe_map => this%fe_space%fe_maps(fe_maps_position)
+end function fe_iterator_get_fe_map
 
-function fe_accessor_get_volume_integrator ( this, field_id )
+function fe_iterator_get_volume_integrator ( this, field_id )
   implicit none
-  class(fe_accessor_t), intent(in)   :: this
+  class(fe_iterator_t), intent(in)   :: this
   integer(ip)         , intent(in)   :: field_id
-  type(volume_integrator_t), pointer :: fe_accessor_get_volume_integrator
+  type(volume_integrator_t), pointer :: fe_iterator_get_volume_integrator
   integer(ip) :: fe_volume_integrators_position_key
   integer(ip) :: fe_volume_integrators_position
   integer(ip) :: istat
@@ -530,29 +530,29 @@ function fe_accessor_get_volume_integrator ( this, field_id )
                                                         val=fe_volume_integrators_position, &
                                                         stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_accessor_get_volume_integrator => this%fe_space%fe_volume_integrators(fe_volume_integrators_position)
-end function fe_accessor_get_volume_integrator
+  fe_iterator_get_volume_integrator => this%fe_space%fe_volume_integrators(fe_volume_integrators_position)
+end function fe_iterator_get_volume_integrator
 
-subroutine fe_accessor_get_fe_vef(this, ivef, fe_vef)
+subroutine fe_iterator_get_fe_vef(this, ivef, fe_vef)
   implicit none
-  class(fe_accessor_t)   , intent(in)    :: this
+  class(fe_iterator_t)   , intent(in)    :: this
   integer(ip)            , intent(in)    :: ivef
-  type(fe_vef_accessor_t), intent(inout) :: fe_vef
+  type(fe_vef_iterator_t), intent(inout) :: fe_vef
   call fe_vef%set_lid(this%cell%get_vef_lid(ivef))
-end subroutine fe_accessor_get_fe_vef
+end subroutine fe_iterator_get_fe_vef
 
-function fe_accessor_get_reference_fe(this, field_id)
+function fe_iterator_get_reference_fe(this, field_id)
   implicit none
-  class(fe_accessor_t), target   , intent(in)    :: this
+  class(fe_iterator_t), target   , intent(in)    :: this
   integer(ip)                    , intent(in)    :: field_id
-  class(reference_fe_t), pointer :: fe_accessor_get_reference_fe
-  fe_accessor_get_reference_fe => this%fe_space%reference_fes(this%fe_space%reference_fe_id_per_fe(field_id,this%get_lid()))%p
-end function fe_accessor_get_reference_fe
+  class(reference_fe_t), pointer :: fe_iterator_get_reference_fe
+  fe_iterator_get_reference_fe => this%fe_space%reference_fes(this%fe_space%reference_fe_id_per_fe(field_id,this%get_lid()))%p
+end function fe_iterator_get_reference_fe
 
-function fe_accessor_get_max_order_reference_fe(this)
+function fe_iterator_get_max_order_reference_fe(this)
   implicit none
-  class(fe_accessor_t),  intent(in)      :: this
-  class(reference_fe_t), pointer         :: fe_accessor_get_max_order_reference_fe
+  class(fe_iterator_t),  intent(in)      :: this
+  class(reference_fe_t), pointer         :: fe_iterator_get_max_order_reference_fe
   class(reference_fe_t), pointer         :: reference_fe
   integer(ip)                            :: max_order
   integer(ip)                            :: field_id
@@ -561,40 +561,40 @@ function fe_accessor_get_max_order_reference_fe(this)
     reference_fe => this%get_reference_fe(field_id)
     if ( reference_fe%get_max_order() > max_order ) then
       max_order = reference_fe%get_max_order()
-      fe_accessor_get_max_order_reference_fe => reference_fe
+      fe_iterator_get_max_order_reference_fe => reference_fe
     end if
   end do
-end function fe_accessor_get_max_order_reference_fe
+end function fe_iterator_get_max_order_reference_fe
 
-function fe_accessor_get_max_order_reference_fe_id(this)
+function fe_iterator_get_max_order_reference_fe_id(this)
   implicit none
-  class(fe_accessor_t),  intent(in)      :: this
-  integer(ip)                            :: fe_accessor_get_max_order_reference_fe_id
+  class(fe_iterator_t),  intent(in)      :: this
+  integer(ip)                            :: fe_iterator_get_max_order_reference_fe_id
   class(reference_fe_t), pointer         :: reference_fe
   integer(ip)                            :: max_order
   integer(ip)                            :: field_id
   max_order = -1
-  fe_accessor_get_max_order_reference_fe_id = -1
+  fe_iterator_get_max_order_reference_fe_id = -1
   do field_id=1, this%get_number_fields()
     reference_fe => this%get_reference_fe(field_id)
     if ( reference_fe%get_max_order() > max_order ) then
       max_order = reference_fe%get_max_order()
-      fe_accessor_get_max_order_reference_fe_id = this%get_reference_fe_id(field_id)
+      fe_iterator_get_max_order_reference_fe_id = this%get_reference_fe_id(field_id)
     end if
   end do
-end function fe_accessor_get_max_order_reference_fe_id
+end function fe_iterator_get_max_order_reference_fe_id
 
-function fe_accessor_get_reference_fe_id(this, field_id)
+function fe_iterator_get_reference_fe_id(this, field_id)
   implicit none
-  class(fe_accessor_t), target   , intent(in)    :: this
+  class(fe_iterator_t), target   , intent(in)    :: this
   integer(ip)                    , intent(in)    :: field_id
-  integer(ip) :: fe_accessor_get_reference_fe_id
-  fe_accessor_get_reference_fe_id = this%fe_space%reference_fe_id_per_fe(field_id,this%get_lid())
-end function fe_accessor_get_reference_fe_id
+  integer(ip) :: fe_iterator_get_reference_fe_id
+  fe_iterator_get_reference_fe_id = this%fe_space%reference_fe_id_per_fe(field_id,this%get_lid())
+end function fe_iterator_get_reference_fe_id
 
-function fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) result(list_iterator)
+function fe_iterator_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) result(list_iterator)
   implicit none
-  class(fe_accessor_t), intent(in) :: this
+  class(fe_iterator_t), intent(in) :: this
   integer(ip)                , intent(in) :: ivef
   integer(ip)                , intent(in) :: field_id
   type(list_iterator_t)                   :: list_iterator
@@ -602,11 +602,11 @@ function fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) re
   
   reference_fe => this%get_reference_fe(field_id)
   list_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-end function fe_accessor_create_own_dofs_on_vef_iterator
+end function fe_iterator_create_own_dofs_on_vef_iterator
 
-subroutine fe_accessor_impose_strong_dirichlet_bcs ( this, elmat, elvec )
+subroutine fe_iterator_impose_strong_dirichlet_bcs ( this, elmat, elvec )
  implicit none
- class(fe_accessor_t), intent(in)    :: this
+ class(fe_iterator_t), intent(in)    :: this
  real(rp)            , intent(in)    :: elmat(:,:)
  real(rp)            , intent(inout) :: elvec(:)  
  integer(ip)                         :: idof, elmat_col, field_id, spos
@@ -627,4 +627,4 @@ subroutine fe_accessor_impose_strong_dirichlet_bcs ( this, elmat, elvec )
    end do
  end do
  
-end subroutine fe_accessor_impose_strong_dirichlet_bcs
+end subroutine fe_iterator_impose_strong_dirichlet_bcs

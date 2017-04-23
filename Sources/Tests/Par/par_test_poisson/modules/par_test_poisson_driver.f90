@@ -103,13 +103,13 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    type(vef_accessor_t)  :: vef
+    type(vef_iterator_t)  :: vef
 
     call this%triangulation%create(this%parameter_list)
     this%par_environment => this%triangulation%get_par_environment()
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call this%triangulation%create_vef_accessor(vef)
+       call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
@@ -118,7 +118,7 @@ contains
           end if
           call vef%next()
        end do
-       call this%triangulation%free_vef_accessor(vef)
+       call this%triangulation%free_vef_iterator(vef)
     end if  
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
@@ -127,14 +127,14 @@ contains
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    class(cell_accessor_t), allocatable       :: cell
+    class(cell_iterator_t), allocatable       :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
-      call this%triangulation%create_cell_accessor(cell)
+      call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe_geo()
       this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
@@ -142,7 +142,7 @@ contains
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
-      call this%triangulation%free_cell_accessor(cell)
+      call this%triangulation%free_cell_iterator(cell)
     end if  
   end subroutine setup_reference_fes
 
