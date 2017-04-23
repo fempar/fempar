@@ -45,14 +45,14 @@ end subroutine object_accessor_free
 subroutine object_accessor_update_vefs_object_iterator(this)
   implicit none
   class(object_accessor_t), intent(inout) :: this
-  if ( .not. this%past_the_end() ) &
+  if ( .not. this%has_finished() ) &
     this%vefs_object_iterator = this%base_static_triangulation%vefs_object%create_iterator(this%get_lid()) 
 end subroutine object_accessor_update_vefs_object_iterator
 
 subroutine object_accessor_update_faces_object_iterator(this)
   implicit none
   class(object_accessor_t), intent(inout) :: this
-  if ( .not. this%past_the_end() ) &
+  if ( .not. this%has_finished() ) &
     this%faces_object_iterator = this%base_static_triangulation%faces_object%create_iterator(this%get_lid()) 
 end subroutine object_accessor_update_faces_object_iterator
 
@@ -81,12 +81,12 @@ subroutine object_accessor_set_lid(this, lid)
   call this%update_faces_object_iterator()
 end subroutine object_accessor_set_lid
 
-function object_accessor_past_the_end(this)
+function object_accessor_has_finished(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
-  logical :: object_accessor_past_the_end
-  object_accessor_past_the_end = (this%lid > this%base_static_triangulation%number_objects)
-end function object_accessor_past_the_end
+  logical :: object_accessor_has_finished
+  object_accessor_has_finished = (this%lid > this%base_static_triangulation%number_objects)
+end function object_accessor_has_finished
 
 function object_accessor_get_lid (this)
   implicit none
@@ -99,7 +99,7 @@ function object_accessor_get_gid (this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   integer(igp) :: object_accessor_get_gid
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   object_accessor_get_gid = this%base_static_triangulation%objects_gids(this%lid)
 end function object_accessor_get_gid
 
@@ -107,7 +107,7 @@ function object_accessor_get_dimension (this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   integer(igp) :: object_accessor_get_dimension
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   object_accessor_get_dimension = this%base_static_triangulation%objects_dimension(this%lid)
 end function object_accessor_get_dimension
 
@@ -115,7 +115,7 @@ function object_accessor_get_number_parts_around(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   integer(ip) :: object_accessor_get_number_parts_around
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   object_accessor_get_number_parts_around = this%base_static_triangulation%parts_object%get_sublist_size(this%lid)
 end function object_accessor_get_number_parts_around
 
@@ -123,7 +123,7 @@ function object_accessor_get_number_subparts_around(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   integer(ip) :: object_accessor_get_number_subparts_around
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   object_accessor_get_number_subparts_around = this%base_static_triangulation%subparts_object%get_sublist_size(this%lid)
 end function object_accessor_get_number_subparts_around
 
@@ -131,7 +131,7 @@ function object_accessor_create_parts_around_iterator(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   type(list_iterator_t) :: object_accessor_create_parts_around_iterator
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   object_accessor_create_parts_around_iterator = this%base_static_triangulation%parts_object%create_iterator(this%lid)
 end function object_accessor_create_parts_around_iterator
 
@@ -139,7 +139,7 @@ function object_accessor_create_subparts_around_iterator(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   type(list_iterator_t) :: object_accessor_create_subparts_around_iterator
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   object_accessor_create_subparts_around_iterator = this%base_static_triangulation%subparts_object%create_iterator(this%lid)
 end function object_accessor_create_subparts_around_iterator
 
@@ -147,7 +147,7 @@ function object_accessor_get_num_vefs(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   integer(ip) :: object_accessor_get_num_vefs
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   object_accessor_get_num_vefs = this%base_static_triangulation%vefs_object%get_sublist_size(this%lid)
 end function object_accessor_get_num_vefs
 
@@ -156,7 +156,7 @@ subroutine object_accessor_get_vef(this, ivef, vef)
   class(object_accessor_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: ivef
   type(vef_accessor_t)    , intent(inout) :: vef
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   assert ( ivef >= 1 .and. ivef <= this%get_num_vefs() )
   call vef%set_lid(this%vefs_object_iterator%get_from_current(ivef-1))
 end subroutine object_accessor_get_vef
@@ -165,7 +165,7 @@ function object_accessor_get_num_faces(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   integer(ip) :: object_accessor_get_num_faces
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   object_accessor_get_num_faces = this%base_static_triangulation%faces_object%get_sublist_size(this%lid)
 end function object_accessor_get_num_faces
 
@@ -174,7 +174,7 @@ subroutine object_accessor_get_face(this, iface, face)
   class(object_accessor_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: iface
   type(face_accessor_t)   , intent(inout) :: face
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   assert ( iface >= 1 .and. iface <= this%get_num_faces() )
   call face%set_lid(this%faces_object_iterator%get_from_current(iface-1))
 end subroutine object_accessor_get_face

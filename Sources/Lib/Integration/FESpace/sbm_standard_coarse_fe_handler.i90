@@ -66,7 +66,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
   call par_fe_space%create_fe_object_accessor(object)
   call par_fe_space%create_fe_accessor(fe)
   call par_fe_space%create_fe_vef_accessor(vef)
-  do while ( .not. object%past_the_end() )
+  do while ( .not. object%has_finished() )
      select case ( object%get_dimension() )
      case (0)
        if (.not. use_vertices) then
@@ -155,7 +155,7 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
   call par_fe_space%create_fe_object_accessor(object)
   call par_fe_space%create_fe_accessor(fe)
   call par_fe_space%create_fe_vef_accessor(vef)
-  do while ( .not. object%past_the_end() )
+  do while ( .not. object%has_finished() )
      
      if ( object%get_number_coarse_dofs(field_id) > 0 ) then
        
@@ -237,7 +237,7 @@ subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_li
   call par_fe_space%create_fe_accessor(fe)
   call par_fe_space%create_fe_object_accessor(object)
   call par_fe_space%create_fe_vef_accessor(vef)
-  do while ( .not. object%past_the_end() )
+  do while ( .not. object%has_finished() )
      ! Count how many fine DoFs current coarse DoF aggregates
      do ivef_within_object=1, object%get_num_vefs()
         call object%get_vef(ivef_within_object,vef)

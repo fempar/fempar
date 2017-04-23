@@ -68,7 +68,6 @@ module output_handler_cell_fe_function_names
 
     use output_handler_fe_field_names
     use output_handler_patch_names
-    use output_handler_fe_iterator_names
     use output_handler_parameters_names
   
 implicit none
@@ -220,7 +219,7 @@ contains
             
             nullify(previous_reference_fe_geo)
             call fe%first()
-            do while ( .not. fe%past_the_end() ) 
+            do while ( .not. fe%has_finished() ) 
                 reference_fe_geo => fe%get_reference_fe_geo()
                 max_order_within_fe = fe%get_max_order_all_fields()
                 call this%quadratures_and_maps_position%put(key = max_order_within_fe, &

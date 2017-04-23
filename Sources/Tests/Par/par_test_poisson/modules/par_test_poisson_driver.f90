@@ -110,7 +110,7 @@ contains
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_accessor(vef)
-       do while ( .not. vef%past_the_end() )
+       do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else

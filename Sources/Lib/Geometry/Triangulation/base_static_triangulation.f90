@@ -107,7 +107,7 @@ module base_static_triangulation_names
     procedure, non_overridable, private  :: set_mypart              => cell_accessor_set_mypart
     procedure, non_overridable, private  :: get_triangulation       => cell_accessor_get_triangulation
     procedure, non_overridable, private  :: cell_accessor_get_vef
-    procedure, non_overridable           :: past_the_end            => cell_accessor_past_the_end
+    procedure, non_overridable           :: has_finished            => cell_accessor_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => cell_accessor_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => cell_accessor_get_reference_fe_geo_id
     procedure, non_overridable           :: get_coordinates         => cell_accessor_get_coordinates
@@ -148,7 +148,7 @@ module base_static_triangulation_names
      procedure                           :: first                     => vef_accessor_first
      procedure                           :: next                      => vef_accessor_next
      procedure, non_overridable          :: set_lid                   => vef_accessor_set_lid
-     procedure                           :: past_the_end              => vef_accessor_past_the_end
+     procedure                           :: has_finished              => vef_accessor_has_finished
      procedure, non_overridable          :: get_triangulation         => vef_accessor_get_triangulation
      procedure, non_overridable          :: get_lid                   => vef_accessor_get_lid
      procedure, non_overridable          :: get_gid                   => vef_accessor_get_gid
@@ -180,14 +180,14 @@ module base_static_triangulation_names
     private
     contains
      procedure          :: first                     => vertex_accessor_first
-     procedure          :: past_the_end              => vertex_accessor_past_the_end
+     procedure          :: has_finished              => vertex_accessor_has_finished
   end type vertex_accessor_t
 
   type, extends(vef_accessor_t) :: edge_accessor_t
     private
     contains
      procedure          :: first                     => edge_accessor_first
-     procedure          :: past_the_end              => edge_accessor_past_the_end
+     procedure          :: has_finished              => edge_accessor_has_finished
   end type edge_accessor_t
   
   type, extends(vef_accessor_t) :: face_accessor_t
@@ -197,7 +197,7 @@ module base_static_triangulation_names
     procedure                           :: create                           => face_accessor_create
     procedure                           :: free                             => face_accessor_free
     procedure                           :: first                            => face_accessor_first
-    procedure                           :: past_the_end                     => face_accessor_past_the_end
+    procedure                           :: has_finished                     => face_accessor_has_finished
     procedure                           :: get_coordinates                  => face_accessor_get_coordinates
     procedure                           :: get_face_lid                     => face_accessor_get_face_lid
     procedure                           :: get_face_lpos_within_cell_around => face_accessor_get_face_lpos_within_cell_around
@@ -213,7 +213,7 @@ module base_static_triangulation_names
     contains
      procedure          :: first          => itfc_vef_accessor_first
      procedure          :: next           => itfc_vef_accessor_next
-     procedure          :: past_the_end   => itfc_vef_accessor_past_the_end
+     procedure          :: has_finished   => itfc_vef_accessor_has_finished
   end type itfc_vef_accessor_t
 
 
@@ -231,7 +231,7 @@ module base_static_triangulation_names
     procedure                           :: first                           => object_accessor_first
     procedure                           :: next                            => object_accessor_next
     procedure                           :: set_lid                         => object_accessor_set_lid
-    procedure                           :: past_the_end                    => object_accessor_past_the_end
+    procedure                           :: has_finished                    => object_accessor_has_finished
     procedure, non_overridable          :: get_lid                         => object_accessor_get_lid
     procedure, non_overridable          :: get_gid                         => object_accessor_get_gid
     procedure, non_overridable          :: get_dimension                   => object_accessor_get_dimension

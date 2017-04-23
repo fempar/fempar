@@ -342,7 +342,7 @@ contains
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     
     call this%fe_space%create_fe_accessor(fe)
-    do while ( .not. fe%past_the_end())
+    do while ( .not. fe%has_finished())
        
        ! Get DoF numbering within current FE
        call fe%get_elem2dof(elem2dof)

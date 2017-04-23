@@ -121,7 +121,7 @@ contains
     fe_map          => fe%get_fe_map()
     vol_int         => fe%get_volume_integrator(1)
     
-    do while ( .not. fe%past_the_end())
+    do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
        call fe%update_integration()
@@ -181,7 +181,7 @@ contains
     face_map        => fe_face%get_face_map()
     face_int        => fe_face%get_face_integrator(1)
     
-    do while ( .not. fe_face%past_the_end() )
+    do while ( .not. fe_face%has_finished() )
        facemat = 0.0_rp
        facevec = 0.0_rp
        if ( fe_face%is_at_boundary() .and. fe_face%get_set_id() == 0 ) then

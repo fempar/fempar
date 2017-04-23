@@ -111,7 +111,7 @@ contains
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_accessor(vef)
-       do while ( .not. vef%past_the_end() )
+       do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else
@@ -150,7 +150,7 @@ contains
        call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
        call this%triangulation%create_cell_accessor(cell)
        allocate (cell_coords(cell%get_num_nodes()),stat=istat)
-       do while( .not. cell%past_the_end() )
+       do while( .not. cell%has_finished() )
           if ( cell%is_local() ) then
              call cell%get_coordinates(cell_coords)
              call grav_center%init(0.0_rp)
@@ -485,7 +485,7 @@ contains
       call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
       i = 1
       call this%fe_space%create_fe_accessor(fe)  
-      do while ( .not. fe%past_the_end())
+      do while ( .not. fe%has_finished())
          if (fe%is_local()) then
             set_id_cell_vector(i) = fe%get_set_id()
             i = i + 1

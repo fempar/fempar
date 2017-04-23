@@ -549,7 +549,7 @@ contains
         call patch%create(this%number_fields, this%number_cell_vectors)
         call fe%first()
         ! Translate coordinates and connectivities to VTK format for every subcell
-        do while ( .not. fe%past_the_end())
+        do while ( .not. fe%has_finished())
             ! Get Finite element
             if ( fe%is_local() ) then
                 call this%ohcff%fill_patch(fe, &

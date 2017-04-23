@@ -149,7 +149,7 @@ contains
     viscosity = 1.0_rp
     C_IP      = 10.0_rp * fe%get_order(1)**2
     
-    do while ( .not. fe%past_the_end())
+    do while ( .not. fe%has_finished())
 
        if ( fe%is_local() ) then
        
@@ -208,7 +208,7 @@ contains
     face_map        => fe_face%get_face_map()
     face_int        => fe_face%get_face_integrator(1)
     
-    do while ( .not. fe_face%past_the_end() ) 
+    do while ( .not. fe_face%has_finished() ) 
        
        if ( .not. fe_face%is_at_boundary() ) then
          facemat = 0.0_rp
@@ -291,7 +291,7 @@ contains
     face_map        => fe_face%get_face_map()
     face_int        => fe_face%get_face_integrator(1)
    
-    do while ( .not. fe_face%past_the_end() )
+    do while ( .not. fe_face%has_finished() )
        
        if ( fe_face%is_at_boundary() ) then
          facemat = 0.0_rp

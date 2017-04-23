@@ -105,7 +105,7 @@ contains
     vol_int_H => fe%get_volume_integrator(1)
     allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
 
-    do while ( .not. fe%past_the_end())
+    do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
        call fe%update_integration()

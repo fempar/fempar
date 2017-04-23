@@ -165,7 +165,7 @@ contains
     allocate (current_time(1), stat=istat); check(istat==0) 
     current_time = this%theta_method%get_current_time() 
     
-    do while ( .not. fe%past_the_end())
+    do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
        call fe%update_integration()

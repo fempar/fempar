@@ -86,7 +86,7 @@ subroutine serial_fe_space_print ( this )
   check(istat==0)
 
   call this%create_fe_accessor(fe)
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      write(*,'(a,i10,a)') '********* ELEMENT: ',fe%get_lid(),'********'
      write(*,'(a)') '********* ELEMENT 2 DOF********'
      call fe%get_elem2dof(elem2dof)
@@ -121,7 +121,7 @@ subroutine serial_fe_space_allocate_and_fill_fe_space_type_per_field(this)
 
 #ifdef DEBUG  
   call fe%next()
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      do field_id=1, this%get_number_fields()
         assert ( this%fe_space_type_per_field(field_id) == fe%get_fe_space_type(field_id)  )
      end do
@@ -151,7 +151,7 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
 
   this%ptr_dofs_per_fe(1,1) = 1 
   call this%create_fe_accessor(fe)
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      do field_id=1, fe%get_number_fields()-1
         reference_fe => fe%get_reference_fe(field_id)
         this%ptr_dofs_per_fe(field_id+1,fe%get_lid()) = & 
@@ -235,7 +235,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   call this%create_fe_accessor(source_fe)
   call this%create_fe_accessor(fe)
   call this%create_fe_vef_accessor(vef)
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
 
         ! TO-DO: This call should ONLY be performed
@@ -423,7 +423,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
 
   call this%create_fe_accessor(fe)
   call this%create_fe_vef_accessor(vef)
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then 
         do ifield = 1, size(fields_to_interpolate_) 
            field_id = fields_to_interpolate_(ifield) 
@@ -622,7 +622,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call projected_nodal_values%create_and_allocate(number_subset_strong_dirichlet_dofs)
   call this%create_fe_face_accessor(fe_face)
   call this%create_fe_accessor(fe)
-  do while ( .not. fe_face%past_the_end() )
+  do while ( .not. fe_face%has_finished() )
      if ( fe_face%is_at_boundary() ) then
         if ( fe_face%get_set_id() /= 0 ) then
            call fe_face%update_integration() 
@@ -822,7 +822,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   ! Count number of Dirichlet DOFs to be projected
   num_subset_strong_dirichlet_dofs = 0
   call this%create_fe_accessor(fe)
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
         do ifield = 1, size(fields_to_project) 
            field_id = fields_to_project(ifield) 
@@ -1121,7 +1121,7 @@ subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
 #ifdef DEBUG
   call this%create_fe_accessor(fe)
   call fe%first()
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      reference_fe_geo => fe%get_reference_fe_geo()
      do field_id = 1, fe%get_number_fields()  
         reference_fe_unkno => fe%get_reference_fe(field_id)
@@ -1163,7 +1163,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   current_volume_integrator  = 1
   
   call this%create_fe_accessor(fe)
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      max_order = -1
      do field_id=1, this%get_number_fields()
         if ( max_order <= fe%get_max_order_single_field(field_id) ) then
@@ -1210,7 +1210,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   current_volume_integrator  = 1
 
   call fe%first()
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      max_order_reference_fe_id_within_fe = this%max_order_reference_fe_id_per_fe(fe%get_lid())
 
      call this%fe_quadratures_and_maps_position%put(key=max_order_reference_fe_id_within_fe, &
@@ -1334,7 +1334,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
 
   call this%create_fe_accessor(fe)
   call this%create_fe_face_accessor(fe_face)
-  do while ( .not. fe_face%past_the_end() ) 
+  do while ( .not. fe_face%has_finished() ) 
      max_order_fes_around_fe_face = -1
      reference_fes_geo_id(2) = 0 
      do icell_around = 1, fe_face%get_num_cells_around()
@@ -1407,7 +1407,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   current_fe_face_integrator = 1
 
   call fe_face%first()
-  do while ( .not. fe_face%past_the_end() ) 
+  do while ( .not. fe_face%has_finished() ) 
      max_order_fes_around_fe_face = -1
      reference_fes_geo_id(2) = 0 
      nullify(reference_fes_geo(2)%p)
@@ -1714,7 +1714,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
 
      call this%create_fe_accessor(source_fe)
      call this%create_fe_accessor(fe)
-     do while ( .not. fe%past_the_end())
+     do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
            call fe%fill_own_dofs ( field_id, current_dof_block )
            do ivef = 1, fe%get_num_vefs()
@@ -1739,7 +1739,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
      call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
   else 
      call this%create_fe_accessor(fe)
-     do while ( .not. fe%past_the_end())
+     do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
            call fe%fill_own_dofs ( field_id, current_dof_block )
         end if
@@ -1760,7 +1760,7 @@ subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
   class(fe_accessor_t), allocatable :: fe
 
   call this%create_fe_accessor(fe)
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      call fe%renumber_dofs_block ( block_id, perm_old2new )
      call fe%next()
   end do

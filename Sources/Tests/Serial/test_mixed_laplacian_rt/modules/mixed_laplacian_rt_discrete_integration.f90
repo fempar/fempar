@@ -122,7 +122,7 @@ contains
     vol_int_pressure => fe%get_volume_integrator(2)
     
     call memalloc ( num_quad_points, pressure_source_term_values, __FILE__, __LINE__ )
-    do while ( .not. fe%past_the_end())
+    do while ( .not. fe%has_finished())
       
        ! Update FE-integration related data structures
        call fe%update_integration()
@@ -198,7 +198,7 @@ contains
     
     elmat = 0.0_rp
     call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
-    do while ( .not. fe_face%past_the_end() )
+    do while ( .not. fe_face%has_finished() )
        if ( fe_face%is_at_boundary() ) then
          !assert( fe_face%get_set_id() == 1 )
          elvec = 0.0_rp

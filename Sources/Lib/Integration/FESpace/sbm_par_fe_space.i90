@@ -215,7 +215,7 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
      call this%create_fe_accessor(fe)
      call this%create_fe_accessor(source_fe)
      call this%create_fe_vef_accessor(vef)
-     do while(.not. fe%past_the_end())
+     do while(.not. fe%has_finished())
         if ( fe%is_ghost() ) then
           do ivef = 1, fe%get_num_vefs()
             call fe%get_vef(ivef, vef)
@@ -244,7 +244,7 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
      call this%create_fe_accessor(fe)
      call this%create_fe_vef_accessor(vef)
-     do while(.not. fe%past_the_end())
+     do while(.not. fe%has_finished())
         if ( fe%is_ghost() ) then
           do ivef = 1, fe%get_num_vefs()
             call fe%get_vef(ivef, vef)
@@ -414,7 +414,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   call this%create_itfc_fe_vef_accessor(vef)
   call this%create_fe_accessor(fe) 
   result = 0 
-  do while(.not. vef%past_the_end())
+  do while(.not. vef%has_finished())
      touched_neighbours = .false.
      do ielem=1, vef%get_num_cells_around()
         call vef%get_cell_around(ielem,fe)
@@ -610,7 +610,7 @@ function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity( this, fie
   call this%create_itfc_fe_vef_accessor(vef)
   call this%create_fe_accessor(fe) 
   result = 0 
-  do while(.not. vef%past_the_end())
+  do while(.not. vef%has_finished())
      if ( vef%is_at_boundary() .and. vef%is_at_interface() ) then
         touched_neighbours = .false.
         do ielem=1, vef%get_num_cells_around()
@@ -711,7 +711,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_accessor(vef)
   call this%create_fe_accessor(fe) 
-  do while(.not. vef%past_the_end())
+  do while(.not. vef%has_finished())
      if ( vef%is_at_boundary() .and. vef%is_at_interface() ) then
 
         touched_neighbours = .false.
@@ -892,7 +892,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_accessor(vef)
   call this%create_fe_accessor(fe) 
-  do while(.not. vef%past_the_end())
+  do while(.not. vef%has_finished())
      touched_neighbours = .false.
      num_parts = 0
      max_part_id = mypart_id
@@ -1367,7 +1367,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
  
      call this%create_fe_face_accessor(fe_face)
      call this%create_fe_accessor(fe) 
-     do while ( .not. fe_face%past_the_end() )
+     do while ( .not. fe_face%has_finished() )
         if ( fe_face%is_at_boundary() ) then
            if ( fe_face%get_set_id() /= 0 ) then
               call fe_face%update_integration() 
@@ -1548,7 +1548,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
                                                           this%ptr_coarse_dofs_per_field(field_id)) 
   
      call this%create_fe_object_accessor(object)
-     do while ( .not. object%past_the_end() )
+     do while ( .not. object%has_finished() )
        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
        do while (.not. own_coarse_dofs_iterator%is_upper_bound())
          this%coarse_dof_gids_per_field(field_id)%a(own_coarse_dofs_iterator%get_current()) = &
@@ -1866,7 +1866,7 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
       do i=1, this%get_number_fields()
         spos = this%ptr_coarse_dofs_per_field(i)
         call this%create_fe_object_accessor(object)
-        do while ( .not. object%past_the_end() )
+        do while ( .not. object%has_finished() )
           own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(i)
           do while (.not. own_coarse_dofs_iterator%is_upper_bound())
             buffer(spos) = object%get_gid() 

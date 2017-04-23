@@ -188,7 +188,7 @@ subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
   field_coupling => coarse_fe_space%get_field_coupling()
 
   call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
-  do while ( .not. coarse_fe%past_the_end() )
+  do while ( .not. coarse_fe%has_finished() )
      call coarse_fe%get_elem2dof(elem2dof)
      do ifield=1, coarse_fe_space%get_number_fields()
         do jfield=1, coarse_fe_space%get_number_fields()
@@ -482,7 +482,7 @@ subroutine base_mlbddc_compute_subdomain_elmat_counts_and_displs ( this, counts,
   i = 1
   counts(l1_to_l2_size) = 0
   call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
-  do while ( .not. coarse_fe%past_the_end() )
+  do while ( .not. coarse_fe%has_finished() )
      if ( coarse_fe%is_local() ) then
         counts(i) = coarse_fe%get_number_dofs()**2    
         i = i +1
@@ -590,7 +590,7 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
   field_coupling => coarse_fe_space%get_field_coupling()
   current = 1
   call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
-  do while ( .not. coarse_fe%past_the_end() )
+  do while ( .not. coarse_fe%has_finished() )
      call coarse_fe%get_elem2dof(elem2dof)
      if ( coarse_fe%is_local() ) then
         do ifield=1, coarse_fe_space%get_number_fields()
@@ -933,7 +933,7 @@ subroutine base_mlbddc_compute_coarse_dofs_values_counts_and_displs ( this, coun
   i=1
   counts(l1_to_l2_size) = 0
   call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
-  do while ( .not. coarse_fe%past_the_end() )
+  do while ( .not. coarse_fe%has_finished() )
      if ( coarse_fe%is_local() ) then
         counts(i) = coarse_fe%get_number_dofs()
         i=i+1
@@ -1019,7 +1019,7 @@ subroutine base_mlbddc_coarse_grid_residual_assembly ( this, coarse_dofs_values_
   check(istat==0)     
   current = 1
   call coarse_fe_space%create_coarse_fe_accessor(coarse_fe)
-  do while ( .not. coarse_fe%past_the_end() )
+  do while ( .not. coarse_fe%has_finished() )
      call coarse_fe%get_elem2dof(elem2dof)
      if ( coarse_fe%is_local() ) then
         do ifield=1, coarse_fe_space%get_number_fields()
@@ -1136,7 +1136,7 @@ subroutine base_mlbddc_fill_coarse_dofs_values_scattered ( this, coarse_grid_vec
 
   current = 1
   call coarse_fe_space%create_coarse_fe_accessor(coarse_fe) 
-  do while ( .not. coarse_fe%past_the_end() )
+  do while ( .not. coarse_fe%has_finished() )
      call coarse_fe%get_elem2dof(elem2dof)
      if ( coarse_fe%is_local() ) then
         do ifield=1, coarse_fe_space%get_number_fields()

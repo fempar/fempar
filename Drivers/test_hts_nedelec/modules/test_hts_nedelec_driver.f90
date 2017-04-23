@@ -129,7 +129,7 @@ contains
     call this%triangulation%create_cell_accessor(cell)
     allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0) 
     
-    do while ( .not. cell%past_the_end() )
+    do while ( .not. cell%has_finished() )
        call cell%get_coordinates(cell_coordinates)
        ! Compute center of the element coordinates 
        cx = 0.0_rp
@@ -182,7 +182,7 @@ contains
     
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_accessor(vef)
-       do while ( .not. vef%past_the_end() )
+       do while ( .not. vef%has_finished() )
           ! In the 3D case, vefs asociated to faces 21,22 are Neumann boundary (2D case set_id <= 9)
          if ( vef%is_at_boundary() .and. ( vef%get_set_id() .ne. 21 .and. vef%get_set_id() .ne. 22) ) then 
              call vef%set_set_id(1)
@@ -327,7 +327,7 @@ contains
     number_qpoints =  quad%get_number_quadrature_points()
     
     ! Loop over elements
-    do while ( .not. fe%past_the_end())
+    do while ( .not. fe%has_finished())
 
        if ( fe%get_set_id() == hts ) then  
           ! Update finite structures
@@ -374,7 +374,7 @@ contains
        face_map        => fe_face%get_face_map()
        face_int_H      => fe_face%get_face_integrator(1)
 
-       do while ( .not. fe_face%past_the_end() )
+       do while ( .not. fe_face%has_finished() )
           facevec = 0.0_rp
           if ( fe_face%is_at_boundary() .and. fe_face%get_set_id() == 0 ) then
              
@@ -585,7 +585,7 @@ contains
     Hy_average  = 0
     xJ_average  = 0
     hts_volume  = 0.0_rp 
-    do while ( .not. fe%past_the_end())
+    do while ( .not. fe%has_finished())
 
        if ( fe%get_set_id() == hts ) then  ! Integrate only in HTS device DOMAIN 
           ! Update FE-integration related data structures

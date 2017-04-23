@@ -135,7 +135,7 @@ module fe_space_names
     procedure, non_overridable           :: first                   => base_fe_accessor_first
     procedure, non_overridable           :: last                    => base_fe_accessor_last
     procedure, non_overridable           :: set_lid                 => base_fe_accessor_set_lid
-    procedure, non_overridable           :: past_the_end            => base_fe_accessor_past_the_end
+    procedure, non_overridable           :: has_finished            => base_fe_accessor_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_accessor_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_accessor_get_reference_fe_geo_id
     procedure, non_overridable           :: get_coordinates         => base_fe_accessor_get_coordinates
@@ -220,7 +220,7 @@ module fe_space_names
      procedure                           :: first                     => base_fe_vef_accessor_first
      procedure                           :: next                      => base_fe_vef_accessor_next
      procedure, non_overridable          :: set_lid                   => base_fe_vef_accessor_set_lid
-     procedure, non_overridable          :: past_the_end              => base_fe_vef_accessor_past_the_end
+     procedure, non_overridable          :: has_finished              => base_fe_vef_accessor_has_finished
      procedure, non_overridable          :: get_lid                   => base_fe_vef_accessor_get_lid
      procedure, non_overridable          :: get_set_id                => base_fe_vef_accessor_get_set_id
 
@@ -399,7 +399,7 @@ module fe_space_names
    procedure                            :: first                                 => base_fe_object_accessor_first
    procedure                            :: next                                  => base_fe_object_accessor_next
    procedure                            :: set_lid                               => base_fe_object_accessor_set_lid
-   procedure                            :: past_the_end                          => base_fe_object_accessor_past_the_end
+   procedure                            :: has_finished                          => base_fe_object_accessor_has_finished
    procedure, non_overridable           :: get_lid                               => base_fe_object_accessor_get_lid
    procedure, non_overridable           :: get_gid                               => base_fe_object_accessor_get_gid
    procedure, non_overridable           :: get_dimension                         => base_fe_object_accessor_get_dimension

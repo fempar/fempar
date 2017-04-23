@@ -67,7 +67,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
 
   call this%create_cell_accessor(icell)
   call this%create_cell_accessor(jcell)
-  do while ( .not. icell%past_the_end() )
+  do while ( .not. icell%has_finished() )
      ielem = icell%get_lid()
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
      call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
@@ -116,7 +116,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
   this%ptr_vefs_per_cell(1)=1
   !this%ptr_nodes_per_cell(1)=1
   call icell%first()
-  do while ( .not. icell%past_the_end() )
+  do while ( .not. icell%has_finished() )
      ielem = icell%get_lid()
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
      call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
@@ -132,7 +132,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
   
   ! Fill vertices (dim 0 vefs)
   call icell%first()
-  do while ( .not. icell%past_the_end() )
+  do while ( .not. icell%has_finished() )
      ielem = icell%get_lid()
      !write(*,*) 'Element i:',ielem
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
@@ -149,7 +149,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
   ! they only have two vertices
   call this%create_vef_accessor(vef)
   call icell%first()
-  do while ( .not. icell%past_the_end() )
+  do while ( .not. icell%has_finished() )
      ielem = icell%get_lid()
      !write(*,*) 'Element i:',ielem
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
@@ -210,7 +210,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
      ! Fill dim 2 vefs (the code is similar to that of dim 1 vefs,
      ! except for the number of vertices of each vef, that is variable)
      call icell%first()
-     do while ( .not. icell%past_the_end() )
+     do while ( .not. icell%has_finished() )
         ielem = icell%get_lid()
         !write(*,*) 'Element i:',ielem
         ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
@@ -487,7 +487,7 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
   call this%create_cell_accessor(cell)
   call this%create_vef_accessor(vef)
   call this%create_vef_accessor(vef_of_vef)
-  do while ( .not. vef%past_the_end() )     
+  do while ( .not. vef%has_finished() )     
      ivef = vef%get_lid()
 
      call vef%get_cell_around(1,cell) ! There is always one cell around
@@ -560,7 +560,7 @@ subroutine fine_triangulation_compute_vefs_dimension (this)
   
   call this%create_cell_accessor(cell)
   call this%create_vef_accessor(vef)
-  do while ( .not. vef%past_the_end() )     
+  do while ( .not. vef%has_finished() )     
      ivef = vef%get_lid()
 
      call vef%get_cell_around(1,cell) ! There is always one cell around
@@ -599,7 +599,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
 
   this%ptr_nodes_per_cell(1)=1
   call this%create_cell_accessor(cell)
-  do while ( .not. cell%past_the_end() )
+  do while ( .not. cell%has_finished() )
      reference_fe_geo => cell%get_reference_fe_geo()
      ielem = cell%get_lid()
      this%ptr_nodes_per_cell(ielem+1) = this%ptr_nodes_per_cell(ielem) + reference_fe_geo%get_number_shape_functions()
@@ -610,7 +610,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
 
   ! Set nodes on vertices (with id = id of the vertex)
   call cell%first()
-  do while ( .not. cell%past_the_end() )
+  do while ( .not. cell%has_finished() )
      if ( cell%is_local() ) then
        call cell%fill_nodes_on_vertices()
      end if  
@@ -620,7 +620,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
 
   call this%create_cell_accessor(cell2)
   call this%create_vef_accessor(vef)
-  do while ( .not. vef%past_the_end() )     
+  do while ( .not. vef%has_finished() )     
      if( (vef%get_dimension()>0) .and. (.not.vef%is_ghost()) ) then
         ivef = vef%get_lid()
 
@@ -645,7 +645,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
 
   ! Fill nodes on volume
   call cell%first()
-  do while ( .not. cell%past_the_end() )
+  do while ( .not. cell%has_finished() )
      if ( cell%is_local() ) then
        call cell%fill_internal_nodes_new(this%num_nodes)
       end if 
@@ -685,7 +685,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   
   ! Store coordinates of vertices
   call this%create_vertex_accessor(vertex)
-  do while ( .not. vertex%past_the_end() )
+  do while ( .not. vertex%has_finished() )
      ivef = vertex%get_lid()
      call this%coordinates(ivef)%init(vertices_coordinates(:,ivef))
      call vertex%next()
@@ -706,7 +706,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   
   call this%create_cell_accessor(cell)
   call this%create_face_accessor(face)
-  do while ( .not. face%past_the_end() )
+  do while ( .not. face%has_finished() )
      if ( .not. face%is_ghost() ) then
         ivef = face%get_lid()
 
@@ -766,7 +766,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   ! Fill internal nodes
   ! write(*,*) 'Fill internal nodes'
   call cell%first()
-  do while ( .not. cell%past_the_end() )
+  do while ( .not. cell%has_finished() )
      if ( cell%is_local() ) then
        ! Reallocate coordinates (if needed) and get them from cell
        cell_num_nodes = cell%get_num_nodes()

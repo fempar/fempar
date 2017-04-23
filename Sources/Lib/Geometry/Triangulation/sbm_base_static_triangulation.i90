@@ -636,7 +636,7 @@ subroutine bst_compute_num_vefs ( this )
   call visited_vefs%init(max(5,int(real(this%num_local_cells,rp)*0.2_rp,ip))) 
   this%num_vefs = 0
   call this%create_cell_accessor(cell)
-  do while( .not. cell%past_the_end() )
+  do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
         call visited_vefs%put(key=vef_lid, val=1, stat=istat)
@@ -664,7 +664,7 @@ subroutine bst_allocate_and_fill_vefs_gid ( this, lst_vefs_gid )
 
   call this%create_cell_accessor(cell)
   current = 1
-  do while( .not. cell%past_the_end() )
+  do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
         vef_gid = lst_vefs_gid(current)
@@ -700,7 +700,7 @@ subroutine bst_allocate_and_fill_cells_around ( this )
   this%ptrs_cells_around = 0
 
   call this%create_cell_accessor(cell)
-  do while( .not. cell%past_the_end() )
+  do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
         this%ptrs_cells_around(vef_lid +1) = this%ptrs_cells_around(vef_lid+1) + 1
@@ -716,7 +716,7 @@ subroutine bst_allocate_and_fill_cells_around ( this )
   call memalloc ( this%ptrs_cells_around(this%num_vefs+1)-1, this%lst_cells_around, __FILE__, __LINE__ )
 
   call cell%first()
-  do while ( .not. cell%past_the_end() )
+  do while ( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
         this%lst_cells_around(this%ptrs_cells_around(vef_lid)) = cell%get_lid()
@@ -757,7 +757,7 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
   ! Find vefs at interfaces and count them
   this%num_itfc_vefs  = 0
   call this%create_vef_accessor(vef)
-  do while ( .not. vef%past_the_end() )
+  do while ( .not. vef%has_finished() )
      vef_is_local = .true.
      vef_is_ghost = .true.
      do icell = 1, vef%get_num_cells_around()
@@ -783,7 +783,7 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
   call memalloc(this%num_itfc_vefs, this%lst_itfc_vefs,__FILE__,__LINE__) 
   this%num_itfc_vefs = 0
   call vef%first()
-  do while ( .not. vef%past_the_end() )
+  do while ( .not. vef%has_finished() )
      if(vef%is_at_interface()) then
         ivef = vef%get_lid()
         this%num_itfc_vefs = this%num_itfc_vefs + 1
@@ -823,7 +823,7 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
   call this%create_cell_accessor(first_cell)
   call this%create_cell_accessor(second_cell)
   call this%create_face_accessor(face)
-  do while ( .not. face%past_the_end() )
+  do while ( .not. face%has_finished() )
     if ( .not. face%is_ghost() .and. face%get_num_cells_around() == 2 ) then
       call face%get_cell_around(1, first_cell)
       first_reference_fe_geo => first_cell%get_reference_fe_geo()
@@ -899,7 +899,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call this%create_cell_accessor(cell) 
     call this%create_itfc_vef_accessor(itfc_vef)
     ivef_itfc = 1
-    do while(.not. itfc_vef%past_the_end() )
+    do while(.not. itfc_vef%has_finished() )
     
       touched_neighbours = .false.
       
@@ -980,7 +980,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
 
     call this%create_cell_accessor(cell)
     call this%create_itfc_vef_accessor(itfc_vef)
-    do while(.not. itfc_vef%past_the_end() )
+    do while(.not. itfc_vef%has_finished() )
        do icell=1, itfc_vef%get_num_cells_around()
          call itfc_vef%get_cell_around(icell,cell)
          subpart_gid = cell%get_my_subpart()
@@ -1004,7 +1004,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
 
     ivef_itfc = 1
     call itfc_vef%first()
-    do while(.not. itfc_vef%past_the_end() )
+    do while(.not. itfc_vef%has_finished() )
 
       touched_subparts = .false.
       
@@ -2085,7 +2085,7 @@ subroutine bst_print ( this )
 
    call this%create_cell_accessor(cell)
    write (*,'(a)') '       id      is_local   is_ghost  num_vefs    vef        vef  ....'
-   do while ( .not. cell%past_the_end() )
+   do while ( .not. cell%has_finished() )
        write(*,'(i10,2l10,10(2x,i10))') cell%get_lid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_lid(ivef),ivef=1,cell%get_num_vefs())
        call cell%next()
    end do
@@ -2095,7 +2095,7 @@ subroutine bst_print ( this )
    call memalloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
 
     write (*,'(a)') '       id      is_local   num_vefs    coord        coord  ....'
-    do while ( .not. cell%past_the_end() )
+    do while ( .not. cell%has_finished() )
        !write(*,*) 'Printing cell:',cell%get_lid(),cell%is_local()
        if(cell%is_local()) then
           call memrealloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
@@ -2109,7 +2109,7 @@ subroutine bst_print ( this )
     write (*,'(a)') '**** Vefs ****'
     write (*,'(a)') '        id          dim    is_local    is_at_interface  is_ghost   is_at_bound       set        geom '
     call this%create_vef_accessor(vef)
-    do while ( .not. vef%past_the_end() )
+    do while ( .not. vef%has_finished() )
        vef_lid = vef%get_lid()
        write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dimension(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary(), vef%get_set_id(),this%vefs_geometry(vef_lid)
        call vef%next()

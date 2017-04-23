@@ -108,7 +108,7 @@ contains
     fe_map          => fe%get_fe_map()
     vol_int         => fe%get_volume_integrator(1)
 
-    do while ( .not. fe%past_the_end())
+    do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
        call fe%update_integration()

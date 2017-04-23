@@ -67,14 +67,14 @@ subroutine vef_accessor_set_lid(this, lid)
   this%lid = lid
 end subroutine vef_accessor_set_lid
 
-function vef_accessor_past_the_end(this)
+function vef_accessor_has_finished(this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
-  logical :: vef_accessor_past_the_end
-  vef_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_vefs)
-  !vef_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_local_vefs + &
+  logical :: vef_accessor_has_finished
+  vef_accessor_has_finished = (this%lid > this%base_static_triangulation%num_vefs)
+  !vef_accessor_has_finished = (this%lid > this%base_static_triangulation%num_local_vefs + &
   !     this%base_static_triangulation%num_ghost_vefs)
-end function vef_accessor_past_the_end
+end function vef_accessor_has_finished
 
 function vef_accessor_get_triangulation(this)
   implicit none
@@ -94,7 +94,7 @@ function vef_accessor_get_gid (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(igp) :: vef_accessor_get_gid
-  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  assert (this%lid >= 1 .and. .not. this%has_finished())
   vef_accessor_get_gid = this%base_static_triangulation%vefs_gid(this%lid)
 end function vef_accessor_get_gid
 
@@ -102,7 +102,7 @@ subroutine vef_accessor_set_set_id(this,set_id)
   implicit none
   class(vef_accessor_t), intent(inout) :: this
   integer(ip)          , intent(in) :: set_id
-  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  assert (this%lid >= 1 .and. .not. this%has_finished())
   this%base_static_triangulation%vefs_set(this%lid) = set_id
 end subroutine vef_accessor_set_set_id  
 
@@ -110,7 +110,7 @@ subroutine vef_accessor_set_geom_id(this,geom_id)
   implicit none
   class(vef_accessor_t), intent(inout) :: this
   integer(ip)          , intent(in) :: geom_id
-  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  assert (this%lid >= 1 .and. .not. this%has_finished())
   this%base_static_triangulation%vefs_geometry(this%lid) = geom_id
 end subroutine vef_accessor_set_geom_id  
 
@@ -118,7 +118,7 @@ function vef_accessor_get_set_id(this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(ip) :: vef_accessor_get_set_id
-  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  assert (this%lid >= 1 .and. .not. this%has_finished())
   vef_accessor_get_set_id = this%base_static_triangulation%vefs_set(this%lid)
 end function vef_accessor_get_set_id  
 
@@ -126,7 +126,7 @@ function vef_accessor_get_geom_id(this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(ip) :: vef_accessor_get_geom_id
-  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  assert (this%lid >= 1 .and. .not. this%has_finished())
   vef_accessor_get_geom_id = this%base_static_triangulation%vefs_geometry(this%lid)
 end function vef_accessor_get_geom_id  
 
@@ -134,7 +134,7 @@ subroutine vef_accessor_set_dimension(this,vef_dim)
   implicit none
   class(vef_accessor_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: vef_dim
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   this%base_static_triangulation%vefs_type(this%lid) = (this%base_static_triangulation%vefs_type(this%lid)/10) * 10 + vef_dim
 end subroutine vef_accessor_set_dimension
 
@@ -142,7 +142,7 @@ subroutine vef_accessor_set_it_at_boundary(this)
   implicit none
   class(vef_accessor_t), intent(inout) :: this
   integer(ip) :: vef_dim
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_dim = mod(this%base_static_triangulation%vefs_type(this%lid),10)
   this%base_static_triangulation%vefs_type(this%lid) = (this%base_static_triangulation%vefs_type(this%lid)/100) * 100 + 10 + vef_dim
 end subroutine vef_accessor_set_it_at_boundary
@@ -151,7 +151,7 @@ subroutine vef_accessor_set_it_as_local(this)
   implicit none
   class(vef_accessor_t), intent(inout) :: this
   integer(ip) :: vef_dim_and_bound
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%lid),100)
   this%base_static_triangulation%vefs_type(this%lid) = vef_dim_and_bound
 end subroutine vef_accessor_set_it_as_local
@@ -160,7 +160,7 @@ subroutine vef_accessor_set_it_at_interface(this)
   implicit none
   class(vef_accessor_t), intent(inout) :: this
   integer(ip) :: vef_dim_and_bound
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%lid),100)
   this%base_static_triangulation%vefs_type(this%lid) = 100 + vef_dim_and_bound
 end subroutine vef_accessor_set_it_at_interface
@@ -169,7 +169,7 @@ subroutine vef_accessor_set_it_as_ghost(this)
   implicit none
   class(vef_accessor_t), intent(inout) :: this
   integer(ip) :: vef_dim_and_bound
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%lid),100)
   this%base_static_triangulation%vefs_type(this%lid) = 200 + vef_dim_and_bound
 end subroutine vef_accessor_set_it_as_ghost
@@ -178,7 +178,7 @@ function vef_accessor_get_dimension(this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(ip) :: vef_accessor_get_dimension
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_accessor_get_dimension  = mod(this%base_static_triangulation%vefs_type(this%lid),10)
 end function vef_accessor_get_dimension
 
@@ -186,7 +186,7 @@ function vef_accessor_is_at_boundary (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   logical :: vef_accessor_is_at_boundary 
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_accessor_is_at_boundary  = (mod(this%base_static_triangulation%vefs_type(this%lid)/10,10)==1)
 end function vef_accessor_is_at_boundary
 
@@ -194,7 +194,7 @@ function vef_accessor_is_local (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   logical :: vef_accessor_is_local 
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_accessor_is_local  = (this%base_static_triangulation%vefs_type(this%lid)/100==0)
 end function vef_accessor_is_local
 
@@ -202,7 +202,7 @@ function vef_accessor_is_at_interface (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   logical :: vef_accessor_is_at_interface 
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_accessor_is_at_interface  = (this%base_static_triangulation%vefs_type(this%lid)/100==1)
 end function vef_accessor_is_at_interface
 
@@ -210,7 +210,7 @@ function vef_accessor_is_face (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   logical :: vef_accessor_is_face
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_accessor_is_face  = (this%base_static_triangulation%get_num_dimensions()-1 == this%get_dimension())
 end function vef_accessor_is_face
 
@@ -218,7 +218,7 @@ function vef_accessor_is_ghost (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   logical :: vef_accessor_is_ghost 
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_accessor_is_ghost  = (this%base_static_triangulation%vefs_type(this%lid)/100==2)
 end function vef_accessor_is_ghost
 
@@ -226,7 +226,7 @@ function vef_accessor_get_num_cells_around (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(ip) :: vef_accessor_get_num_cells_around
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   vef_accessor_get_num_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid+1)- &
        this%base_static_triangulation%ptrs_cells_around(this%lid)
 end function vef_accessor_get_num_cells_around
@@ -238,7 +238,7 @@ subroutine vef_accessor_get_cell_around (this, icell_around, cell)
   class(cell_accessor_t), intent(inout) :: cell
   integer(ip)                          :: position_in_lst_cells_around
   integer(ip)                          :: icell 
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
   position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid) + icell_around-1
   icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
@@ -254,12 +254,12 @@ subroutine vertex_accessor_first ( this )
   this%lid = 1
 end subroutine vertex_accessor_first
 
-function vertex_accessor_past_the_end ( this ) 
+function vertex_accessor_has_finished ( this ) 
   implicit none
   class(vertex_accessor_t), intent(in)    :: this
-  logical :: vertex_accessor_past_the_end
-  vertex_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_vertices)
-end function vertex_accessor_past_the_end
+  logical :: vertex_accessor_has_finished
+  vertex_accessor_has_finished = (this%lid > this%base_static_triangulation%num_vertices)
+end function vertex_accessor_has_finished
 
 subroutine edge_accessor_first (this) 
   implicit none
@@ -267,12 +267,12 @@ subroutine edge_accessor_first (this)
   call this%set_lid(this%base_static_triangulation%num_vertices+1)
 end subroutine edge_accessor_first
 
-function edge_accessor_past_the_end ( this ) 
+function edge_accessor_has_finished ( this ) 
   implicit none
   class(edge_accessor_t), intent(in)    :: this
-  logical :: edge_accessor_past_the_end
-  edge_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_vertices + this%base_static_triangulation%num_edges)
-end function edge_accessor_past_the_end
+  logical :: edge_accessor_has_finished
+  edge_accessor_has_finished = (this%lid > this%base_static_triangulation%num_vertices + this%base_static_triangulation%num_edges)
+end function edge_accessor_has_finished
 
 !=============================================================================================================
 !
@@ -304,12 +304,12 @@ subroutine face_accessor_first (this)
    call this%set_lid(this%base_static_triangulation%num_vertices+this%base_static_triangulation%num_edges+1)
 end subroutine face_accessor_first
 
-function face_accessor_past_the_end ( this ) 
+function face_accessor_has_finished ( this ) 
   implicit none
   class(face_accessor_t), intent(in)    :: this
-  logical :: face_accessor_past_the_end
-  face_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_vefs)
-end function face_accessor_past_the_end
+  logical :: face_accessor_has_finished
+  face_accessor_has_finished = (this%lid > this%base_static_triangulation%num_vefs)
+end function face_accessor_has_finished
 
 subroutine face_accessor_get_coordinates (this, face_coordinates)
   implicit none
@@ -320,7 +320,7 @@ subroutine face_accessor_get_coordinates (this, face_coordinates)
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   type(list_iterator_t)                     :: dofs_on_vef_iterator
 
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
   assert ( allocated ( this%base_static_triangulation%coordinates ) )
  
   call this%get_cell_around(1, this%cell)
@@ -416,7 +416,7 @@ subroutine itfc_vef_accessor_first (this)
   implicit none
   class(itfc_vef_accessor_t), intent(inout) :: this
   this%itfc_lid = 1
-  if ( .not. this%past_the_end() ) then
+  if ( .not. this%has_finished() ) then
     call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
   end if
 end subroutine itfc_vef_accessor_first
@@ -425,14 +425,14 @@ subroutine itfc_vef_accessor_next ( this )
   implicit none
   class(itfc_vef_accessor_t), intent(inout)    :: this
   this%itfc_lid = this%itfc_lid + 1
-  if ( .not. this%past_the_end() ) then
+  if ( .not. this%has_finished() ) then
     call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
   end if
 end subroutine itfc_vef_accessor_next
 
-function itfc_vef_accessor_past_the_end ( this ) 
+function itfc_vef_accessor_has_finished ( this ) 
   implicit none
   class(itfc_vef_accessor_t), intent(in)    :: this
-  logical :: itfc_vef_accessor_past_the_end
-  itfc_vef_accessor_past_the_end = (this%itfc_lid > this%base_static_triangulation%num_itfc_vefs)
-end function itfc_vef_accessor_past_the_end
+  logical :: itfc_vef_accessor_has_finished
+  itfc_vef_accessor_has_finished = (this%itfc_lid > this%base_static_triangulation%num_itfc_vefs)
+end function itfc_vef_accessor_has_finished

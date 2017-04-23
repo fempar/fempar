@@ -93,7 +93,7 @@ subroutine H1_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, con
   call par_fe_space%create_fe_accessor(fe)
   call par_fe_space%create_fe_face_accessor(fe_face)
   call par_fe_space%create_fe_vef_accessor(vef)
-  do while ( .not. object%past_the_end() )
+  do while ( .not. object%has_finished() )
      if ( object%get_number_coarse_dofs(field_id) > 0 ) then
 
         own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
@@ -227,7 +227,7 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
   par_env =>  par_fe_space%get_par_environment()
 
   call par_fe_space%create_fe_accessor(fe)
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
      subpart = fe%get_my_subpart()
      subpart = fe%get_my_subpart_lid()
      if ( .not. touch_subpart(subpart)) then
@@ -244,7 +244,7 @@ subroutine H1_l1_setup_weighting_operator(this, par_fe_space, parameter_list, we
   
   call par_fe_space%create_fe_object_accessor(object)
   call par_fe_space%create_fe_vef_accessor(vef)
-  do while ( .not. object%past_the_end() )
+  do while ( .not. object%has_finished() )
      weigh = 0.0_rp
      denom = 0.0_rp
      ! Compute the weighting operator based on the physical coefficient for

@@ -44,12 +44,12 @@ subroutine base_fe_object_accessor_set_lid(this, lid)
   call this%object%set_lid(lid)
 end subroutine base_fe_object_accessor_set_lid
 
-function base_fe_object_accessor_past_the_end(this)
+function base_fe_object_accessor_has_finished(this)
   implicit none
   class(base_fe_object_accessor_t), intent(in) :: this
-  logical :: base_fe_object_accessor_past_the_end
-  base_fe_object_accessor_past_the_end = this%object%past_the_end()
-end function base_fe_object_accessor_past_the_end
+  logical :: base_fe_object_accessor_has_finished
+  base_fe_object_accessor_has_finished = this%object%has_finished()
+end function base_fe_object_accessor_has_finished
 
 function base_fe_object_accessor_get_lid (this)
   implicit none

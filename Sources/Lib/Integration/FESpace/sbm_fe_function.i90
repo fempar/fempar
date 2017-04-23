@@ -153,7 +153,7 @@
   call fe_space%create_fe_accessor(fe)
   
   ! Loop over the elements
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
   
      if ( fe%is_local() ) then
      
@@ -288,7 +288,7 @@ subroutine fe_function_interpolate_vector_function( this, &
   call fe_space%create_fe_accessor(fe)
   
   ! Loop over the elements
-  do while ( .not. fe%past_the_end())
+  do while ( .not. fe%has_finished())
 
      if ( fe%is_local() ) then
      
