@@ -254,7 +254,6 @@ contains
     
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
-    !WRITE(*,*) 'DOFS'
 	!call dof_values%print_matrix_market(6)
     !class DEFAULT
     !   assert(.false.) 
@@ -315,7 +314,8 @@ contains
     if(this%test_params%get_write_solution()) then
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'solution')
+        call oh%add_fe_function(this%solution, 1, 'u')
+	 	call oh%add_fe_function(this%solution, 1, 'curl(u)', curl_diff_operator )
         call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
         call oh%write()
         call oh%close()

@@ -86,7 +86,7 @@ contains
 
     type(i1p_t), allocatable :: elem2dof(:)
     integer(ip), allocatable :: num_dofs_per_field(:) 
-    
+	
     assert ( associated(this%source_term) )
     
     number_fields = fe_space%get_number_fields()
@@ -120,25 +120,27 @@ contains
 
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => fe_map%get_quadrature_coordinates()
-    
+	   
        ! Evaluate pressure source term at quadrature points
        call this%source_term%get_values_set(quad_coords, source_term_values)
-       
+
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
        call vol_int_H%get_values(H_shape_values)
        call vol_int_H%get_curls(H_shape_curls)
+	          	   
        do qpoint = 1, num_quad_points
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+
           ! \int_(curl(v).curl(u))
           do idof=1, num_dofs_per_field(1)
-            do jdof=1, num_dofs_per_field(1)
+            do jdof=1, num_dofs_per_field(1) 
               elmat(idof,jdof) = elmat(idof,jdof) + &
-                                 ( H_shape_values(idof,qpoint)*H_shape_values(jdof,qpoint) + 0.0_rp*H_shape_curls(jdof,qpoint)*H_shape_curls(idof,qpoint) )*factor
+                                 ( H_shape_values(idof,qpoint)*H_shape_values(jdof,qpoint) + H_shape_curls(jdof,qpoint)*H_shape_curls(idof,qpoint) )*factor
             end do
             ! \int_(curl(v).f)
-            elvec(idof) = elvec(idof) + H_shape_values(idof,qpoint) * source_term_values(qpoint) * factor
+            elvec(idof) = elvec(idof) + H_shape_values(idof,qpoint) * source_term_values(qpoint) * factor 
           end do
        end do
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )

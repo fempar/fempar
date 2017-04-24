@@ -28,6 +28,7 @@
 module mesh_names
   use types_names
   use memor_names
+  use sort_names
   use list_types_names
   use hash_table_names
   use stdio_names
@@ -305,6 +306,7 @@ contains
     character(6)   :: dum6
     character(1000) :: tel
     integer(ip), allocatable :: lnods_aux(:)
+	integer(ip), allocatable :: sorted_nodes(:) 
     integer(ip), allocatable :: bound_list_aux(:)
     type(list_iterator_t)    :: bound_iterator
     integer(ip), pointer     :: permu(:)
@@ -431,6 +433,21 @@ contains
        end do
        call memfree(lnods_aux,__FILE__,__LINE__)
     end if
+
+	! Re-ordering in ascendent order --> Done properly in Jesus branch, to merge   
+	   call memalloc(msh%nnode, lnods_aux, __FILE__, __LINE__)
+	      do ielem = 1,msh%nelem
+          nnode = msh%pnods(ielem+1) - msh%pnods(ielem)
+          call memalloc(nnode, sorted_nodes, __FILE__,__LINE__ )
+          lnods_aux(1:nnode) = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
+		  sorted_nodes = lnods_aux
+		  call sort( nnode, sorted_nodes ) 
+             do inode = 1, nnode
+             msh%lnods(msh%pnods(ielem)+inode-1) = sorted_nodes(inode)
+             end do
+		   	  call memfree( sorted_nodes, __FILE__, __LINE__ )
+       end do
+	  call memfree(lnods_aux,__FILE__,__LINE__)
 
   end subroutine mesh_read_from_unit
 

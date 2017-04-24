@@ -177,6 +177,7 @@ module reference_fe_names
      procedure, non_overridable :: get_normal                        => fe_map_get_normal
      procedure, non_overridable :: get_tangent                       => fe_map_get_tangent
      procedure, non_overridable :: get_jacobian_normalized_column    => fe_map_get_jacobian_normalized_column
+	 procedure, non_overridable :: get_jacobian_column               => fe_map_get_jacobian_column
   end type fe_map_t
 
   type p_fe_map_t
@@ -481,7 +482,6 @@ module reference_fe_names
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: get_permuted_own_node_n_face  => reference_fe_get_permuted_own_node_n_face
-	 procedure :: update_interpolation_signs => reference_fe_update_interpolation_signs
      procedure :: create_rotated_quadrature => reference_fe_create_rotated_quadrature
 
   end type reference_fe_t
@@ -1364,8 +1364,6 @@ procedure, private :: change_basis                                              
 & => tet_nedelec_reference_fe_change_basis
 procedure, private :: fill_permutations                                             & 
 & => tet_nedelec_reference_fe_fill_permutations
-procedure :: update_interpolation_signs                                             &
-& => tet_nedelec_reference_fe_update_interpolation_signs 
 end type tet_nedelec_reference_fe_t
 
 public :: tet_nedelec_reference_fe_t
@@ -1384,7 +1382,6 @@ procedure, non_overridable :: create             => volume_integrator_create
 procedure, non_overridable :: create_on_face     => volume_integrator_create_on_face
 procedure, non_overridable :: free               => volume_integrator_free
 procedure, non_overridable :: update             => volume_integrator_update
-procedure, non_overridable :: apply_sign_change  => volume_integrator_apply_sign_change
 procedure, non_overridable :: print              => volume_integrator_print
 
 procedure, non_overridable :: get_interpolation_reference_cell =>                               &
@@ -1475,8 +1472,7 @@ public :: volume_integrator_t, p_volume_integrator_t
      type(volume_integrator_t), allocatable :: volume_integrator(:) 
    contains
      procedure, non_overridable :: create  => volume_integrator_face_restriction_create
-     procedure, non_overridable :: update  => volume_integrator_face_restriction_update
-	 procedure, non_overridable :: apply_change_sign => volume_integrator_face_restriction_apply_change_sign 
+     procedure, non_overridable :: update  => volume_integrator_face_restriction_update 
      procedure, non_overridable :: free    => volume_integrator_face_restriction_free
      procedure, non_overridable :: get_active_volume_integrator => volume_integrator_face_restriction_get_active_volume_integrator
   end type volume_integrator_face_restriction_t
@@ -1520,7 +1516,6 @@ type face_integrator_t
 contains
   procedure, non_overridable :: create            => face_integrator_create
   procedure, non_overridable :: update            => face_integrator_update
-  procedure, non_overridable :: apply_sign_change => face_integrator_apply_change_sign 
   procedure, non_overridable :: free              => face_integrator_free
   procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
   procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector

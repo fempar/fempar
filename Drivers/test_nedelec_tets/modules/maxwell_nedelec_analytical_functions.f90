@@ -115,14 +115,16 @@ contains
       
 	 call result%init(0.0_rp) 
 	
-	!call result%set(1, 1.0_rp+x+y+z-y**2-x*z-x*y-z**2-y*z-y*z ) 
+	 ! Second order full basis 
+	!call result%set(1, 1.0_rp+x+y+z-y**2-x*z-x*y-z**2-y*z-y*z + 6.0_rp) 
 	!call result%set(2, 1.0_rp+x+y+z+x*y+x*x-z*z+x*z-y*z ) 
 	!if (this%num_dimensions == 3) then 
-	!call result%set(3, 1.0_rp+x+y+z+x*x+x*z+y*z+x*y+y*y ) 
+	!call result%set(3, 1.0_rp+x+y+z+x*x+x*z+y*z+x*y+y*y - 6.0_rp ) 
 	!end if 
 
-	 call result%set(1, -y ) 
-	 call result%set(2, x) 
+	 call result%set(1, -y*y + 3.0_rp ) 
+	 call result%set(2,  x*y ) 
+
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -147,14 +149,15 @@ contains
 	
 	 call result%init(0.0_rp) 
 
+	 ! Second order full basis
 	!call result%set(1, 1.0_rp+x+y+z-y**2-x*z-x*y-z**2-y*z-y*z ) 
 	!call result%set(2, 1.0_rp+x+y+z+x*y+x*x-z*z+x*z-y*z ) 
 	!if (this%num_dimensions == 3) then 
 	!call result%set(3, 1.0_rp+x+y+z+x*x+x*z+y*z+x*y+y*y ) 
 	!end if 
 
-	 call result%set(1, -y ) 
-	 call result%set(2, x) 
+	 call result%set(1, -y*y ) 
+	 call result%set(2,  x*y ) 
 
   end subroutine solution_get_value_space
 
@@ -169,8 +172,12 @@ contains
 	x = point%get(1); y=point%get(2); z=point%get(3)
 
 	call result%init(0.0_rp) 	
-	call result%set(2,1, -1.0_rp)
-	call result%set(1,2,  1.0_rp)
+	!call result%set(2,1, -1.0_rp)
+	!call result%set(1,2,  1.0_rp)
+	
+	call result%set(2,1, -2.0_rp*y)
+	call result%set(1,2, y )
+	call result%set(2,2, x )
   end subroutine solution_get_gradient_space
   
   !===============================================================================================
@@ -181,7 +188,9 @@ contains
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-	 result = -y
+	!result = 1.0_rp+x+y+z-y**2-x*z-x*y-z**2-y*z-y*z
+	result = -y*y
+
   end subroutine boundary_function_Hx_get_value_space
 
   !===============================================================================================
@@ -192,7 +201,9 @@ contains
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-    result = x        
+   ! result = 1.0_rp+x+y+z+x*y+x*x-z*z+x*z-y*z   
+     result = x*y
+
   end subroutine boundary_function_Hy_get_value_space
 
   !===============================================================================================
@@ -203,7 +214,8 @@ contains
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-    result = 0.0_rp         
+    !result = 1.0_rp+x+y+z+x*x+x*z+y*z+x*y+y*y    
+    result = 0.0_rp
   end subroutine boundary_function_Hz_get_value_space
 
   !===============================================================================================

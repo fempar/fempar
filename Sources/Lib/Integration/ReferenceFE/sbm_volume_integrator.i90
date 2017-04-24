@@ -238,6 +238,8 @@ subroutine fe_map_update( this, quadrature)
      end do
      ! J^(-t)
      call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),ndime)
+	 ! Store jacobian determinant in absolut value: allows to work with 2 tetrahedra with different sign with only one ref_fe
+	 this%det_jacobian(ilocs) = abs(this%det_jacobian(ilocs))
   end do
 
   ! Evaluation (Gauss) point coordinates
@@ -405,9 +407,6 @@ subroutine fe_map_update_edge_map(this,local_edge_id,reference_fe,quadrature)
      this%tangents (:,evaluation_point_id) = this%tangents (:,evaluation_point_id) / this%det_jacobian(evaluation_point_id) 
   end do
 end subroutine fe_map_update_edge_map
-
-
-
 
 !==================================================================================================
 subroutine fe_map_free( this )
@@ -665,6 +664,21 @@ subroutine fe_map_get_jacobian_normalized_column ( this, column_id, qpoint, norm
   normalized_column = normalized_column * (1.0_rp/normalized_column%nrm2())
 end subroutine fe_map_get_jacobian_normalized_column
 
+subroutine fe_map_get_jacobian_column ( this, column_id, qpoint, column )
+  implicit none
+  class(fe_map_t)     , intent(in)    :: this
+  integer(ip)         , intent(in)    :: column_id
+  integer(ip)         , intent(in)    :: qpoint
+  type(vector_field_t), intent(out)   :: column 
+  
+  integer(ip) :: idime
+  
+  call column%init(0.0_rp)
+  do idime=1, this%number_dimensions
+    call column%set(idime, this%jacobian(idime, column_id, qpoint))
+  end do
+end subroutine fe_map_get_jacobian_column
+
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures
@@ -734,14 +748,6 @@ subroutine volume_integrator_update( this, fe_map )
   call this%reference_fe%update_interpolation(fe_map, this%interpolation,this%interpolation_o_map)
 end subroutine volume_integrator_update
 
-!==================================================================================================
-subroutine volume_integrator_apply_sign_change( this, ishape )
-  implicit none
-  class(volume_integrator_t), intent(inout) :: this
-  integer(ip)               , intent(in)    :: ishape
-
-  call this%reference_fe%update_interpolation_signs(ishape, this%interpolation_o_map)
-end subroutine volume_integrator_apply_sign_change
 !==================================================================================================
 subroutine volume_integrator_print( this )
   implicit none

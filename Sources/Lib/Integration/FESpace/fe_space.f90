@@ -177,7 +177,6 @@ module fe_space_names
     procedure, non_overridable          :: get_reference_fe_id                        => fe_accessor_get_reference_fe_id
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_accessor_impose_strong_dirichlet_bcs
-	procedure, non_overridable          :: apply_rotation_change_basis                => fe_accessor_apply_rotation_change_basis 
   end type fe_accessor_t
   
   type fe_iterator_t
@@ -243,8 +242,7 @@ module fe_space_names
     procedure                           :: free                                       => fe_face_accessor_free
     generic                             :: get_cell_around                            => fe_face_accessor_get_fe_around
     procedure, private, non_overridable :: fe_face_accessor_get_fe_around
-    procedure         , non_overridable :: update_integration                         => fe_face_accessor_update_integration 
-	procedure         , non_overridable :: apply_edge_rotation_change_basis           => fe_face_accessor_apply_edge_rotation_change_basis 
+    procedure         , non_overridable :: update_integration                         => fe_face_accessor_update_integration  
     procedure         , non_overridable :: get_fe_space                               => fe_face_accessor_get_fe_space
     procedure         , non_overridable :: get_elem2dof                               => fe_face_accessor_get_elem2dof
     procedure         , non_overridable :: get_quadrature                             => fe_face_accessor_get_quadrature
