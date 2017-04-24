@@ -346,11 +346,13 @@ contains
     !write(*,*) "Domain volume    = ", volume
     !write(*,*) "Boundary surface = ", surface
 
-    ! TODO Why these are not allocated??
-    call memfree(shape_values, __FILE__, __LINE__)
-    call memfree(boundary_shape_values, __FILE__, __LINE__)
-    deallocate (shape_gradients, stat=istat); check(istat==0);
-    deallocate (boundary_shape_gradients, stat=istat); check(istat==0);
+    ! These are allocated by the vol integrators
+    ! We have to check if they are actually allocated before deallocate them,
+    ! since we cannot assure that they have been allocated
+    if (allocated(shape_values            )) call memfree(shape_values            , __FILE__, __LINE__)
+    if (allocated(boundary_shape_values   )) call memfree(boundary_shape_values   , __FILE__, __LINE__)
+    if (allocated(shape_gradients         )) deallocate  (shape_gradients         , stat=istat); check(istat==0);
+    if (allocated(boundary_shape_gradients)) deallocate  (boundary_shape_gradients, stat=istat); check(istat==0);
 
     deallocate (elem2dof, stat=istat); check(istat==0);
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
