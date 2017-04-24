@@ -475,7 +475,7 @@ function reference_fe_get_permuted_own_node_n_face(this,inode,target_n_face_id, 
 
      permuted_own_node = this%own_node_permutations          &
           & (n_face_dimension)%a(inode,permutation_key)
-
+          
   end if
   reference_fe_get_permuted_own_node_n_face = this%get_own_node_n_face(permuted_own_node, target_n_face_id)
 end function reference_fe_get_permuted_own_node_n_face

@@ -115,7 +115,7 @@ contains
     call this%triangulation%create(this%parameter_list)
     !call this%triangulation%print()
     
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    !if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()
        do while ( .not. vef_iterator%has_finished() )
           call vef_iterator%current(vef)
@@ -126,7 +126,7 @@ contains
           end if
           call vef_iterator%next()
        end do
-    end if    
+    !end if    
     
   end subroutine setup_triangulation
   

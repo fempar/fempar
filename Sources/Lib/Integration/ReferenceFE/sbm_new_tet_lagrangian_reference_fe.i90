@@ -142,12 +142,13 @@ subroutine new_tet_lagrangian_reference_fe_change_basis(this)
   class(new_tet_lagrangian_reference_fe_t), intent(inout) ::  this
   
   type(interpolation_t)   :: interpolation
-  integer(ip)             :: i, j
+  integer(ip)             :: i, j, number_shape_functions_per_component
   
-  call memalloc(this%number_shape_functions,this%number_shape_functions,this%change_basis_matrix,__FILE__,__LINE__)
+  number_shape_functions_per_component = this%number_shape_functions/this%number_field_components
+  call memalloc(number_shape_functions_per_component,number_shape_functions_per_component,this%change_basis_matrix,__FILE__,__LINE__)
   call this%create_interpolation(this%nodal_quadrature,interpolation)
-  do i=1,this%number_shape_functions
-     do j=1,this%number_shape_functions
+  do i=1,number_shape_functions_per_component
+     do j=1,number_shape_functions_per_component
         !write(*,*) 'Shape',j,'point',i
         !write(*,*) interpolation%shape_functions(1,j,i)
         this%change_basis_matrix(i,j) = interpolation%shape_functions(1,j,i)
@@ -166,43 +167,44 @@ subroutine new_tet_lagrangian_reference_fe_invert_change_basis_matrix(this)
   integer(ip) :: error
   integer(ip), allocatable :: ipiv(:)
   real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
-  integer(ip) :: i
+  integer(ip) :: i, number_shape_functions_per_component
   
+  number_shape_functions_per_component = this%number_shape_functions/this%number_field_components
   assert ( allocated(this%change_basis_matrix) )
-  assert ( size(this%change_basis_matrix,1) == this%number_shape_functions )
-  assert ( size(this%change_basis_matrix,2) == this%number_shape_functions )
+  assert ( size(this%change_basis_matrix,1) == number_shape_functions_per_component )
+  assert ( size(this%change_basis_matrix,2) == number_shape_functions_per_component )
   
   ! Solve linear system with several RHS
   ! Compute LU factorization of this%change_basis_matrix
 #ifdef ENABLE_LAPACK
-  call memalloc ( this%number_shape_functions, ipiv, __FILE__,__LINE__ )
+  call memalloc ( number_shape_functions_per_component, ipiv, __FILE__,__LINE__ )
    
-  call memalloc ( this%number_shape_functions, & 
-                  this%number_shape_functions, &
+  call memalloc ( number_shape_functions_per_component, & 
+                  number_shape_functions_per_component, &
                   inverse_change_basis_matrix, &
                    __FILE__,__LINE__ )
 
-  call DGETRF( this%number_shape_functions, & 
-               this%number_shape_functions, &
+  call DGETRF( number_shape_functions_per_component, & 
+               number_shape_functions_per_component, &
                this%change_basis_matrix, &
-               this%number_shape_functions, &
+               number_shape_functions_per_component, &
                ipiv, &
                error )
   check ( error == 0 )
   
   inverse_change_basis_matrix = 0.0_rp
-  do i=1, this%number_shape_functions
+  do i=1, number_shape_functions_per_component
     inverse_change_basis_matrix(i,i) = 1.0_rp
   end do  
  
   call DGETRS( 'N', & 
-               this%number_shape_functions, &
-               this%number_shape_functions, &
+               number_shape_functions_per_component, &
+               number_shape_functions_per_component, &
                this%change_basis_matrix, &
-               this%number_shape_functions, &
+               number_shape_functions_per_component, &
                ipiv, &
                inverse_change_basis_matrix, &
-               this%number_shape_functions, &
+               number_shape_functions_per_component, &
                error )
   check ( error == 0 )
   
@@ -235,33 +237,30 @@ subroutine new_tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, i
   type(interpolation_t)                   , intent(in)    :: interpolation_pre_basis
   type(interpolation_t)                   , intent(inout) :: interpolation
   
-  integer(ip)           :: i, j, idime, jdime, qpoint
+  integer(ip)           :: i, j, jdime, qpoint, number_shape_functions_per_component
 
   ! Initialize both shape functions and derivatives to zero.
   interpolation%shape_functions   = 0.0_rp
   interpolation%shape_derivatives = 0.0_rp
+  number_shape_functions_per_component = this%number_shape_functions/this%number_field_components
   
   ! Compute shape functions
   do qpoint = 1, interpolation%number_quadrature_points
-     do i=1, this%number_shape_functions
-        do j=1, this%number_shape_functions
-           do idime=1, this%number_dimensions
-              interpolation%shape_functions(idime, i, qpoint) = interpolation%shape_functions(idime, i, qpoint) + &
-                   this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
-           end do
+     do i=1, number_shape_functions_per_component
+        do j=1, number_shape_functions_per_component
+           interpolation%shape_functions(1, i, qpoint) = interpolation%shape_functions(1, i, qpoint) + &
+                this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(1, j, qpoint)
         end do
      end do
   end do
   
   ! Compute shape derivatives
   do qpoint = 1, interpolation%number_quadrature_points
-     do i=1, this%number_shape_functions
-        do j=1, this%number_shape_functions
-           do idime=1, this%number_dimensions
-              do jdime=1, this%number_dimensions
-                 interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
-                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
-              end do
+     do i=1, number_shape_functions_per_component
+        do j=1, number_shape_functions_per_component
+           do jdime=1, this%number_dimensions
+              interpolation%shape_derivatives(1, jdime, i, qpoint) = interpolation%shape_derivatives(1, jdime, i, qpoint) + &
+                   this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(1, jdime, j, qpoint)
            end do
         end do
      end do
