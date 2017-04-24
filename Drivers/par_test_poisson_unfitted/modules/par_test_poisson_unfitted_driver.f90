@@ -65,7 +65,7 @@ module par_test_poisson_unfitted_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_unfitted_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(unfitted_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     class(standard_l1_coarse_fe_handler_t), allocatable :: l1_coarse_fe_handler
      type(poisson_unfitted_CG_discrete_integration_t)   :: poisson_unfitted_integration
      type(poisson_unfitted_conditions_t)                :: poisson_unfitted_conditions
      type(poisson_unfitted_analytical_functions_t)      :: poisson_unfitted_analytical_functions
@@ -327,15 +327,31 @@ contains
   
   subroutine setup_solver (this)
     implicit none
-    class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_unfitted_fe_driver_t), target, intent(inout) :: this
     type(parameterlist_t) :: parameter_list
     integer(ip) :: FPLError
+    integer(ip) :: istat
+    class(standard_l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+
+    ! The unfitted coarse fe handler has to be created after the system is assembled
+    ! but prior to the setup of the coarse space
+    if (this%test_params%get_coarse_fe_handler_type()== unfitted_coarse_fe_handler_value) then
+      allocate(unfitted_l1_coarse_fe_handler_t:: this%l1_coarse_fe_handler, stat = istat)
+    else if (this%test_params%get_coarse_fe_handler_type()== standard_coarse_fe_handler_value) then
+      allocate(standard_l1_coarse_fe_handler_t:: this%l1_coarse_fe_handler, stat = istat)
+    else
+      mcheck(.false.,'Unknown type of coarse fe handler `'//this%test_params%get_coarse_fe_handler_type()//'`')
+    end if
+    check(istat == 0)
+
+    coarse_fe_handler =>  this%l1_coarse_fe_handler
+    select type(coarse_fe_handler)
+    class is (unfitted_l1_coarse_fe_handler_t)
+      call coarse_fe_handler%create(this%fe_affine_operator,this%parameter_list)
+    end select
 
     ! Set-up MLBDDC preconditioner
 !#ifdef ENABLE_MKL   
-    ! The unfitted coarse fe handler has to be created after the system is assembled
-    ! but prior to the setup of the coarse space
-    call this%l1_coarse_fe_handler%create(this%fe_affine_operator,this%parameter_list)
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
@@ -523,15 +539,25 @@ contains
   
   subroutine free(this)
     implicit none
-    class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_unfitted_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: i, istat
+    class(standard_l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
     
     call this%solution%free()
 !#ifdef ENABLE_MKL    
     call this%mlbddc%free()
 !#endif    
     call this%iterative_linear_solver%free()
-    call this%l1_coarse_fe_handler%free()
+
+    coarse_fe_handler =>  this%l1_coarse_fe_handler
+    select type(coarse_fe_handler)
+    class is (unfitted_l1_coarse_fe_handler_t)
+      call coarse_fe_handler%free()
+    end select
+    if (allocated(this%l1_coarse_fe_handler)) then
+      deallocate(this%l1_coarse_fe_handler,stat=istat); check(istat == 0)
+    end if
+
     call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
