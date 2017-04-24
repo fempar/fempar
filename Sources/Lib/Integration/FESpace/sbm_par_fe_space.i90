@@ -433,6 +433,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   end do
   pfs_compute_ubound_num_itfc_couplings_by_continuity = result
   call this%free_fe_iterator(fe) 
+  call this%free_fe_vef_iterator(vef)
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
 end function pfs_compute_ubound_num_itfc_couplings_by_continuity
 
@@ -955,7 +956,8 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
      end do
      call vef%next()
   end do
-  call this%free_fe_iterator(fe) 
+  call this%free_fe_iterator(fe)
+  call this%free_fe_vef_iterator(vef)
   deallocate(elem2dof, stat=istat ) 
   check (istat==0)
   

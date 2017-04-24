@@ -164,8 +164,8 @@ module fe_space_names
     private
     class(serial_fe_space_t), pointer    :: fe_space => NULL()
   contains
-    procedure                           :: create                                     => fe_iterator_create
-    procedure                           :: free                                       => fe_iterator_free
+    procedure                 , private :: create                                     => fe_iterator_create
+    procedure                 , private :: free                                       => fe_iterator_free
     final                               :: fe_iterator_free_final
     procedure, non_overridable, private :: fill_own_dofs                              => fe_iterator_fill_own_dofs
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => fe_iterator_fill_own_dofs_on_vef
@@ -240,8 +240,9 @@ module fe_space_names
     private
     class(serial_fe_space_t), pointer :: fe_space => NULL()
   contains
-     procedure                           :: create                    => fe_vef_iterator_create
-     procedure                           :: free                      => fe_vef_iterator_free
+     procedure                 , private :: create                    => fe_vef_iterator_create
+     procedure                 , private :: free                      => fe_vef_iterator_free
+     final                               :: fe_vef_iterator_final
      procedure, non_overridable, private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around           => fe_vef_iterator_get_fe_around
   end type fe_vef_iterator_t
@@ -251,8 +252,8 @@ module fe_space_names
     class(fe_iterator_t)  , allocatable :: fe
     class(face_iterator_t), pointer     :: face
    contains
-    procedure                           :: create                                     => fe_face_iterator_create
-    procedure                           :: free                                       => fe_face_iterator_free
+    procedure         , private         :: create                                     => fe_face_iterator_create
+    procedure         , private         :: free                                       => fe_face_iterator_free
     procedure         , non_overridable :: update_integration                         => fe_face_iterator_update_integration 
     procedure         , non_overridable :: get_fe_space                               => fe_face_iterator_get_fe_space
     procedure         , non_overridable :: get_elem2dof                               => fe_face_iterator_get_elem2dof
@@ -418,10 +419,11 @@ module fe_space_names
  
  type, extends(base_fe_object_iterator_t) :: fe_object_iterator_t
     private
-    type(par_fe_space_t), pointer :: fe_space
+    type(par_fe_space_t), pointer :: fe_space => NULL()
   contains
-    procedure                            :: create                                => fe_object_iterator_create
-    procedure                            :: free                                  => fe_object_iterator_free
+    procedure, non_overridable, private  :: create                                => fe_object_iterator_create
+    procedure, non_overridable, private  :: free                                  => fe_object_iterator_free
+    final                                :: fe_object_iterator_free_final
     ! Own methods of fe_object_iterator_t
     procedure, non_overridable, private  :: fe_object_iterator_get_fe_vef
     procedure, non_overridable, private  :: fe_object_iterator_get_fe_face
@@ -588,8 +590,9 @@ module fe_space_names
     private
     type(coarse_fe_space_t), pointer :: coarse_fe_space => NULL()
   contains
-    procedure, private, non_overridable :: create                                     => coarse_fe_iterator_create
-    procedure                           :: free                                       => coarse_fe_iterator_free
+    procedure, non_overridable, private :: create                                     => coarse_fe_iterator_create
+    procedure, non_overridable, private :: free                                       => coarse_fe_iterator_free
+    final                               :: coarse_fe_iterator_free_final
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => coarse_fe_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => coarse_fe_iterator_fill_own_dofs_on_vef
     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_coarse_fe => coarse_fe_iterator_fill_own_dofs_on_vef_from_source_coarse_fe
@@ -608,8 +611,9 @@ module fe_space_names
     private
     type(coarse_fe_space_t), pointer    :: coarse_fe_space => NULL()
   contains
-     procedure :: create                                              => coarse_fe_vef_iterator_create
-     procedure :: free                                                => coarse_fe_vef_iterator_free
+     procedure, non_overridable, private :: create                    => coarse_fe_vef_iterator_create
+     procedure, non_overridable, private :: free                      => coarse_fe_vef_iterator_free
+     final                               :: coarse_fe_vef_iterator_final
      procedure, non_overridable          :: get_coarse_fe_around      => coarse_fe_vef_iterator_get_coarse_fe_around
      generic                             :: get_cell_around           => get_coarse_fe_around
   end type coarse_fe_vef_iterator_t
@@ -618,8 +622,8 @@ module fe_space_names
     private
     type(coarse_fe_space_t), pointer :: coarse_fe_space => NULL()
   contains
-    procedure                            :: create                                   => coarse_fe_object_iterator_create
-    procedure                            :: free                                     => coarse_fe_object_iterator_free
+    procedure, non_overridable, private  :: create                                   => coarse_fe_object_iterator_create
+    procedure, non_overridable, private  :: free                                     => coarse_fe_object_iterator_free
     
     ! Own methods of coarse_fe_object_iterator_t
     procedure, non_overridable, private  :: coarse_fe_object_iterator_get_fe_vef

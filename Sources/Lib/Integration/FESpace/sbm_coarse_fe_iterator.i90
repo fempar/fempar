@@ -48,6 +48,13 @@ subroutine coarse_fe_iterator_free (this)
   nullify(this%coarse_fe_space)
 end subroutine coarse_fe_iterator_free
 
+subroutine coarse_fe_iterator_free_final(this)
+  implicit none
+  type(coarse_fe_iterator_t), intent(inout) :: this
+  assert ( .not. allocated(this%cell) )
+  assert ( .not. associated(this%coarse_fe_space) )
+end subroutine coarse_fe_iterator_free_final
+
 function coarse_fe_iterator_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) result(list_iterator)
   implicit none
   class(coarse_fe_iterator_t), intent(in) :: this

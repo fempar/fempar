@@ -47,6 +47,12 @@ subroutine coarse_fe_vef_iterator_free ( this)
   nullify(this%coarse_fe_space)
 end subroutine coarse_fe_vef_iterator_free
 
+subroutine coarse_fe_vef_iterator_final(this)
+  implicit none
+  type(coarse_fe_vef_iterator_t), intent(inout) :: this
+  assert ( .not. associated(this%coarse_fe_space) ) 
+end subroutine coarse_fe_vef_iterator_final  
+
 subroutine coarse_fe_vef_iterator_get_coarse_fe_around (this, icoarse_fe_around, coarse_fe)
   implicit none
   class(coarse_fe_vef_iterator_t), intent(in)    :: this

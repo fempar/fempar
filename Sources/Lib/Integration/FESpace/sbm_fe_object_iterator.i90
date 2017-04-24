@@ -41,6 +41,12 @@ subroutine fe_object_iterator_free (this)
   nullify ( this%fe_space )
 end subroutine fe_object_iterator_free
 
+subroutine fe_object_iterator_free_final(this)
+  implicit none
+  type(fe_object_iterator_t), intent(inout) :: this
+  assert ( .not. associated(this%fe_space) )
+end subroutine fe_object_iterator_free_final
+
 subroutine fe_object_iterator_get_fe_vef (this, ivef, fe_vef)
   implicit none
   class(fe_object_iterator_t), intent(in)    :: this

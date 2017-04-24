@@ -38,9 +38,17 @@ subroutine object_iterator_free ( this)
   implicit none
   class(object_iterator_t), intent(inout) :: this
   this%lid = -1
-  call this%vefs_object_iterator%free()
   nullify ( this%base_static_triangulation )
+  call this%vefs_object_iterator%free()
 end subroutine object_iterator_free
+
+subroutine object_iterator_free_final ( this)
+  implicit none
+  type(object_iterator_t), intent(inout) :: this
+  assert ( this%lid == -1 ) 
+  assert ( .not. associated(this%base_static_triangulation) )
+end subroutine object_iterator_free_final
+
 
 subroutine object_iterator_update_vefs_object_iterator(this)
   implicit none

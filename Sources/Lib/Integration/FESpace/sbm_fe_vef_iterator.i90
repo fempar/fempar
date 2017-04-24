@@ -48,6 +48,12 @@ subroutine fe_vef_iterator_free ( this)
   nullify(this%fe_space)
 end subroutine fe_vef_iterator_free
 
+subroutine fe_vef_iterator_final ( this )
+  implicit none
+  type(fe_vef_iterator_t), intent(inout) :: this
+  assert (.not. associated(this%fe_space)) 
+end subroutine fe_vef_iterator_final 
+
 subroutine fe_vef_iterator_get_fe_around (this, ife_around, fe)
   implicit none
   class(fe_vef_iterator_t)          , intent(in)     :: this

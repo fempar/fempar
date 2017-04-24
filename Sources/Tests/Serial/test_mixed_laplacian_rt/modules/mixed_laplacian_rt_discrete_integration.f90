@@ -227,7 +227,7 @@ contains
        end if
        call fe_face%next()
     end do
-    call fe_face%free()
+    call fe_space%free_fe_vef_iterator(fe_face)
     call memfree ( pressure_boundary_function_values, __FILE__, __LINE__ )
     deallocate(velocity_shape_values, stat=istat); check(istat==0);
     call memfree(velocity_shape_divs, __FILE__, __LINE__)

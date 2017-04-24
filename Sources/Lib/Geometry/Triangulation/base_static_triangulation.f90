@@ -96,8 +96,8 @@ module base_static_triangulation_names
     ! extends type(cell_iterator_t), requires to call these TBPs and cannot be placed
     ! either within this module or within a submodule of base_static_triangulation_names
     ! due to module dependencies cycle
-    procedure                            :: create                  => cell_iterator_create
-    procedure                            :: free                    => cell_iterator_free
+    procedure                 , private  :: create                  => cell_iterator_create
+    procedure                 , private  :: free                    => cell_iterator_free
     final                                ::                            cell_iterator_free_final
     procedure, non_overridable           :: next                    => cell_iterator_next
     procedure, non_overridable           :: first                   => cell_iterator_first
@@ -144,7 +144,7 @@ module base_static_triangulation_names
   contains
      procedure                           :: create                    => vef_iterator_create
      procedure                           :: free                      => vef_iterator_free
-     !final                               ::                              vef_iterator_free_final
+     final                               ::                              vef_iterator_free_final
      procedure                           :: first                     => vef_iterator_first
      procedure                           :: next                      => vef_iterator_next
      procedure, non_overridable          :: set_lid                   => vef_iterator_set_lid
@@ -196,6 +196,7 @@ module base_static_triangulation_names
   contains
     procedure                           :: create                           => face_iterator_create
     procedure                           :: free                             => face_iterator_free
+    final                               ::                                     face_iterator_free_final
     procedure                           :: first                            => face_iterator_first
     procedure                           :: has_finished                     => face_iterator_has_finished
     procedure                           :: get_coordinates                  => face_iterator_get_coordinates
@@ -222,10 +223,11 @@ module base_static_triangulation_names
     integer(ip)                                 :: lid = -1
     type(list_iterator_t)                       :: vefs_object_iterator
     type(list_iterator_t)                       :: faces_object_iterator
-    class(base_static_triangulation_t), pointer :: base_static_triangulation
+    class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
     procedure                           :: create                          => object_iterator_create
     procedure                           :: free                            => object_iterator_free
+    final                               ::                                    object_iterator_free_final
     procedure, non_overridable, private :: update_vefs_object_iterator     => object_iterator_update_vefs_object_iterator
     procedure, non_overridable, private :: update_faces_object_iterator    => object_iterator_update_faces_object_iterator
     procedure                           :: first                           => object_iterator_first
@@ -325,7 +327,7 @@ module base_static_triangulation_names
      integer(ip)                             :: number_subparts        ! Number of subparts around part (including those subparts which are local)
      type(list_t)                            :: subparts_object        ! Number and list of subparts GIDs around each coarse n_face
      type(hash_table_ip_ip_t)                :: g2l_subparts           ! Translator among the GIDs of subparts and LIDs
-     type(coarse_triangulation_t), pointer   :: coarse_triangulation
+     type(coarse_triangulation_t), pointer   :: coarse_triangulation => NULL()
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
      type(geometry_t)                        :: geometry
@@ -494,7 +496,9 @@ module base_static_triangulation_names
   public :: serial_triangulation_t
   public :: coarse_triangulation_t 
   public :: par_triangulation_t
-  public :: cell_iterator_t, vef_iterator_t, itfc_vef_iterator_t, face_iterator_t, object_iterator_t
+  public :: cell_iterator_t
+  public :: vef_iterator_t
+  public :: itfc_vef_iterator_t, face_iterator_t, object_iterator_t
   
 contains
 

@@ -339,7 +339,7 @@ contains
        end if
        call fe_face%next()
     end do
-    call fe_face%free()
+    call fe_space%free_fe_vef_iterator(fe_face)
     call boundary_fe_function%free()
     call boundary_face_fe_function%free()
     call memfree(shape_values_first, __FILE__, __LINE__) 

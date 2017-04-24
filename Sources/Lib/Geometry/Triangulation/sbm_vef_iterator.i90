@@ -298,6 +298,12 @@ subroutine face_iterator_free (this)
   end if
 end subroutine face_iterator_free
 
+subroutine face_iterator_free_final(this)
+  implicit none
+  type(face_iterator_t), intent(inout) :: this
+  assert( .not. allocated(this%cell) )
+end subroutine face_iterator_free_final
+
 subroutine face_iterator_first (this)
    implicit none
    class(face_iterator_t), intent(inout) :: this
@@ -322,7 +328,8 @@ subroutine face_iterator_get_coordinates (this, face_coordinates)
 
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
   assert ( allocated ( this%base_static_triangulation%coordinates ) )
- 
+  assert ( allocated(this%cell) )
+  
   call this%get_cell_around(1, this%cell)
   reference_fe_geo => this%cell%get_reference_fe_geo()
   dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(this%cell%find_lpos_vef_lid(this%get_lid()))
@@ -349,6 +356,7 @@ function face_iterator_get_face_lpos_within_cell_around(this, icell_around) resu
   integer(ip)           , intent(in)       :: icell_around
   integer(ip)                           :: face_lpos_within_cell_around
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  assert ( allocated(this%cell) )
   call this%get_cell_around(icell_around, this%cell)
   reference_fe_geo => this%cell%get_reference_fe_geo()
   assert ( this%cell%find_lpos_vef_lid (this%lid) /= -1 )
