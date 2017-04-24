@@ -116,7 +116,7 @@ contains
     call this%triangulation%create(this%parameter_list)
     !call this%triangulation%print()
     
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    !if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()
        do while ( .not. vef_iterator%has_finished() )
           call vef_iterator%current(vef)
@@ -127,7 +127,7 @@ contains
           end if
           call vef_iterator%next()
        end do
-    end if    
+    !end if    
     
   end subroutine setup_triangulation
   
@@ -144,7 +144,7 @@ contains
     type(cell_iterator_t)                     :: cell_iterator
     type(cell_accessor_t)                     :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-    character(:), allocatable :: field_type
+    character(:), allocatable :: field_type, fe_type
     
 
     allocate(this%reference_fes(1), stat=istat)
@@ -177,9 +177,13 @@ contains
     !call poly_old%print()
     !call poly%print()
     ! END Checking ...
-    
+    if (reference_fe_geo%get_topology() .eq. topology_tet) then
+       fe_type = fe_type_new_tet
+    else
+       fe_type = fe_type_lagrangian
+    end if
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                 fe_type = fe_type_lagrangian, &
+                                                 fe_type = fe_type, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
