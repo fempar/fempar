@@ -102,7 +102,6 @@ module par_test_poisson_unfitted_driver_names
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure        , private :: free
-     procedure, nopass, private :: ls_fun => par_test_poisson_unfitted_driver_ls_fun
   end type par_test_poisson_unfitted_fe_driver_t
 
   ! Types
@@ -110,6 +109,7 @@ module par_test_poisson_unfitted_driver_names
 
 contains
 
+!========================================================================================
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
@@ -118,6 +118,7 @@ contains
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
 
+!========================================================================================
   subroutine setup_levelset(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t ), target, intent(inout) :: this
@@ -125,39 +126,31 @@ contains
     integer(ip) :: num_dime
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
+    type(level_set_function_factory_t) :: level_set_factory
 
     ! Get number of dimensions form input
     assert( this%parameter_list%isPresent    (key = number_of_dimensions_key) )
     assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
     istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
 
-    !TODO we assume it is a sphere
-    select case ('sphere')
-      case ('sphere')
-        allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0)
-      case ('cylinder')
-        allocate( level_set_cylinder_t:: this%level_set_function, stat= istat ); check(istat==0)
-      case ('cheese_block')
-        allocate( level_set_cheese_block_t:: this%level_set_function, stat= istat ); check(istat==0)
-      case default
-        check(.false.)
-    end select
+    ! Create the desired type of level set function
+    call level_set_factory%create(this%test_params%get_level_set_function_type(), this%level_set_function)
 
     ! Set options of the base class
     call this%level_set_function%set_num_dimensions(num_dime)
     call this%level_set_function%set_tolerance(1.0e-6)
 
     ! Set options of the derived classes
+    ! TODO a parameter list would be better to define the level set function together with its parameters
     levset => this%level_set_function
     select type ( levset )
       class is (level_set_sphere_t)
-        call levset%set_radius(0.95)!0.625_rp)
-      class default
-        check(.false.)
+        call levset%set_radius(0.95)
     end select
 
   end subroutine setup_levelset
    
+!========================================================================================
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
@@ -223,6 +216,7 @@ contains
     
   end subroutine setup_triangulation
   
+!========================================================================================
   subroutine setup_reference_fes(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
@@ -254,6 +248,7 @@ contains
     end if  
   end subroutine setup_reference_fes
 
+!========================================================================================
   subroutine setup_fe_space(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
@@ -279,6 +274,7 @@ contains
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
+!========================================================================================
   subroutine setup_system (this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
@@ -297,6 +293,7 @@ contains
 
   end subroutine setup_system
 
+!========================================================================================
   subroutine assemble_system (this)
 
     implicit none
@@ -325,6 +322,7 @@ contains
 
   end subroutine assemble_system
   
+!========================================================================================
   subroutine setup_solver (this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), target, intent(inout) :: this
@@ -382,9 +380,7 @@ contains
     
   end subroutine setup_solver
   
-  
-  
-  
+!========================================================================================
   subroutine solve_system(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
@@ -414,6 +410,7 @@ contains
     !end select
   end subroutine solve_system
    
+!========================================================================================
   subroutine check_solution(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
@@ -471,6 +468,7 @@ contains
     !call error_norm%free()
   end subroutine check_solution
   
+!========================================================================================
   subroutine write_solution(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(in) :: this
@@ -516,6 +514,7 @@ contains
 
   end subroutine write_solution
   
+!========================================================================================
   subroutine run_simulation(this) 
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
@@ -537,6 +536,7 @@ contains
     call this%free()
   end subroutine run_simulation
   
+!========================================================================================
   subroutine free(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), target, intent(inout) :: this
@@ -576,52 +576,5 @@ contains
     call this%par_environment%free() 
     !call this%w_context%free(.true.)
   end subroutine free  
-
-  function par_test_poisson_unfitted_driver_ls_fun(point,num_dim) result (val)
-    implicit none
-    type(point_t), intent(in) :: point
-    integer(ip),   intent(in) :: num_dim
-    real(rp) :: val
-    type(point_t) :: p
-    real(rp) :: x, y, z
-    real(rp) :: xk, yk, zk
-    real(rp) :: r0, sg, A
-    integer(ip) :: k
-
-    p = point
-    if (num_dim < 3) call p%set(3,0.62)
-    !x = 1.85*( 2.0*p%get(1) - 1.0 )
-    !y = 1.85*( 2.0*p%get(2) - 1.0 )
-    !z = 1.85*( 2.0*p%get(3) - 1.0 )
-    !val = (x**2+y**2-4)**2 + (z**2-1.2)**2 + (y**2+z**2-4)**2 +&
-    !      (x**2-1.2)**2 + (z**2+x**2-4)**2 + (y**2-1.2)**2 - 12
-    x = ( 2.0*p%get(1) - 1.0 )
-    y = ( 2.0*p%get(2) - 1.0 )
-    z = ( 2.0*p%get(3) - 1.0 )
-    r0 = 0.6
-    sg = 0.2
-    A  = 2.0
-    val = sqrt(x**2 + y**2 + z**2) - r0
-    do k = 0,11
-        if (0 <= k .and. k <= 4) then
-            xk = (r0/sqrt(5.0))*2.0*cos(2.0*k*pi/5.0)
-            yk = (r0/sqrt(5.0))*2.0*sin(2.0*k*pi/5.0)
-            zk = (r0/sqrt(5.0))
-        else if (5 <= k .and. k <= 9) then
-            xk = (r0/sqrt(5.0))*2.0*cos((2.0*(k-5)-1.0)*pi/5.0)
-            yk = (r0/sqrt(5.0))*2.0*sin((2.0*(k-5)-1.0)*pi/5.0)
-            zk =-(r0/sqrt(5.0))
-        else if (k == 10) then
-            xk = 0
-            yk = 0
-            zk = r0
-        else
-            xk = 0
-            yk = 0
-            zk = -r0
-        end if
-        val = val - A*exp( -( (x - xk)**2  + (y - yk)**2 + (z - zk)**2 )/(sg**2) )
-    end do
-  end function par_test_poisson_unfitted_driver_ls_fun
   
 end module par_test_poisson_unfitted_driver_names

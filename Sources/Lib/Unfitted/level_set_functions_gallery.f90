@@ -35,7 +35,17 @@ module level_set_functions_gallery_names
   !TODO. Add a mechanism to get the complement, the union etc.
   !Translations and complement can implemented in the base class
 
-!========================================================================================
+  character(len=*), parameter, public :: level_set_sphere_str       = 'sphere'
+  character(len=*), parameter, public :: level_set_cylinder_str     = 'cylinder'
+  character(len=*), parameter, public :: level_set_cheese_block_str = 'cheese_block'
+  character(len=*), parameter, public :: level_set_popcorn_str      = 'popcorn'
+
+  type :: level_set_function_factory_t
+    private
+  contains
+    procedure, non_overridable, nopass :: create => level_set_function_factory_create
+  end type level_set_function_factory_t
+
   type, extends(scalar_function_t) :: level_set_function_t
     private
     real(rp) :: tolerance = 0.0_rp
@@ -47,7 +57,6 @@ module level_set_functions_gallery_names
     procedure :: set_tolerance                => level_set_function_set_tolerance
   end type level_set_function_t
 
-!========================================================================================
   type, extends(level_set_function_t) :: level_set_sphere_t
     private
     real(rp) :: radius = 0.0_rp
@@ -56,28 +65,56 @@ module level_set_functions_gallery_names
     procedure, private :: get_level_set_value => level_set_sphere_get_level_set_value
   end type level_set_sphere_t
 
-!========================================================================================
   type, extends(level_set_sphere_t) :: level_set_cylinder_t
     private
   contains
     procedure, private :: get_level_set_value => level_set_cylinder_get_level_set_value
   end type level_set_cylinder_t
 
-!========================================================================================
   type, extends(level_set_function_t) :: level_set_cheese_block_t
     private
   contains
     procedure, private :: get_level_set_value => level_set_cheese_block_get_level_set_value
   end type level_set_cheese_block_t
 
-!========================================================================================
+  type, extends(level_set_function_t) :: level_set_popcorn_t
+    private
+  contains
+    procedure, private :: get_level_set_value => level_set_popcorn_get_level_set_value
+  end type level_set_popcorn_t
+
+  public :: level_set_function_factory_t
   public :: level_set_function_t
   public :: level_set_sphere_t
   public :: level_set_cylinder_t
   public :: level_set_cheese_block_t
+  public :: level_set_popcorn_t
 
 contains
 
+!========================================================================================
+subroutine level_set_function_factory_create(level_set_str, level_set_function)
+
+  implicit none
+  character(len=*), intent(in) :: level_set_str
+  class(level_set_function_t), allocatable, intent(inout) :: level_set_function
+
+  integer(ip) :: istat
+
+  select case (level_set_str)
+    case (level_set_sphere_str)
+      allocate( level_set_sphere_t::       level_set_function, stat= istat ); check(istat==0)
+    case (level_set_cylinder_str)
+      allocate( level_set_cylinder_t::     level_set_function, stat= istat ); check(istat==0)
+    case (level_set_cheese_block_str)
+      allocate( level_set_cheese_block_t:: level_set_function, stat= istat ); check(istat==0)
+    case (level_set_popcorn_str)
+      allocate( level_set_popcorn_t::      level_set_function, stat= istat ); check(istat==0)
+    case default
+      mcheck(.false., 'Unknown type of level set function `'//level_set_str//'`')
+  end select
+
+end subroutine level_set_function_factory_create
 
 !========================================================================================
   subroutine level_set_function_get_level_set_value( this, point, result )
@@ -171,6 +208,50 @@ contains
     result = (x**2+y**2-4)**2 + (z**2-1.2)**2 + (y**2+z**2-4)**2 +&
              (x**2-1.2)**2 + (z**2+x**2-4)**2 + (y**2-1.2)**2 - 12
   end subroutine level_set_cheese_block_get_level_set_value
+
+!========================================================================================
+  subroutine level_set_popcorn_get_level_set_value( this, point, result )
+    implicit none
+    class(level_set_popcorn_t),  intent(in)    :: this
+    type(point_t)               , intent(in)    :: point
+    real(rp)                    , intent(inout) :: result
+
+    real(rp) :: x, y, z
+    real(rp) :: xk, yk, zk
+    real(rp) :: r0, sg, A
+    integer(ip) :: k
+
+    x = point%get(1)
+    y = point%get(2)
+    z = point%get(3)
+
+    r0 = 0.6
+    sg = 0.2
+    A  = 2.0
+    result = sqrt(x**2 + y**2 + z**2) - r0
+
+    do k = 0,11
+        if (0 <= k .and. k <= 4) then
+            xk = (r0/sqrt(5.0))*2.0*cos(2.0*k*pi/5.0)
+            yk = (r0/sqrt(5.0))*2.0*sin(2.0*k*pi/5.0)
+            zk = (r0/sqrt(5.0))
+        else if (5 <= k .and. k <= 9) then
+            xk = (r0/sqrt(5.0))*2.0*cos((2.0*(k-5)-1.0)*pi/5.0)
+            yk = (r0/sqrt(5.0))*2.0*sin((2.0*(k-5)-1.0)*pi/5.0)
+            zk =-(r0/sqrt(5.0))
+        else if (k == 10) then
+            xk = 0
+            yk = 0
+            zk = r0
+        else
+            xk = 0
+            yk = 0
+            zk = -r0
+        end if
+        result = result - A*exp( -( (x - xk)**2  + (y - yk)**2 + (z - zk)**2 )/(sg**2) )
+    end do
+
+  end subroutine level_set_popcorn_get_level_set_value
 
 end module level_set_functions_gallery_names
 !***************************************************************************************************

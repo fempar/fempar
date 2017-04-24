@@ -1,5 +1,6 @@
 module par_test_poisson_unfitted_params_names
   use fempar_names
+  use level_set_functions_gallery_names
 
   implicit none
 #include "debug.i90" 
@@ -10,6 +11,7 @@ module par_test_poisson_unfitted_params_names
   character(len=*), parameter :: write_solution_key         = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
   character(len=*), parameter :: coarse_fe_handler_type_key = 'coarse_fe_handler_type'    
+  character(len=*), parameter :: level_set_function_type_key= 'level_set_function_type'    
 
   character(len=*), public, parameter :: unfitted_coarse_fe_handler_value = 'unfitted'    
   character(len=*), public, parameter :: standard_coarse_fe_handler_value = 'standard'    
@@ -25,6 +27,7 @@ module par_test_poisson_unfitted_params_names
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_coarse_fe_handler_type
+       procedure, non_overridable             :: get_level_set_function_type
        !procedure, non_overridable             :: get_num_dimensions
   end type par_test_poisson_unfitted_params_t
 
@@ -64,6 +67,7 @@ contains
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_fe_handler_type_key        , value =  unfitted_coarse_fe_handler_value) ; check(error==0)
+    error = list%set(key = level_set_function_type_key       , value =  level_set_sphere_str) ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -82,6 +86,7 @@ contains
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
     error = switches%set(key = coarse_fe_handler_type_key    , value = '--coarse-fe-handler' )       ; check(error==0)
+    error = switches%set(key = level_set_function_type_key   , value = '--level-set-function' )      ; check(error==0)
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -99,6 +104,7 @@ contains
     error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
     error = switches_ab%set(key = coarse_fe_handler_type_key    , value = '-chandler' )   ; check(error==0)
+    error = switches_ab%set(key = level_set_function_type_key   , value = '-levelset' )   ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -116,6 +122,8 @@ contains
     error = helpers%set(key = coarse_fe_handler_type_key    ,&
       value  = 'Type of coarse fe handler. `'//standard_coarse_fe_handler_value//'` or `'//unfitted_coarse_fe_handler_value//'` ?' )
     check(error==0)
+    error = helpers%set(key = level_set_function_type_key   , value  = 'Type of levelset to be used.'//&
+      ' The possible values are the public character constants defined in the `level_set_functions_gallery_names` module' )  ; check(error==0)
     
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -143,6 +151,7 @@ contains
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_fe_handler_type_key    , value = .false.) ; check(error==0)
+    error = required%set(key = level_set_function_type_key   , value = .false.) ; check(error==0)
 
   end subroutine par_test_poisson_unfitted_params_define_parameters
 
@@ -239,5 +248,18 @@ contains
     error = list%GetAsString(key = coarse_fe_handler_type_key, string = get_coarse_fe_handler_type)
     assert(error==0)
   end function get_coarse_fe_handler_type
+
+  !==================================================================================================
+  function get_level_set_function_type(this)
+    implicit none
+    class(par_test_poisson_unfitted_params_t) , intent(in) :: this
+    character(len=:),      allocatable            :: get_level_set_function_type
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(level_set_function_type_key, 'string'))
+    error = list%GetAsString(key = level_set_function_type_key, string = get_level_set_function_type)
+    assert(error==0)
+  end function get_level_set_function_type
 
 end module par_test_poisson_unfitted_params_names
