@@ -459,6 +459,16 @@ contains
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(in) :: this
 
+    type(unfitted_vtk_writer_t) :: vtk_writer
+
+    if(this%test_params%get_write_solution()) then
+
+      call vtk_writer%attach_fe_function(this%solution,this%fe_space)
+      call vtk_writer%write('out_mesh_solution')
+      call vtk_writer%free()
+
+    endif
+
     !type(output_handler_t)                          :: oh
     !real(rp),allocatable :: cell_vector(:)
     !real(rp),allocatable :: mypart_vector(:)

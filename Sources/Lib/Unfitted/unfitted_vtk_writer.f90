@@ -56,6 +56,8 @@ module unfitted_vtk_writer_names
     real(rp),    allocatable, dimension(:) :: v_x
     real(rp),    allocatable, dimension(:) :: v_y
     real(rp),    allocatable, dimension(:) :: v_z
+    real(rp),    allocatable, dimension(:) :: pid
+    class(environment_t), pointer          :: environment => null()
 
   contains
 
@@ -64,6 +66,8 @@ module unfitted_vtk_writer_names
     procedure, non_overridable :: attach_boundary_quad_points => uvtkw_attach_boundary_quad_points
     procedure, non_overridable :: attach_fe_function    => uvtkw_attach_fe_function
     procedure, non_overridable :: write_to_vtk_file     => uvtkw_write_to_vtk_file
+    procedure, non_overridable :: write_to_pvtk_file    => uvtkw_write_to_pvtk_file
+    procedure, non_overridable :: write                 => uvtkw_write
     procedure, non_overridable :: free                  => uvtkw_free
 
   end type unfitted_vtk_writer_t
@@ -77,7 +81,7 @@ contains
 
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
-    class(serial_unfitted_triangulation_t), intent(in)    :: triangulation
+    class(base_static_triangulation_t), intent(in)    :: triangulation
 
     integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
     integer(ip) :: istat, icell, inode, ino, isubcell
@@ -86,17 +90,31 @@ contains
     type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
     integer(ip) :: the_cell_type, the_subcell_type
     integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
+    integer(ip) :: my_part_id
     
     call this%free()
 
-    cell_iter = triangulation%create_unfitted_cell_iterator()
+    this%environment => triangulation%get_par_environment()
+    if ( .not. this%environment%am_i_l1_task() ) return
+    my_part_id = this%environment%get_l1_rank() + 1
+
+    select type (triangulation)
+    class is (serial_unfitted_triangulation_t)
+      cell_iter = triangulation%create_unfitted_cell_iterator()
+      num_subcells = triangulation%get_total_num_of_subcells()
+      num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
+    class is (par_unfitted_triangulation_t)
+      cell_iter = triangulation%create_unfitted_cell_iterator()
+      num_subcells = triangulation%get_total_num_of_subcells()
+      num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
+    class default 
+      check(.false.)
+    end select
     call cell_iter%current(cell)
 
     num_dime = triangulation%get_num_dimensions()
-    num_cells = triangulation%get_num_cells()
+    num_cells = triangulation%get_num_local_cells()
     num_cell_nodes = cell%get_num_nodes()
-    num_subcells = triangulation%get_total_num_of_subcells()
-    num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
     this%Ne = num_cells + num_subcells
     this%Nn = num_cell_nodes*num_cells  + num_subcell_nodes*num_subcells
 
@@ -106,7 +124,8 @@ contains
     call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
     call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
-    call memalloc ( this%Ne, this%cell_data       , __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_data , __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%pid       , __FILE__, __LINE__ )
     allocate ( cell_coords(1:num_cell_nodes), stat = istat ); check(istat == 0)
     allocate ( subcell_coords(1:num_subcell_nodes), stat = istat ); check(istat == 0)
     call memalloc ( num_cell_nodes, nodes_vtk2fempar, __FILE__, __LINE__ )
@@ -133,6 +152,11 @@ contains
 
       call cell_iter%current(cell)
 
+      ! Skip ghost elems
+      if (cell%is_ghost()) then
+        call cell_iter%next(); cycle
+      end if
+
       call cell%update_sub_triangulation()
 
       call cell%get_coordinates( cell_coords )
@@ -158,6 +182,8 @@ contains
         this%cell_data( icell )  = 1
       end if
 
+      this%pid(icell) = real(my_part_id,kind=rp)
+
       icell = icell + 1
 
       do isubcell = 1, cell%get_number_of_subcells()
@@ -179,6 +205,8 @@ contains
         else
           this%cell_data( icell )  = 2
         end if
+
+        this%pid(icell) = real(my_part_id,kind=rp)
 
         icell = icell + 1
 
@@ -211,8 +239,12 @@ contains
     type(unfitted_cell_accessor_t)  :: cell
     type(point_t), allocatable, dimension(:) :: subface_coords
     integer(ip) :: the_subface_type
+
+    call this%free()
   
-  
+    this%environment => triangulation%get_par_environment()
+    if ( .not. this%environment%am_i_l1_task() ) return
+
     cell_iter = triangulation%create_unfitted_cell_iterator()
     call cell_iter%current(cell)
   
@@ -246,6 +278,11 @@ contains
     do while ( .not. cell_iter%has_finished() )
   
       call cell_iter%current(cell)
+
+      ! Skip ghost elems
+      if (cell%is_ghost()) then
+        call cell_iter%next(); cycle
+      end if
   
       call cell%update_sub_triangulation()
   
@@ -284,7 +321,7 @@ contains
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(fe_function_t),                   intent(in)    :: fe_function
-    class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
+    class(serial_fe_space_t),      intent(in)    :: fe_space
 
     class(base_static_triangulation_t), pointer :: triangulation
     type(unfitted_fe_iterator_t) :: fe_iterator
@@ -303,13 +340,21 @@ contains
     call this%free()
 
     triangulation => fe_space%get_triangulation()
+
+    this%environment => triangulation%get_par_environment()
+    if ( .not. this%environment%am_i_l1_task() ) return
+
     select type(triangulation)
       class is(serial_unfitted_triangulation_t)
+        call this%attach_triangulation(triangulation)
+        num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
+      class is (par_unfitted_triangulation_t)
         call this%attach_triangulation(triangulation)
         num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
       class default
         check(.false.)
     end select
+
 
     num_elem_nodes = triangulation%get_max_number_shape_functions()
     num_dime = triangulation%get_num_dimensions()
@@ -322,11 +367,25 @@ contains
     call subcel_nodal_quad%create(num_dime,num_subelem_nodes)
     subcell_coords => subcel_nodal_quad%get_coordinates()
 
+    select type(fe_space)
+      class is (serial_unfitted_fe_space_t)
+        fe_iterator = fe_space%create_unfitted_fe_iterator()
+      class is (par_unfitted_fe_space_t)
+        fe_iterator = fe_space%create_unfitted_fe_iterator()
+      class default
+        check(.false.)
+    end select
+
     ipoint = 1
-    fe_iterator = fe_space%create_unfitted_fe_iterator()
     do while ( .not. fe_iterator%has_finished() )
 
        call fe_iterator%current(fe)
+
+       ! Skip ghost elems
+       if (fe%is_ghost()) then
+         call fe_iterator%next(); cycle
+       end if
+
        fe_ptr => fe
        cell => fe%get_unfitted_cell_accessor()
        ref_fe => fe%get_reference_fe(1) ! TODO we assume a single field
@@ -402,14 +461,22 @@ contains
 
     class(base_static_triangulation_t), pointer :: triangulation
 
-    num_dime       = triangulation%get_num_dimensions()
+    call this%free()
+
     triangulation => fe_space%get_triangulation()
+
+    this%environment => triangulation%get_par_environment()
+    if ( .not. this%environment%am_i_l1_task() ) return
+
+    num_dime       = triangulation%get_num_dimensions()
+
     select type(triangulation)
       class is (serial_unfitted_triangulation_t)
         num_subfaces   = triangulation%get_total_num_of_subfaces()
       class default
       check(.false.)
     end select
+
   
     fe_iterator = fe_space%create_unfitted_fe_iterator()
     num_gp_subface = 0
@@ -441,6 +508,11 @@ contains
   
        ! Get current FE
        call fe_iterator%current(fe)
+
+       ! Skip ghost elems
+       if (fe%is_ghost()) then
+         call fe_iterator%next(); cycle
+       end if
   
        ! Update FE-integration related data structures
        call fe%update_boundary_integration()
@@ -491,15 +563,22 @@ contains
     assert(allocated(this%offset   ))
     assert(allocated(this%cell_type))
 
+    assert(associated(this%environment))
+    assert(this%environment%am_i_l1_task())
+
     E_IO = VTK_INI_XML(output_format = 'ascii', filename = filename, mesh_topology = 'UnstructuredGrid')
     E_IO = VTK_GEO_XML(NN = this%Nn, NC = this%Ne, X = this%x, Y = this%y, Z = this%z)
     E_IO = VTK_CON_XML(NC = this%Ne, connect = this%connect, offset = this%offset, cell_type = int(this%cell_type,I1P) )
 
+    E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'opeN')
     if (allocated(this%cell_data)) then
-      E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'opeN')
       E_IO = VTK_VAR_XML(NC_NN = this%Ne, varname = 'cell_scalars', var = this%cell_data)
-      E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'CLOSE')
     end if
+    if (allocated(this%pid)) then
+      E_IO = VTK_VAR_XML(NC_NN = this%Ne, varname = 'part_id', var = this%pid)
+    end if
+    E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'CLOSE')
+
 
     if (allocated(this%point_data)) then
       E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'opeN')
@@ -518,7 +597,99 @@ contains
 
   end subroutine uvtkw_write_to_vtk_file
 
-  !------------------------------------------------------------------
+!========================================================================================  
+  subroutine uvtkw_write_to_pvtk_file(this,file_prefix,number_parts)
+
+    implicit none
+    class(unfitted_vtk_writer_t), intent(in) :: this
+    character(*),                 intent(in) :: file_prefix
+    integer(ip),                  intent(in) :: number_parts
+
+    integer(ip) :: file_id
+    integer(ip) :: E_IO
+    integer(ip) :: i
+
+    assert(associated(this%environment))
+    assert(this%environment%am_i_l1_task())
+
+    E_IO = 0
+
+    E_IO = PVTK_INI_XML(filename      = trim(adjustl(file_prefix//'.pvtu')), &
+                        mesh_topology = 'PUnstructuredGrid', &
+                        tp            = 'Float64',           &
+                        cf            = file_id)
+    assert(E_IO == 0)
+    do i=0, number_parts-1
+        E_IO = PVTK_GEO_XML(source=trim(adjustl( trim(adjustl(file_prefix))//'_'//trim(adjustl(str(no_sign=.true.,n=i)))//'.vtu' )), cf=file_id)
+        assert(E_IO == 0)
+    enddo
+
+    E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN', cf=file_id)
+    assert(E_IO == 0)
+
+    if (allocated(this%point_data)) then
+        E_IO = PVTK_VAR_XML(varname = 'point_scalars', &
+                            tp      = 'Float64',       &
+                            Nc      = 1,               &
+                            cf      = file_id ); assert(E_IO == 0)
+    end if
+
+    if (allocated(this%v_x)) then
+        E_IO = PVTK_VAR_XML(varname = 'point_vectors', &
+                            tp      = 'Float64',       &
+                            Nc      = 3,               &
+                            cf      = file_id ); assert(E_IO == 0)
+    end if
+
+    E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=file_id)
+    assert(E_IO == 0)
+
+    E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN', cf=file_id)
+    assert(E_IO == 0)
+
+    if (allocated(this%cell_data)) then
+        E_IO = PVTK_VAR_XML(varname = 'cell_scalars',  &
+                            tp      = 'Float64',       &
+                            Nc      = 1,               &
+                            cf      = file_id ); assert(E_IO == 0)
+    end if
+
+    if (allocated(this%pid)) then
+        E_IO = PVTK_VAR_XML(varname = 'part_id',  &
+                            tp      = 'Float64',       &
+                            Nc      = 1,               &
+                            cf      = file_id ); assert(E_IO == 0)
+    end if
+
+    E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'CLOSE', cf=file_id)
+    assert(E_IO == 0)
+
+    E_IO = PVTK_END_XML(cf = file_id)
+    assert(E_IO == 0)
+
+  end subroutine uvtkw_write_to_pvtk_file
+
+!========================================================================================  
+  subroutine uvtkw_write(this,file_prefix)
+
+    implicit none
+    class(unfitted_vtk_writer_t), intent(in) :: this
+    character(*), intent(in) :: file_prefix
+
+    integer(ip)                                :: me, np
+
+    assert(associated(this%environment))
+    me = this%environment%get_l1_rank()
+    np = this%environment%get_l1_size()
+
+    if (this%environment%am_i_l1_task()) &
+      call this%write_to_vtk_file(trim(adjustl( trim(adjustl(file_prefix))//'_'//trim(adjustl(str(no_sign=.true.,n=me)))//'.vtu' )))
+    if (me == 0) &
+      call this%write_to_pvtk_file(file_prefix,np)
+
+  end subroutine uvtkw_write
+
+!========================================================================================  
   subroutine uvtkw_free(this)
 
     implicit none
@@ -535,6 +706,8 @@ contains
     if (allocated(this%v_x       )) call memfree ( this%v_x        , __FILE__, __LINE__ )
     if (allocated(this%v_y       )) call memfree ( this%v_y        , __FILE__, __LINE__ )
     if (allocated(this%v_z       )) call memfree ( this%v_z        , __FILE__, __LINE__ )
+    if (allocated(this%pid       )) call memfree ( this%pid        , __FILE__, __LINE__ )
+    this%environment => null()
 
   end subroutine uvtkw_free
 

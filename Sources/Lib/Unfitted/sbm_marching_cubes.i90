@@ -163,6 +163,9 @@ function marching_cubes_get_total_num_of_subcells( this ) result ( total_num )
   cell_iter = this%create_unfitted_cell_iterator()
   do while ( .not. cell_iter%has_finished() )
     call cell_iter%current(cell)
+    if (cell%is_ghost()) then
+      call cell_iter%next(); cycle
+    end if
     call cell%update_sub_triangulation()
     total_num = total_num + cell%get_number_of_subcells()
     call cell_iter%next()
