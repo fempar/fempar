@@ -342,19 +342,26 @@ contains
     call this%mlbddc%numerical_setup()
 !#endif    
    
+    call parameter_list%init()
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
+    FPLError = parameter_list%set(key = ils_stopping_criteria, value = res_rhs); assert(FPLError == 0)
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp); assert(FPLError == 0)
+    FPLError = parameter_list%set(key = ils_atol, value = 0.0_rp); assert(FPLError == 0)
+    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 1000); assert(FPLError == 0)
+    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+    call parameter_list%free()
 
 !#ifdef ENABLE_MKL
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
 !#else
-!    call parameter_list%init()
-!    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-!    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-!    assert(FPLError == 0)
-!    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-!    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-!    call parameter_list%free()
+    !call parameter_list%init()
+    !FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    !FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    !assert(FPLError == 0)
+    !call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+    !call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    !call parameter_list%free()
 !#endif   
     
   end subroutine setup_solver
@@ -394,6 +401,29 @@ contains
   subroutine check_solution(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
+    
+    
+    type(unfitted_solution_checker_t) :: solution_checker
+    real(rp) :: error_h1_semi_norm
+    real(rp) :: error_l2_norm
+    real(rp) :: h1_semi_norm
+    real(rp) :: l2_norm
+    class(environment_t), pointer :: environment
+
+    call solution_checker%create(this%fe_space,this%solution,this%poisson_unfitted_analytical_functions%get_solution_function())
+    call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm)
+    call solution_checker%free()
+
+    environment => this%fe_space%get_environment()
+    if (environment%get_l1_rank() == 0) then
+      write(*,'(a,e32.25)') 'l2_norm:               ', l2_norm
+      write(*,'(a,e32.25)') 'h1_semi_norm:          ', h1_semi_norm
+      write(*,'(a,e32.25)') 'error_l2_norm:         ', error_l2_norm
+      write(*,'(a,e32.25)') 'error_h1_semi_norm:    ', error_h1_semi_norm
+      write(*,'(a,e32.25)') 'rel_error_l2_norm:     ', error_l2_norm/l2_norm
+      write(*,'(a,e32.25)') 'rel_error_h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
+    end if
+    
     !type(error_norms_scalar_t) :: error_norm 
     !real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     !

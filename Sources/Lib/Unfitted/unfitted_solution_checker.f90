@@ -37,9 +37,9 @@ module unfitted_solution_checker_names
   ! TODO this is a temporal class to compute error norms
   type :: unfitted_solution_checker_t
     private
-    class(serial_unfitted_fe_space_t), pointer :: fe_space       => null()
-    class(fe_function_t),              pointer :: fe_function    => null()
-    class(scalar_function_t),          pointer :: exact_solution => null()
+    class(serial_fe_space_t), pointer :: fe_space       => null()
+    class(fe_function_t),     pointer :: fe_function    => null()
+    class(scalar_function_t), pointer :: exact_solution => null()
   contains
     procedure, non_overridable :: create              => unfitted_solution_checker_create
     procedure, non_overridable :: free                => unfitted_solution_checker_free
@@ -54,9 +54,9 @@ contains
   subroutine unfitted_solution_checker_create(this,fe_space,fe_function,exact_solution)
     implicit none
     class(unfitted_solution_checker_t),        intent(inout) :: this
-    class(serial_unfitted_fe_space_t), target, intent(in) :: fe_space
-    class(fe_function_t),              target, intent(in) :: fe_function
-    class(scalar_function_t),          target, intent(in) :: exact_solution
+    class(serial_fe_space_t), target, intent(in) :: fe_space
+    class(fe_function_t),     target, intent(in) :: fe_function
+    class(scalar_function_t), target, intent(in) :: exact_solution
     this%fe_space       => fe_space
     this%fe_function    => fe_function
     this%exact_solution => exact_solution
@@ -99,6 +99,14 @@ contains
     type(vector_field_t) :: grad_u_exact_gp
     real(rp) :: error_l2_gp, error_h1sn_gp
     real(rp) :: l2_gp, h1sn_gp
+    class(environment_t), pointer :: environment
+    class(serial_fe_space_t), pointer :: fe_space
+    class(par_unfitted_fe_space_t),    pointer :: par_unf_fe_space
+    class(serial_unfitted_fe_space_t), pointer :: unf_fe_space
+
+    ! Skip if it is not l1 task
+    environment => this%fe_space%get_environment()
+    if ( .not. environment%am_i_l1_task() ) return
 
     ! Initialize
     error_h1_semi_norm = 0.0
@@ -110,11 +118,25 @@ contains
     num_elem_nodes =  this%fe_space%get_max_number_shape_functions()
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
 
-    fe_iterator = this%fe_space%create_unfitted_fe_iterator()
+    fe_space => this%fe_space
+    select type(fe_space)
+      class is(serial_unfitted_fe_space_t)
+        fe_iterator = fe_space%create_unfitted_fe_iterator()
+      class is(par_unfitted_fe_space_t)
+        fe_iterator = fe_space%create_unfitted_fe_iterator()
+      class default
+        check(.false.)
+    end select
+
     do while ( .not. fe_iterator%has_finished() )
 
        ! Get current FE
        call fe_iterator%current(fe)
+       
+       ! Skip ghost cells
+       if (fe%is_ghost()) then
+         call fe_iterator%next(); cycle
+       end if
 
        ! Update FE-integration related data structures
        call fe%update_integration()
@@ -175,16 +197,21 @@ contains
        call fe_iterator%next()
     end do
 
+    call memfree ( nodal_vals, __FILE__, __LINE__ )
+
+    ! All reduce with a sum between l1 tasks
+    call environment%l1_sum(error_l2_norm     )
+    call environment%l1_sum(error_h1_semi_norm)
+    call environment%l1_sum(h1_semi_norm      )
+    call environment%l1_sum(l2_norm           )
+
     ! Do not forget to do the square root
     error_l2_norm      = sqrt(error_l2_norm)
     error_h1_semi_norm = sqrt(error_h1_semi_norm)
     l2_norm            = sqrt(l2_norm)
     h1_semi_norm       = sqrt(h1_semi_norm)
 
-    call memfree ( nodal_vals, __FILE__, __LINE__ )
-
   end subroutine unfitted_solution_checker_compute_error_norms
-
 
 end module unfitted_solution_checker_names
 !***************************************************************************************************
