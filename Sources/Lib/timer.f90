@@ -80,13 +80,7 @@ contains
       allocate(this%context,mold=context,stat=istat);check(istat==0)
       this%context = context
       this%message = message
-      this%t_start   = 0.0_rp
-      this%t_stop    = 0.0_rp
-      if ( this%mode == TIMER_MODE_MIN ) then
-        this%t_accum   = 1.79769e+308_rp ! Largest double precision number
-      else
-        this%t_accum   = 0.0_rp
-      end if
+      call this%init()
     end subroutine timer_create
     
     subroutine timer_free ( this )
@@ -102,8 +96,11 @@ contains
          deallocate(this%mode, stat=istat); check(istat==0);
       end if
       
-      call this%context%free(finalize=.false.)
-      deallocate(this%context,stat=istat); check(istat==0);
+      if (allocated(this%context)) then
+        call this%context%free(finalize=.false.)
+        deallocate(this%context,stat=istat); check(istat==0);
+      end if
+      
       this%t_start   = 0.0_rp
       this%t_stop    = 0.0_rp
       this%t_accum   = 1.79769E+308_rp ! Largest double precision number
