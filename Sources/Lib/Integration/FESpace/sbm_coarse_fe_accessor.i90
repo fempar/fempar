@@ -123,13 +123,19 @@ subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe ( this,
   ! with local identifier ivef within target coarse_fe
   own_dofs_on_vef_iterator_source = source_fe%create_own_dofs_on_vef_iterator(source_ivef,field_id)
     
-  assert (own_dofs_on_vef_iterator_source%get_size() == own_dofs_on_vef_iterator_target%get_size())
-  do while (.not. own_dofs_on_vef_iterator_source%is_upper_bound())
+  ! The source vef always has at least one dof 
+  ! (it is source because it has been visited and a vef is visited iff has at leas one dof)
+  ! but the target might be empty
+  assert ( (own_dofs_on_vef_iterator_source%get_size() == own_dofs_on_vef_iterator_target%get_size()) .or. (own_dofs_on_vef_iterator_target%get_size() == 0) )
+
+  ! This loop assumes that the dof are ordered in the same way in source and target
+  do while (.not. own_dofs_on_vef_iterator_target%is_upper_bound())
     this%coarse_fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target+own_dofs_on_vef_iterator_target%get_current()) = &
       this%coarse_fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_source+own_dofs_on_vef_iterator_source%get_current())
     call own_dofs_on_vef_iterator_source%next()
     call own_dofs_on_vef_iterator_target%next()
   end do
+
 end subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id

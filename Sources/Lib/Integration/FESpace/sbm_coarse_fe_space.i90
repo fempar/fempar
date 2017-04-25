@@ -681,6 +681,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
 
   type(coarse_fe_vef_accessor_t)          :: vef
   type(coarse_fe_accessor_t)              :: coarse_fe_around
+  type(list_iterator_t) :: own_dofs_on_vef_iterator_source
   
   iblock            = this%field_blocks(field_id)
   init_dof_block    = this%number_dofs_per_block(iblock)
@@ -700,7 +701,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
            do ivef = 1, coarse_fe%get_num_vefs()
               vef_lid = coarse_fe%get_vef_lid(ivef)
               if ( visited_vef_to_coarse_fe_map ( 1, vef_lid ) == -1 ) then
-                previous_dof_block = current_dof_block
+                 previous_dof_block = current_dof_block
                  call coarse_fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block  ) 
 
                  ! Only mark as visited if we have assigned at least one dof
@@ -731,11 +732,18 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
                do ielem=1, vef%get_num_cells_around()
                  coarse_fe_around = vef%get_coarse_fe_around(ielem)
                  if ( coarse_fe_around%is_local() ) then
+
                     source_ivef = coarse_fe_around%find_lpos_vef_lid(vef%get_lid())
-                    call coarse_fe%fill_own_dofs_on_vef_from_source_coarse_fe ( ivef, &
-                                                                                coarse_fe_around, &
-                                                                                source_ivef, &
-                                                                                field_id) 
+                    own_dofs_on_vef_iterator_source = coarse_fe_around%create_own_dofs_on_vef_iterator(source_ivef,field_id)
+
+                    ! Check that the source fe has at least one dof on this vef
+                    if (own_dofs_on_vef_iterator_source%get_size()>0) then
+                      call coarse_fe%fill_own_dofs_on_vef_from_source_coarse_fe ( ivef, &
+                                                                                  coarse_fe_around, &
+                                                                                  source_ivef, &
+                                                                                  field_id) 
+                    end if
+
                  end if
                end do
             end if
