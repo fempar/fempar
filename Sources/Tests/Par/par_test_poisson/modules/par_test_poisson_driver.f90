@@ -70,11 +70,21 @@ module par_test_poisson_driver_names
      type(fe_function_t)                   :: solution
      
      ! Environment required for fe_affine_operator + vtk_handler
-     !type(par_context_t)                       :: w_context
-     type(environment_t), pointer           :: par_environment
+     type(environment_t)                    :: par_environment
+
+     ! Timers
+     type(timer_t) :: timer_triangulation
+     type(timer_t) :: timer_fe_space
+     type(timer_t) :: timer_assemply
+     type(timer_t) :: timer_solver_setup
+     type(timer_t) :: timer_solver_run
+
    contains
-     procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_timers
+     procedure                  :: report_timers
+     procedure                  :: free_timers
+     procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -84,7 +94,10 @@ module par_test_poisson_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: write_solution
+     procedure                  :: run_simulation
      procedure        , private :: free
+     procedure                  :: free_command_line_parameters
+     procedure                  :: free_environment
   end type par_test_poisson_fe_driver_t
 
   ! Types
@@ -96,18 +109,67 @@ contains
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
-    !call this%test_params%parse(this%parameter_list)
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
+
+!========================================================================================
+subroutine setup_timers(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    class(execution_context_t), pointer :: w_context
+    w_context => this%par_environment%get_w_context()
+    call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
+    call this%timer_fe_space%create(     w_context,"SETUP FE SPACE")
+    call this%timer_assemply%create(     w_context,"FE INTEGRATION AND ASSEMBLY")
+    call this%timer_solver_setup%create( w_context,"SETUP SOLVER AND PRECONDITIONER")
+    call this%timer_solver_run%create(   w_context,"SOLVER RUN")
+end subroutine setup_timers
+
+!========================================================================================
+subroutine report_timers(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    call this%timer_triangulation%report(.true.)
+    call this%timer_fe_space%report(.false.)
+    call this%timer_assemply%report(.false.)
+    call this%timer_solver_setup%report(.false.)
+    call this%timer_solver_run%report(.false.)
+    if (this%par_environment%get_l1_rank() == 0) then
+      write(*,*)
+    end if
+end subroutine report_timers
+
+!========================================================================================
+subroutine free_timers(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    call this%timer_triangulation%free()
+    call this%timer_fe_space%free()
+    call this%timer_assemply%free()
+    call this%timer_solver_setup%free()
+    call this%timer_solver_run%free()
+end subroutine free_timers
+
+!========================================================================================
+  subroutine setup_environment(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    integer(ip) :: istat
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
+    else
+       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
+    end if
+    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
+    call this%par_environment%create (this%parameter_list)
+  end subroutine setup_environment
    
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     type(vef_iterator_t)  :: vef
 
-    call this%triangulation%create(this%parameter_list)
-    this%par_environment => this%triangulation%get_par_environment()
-
+    call this%triangulation%create(this%parameter_list, this%par_environment)
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
@@ -317,18 +379,31 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    !call this%free()
-    call this%parse_command_line_parameters()
-    !call this%setup_context()
-    !call this%setup_par_environment()
+
+    call this%timer_triangulation%start()
     call this%setup_triangulation()
+    call this%timer_triangulation%stop()
+
+    call this%timer_fe_space%start()
     call this%setup_reference_fes()
     call this%setup_fe_space()
+    call this%timer_fe_space%stop()
+
+    call this%timer_assemply%start()
     call this%setup_system()
     call this%assemble_system()
+    call this%timer_assemply%stop()
+
+    call this%timer_solver_setup%start()
     call this%setup_solver()
+    call this%timer_solver_setup%stop()
+
     call this%solution%create(this%fe_space) 
+
+    call this%timer_solver_run%start()
     call this%solve_system()
+    call this%timer_solver_run%stop()
+
     call this%check_solution()
     call this%write_solution()
     call this%free()
@@ -354,9 +429,20 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
-    call this%test_params%free()
-    call this%par_environment%free() 
-    !call this%w_context%free(.true.)
   end subroutine free  
+
+  !========================================================================================
+  subroutine free_environment(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    call this%par_environment%free()
+  end subroutine free_environment
+
+  !========================================================================================
+  subroutine free_command_line_parameters(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    call this%test_params%free()
+  end subroutine free_command_line_parameters
   
 end module par_test_poisson_driver_names
