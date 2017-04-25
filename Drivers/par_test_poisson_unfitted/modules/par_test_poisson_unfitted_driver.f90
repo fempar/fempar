@@ -65,7 +65,7 @@ module par_test_poisson_unfitted_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_unfitted_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     class(standard_l1_coarse_fe_handler_t), allocatable :: l1_coarse_fe_handler
+     class(l1_coarse_fe_handler_t), allocatable :: l1_coarse_fe_handler
      type(poisson_unfitted_CG_discrete_integration_t)   :: poisson_unfitted_integration
      type(poisson_unfitted_conditions_t)                :: poisson_unfitted_conditions
      type(poisson_unfitted_analytical_functions_t)      :: poisson_unfitted_analytical_functions
@@ -254,10 +254,20 @@ contains
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
 
     integer(ip) :: set_ids_to_reference_fes(1,2)
+    integer(ip) :: istat
+
+    ! Allocate the coarse fe handler to the desired type
+    if (this%test_params%get_coarse_fe_handler_type()== unfitted_coarse_fe_handler_value) then
+      allocate(unfitted_l1_coarse_fe_handler_t:: this%l1_coarse_fe_handler, stat = istat)
+    else if (this%test_params%get_coarse_fe_handler_type()== standard_coarse_fe_handler_value) then
+      allocate(standard_l1_coarse_fe_handler_t:: this%l1_coarse_fe_handler, stat = istat)
+    else
+      mcheck(.false.,'Unknown type of coarse fe handler `'//this%test_params%get_coarse_fe_handler_type()//'`')
+    end if
+    check(istat == 0)
 
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_FULL) = PAR_POISSON_UNFITTED_SET_ID_FULL
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_VOID) = PAR_POISSON_UNFITTED_SET_ID_VOID
-
     
     call this%fe_space%create( triangulation            = this%triangulation, &
                                conditions               = this%poisson_unfitted_conditions, &
@@ -328,20 +338,10 @@ contains
     class(par_test_poisson_unfitted_fe_driver_t), target, intent(inout) :: this
     type(parameterlist_t) :: parameter_list
     integer(ip) :: FPLError
-    integer(ip) :: istat
-    class(standard_l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+    class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
 
     ! The unfitted coarse fe handler has to be created after the system is assembled
     ! but prior to the setup of the coarse space
-    if (this%test_params%get_coarse_fe_handler_type()== unfitted_coarse_fe_handler_value) then
-      allocate(unfitted_l1_coarse_fe_handler_t:: this%l1_coarse_fe_handler, stat = istat)
-    else if (this%test_params%get_coarse_fe_handler_type()== standard_coarse_fe_handler_value) then
-      allocate(standard_l1_coarse_fe_handler_t:: this%l1_coarse_fe_handler, stat = istat)
-    else
-      mcheck(.false.,'Unknown type of coarse fe handler `'//this%test_params%get_coarse_fe_handler_type()//'`')
-    end if
-    check(istat == 0)
-
     coarse_fe_handler =>  this%l1_coarse_fe_handler
     select type(coarse_fe_handler)
     class is (unfitted_l1_coarse_fe_handler_t)
@@ -541,7 +541,7 @@ contains
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: i, istat
-    class(standard_l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+    class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
     
     call this%solution%free()
 !#ifdef ENABLE_MKL    
