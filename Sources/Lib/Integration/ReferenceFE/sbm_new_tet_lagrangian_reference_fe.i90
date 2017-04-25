@@ -414,50 +414,19 @@ subroutine new_tet_lagrangian_reference_fe_fill_face_interpolation (this, local_
 end subroutine new_tet_lagrangian_reference_fe_fill_face_interpolation
 
 !==================================================================================================
-subroutine new_tet_lagrangian_reference_fe_create_rotated_quadrature(this, ref_quad, rotated_quad, num_rotations, num_orientations )
+function new_tet_lagrangian_reference_fe_get_permuted_own_node_n_face(this,inode,target_n_face_id,     &
+     &                                               relative_orientation, relative_rotation)
   implicit none
-  class (new_tet_lagrangian_reference_fe_t), intent(in)    :: this
-  type (quadrature_t)   , intent(in)    :: ref_quad
-  type (quadrature_t)   , intent(inout) :: rotated_quad
-  integer(ip)           , intent(in)    :: num_rotations
-  integer(ip)           , intent(in)    :: num_orientations
-  type(hex_lagrangian_reference_fe_t)                :: hex_lagrangian_rfe
+  class(new_tet_lagrangian_reference_fe_t), intent(in)  :: this
+  integer(ip)                             , intent(in)  :: inode
+  integer(ip)                             , intent(in)  :: target_n_face_id ! Local n-face ID
+  integer(ip)                             , intent(in)  :: relative_orientation
+  integer(ip)                             , intent(in)  :: relative_rotation
+  integer(ip) :: new_tet_lagrangian_reference_fe_get_permuted_own_node_n_face
+  integer(ip) :: n_face_dimension, permutation_key, permuted_own_node
 
-  call rotated_quad%free()
-  call rotated_quad%create(ref_quad%get_number_dimensions(), ref_quad%get_number_quadrature_points())
-  
-  
-  if (ref_quad%number_dimensions.eq.1) then
-     rotated_quad%coordinates = ref_quad%coordinates
-     rotated_quad%weight = ref_quad%weight
-  
-  elseif (ref_quad%number_dimensions.eq.2) then
-     if ((num_rotations + mod(num_orientations,2)).eq.2) then
-        call hex_lagrangian_rfe%fill_quadrature ( rotated_quad ) 
-        ! y' = (y+1)/2
-        rotated_quad%coordinates(2,:) = (rotated_quad%coordinates(2,:)+1.0_rp) / 2.0_rp
-        ! x' = (1-y')(x+1)/2
-        rotated_quad%coordinates(1,:) = (1.0_rp - rotated_quad%coordinates(2,:)) * &
-                                     ((1.0_rp + rotated_quad%coordinates(1,:)) / 2.0_rp)
-        ! w' = (1-y')/4
-        rotated_quad%weight = (1.0_rp - rotated_quad%coordinates(2,:)) /4.0_rp * &
-                            rotated_quad%weight
-        
-     elseif ((num_rotations + mod(num_orientations,2)).eq.3) then
-        call hex_lagrangian_rfe%fill_quadrature ( rotated_quad ) 
-        ! w' = (x+1)/2
-        rotated_quad%weight = (rotated_quad%coordinates(1,:) + 1.0_rp) /4.0_rp * &
-                               rotated_quad%weight
-        ! y' = (x+1)/2 * (y+1)/2
-        rotated_quad%coordinates(2,:) = (rotated_quad%coordinates(1,:) + 1.0_rp)/ 2.0_rp * &
-                                        (rotated_quad%coordinates(2,:) + 1.0_rp)/ 2.0_rp
-        ! x' = (x+1)/2 - y'
-        rotated_quad%coordinates(1,:) = (rotated_quad%coordinates(1,:) + 1.0_rp)/ 2.0_rp - &
-                                         rotated_quad%coordinates(2,:)
-     else
-        rotated_quad%coordinates = ref_quad%coordinates
-        rotated_quad%weight = ref_quad%weight
-     end if
-   end if
-        
-end subroutine new_tet_lagrangian_reference_fe_create_rotated_quadrature
+  assert ( this%continuity  )
+
+  permuted_own_node = inode
+  new_tet_lagrangian_reference_fe_get_permuted_own_node_n_face = this%get_own_node_n_face(permuted_own_node, target_n_face_id)
+end function new_tet_lagrangian_reference_fe_get_permuted_own_node_n_face

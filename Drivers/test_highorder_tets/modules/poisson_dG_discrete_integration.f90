@@ -205,11 +205,11 @@ contains
     
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
+    face_int        => fe_face%get_face_integrator(1)
     face_map        => fe_face%get_face_map()
     
     do while ( .not. fe_face_iterator%has_finished() ) 
        call fe_face_iterator%current(fe_face)
-       face_int        => fe_face%get_face_integrator(1)
        
        if ( .not. fe_face%is_at_boundary() ) then
          facemat = 0.0_rp
@@ -233,7 +233,6 @@ contains
                end if
                
                do jneigh = 1, fe_face%get_num_cells_around()
-
                  if (jneigh==1) then
                    shape_values_jneigh    => shape_values_first
                    shape_gradients_jneigh => shape_gradients_first

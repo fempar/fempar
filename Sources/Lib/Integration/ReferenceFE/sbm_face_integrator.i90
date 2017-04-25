@@ -136,13 +136,31 @@ subroutine face_map_update(this,face_lid,face_quadrature,left_reference_fe_geo)
   integer(ip)          , intent(in)    :: face_lid(2)
   type(quadrature_t), intent(in)    :: face_quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
+  integer(ip)             :: number_cell_dimensions
+  integer(ip)             :: orientation_face, local_vef_id
+  real   (rp)             :: reorientation_factor
 
-  call this%face_map%update_face_map(face_lid(1),left_reference_fe_geo,face_quadrature)
+  ! Update fe_maps
   call this%fe_maps(1)%update(face_lid(1),face_quadrature)
   if (.not. this%is_boundary) then
      assert ( face_lid(2) >= 1 )
      call this%fe_maps(2)%update(face_lid(2),face_quadrature)
   end if
+  
+  ! Compute normals reorientation factors from |J|'s original sign and face orientation
+  number_cell_dimensions = left_reference_fe_geo%number_dimensions
+  local_vef_id = left_reference_fe_geo%number_n_faces_per_dimension(number_cell_dimensions) + face_lid(1) - 1
+  orientation_face  = left_reference_fe_geo%orientation%a(local_vef_id)
+  if (this%fe_maps(1)%fe_map(face_lid(1))%is_det_jacobian_positive()) then
+     reorientation_factor = (-1)**orientation_face
+  else
+     reorientation_factor = -(-1)**orientation_face
+  end if
+  ! 1D special case
+  if (number_cell_dimensions.eq.1) reorientation_factor = -1.0_rp**(real(face_lid(1)))
+  
+  ! Update face_map
+  call this%face_map%update_face_map(number_cell_dimensions,reorientation_factor,face_quadrature)
 end subroutine face_map_update
 
 !==================================================================================================
@@ -299,16 +317,13 @@ end function volume_integrator_face_restriction_get_active_volume_integrator
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !face_integrator_t type procedures
-subroutine face_integrator_create(this,quadrature,left_reference_fe,right_reference_fe,rel_rotation,rel_orientation)
+subroutine face_integrator_create(this,quadrature,left_reference_fe,right_reference_fe)
   implicit none
   ! Parameters
   class(face_integrator_t)      , intent(inout) :: this
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
-  integer(ip)                   , intent(in)    :: rel_rotation, rel_orientation
   type(polytope_tree_t)    :: aux_polytope
-  type(quadrature_t)       :: aux_quadrature
-  integer(ip) :: num_rotations, num_orientations
   call this%free()
 
   this%is_boundary = (.not. associated(right_reference_fe))
@@ -317,9 +332,7 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
 
   if (.not. this%is_boundary) then
      this%reference_fe(2)%p => right_reference_fe
-     call right_reference_fe%create_rotated_quadrature(quadrature, aux_quadrature,rel_rotation,rel_orientation)
-     call this%volume_integrator_face_restriction(2)%create(aux_quadrature,this%reference_fe(2)%p)
-     call aux_quadrature%free()
+     call this%volume_integrator_face_restriction(2)%create(quadrature,this%reference_fe(2)%p)
   end if
 
   this%current_qpoints_perm_cols = 1
@@ -364,13 +377,8 @@ subroutine face_integrator_update(this,face_lid,face_map,relative_orientation,re
   call this%volume_integrator_face_restriction(1)%update(face_map%fe_maps(1)%get_active_fe_map(),face_lid(1))
   if (.not. this%is_boundary) then
      ! Map tris rotation & orientation to quad rotation & permutaion
-     if ((this%reference_fe(2)%p%fe_type.eq.fe_type_new_tet) .and. (this%reference_fe(2)%p%number_dimensions.eq.3)) then
-        if ((relative_orientation.eq.0).and.(relative_rotation.gt.1)) then
-           this%current_qpoints_perm_cols(2) = relative_rotation + 1
-        else 
-           this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
-               & 4 * relative_orientation     
-        end if
+     if ((this%reference_fe(2)%p%fe_type.eq.fe_type_new_tet) ) then
+        this%current_qpoints_perm_cols(2) = 1
      else
         this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
             & this%reference_fe(2)%p%number_rotations_per_dimension(this%reference_fe(2)%p%number_dimensions-1)  &
@@ -425,6 +433,7 @@ subroutine face_integrator_get_values_scalar (this, ineigh, values)
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
   call volume_integrator%get_values(values,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+  !call volume_integrator%get_values(values)
 end subroutine face_integrator_get_values_scalar
 
 !==================================================================================================
@@ -469,6 +478,7 @@ subroutine face_integrator_get_gradients_scalar (this, ineigh, gradients)
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
   volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
   call volume_integrator%get_gradients(gradients,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+  !call volume_integrator%get_gradients(gradients)
 end subroutine face_integrator_get_gradients_scalar
 
 !=================================================================================================
