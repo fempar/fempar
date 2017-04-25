@@ -38,6 +38,7 @@ module par_test_poisson_unfitted_driver_names
   use unfitted_vtk_writer_names
   use unfitted_solution_checker_names
   use unfitted_l1_coarse_fe_handler_names
+  use stiffness_weighting_l1_coarse_fe_handler_names
 
   ! Driver modules
   use par_poisson_unfitted_static_parameters_names
@@ -257,13 +258,16 @@ contains
     integer(ip) :: istat
 
     ! Allocate the coarse fe handler to the desired type
-    if (this%test_params%get_coarse_fe_handler_type()== unfitted_coarse_fe_handler_value) then
+    select case (this%test_params%get_coarse_fe_handler_type())
+    case (unfitted_coarse_fe_handler_value)
       allocate(unfitted_l1_coarse_fe_handler_t:: this%l1_coarse_fe_handler, stat = istat)
-    else if (this%test_params%get_coarse_fe_handler_type()== standard_coarse_fe_handler_value) then
+    case (standard_coarse_fe_handler_value)
       allocate(standard_l1_coarse_fe_handler_t:: this%l1_coarse_fe_handler, stat = istat)
-    else
+    case (stiffness_coarse_fe_handler_value)
+      allocate(stiffness_weighting_l1_coarse_fe_handler_t:: this%l1_coarse_fe_handler, stat = istat)
+    case default
       mcheck(.false.,'Unknown type of coarse fe handler `'//this%test_params%get_coarse_fe_handler_type()//'`')
-    end if
+    end select
     check(istat == 0)
 
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_FULL) = PAR_POISSON_UNFITTED_SET_ID_FULL
@@ -344,6 +348,8 @@ contains
     ! but prior to the setup of the coarse space
     coarse_fe_handler =>  this%l1_coarse_fe_handler
     select type(coarse_fe_handler)
+    class is (stiffness_weighting_l1_coarse_fe_handler_t)
+      call coarse_fe_handler%create(this%fe_affine_operator)
     class is (unfitted_l1_coarse_fe_handler_t)
       call coarse_fe_handler%create(this%fe_affine_operator,this%parameter_list)
     end select
@@ -551,7 +557,7 @@ contains
 
     coarse_fe_handler =>  this%l1_coarse_fe_handler
     select type(coarse_fe_handler)
-    class is (unfitted_l1_coarse_fe_handler_t)
+    class is (stiffness_weighting_l1_coarse_fe_handler_t)
       call coarse_fe_handler%free()
     end select
     if (allocated(this%l1_coarse_fe_handler)) then

@@ -15,6 +15,7 @@ module par_test_poisson_unfitted_params_names
 
   character(len=*), public, parameter :: unfitted_coarse_fe_handler_value = 'unfitted'    
   character(len=*), public, parameter :: standard_coarse_fe_handler_value = 'standard'    
+  character(len=*), public, parameter :: stiffness_coarse_fe_handler_value = 'stiffness'
 
   type, extends(parameter_handler_t) :: par_test_poisson_unfitted_params_t
      private
@@ -119,9 +120,10 @@ contains
     error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
     error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
-    error = helpers%set(key = coarse_fe_handler_type_key    ,&
-      value  = 'Type of coarse fe handler. `'//standard_coarse_fe_handler_value//'` or `'//unfitted_coarse_fe_handler_value//'` ?' )
-    check(error==0)
+    error = helpers%set(key = coarse_fe_handler_type_key    , value  = 'Type of coarse fe handler. `'//&
+      standard_coarse_fe_handler_value//'`, `'//&
+      unfitted_coarse_fe_handler_value//'` or `'//&
+      stiffness_coarse_fe_handler_value//'` ?' ); check(error==0)
     error = helpers%set(key = level_set_function_type_key   , value  = 'Type of levelset to be used.'//&
       ' The possible values are the public character constants defined in the `level_set_functions_gallery_names` module' )  ; check(error==0)
     

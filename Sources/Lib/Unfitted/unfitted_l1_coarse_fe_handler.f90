@@ -43,35 +43,36 @@ module unfitted_l1_coarse_fe_handler_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
   use cell_import_names
+  use stiffness_weighting_l1_coarse_fe_handler_names
 
   implicit none
 # include "debug.i90"
   private
 
 !========================================================================================
-  type, extends(standard_l1_coarse_fe_handler_t) :: unfitted_l1_coarse_fe_handler_t
+  type, extends(stiffness_weighting_l1_coarse_fe_handler_t) :: unfitted_l1_coarse_fe_handler_t
     private
 
-    class(par_sparse_matrix_t), pointer     :: matrix         => null()
     class(par_fe_space_t),      pointer     :: par_fe_space   => null()
     class(parameterlist_t),     pointer     :: parameter_list => null()
 
-    real(rp),                   allocatable :: stiffness_weighting(:)
     type(list_t)                            :: object_lid_to_dof_lids
     integer(ip),                allocatable :: dof_lid_to_cdof_id_in_object(:)
-    integer(ip),                allocatable :: object_lid_to_min_neigbour(:) 
+    integer(ip),                allocatable :: object_lid_to_min_neigbour(:)
 
   contains
 
-    ! Public TBPs
-    procedure :: create                   => unfitted_l1_create
-    procedure :: free                     => unfitted_l1_free
-    procedure :: get_num_coarse_dofs      => unfitted_l1_get_num_coarse_dofs
-    procedure :: setup_constraint_matrix  => unfitted_l1_setup_constraint_matrix
-    procedure :: setup_weighting_operator => unfitted_l1_setup_weighting_operator
+    ! Creation / Deletion methods
+    generic :: create                         => unfitted_l1_create
+    procedure, private :: unfitted_l1_create
+    procedure, private :: stiffness_l1_create => unfitted_l1_stiffness_l1_create
+    procedure :: free                         => unfitted_l1_free
+
+    ! Overwritten TPBs
+    procedure :: get_num_coarse_dofs          => unfitted_l1_get_num_coarse_dofs
+    procedure :: setup_constraint_matrix      => unfitted_l1_setup_constraint_matrix
 
     !! Private TBPs
-    procedure, private, non_overridable :: setup_stiffness_weighting          => unfitted_l1_setup_stiffness_weighting
     procedure, private, non_overridable :: setup_object_lid_to_dof_lids       => unfitted_l1_setup_object_lid_to_dof_lids
     procedure, private, non_overridable :: setup_dof_lid_to_cdof_id_in_object => unfitted_l1_setup_dof_lid_to_cdof_id_in_object
     procedure, private, non_overridable :: identify_problematic_dofs          => unfitted_l1_identify_problematic_dofs
@@ -96,13 +97,7 @@ subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
 
   call this%free()
 
-  matrix => fe_affine_operator%get_matrix()
-  select type (matrix)
-    class is (par_sparse_matrix_t)
-      this%matrix => matrix
-    class default
-      check(.false.)
-  end select
+  call this%stiffness_weighting_l1_coarse_fe_handler_t%create(fe_affine_operator)
 
   fe_space => fe_affine_operator%get_fe_space()
   select type (fe_space)
@@ -118,7 +113,6 @@ subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
   assert (associated(par_environment))
 
   if (par_environment%am_i_l1_task()) then
-    call this%setup_stiffness_weighting()
     call this%setup_object_lid_to_dof_lids()
     call this%setup_dof_lid_to_cdof_id_in_object()
   end if
@@ -126,13 +120,20 @@ subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
 end subroutine unfitted_l1_create
 
 !========================================================================================
+subroutine unfitted_l1_stiffness_l1_create(this, fe_affine_operator)
+  implicit none
+  class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
+  class(fe_affine_operator_t), target,    intent(in)    :: fe_affine_operator
+  mcheck(.false.,'This method does not make sense for this class')
+end subroutine unfitted_l1_stiffness_l1_create
+
+!========================================================================================
 subroutine unfitted_l1_free(this)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
-  this%matrix         => null()
+  call this%stiffness_weighting_l1_coarse_fe_handler_t%free()
   this%par_fe_space   => null()
   this%parameter_list => null()
-  if ( allocated(this%stiffness_weighting) ) call memfree(this%stiffness_weighting,__FILE__,__LINE__)
   if ( allocated(this%dof_lid_to_cdof_id_in_object) ) call memfree(this%dof_lid_to_cdof_id_in_object,__FILE__,__LINE__)
   if ( allocated(this%object_lid_to_min_neigbour) ) call memfree(this%object_lid_to_min_neigbour,__FILE__,__LINE__)
   call this%object_lid_to_dof_lids%free()
@@ -275,78 +276,6 @@ subroutine unfitted_l1_setup_constraint_matrix(this,par_fe_space,parameter_list,
   !call this%standard_l1_coarse_fe_handler_t%setup_constraint_matrix(par_fe_space,parameter_list,constraint_matrix)
 
 end subroutine unfitted_l1_setup_constraint_matrix
-
-!========================================================================================
-subroutine unfitted_l1_setup_weighting_operator(this,par_fe_space,parameter_list,weighting_operator)
-  implicit none
-  class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
-  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
-  real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
-
-  integer(ip)                            :: field_id, block_id
-  integer(ip), pointer                   :: field_to_block(:)
-  integer(ip)                            :: num_dofs
-
-  ! Clean up
-  if (allocated(weighting_operator) ) then
-    call memfree ( weighting_operator, __FILE__, __LINE__ )
-  end if
-
-  ! We assume a single field for the moment
-  field_id = 1
-  assert(this%par_fe_space%get_number_fields() == 1)
-
-  ! Allocate the weighting
-  field_to_block => this%par_fe_space%get_field_blocks()
-  block_id = field_to_block(field_id)
-  num_dofs = this%par_fe_space%get_block_number_dofs(block_id)
-  call memalloc(num_dofs,weighting_operator,__FILE__,__LINE__)
-
-  ! Set the weighting with the stored value
-  weighting_operator(:) = this%stiffness_weighting(:)
-
-end subroutine unfitted_l1_setup_weighting_operator
-
-!========================================================================================
-subroutine unfitted_l1_setup_stiffness_weighting(this)
-
-  implicit none
-  class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
-
-  type(par_scalar_array_t)             :: par_array
-  type(environment_t), pointer         :: p_env
-  type(dof_import_t),  pointer         :: dof_import
-  type(serial_scalar_array_t), pointer :: serial_array
-  real(rp), pointer                    :: assembled_diag(:)
-  real(rp), allocatable                :: sub_assembled_diag(:)
-  integer(ip)                          :: istat
-  integer(ip)                          :: block_id
-
-  ! We assume a single block (for the moment)
-  block_id = 1
-
-  ! Get the sub-assembled diagonal
-  call this%matrix%extract_diagonal(sub_assembled_diag)
-
-  ! Communicate to compute the fully assembled diagonal
-  p_env => this%par_fe_space%get_environment()
-  dof_import => this%par_fe_space%get_block_dof_import(block_id)
-  call par_array%create_and_allocate(p_env, dof_import)
-  serial_array   => par_array%get_serial_scalar_array()
-  assembled_diag => serial_array%get_entries()
-  assembled_diag(:) = sub_assembled_diag(:)
-  call par_array%comm()
-
-  ! Compute the weighting
-  call memalloc(size(sub_assembled_diag),this%stiffness_weighting, __FILE__, __LINE__ )
-  this%stiffness_weighting(:) = sub_assembled_diag(:)/assembled_diag(:)
-
-  ! Clean up
-  deallocate(sub_assembled_diag,stat=istat); check(istat == 0)
-  call par_array%free()
-
-end subroutine unfitted_l1_setup_stiffness_weighting
 
 !========================================================================================
 subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
