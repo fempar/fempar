@@ -102,8 +102,11 @@ contains
          deallocate(this%mode, stat=istat); check(istat==0);
       end if
       
-      call this%context%free(finalize=.false.)
-      deallocate(this%context,stat=istat); check(istat==0);
+      if (allocated(this%context)) then
+        call this%context%free(finalize=.false.)
+        deallocate(this%context,stat=istat); check(istat==0);
+      end if    
+      
       this%t_start   = 0.0_rp
       this%t_stop    = 0.0_rp
       this%t_accum   = 1.79769E+308_rp ! Largest double precision number
