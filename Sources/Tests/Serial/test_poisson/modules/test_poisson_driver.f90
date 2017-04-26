@@ -115,16 +115,9 @@ contains
     call this%triangulation%create(this%parameter_list)
     !call this%triangulation%print()
     
-<<<<<<< HEAD
-    !if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       vef_iterator = this%triangulation%create_vef_iterator()
-       do while ( .not. vef_iterator%has_finished() )
-          call vef_iterator%current(vef)
-=======
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
->>>>>>> 1ea1e153a81553292144fd6747bdfcfa12605e41
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else
@@ -132,13 +125,8 @@ contains
           end if
           call vef%next()
        end do
-<<<<<<< HEAD
-    !end if    
-    
-=======
        call this%triangulation%free_vef_iterator(vef)
     end if
->>>>>>> 1ea1e153a81553292144fd6747bdfcfa12605e41
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
