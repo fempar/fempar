@@ -109,7 +109,7 @@ implicit none
         procedure, non_overridable, public :: next                        => list_iterator_next
         procedure, non_overridable, public :: get_current                 => list_iterator_get_current
         procedure, non_overridable, public :: set_current                 => list_iterator_set_current
-        procedure, non_overridable, public :: reach_from_current          => list_iterator_reach_from_current
+        procedure, non_overridable, public :: get_from_current            => list_iterator_get_from_current
         procedure, non_overridable, public :: set_from_current            => list_iterator_set_from_current
     end type list_iterator_t
 
@@ -592,7 +592,7 @@ contains
     end subroutine list_iterator_set_from_current
 
 
-    function list_iterator_reach_from_current(this, offset) result(component)
+    function list_iterator_get_from_current(this, offset) result(component)
     !----------------------------------------------------------------- 
     !< Returns the current + offset component of the iterator
     !----------------------------------------------------------------- 
@@ -602,7 +602,7 @@ contains
     !----------------------------------------------------------------- 
         assert( this%is_in_range(this%current+offset) )
         component = this%list%l(this%current+offset)
-    end function list_iterator_reach_from_current
+    end function list_iterator_get_from_current
 
 
     subroutine list_iterator_previous(this)

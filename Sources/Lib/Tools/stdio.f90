@@ -504,6 +504,7 @@ contains
     position_ = 'asis'
     if(present(position)) position_ = position
 
+    !$OMP CRITICAL
     io = io_get_unit()
 
     if(present(recl)) then
@@ -513,10 +514,15 @@ contains
        open(unit=io, file=trim(file), status=trim(status_), form=trim(form_), &
             action=trim(action_), position=trim(position_), iostat=iostat)
     endif
-    call iostat_error(iostat,'IO_OPEN','could not open file: '//file)
-    io_open = io
+    if( iostat == IOSTAT_OK ) then
+       io_open = io
+    else
+       io_open = -1
+       !call iostat_error(iostat,'IO_OPEN','could not open file: '//file)
+    end if
+    !$OMP END CRITICAL
 
-  end function io_open
+    end function io_open
 
   !********************************************************************!
 

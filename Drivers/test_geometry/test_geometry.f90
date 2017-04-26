@@ -25,160 +25,75 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module command_line_parameters_names
-  use types_names
-  !use Data_Type_Command_Line_Interface
-  use flap, only : command_line_interface
-# include "debug.i90"
-
-  implicit none
-  private
-
-  type test_geometry_params_t
-     character(len=:), allocatable :: default_dir_path
-     character(len=:), allocatable :: default_prefix
-     character(len=:), allocatable :: default_dir_path_out
-   contains
-     procedure :: set_default_params => test_geometry_set_default_params
-  end type test_geometry_params_t
-
-  ! Types
-  public :: test_geometry_params_t
-
-  ! Functions
-  public :: cli_add_params
-
-contains
-
-  subroutine test_geometry_set_default_params(params)
-    use fempar_names
-    implicit none
-    class(test_geometry_params_t), intent(inout) :: params
-    ! IO parameters
-    params%default_dir_path     = '.'
-    params%default_prefix       = 'cyl'
-    params%default_dir_path_out = '.'
-  end subroutine test_geometry_set_default_params
-
-  !==================================================================================================
-  subroutine cli_add_params(cli,params)
-    implicit none
-    type(Command_Line_Interface)    , intent(inout) :: cli
-    type(test_geometry_params_t)          , intent(in)    :: params
-    !class(test_geometry_parallel_params_t), intent(inout) :: params
-    ! Locals
-    integer(ip) :: error
-    character   :: aux_string
-
-    ! IO parameters
-    call cli%add(switch='--dir_path',switch_ab='-d',                              &
-         &       help='Directory of the source files',required=.false., act='store',                &
-         &       def=trim(params%default_dir_path),error=error)
-    check(error==0)
-    call cli%add(switch='--prefix',switch_ab='-pr',help='Name of the GiD files',  &
-         &       required=.false.,act='store',def=trim(params%default_prefix),error=error) 
-    check(error==0)
-    call cli%add(switch='--dir_path_out',switch_ab='-out',help='Output Directory',&
-         &       required=.false.,act='store',def=trim(params%default_dir_path_out),error=error)
-    check(error==0)
-    
-  end subroutine cli_add_params
-
-
-end module command_line_parameters_names
-
-!****************************************************************************************************
-!****************************************************************************************************
 program test_geometry
-  use types_names
-  use iso_c_binding
-  use sisl_names
-  use geometry_names
-  use fempar_names
-  !use Data_Type_Command_Line_Interface
-  use flap, only : command_line_interface
-  use command_line_parameters_names
-  implicit none
-  type(geometry_t)      :: geometry
-  type(line_t), pointer :: line
-  type(point_t)         :: point
-  real(rp)              :: param
-  !real(rp)              :: point(3),param
 
-  character(len=str_cla_len)       :: dir_path, dir_path_out
-  character(len=str_cla_len)       :: prefix, filename
-  integer(ip) :: lunio, istat
-  type(Command_Line_Interface):: cli 
-  type(test_geometry_params_t)     :: test_params
+use fempar_names
+use test_geometry_params
+use gid_geometry_reader_names
 
-  call meminit
+implicit none
+    type(geometry_t)      :: geometry
+    type(line_t), pointer :: line
+    type(point_t)         :: point
+    real(rp)              :: param
+    !real(rp)              :: point(3),param
 
-  ! Read IO parameters
-  call read_flap_cli_test_geometry(cli,test_params)
-  call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
-  call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
+    character(len=str_cla_len)       :: dir_path, dir_path_out
+    character(len=str_cla_len)       :: prefix, filename
+    integer(ip)                      :: lunio, istat
+    type(parameterlist_t), pointer   :: parameterlist
+    type(test_geometry_params_t)     :: test_params
 
-  ! Get line 3 of geometry and test its TBPs
-  !call geometry%read(dir_path,prefix)
-  line => geometry%get_line(3)
+    call FEMPAR_INIT()
 
-  !point(1) = -10.0_rp
-  !point(2) = 0.0_rp
-  !point(3) = 0.0_rp
-  call point%init(0.0_rp)
-  call point%set(1,-10.0_rp)
-  param = line%get_parameter(point,1.0e-8_rp)
-  write(*,*) 'Line parameter', param
+    call test_params%create()
+    parameterlist => test_params%get_parameters()
+!    call geometry%read(parameterlist)
+!    call geometry%free()
 
-  param = 0.75_rp
-  call line%evaluate(param,point)
-  write(*,*) 'Line evaluation', point%get_value()
+    !-----------------------------------------------------------------
+    !< Create a hexa
+    !<     7-------8
+    !<    /       /|
+    !<   /       / |
+    !<  /       /  |
+    !< 5---3---6___4       Z   Y
+    !< |  /    |  /        |  /
+    !  | /     | /         | /
+    !< |/      |/          |/ 
+    !< 1-------2           +----- X
+    !-----------------------------------------------------------------
+    call geometry%create(num_points=17, num_lines=18, num_surfaces=7, num_volumes=1)
 
-  ! Get line 1 of geometry and test its TBPs
-  !call geometry%read(dir_path,prefix)
-  line => geometry%get_line(1)
+    call geometry%add_point(point_id=1, coord=[0._rp,0._rp,0._rp])
 
-  !point(1) = 0.0_rp
-  !point(2) = 10.0_rp
-  !point(3) = 20.0_rp
-  call point%init( (/0.0_rp,10.0_rp,20.0_rp/) )
+    call geometry%add_line(line_id=1, coord1=[0._rp,0._rp,0._rp], &
+                                      coord2=[1._rp,0._rp,0._rp])
 
-  param = line%get_parameter(point,1.0e-8_rp)
-  write(*,*) 'Line parameter', param
+    call geometry%add_line(line_id=2, coord1=[0._rp,0._rp,0._rp], &
+                                      coord2=[1._rp,0._rp,0._rp])
 
-  param = 0.6_rp
-  call line%evaluate(param,point)
-  write(*,*) 'Line evaluation', point%get_value()
+    call geometry%add_quad(coord1=[0._rp,0._rp,0._rp], &
+                           coord2=[1._rp,0._rp,0._rp], &
+                           coord3=[0._rp,1._rp,0._rp], &
+                           coord4=[1._rp,1._rp,0._rp])
 
-contains
+    call geometry%add_hexa(coord1=[0._rp,0._rp,0._rp], &
+                           coord2=[1._rp,0._rp,0._rp], &
+                           coord3=[0._rp,1._rp,0._rp], &
+                           coord4=[1._rp,1._rp,0._rp], &
+                           coord5=[0._rp,0._rp,1._rp], &
+                           coord6=[1._rp,0._rp,1._rp], &
+                           coord7=[0._rp,1._rp,1._rp], &
+                           coord8=[1._rp,1._rp,1._rp])
 
-  !==================================================================================================
-  subroutine read_flap_cli_test_geometry(cli,test_params)
-    !use Data_Type_Command_Line_Interface
-    use command_line_parameters_names
-    use fempar_names
-    implicit none
-    type(Command_Line_Interface) , intent(out)   :: cli
-    type(test_geometry_params_t), intent(inout) :: test_params
+    call geometry%init()
+    call geometry%free()
+
     
-    ! Locals
-    integer(ip)                 :: istat
+    call the_gid_geometry_reader%fill_geometry(parameterlist, geometry)
+    call geometry%free()
 
-    ! Initialize Command Line Interface
-    call cli%init(progname    = 'test_geometry',                                                    &
-         &        version     = '',                                                                 &
-         &        authors     = '',                                                                 &
-         &        license     = '',                                                                 &
-         &        description =  'Parallel FEMPAR driver to test geometry.', &
-         &        examples    = ['test_geometry -h  ', 'test_geometry -h  ' ])
-    
-    ! Set Parallel parameters
-    call test_params%set_default_params()
-    call cli_add_params(cli,test_params) 
-    
-    call cli%parse(error=istat)
-    check(istat == 0)
-    
-  end subroutine read_flap_cli_test_geometry
+    call FEMPAR_FINALIZE()
 
 end program test_geometry

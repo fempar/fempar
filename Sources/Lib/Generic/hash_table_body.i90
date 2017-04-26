@@ -63,7 +63,7 @@ recursive subroutine put_hash_node(list,key,val,stat)
   key_type                , intent(in)    :: key
   val_type                , intent(inout) :: val   ! val = list%val if it was stored
   integer(ip)             , intent(out)   :: stat
-  class(hash_node)         , pointer      :: newel => null()
+  class(hash_node)        , pointer       :: newel
 
   if(key>list%key) then
      if(associated(list%child) ) then
@@ -123,7 +123,7 @@ recursive subroutine del_hash_node(list,key,stat)
   class(hash_node), target, intent(inout) :: list
   key_type                , intent(in)    :: key
   integer(ip)             , intent(out)   :: stat
-  class(hash_node)         , pointer      :: tmp => null()
+  class(hash_node)         , pointer      :: tmp
 
   if(key==list%key) then
      !if(associated(list%parent)) then ! this is not the first element
@@ -134,7 +134,6 @@ recursive subroutine del_hash_node(list,key,stat)
      !   tmp => list%child
      if(.not.associated(list%child)) then
         write(*,*) 'Error in mem_db_del, not associated'
-        !$ write(*,*) 'Thread number: ',omp_get_thread_num()
         write(*,*) key,list%key,associated(list%parent),associated(list%child)
         if(associated(list%parent)) then
            write(*,*) list%parent%key
@@ -253,9 +252,9 @@ subroutine get_hash_table(tbl,key,val,stat)
   assert (key>=int(tbl%vec_min,key_size))
   hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
-!$OMP CRITICAL (hash_table_lock)
+!!$OMP CRITICAL (hash_table_lock)
   call tbl%vec(hash)%put(key=key,val=val,stat=stat)
-!$OMP END CRITICAL (hash_table_lock)
+!!$OMP END CRITICAL (hash_table_lock)
 
   if(stat==now_stored) then
      stat = new_index
@@ -284,9 +283,9 @@ subroutine put_hash_table(tbl,key,val,stat)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
   val_ = val 
 
-!$OMP CRITICAL (hash_table_lock)
+!!$OMP CRITICAL (hash_table_lock)
   call tbl%vec(hash)%put(key=key,val=val_,stat=stat)
-!$OMP END CRITICAL (hash_table_lock)
+!!$OMP END CRITICAL (hash_table_lock)
 
 end subroutine put_hash_table
 
@@ -302,9 +301,9 @@ subroutine del_hash_table(tbl,key,stat)
   !hash = tbl%vec_min + (key-tbl%vec_min) - ((key-tbl%vec_min)/tbl%vec_len) * tbl%vec_len
   hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
-!$OMP CRITICAL (hash_table_lock)
+!!$OMP CRITICAL (hash_table_lock)
   call tbl%vec(hash)%del(key=key,stat=stat)
-!$OMP END CRITICAL (hash_table_lock)
+!!$OMP END CRITICAL (hash_table_lock)
   if (stat == child_not_found) then
      call tbl%print
      stop

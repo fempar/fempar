@@ -41,13 +41,15 @@ module uniform_hex_mesh_generator_names
   character(len=*), parameter :: number_of_parts_per_dir_key = 'number_of_parts_per_dir'
   character(len=*), parameter :: is_dir_periodic_key         = 'is_dir_periodic'
   character(len=*), parameter :: interpolation_order_key     = 'interpolation_order'
+  character(len=*), parameter :: hex_mesh_domain_limits_key  = 'hex_mesh_domain_limits'
 
   public :: number_of_dimensions_key
   public :: number_of_levels_key
   public :: number_of_cells_per_dir_key 
   public :: number_of_parts_per_dir_key 
   public :: is_dir_periodic_key         
-  public :: interpolation_order_key     
+  public :: interpolation_order_key
+  public :: hex_mesh_domain_limits_key
 
   integer(ip) , parameter :: not_described = 0
   integer(ip) , parameter :: described = 1
@@ -61,6 +63,7 @@ module uniform_hex_mesh_generator_names
      integer(ip), allocatable :: number_of_cells_per_dir(:) ! 0:SPACE_DIM-1)
      integer(ip), allocatable :: number_of_parts_per_dir(:) ! 0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
+     real(rp) :: domain_limits(1:SPACE_DIM,2)
    contains   
      procedure, non_overridable :: get_data_from_parameter_list => uniform_hex_mesh_get_data_from_parameter_list
      procedure, non_overridable :: generate_levels_and_parts    => uniform_hex_mesh_generate_levels_and_parts
@@ -91,9 +94,10 @@ contains
     class(uniform_hex_mesh_t), intent(inout) :: this
     type(ParameterList_t)    , intent(in)    :: parameter_list
     ! Locals
-    integer(ip) :: istat
+    integer(ip) :: istat, idime
     logical     :: is_present
     integer(ip), allocatable :: array_size(:)
+    real(rp), allocatable :: domain_limits(:)
     
     ! Mandatory
     assert(parameter_list%isAssignable(number_of_dimensions_key, this%number_of_dimensions))
@@ -132,6 +136,26 @@ contains
        call memalloc(SPACE_DIM, this%number_of_parts_per_dir,__FILE__,__LINE__, lb1=0)
        this%number_of_parts_per_dir = 1
     end if
+    
+    ! Optional (array)
+    if( parameter_list%isPresent(key = hex_mesh_domain_limits_key) ) then
+      istat = parameter_list%GetShape(key = hex_mesh_domain_limits_key   , shape = array_size); check(istat==0)
+      assert(array_size(1) >= 2*this%number_of_dimensions)
+      call memalloc(array_size(1), domain_limits,__FILE__,__LINE__)
+      assert(parameter_list%isAssignable(hex_mesh_domain_limits_key, domain_limits))
+      istat = parameter_list%get(key = hex_mesh_domain_limits_key , value = domain_limits); check(istat==0)
+      do idime = 1,this%number_of_dimensions
+        this%domain_limits(idime,1) = domain_limits(2*idime-1)
+        this%domain_limits(idime,2) = domain_limits(2*idime)
+        assert(this%domain_limits(idime,2)>this%domain_limits(idime,1))
+      end do
+      call memfree(domain_limits,__FILE__,__LINE__)
+    else
+      ! Default value for domain
+      this%domain_limits(:,1) = 0.0
+      this%domain_limits(:,2) = 1.0
+    end if
+    
 
     ! Here we do not use our memfree because array_size was allocated inside FPL 
     ! (without calling memalloc)
@@ -169,6 +193,7 @@ contains
     end do
     assert(task_id<num_tasks)
 
+    parts_mapping = -1
     ilevel=1
     ipart = task_id + 1 
     num_parts = 0
@@ -180,11 +205,13 @@ contains
     parts_mapping(ilevel) = ipart
     do while(ilevel<=num_levels-1)
        first = (ilevel-1)*SPACE_DIM
-       last  = first + this%number_of_dimensions
-       call spatial_to_ijk_numbering(this%number_of_dimensions, this%number_of_parts_per_dir(first:last), ipart-1, part_ijk)
+       last  = first + this%number_of_dimensions-1
+       call spatial_to_ijk_numbering(this%number_of_dimensions, this%number_of_parts_per_dir(first:last), ipart, part_ijk)
        do idime = 0, this%number_of_dimensions - 1 
           part_ijk(idime) = part_ijk(idime)*this%number_of_parts_per_dir(ilevel*SPACE_DIM+idime)/this%number_of_parts_per_dir((ilevel-1)*SPACE_DIM+idime)
        end do
+       first = ilevel*SPACE_DIM
+       last  = first + this%number_of_dimensions-1
        ipart = ijk_to_spatial_numbering(this%number_of_dimensions,this%number_of_parts_per_dir(first:last), part_ijk)+1
        ilevel = ilevel +1
        parts_mapping(ilevel) = ipart
@@ -651,6 +678,11 @@ contains
              boundary_id(iface_of_itype) = polytope_tree%get_ijk_to_index(index)
           end do
        end if
+    end do
+    
+    ! Map coordinates from [0,1]x[0,1]x[0,1] to [xi,xe]x[yi,ye]x[zi,ze]
+    do idime = 1, this%number_of_dimensions
+      coordinates(idime,:) = (this%domain_limits(idime,2)-this%domain_limits(idime,1))*coordinates(idime,:) + this%domain_limits(idime,1)
     end do
 
     call memfree( num_global_n_faces, __FILE__,__LINE__)
