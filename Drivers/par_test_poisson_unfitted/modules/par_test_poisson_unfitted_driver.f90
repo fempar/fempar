@@ -96,6 +96,9 @@ module par_test_poisson_unfitted_driver_names
      type(timer_t) :: timer_assemply
      type(timer_t) :: timer_solver_setup
      type(timer_t) :: timer_solver_run
+     type(timer_t) :: timer_check_sol
+     type(timer_t) :: timer_write_sol
+     type(timer_t) :: timer_run_simulation
 
    contains
      procedure                  :: parse_command_line_parameters
@@ -145,6 +148,9 @@ subroutine setup_timers(this)
     call this%timer_assemply%create(     w_context,"FE INTEGRATION AND ASSEMBLY")
     call this%timer_solver_setup%create( w_context,"SETUP SOLVER AND PRECONDITIONER")
     call this%timer_solver_run%create(   w_context,"SOLVER RUN")
+    call this%timer_check_sol%create(   w_context,"CHECK SOLUTION")
+    call this%timer_write_sol%create(   w_context,"WRITE SOLUTION")
+    call this%timer_run_simulation%create(   w_context,"RUN SIMULATION")
 end subroutine setup_timers
 
 !========================================================================================
@@ -156,6 +162,9 @@ subroutine report_timers(this)
     call this%timer_assemply%report(.false.)
     call this%timer_solver_setup%report(.false.)
     call this%timer_solver_run%report(.false.)
+    call this%timer_check_sol%report(.false.)
+    call this%timer_write_sol%report(.false.)
+    call this%timer_run_simulation%report(.false.)
     if (this%par_environment%get_l1_rank() == 0) then
       write(*,*)
     end if
@@ -170,6 +179,9 @@ subroutine free_timers(this)
     call this%timer_assemply%free()
     call this%timer_solver_setup%free()
     call this%timer_solver_run%free()
+    call this%timer_check_sol%free()
+    call this%timer_write_sol%free()
+    call this%timer_run_simulation%free()
 end subroutine free_timers
 
 !========================================================================================
@@ -635,6 +647,9 @@ end subroutine free_timers
   subroutine run_simulation(this) 
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
+
+    call this%timer_run_simulation%start()
+
     !call this%free()
     !call this%parse_command_line_parameters()
     !call this%setup_context()
@@ -666,9 +681,18 @@ end subroutine free_timers
     call this%solve_system()
     call this%timer_solver_run%stop()
 
+    call this%timer_check_sol%start()
     call this%check_solution()
+    call this%timer_check_sol%stop()
+
+    call this%timer_write_sol%start()
     call this%write_solution()
+    call this%timer_write_sol%stop()
+
     call this%free()
+
+    call this%timer_run_simulation%stop()
+
   end subroutine run_simulation
   
 !========================================================================================

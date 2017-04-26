@@ -136,13 +136,17 @@ contains
     field_coupling => fe_space%get_field_coupling()
 
     ! Find the first non-void FE
+    num_quad_points = 0
     do while ( .not. fe_iterator%has_finished() )
        call fe_iterator%current(fe)
-       quad            => fe%get_quadrature()
-       num_quad_points = quad%get_number_quadrature_points()
-       if (num_quad_points > 0) exit
+       if ( fe%is_local() ) then
+         quad            => fe%get_quadrature()
+         num_quad_points = quad%get_number_quadrature_points()
+         if (num_quad_points > 0) exit
+       end if
        call fe_iterator%next()
-    end do
+    end do    
+    if (num_quad_points==0) return
 
     ! TODO We assume that all non-void FEs are the same...
     num_dofs = fe%get_number_dofs()
