@@ -29,6 +29,7 @@ module poisson_unfitted_discrete_integration_names
   use fempar_names
   use unfitted_temporary_names
   use poisson_unfitted_analytical_functions_names
+  use par_test_poisson_unfitted_params_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
   use piecewise_fe_map_names
@@ -40,8 +41,10 @@ module poisson_unfitted_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: poisson_unfitted_cG_discrete_integration_t
      type(poisson_unfitted_analytical_functions_t), pointer :: analytical_functions => NULL()
+     type(par_test_poisson_unfitted_params_t), pointer :: test_params => null()
    contains
      procedure :: set_analytical_functions
+     procedure :: set_test_params
      procedure :: integrate
   end type poisson_unfitted_cG_discrete_integration_t
   
@@ -56,6 +59,12 @@ contains
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
 
+  subroutine set_test_params ( this, test_params )
+     implicit none
+     class(poisson_unfitted_cG_discrete_integration_t)    ,intent(inout)  :: this
+     type(par_test_poisson_unfitted_params_t), target, intent(in)    :: test_params
+     this%test_params => test_params
+  end subroutine set_test_params
 
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
@@ -109,14 +118,15 @@ contains
     real(rp), allocatable :: elmatB(:,:), elmatV(:,:), elmatB_pre(:,:)
     real(rp), allocatable, target :: shape2mono(:,:)
     real(rp), pointer :: shape2mono_fixed(:,:)
-    real(rp), parameter::beta_coef=2.0_rp
+    real(rp) :: beta_coef
     real(rp) :: beta
     real(rp) :: exact_sol_gp
     real(rp), pointer :: lambdas(:,:)
     type(gen_eigenvalue_solver_t) :: eigs
 
     assert (associated(this%analytical_functions))
-
+    assert (associated(this%test_params))
+    beta_coef = this%test_params%get_nitsche_beta_factor()
 
     ! TODO @fverdugo FEMPAR PRIORITY HIGH EFFORT HIGH
     ! we need this because iterator is not polymorpfic
@@ -235,9 +245,9 @@ contains
            call vol_int%get_values(boundary_shape_values)
            call vol_int%get_gradients(boundary_shape_gradients)
 
-           ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
-           ! We assume that the unfitted boundary is Nitsche
-           if (.false.) then
+           select case (trim(this%test_params%get_unfitted_boundary_type()))
+           case ('neumann')
+
              ! Neumann BCs unfitted boundary
              do qpoint = 1, num_quad_points
 
@@ -262,7 +272,7 @@ contains
 
              end do
 
-           else ! Nitsche on the unfitted boundary
+           case ('dirichlet') ! Nitsche on the unfitted boundary
 
              ! Nitsche beta
 
@@ -334,7 +344,9 @@ contains
 
              end do
 
-           end if !Nitsche's case
+           case default
+             mcheck(.false.,'Unknown unfitted boundary type `'//trim(this%test_params%get_unfitted_boundary_type())//'`')
+           end select
 
          end if ! Only for cut elems
 

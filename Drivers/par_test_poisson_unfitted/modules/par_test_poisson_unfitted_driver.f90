@@ -228,6 +228,7 @@ end subroutine free_timers
     end if
     istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
     call this%par_environment%create (this%parameter_list)
+    call this%test_params%print(this%par_environment)
   end subroutine setup_environment
    
 !========================================================================================
@@ -245,6 +246,14 @@ end subroutine free_timers
     type(vef_iterator_t)  :: vef_iterator
     type(vef_accessor_t)  :: vef
     integer(ip) :: inode
+
+    type(point_t), allocatable :: coords(:)
+    real(rp) :: resu
+    integer(ip) :: ivef
+    class(lagrangian_reference_fe_t), pointer :: ref_elem_geo
+    type(list_iterator_t)          :: own_dofs_on_vef_iterator
+    logical                        :: found_interior_vertex
+    real(rp)                       :: num_blocked_vertex
 
     ! Create a structured mesh with a custom domain
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
@@ -289,6 +298,46 @@ end subroutine free_timers
         if(vef%is_at_boundary()) call vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_DIRI)
         call vef_iterator%next()
       end do
+    end if
+
+    ! If we use neumann boundary conditions on the unfitted boundary, 
+    ! constrain the solution at the first interior vertex
+    found_interior_vertex = .false.
+    if (this%test_params%get_unfitted_boundary_type() == 'neumann' .and. this%par_environment%am_i_l1_task()) then
+
+      allocate(coords(this%triangulation%get_max_number_shape_functions()),stat = istat); check(istat == 0)
+      cell_iter = this%triangulation%create_unfitted_cell_iterator()
+      do while( .not. cell_iter%has_finished() )
+        call cell_iter%current(cell)
+        if (cell%is_local()) then
+          call cell%get_coordinates(coords)
+          ref_elem_geo => cell%get_reference_fe_geo()
+          do ivef = 1, cell%get_num_vefs()
+            own_dofs_on_vef_iterator = ref_elem_geo%create_own_dofs_on_n_face_iterator(ivef)
+            if  (own_dofs_on_vef_iterator%get_size()==1) then
+              call this%level_set_function%get_value(coords(own_dofs_on_vef_iterator%get_current()),resu)
+              if (resu<0) then
+                found_interior_vertex = .true.
+                call cell%get_vef(ivef,vef)
+                call vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_DIRI)
+                exit
+              end if
+            end if
+          end do
+        end if
+        if (found_interior_vertex) exit
+        call cell_iter%next()
+      end do
+      deallocate(coords,stat = istat); check(istat==0)
+      
+#ifdef DEBUG
+      ! Check that we have blocked at least one vertex
+      num_blocked_vertex = 0.0
+      if (found_interior_vertex) num_blocked_vertex = 1.0
+      call this%par_environment%l1_sum(num_blocked_vertex)
+      massert(num_blocked_vertex>0, 'No interior vertex has been found in all the global mesh')
+#endif
+
     end if
 
     ! Setup the coarse triangulation
@@ -374,6 +423,7 @@ end subroutine free_timers
 
     
     call this%poisson_unfitted_integration%set_analytical_functions(this%poisson_unfitted_analytical_functions)
+    call this%poisson_unfitted_integration%set_test_params(this%test_params)
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -433,13 +483,14 @@ end subroutine free_timers
       call coarse_fe_handler%create(this%fe_affine_operator,this%parameter_list)
     end select
 
-    ! Set-up MLBDDC preconditioner
-!#ifdef ENABLE_MKL   
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
-    call this%mlbddc%symbolic_setup()
-    call this%mlbddc%numerical_setup()
-!#endif    
+
+    if (this%test_params%get_use_preconditioner()) then
+      ! Set-up MLBDDC preconditioner
+      call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+      call this%mlbddc%symbolic_setup()
+      call this%mlbddc%numerical_setup()
+    end if
    
     call parameter_list%init()
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
@@ -451,17 +502,11 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call parameter_list%free()
 
-!#ifdef ENABLE_MKL
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
-!#else
-    !call parameter_list%init()
-    !FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-    !FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-    !assert(FPLError == 0)
-    !call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    !call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-    !call parameter_list%free()
-!#endif   
+    if (this%test_params%get_use_preconditioner()) then
+      call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
+    else
+      call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    end if
     
   end subroutine setup_solver
 
@@ -495,16 +540,18 @@ end subroutine free_timers
 
     if (environment%get_l1_rank() == 0) then
       num_sub_domains = environment%get_l1_size()
-      write(*,'(a,i22)') 'num_sub_domains:  ', num_sub_domains
-      write(*,'(a,i22)') 'num_total_cells:  ', nint(num_total_cells , kind=ip )
-      write(*,'(a,i22)') 'num_active_cells: ', nint(num_active_cells, kind=ip )
-      write(*,'(a,i22)') 'num_dofs:         ', nint(num_dofs        , kind=ip )
+      write(*,'(a,i22)') 'num_sub_domains:          ', num_sub_domains
+      write(*,'(a,i22)') 'num_total_cells:          ', nint(num_total_cells , kind=ip )
+      write(*,'(a,i22)') 'num_active_cells:         ', nint(num_active_cells, kind=ip )
+      write(*,'(a,i22)') 'num_dofs (sub-assembled): ', nint(num_dofs        , kind=ip )
     end if
 
-    if (environment%am_i_lgt1_task()) then
-      coarse_fe_space => this%fe_space%get_coarse_fe_space()
-      num_coarse_dofs = coarse_fe_space%get_field_number_dofs(1)
-      write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
+    if (this%test_params%get_use_preconditioner()) then
+      if (environment%am_i_lgt1_task()) then
+        coarse_fe_space => this%fe_space%get_coarse_fe_space()
+        num_coarse_dofs = coarse_fe_space%get_field_number_dofs(1)
+        write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
+      end if
     end if
 
   end subroutine print_info
