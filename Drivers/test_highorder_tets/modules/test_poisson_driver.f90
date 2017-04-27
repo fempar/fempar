@@ -106,7 +106,7 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    class(vef_iterator_t), allocatable  :: vef
+    type(vef_iterator_t)  :: vef
 
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
