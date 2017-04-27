@@ -136,7 +136,7 @@ module base_iterative_linear_solver_names
     procedure :: get_error_estimate_extra_convergence_test
 
     ! This set of TBPs allow indirect access to the output member variables of type(base_iterative_linear_solver_t).
-    ! They could be avoided either with regular (i.e., no pointers) accessors TBPs or declaring the corresponding
+    ! They could be avoided either with regular (i.e., no pointers) iterators TBPs or declaring the corresponding
     ! member variables as public. 
     procedure :: get_pointer_did_converge
     procedure :: get_pointer_num_iterations

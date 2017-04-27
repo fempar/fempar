@@ -241,6 +241,14 @@ subroutine fe_map_update( this, quadrature)
 	 ! Store jacobian determinant in absolut value: allows to work with 2 tetrahedra with different sign with only one ref_fe
 	 this%det_jacobian(ilocs) = abs(this%det_jacobian(ilocs))
   end do
+  ! When using oriented tetrahedral meshes |J| may become negative, absolute value should be used
+  ! to ensure positiveness
+  if (this%det_jacobian(1)<0.0_rp) then
+     this%det_jacobian_positiveness = .false.
+     this%det_jacobian = abs(this%det_jacobian)
+  else
+     this%det_jacobian_positiveness = .true.
+  end if
 
   ! Evaluation (Gauss) point coordinates
   call this%compute_quadrature_coordinates()
@@ -299,22 +307,19 @@ subroutine fe_map_update( this, quadrature)
 end subroutine fe_map_update
 
 !==================================================================================================
-subroutine fe_map_update_face_map(this,local_face_id,reference_fe,quadrature)
+subroutine fe_map_update_face_map(this,number_cell_dimensions,reorientation_factor,quadrature)
   implicit none    
   class(fe_map_t)      , intent(inout) :: this
-  integer(ip)          , intent(in)    :: local_face_id
-  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe
+  integer(ip)          , intent(in)    :: number_cell_dimensions
+  real(rp)             , intent(in)    :: reorientation_factor
   type(quadrature_t), intent(in)    :: quadrature
 
-  integer(ip) :: evaluation_point_id, node_id, idime, jdime, local_vef_id,  reorientation_factor
-  integer(ip) :: number_face_dimensions, number_cell_dimensions, orientation_face
+  integer(ip) :: evaluation_point_id, node_id, idime, jdime
+  integer(ip) :: number_face_dimensions
   type(vector_field_t) :: aux_vector
 
   number_face_dimensions = this%interpolation_geometry%number_dimensions
-  number_cell_dimensions = reference_fe%number_dimensions
-  local_vef_id = reference_fe%number_n_faces_per_dimension(number_cell_dimensions) + local_face_id - 1
-  orientation_face  = reference_fe%orientation%a(local_vef_id)
-  reorientation_factor = (-1)**orientation_face
+  
   ! See comment in facet_orientation (polytope module) about the reasoning behind this
   call this%compute_quadrature_coordinates()
   ! Initialize values
@@ -336,8 +341,8 @@ subroutine fe_map_update_face_map(this,local_face_id,reference_fe,quadrature)
 
      ! Compute outside normals (using the Jacobian Matrix)
      if ( number_cell_dimensions == 1) then
-        ! -1 and 1
-        this%normals(1,evaluation_point_id) = -1.0_rp**(real(local_face_id))
+        ! -1 and 1 is given by the reorientation_factor
+        this%normals(1,evaluation_point_id) = 1.0_rp!-1.0_rp**(real(local_face_id))
      elseif ( number_cell_dimensions == 2) then
         ! dx x e_z = ( dx/dX, dx/dY, 0) x (0,0,1) = ( dx/dY, -dx/dX, 0)
         ! (normal component up to correction by orientation)
@@ -679,6 +684,12 @@ subroutine fe_map_get_jacobian_column ( this, column_id, qpoint, column )
   end do
 end subroutine fe_map_get_jacobian_column
 
+function fe_map_is_det_jacobian_possitive ( this )
+  implicit none
+  class(fe_map_t)     , intent(in)    :: this
+  logical  ::  fe_map_is_det_jacobian_possitive
+  fe_map_is_det_jacobian_possitive = this%det_jacobian_positiveness
+end function fe_map_is_det_jacobian_possitive
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures

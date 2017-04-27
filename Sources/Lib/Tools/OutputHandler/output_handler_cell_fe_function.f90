@@ -68,7 +68,6 @@ module output_handler_cell_fe_function_names
 
     use output_handler_fe_field_names
     use output_handler_patch_names
-    use output_handler_fe_iterator_names
     use output_handler_parameters_names
   
 implicit none
@@ -103,7 +102,7 @@ private
         integer(ip)                                    :: number_dimensions     = 0
         integer(ip)                                    :: number_nodes          = 0
         integer(ip)                                    :: number_cells          = 0
-        type(fe_accessor_t), pointer                   :: current_fe            => NULL()
+        class(fe_iterator_t), pointer                  :: current_fe            => NULL()
         type(quadrature_t),        allocatable         :: quadratures(:)
         type(fe_map_t),            allocatable         :: fe_maps(:)
         type(volume_integrator_t), allocatable         :: volume_integrators(:)
@@ -169,8 +168,7 @@ contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
-    subroutine output_handler_cell_fe_function_create ( this, fe_space, output_handler_fe_iterator, &
-                                                        number_fields, fe_fields, num_refinements )
+    subroutine output_handler_cell_fe_function_create ( this, fe, number_fields, fe_fields, num_refinements )
     !-----------------------------------------------------------------
     !< Create output_handler_cell_fe_function. 
     !< This procedure must be called every time the mesh changes.
@@ -179,13 +177,11 @@ contains
     !< *quadratures*, *mixed_cell_topologies*, etc.
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(inout) :: this
-        class(serial_fe_space_t),                 intent(in)    :: fe_space
-        class(output_handler_fe_iterator_t),      intent(inout) :: output_handler_fe_iterator
+        class(fe_iterator_t)                    , intent(inout) :: fe
         integer(ip),                              intent(in)    :: number_fields
         type(output_handler_fe_field_t),          intent(in)    :: fe_fields(1:number_fields)
         integer(ip), optional,                    intent(in)    :: num_refinements
         class(base_static_triangulation_t), pointer             :: triangulation
-        type(fe_accessor_t)                                     :: fe
         class(reference_fe_t),            pointer               :: reference_fe
         class(lagrangian_reference_fe_t), pointer               :: reference_fe_geo
         class(lagrangian_reference_fe_t), pointer               :: previous_reference_fe_geo
@@ -199,7 +195,10 @@ contains
         integer(ip)                                             :: number_field
         character(len=:), allocatable                           :: field_type
         character(len=:), allocatable                           :: diff_operator
-    !-----------------------------------------------------------------
+        class(serial_fe_space_t),  pointer                      :: fe_space
+        
+        !-----------------------------------------------------------------
+        fe_space    => fe%get_fe_space()
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
             call this%free()
@@ -217,13 +216,12 @@ contains
             call this%volume_integrators_position%init()
             current_quadrature_and_map = 1
             current_volume_integrator  = 1
-
-            call output_handler_fe_iterator%init()
+            
             nullify(previous_reference_fe_geo)
-            do while ( .not. output_handler_fe_iterator%has_finished() ) 
-                call output_handler_fe_iterator%current(fe)
+            call fe%first()
+            do while ( .not. fe%has_finished() ) 
                 reference_fe_geo => fe%get_reference_fe_geo()
-                max_order_within_fe = fe%get_max_order()
+                max_order_within_fe = fe%get_max_order_all_fields()
                 call this%quadratures_and_maps_position%put(key = max_order_within_fe, &
                                                             val = current_quadrature_and_map, &
                                                             stat = istat)
@@ -264,13 +262,11 @@ contains
                             this%mixed_cell_topologies = .true.
                     previous_reference_fe_geo => reference_fe_geo
                 endif
-                call output_handler_fe_iterator%next()
+                call fe%next()
             end do
-
             ! Configure fill_patch_field strategy for each field
             if(allocated(this%fill_patch_field)) deallocate(this%fill_patch_field)
             allocate(this%fill_patch_field(number_fields))
-
             do number_field = 1, number_fields
                 field_type    = fe_fields(number_field)%get_field_type()
                 diff_operator = fe_fields(number_field)%get_diff_operator()
@@ -324,14 +320,14 @@ contains
     end function output_handler_cell_fe_function_has_mixed_cell_topologies
 
 
-    subroutine output_handler_cell_fe_function_fill_patch(this, fe_accessor, number_fields, fe_fields, number_cell_vectors, cell_vectors, patch)
+    subroutine output_handler_cell_fe_function_fill_patch(this, fe_iterator, number_fields, fe_fields, number_cell_vectors, cell_vectors, patch)
     !-----------------------------------------------------------------
-    !< Fill a [[output_handler_patch_t(type)]] from a given [[fe_accessor_t(type)]].
+    !< Fill a [[output_handler_patch_t(type)]] from a given [[fe_iterator_t(type)]].
     !< The **pach** contains a local view of the coordinates, connectivities 
     !< and field data per cell.
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t),  intent(inout) :: this
-        type(fe_accessor_t),               target, intent(in)    :: fe_accessor
+        class(fe_iterator_t),             target,  intent(in)    :: fe_iterator
         integer(ip),                               intent(in)    :: number_fields
         type(output_handler_fe_field_t),           intent(in)    :: fe_fields(1:number_fields)
         integer(ip),                               intent(in)    :: number_cell_vectors
@@ -354,12 +350,12 @@ contains
         character(len=:), allocatable                            :: field_type
         character(len=:), allocatable                            :: diff_operator
     !-----------------------------------------------------------------
-        this%current_fe => fe_accessor
-        fe_space => fe_accessor%get_fe_space()
+        this%current_fe => fe_iterator
+        fe_space => fe_iterator%get_fe_space()
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
-            max_order_within_fe =  fe_accessor%get_max_order()
-            reference_fe_geo    => fe_accessor%get_reference_fe_geo()
+            max_order_within_fe =  fe_iterator%get_max_order_all_fields()
+            reference_fe_geo    => fe_iterator%get_reference_fe_geo()
             fe_map              => this%get_fe_map()
             coordinates         => fe_map%get_coordinates()
             call this%current_fe%get_coordinates(coordinates)
@@ -887,7 +883,7 @@ contains
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
         assert ( associated(this%current_fe) )
-        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order(), &
+        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_all_fields(), &
              val=quadratures_position, &
              stat=istat)
         assert ( .not. istat == key_not_found )
@@ -905,7 +901,7 @@ contains
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
         assert ( associated(this%current_fe) )
-        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order(), &
+        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_all_fields(), &
              val=fe_maps_position, &
              stat=istat)
         assert ( .not. istat == key_not_found )
@@ -928,7 +924,7 @@ contains
 
         vol_integ_pos_key = &
              this%generate_vol_integ_pos_key(this%get_number_reference_fes(), &
-             this%current_fe%get_max_order(), &
+             this%current_fe%get_max_order_all_fields(), &
              this%current_fe%get_reference_fe_id(field_id))
 
         call this%volume_integrators_position%get(key=vol_integ_pos_key, &

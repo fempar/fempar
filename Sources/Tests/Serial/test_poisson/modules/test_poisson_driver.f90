@@ -107,8 +107,7 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef
+    type(vef_iterator_t)  :: vef
 
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
@@ -117,18 +116,17 @@ contains
     !call this%triangulation%print()
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       vef_iterator = this%triangulation%create_vef_iterator()
-       do while ( .not. vef_iterator%has_finished() )
-          call vef_iterator%current(vef)
+       call this%triangulation%create_vef_iterator(vef)
+       do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
-          call vef_iterator%next()
+          call vef%next()
        end do
-    end if    
-    
+       call this%triangulation%free_vef_iterator(vef)
+    end if
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -141,10 +139,9 @@ contains
     ! Locals
     integer(ip) :: istat    
     logical                                   :: continuity
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t)                     :: cell
+    class(cell_iterator_t)      , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-    character(:), allocatable :: field_type
+    character(:), allocatable :: field_type, fe_type
     
 
     allocate(this%reference_fes(1), stat=istat)
@@ -160,30 +157,23 @@ contains
       field_type = field_type_vector
     end if
     
-    cell_iterator = this%triangulation%create_cell_iterator()
-    call cell_iterator%current(cell)
+    call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
     
-    
-         
-    ! BEGIN Checking new polytope_tree_t
-    !if ( reference_fe_geo%get_topology() == topology_hex ) then
-    ! topology = 2**this%triangulation%get_num_dimensions()-1
-    !elseif ( reference_fe_geo%get_topology() == topology_tet ) then
-    ! topology = 0
-    !end if
-    !call poly_old%create_old(this%triangulation%get_num_dimensions(), topology )
-    !call poly%create(this%triangulation%get_num_dimensions(), topology )
-    !call poly_old%print()
-    !call poly%print()
-    ! END Checking ...
-    
+    if (reference_fe_geo%get_topology() .eq. topology_tet) then
+       fe_type = fe_type_new_tet
+    else
+       fe_type = fe_type_lagrangian
+    end if
+
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                 fe_type = fe_type_lagrangian, &
+                                                 fe_type = fe_type, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
                                                  continuity = continuity ) 
+    
+    call this%triangulation%free_cell_iterator(cell)
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)

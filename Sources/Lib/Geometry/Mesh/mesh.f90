@@ -39,6 +39,7 @@ module mesh_names
   use postpro_names
   use FPL
   use environment_names
+  use sort_names
 
   implicit none
 # include "debug.i90"
@@ -310,6 +311,7 @@ contains
     integer(ip), allocatable :: bound_list_aux(:)
     type(list_iterator_t)    :: bound_iterator
     integer(ip), pointer     :: permu(:)
+    integer(ip), target      :: permu_oriented_tet(4)
     logical                  :: permute_c2z_
 
     ! Read first line: "MESH dimension  2  order  0  types  1  elements          1  vertices          4  vefs          8
@@ -416,13 +418,15 @@ contains
           lnods_aux(1:nnode) = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
           if(msh%ndime == 2) then
              if(nnode == 3)  then    ! Linear triangles (2DP1)
-                permu => permu_2DP1
+                permu_oriented_tet = compute_oriented_tet_permutation(msh,ielem)
+                permu => permu_oriented_tet
              elseif(nnode == 4) then ! Linear quadrilaterals(2DQ1)
                 permu => permu_2DQ1
              end if
           elseif(msh%ndime == 3) then
-             if(nnode == 4) then     ! Linear tetrahedra (3DP1)
-                permu => permu_3DP1
+             if(nnode == 4) then     ! Linear tetrahedra (3DP1)           
+                permu_oriented_tet = compute_oriented_tet_permutation(msh,ielem)
+                permu => permu_oriented_tet
              elseif(nnode == 8) then ! Linear hexahedra (3DQ1)
                 permu => permu_3DQ1
              end if
@@ -450,6 +454,28 @@ contains
 	  call memfree(lnods_aux,__FILE__,__LINE__)
 
   end subroutine mesh_read_from_unit
+  
+  ! ============================================================================
+  function compute_oriented_tet_permutation(msh,ielem) result(permu)
+    !------------------------------------------------------------------------
+    !
+    ! This routine computes the local permutation corresponding to the global 
+    ! number ascending indices
+    !
+    !------------------------------------------------------------------------
+    implicit none 
+    class(mesh_t)     , intent(inout) :: msh
+    integer(ip)       , intent(in)    :: ielem
+
+    integer(ip) :: sorted_nodes(4) 
+    integer(ip) :: permu(4), nnode
+      
+    permu = [1,2,3,4]
+    nnode = msh%pnods(ielem+1) - msh%pnods(ielem)
+    sorted_nodes(1:nnode) = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
+    
+    call sort( nnode, sorted_nodes, index=permu ) 
+    end function compute_oriented_tet_permutation
 
   !=============================================================================
   subroutine mesh_write_file (msh,lunio,title)
@@ -681,7 +707,7 @@ contains
      do i=nparts, 1, -1  
         rename=name
         call numbered_filename_compose(i,nparts,rename)
-        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
+        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
         call mesh_write_file(lmesh(i),lunio)
         call io_close(lunio)
      end do
@@ -714,7 +740,7 @@ contains
         name=prefix
         call numbered_filename_compose(i,nparts,name)
         call mesh_compose_post_name (name, rename)
-        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
+        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
         call mesh_write_post_file(lmesh(i),lunio)
         call io_close(lunio)
      end do
@@ -784,7 +810,7 @@ contains
      do i=nparts, 1, -1  
         rename=name
         call numbered_filename_compose(i,nparts,rename)
-        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'read' )
+        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'read' ); check(lunio>0)
         call lmesh(i)%read(lunio)
         call io_close(lunio)
      end do
@@ -807,7 +833,7 @@ contains
 
      ! Read mesh
      call mesh_compose_name ( prefix, name )
-     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' ); check(lunio>0)
      call f_mesh%read(lunio)  !, permute_c2z
      call io_close(lunio)
 
@@ -832,7 +858,7 @@ contains
      call check_and_get_path_and_prefix_from_parameterlist(parameter_list, dir_path, prefix)
 
      call mesh_compose_post_name ( prefix, name )
-     lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' )
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' ); check(lunio>0)
      call mesh_write_post_file(f_mesh,lunio)
      call io_close(lunio)
 

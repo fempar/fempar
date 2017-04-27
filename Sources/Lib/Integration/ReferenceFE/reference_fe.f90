@@ -153,6 +153,8 @@ module reference_fe_names
      integer(ip)              :: number_dimensions
      ! Number of quadrature points
      integer(ip)              :: number_quadrature_points
+     ! Map's Jacobian sign
+     logical                  :: det_jacobian_positiveness
    contains
      procedure, non_overridable :: create                            => fe_map_create
      procedure, non_overridable :: create_on_face                    => fe_map_create_on_face
@@ -178,6 +180,7 @@ module reference_fe_names
      procedure, non_overridable :: get_tangent                       => fe_map_get_tangent
      procedure, non_overridable :: get_jacobian_normalized_column    => fe_map_get_jacobian_normalized_column
 	 procedure, non_overridable :: get_jacobian_column               => fe_map_get_jacobian_column
+     procedure, non_overridable :: is_det_jacobian_positive          => fe_map_is_det_jacobian_possitive
   end type fe_map_t
 
   type p_fe_map_t
@@ -482,8 +485,6 @@ module reference_fe_names
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: get_permuted_own_node_n_face  => reference_fe_get_permuted_own_node_n_face
-     procedure :: create_rotated_quadrature => reference_fe_create_rotated_quadrature
-
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -1175,8 +1176,8 @@ type, extends(tet_lagrangian_reference_fe_t) :: new_tet_lagrangian_reference_fe_
                       & => new_tet_lagrangian_reference_fe_set_number_quadrature_points
    procedure, private :: fill_face_interpolation                                        &
                       & => new_tet_lagrangian_reference_fe_fill_face_interpolation
-   procedure :: create_rotated_quadrature                                        &
-                      & => new_tet_lagrangian_reference_fe_create_rotated_quadrature
+   procedure :: get_permuted_own_node_n_face                                           &
+                      & => new_tet_lagrangian_reference_fe_get_permuted_own_node_n_face
 end type new_tet_lagrangian_reference_fe_t
 
 public :: tet_lagrangian_reference_fe_t, new_tet_lagrangian_reference_fe_t

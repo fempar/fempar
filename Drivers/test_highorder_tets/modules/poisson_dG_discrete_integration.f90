@@ -68,10 +68,8 @@ contains
     class(matrix_array_assembler_t)         , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    type(fe_iterator_t)      :: fe_iterator
-    type(fe_accessor_t)      :: fe 
-    type(fe_face_iterator_t) :: fe_face_iterator
-    type(fe_face_accessor_t) :: fe_face
+    class(fe_iterator_t)      , allocatable :: fe
+    class(fe_face_iterator_t) , allocatable :: fe_face
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer     :: fe_map
@@ -129,10 +127,9 @@ contains
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
     
-    fe_iterator = fe_space%create_fe_iterator()
+    call fe_space%create_fe_iterator(fe)
     call fe_space%initialize_fe_integration()
     
-    call fe_iterator%current(fe)
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
@@ -146,9 +143,7 @@ contains
     viscosity = 1.0_rp
     C_IP      = 10.0_rp * fe%get_order(1)**2
     
-    do while ( .not. fe_iterator%has_finished() )
-       ! Get current FE
-       call fe_iterator%current(fe)
+    do while ( .not. fe%has_finished() )
        
        if ( fe%is_local() ) then
        
@@ -185,8 +180,9 @@ contains
          call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        end if
        
-       call fe_iterator%next()
+       call fe%next()
     end do
+    call fe_space%free_fe_iterator(fe)
     
     call fe_space%initialize_fe_face_integration()
     
@@ -196,20 +192,17 @@ contains
     allocate( test_elem2dof(number_fields), stat=istat); check(istat==0);
     
     ! Search for the first interior face
-    fe_face_iterator = fe_space%create_fe_face_iterator()
-    call fe_face_iterator%current(fe_face)
+    call fe_space%create_fe_face_iterator(fe_face)
     do while ( fe_face%is_at_boundary() ) 
-       call fe_face_iterator%next()
-       call fe_face_iterator%current(fe_face)
+       call fe_face%next()
     end do
     
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
+    face_int        => fe_face%get_face_integrator(1)
     face_map        => fe_face%get_face_map()
     
-    do while ( .not. fe_face_iterator%has_finished() ) 
-       call fe_face_iterator%current(fe_face)
-       face_int        => fe_face%get_face_integrator(1)
+    do while ( .not. fe_face%has_finished() ) 
        
        if ( .not. fe_face%is_at_boundary() ) then
          facemat = 0.0_rp
@@ -233,7 +226,6 @@ contains
                end if
                
                do jneigh = 1, fe_face%get_num_cells_around()
-
                  if (jneigh==1) then
                    shape_values_jneigh    => shape_values_first
                    shape_gradients_jneigh => shape_gradients_first
@@ -277,15 +269,13 @@ contains
          end do
        end if
          
-       call fe_face_iterator%next()
+       call fe_face%next()
     end do
     
     ! Search for the first boundary face
-    call fe_face_iterator%init()
-    call fe_face_iterator%current(fe_face)
+    call fe_face%first()
     do while ( .not. fe_face%is_at_boundary() ) 
-       call fe_face_iterator%next()
-       call fe_face_iterator%current(fe_face)
+       call fe_face%next()
     end do
     
     quad            => fe_face%get_quadrature()
@@ -293,8 +283,7 @@ contains
     face_map        => fe_face%get_face_map()
     face_int        => fe_face%get_face_integrator(1)
    
-    do while ( .not. fe_face_iterator%has_finished() )
-       call fe_face_iterator%current(fe_face)
+    do while ( .not. fe_face%has_finished() )
        
        if ( fe_face%is_at_boundary() ) then
          facemat = 0.0_rp
@@ -337,8 +326,9 @@ contains
                                                    facemat(:,:,1,1), &
                                                    facevec(:,1) )            
        end if
-       call fe_face_iterator%next()
-    end do
+       call fe_face%next()
+    end do    
+    call fe_space%free_fe_iterator(fe)
     
     call memfree(shape_values_first, __FILE__, __LINE__) 
     call memfree(shape_values_second, __FILE__, __LINE__) 
