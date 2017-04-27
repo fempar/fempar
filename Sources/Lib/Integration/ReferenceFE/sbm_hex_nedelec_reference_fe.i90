@@ -1117,7 +1117,11 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
     if ( idime == 1 ) then
       num_rows_own_node_permutations = interpolation_1D%number_shape_functions
     else if ( idime == 2 ) then
+	  if ( this%order == 1 ) then 
+	  num_rows_own_node_permutations = 0
+	  else 
       num_rows_own_node_permutations = interpolation_2D%number_shape_functions
+	  end if 
     end if   
   
    call this%own_node_permutations(idime)%create(num_rows_own_node_permutations, &

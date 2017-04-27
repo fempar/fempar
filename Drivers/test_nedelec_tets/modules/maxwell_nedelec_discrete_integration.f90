@@ -57,10 +57,7 @@ contains
     class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    type(fe_iterator_t) :: fe_iterator
-    type(fe_accessor_t) :: fe
-    type(fe_face_iterator_t) :: fe_face_iterator
-    type(fe_face_accessor_t) :: fe_face
+    class(fe_iterator_t), allocatable :: fe
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
@@ -93,11 +90,10 @@ contains
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
+        
+	call fe_space%initialize_fe_integration()
+    call fe_space%create_fe_iterator(fe)
     
-    fe_iterator = fe_space%create_fe_iterator()
-    call fe_space%initialize_fe_integration()
-    
-    call fe_iterator%current(fe)
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
@@ -108,10 +104,7 @@ contains
     fe_map           => fe%get_fe_map()
     vol_int_H => fe%get_volume_integrator(1)
     allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
-    do while ( .not. fe_iterator%has_finished() )
-       ! Get current FE
-       call fe_iterator%current(fe)
-       
+    do while ( .not. fe%has_finished() )       
        ! Update FE-integration related data structures
        call fe%update_integration()
 
@@ -145,9 +138,10 @@ contains
        end do
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
-       call fe_iterator%next()
+       call fe%next()
     end do
 
+	call fe_space%free_fe_iterator(fe)
     deallocate(H_shape_curls, stat=istat); check(istat==0);
     deallocate(H_shape_values, stat=istat); check(istat==0);
     deallocate (source_term_values, stat=istat); check(istat==0);

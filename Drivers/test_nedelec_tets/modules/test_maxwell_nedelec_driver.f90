@@ -118,7 +118,7 @@ contains
                                                  continuity = .true. ) 
     
     !if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       vef_iterator = this%triangulation%create_vef_iterator(vef)
+	   call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
             call vef%set_set_id(1)

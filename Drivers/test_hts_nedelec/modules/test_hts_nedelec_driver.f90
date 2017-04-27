@@ -384,7 +384,7 @@ contains
        call this%fe_space%initialize_fe_face_integration()
 
        ! Search for the first boundary face
-       call fe_space%create_fe_face_iterator(fe_face)
+       call this%fe_space%create_fe_face_iterator(fe_face)
        do while ( .not. fe_face%is_at_boundary() ) 
           call fe_face%next()
        end do

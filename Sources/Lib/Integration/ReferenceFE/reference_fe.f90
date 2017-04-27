@@ -1365,8 +1365,6 @@ procedure, private, non_overridable :: nedelec_get_n_face_orientation           
 & => tet_nedelec_reference_fe_get_n_face_orientation
 procedure, private :: change_basis                                                  &
 & => tet_nedelec_reference_fe_change_basis
-procedure, private :: fill_permutations                                             & 
-& => tet_nedelec_reference_fe_fill_permutations
 end type tet_nedelec_reference_fe_t
 
 public :: tet_nedelec_reference_fe_t
