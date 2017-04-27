@@ -443,7 +443,9 @@ contains
     !------------------------------------------------------------------------
     !
     ! This routine computes the local permutation corresponding to the global 
-    ! number ascending indices
+    ! number ascending indices. This results in an oriented mesh see: 
+    ! M.E. Rognes, R.C. Kirby and A. Logg. Efficient assembly of H(div) and
+    ! H(curl) conforming finite elements. SIAM J.Sci.Comput. 31(6), 4130-4151
     !
     !------------------------------------------------------------------------
     implicit none 
