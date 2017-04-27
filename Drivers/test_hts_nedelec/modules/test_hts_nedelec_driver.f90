@@ -126,7 +126,7 @@ contains
     istat = 0
     call this%triangulation%create(this%test_params%get_values())
 
-!	if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+	if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
 	
     ! Assign subset_id to different cells for the created structured mesh 
     allocate(cells_set(this%triangulation%get_num_cells() ), stat=istat); check(istat==0)
@@ -158,26 +158,26 @@ contains
        !end if
 	   
 	   !! Select material case: HTS CABLE in the center benchamark 
-	   !R = 12.5e-3_rp 
-	   !h = 10e-3_rp 
-	   !x0 = 25e-3_rp
-	   !y0 = 25e-3_rp 
-	   !z0 = 25e-3_rp 
-	   !  if ( ( ( (cx-x0)**2.0_rp + (cy-y0)**2.0_rp) .lt. R**2.0_rp) .and. ( z0-0.5_rp*h < cz .and. cz < z0 + 0.5_rp*h )) then
-       !   cells_set( cell%get_lid() ) = hts 
-       !else 
-       !   cells_set( cell%get_lid() ) = air
-       !end if
-	   
-	   ! Select material case: round wire model 
-	   R  = 1.0e-3_rp  
-	   x0 = 0.0_rp
-	   y0 = 0.0_rp 
-	   if ( ( ( (cx-x0)**2.0_rp + (cy-y0)**2.0_rp) .lt. R**2.0_rp) ) then
+	   R = 12.5e-3_rp 
+	   h = 10e-3_rp 
+	   x0 = 25e-3_rp
+	   y0 = 25e-3_rp 
+	   z0 = 25e-3_rp 
+	     if ( ( ( (cx-x0)**2.0_rp + (cy-y0)**2.0_rp) .lt. R**2.0_rp) .and. ( z0-0.5_rp*h < cz .and. cz < z0 + 0.5_rp*h )) then
           cells_set( cell%get_lid() ) = hts 
        else 
           cells_set( cell%get_lid() ) = air
        end if
+	   
+	   ! Select material case: round wire model 
+	   !R  = 1.0e-3_rp  
+	   !x0 = 0.0_rp
+	   !y0 = 0.0_rp 
+	   !if ( ( ( (cx-x0)**2.0_rp + (cy-y0)**2.0_rp) .lt. R**2.0_rp) ) then
+       !   cells_set( cell%get_lid() ) = hts 
+       !else 
+       !   cells_set( cell%get_lid() ) = air
+       !end if
 	   
        call cell_iterator%next() 
     end do
@@ -186,7 +186,7 @@ contains
     deallocate(cells_set, stat=istat); check(istat==0) 
     deallocate(cell_coordinates, stat=istat); check(istat==0)
 	
-	! end if 
+	 end if 
   end subroutine setup_triangulation
 
   ! -----------------------------------------------------------------------------------------------
@@ -217,7 +217,7 @@ contains
                                                  field_type = field_type_scalar,                                      &
                                                  continuity = .true. ) 
     
-    !if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
     
        vef_iterator = this%triangulation%create_vef_iterator()
        do while ( .not. vef_iterator%has_finished() )
@@ -232,7 +232,7 @@ contains
           call vef_iterator%next()
        end do
          
-    !end if    
+    end if    
  
   end subroutine setup_reference_fes
 

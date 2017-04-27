@@ -1333,12 +1333,12 @@ procedure, private :: set_number_quadrature_points                       &
 & => tet_nedelec_reference_fe_set_number_quadrature_points
 procedure, private :: fill_quadrature                                    &
 & => tet_nedelec_reference_fe_fill_quadrature
+procedure, private :: create_and_fill_basis_Sk_indices                   & 
+& => tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices
 procedure, private :: fill_interpolation                                 &
 & => tet_nedelec_reference_fe_fill_interpolation
 procedure, private :: fill_interpolation_pre_basis                       &
-& => tet_nedelec_reference_fe_fill_interpolation_pre_basis    
-procedure, private :: create_and_fill_basis_Sk_indices                   & 
-& => tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices 
+& => tet_nedelec_reference_fe_fill_interpolation_pre_basis     
 procedure, private :: fill_face_interpolation                            &
 & => tet_nedelec_reference_fe_fill_face_interpolation
 procedure, private :: fill_edge_interpolation                            &
