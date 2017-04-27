@@ -69,7 +69,7 @@ contains
 
     ! FE space traversal-related data types
     class(fe_iterator_t)      , allocatable :: fe
-    class(fe_face_iterator_t) , allocatable :: fe_face
+    type(fe_face_iterator_t) :: fe_face
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer     :: fe_map
@@ -328,7 +328,7 @@ contains
        end if
        call fe_face%next()
     end do    
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_vef_iterator(fe_face)
     
     call memfree(shape_values_first, __FILE__, __LINE__) 
     call memfree(shape_values_second, __FILE__, __LINE__) 
