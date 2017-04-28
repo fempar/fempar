@@ -484,7 +484,8 @@ module reference_fe_names
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: get_permuted_own_node_n_face  => reference_fe_get_permuted_own_node_n_face
-
+     procedure(fill_own_node_permutations_interface), deferred :: fill_own_node_permutations
+     procedure(fill_qpoints_permutations_interface), deferred :: fill_qpoints_permutations
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -783,6 +784,21 @@ module reference_fe_names
        implicit none
        class(reference_fe_t), intent(inout) :: this 
      end subroutine create_nodal_quadrature_interface
+     
+     subroutine fill_own_node_permutations_interface (this)
+        import :: reference_fe_t
+        implicit none
+        class(reference_fe_t), intent(inout) :: this 
+     end subroutine
+     
+     subroutine fill_qpoints_permutations_interface (this, ndime, qpoints_perm, max_order)
+        import :: reference_fe_t, allocatable_array_ip2_t, ip
+        implicit none
+        class(reference_fe_t)        , intent(in)    :: this 
+        integer(ip)                  , intent(in)    :: ndime
+        type(allocatable_array_ip2_t), intent(inout) :: qpoints_perm
+        integer(ip)       , optional , intent(in)    :: max_order
+     end subroutine
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -859,6 +875,10 @@ contains
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
        & => lagrangian_reference_fe_fill
+  procedure :: fill_own_node_permutations           &
+       & => lagrangian_reference_fe_fill_own_node_permutations
+  procedure :: fill_qpoints_permutations                                   &
+       & => lagrangian_reference_fe_fill_qpoints_permutations
   procedure, private, non_overridable :: fill_field_components        & 
        & => lagrangian_reference_fe_fill_field_components
 
@@ -1178,8 +1198,12 @@ type, extends(tet_lagrangian_reference_fe_t) :: new_tet_lagrangian_reference_fe_
                       & => new_tet_lagrangian_reference_fe_set_number_quadrature_points
    procedure, private :: fill_face_interpolation                                        &
                       & => new_tet_lagrangian_reference_fe_fill_face_interpolation
-   procedure :: get_permuted_own_node_n_face                                           &
+   procedure :: get_permuted_own_node_n_face                                            &
                       & => new_tet_lagrangian_reference_fe_get_permuted_own_node_n_face
+   procedure :: fill_own_node_permutations                                              &
+                      & => new_tet_lagrangian_reference_fe_fill_own_node_permutations
+   procedure :: fill_qpoints_permutations                                              &
+                      & => new_tet_lagrangian_reference_fe_fill_qpoints_permutations
 end type new_tet_lagrangian_reference_fe_t
 
 public :: tet_lagrangian_reference_fe_t, new_tet_lagrangian_reference_fe_t

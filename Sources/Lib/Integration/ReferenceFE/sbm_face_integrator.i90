@@ -313,7 +313,6 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   class(face_integrator_t)      , intent(inout) :: this
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
-  type(polytope_tree_t)    :: aux_polytope
   
   call this%free()
 
@@ -335,12 +334,8 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   ! to the number of interior nodes in a face for a reference FE with order+2 (instead of order+1)
   
   ! assert ( left_reference_fe%topology == topology_hex )
-  call aux_polytope%create(left_reference_fe%number_dimensions, 2**left_reference_fe%number_dimensions-1)
-  call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
-                                                       quadrature%number_dimensions, &
-                                                       aux_polytope, &
-                                                       this%qpoints_perm )
-  call aux_polytope%free()
+  call left_reference_fe%fill_qpoints_permutations( quadrature%number_dimensions, &
+                                                    this%qpoints_perm )
 end subroutine face_integrator_create
 
 !==================================================================================================
@@ -366,14 +361,9 @@ subroutine face_integrator_update(this,face_lid,face_map,relative_orientation,re
   type(face_map_t)        , intent(in)    :: face_map
   call this%volume_integrator_face_restriction(1)%update(face_map%fe_maps(1)%get_active_fe_map(),face_lid(1))
   if (.not. this%is_boundary) then
-     ! Avoid rotations & permutaion for ordered tetrahedral meshes
-     if ((this%reference_fe(2)%p%fe_type.eq.fe_type_new_tet) ) then
-        this%current_qpoints_perm_cols(2) = 1
-     else
-        this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
-            & this%reference_fe(2)%p%number_rotations_per_dimension(this%reference_fe(2)%p%number_dimensions-1)  &
-            & * relative_orientation
-     end if
+     this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
+         & this%reference_fe(2)%p%number_rotations_per_dimension(this%reference_fe(2)%p%number_dimensions-1)  &
+         & * relative_orientation
      call this%volume_integrator_face_restriction(2)%update(face_map%fe_maps(2)%get_active_fe_map(),face_lid(2))
   end if
 end subroutine face_integrator_update
