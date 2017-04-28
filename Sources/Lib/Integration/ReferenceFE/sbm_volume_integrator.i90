@@ -238,8 +238,6 @@ subroutine fe_map_update( this, quadrature)
      end do
      ! J^(-t)
      call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),ndime)
-	 ! Store jacobian determinant in absolut value: allows to work with 2 tetrahedra with different sign with only one ref_fe
-	 this%det_jacobian(ilocs) = abs(this%det_jacobian(ilocs))
   end do
   ! When using oriented tetrahedral meshes |J| may become negative, absolute value should be used
   ! to ensure positiveness

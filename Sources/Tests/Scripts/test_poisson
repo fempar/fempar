@@ -86,7 +86,7 @@ then
        do
          if [ $order -ge $gorder ]
          then
-           echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder"
+           echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder -f dG" 
            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder -f dG
            if [ $? -ne 0 ]
            then
