@@ -1314,7 +1314,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   integer(ip) :: fe_face_integrators_position_key
 
   integer(ip) :: field_id, istat, icell_around
-  
+
   class(reference_fe_t), pointer :: reference_fe
 
   call this%free_fe_face_integration()
@@ -1374,11 +1374,11 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
            call fe_face%get_cell_around(icell_around, fe)
            reference_fes_id(icell_around) = this%reference_fe_id_per_fe(field_id, fe%get_lid())
         end do
-        
+
         fe_face_integrators_position_key = &
              this%generate_fe_face_integrators_position_key(max_order_fes_around_fe_face, &
              reference_fes_id(1), &
-             reference_fes_id(2))
+             reference_fes_id(2) )
 
         call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
              val=current_fe_face_integrator, &
@@ -1434,7 +1434,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
      fe_face_maps_position_key = &
           this%generate_fe_face_maps_position_key(max_order_fes_around_fe_face, &
           reference_fes_geo_id(1), &
-          reference_fes_geo_id(2))
+          reference_fes_geo_id(2) )
 
      call this%fe_face_maps_position%put(key=fe_face_maps_position_key, &
           val=current_fe_face_map, &
@@ -1460,7 +1460,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
         fe_face_integrators_position_key = &
              this%generate_fe_face_integrators_position_key(max_order_fes_around_fe_face, &
              reference_fes_id(1), &
-             reference_fes_id(2))
+             reference_fes_id(2) )
 
         call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
              val=current_fe_face_integrator, &
@@ -1468,7 +1468,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
         if (istat == now_stored) then
            call this%fe_face_integrators(current_fe_face_integrator)%create(fe_face%get_quadrature(), &
                 reference_fes(1)%p, &
-                reference_fes(2)%p)
+                reference_fes(2)%p )
            current_fe_face_integrator = current_fe_face_integrator + 1
         end if
      end do
@@ -1554,10 +1554,9 @@ function serial_fe_space_fe_face_integrators_position_key(this, max_order_fes_ar
   integer(ip)                 , intent(in) :: left_reference_fe_id
   integer(ip)                 , intent(in) :: right_reference_fe_id
   integer(ip) :: serial_fe_space_fe_face_integrators_position_key
-  
   serial_fe_space_fe_face_integrators_position_key = left_reference_fe_id + &
        (this%reference_fes_size)*(right_reference_fe_id) + &
-       (this%reference_fes_size)*(this%reference_fes_size-1)*(max_order_fes_around_fe_face) 
+       (this%reference_fes_size)*(this%reference_fes_size-1)*(max_order_fes_around_fe_face)
 end function serial_fe_space_fe_face_integrators_position_key
 
 function serial_fe_space_create_assembler(this, &

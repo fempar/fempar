@@ -475,7 +475,7 @@ function reference_fe_get_permuted_own_node_n_face(this,inode,target_n_face_id, 
 
      permuted_own_node = this%own_node_permutations          &
           & (n_face_dimension)%a(inode,permutation_key)
-          
+
   end if
   reference_fe_get_permuted_own_node_n_face = this%get_own_node_n_face(permuted_own_node, target_n_face_id)
 end function reference_fe_get_permuted_own_node_n_face
@@ -490,18 +490,3 @@ subroutine p_reference_fe_free( this )
   end if
 end subroutine p_reference_fe_free
 
-!==================================================================================================
-subroutine reference_fe_create_rotated_quadrature(this, ref_quad, rotated_quad, num_rotations, num_orientations )
-  implicit none
-  class (reference_fe_t), intent(in)    :: this
-  type (quadrature_t)   , intent(in)    :: ref_quad
-  type (quadrature_t)   , intent(inout) :: rotated_quad
-  integer(ip)           , intent(in)    :: num_rotations
-  integer(ip)           , intent(in)    :: num_orientations
-
-  call rotated_quad%free()
-  call rotated_quad%create(ref_quad%get_number_dimensions(), ref_quad%get_number_quadrature_points())
-  rotated_quad%coordinates = ref_quad%coordinates
-  rotated_quad%weight = ref_quad%weight
-
-end subroutine reference_fe_create_rotated_quadrature

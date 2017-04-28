@@ -340,7 +340,7 @@ subroutine fe_map_update_face_map(this,number_cell_dimensions,reorientation_fact
      ! Compute outside normals (using the Jacobian Matrix)
      if ( number_cell_dimensions == 1) then
         ! -1 and 1 is given by the reorientation_factor
-        this%normals(1,evaluation_point_id) = 1.0_rp!-1.0_rp**(real(local_face_id))
+        this%normals(1,evaluation_point_id) = 1.0_rp
      elseif ( number_cell_dimensions == 2) then
         ! dx x e_z = ( dx/dX, dx/dY, 0) x (0,0,1) = ( dx/dY, -dx/dX, 0)
         ! (normal component up to correction by orientation)

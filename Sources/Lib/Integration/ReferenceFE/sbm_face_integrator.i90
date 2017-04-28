@@ -314,6 +314,7 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
   type(polytope_tree_t)    :: aux_polytope
+  
   call this%free()
 
   this%is_boundary = (.not. associated(right_reference_fe))
@@ -327,19 +328,18 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
 
   this%current_qpoints_perm_cols = 1
   ! @sbadia: order+2 only works for topology_hex. When the work for high order TETS with face 
-  ! integration will be performed, it has to be corrected. @jbonilla: this workaround still works
-  ! if quadratures for topology_hex plus Duffy transformation is used. Whenever symmetric 
-  ! quadrature points for TETs are used, this has to be corrected.
+  ! integration will be performed, it has to be corrected. @jbonilla: this still works for
+  ! tetrahedra since we are using oriented meshes an no permutation is required. 
+  ! For symmetric quadrature points for TETs with no mesh reordering this has to be corrected.
   ! (For hex topology + lagrangian FE) the number of quadrature points within a face corresponds 
   ! to the number of interior nodes in a face for a reference FE with order+2 (instead of order+1)
   
   ! assert ( left_reference_fe%topology == topology_hex )
   call aux_polytope%create(left_reference_fe%number_dimensions, 2**left_reference_fe%number_dimensions-1)
   call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
-                                                       quadrature%number_dimensions,        &
-                                                       aux_polytope,          &
+                                                       quadrature%number_dimensions, &
+                                                       aux_polytope, &
                                                        this%qpoints_perm )
-
   call aux_polytope%free()
 end subroutine face_integrator_create
 
@@ -366,7 +366,7 @@ subroutine face_integrator_update(this,face_lid,face_map,relative_orientation,re
   type(face_map_t)        , intent(in)    :: face_map
   call this%volume_integrator_face_restriction(1)%update(face_map%fe_maps(1)%get_active_fe_map(),face_lid(1))
   if (.not. this%is_boundary) then
-     ! Map tris rotation & orientation to quad rotation & permutaion
+     ! Avoid rotations & permutaion for ordered tetrahedral meshes
      if ((this%reference_fe(2)%p%fe_type.eq.fe_type_new_tet) ) then
         this%current_qpoints_perm_cols(2) = 1
      else
@@ -423,7 +423,6 @@ subroutine face_integrator_get_values_scalar (this, ineigh, values)
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
   call volume_integrator%get_values(values,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
-  !call volume_integrator%get_values(values)
 end subroutine face_integrator_get_values_scalar
 
 !==================================================================================================
@@ -468,7 +467,6 @@ subroutine face_integrator_get_gradients_scalar (this, ineigh, gradients)
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
   volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
   call volume_integrator%get_gradients(gradients,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
-  !call volume_integrator%get_gradients(gradients)
 end subroutine face_integrator_get_gradients_scalar
 
 !=================================================================================================

@@ -67,9 +67,7 @@ subroutine new_tet_lagrangian_reference_fe_create( this, topology, number_dimens
   call this%set_fe_type( fe_type_new_tet )
   call this%fill()
   call this%create_nodal_quadrature()
-  !if ( this%continuity ) then
-    call this%change_basis()
-  !end if
+  call this%change_basis()
   
 end subroutine new_tet_lagrangian_reference_fe_create
 
