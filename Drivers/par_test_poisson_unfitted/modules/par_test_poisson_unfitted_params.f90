@@ -15,6 +15,8 @@ module par_test_poisson_unfitted_params_names
   character(len=*), parameter :: use_preconditioner_key     = 'use_preconditioner'    
   character(len=*), parameter :: unfitted_boundary_type_key = 'unfitted_boundary_type'    
   character(len=*), parameter :: nitsche_beta_factor_key    = 'nitsche_beta_factor'    
+  character(len=*), parameter :: levelset_tolerance_key     = 'levelset_tolerance'    
+  character(len=*), parameter :: number_runs_key            = 'number_runs'    
 
   character(len=*), public, parameter :: unfitted_coarse_fe_handler_value = 'unfitted'    
   character(len=*), public, parameter :: standard_coarse_fe_handler_value = 'standard'    
@@ -35,6 +37,8 @@ module par_test_poisson_unfitted_params_names
        procedure, non_overridable             :: get_use_preconditioner
        procedure, non_overridable             :: get_unfitted_boundary_type
        procedure, non_overridable             :: get_nitsche_beta_factor
+       procedure, non_overridable             :: get_levelset_tolerance
+       procedure, non_overridable             :: get_number_runs
        procedure, non_overridable             :: print
        procedure, non_overridable, private    :: print_character_switch
        procedure, non_overridable, private    :: print_integer_switch
@@ -83,6 +87,8 @@ contains
     error = list%set(key = use_preconditioner_key            , value =  .true.)                           ; check(error==0)
     error = list%set(key = unfitted_boundary_type_key        , value =  'dirichlet')                      ; check(error==0)
     error = list%set(key = nitsche_beta_factor_key           , value =  2.0)                              ; check(error==0)
+    error = list%set(key = levelset_tolerance_key            , value =  1.0e-6)                           ; check(error==0)
+    error = list%set(key = number_runs_key                   , value =  1)                                ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -105,6 +111,8 @@ contains
     error = switches%set(key = use_preconditioner_key        , value = '--use-preconditioner' )      ; check(error==0)
     error = switches%set(key = unfitted_boundary_type_key    , value = '--unfitted-boundary' )       ; check(error==0)
     error = switches%set(key = nitsche_beta_factor_key       , value = '--nitsche-beta' )            ; check(error==0)
+    error = switches%set(key = levelset_tolerance_key        , value = '--level-set-tol' )           ; check(error==0)
+    error = switches%set(key = number_runs_key               , value = '--number-runs' )             ; check(error==0)
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -126,6 +134,8 @@ contains
     error = switches_ab%set(key = use_preconditioner_key        , value = '-precond' )    ; check(error==0)
     error = switches_ab%set(key = unfitted_boundary_type_key    , value = '-uboundary' )  ; check(error==0)
     error = switches_ab%set(key = nitsche_beta_factor_key       , value = '-beta' )       ; check(error==0)
+    error = switches_ab%set(key = levelset_tolerance_key        , value = '-levelsettol') ; check(error==0)
+    error = switches_ab%set(key = number_runs_key               , value = '-nruns')       ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -149,6 +159,8 @@ contains
     error = helpers%set(key = use_preconditioner_key        , value  = 'Use (T) or not (F) a preconditioner' )  ; check(error==0)
     error = helpers%set(key = unfitted_boundary_type_key    , value  = 'Use (dirichlet) or not (neumann) boundary conditions on the unfitted boundary' )  ; check(error==0)
     error = helpers%set(key = nitsche_beta_factor_key       , value  = 'Set the value of the factor to compute nitches beta' )  ; check(error==0)
+    error = helpers%set(key = levelset_tolerance_key        , value  = 'Set the tolerance of the levelset' )  ; check(error==0)
+    error = helpers%set(key = number_runs_key               , value  = 'Number of times the simulation is repeated (useful when measuring times)' )  ; check(error==0)
     
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -180,6 +192,8 @@ contains
     error = required%set(key = use_preconditioner_key        , value = .false.) ; check(error==0)
     error = required%set(key = unfitted_boundary_type_key    , value = .false.) ; check(error==0)
     error = required%set(key = nitsche_beta_factor_key       , value = .false.) ; check(error==0)
+    error = required%set(key = levelset_tolerance_key        , value = .false.) ; check(error==0)
+    error = required%set(key = number_runs_key               , value = .false.) ; check(error==0)
 
   end subroutine par_test_poisson_unfitted_params_define_parameters
 
@@ -330,6 +344,32 @@ contains
   end function get_nitsche_beta_factor
 
   !==================================================================================================
+  function get_levelset_tolerance(this)
+    implicit none
+    class(par_test_poisson_unfitted_params_t) , intent(in) :: this
+    real(rp)                                      :: get_levelset_tolerance
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(levelset_tolerance_key, get_levelset_tolerance))
+    error = list%Get(key = levelset_tolerance_key, Value = get_levelset_tolerance)
+    assert(error==0)
+  end function get_levelset_tolerance
+
+  !==================================================================================================
+  function get_number_runs(this)
+    implicit none
+    class(par_test_poisson_unfitted_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_number_runs
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(number_runs_key, get_number_runs))
+    error = list%Get(key = number_runs_key, Value = get_number_runs)
+    assert(error==0)
+  end function get_number_runs
+
+  !==================================================================================================
   subroutine print(this, environment)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
@@ -341,6 +381,8 @@ contains
       call this%print_logical_switch  (use_preconditioner_key     )
       call this%print_character_switch(unfitted_boundary_type_key )
       call this%print_real_switch     (nitsche_beta_factor_key    )
+      call this%print_real_switch     (levelset_tolerance_key     )
+      call this%print_integer_switch  (number_runs_key            )
     end if
 
   end subroutine print
@@ -350,19 +392,23 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values, switches
+    type(ParameterList_t), pointer :: values, switches, switches_ab
     integer(ip)                    :: error
-    character(len=:), allocatable  :: switch
+    character(len=:), allocatable  :: switch, switch_ab
     character(len=:), allocatable  :: val
-    character(len=20) :: charaux
+    character(len=30) :: charaux, charaux_ab
     values   => this%get_values()
     switches => this%get_switches()
+    switches_ab => this%get_switches_ab()
     assert(switches%isAssignable(key = switch_key, value  = 'string'))
     error= switches%GetAsString (key = switch_key, string = switch  )
+    assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
+    error= switches_ab%GetAsString (key = switch_key, string = switch_ab)
     assert(values%isAssignable  (key = switch_key, value  = 'string'))
     error= values%GetAsString   (key = switch_key, string = val     )
-    write (charaux, '(a20)') switch
-    write(*,'(a20,a20)') adjustl(charaux), val
+    write (charaux, '(a30)') switch
+    write (charaux_ab, '(a30)') switch_ab
+    write(*,'(2a30,a20)') adjustl(charaux),adjustl(charaux_ab), val
   end subroutine print_character_switch
 
   !==================================================================================================
@@ -370,19 +416,23 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values, switches
+    type(ParameterList_t), pointer :: values, switches, switches_ab
     integer(ip)                    :: error
-    character(len=:), allocatable  :: switch
+    character(len=:), allocatable  :: switch, switch_ab
     integer(ip)  :: val
-    character(len=20) :: charaux
+    character(len=30) :: charaux, charaux_ab
     values   => this%get_values()
     switches => this%get_switches()
+    switches_ab => this%get_switches_ab()
     assert(switches%isAssignable(key = switch_key, value  = 'string'))
     error= switches%GetAsString (key = switch_key, string = switch  )
+    assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
+    error= switches_ab%GetAsString (key = switch_key, string = switch_ab)
     assert(values%isAssignable  (key = switch_key, value  = val     ))
     error= values%Get           (key = switch_key, value  = val     )
-    write (charaux, '(a20)') switch
-    write(*,'(a20,i20)') adjustl(charaux), val
+    write (charaux, '(a30)') switch
+    write (charaux_ab, '(a30)') switch_ab
+    write(*,'(2a30,i20)') adjustl(charaux),adjustl(charaux_ab), val
   end subroutine print_integer_switch
 
   !==================================================================================================
@@ -390,19 +440,23 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values, switches
+    type(ParameterList_t), pointer :: values, switches, switches_ab
     integer(ip)                    :: error
-    character(len=:), allocatable  :: switch
+    character(len=:), allocatable  :: switch, switch_ab
     real(rp)  :: val
-    character(len=20) :: charaux
+    character(len=30) :: charaux, charaux_ab
     values   => this%get_values()
     switches => this%get_switches()
+    switches_ab => this%get_switches_ab()
     assert(switches%isAssignable(key = switch_key, value  = 'string'))
     error= switches%GetAsString (key = switch_key, string = switch  )
+    assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
+    error= switches_ab%GetAsString (key = switch_key, string = switch_ab)
     assert(values%isAssignable  (key = switch_key, value  = val     ))
     error= values%Get           (key = switch_key, value  = val     )
-    write (charaux, '(a20)') switch
-    write(*,'(a20,f20.4)') adjustl(charaux), val
+    write (charaux, '(a30)') switch
+    write (charaux_ab, '(a30)') switch_ab
+    write(*,'(2a30,e20.5)') adjustl(charaux),adjustl(charaux_ab), val
   end subroutine print_real_switch
 
   !==================================================================================================
@@ -410,19 +464,23 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values, switches
+    type(ParameterList_t), pointer :: values, switches, switches_ab
     integer(ip)                    :: error
-    character(len=:), allocatable  :: switch
+    character(len=:), allocatable  :: switch, switch_ab
     logical  :: val
-    character(len=20) :: charaux
+    character(len=30) :: charaux, charaux_ab
     values   => this%get_values()
     switches => this%get_switches()
+    switches_ab => this%get_switches_ab()
     assert(switches%isAssignable(key = switch_key, value  = 'string'))
     error= switches%GetAsString (key = switch_key, string = switch  )
+    assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
+    error= switches_ab%GetAsString (key = switch_key, string = switch_ab)
     assert(values%isAssignable  (key = switch_key, value  = val     ))
     error= values%Get           (key = switch_key, value  = val     )
-    write (charaux, '(a20)') switch
-    write(*,'(a20,l20)') adjustl(charaux), val
+    write (charaux, '(a30)') switch
+    write (charaux_ab, '(a30)') switch_ab
+    write(*,'(2a30,l20)') adjustl(charaux),adjustl(charaux_ab), val
   end subroutine print_logical_switch
 
 end module par_test_poisson_unfitted_params_names

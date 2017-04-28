@@ -55,7 +55,7 @@ module par_test_poisson_unfitted_driver_names
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(par_test_poisson_unfitted_params_t)      :: test_params
+     type(par_test_poisson_unfitted_params_t), public   :: test_params
      type(ParameterList_t), pointer       :: parameter_list
      
      ! Cells and lower dimension objects container
@@ -204,7 +204,7 @@ end subroutine free_timers
 
     ! Set options of the base class
     call this%level_set_function%set_num_dimensions(num_dime)
-    call this%level_set_function%set_tolerance(1.0e-6)
+    call this%level_set_function%set_tolerance(this%test_params%get_levelset_tolerance())
 
     ! Set options of the derived classes
     ! TODO a parameter list would be better to define the level set function together with its parameters
@@ -313,12 +313,13 @@ end subroutine free_timers
           call cell%get_coordinates(coords)
           ref_elem_geo => cell%get_reference_fe_geo()
           do ivef = 1, cell%get_num_vefs()
+            call cell%get_vef(ivef,vef)
+            if (vef%is_at_interface()) cycle
             own_dofs_on_vef_iterator = ref_elem_geo%create_own_dofs_on_n_face_iterator(ivef)
             if  (own_dofs_on_vef_iterator%get_size()==1) then
               call this%level_set_function%get_value(coords(own_dofs_on_vef_iterator%get_current()),resu)
               if (resu<0) then
                 found_interior_vertex = .true.
-                call cell%get_vef(ivef,vef)
                 call vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_DIRI)
                 exit
               end if
