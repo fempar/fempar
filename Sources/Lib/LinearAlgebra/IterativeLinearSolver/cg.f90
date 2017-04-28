@@ -228,6 +228,7 @@ contains
        beta=beta*r_z
 
        if (environment%am_i_l1_task()) then ! Am I a fine task ?
+          massert(r_z>0.0, 'Square rood of a negetive number!')
           r_nrm_M = sqrt( r_z )
        end if
 
