@@ -634,7 +634,7 @@ contains
         ja  => csr_matrix%get_ja()
         val => csr_matrix%get_val()
         assert(size(irp)== (N+1))
-        assert(size(this%weighted_val) == size(val))
+        assert(size(this%weighted_val) >= (irp(N+1)-1))
         do irow = 1, N
             do ival = irp(irow), (irp(irow+1)-1)
                 this%weighted_val(ival) = this%jacob_diag(irow)*val(ival)*this%jacob_diag(ja(ival))
