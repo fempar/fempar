@@ -65,6 +65,10 @@ module pardiso_mkl_direct_solver_names
         integer                     :: actual_matrix         = 1
         integer                     :: message_level         = 0
         logical                     :: forced_matrix_type    = .false.
+
+        real(rp), allocatable       :: jacob_diag(:)
+        real(rp), allocatable       :: weighted_val(:)
+
     contains
     private
         procedure, public :: free_clean_body             => pardiso_mkl_direct_solver_free_clean_body
@@ -78,6 +82,8 @@ module pardiso_mkl_direct_solver_names
         procedure, public :: numerical_setup_body        => pardiso_mkl_direct_solver_numerical_setup_body
         procedure, public :: solve_single_rhs_body       => pardiso_mkl_direct_solver_solve_single_rhs_body
         procedure, public :: solve_several_rhs_body      => pardiso_mkl_direct_solver_solve_several_rhs_body
+        procedure         :: init_weighting              => pardiso_mkl_direct_solver_init_weighting
+        procedure         :: free_weighting              => pardiso_mkl_direct_solver_free_weighting
 #ifndef ENABLE_MKL
         procedure         :: not_enabled_error           => pardiso_mkl_direct_solver_not_enabled_error
 #endif
@@ -241,9 +247,12 @@ contains
         select type (matrix)
             type is (csr_sparse_matrix_t)
                 if ( matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED ) then
-                  val => matrix%get_val()
+                  !val => matrix%get_val()
+                  call this%init_weighting(matrix)
                 else
-                  val => ddum
+                  !val => ddum
+                  call memalloc(size(ddum),this%weighted_val,__FILE__,__LINE__)
+                  this%weighted_val(:) = ddum(:)
                 end if  
             
                 ! Reordering and symbolic factorization, this step also allocates 
@@ -254,7 +263,7 @@ contains
                              mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                              phase  = this%phase,                  & !< Controls the execution of the solver (11 == Analysis)
                              n      = this%matrix%get_num_rows(),  & !< Number of equations in the sparse linear systems of equations
-                             a      = val,                         & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             a      = this%weighted_val,           & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
                              ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
                              ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
@@ -303,6 +312,7 @@ contains
 
         select type (matrix)
             type is (csr_sparse_matrix_t)
+                call this%init_weighting(matrix)
                 ! Reordering and symbolic factorization, this step also allocates 
                 ! all memory that is necessary for the factorization
                 call pardiso(pt     = this%pardiso_mkl_pt,         & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
@@ -311,7 +321,7 @@ contains
                              mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                              phase  = this%phase,                  & !< Controls the execution of the solver (22 == Numerical factorization)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             a      = this%weighted_val,           & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
                              ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
                              ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
@@ -352,6 +362,9 @@ contains
         integer                                           :: error
         integer,  target                                  :: idum(1)
     !-----------------------------------------------------------------
+        real(rp), allocatable :: weighted_x(:)
+        real(rp), allocatable :: weighted_b(:)
+        integer(ip)           :: irow
 #ifdef ENABLE_MKL
 !        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x
@@ -360,6 +373,16 @@ contains
         y_b => y%get_entries()
 
         if(op%matrix%get_num_rows()==0 .and. op%matrix%get_num_cols()==0) return
+
+        ! TODO this can be improved!
+        call memalloc(op%matrix%get_num_rows(),weighted_b,__FILE__,__LINE__)
+        call memalloc(op%matrix%get_num_rows(),weighted_x,__FILE__,__LINE__)
+
+        ! Weight the rhs
+        assert(allocated(op%jacob_diag))
+        do irow = 1, op%matrix%get_num_rows()
+            weighted_b(irow) = op%jacob_diag(irow)*x_b(irow)
+        end do
 
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
@@ -370,15 +393,15 @@ contains
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             a      = op%weighted_val,             & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
                              ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
                              ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
                              msglvl = op%message_level,            & !< Message level information
-                             b      = x_b,                         & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
-                             x      = y_b,                         & !< Array, size (n, nrhs). If iparm(6)=0 it contains solution vector/matrix X
+                             b      = weighted_b,                  & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
+                             x      = weighted_x,                  & !< Array, size (n, nrhs). If iparm(6)=0 it contains solution vector/matrix X
                              error  = error )
 
                 if (error /= 0) then
@@ -389,6 +412,15 @@ contains
             class DEFAULT
                 check(.false.)
         end select
+
+        ! Weight the back the solution
+        do irow = 1, op%matrix%get_num_rows()
+            y_b(irow) = op%jacob_diag(irow)*weighted_x(irow)
+        end do
+
+
+        call memfree(weighted_x,__FILE__,__LINE__)
+        call memfree(weighted_b,__FILE__,__LINE__)
 #else
         call op%not_enabled_error()
 #endif
@@ -407,6 +439,9 @@ contains
         integer                                           :: error
         integer,  target                                  :: idum(1)
     !-----------------------------------------------------------------
+        real(rp), allocatable :: weighted_x(:,:)
+        real(rp), allocatable :: weighted_b(:,:)
+        integer(ip)           :: irow
 #ifdef ENABLE_MKL
 !        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x
@@ -415,6 +450,16 @@ contains
         number_rhs  = size(x,2)
 
         if(op%matrix%get_num_rows()==0 .and. op%matrix%get_num_cols()==0) return
+
+        ! TODO this can be improved!
+        call memalloc(number_rows,number_rhs,weighted_b,__FILE__,__LINE__)
+        call memalloc(number_rows,number_rhs,weighted_x,__FILE__,__LINE__)
+
+        ! Weight the rhs
+        assert(allocated(op%jacob_diag))
+        do irow = 1, number_rows
+            weighted_b(irow,:) = op%jacob_diag(irow)*x(irow,:)
+        end do
 
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
@@ -427,15 +472,15 @@ contains
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             a      = op%weighted_val,             & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
                              ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
                              ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = number_rhs,                  & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
                              msglvl = op%message_level,            & !< Message level information
-                             b      = x,                           & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
-                             x      = y,                           & !< Array, size (n, nrhs). If iparm(6)=0 it contains solution vector/matrix X
+                             b      = weighted_b,                  & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
+                             x      = weighted_x,                  & !< Array, size (n, nrhs). If iparm(6)=0 it contains solution vector/matrix X
                              error  = error )
 
                 if (error /= 0) then
@@ -446,6 +491,14 @@ contains
             class DEFAULT
                 check(.false.)
         end select
+
+        ! Weight back the solution
+        do irow = 1, number_rows
+            y(irow,:) = op%jacob_diag(irow)*weighted_x(irow,:)
+        end do
+
+        call memfree(weighted_x,__FILE__,__LINE__)
+        call memfree(weighted_b,__FILE__,__LINE__)
 #else
         call op%not_enabled_error()
 #endif
@@ -458,6 +511,7 @@ contains
     !-----------------------------------------------------------------
         class(pardiso_mkl_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
+    call this%free_weighting()
 #ifdef ENABLE_MKL
 !        print*, '(4) --> free_clean' 
         this%matrix_type         = -1500
@@ -477,6 +531,7 @@ contains
         integer                                           :: idum(1)
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
+    call this%free_weighting()
 #ifdef ENABLE_MKL
 !        print*, '(5) --> free_symbolic'
         this%phase = -1 ! Release all internal memory for all matrices
@@ -517,6 +572,7 @@ contains
         integer                                           :: idum(1)
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
+    call this%free_weighting()
 #ifdef ENABLE_MKL
 !        print*, '(6) --> free_numerical'
         if(this%matrix%is_diagonal()) return ! Avoid Pardiso MKL crash
@@ -547,6 +603,59 @@ contains
         call this%not_enabled_error()
 #endif
     end subroutine pardiso_mkl_direct_solver_free_numerical_body
+
+    subroutine pardiso_mkl_direct_solver_init_weighting(this,csr_matrix)
+    !-----------------------------------------------------------------
+    !<  Initialize weighting
+    !-----------------------------------------------------------------
+        implicit none
+        class(pardiso_mkl_direct_solver_t), intent(inout) :: this
+        class(csr_sparse_matrix_t),         intent(in)    :: csr_matrix
+    !-----------------------------------------------------------------
+        integer(ip) ::  N, irow, ival
+        integer(ip), pointer :: irp(:), ja(:)
+        real(rp),    pointer :: val(:)
+
+        call this%free_weighting()
+
+        ! Compute the Jacobi preconditioner
+        call csr_matrix%extract_diagonal(this%jacob_diag)
+        this%jacob_diag(:) = sqrt(abs(this%jacob_diag(:)))
+        N = size(this%jacob_diag)
+        do irow = 1,N
+            if (this%jacob_diag(irow)==0.0_rp) this%jacob_diag(irow) = 1.0_rp
+            this%jacob_diag(irow) = 1.0_rp / this%jacob_diag(irow)
+        end do
+
+        ! Scale the values
+        call memalloc(csr_matrix%get_nnz(),this%weighted_val,__FILE__,__LINE__)
+        assert(N == csr_matrix%get_num_rows())
+        irp => csr_matrix%get_irp()
+        ja  => csr_matrix%get_ja()
+        val => csr_matrix%get_val()
+        assert(size(irp)== (N+1))
+        assert(size(this%weighted_val) == size(val))
+        do irow = 1, N
+            do ival = irp(irow), (irp(irow+1)-1)
+                this%weighted_val(ival) = this%jacob_diag(irow)*val(ival)*this%jacob_diag(ja(ival))
+            end do
+        end do
+
+    end subroutine pardiso_mkl_direct_solver_init_weighting
+
+    subroutine pardiso_mkl_direct_solver_free_weighting(this)
+    !-----------------------------------------------------------------
+    !<  free the weighting
+    !-----------------------------------------------------------------
+        implicit none
+        class(pardiso_mkl_direct_solver_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        integer(ip) :: istat
+        if (allocated(this%jacob_diag)) then
+          deallocate(this%jacob_diag,stat=istat); check(istat == 0)
+        end if
+        if (allocated(this%weighted_val)) call memfree(this%weighted_val,__FILE__,__LINE__)
+    end subroutine pardiso_mkl_direct_solver_free_weighting
 
 
 #ifndef ENABLE_MKL
