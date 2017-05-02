@@ -196,7 +196,13 @@ end subroutine tet_lagrangian_reference_fe_blending
 subroutine tet_lagrangian_reference_fe_fill_own_node_permutations (this)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(inout) :: this
-  ! Void subroutine, we do not want to fill own node permutations for tets since meshes are ordered
+  integer(ip) :: idime
+  ! Create emtpy permutation table, we do not want to fill own node permutations for tets since 
+  ! meshes are ordered.
+  do idime=1,this%number_dimensions-1
+     this%own_node_permutations(idime)%nd1 = 0
+     this%own_node_permutations(idime)%nd2 = 0
+  end do  
 end subroutine tet_lagrangian_reference_fe_fill_own_node_permutations
 
 !==================================================================================================
