@@ -146,9 +146,6 @@ contains
         this%matrix_type           = pardiso_mkl_default_matrix_type
         this%pardiso_mkl_iparm     = pardiso_mkl_default_iparm
 
-        this%pardiso_mkl_iparm(8)      = -10 ! We allow 10 iterative refinement steps with extended real precision
-        this%pardiso_mkl_iparm(10)     =  13 ! We allow to perturb the supra nodal pivots by order eps=1.0e-13 (the default is 1.0e-8 for symmetric indefinite matrices)
-
         this%pardiso_mkl_iparm(18)     = -1 ! Output: number of nonzeros in the factor LU
         this%pardiso_mkl_iparm(19)     = -1 ! Output: Mflops for LU factorization
 #else
@@ -421,7 +418,6 @@ contains
             y_b(irow) = op%jacob_diag(irow)*weighted_x(irow)
         end do
 
-        massert(op%pardiso_mkl_iparm(7)>=op%pardiso_mkl_iparm(8),'Maximun number of iteratve refinements are achived in the pardiso solver!')
 
         call memfree(weighted_x,__FILE__,__LINE__)
         call memfree(weighted_b,__FILE__,__LINE__)
@@ -500,8 +496,6 @@ contains
         do irow = 1, number_rows
             y(irow,:) = op%jacob_diag(irow)*weighted_x(irow,:)
         end do
-
-        massert(op%pardiso_mkl_iparm(7)>=op%pardiso_mkl_iparm(8),'Maximun number of iteratve refinements are achived in the pardiso solver!')
 
         call memfree(weighted_x,__FILE__,__LINE__)
         call memfree(weighted_b,__FILE__,__LINE__)
