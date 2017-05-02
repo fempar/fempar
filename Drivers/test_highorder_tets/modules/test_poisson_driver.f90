@@ -157,23 +157,12 @@ contains
     reference_fe_geo => cell%get_reference_fe_geo()
     call this%triangulation%free_cell_iterator(cell)    
     
-    ! BEGIN Checking new tet shape functions
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                 fe_type = this%test_params%get_fe_type(), &
+                                                 fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
                                                  continuity = continuity ) 
-   
-    !call this%reference_fes(1)%p%free()
-    !! END Checking ...
-    
-    !this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-    !                                             fe_type = fe_type_lagrangian, &
-    !                                             number_dimensions = this%triangulation%get_num_dimensions(), &
-    !                                             order = this%test_params%get_reference_fe_order(), & 
-    !                                             field_type = field_type, &
-    !                                             continuity = continuity ) 
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)

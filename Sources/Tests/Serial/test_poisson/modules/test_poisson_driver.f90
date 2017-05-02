@@ -141,7 +141,7 @@ contains
     logical                                   :: continuity
     class(cell_iterator_t)      , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-    character(:), allocatable :: field_type, fe_type
+    character(:), allocatable :: field_type
     
 
     allocate(this%reference_fes(1), stat=istat)
@@ -160,14 +160,8 @@ contains
     call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
     
-    if (reference_fe_geo%get_topology() .eq. topology_tet) then
-       fe_type = fe_type_new_tet
-    else
-       fe_type = fe_type_lagrangian
-    end if
-
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                 fe_type = fe_type, &
+                                                 fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &

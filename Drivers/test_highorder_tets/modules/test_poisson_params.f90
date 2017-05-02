@@ -52,8 +52,6 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_is_periodic_in_x
      character(len=:), allocatable :: default_is_periodic_in_y
      character(len=:), allocatable :: default_is_periodic_in_z
-     
-     character(len=:), allocatable :: default_fe_type
 
      type(Command_Line_Interface):: cli 
 
@@ -88,7 +86,6 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dimensions
-     procedure, non_overridable             :: get_fe_type
   end type test_poisson_params_t  
 
   ! Types
@@ -137,8 +134,6 @@ contains
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
     
-    this%default_fe_type = fe_type_lagrangian
-
   end subroutine test_poisson_set_default
   
   !==================================================================================================
@@ -201,10 +196,6 @@ contains
         call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
     check(error==0) 
-    
-    call this%cli%add(switch='--tet_type',switch_ab='-tet',help='Tetrahedra implemenation',&
-         &            required=.false.,act='store',def=trim(this%default_fe_type),error=error) 
-    check(error==0) 
 
   end subroutine test_poisson_add_to_cli
   
@@ -234,8 +225,6 @@ contains
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
-    
-    call this%cli%get(switch='-tet',val=this%default_fe_type,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -348,14 +337,6 @@ contains
     integer(ip) :: get_num_dimensions
     get_num_dimensions = this%num_dimensions
   end function get_num_dimensions
-
-  !==================================================================================================
-  function get_fe_type(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_fe_type
-    get_fe_type = this%default_fe_type
-  end function get_fe_type
   
   
 end module test_poisson_params_names
