@@ -632,6 +632,7 @@ function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity( this, fie
   end do
   pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity = result
   call this%free_fe_iterator(fe) 
+  call this%free_fe_vef_iterator(vef) 
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
 end function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity
 
@@ -781,6 +782,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
      call vef%next()
   end do
   call this%free_fe_iterator(fe) 
+  call this%free_fe_vef_iterator(vef) 
   deallocate(elem2dof, stat=istat ) 
   check (istat==0)
   
@@ -1357,20 +1359,21 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
      ! Create linear system 
      call matrix%create(par_environment, &
                         dof_import, &
-                        symmetric_storage=.false.,       &
-                        is_symmetric=.false.,            &
-                        sign=SPARSE_MATRIX_SIGN_UNKNOWN )
+                        symmetric_storage=.true.,       &
+                        is_symmetric=.true.,            &
+                        sign=SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE)
 
      call rhs%create_and_allocate(par_environment, dof_import) 
      call rhs%init(0.0_rp)
 
      ! Create data structures
      call projected_nodal_values%create_and_allocate(par_environment, dof_import)
+	 call projected_nodal_values%init(0.0_rp) 
  
      call this%create_fe_face_iterator(fe_face)
      call this%create_fe_iterator(fe) 
      do while ( .not. fe_face%has_finished() )
-        if ( fe_face%is_at_boundary() ) then
+        if ( fe_face%is_at_boundary() .and. fe_face%is_local() ) then
            if ( fe_face%get_set_id() /= 0 ) then
               call fe_face%update_integration() 
               call fe_face%get_cell_around(1,fe)
@@ -1432,7 +1435,11 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
         call fe_face%next()
      end do
      call this%free_fe_iterator(fe) 
+	 call this%free_fe_vef_iterator(fe_face)
+	 
+	 ! Prepare arrays for the parallel iterative solver 
      call matrix%convert(csr_format)
+	 call rhs%comm() 
 
      call parameter_list%init()
      FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)

@@ -133,12 +133,13 @@ contains
              factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
-                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
+                   ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
                    elmat(idof,jdof) = elmat(idof,jdof) + factor * ( shape_curls(jdof,qpoint)*shape_curls(idof,qpoint) + shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
                 end do
              end do
              
              do idof = 1, num_dofs
+			       ! F_K(i) = (f(i),phi_i)
                 elvec(idof) = elvec(idof) + factor * source_term_values(qpoint)*shape_values(idof,qpoint) 
              end do
           end do

@@ -199,7 +199,7 @@ end subroutine free_timers
       call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe_geo()
       this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian, &
+                                                   fe_type = fe_type_nedelec, &
                                                    number_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_vector, &
@@ -221,14 +221,18 @@ end subroutine free_timers
     call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
+	call this%fe_space%initialize_fe_face_integration() 
     
+	! Set-up fe_space with Dirichlet boundary conditions  
     call this%maxwell_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
 	call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
 	call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
 	if ( this%triangulation%get_num_dimensions() == 3) then 
 	call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
 	end if 
-    call this%fe_space%interpolate_dirichlet_values(this%maxwell_conditions)    
+	
+	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) ! Nedelec element 
+    !call this%fe_space%interpolate_dirichlet_values(this%maxwell_conditions)    ! Lagrangian element
     !call this%fe_space%print()
   end subroutine setup_fe_space
   

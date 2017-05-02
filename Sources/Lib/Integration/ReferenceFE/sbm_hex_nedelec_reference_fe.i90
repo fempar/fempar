@@ -898,7 +898,6 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      do qpoint = 1, edge_quadrature%number_quadrature_points
         factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
         call edge_map%get_tangent(qpoint, tangent)
-
         do ishape=1, interpolation_1D%number_shape_functions
            call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
            do jshape=1, edge_interpolation%number_shape_functions
