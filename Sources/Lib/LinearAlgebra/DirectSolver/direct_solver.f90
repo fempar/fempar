@@ -186,9 +186,13 @@ contains
     !-----------------------------------------------------------------
         class(direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
+        type(sparse_matrix_t),  pointer                :: matrix
         assert(associated(this%base_direct_solver))
+        assert(this%base_direct_solver%matrix_is_set())
         if(.not. this%vector_spaces_are_created()) &
             call this%create_vector_spaces()
+        matrix => this%base_direct_solver%get_matrix()
+        if(matrix%get_num_rows()==0 .or. matrix%get_num_cols()==0) return
         call this%base_direct_solver%symbolic_setup()
     end subroutine direct_solver_symbolic_setup
 
@@ -199,9 +203,13 @@ contains
     !-----------------------------------------------------------------
         class(direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
+        type(sparse_matrix_t),  pointer                :: matrix
         assert(associated(this%base_direct_solver))
+        assert(this%base_direct_solver%matrix_is_set())
         if(.not. this%vector_spaces_are_created()) &
             call this%create_vector_spaces()
+        matrix => this%base_direct_solver%get_matrix()
+        if(matrix%get_num_rows()==0 .or. matrix%get_num_cols()==0) return
         call this%base_direct_solver%numerical_setup()
     end subroutine direct_solver_numerical_setup
 
@@ -225,9 +233,13 @@ contains
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y
     !-----------------------------------------------------------------
+        type(sparse_matrix_t),  pointer                :: matrix
         assert(associated(op%base_direct_solver))
+        assert(op%base_direct_solver%matrix_is_set())
         if(.not. op%vector_spaces_are_created()) &
             call op%create_vector_spaces()
+        matrix => op%base_direct_solver%get_matrix()
+        if(matrix%get_num_rows()==0 .or. matrix%get_num_cols()==0) return
         select type (x)
             type is (serial_scalar_array_t)
                 select type (y)
@@ -250,10 +262,14 @@ contains
         real(rp),               intent(inout) :: x(:, :)
         real(rp),               intent(inout) :: y(:, :)
     !-----------------------------------------------------------------
+        type(sparse_matrix_t),  pointer                :: matrix
         assert(associated(op%base_direct_solver))
+        assert(op%base_direct_solver%matrix_is_set())
         if(.not. op%vector_spaces_are_created()) &
-            call op%create_vector_spaces()
-            call op%base_direct_solver%solve(x, y)
+             call op%create_vector_spaces()
+        matrix => op%base_direct_solver%get_matrix()
+        if(matrix%get_num_rows()==0 .or. matrix%get_num_cols()==0) return
+        call op%base_direct_solver%solve(x, y)
     end subroutine direct_solver_solve_several_rhs
 
 
