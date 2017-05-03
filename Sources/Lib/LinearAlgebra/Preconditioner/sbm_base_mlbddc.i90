@@ -1243,10 +1243,7 @@ subroutine base_mlbddc_apply_A_IG(this, x_G, y_I)
      par_sparse_matrix => this%get_par_sparse_matrix()
      A => par_sparse_matrix%get_sparse_matrix()
      y_I_serial => y_I%get_serial_scalar_array()
-     if ( A%get_symmetric_storage() ) then
-        call this%A_IG%apply(x_G%get_serial_scalar_array(), &
-             y_I_serial)
-     end if
+     call this%A_IG%apply(x_G%get_serial_scalar_array(), y_I_serial)
   end if
 end subroutine base_mlbddc_apply_A_IG
 
