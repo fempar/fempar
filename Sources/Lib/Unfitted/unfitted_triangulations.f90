@@ -29,6 +29,7 @@
 module unfitted_triangulations_names
   use fempar_names
   use level_set_functions_gallery_names
+  use base_sparse_matrix_names
   
   implicit none
 # include "debug.i90"
@@ -98,6 +99,22 @@ module unfitted_triangulations_names
     procedure, non_overridable          :: current      => unfitted_cell_iterator_current
   end type unfitted_cell_iterator_t
 
+  ! We need this to create a par fe space in marching_cubes_t to hold a discrete levelset function
+  type, extends(standard_l1_coarse_fe_handler_t) :: mc_dummy_coarse_fe_handler_t
+    contains
+      procedure :: get_num_coarse_dofs       => mc_dummy_coarse_fe_handler_get_num_coarse_dofs
+      procedure :: setup_constraint_matrix   => mc_dummy_coarse_fe_handler_setup_constraint_matrix
+      procedure :: setup_weighting_operator  => mc_dummy_coarse_fe_handler_setup_weighting_operator
+  end type mc_dummy_coarse_fe_handler_t
+
+  ! We need this to create a fe space in marching_cubes_t to hold a discrete levelset function
+  type, extends(conditions_t) :: mc_dummy_conditions_t
+    contains
+      procedure :: get_number_components  => mc_dummy_conditions_get_number_components
+      procedure :: get_components_code    => mc_dummy_conditions_get_components_code
+      procedure :: get_function           => mc_dummy_conditions_get_function
+  end type mc_dummy_conditions_t
+
   type :: marching_cubes_t
     private
 
@@ -106,6 +123,17 @@ module unfitted_triangulations_names
 
     ! The level set funciton
     class(level_set_function_t), pointer :: level_set_function => null()
+
+    ! The discrete version of the level-set function
+    type(fe_function_t) :: fe_levelset
+
+    ! The fe space associated with the discrete version of the levelset function
+    class(serial_fe_space_t), allocatable :: fe_space
+
+    ! Auxiliary dummy things to create the fe space for the levelset
+    type(p_reference_fe_t), allocatable :: reference_fes(:) 
+    type(mc_dummy_conditions_t)         :: dummy_conditions
+    type(mc_dummy_coarse_fe_handler_t)  :: dummy_coarse_handler
 
     ! Look up-tables (precomputed off-line, for each cell type)
     integer(ip)                :: mc_table_num_cases
@@ -172,6 +200,8 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: fulfills_assumptions           => marching_cubes_fulfills_assumptions
     procedure, non_overridable, private :: mc_tables_create               => marching_cubes_mc_tables_create
     procedure, non_overridable, private :: mc_tables_free                 => marching_cubes_mc_tables_free
+    procedure, non_overridable, private :: discrete_levelset_create       => marching_cubes_discrete_levelset_create
+    procedure, non_overridable, private :: discrete_levelset_free         => marching_cubes_discrete_levelset_free
     procedure, non_overridable, private :: mc_runtime_info_create         => marching_cubes_mc_runtime_info_create
     procedure, non_overridable, private :: mc_runtime_info_free           => marching_cubes_mc_runtime_info_free
     procedure, non_overridable, private :: subnodes_data_create           => marching_cubes_subnodes_data_create

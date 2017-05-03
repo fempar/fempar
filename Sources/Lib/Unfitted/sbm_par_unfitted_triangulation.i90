@@ -43,8 +43,8 @@ end subroutine put_create
 subroutine put_free(this)
   implicit none
   class(par_unfitted_triangulation_t), target, intent(inout) :: this
-  call this%par_triangulation_t%free()
   call this%marching_cubes%free()
+  call this%par_triangulation_t%free()
 end subroutine put_free
 
 !========================================================================================
