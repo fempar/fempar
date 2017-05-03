@@ -615,6 +615,14 @@ subroutine marching_cubes_discrete_levelset_create(this)
   call this%fe_levelset%create(this%fe_space)
   call this%fe_levelset%interpolate_function(this%fe_space,1,this%level_set_function)
 
+  ! Apply the tolerance
+  call this%discrete_levelset_fix()
+  fe_space => this%fe_space
+  select type (fe_space)
+  class is (par_fe_space_t)
+    call this%discrete_levelset_comm(fe_space)
+  end select
+
 end subroutine marching_cubes_discrete_levelset_create
 
 !========================================================================================
@@ -634,6 +642,181 @@ subroutine marching_cubes_discrete_levelset_free(this)
     deallocate(this%reference_fes, stat=istat); check(istat==0)
   end if
 end subroutine marching_cubes_discrete_levelset_free
+
+!========================================================================================
+subroutine marching_cubes_discrete_levelset_fix(this)
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+
+  type(fe_iterator_t)  :: fe_iter
+  type(fe_accessor_t)  :: fe
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(point_t), allocatable :: Xe_ref(:)
+  real(rp), allocatable :: nodal_vals(:)
+  integer(ip), parameter :: edge_dim = 1
+  integer(ip) :: num_nodes
+  integer(ip) :: iedge, first_edge, last_edge, cell_node, edge_node
+  type(list_iterator_t) :: nodes_in_edge_iterator
+  integer(ip) :: istat
+  integer(ip), parameter :: num_nodes_in_edge = 2
+  integer(ip) :: nodes_in_edge(num_nodes_in_edge)
+  real(rp)    :: phi_edge(num_nodes_in_edge)
+  integer(ip) :: field_id
+  type(point_t) :: X_intersection
+  real(rp), parameter :: edge_length = 2
+  type(vector_field_t) :: DX
+  real(rp) :: tol
+
+
+  ! Recover the tolerance from the levelset
+  tol = this%level_set_function%get_tolerance()
+
+  ! The level set function only has one field (for the moment)
+  field_id = 1
+
+  ! Get the nodal coordinates in the reference element
+  fe_iter = this%fe_space%create_fe_iterator()
+  call fe_iter%current(fe)
+  reference_fe_geo => fe%get_reference_fe_geo()
+  num_nodes = fe%get_num_nodes()
+  allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
+  call fe%get_coordinates_ref_space( Xe_ref )
+
+  ! Check that the length of the edge is ok
+  DX = Xe_ref(1) - Xe_ref(2)
+  if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+  massert(abs(DX%nrm2() - edge_length)<1.0e-13,'The lenght of the edge is not 2.0!')
+
+  call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
+
+  ! Allocate and fill the intersection points
+  call fe_iter%init()
+  do while ( .not. fe_iter%has_finished() )
+    call fe_iter%current(fe)
+    if (fe%is_local()) then
+
+      ! Evaluate the levelset
+      call this%fe_levelset%gather_nodal_values(fe,field_id,nodal_vals)
+
+      ! Prepare Loop in cell edges
+      reference_fe_geo => fe%get_reference_fe_geo()
+      first_edge = reference_fe_geo%get_first_n_face_id_of_dimension(edge_dim)
+      last_edge  = first_edge + reference_fe_geo%get_number_n_faces_of_dimension(edge_dim) - 1
+
+      ! Loop in cell edges
+      do iedge = first_edge, last_edge
+
+        ! Loop in edge nodes
+        nodes_in_edge_iterator = reference_fe_geo%create_nodes_n_face_iterator(iedge)
+        do while (.not. nodes_in_edge_iterator%is_upper_bound())
+          edge_node = nodes_in_edge_iterator%get_distance_to_lower_bound()
+          cell_node = nodes_in_edge_iterator%get_current()
+
+          ! Store the levelset and nodes ids of the current edge
+          phi_edge(edge_node) = nodal_vals(cell_node)
+          nodes_in_edge(edge_node) = cell_node
+
+          call nodes_in_edge_iterator%next()
+        end do
+
+        ! Check if intersection point exists
+        if ( (phi_edge(1) >= 0 .and. phi_edge(2) < 0) .or. (phi_edge(2) >= 0 .and. phi_edge(1) < 0)   ) then
+
+          ! Compute the intersection points of the edge
+          X_intersection = Xe_ref(nodes_in_edge(1)) + &
+          (abs(phi_edge(1))/(abs(phi_edge(1))+abs(phi_edge(2))))*( Xe_ref(nodes_in_edge(2)) - Xe_ref(nodes_in_edge(1)) )
+
+          ! Compute the distance from the intersection point to each of the nodes endpoints
+          ! If one of the distances is smaller that the edge size times the tol, 
+          ! fix the levelset on the corresponding node
+
+          DX = Xe_ref(nodes_in_edge(1)) - X_intersection
+          if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+          if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(1)) = 0.0_rp
+
+          DX = Xe_ref(nodes_in_edge(2)) - X_intersection
+          if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+          if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(2)) = 0.0_rp
+
+        end if
+
+      end do
+
+      ! Fix the levelset
+      call this%fe_levelset%insert_nodal_values(fe,field_id,nodal_vals)
+
+    end if
+    call fe_iter%next()
+  end do
+
+  deallocate( Xe_ref, stat=istat );  check(istat == 0)
+  call memfree(nodal_vals,__FILE__,__LINE__)
+
+end subroutine marching_cubes_discrete_levelset_fix
+
+!========================================================================================
+subroutine marching_cubes_discrete_levelset_comm(this,par_fe_space)
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+  class(par_fe_space_t),   intent(in)    :: par_fe_space
+
+  type(par_scalar_array_t)             :: par_array
+  type(environment_t), pointer         :: p_env
+  type(dof_import_t),  pointer         :: dof_import
+  type(serial_scalar_array_t), pointer :: serial_array
+  real(rp), pointer                    :: touched(:)
+  class(vector_t), pointer             :: dof_values
+  real(rp), pointer                    :: raw_dof_values(:)
+  integer(ip)                          :: i
+  integer(ip)                          :: field_id, block_id
+  integer(ip), pointer                 :: field_to_block(:)
+
+  !1) Build an array containing 1 in the entries corresponding to dofs
+  ! where the discrete levelset is exactly 0 and 0 otherwise
+
+  !2) Communicate this array
+
+  !3) Set to 0 the dofs of the discrete levelset that are 0 at least in one subdomain
+
+  field_id = 1
+  assert(par_fe_space%get_number_fields() == 1)
+  field_to_block => par_fe_space%get_field_blocks()
+  block_id = field_to_block(field_id)
+  p_env => par_fe_space%get_environment()
+  dof_import => par_fe_space%get_block_dof_import(block_id)
+  call par_array%create_and_allocate(p_env, dof_import)
+  serial_array   => par_array%get_serial_scalar_array()
+  touched => serial_array%get_entries()
+
+  dof_values => this%fe_levelset%get_dof_values()
+  select type(dof_values)
+  class is (par_scalar_array_t)
+
+    serial_array => dof_values%get_serial_scalar_array()
+    raw_dof_values => serial_array%get_entries()
+    assert( size(touched) == size(raw_dof_values))
+
+    ! Mark the dofs of the levelset that are 0.0
+    touched(:) = 0.0_rp
+    do i=1,size(touched)
+      if (raw_dof_values(i)==0.0_rp) touched(i) = 1.0_rp
+    end do
+
+    ! Communicate the mark
+    call par_array%comm()
+
+    ! Set to 0.0 the dofs of the levelset that are marked in at least another subdomain
+    do i=1,size(touched)
+      if (touched(i)>=1.0_rp) raw_dof_values(i) = 0.0_rp
+    end do
+
+  class default
+    mcheck(.false.,'Error in downcasting vector_t to par_scalar_array_t')
+  end select
+
+  call par_array%free()
+
+end subroutine marching_cubes_discrete_levelset_comm
 
 !========================================================================================
 subroutine marching_cubes_mc_runtime_info_create(this)

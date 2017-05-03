@@ -30,6 +30,7 @@ module unfitted_triangulations_names
   use fempar_names
   use level_set_functions_gallery_names
   use base_sparse_matrix_names
+  use dof_import_names
   
   implicit none
 # include "debug.i90"
@@ -202,6 +203,8 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: mc_tables_free                 => marching_cubes_mc_tables_free
     procedure, non_overridable, private :: discrete_levelset_create       => marching_cubes_discrete_levelset_create
     procedure, non_overridable, private :: discrete_levelset_free         => marching_cubes_discrete_levelset_free
+    procedure, non_overridable, private :: discrete_levelset_fix          => marching_cubes_discrete_levelset_fix
+    procedure, non_overridable, private :: discrete_levelset_comm         => marching_cubes_discrete_levelset_comm
     procedure, non_overridable, private :: mc_runtime_info_create         => marching_cubes_mc_runtime_info_create
     procedure, non_overridable, private :: mc_runtime_info_free           => marching_cubes_mc_runtime_info_free
     procedure, non_overridable, private :: subnodes_data_create           => marching_cubes_subnodes_data_create

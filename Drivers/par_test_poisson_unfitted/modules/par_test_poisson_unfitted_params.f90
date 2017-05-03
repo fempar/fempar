@@ -87,7 +87,7 @@ contains
     error = list%set(key = use_preconditioner_key            , value =  .true.)                           ; check(error==0)
     error = list%set(key = unfitted_boundary_type_key        , value =  'dirichlet')                      ; check(error==0)
     error = list%set(key = nitsche_beta_factor_key           , value =  2.0)                              ; check(error==0)
-    error = list%set(key = levelset_tolerance_key            , value =  1.0e-6)                           ; check(error==0)
+    error = list%set(key = levelset_tolerance_key            , value =  1.0e-2)                           ; check(error==0)
     error = list%set(key = number_runs_key                   , value =  1)                                ; check(error==0)
 
     ! Only some of them are controlled from cli

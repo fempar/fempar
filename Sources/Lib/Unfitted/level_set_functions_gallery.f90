@@ -48,13 +48,14 @@ module level_set_functions_gallery_names
 
   type, extends(scalar_function_t) :: level_set_function_t
     private
-    real(rp) :: tolerance = 0.0_rp
+    real(rp) :: tolerance = 1.0e-3_rp
     integer(ip) :: num_dimensions = SPACE_DIM
   contains
     procedure, private :: get_level_set_value => level_set_function_get_level_set_value
     procedure, non_overridable :: set_num_dimensions  => level_set_function_set_num_dimensions
     procedure :: get_value_space              => level_set_function_get_value_space
     procedure :: set_tolerance                => level_set_function_set_tolerance
+    procedure :: get_tolerance                => level_set_function_get_tolerance
   end type level_set_function_t
 
   type, extends(level_set_function_t) :: level_set_sphere_t
@@ -141,6 +142,7 @@ end subroutine level_set_function_factory_create
     real(rp)                   , intent(inout) :: result
 
     type(point_t) :: point2
+    real(rp), parameter :: tol = 1.0e-14_rp
 
     ! Restrict to the current dimensions
     point2 = point
@@ -151,9 +153,7 @@ end subroutine level_set_function_factory_create
     call this%get_level_set_value( point2, result )
 
     ! Apply tolerance
-    if (abs(result) < this%tolerance) then
-      result = 0.0_rp
-    end if
+    if (abs(result) < tol) result = 0.0_rp
 
   end subroutine level_set_function_get_value_space
 
@@ -164,6 +164,14 @@ end subroutine level_set_function_factory_create
     real(rp)                   , intent(in)    :: tolerance_in
     this%tolerance = tolerance_in
   end subroutine level_set_function_set_tolerance
+
+!========================================================================================
+  function level_set_function_get_tolerance ( this )
+    implicit none
+    class(level_set_function_t), intent(in) :: this
+    real(rp) :: level_set_function_get_tolerance
+    level_set_function_get_tolerance = this%tolerance
+  end function level_set_function_get_tolerance
 
 !========================================================================================
   subroutine level_set_sphere_set_radius ( this, radius_in )
