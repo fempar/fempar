@@ -244,6 +244,26 @@ contains
                   val => matrix%get_val()
                 else
                   val => ddum
+#ifdef DEBUG
+                  if ( this%matrix_type == pardiso_mkl_sin ) then
+                    if ( this%pardiso_mkl_iparm(1) == 1 .and. this%pardiso_mkl_iparm(13) == 1 ) then
+                       ! For matrix_type == pardiso_mkl_sin the matrix entries are a MUST at this
+                       ! (symbolic) stage if iparm(1)==1 and iparm(13)==1;
+                       ! see PARDISO MKL manual for additional details. We generate an assert(.false.) at this 
+                       ! point as the matrix entries are NOT available if the code enters here.
+                       assert(.false.)
+                    end if
+                  else if (this%matrix_type == pardiso_mkl_uns ) then
+                    if ( this%pardiso_mkl_iparm(1) == 0 .or. &
+                         (this%pardiso_mkl_iparm(1) == 1 .and. this%pardiso_mkl_iparm(13) == 1) ) then
+                       ! For matrix_type == pardiso_mkl_uns the matrix entries are a MUST at this
+                       ! (symbolic) stage if either iparm(1) == 0 (defaults) or (iparm(1) ==1 and iparm(13) == 1);
+                       ! see PARDISO MKL manual for additional details. We generate an assert(.false.) at this 
+                       ! point as the matrix entries are NOT available if the code enters here.
+                       assert(.false.)
+                    end if
+                  end if
+#endif
                 end if  
             
                 ! Reordering and symbolic factorization, this step also allocates 
