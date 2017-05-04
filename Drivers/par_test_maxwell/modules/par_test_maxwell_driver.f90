@@ -58,10 +58,10 @@ module par_test_maxwell_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
      
-#ifdef ENABLE_MKL     
+!#ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
      type(mlbddc_t)                            :: mlbddc
-#endif  
+!#endif  
     
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
@@ -129,7 +129,8 @@ end subroutine setup_timers
 subroutine report_timers(this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-    call this%timer_triangulation%report(.true.)
+
+    call this%timer_triangulation%report(.false.)
     call this%timer_fe_space%report(.false.)
     call this%timer_assemply%report(.false.)
     call this%timer_solver_setup%report(.false.)
@@ -257,27 +258,27 @@ end subroutine free_timers
     type(parameterlist_t) :: parameter_list
     integer(ip) :: FPLError
 
-#ifdef ENABLE_MKL   
+!#ifdef ENABLE_MKL   
     ! Set-up MLBDDC preconditioner
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
-#endif    
+!#endif    
    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
-#ifdef ENABLE_MKL
+!#ifdef ENABLE_MKL
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
-#else
-    call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-    assert(FPLError == 0)
-    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-    call parameter_list%free()
-#endif   
+!#else
+!    call parameter_list%init()
+!    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+!    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+!    assert(FPLError == 0)
+!    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+!    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+!    call parameter_list%free()
+!#endif   
     
   end subroutine setup_solver
   
@@ -321,19 +322,13 @@ end subroutine free_timers
                                             dof_values)
     
     !select type (dof_values)
-    !class is (serial_scalar_array_t)  
+    !class is (par_scalar_array_t)  
     !   call dof_values%print(6)
     !class DEFAULT
     !   assert(.false.) 
     !end select
-    
-    !select type (matrix)
-    !class is (sparse_matrix_t)  
-    !   call this%direct_solver%update_matrix(matrix, same_nonzero_pattern=.true.)
-    !   call this%direct_solver%solve(rhs , dof_values )
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
+   
+	
   end subroutine solve_system
    
   subroutine check_solution(this)
@@ -424,9 +419,9 @@ end subroutine free_timers
     integer(ip) :: i, istat
     
     call this%solution%free()
-#ifdef ENABLE_MKL    
+!#ifdef ENABLE_MKL    
     call this%mlbddc%free()
-#endif    
+!#endif    
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
