@@ -428,8 +428,8 @@ end subroutine free_timers
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
+                                          diagonal_blocks_symmetric_storage = [ .false. ], &
+                                          diagonal_blocks_symmetric         = [ .false. ], &
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_unfitted_integration )

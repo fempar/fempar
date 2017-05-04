@@ -96,7 +96,7 @@ subroutine base_mlbddc_symbolic_setup_dirichlet_solver ( this)
   implicit none
   class(base_mlbddc_t), intent(inout) :: this
   assert ( this%am_i_l1_task() )
-  call this%dirichlet_solver%set_type(name   = pardiso_mkl)
+  call this%dirichlet_solver%set_type(name   = umfpack)
   call this%dirichlet_solver%set_matrix(matrix = this%A_II)
   call this%dirichlet_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_dirichlet_solver
@@ -124,7 +124,7 @@ subroutine base_mlbddc_symbolic_setup_constrained_neumann_solver(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
   assert ( this%am_i_l1_task() )
-  call this%constrained_neumann_solver%set_type(name   = pardiso_mkl)
+  call this%constrained_neumann_solver%set_type(name   = umfpack)
   call this%constrained_neumann_solver%set_matrix(matrix = this%constrained_neumann_matrix)
   call this%constrained_neumann_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_constrained_neumann_solver
@@ -149,8 +149,8 @@ subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
      L2_environment  => L1_environment%get_next_level()
      call this%coarse_grid_matrix%create( p_env             = L2_environment, &
           dof_import        = coarse_fe_space%get_block_dof_import(1), &
-          symmetric_storage = .true., &
-          is_symmetric      = .true., &
+          symmetric_storage = .false., &
+          is_symmetric      = .false., &
           sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
 
      if ( L2_environment%am_i_l1_task() ) then
@@ -249,7 +249,7 @@ subroutine base_mlbddc_symbolic_setup_coarse_solver(this)
   assert ( par_environment%get_l1_size() == 1 )
   assert ( par_environment%am_i_l1_task() )
   par_sparse_matrix => this%get_par_sparse_matrix()
-  call this%coarse_solver%set_type(name   = pardiso_mkl)
+  call this%coarse_solver%set_type(name   = umfpack)
   call this%coarse_solver%set_matrix(matrix = par_sparse_matrix%get_sparse_matrix())
   call this%coarse_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_coarse_solver
