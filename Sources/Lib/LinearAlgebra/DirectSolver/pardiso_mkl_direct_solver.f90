@@ -168,11 +168,9 @@ contains
                this%matrix_type = pardiso_mkl_spd
             elseif(this%matrix%get_symmetric_storage() .and. this%matrix%get_sign() /= SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE) then
                this%matrix_type = pardiso_mkl_sin
-            elseif(.not. this%matrix%get_symmetric_storage() .and. this%matrix%is_symmetric() ) then
+            else ! if(.not. this%matrix%get_symmetric_storage()) then
                this%matrix_type = pardiso_mkl_uss
-            else
-               this%matrix_type = pardiso_mkl_uns
-            end if
+             end if
         endif
 #else
         call this%not_enabled_error()
@@ -242,7 +240,6 @@ contains
         if(.not. this%forced_matrix_type) call this%set_matrix_type_from_matrix()
 
         assert (matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED)
-        if(this%matrix%get_num_rows()==0 .and. this%matrix%get_num_cols()==0) return
 
         select type (matrix)
             type is (csr_sparse_matrix_t)
@@ -253,6 +250,26 @@ contains
                   !val => ddum
                   call memalloc(size(ddum),this%weighted_val,__FILE__,__LINE__)
                   this%weighted_val(:) = ddum(:)
+#ifdef DEBUG
+                  if ( this%matrix_type == pardiso_mkl_sin ) then
+                    if ( this%pardiso_mkl_iparm(1) == 1 .and. this%pardiso_mkl_iparm(13) == 1 ) then
+                       ! For matrix_type == pardiso_mkl_sin the matrix entries are a MUST at this
+                       ! (symbolic) stage if iparm(1)==1 and iparm(13)==1;
+                       ! see PARDISO MKL manual for additional details. We generate an assert(.false.) at this 
+                       ! point as the matrix entries are NOT available if the code enters here.
+                       assert(.false.)
+                    end if
+                  else if (this%matrix_type == pardiso_mkl_uns ) then
+                    if ( this%pardiso_mkl_iparm(1) == 0 .or. &
+                         (this%pardiso_mkl_iparm(1) == 1 .and. this%pardiso_mkl_iparm(13) == 1) ) then
+                       ! For matrix_type == pardiso_mkl_uns the matrix entries are a MUST at this
+                       ! (symbolic) stage if either iparm(1) == 0 (defaults) or (iparm(1) ==1 and iparm(13) == 1);
+                       ! see PARDISO MKL manual for additional details. We generate an assert(.false.) at this 
+                       ! point as the matrix entries are NOT available if the code enters here.
+                       assert(.false.)
+                    end if
+                  end if
+#endif
                 end if  
             
                 ! Reordering and symbolic factorization, this step also allocates 
@@ -308,7 +325,6 @@ contains
         matrix => this%matrix%get_pointer_to_base_matrix()
         
         assert (matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED)
-        if(this%matrix%get_num_rows()==0 .and. this%matrix%get_num_cols()==0) return
 
         select type (matrix)
             type is (csr_sparse_matrix_t)
