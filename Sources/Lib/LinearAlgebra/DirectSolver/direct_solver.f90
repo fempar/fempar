@@ -264,11 +264,14 @@ contains
                         r_real => r%get_entries()
                         x_real => x%get_entries()
                         err = 0.0
-                        if (maxval(abs(r_real))<=tol*maxval(abs(x_real))) then
+                        if (maxval(abs(x_real))>0) then
                           err = maxval(abs(r_real))/maxval(abs(x_real))
-                          write(serr,'(e10.3)') err
                         end if
-                        massert( maxval(abs(r_real))<=tol*maxval(abs(x_real)), 'Direct solver (single rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+                        write(serr,'(e10.3)') err
+                        if (maxval(abs(r_real))>tol*maxval(abs(x_real))) then
+                          write(*,*) 'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr
+                        end if
+                        !massert( maxval(abs(r_real))<=tol*maxval(abs(x_real)), 'Direct solver (single rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
                         call r%free()
 #endif
                     class DEFAULT
@@ -329,11 +332,14 @@ contains
           call rarr%scal(-1.0,xarr)
           call matrix%apply_add(yarr,rarr)
           err = 0.0
-          if (maxval(abs(r_real))<=tol*maxval(abs(x_real))) then
+          if (maxval(abs(x_real))>0) then
             err = maxval(abs(r_real))/maxval(abs(x_real))
-            write(serr,'(e10.3)') err
           end if
-          massert( maxval(abs(r_real))<=tol*maxval(abs(x_real)),'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+          write(serr,'(e10.3)') err
+          if (maxval(abs(r_real))>tol*maxval(abs(x_real))) then
+            write(*,*) 'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr
+          end if
+          !massert( maxval(abs(r_real))<=tol*maxval(abs(x_real)),'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
         end do
         call xarr%free()
         call yarr%free()

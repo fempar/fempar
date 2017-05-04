@@ -96,9 +96,9 @@ subroutine base_mlbddc_symbolic_setup_dirichlet_solver ( this)
   implicit none
   class(base_mlbddc_t), intent(inout) :: this
   assert ( this%am_i_l1_task() )
-  call this%dirichlet_solver%set_type(name   = umfpack)
+  call this%dirichlet_solver%set_type(name   = pardiso_mkl)
   call this%dirichlet_solver%set_matrix(matrix = this%A_II)
-  call this%dirichlet_solver%symbolic_setup() 
+  !call this%dirichlet_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_dirichlet_solver
 
 subroutine base_mlbddc_symbolic_setup_constrained_neumann_problem(this)
@@ -124,9 +124,9 @@ subroutine base_mlbddc_symbolic_setup_constrained_neumann_solver(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
   assert ( this%am_i_l1_task() )
-  call this%constrained_neumann_solver%set_type(name   = umfpack)
+  call this%constrained_neumann_solver%set_type(name   = pardiso_mkl)
   call this%constrained_neumann_solver%set_matrix(matrix = this%constrained_neumann_matrix)
-  call this%constrained_neumann_solver%symbolic_setup() 
+  !call this%constrained_neumann_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_constrained_neumann_solver
 
 subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
@@ -249,9 +249,9 @@ subroutine base_mlbddc_symbolic_setup_coarse_solver(this)
   assert ( par_environment%get_l1_size() == 1 )
   assert ( par_environment%am_i_l1_task() )
   par_sparse_matrix => this%get_par_sparse_matrix()
-  call this%coarse_solver%set_type(name   = umfpack)
+  call this%coarse_solver%set_type(name   = pardiso_mkl)
   call this%coarse_solver%set_matrix(matrix = par_sparse_matrix%get_sparse_matrix())
-  call this%coarse_solver%symbolic_setup() 
+  !call this%coarse_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_coarse_solver
 
 recursive subroutine base_mlbddc_numerical_setup ( this )
