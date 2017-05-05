@@ -67,7 +67,7 @@ program test_sisl
   point(1) = -10.0_rp
   point(2) = 0.0_rp
   point(3) = 0.0_rp
-  call point_intersection(curve, point, ndime, tol, num_int, p_param, num_curves, wcurve, stat)
+  call curve_point_intersection(curve, point, ndime, tol, num_int, p_param, num_curves, wcurve, stat)
   p_shape(1) = num_int
   call c_f_pointer(p_param,param,p_shape)
 

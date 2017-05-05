@@ -25,6 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# include "debug.i90"
 module postpro_names
   use types_names
   use stdio_names
@@ -96,11 +97,11 @@ contains
     pos%form=form
 
     if(pos%form==1) then
-       pos%luou =  io_open(adjustl(name))
+       pos%luou =  io_open(adjustl(name)); check(pos%luou>0)
        write(pos%luou,'(a)') 'GiD Post Results File 1.0'
        write(pos%luou,'(a)') ' '
     else if(pos%form==2) then
-       pos%luou =  io_open(adjustl(name))
+       pos%luou =  io_open(adjustl(name)); check(pos%luou>0)
     else if(pos%form==3) then
 #ifdef ENABLE_GIDPOST
        CALL GID_POSTINIT()

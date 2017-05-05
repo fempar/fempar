@@ -162,11 +162,9 @@ contains
                this%matrix_type = pardiso_mkl_spd
             elseif(this%matrix%get_symmetric_storage() .and. this%matrix%get_sign() /= SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE) then
                this%matrix_type = pardiso_mkl_sin
-            elseif(.not. this%matrix%get_symmetric_storage() .and. this%matrix%is_symmetric() ) then
+            else ! if(.not. this%matrix%get_symmetric_storage()) then
                this%matrix_type = pardiso_mkl_uss
-            else
-               this%matrix_type = pardiso_mkl_uns
-            end if
+             end if
         endif
 #else
         call this%not_enabled_error()
@@ -217,7 +215,7 @@ contains
     end subroutine pardiso_mkl_direct_solver_set_parameters_from_pl
 
 
-    subroutine pardiso_mkl_direct_solver_symbolic_setup_body(this)
+    function pardiso_mkl_direct_solver_symbolic_setup_body(this)
     !-----------------------------------------------------------------
     !< Perform PARDISO analysis step. Reordering and symbolic factorization, 
     !< this step also allocates all memory that is necessary for the factorization
@@ -228,23 +226,33 @@ contains
         integer, target                                   :: idum(1)
         real(dp), target                                  :: ddum(1)
         real(rp), pointer                                 :: val(:)
+        logical                                           :: pardiso_mkl_direct_solver_symbolic_setup_body
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-!        print*, '(1) --> symbolic_setup'
         this%phase               = 11 ! only reordering and symbolic factorization
         matrix                   => this%matrix%get_pointer_to_base_matrix()
         if(.not. this%forced_matrix_type) call this%set_matrix_type_from_matrix()
 
         assert (matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED)
-        if(this%matrix%get_num_rows()==0 .and. this%matrix%get_num_cols()==0) return
-
         select type (matrix)
             type is (csr_sparse_matrix_t)
+                pardiso_mkl_direct_solver_symbolic_setup_body = .true.
                 if ( matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED ) then
                   val => matrix%get_val()
                 else
                   val => ddum
-                end if  
+                  if ( this%matrix_type == pardiso_mkl_sin ) then
+                    if ( this%pardiso_mkl_iparm(1) == 1 .and. this%pardiso_mkl_iparm(13) == 1 ) then
+                      pardiso_mkl_direct_solver_symbolic_setup_body = .false.
+                    end if
+                  else if (this%matrix_type == pardiso_mkl_uns ) then
+                    if ( this%pardiso_mkl_iparm(1) == 0 .or. &
+                         (this%pardiso_mkl_iparm(1) == 1 .and. this%pardiso_mkl_iparm(13) == 1) ) then
+                      pardiso_mkl_direct_solver_symbolic_setup_body = .false.
+                    end if
+                  end if
+                end if 
+                if ( .not. pardiso_mkl_direct_solver_symbolic_setup_body ) return 
             
                 ! Reordering and symbolic factorization, this step also allocates 
                 ! all memory that is necessary for the factorization
@@ -279,8 +287,7 @@ contains
 #else
         call this%not_enabled_error()
 #endif
-    end subroutine pardiso_mkl_direct_solver_symbolic_setup_body
-
+    end function pardiso_mkl_direct_solver_symbolic_setup_body
 
     subroutine pardiso_mkl_direct_solver_numerical_setup_body(this)
     !-----------------------------------------------------------------
@@ -293,13 +300,11 @@ contains
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-!        print*, '(2) --> numerical_setup'
         ! Factorization.
         this%phase = 22 ! only numerical factorization
         matrix => this%matrix%get_pointer_to_base_matrix()
         
         assert (matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED)
-        if(this%matrix%get_num_rows()==0 .and. this%matrix%get_num_cols()==0) return
 
         select type (matrix)
             type is (csr_sparse_matrix_t)
@@ -353,13 +358,10 @@ contains
         integer,  target                                  :: idum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-!        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x
         op%phase = 33 ! only Fwd/Bck substitution
         x_b => x%get_entries()
         y_b => y%get_entries()
-
-        if(op%matrix%get_num_rows()==0 .and. op%matrix%get_num_cols()==0) return
 
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
@@ -408,13 +410,10 @@ contains
         integer,  target                                  :: idum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-!        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x
         op%phase    = 33 ! only Fwd/Bck substitution
         number_rows = size(x,1)
         number_rhs  = size(x,2)
-
-        if(op%matrix%get_num_rows()==0 .and. op%matrix%get_num_cols()==0) return
 
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
@@ -459,7 +458,6 @@ contains
         class(pardiso_mkl_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-!        print*, '(4) --> free_clean' 
         this%matrix_type         = -1500
         this%matrix              => NULL()
 #else
@@ -478,7 +476,6 @@ contains
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-!        print*, '(5) --> free_symbolic'
         this%phase = -1 ! Release all internal memory for all matrices
         call pardiso(pt     = this%pardiso_mkl_pt,             & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
                      maxfct = this%max_number_of_factors,      & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
@@ -518,7 +515,6 @@ contains
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-!        print*, '(6) --> free_numerical'
         if(this%matrix%is_diagonal()) return ! Avoid Pardiso MKL crash
         ! Release internal memory only for L and U factors
         this%phase = 0 ! Release internal memory for L and U matrix number mnum

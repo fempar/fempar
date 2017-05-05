@@ -398,7 +398,9 @@ contains
 
             call this%fill_data(update_mesh = (.not. this%StaticGrid .or. this%number_steps <= 1))
 
-            call environment%info(me, np)
+            !call environment%info(me, np)
+            me = environment%get_l1_rank()
+            np = environment%get_l1_size()
 
             if(.not. this%StaticGrid .or. this%number_steps <= 1) then                 
                 geometry_type = dimensions_to_xh5_unstructured_GeometryType(this%get_number_dimensions())

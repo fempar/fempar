@@ -32,9 +32,11 @@ module environment_names
   use FPL
   use par_io_names
   use uniform_hex_mesh_generator_names
+  use timer_names
   ! Parallel modules
   use execution_context_names
   use mpi_context_names
+  use mpi_omp_context_names
   use serial_context_names
   implicit none
 
@@ -47,9 +49,11 @@ module environment_names
 
   integer(ip)     , parameter :: mpi_context    = 0
   integer(ip)     , parameter :: serial_context = 1
+  integer(ip)     , parameter :: mpi_omp_context = 2
   character(len=*), parameter :: execution_context_key  = 'execution_context'
   public :: mpi_context
   public :: serial_context
+  public :: mpi_omp_context
   public :: execution_context_key
 
   integer(ip)     , parameter :: structured   = 0
@@ -102,6 +106,8 @@ module environment_names
      procedure :: am_i_l1_to_l2_root             => environment_am_i_l1_to_l2_root
      procedure :: am_i_l1_root                   => environment_am_i_l1_root
 
+     procedure :: create_l1_timer                => environment_create_l1_timer
+     
      procedure :: get_l2_part_id_l1_task_is_mapped_to => environment_get_l2_part_id_l1_task_is_mapped_to
 
 
@@ -151,7 +157,7 @@ module environment_names
 
 
      ! Deferred TBPs inherited from class(environment_t)
-     procedure :: info                        => environment_info
+     !procedure :: info                        => environment_info
      procedure :: am_i_l1_task                => environment_am_i_l1_task
      procedure :: l1_lgt1_bcast               => environment_l1_lgt1_bcast
      procedure :: l1_barrier                  => environment_l1_barrier
@@ -159,9 +165,9 @@ module environment_names
      procedure :: l1_sum_vector_rp            => environment_l1_sum_vector_rp
      procedure :: l1_max_scalar_rp            => environment_l1_max_scalar_rp
      procedure :: l1_max_vector_rp            => environment_l1_max_vector_rp
+     procedure :: l1_max_scalar_ip            => environment_l1_max_scalar_ip
      generic  :: l1_sum                       => l1_sum_scalar_rp, l1_sum_vector_rp
-     generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp
-
+     generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp, l1_max_scalar_ip
   end type environment_t
 
   ! Types
@@ -209,7 +215,7 @@ contains
     do i=1,nenvs
        rename=name
        call numbered_filename_compose(i,nenvs,rename)
-       lunio = io_open (trim(dir_path) // '/' // trim(rename))
+       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
        call envs(i)%write (lunio)
        call io_close (lunio)
     end do
@@ -244,6 +250,7 @@ contains
 
   !=============================================================================
   subroutine environment_create ( this, parameters)
+    !$ use omp_lib
     implicit none 
     class(environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
@@ -286,6 +293,8 @@ contains
        allocate(serial_context_t :: this%world_context,stat=istat); check(istat==0)
     else if(execution_context==mpi_context) then
        allocate(mpi_context_t :: this%world_context,stat=istat); check(istat==0)
+    else if(execution_context==mpi_omp_context) then
+       allocate(mpi_omp_context_t :: this%world_context,stat=istat); check(istat==0)
     end if
     call this%world_context%create()
 
@@ -303,7 +312,8 @@ contains
 
           call environment_compose_name(prefix, name )  
           call par_filename( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
-          lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+          lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
+          !$ write(*,*) omp_get_thread_num(),lunio 
 
           ! Read parts assignment to tasks and verify that the multilevel environment 
           ! can be executed in current context (long-lasting Alberto's concern). 
@@ -570,7 +580,8 @@ contains
     implicit none
     class(environment_t), intent(in) :: this
     logical                              :: environment_am_i_l1_root
-    environment_am_i_l1_root = (this%l1_context%get_current_task() == 0)
+    !environment_am_i_l1_root = (this%l1_context%get_current_task() == 0)
+    environment_am_i_l1_root = this%l1_context%am_i_root()
   end function environment_am_i_l1_root
 
   !=============================================================================
@@ -617,6 +628,16 @@ contains
   end subroutine environment_l1_lgt1_bcast
 
   !=============================================================================
+  subroutine environment_create_l1_timer(this, message, mode, timer)
+    class(environment_t)      , intent(in)    :: this
+    character(len=*)          , intent(in)    :: message
+    character(len=*), optional, intent(in)    :: mode
+    type(timer_t)             , intent(inout) :: timer
+    call timer%free()
+    call timer%create(this%l1_context, message, mode)
+  end subroutine environment_create_l1_timer  
+  
+  !=============================================================================
   subroutine environment_l1_sum_scalar_rp (this,alpha)
     implicit none
     class(environment_t) , intent(in)    :: this
@@ -651,6 +672,15 @@ contains
     assert (this%am_i_l1_task())
     call this%l1_context%max_vector_rp(alpha)
   end subroutine environment_l1_max_vector_rp
+  
+  !=============================================================================
+  subroutine environment_l1_max_scalar_ip (this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: n
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%max_scalar_ip(n)
+  end subroutine environment_l1_max_scalar_ip
 
   !=============================================================================
   !=============================================================================
@@ -708,8 +738,6 @@ contains
        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        num_snd, list_snd, snd_ptrs, pack_idx,   &
        x, chunk_size)
-    use psb_const_mod_names
-    use psb_penv_mod_names
     implicit none
     class(environment_t), intent(in)    :: this
     ! Control info to receive
