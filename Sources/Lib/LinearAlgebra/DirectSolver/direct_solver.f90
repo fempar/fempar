@@ -241,7 +241,7 @@ contains
         real(rp),               pointer :: x_real(:)
         real(rp)                        :: err
         character(len=10)               :: serr
-        real(rp),             parameter :: tol = 1.0e-14
+        real(rp),             parameter :: tol = 1.0e-10
 #endif
 
         assert(associated(op%base_direct_solver))
@@ -306,7 +306,7 @@ contains
         integer(ip)                     :: i
         real(rp)                        :: err
         character(len=10)               :: serr
-        real(rp),             parameter :: tol = 1.0e-14
+        real(rp),             parameter :: tol = 1.0e-10
 #endif
 
         assert(associated(op%base_direct_solver))
