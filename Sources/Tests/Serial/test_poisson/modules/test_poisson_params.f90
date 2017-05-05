@@ -43,7 +43,6 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_reference_fe_order
      character(len=:), allocatable :: default_write_solution
      character(len=:), allocatable :: default_laplacian_type
-
      character(len=:), allocatable :: default_triangulation_type
      character(len=:), allocatable :: default_num_dimensions
      character(len=:), allocatable :: default_nx
@@ -52,6 +51,8 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_is_periodic_in_x
      character(len=:), allocatable :: default_is_periodic_in_y
      character(len=:), allocatable :: default_is_periodic_in_z
+     character(len=:), allocatable :: default_use_void_fes
+     character(len=:), allocatable :: default_use_void_fes_case
 
      type(Command_Line_Interface):: cli 
 
@@ -69,6 +70,9 @@ module test_poisson_params_names
      integer(ip) :: num_dimensions     
      integer(ip) :: number_of_cells_per_dir(0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
+     
+     logical                       :: use_void_fes
+     character(len=str_cla_len)    :: use_void_fes_case
 
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -86,6 +90,8 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dimensions
+     procedure, non_overridable             :: get_use_void_fes
+     procedure, non_overridable             :: get_use_void_fes_case
   end type test_poisson_params_t  
 
   ! Types
@@ -133,7 +139,9 @@ contains
     this%default_is_periodic_in_x = '0'
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
-
+    
+    this%default_use_void_fes = '.false.'
+    this%default_use_void_fes_case = 'popcorn'
   end subroutine test_poisson_set_default
   
   !==================================================================================================
@@ -167,34 +175,42 @@ contains
     call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
          &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
     check(error==0) 
-        call this%cli%add(switch='--laplacian-type',switch_ab='-lt',help='Scalar or Vector-Valued Laplacian PDE?',&
+    call this%cli%add(switch='--laplacian-type',switch_ab='-lt',help='Scalar or Vector-Valued Laplacian PDE?',&
          &            required=.false.,act='store',def=trim(this%default_laplacian_type),choices='scalar,vector',error=error) 
     check(error==0) 
     
     
-        call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
+    call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
          &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
     check(error==0) 
-        call this%cli%add(switch='--number_of_dimensions',switch_ab='-dim',help='Number of space dimensions',&
+    call this%cli%add(switch='--number_of_dimensions',switch_ab='-dim',help='Number of space dimensions',&
          &            required=.false.,act='store',def=trim(this%default_num_dimensions),error=error) 
     check(error==0) 
-        call this%cli%add(switch='--number_of_cells_in_x',switch_ab='-nx',help='Number of cells in x',&
+    call this%cli%add(switch='--number_of_cells_in_x',switch_ab='-nx',help='Number of cells in x',&
          &            required=.false.,act='store',def=trim(this%default_nx),error=error) 
     check(error==0) 
-        call this%cli%add(switch='--number_of_cells_in_y',switch_ab='-ny',help='Number of cells in y',&
+    call this%cli%add(switch='--number_of_cells_in_y',switch_ab='-ny',help='Number of cells in y',&
          &            required=.false.,act='store',def=trim(this%default_ny),error=error) 
     check(error==0) 
-        call this%cli%add(switch='--number_of_cells_in_z',switch_ab='-nz',help='Number of cells in z',&
+    call this%cli%add(switch='--number_of_cells_in_z',switch_ab='-nz',help='Number of cells in z',&
          &            required=.false.,act='store',def=trim(this%default_nz),error=error) 
     check(error==0) 
-        call this%cli%add(switch='--periodic_in_x',switch_ab='-px',help='Is the mesh periodic in x',&
+    call this%cli%add(switch='--periodic_in_x',switch_ab='-px',help='Is the mesh periodic in x',&
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_x),error=error) 
     check(error==0) 
-        call this%cli%add(switch='--periodic_in_y',switch_ab='-py',help='Is the mesh periodic in y',&
+    call this%cli%add(switch='--periodic_in_y',switch_ab='-py',help='Is the mesh periodic in y',&
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_y),error=error) 
     check(error==0) 
-        call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
+    call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
+    check(error==0) 
+    
+    call this%cli%add(switch='--use-void-fes',switch_ab='-use-voids',help='Use a hybrid FE space formed by full and void FEs',&
+         &            required=.false.,act='store',def=trim(this%default_use_void_fes),error=error) 
+    check(error==0) 
+    
+    call this%cli%add(switch='--use-void-fes-case',switch_ab='-use-voids-case',help='Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter`',&
+         &            required=.false.,act='store',def=trim(this%default_use_void_fes_case),error=error) 
     check(error==0) 
 
   end subroutine test_poisson_add_to_cli
@@ -225,6 +241,8 @@ contains
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
+    call this%cli%get(switch='-use-voids',val=this%use_void_fes,error=istat); check(istat==0)
+    call this%cli%get(switch='-use-voids-case',val=this%use_void_fes_case,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -255,6 +273,8 @@ contains
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
+    if(allocated(this%default_use_void_fes)) deallocate(this%default_use_void_fes) 
+    if(allocated(this%default_use_void_fes_case)) deallocate(this%default_use_void_fes_case) 
     call this%cli%free()
   end subroutine test_poisson_free
 
@@ -329,7 +349,7 @@ contains
     character(len=:), allocatable :: get_triangulation_type
     get_triangulation_type = trim(this%triangulation_type)
   end function get_triangulation_type 
-
+  
   !==================================================================================================
   function get_num_dimensions(this)
     implicit none
@@ -337,5 +357,21 @@ contains
     integer(ip) :: get_num_dimensions
     get_num_dimensions = this%num_dimensions
   end function get_num_dimensions
+  
+  !==================================================================================================
+  function get_use_void_fes(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical                                   :: get_use_void_fes
+    get_use_void_fes = this%use_void_fes
+  end function get_use_void_fes
+
+  !==================================================================================================
+  function get_use_void_fes_case(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable             :: get_use_void_fes_case
+    get_use_void_fes_case = trim(this%use_void_fes_case)
+  end function get_use_void_fes_case
 
 end module test_poisson_params_names

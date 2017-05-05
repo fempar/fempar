@@ -240,13 +240,10 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   integer(ip)             :: ivef
   integer(ip)             :: component_id
   integer(ip), allocatable :: offset_component_per_field(:)
-  integer(ip)             :: istat
   type(fe_iterator_t)     :: fe_iterator
   type(fe_accessor_t)     :: fe, source_fe
   type(vef_accessor_t)    :: vef
   class(reference_fe_t), pointer :: reference_fe
-
-  type(i1p_t)          , allocatable :: elem2dof(:)
   logical              , allocatable :: components_code(:)
   integer(ip), allocatable           :: visited_vef_to_fe_map(:,:)
   integer(ip)                        :: previous_number_dirichlet_dofs
@@ -256,14 +253,9 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   ! know a priori which FEs have DoFs which are subject to strong Dirichlet BCs, 
   ! but at the present moment we do not have any way to determine such a thing
   assert ( conditions%get_number_components() == this%get_number_components() )
-  call memalloc ( conditions%get_number_components(), &
-       components_code, &
-       __FILE__, __LINE__ )
+  call memalloc ( conditions%get_number_components(), components_code, __FILE__, __LINE__ )
 
-  allocate ( elem2dof(this%get_number_fields()), stat=istat ) 
-  check ( istat == 0 )
-
-  call memalloc (this%get_number_fields(),offset_component_per_field,__FILE__,__LINE__)
+  call memalloc (this%get_number_fields()+1,offset_component_per_field,__FILE__,__LINE__)
   call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
 
   ! Count number_strong_dirichlet_dofs
@@ -274,29 +266,20 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
 
   ! Precompute the offsets
   call fe_iterator%current(fe)
-  offset_component_per_field(1) = 0
-  do field_id = 1, (this%get_number_fields()-1)
+  offset_component_per_field(1) = 1
+  do field_id = 1, this%get_number_fields()
     reference_fe => fe%get_reference_fe(field_id)
     offset_component_per_field(field_id+1) = offset_component_per_field(field_id) + reference_fe%get_number_field_components()
   end do
 
   do field_id = 1, this%get_number_fields()
-
     ! Initialize
     visited_vef_to_fe_map = -1
 
     call fe_iterator%init()
     do while (.not. fe_iterator%has_finished() )
       call fe_iterator%current(fe)
-
       if ( fe%is_local() ) then
-
-         ! TO-DO: This call should ONLY be performed
-         !        if current cell is at the boundary. 
-         !        type(fe_accessor_t) does NOT currently 
-         !        provide any means to answer such a question.
-         call fe%get_elem2dof(elem2dof)
-
          do ivef = 1, fe%get_num_vefs()
             call fe%get_vef(ivef, vef)
 
@@ -312,30 +295,28 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
 
                ! Auxiliary function containing the work done at each innermost iteration
                previous_number_dirichlet_dofs = this%number_strong_dirichlet_dofs
-               call this%set_up_strong_dirichlet_bcs_on_vef_and_field(&
-                 fe,vef,ivef,field_id,components_code,&
-                 offset_component_per_field(field_id),this%number_strong_dirichlet_dofs,&
-                 visited_vef_to_fe_map,elem2dof,source_fe)
+               call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
+                                                                      vef,&
+                                                                      ivef,&
+                                                                      field_id,&
+                                                                      components_code(offset_component_per_field(field_id):&
+                                                                                      offset_component_per_field(field_id+1)-1),&
+                                                                      this%number_strong_dirichlet_dofs,&
+                                                                      visited_vef_to_fe_map,&
+                                                                      source_fe)
 
                if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 .and. &
                     previous_number_dirichlet_dofs < this%number_strong_dirichlet_dofs ) then
                   visited_vef_to_fe_map ( 1, vef%get_lid() ) = fe%get_lid()
                   visited_vef_to_fe_map ( 2, vef%get_lid() ) = ivef
                end if
-
-               ! Mark cells containing at least one Dirichlet dof
-               if (any(elem2dof(field_id)%p(:) <0 )) &
-                 this%at_strong_dirichlet_boundary_per_fe(field_id,fe%get_lid()) = .true.
-
             end if
          end do
+         call fe%determine_at_strong_dirichlet_boundary(field_id)
       end if
-
       call fe_iterator%next()
-    end do ! Loop if FEs
-
-  end do ! Loop in fields
-
+    end do 
+  end do 
 
   call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
   call this%strong_dirichlet_values%init(0.0_rp)
@@ -343,14 +324,17 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
   call memfree (offset_component_per_field,__FILE__,__LINE__)
-  deallocate ( elem2dof, stat=istat ) 
-  check ( istat == 0 )
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
 
 subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
-                fe,vef,ivef,field_id,components_code,&
-                offset_component,number_strong_dirichlet_dofs,&
-                visited_vef_to_fe_map,elem2dof,source_fe)
+                                                                        fe, &
+                                                                        vef, &
+                                                                        ivef, &
+                                                                        field_id,&
+                                                                        components_code,&
+                                                                        number_strong_dirichlet_dofs,&
+                                                                        visited_vef_to_fe_map,&
+                                                                        source_fe)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   type(fe_accessor_t),      intent(inout) :: fe
@@ -358,58 +342,46 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   integer(ip),              intent(in)    :: ivef
   integer(ip),              intent(in)    :: field_id
   logical,                  intent(in)    :: components_code(:)
-  integer(ip),              intent(in)    :: offset_component
   integer(ip),              intent(inout) :: number_strong_dirichlet_dofs
   integer(ip),              intent(inout) :: visited_vef_to_fe_map(:,:)
-  type(i1p_t),              intent(inout) :: elem2dof(:)
   type(fe_accessor_t),      intent(inout) :: source_fe
 
   type(list_iterator_t)           :: own_dofs_on_vef_iterator
   class(reference_fe_t), pointer  :: reference_fe
-  integer(ip)                     :: component_id
-  integer(ip)                     :: local_within_ref_fe_dof_id
-  integer(ip) :: ifield
 
   ! TO-DO: there is no need to call `get_reference_fe` for each inner loop iteration.
   !        We could use an allocatable array of type(p_reference_fe_t) items, and
   !        allocate/initialize it from the beginning.
   reference_fe => fe%get_reference_fe(field_id)
-
+  assert ( size(components_code) == reference_fe%get_number_field_components() )
+  
   select type ( reference_fe )
      class is ( nedelec_reference_fe_t )
-     component_id = offset_component + 1
-     if ( components_code(component_id) ) then
-        if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-           call fe%fill_own_strong_dirichlet_dofs_on_vef ( ivef, field_id, number_strong_dirichlet_dofs  ) 
-        else
-           call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
-           call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
-                source_fe, &
-                visited_vef_to_fe_map(2,vef%get_lid()), &
-                field_id) 
-        end if
+     if ( components_code(1) ) then
+       if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
+           call fe%fill_own_dofs_on_vef ( ivef, &
+                                          field_id, &
+                                          number_strong_dirichlet_dofs, &
+                                          free_dofs_loop=.false.)
+       end if
      end if
      class is ( lagrangian_reference_fe_t )
      if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-           local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
-           component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
-           if ( components_code(component_id) ) then 
-              number_strong_dirichlet_dofs = number_strong_dirichlet_dofs+1 
-              elem2dof(field_id)%p(local_within_ref_fe_dof_id) = -number_strong_dirichlet_dofs
-              this%at_strong_dirichlet_boundary_per_fe(field_id,fe%get_lid()) = .true.
-           end if
-           call own_dofs_on_vef_iterator%next()
-        end do
-     else
-        call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
-        call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
-             source_fe, &
-             visited_vef_to_fe_map(2,vef%get_lid()), &
-             field_id)
+       call fe%fill_own_dofs_on_vef_component_wise ( ivef, &
+                                                     field_id, &
+                                                     number_strong_dirichlet_dofs, &
+                                                     components_code, &
+                                                     free_dofs_loop=.false. )
      end if
   end select
+  
+  if ( visited_vef_to_fe_map(1, vef%get_lid()) /= -1 ) then
+    call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
+    call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                                                  source_fe, &
+                                                  visited_vef_to_fe_map(2,vef%get_lid()), &
+                                                  field_id) 
+  end if
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
 
 subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time, fields_to_interpolate)
@@ -1836,7 +1808,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
               vef_lid = fe%get_vef_lid(ivef)
               if ( visited_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
                  previous_dof_block = current_dof_block
-                 call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block  )
+                 call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                  if (previous_dof_block < current_dof_block) then
                    visited_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
                    visited_vef_to_fe_map ( 2, vef_lid ) = ivef

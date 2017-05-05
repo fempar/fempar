@@ -76,6 +76,7 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
   logical                         , optional, intent(in)     :: field_coupling(:,:)
 
   type(environment_t), pointer :: par_environment 
+  integer(ip)                  :: field_id
 
   call this%free()
   
@@ -91,6 +92,9 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
                                          reference_fes, &
                                          field_blocks, &
                                          field_coupling )
+     do field_id=1, this%get_number_fields()
+       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
+     end do  
   else
      this%number_blocks = 1
      if (present(field_blocks)) this%number_blocks = maxval(field_blocks)
@@ -124,6 +128,7 @@ subroutine par_fe_space_create_different_between_cells( this, &
   logical                         , optional, intent(in)     :: field_coupling(:,:)
 
   type(environment_t), pointer :: par_environment
+  integer(ip)                  :: field_id
 
   call this%free()
 
@@ -140,6 +145,9 @@ subroutine par_fe_space_create_different_between_cells( this, &
                                          set_ids_to_reference_fes,&
                                          field_blocks, &
                                          field_coupling )
+     do field_id=1, this%get_number_fields()
+       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
+     end do  
   else
      this%number_blocks = 1
      if (present(field_blocks)) this%number_blocks = maxval(field_blocks)
@@ -233,12 +241,10 @@ end subroutine par_fe_space_print
 subroutine par_fe_space_fill_dof_info( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this 
-  integer(ip) :: iblock, field_id
+  integer(ip) :: field_id
   type(environment_t), pointer :: par_environment 
   
-  
-  par_environment => this%get_par_environment ()
-  
+  par_environment => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%fill_dof_info()
      do field_id = 1, this%number_fields
@@ -258,12 +264,10 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   implicit none 
   ! Parameters
   class(par_fe_space_t)  , intent(inout) :: this  
-  integer(ip)                , intent(in)    :: field_id
+  integer(ip)            , intent(in)    :: field_id
 
   ! Local variables
-  integer(ip) :: ivef, vef_lid, ighost, ielem, elem_id, ivef_in_source_fe
-  integer(ip) :: num_elems, num_ghosts
-  integer(ip) :: first_face_id, num_faces
+  integer(ip) :: ivef, ielem, ivef_in_source_fe
   integer(ip) :: iblock, init_dof_block, current_dof_block
   
   type(fe_iterator_t)     :: fe_iterator
@@ -300,8 +304,6 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
                   ivef_in_source_fe = source_fe%find_lpos_vef_lid(vef%get_lid()) 
 
                   ! Check that the source fe has at least one dof on this vef
-                  ! This check can be omitted if we implement a new iterator that for a given vef and field id, 
-                  ! iterate only over the neighbor FEs that are non void
                   reference_fe => source_fe%get_reference_fe(field_id)
                   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
                   if (own_dofs_on_vef_iterator%get_size() > 0) then
@@ -311,7 +313,6 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
                                                                   field_id )    
                     exit
                   end if
-
                 end if
               end do
             end if
@@ -320,7 +321,6 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
         call fe_iterator%next() 
      end do
   else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
-  
      fe_iterator = this%create_fe_iterator()
      do while ( .not. fe_iterator%has_finished() )
         call fe_iterator%current(fe)
@@ -361,6 +361,59 @@ subroutine par_fe_space_renumber_dofs_first_interior_then_interface( this )
     end do
   end if
 end subroutine par_fe_space_renumber_dofs_first_interior_then_interface
+
+
+subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this 
+  integer(ip)          , intent(in)    :: field_id
+  
+  ! Local variables
+  integer(ip) :: ivef, ielem, ivef_in_source_fe
+  
+  type(fe_iterator_t)     :: fe_iterator
+  type(fe_accessor_t)     :: fe
+  type(fe_accessor_t)     :: source_fe
+  type(fe_vef_accessor_t) :: vef 
+  
+  class(reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t)          :: own_dofs_on_vef_iterator
+  
+  if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+     fe_iterator = this%create_fe_iterator()
+     do while ( .not. fe_iterator%has_finished() )
+        call fe_iterator%current(fe)
+        if ( fe%is_ghost() ) then
+          do ivef = 1, fe%get_num_vefs()
+            call fe%get_vef(ivef, vef)
+            if ( vef%is_at_interface() ) then
+              ! Find local element around vef_lid in elem_id
+              do ielem=1, vef%get_num_cells_around()
+                call vef%get_cell_around(ielem, source_fe)
+                if ( source_fe%is_local() ) then
+                  ivef_in_source_fe = source_fe%find_lpos_vef_lid(vef%get_lid()) 
+
+                  ! Check that the source fe has at least one dof on this vef
+                  reference_fe => source_fe%get_reference_fe(field_id)
+                  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
+                  if (own_dofs_on_vef_iterator%get_size() > 0) then
+                    call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                                                                  source_fe, & 
+                                                                  ivef_in_source_fe, &
+                                                                  field_id )    
+                    exit
+                  end if
+                end if
+              end do
+            end if
+          end do
+          call fe%determine_at_strong_dirichlet_boundary(field_id)  
+        end if
+        call fe_iterator%next() 
+     end do
+  end if   
+end subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
+
 
 subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
