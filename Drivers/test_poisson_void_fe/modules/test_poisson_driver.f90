@@ -109,10 +109,8 @@ contains
     implicit none
     class(test_poisson_void_fe_driver_t), intent(inout) :: this
 
-    type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef
-    type(cell_iterator_t) :: cell_iter
-    type(cell_accessor_t) :: cell
+    type(vef_iterator_t)  :: vef
+    class(cell_iterator_t), allocatable :: cell
     type(point_t), allocatable :: cell_coords(:)
     integer(ip) :: istat
     integer(ip) :: set_id
@@ -125,25 +123,23 @@ contains
     !call this%triangulation%print()
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       vef_iterator = this%triangulation%create_vef_iterator()
-       do while ( .not. vef_iterator%has_finished() )
-          call vef_iterator%current(vef)
+       call this%triangulation%create_vef_iterator(vef)
+       do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
-          call vef_iterator%next()
+          call vef%next()
        end do
+       call this%triangulation%free_vef_iterator(vef)
     end if
 
     ! Set the cell ids
     call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-    cell_iter = this%triangulation%create_cell_iterator()
-    call cell_iter%current(cell)
+    call this%triangulation%create_cell_iterator(cell)
     allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
-    do while( .not. cell_iter%has_finished() )
-      call cell_iter%current(cell)
+    do while( .not. cell%has_finished() )
       call cell%get_coordinates(cell_coords)
       x = cell_coords(1)%get(1)
       y = cell_coords(1)%get(2)
@@ -153,10 +149,11 @@ contains
         set_id = 2
       end if
       this%cell_set_ids(cell%get_lid()) = set_id
-      call cell_iter%next()
+      call cell%next()
     end do
     deallocate(cell_coords, stat = istat); check(istat == 0)
     call this%triangulation%fill_cells_set(this%cell_set_ids)
+    call this%triangulation%free_cell_iterator(cell)
 
   end subroutine setup_triangulation
   
@@ -170,8 +167,7 @@ contains
     ! Locals
     integer(ip) :: istat    
     logical                                   :: continuity
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t)                     :: cell
+    class(cell_iterator_t)      , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     character(:), allocatable :: field_type
     
@@ -189,23 +185,8 @@ contains
       field_type = field_type_vector
     end if
     
-    cell_iterator = this%triangulation%create_cell_iterator()
-    call cell_iterator%current(cell)
+    call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
-    
-    
-         
-    ! BEGIN Checking new polytope_tree_t
-    !if ( reference_fe_geo%get_topology() == topology_hex ) then
-    ! topology = 2**this%triangulation%get_num_dimensions()-1
-    !elseif ( reference_fe_geo%get_topology() == topology_tet ) then
-    ! topology = 0
-    !end if
-    !call poly_old%create_old(this%triangulation%get_num_dimensions(), topology )
-    !call poly%create(this%triangulation%get_num_dimensions(), topology )
-    !call poly_old%print()
-    !call poly%print()
-    ! END Checking ...
     
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
@@ -213,6 +194,8 @@ contains
                                                  order = this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
                                                  continuity = continuity ) 
+    
+    call this%triangulation%free_cell_iterator(cell)
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
@@ -463,17 +446,16 @@ contains
     character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
     integer(ip) :: istat
-    type(cell_iterator_t) :: cell_iter
-    type(cell_accessor_t) :: cell
+    class(cell_iterator_t), allocatable :: cell
 
     allocate(cell_vector(1:size(this%cell_set_ids)),stat=istat ); check(istat == 0)
     !cell_vector(:) = this%cell_set_ids(:)
-    cell_iter = this%triangulation%create_cell_iterator()
-    do while( .not. cell_iter%has_finished() )
-      call cell_iter%current(cell)
+    call this%triangulation%create_cell_iterator(cell)
+    do while( .not. cell%has_finished() )
       cell_vector(cell%get_lid()) = cell%get_set_id()
-      call cell_iter%next()
+      call cell%next()
     end do
+    call this%triangulation%free_cell_iterator(cell)
 
     if(this%test_params%get_write_solution()) then
         path = this%test_params%get_dir_path_out()
