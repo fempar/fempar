@@ -56,6 +56,37 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine serial_fe_space_create_same_reference_fes_on_all_cells
 
+subroutine serial_fe_space_create_different_between_cells( this, &
+     triangulation, &
+     conditions, &
+     reference_fes, &
+     set_ids_to_reference_fes,&
+     field_blocks, &
+     field_coupling )
+  implicit none
+  class(serial_fe_space_t)                    , intent(inout) :: this
+  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
+  class(conditions_t)                         , intent(in)    :: conditions
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
+  integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
+
+  call this%free()
+
+  this%triangulation => triangulation
+  this%number_fields = size(set_ids_to_reference_fes,1)
+  call this%allocate_and_fill_reference_fes(reference_fes)
+  call this%allocate_and_fill_field_blocks_and_coupling(field_blocks, field_coupling)
+  call this%allocate_ref_fe_id_per_fe()
+  call this%fill_ref_fe_id_per_fe_different_between_cells(set_ids_to_reference_fes)
+  call this%check_cell_vs_fe_topology_consistency()
+  call this%allocate_and_fill_fe_space_type_per_field()
+  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_init_at_strong_dirichlet_bound()
+  call this%set_up_strong_dirichlet_bcs( conditions )
+end subroutine serial_fe_space_create_different_between_cells
+
 subroutine serial_fe_space_free (this)
   implicit none
   class(serial_fe_space_t)    , intent(inout) :: this
@@ -1110,6 +1141,25 @@ subroutine serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells ( this )
 
 end subroutine serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
 
+subroutine serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells ( this, set_ids_to_reference_fes )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: set_ids_to_reference_fes(:,:)
+
+  integer(ip) :: ifield
+  class(cell_iterator_t),allocatable :: cell
+
+  call this%triangulation%create_cell_iterator(cell)
+  do while (.not. cell%has_finished())
+    do ifield=1, this%number_fields
+      this%reference_fe_id_per_fe(ifield,cell%get_lid()) = set_ids_to_reference_fes(ifield,cell%get_set_id())
+    end do
+    call cell%next()
+  end do
+  call this%triangulation%free_cell_iterator(cell)
+
+end subroutine serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells
+
 subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
   implicit none
   class(serial_fe_space_t)          , intent(in) :: this
@@ -1700,7 +1750,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
 
   ! Local variables
   integer(ip) :: ivef, vef_lid, ielem
-  integer(ip) :: iblock, init_dof_block, current_dof_block
+  integer(ip) :: iblock, init_dof_block, current_dof_block, previous_dof_block
   integer(ip), allocatable :: visited_vef_to_fe_map(:,:)
   class(fe_iterator_t), allocatable :: fe, source_fe
 
@@ -1720,9 +1770,12 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
            do ivef = 1, fe%get_num_vefs()
               vef_lid = fe%get_vef_lid(ivef)
               if ( visited_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
-                 visited_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                 visited_vef_to_fe_map ( 2, vef_lid ) = ivef
-                 call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block  ) 
+                 previous_dof_block = current_dof_block
+                 call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block  )
+                 if (current_dof_block > previous_dof_block) then
+                   visited_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
+                   visited_vef_to_fe_map ( 2, vef_lid ) = ivef
+                 end if
               else 
                  call source_fe%set_lid(visited_vef_to_fe_map(1,vef_lid))
                  call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
@@ -1836,6 +1889,20 @@ function serial_fe_space_get_max_number_shape_functions( this )
           this%reference_fes(irefe)%p%get_number_shape_functions())
   end do
 end function serial_fe_space_get_max_number_shape_functions
+
+function serial_fe_space_get_max_number_dofs_on_a_cell( this ) result (max_dofs)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip) :: max_dofs
+  class(fe_iterator_t), allocatable :: fe
+  max_dofs = 0
+  call this%create_fe_iterator(fe)
+  do while (.not. fe%has_finished())
+    max_dofs = max(max_dofs,fe%get_number_dofs())
+    call fe%next()
+  end do
+  call this%free_fe_iterator(fe)
+end function serial_fe_space_get_max_number_dofs_on_a_cell
 
 function serial_fe_space_get_max_number_quadrature_points( this )
   implicit none
