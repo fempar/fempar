@@ -27,8 +27,9 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module vector_poisson_void_fe_conditions_names
   use fempar_names
+  use poisson_static_parameters_names
   use vector_poisson_void_fe_analytical_functions_names
-  
+
   implicit none
 # include "debug.i90"
   private
@@ -67,7 +68,7 @@ contains
     logical                           , intent(out) :: components_code(:)
     assert ( size(components_code) == 2 .or. size(components_code) == 3 )
     components_code(1:size(components_code)) = .false.
-    if ( boundary_id == 1 ) then
+    if ( boundary_id == SET_ID_DIRI ) then
       components_code(1:size(components_code)) = .true.
     end if
   end subroutine vector_poisson_void_fe_conditions_get_components_code
@@ -80,7 +81,7 @@ contains
     class(scalar_function_t)          , pointer    , intent(out) :: function
     assert ( component_id == 1 .or. component_id == 2 .or.  component_id == 3 )
     nullify(function)
-    if ( boundary_id == 1 ) then
+    if ( boundary_id == SET_ID_DIRI ) then
       function => this%boundary_function
     end if  
   end subroutine vector_poisson_void_fe_conditions_get_function 

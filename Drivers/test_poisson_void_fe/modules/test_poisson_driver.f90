@@ -27,6 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_poisson_void_fe_driver_names
   use fempar_names
+  use list_types_names
+  use poisson_static_parameters_names
   use test_poisson_void_fe_params_names
   use poisson_void_fe_cG_discrete_integration_names
   use poisson_void_fe_dG_discrete_integration_names
@@ -41,9 +43,6 @@ module test_poisson_void_fe_driver_names
 
   implicit none
   private
-
-  integer(ip), parameter :: SET_ID_FULL = 1
-  integer(ip), parameter :: SET_ID_VOID = 2
 
   type test_poisson_void_fe_driver_t 
      private 
@@ -112,35 +111,35 @@ contains
     implicit none
     class(test_poisson_void_fe_driver_t), intent(inout) :: this
 
-    type(vef_iterator_t)  :: vef
     class(cell_iterator_t), allocatable :: cell
     type(point_t), allocatable :: cell_coords(:)
     integer(ip) :: istat
     integer(ip) :: set_id
     real(rp) :: x, y
+    integer(ip) :: num_void_neigs
+
+    integer(ip)           :: ivef
+    type(vef_iterator_t)  :: vef, vef_of_vef
+    type(list_t), pointer :: vefs_of_vef
+    type(list_t), pointer :: vertices_of_line
+    type(list_iterator_t) :: vefs_of_vef_iterator
+    type(list_iterator_t) :: vertices_of_line_iterator
+    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
+    integer(ip) :: vertex_pos_in_cell, icell_arround
 
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%parameter_list)
     !call this%triangulation%print()
-    
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-    end if
+
+    call this%triangulation%create_cell_iterator(cell)
+    call this%triangulation%create_vef_iterator(vef)
+    call this%triangulation%create_vef_iterator(vef_of_vef)
 
     ! Set the cell ids
     call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-    call this%triangulation%create_cell_iterator(cell)
     allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
     do while( .not. cell%has_finished() )
       call cell%get_coordinates(cell_coords)
@@ -156,10 +155,84 @@ contains
     end do
     deallocate(cell_coords, stat = istat); check(istat == 0)
     call this%triangulation%fill_cells_set(this%cell_set_ids)
+
+    ! Initialize all the vefs set ids to SET_ID_FREE
+    do while ( .not. vef%has_finished() )
+       call vef%set_set_id(SET_ID_FREE)
+       call vef%next()
+    end do
+
+    ! Fix all the vefs at the boundary
+    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+       call vef%first()
+       do while ( .not. vef%has_finished() )
+          if(vef%is_at_boundary()) call vef%set_set_id(SET_ID_DIRI)
+          call vef%next()
+       end do
+    end if
+
+    ! Set all the vefs on the interface between full/void
+    call vef%first()
+    do while ( .not. vef%has_finished() )
+       ! If it is an INTERIOR face
+       if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
+
+         ! Compute number of void neighbors
+         num_void_neigs = 0
+         do icell_arround = 1,vef%get_num_cells_around()
+           call vef%get_cell_around(icell_arround,cell)
+           if (cell%get_set_id() == SET_ID_VOID) num_void_neigs = num_void_neigs + 1
+         end do
+
+         if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
+
+             ! Set this face as Dirichlet boundary
+             call vef%set_set_id(SET_ID_DIRI)
+
+             ! Do a loop on all edges in 3D (vertex in 2D) of the face
+             ivef = vef%get_lid()
+             call vef%get_cell_around(1,cell) ! There is always one cell around
+             reference_fe_geo => cell%get_reference_fe_geo()
+             ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
+             vefs_of_vef => reference_fe_geo%get_n_faces_n_face()
+             vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
+             do while( .not. vefs_of_vef_iterator%is_upper_bound() )
+
+                ! Set edge (resp. vertex) as Dirichlet
+                vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
+                call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
+                call vef_of_vef%set_set_id(SET_ID_DIRI)
+
+                ! If 3D, traverse vertices of current line
+                if ( this%triangulation%get_num_dimensions() == 3 ) then
+                  vertices_of_line          => reference_fe_geo%get_vertices_n_face()
+                  vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
+                  do while( .not. vertices_of_line_iterator%is_upper_bound() )
+
+                    ! Set vertex as Dirichlet
+                    vertex_pos_in_cell = vertices_of_line_iterator%get_current()
+                    call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
+                    call vef_of_vef%set_set_id(SET_ID_DIRI)
+
+                    call vertices_of_line_iterator%next()
+                  end do ! Loop in vertices in 3D only
+                end if
+
+                call vefs_of_vef_iterator%next()
+             end do ! Loop in edges (resp. vertices)
+
+         end if ! If face on void/full boundary
+       end if ! If vef is an interior face
+
+       call vef%next()
+    end do ! Loop in vefs
+
     call this%triangulation%free_cell_iterator(cell)
+    call this%triangulation%free_vef_iterator(vef)
+    call this%triangulation%free_vef_iterator(vef_of_vef)
 
   end subroutine setup_triangulation
-  
+
   subroutine setup_reference_fes(this)
     implicit none
     class(test_poisson_void_fe_driver_t), intent(inout) :: this
