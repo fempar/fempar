@@ -150,13 +150,13 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
 
   class(reference_fe_t), pointer :: reference_fe_source 
   integer(ip)                    :: base_pos_lst_dofs_lids_source
-  type(list_iterator_t)          :: own_dofs_on_vef_iterator_source
+  type(list_iterator_t)          :: own_dofs_on_vef_iterator_target
   
   class(reference_fe_t), pointer :: reference_fe_target 
   integer(ip)                    :: base_pos_lst_dofs_lids_target
   
   integer(ip)                    :: idof_source, idof_target
-  integer(ip)                    :: own_dof_within_vef_source_fe
+  integer(ip)                    :: own_dof_within_vef_target_fe
   integer(ip)                    :: relative_orientation, relative_rotation
   logical                        :: strong_dirichlet_dof_found
 
@@ -170,25 +170,25 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   reference_fe_source => source_fe%get_reference_fe(field_id)
   base_pos_lst_dofs_lids_source = this%fe_space%ptr_dofs_per_fe(field_id, source_fe%get_lid())-1
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
-  ! with local identifier ivef within source fe
-  own_dofs_on_vef_iterator_source = reference_fe_source%create_own_dofs_on_n_face_iterator(source_ivef)
+  ! with local identifier ivef within target fe
+  own_dofs_on_vef_iterator_target = reference_fe_target%create_own_dofs_on_n_face_iterator(target_ivef)
   strong_dirichlet_dof_found = .false.
-  if ( own_dofs_on_vef_iterator_source%get_size() > 0 ) then
-       assert (reference_fe_target%check_compatibility_of_n_faces(reference_fe_source,source_ivef,target_ivef))
-       relative_rotation = reference_fe_target%compute_relative_rotation( reference_fe_source, &
-                                                                          source_ivef, &
+  if ( own_dofs_on_vef_iterator_target%get_size() > 0 ) then
+       assert (reference_fe_source%check_compatibility_of_n_faces(reference_fe_target,target_ivef,source_ivef))
+       relative_rotation = reference_fe_source%compute_relative_rotation( reference_fe_target, &
                                                                           target_ivef, &
-                                                                          source_fe%get_vef_lids(), &
-                                                                          this%get_vef_lids())
-       relative_orientation = reference_fe_target%compute_relative_orientation( reference_fe_source, &
-                                                                                source_ivef, &
-                                                                                target_ivef)
+                                                                          source_ivef, &
+                                                                          this%get_vef_lids(), &
+                                                                          source_fe%get_vef_lids())
+       relative_orientation = reference_fe_source%compute_relative_orientation( reference_fe_target, &
+                                                                                target_ivef, &
+                                                                                source_ivef)
        
-      own_dof_within_vef_source_fe = 1
-      do while (.not. own_dofs_on_vef_iterator_source%is_upper_bound())
-        idof_source = own_dofs_on_vef_iterator_source%get_current()
-        idof_target = reference_fe_target%get_permuted_own_node_n_face(own_dof_within_vef_source_fe, &
-                                                                    target_ivef, & 
+      own_dof_within_vef_target_fe = 1
+      do while (.not. own_dofs_on_vef_iterator_target%is_upper_bound())
+        idof_target = own_dofs_on_vef_iterator_target%get_current()
+        idof_source = reference_fe_source%get_permuted_own_node_n_face(own_dof_within_vef_target_fe, &
+                                                                    source_ivef, & 
                                                                     relative_orientation, &
                                                                     relative_rotation)
         
@@ -200,8 +200,8 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
           strong_dirichlet_dof_found = .true.
         end if
         
-        call own_dofs_on_vef_iterator_source%next()
-        own_dof_within_vef_source_fe = own_dof_within_vef_source_fe + 1
+        call own_dofs_on_vef_iterator_target%next()
+        own_dof_within_vef_target_fe = own_dof_within_vef_target_fe + 1
      end do
   end if
   if (strong_dirichlet_dof_found) call this%set_at_strong_dirichlet_boundary(field_id)
