@@ -188,7 +188,7 @@ contains
         class(environment_t),             pointer               :: environment
         integer(ip)                                             :: current_quadrature_and_map
         integer(ip)                                             :: current_volume_integrator
-        integer(ip)                                             :: max_order_within_fe, max_order_field_id
+        integer(ip)                                             :: max_order, max_order_reference_fe_id, max_order_field_id
         integer(ip)                                             :: vol_integ_pos_key
         integer(ip)                                             :: istat, field_id, quadrature_and_map_pos
         integer(ip)                                             :: reference_fe_id
@@ -197,82 +197,88 @@ contains
         character(len=:), allocatable                           :: diff_operator
         class(serial_fe_space_t),  pointer                      :: fe_space
         
-        !-----------------------------------------------------------------
-        fe_space    => fe%get_fe_space()
-        environment => fe_space%get_environment()
-        if (environment%am_i_l1_task()) then
-            call this%free()
-            triangulation => fe_space%get_triangulation()
-            this%number_dimensions = triangulation%get_num_dimensions()
-            this%number_cells      = 0
-            this%number_nodes      = 0
+        !!!!kk !-----------------------------------------------------------------
+        !!!!kk fe_space    => fe%get_fe_space()
+        !!!!kk environment => fe_space%get_environment()
+        !!!!kk if (environment%am_i_l1_task()) then
+        !!!!kk     call this%free()
+        !!!!kk     triangulation => fe_space%get_triangulation()
+        !!!!kk     this%number_dimensions = triangulation%get_num_dimensions()
+        !!!!kk     this%number_cells      = 0
+        !!!!kk     this%number_nodes      = 0
 
-            allocate ( this%quadratures(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
-            allocate ( this%fe_maps(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
-            allocate ( this%volume_integrators(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
+        !!!!kk     allocate ( this%quadratures(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
+        !!!!kk     allocate ( this%fe_maps(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
+        !!!!kk     allocate ( this%volume_integrators(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
 
-            ! Create quadratures, fe_maps, and volume_integrators
-            call this%quadratures_and_maps_position%init()
-            call this%volume_integrators_position%init()
-            current_quadrature_and_map = 1
-            current_volume_integrator  = 1
-            
-            nullify(previous_reference_fe_geo)
-            call fe%first()
-            do while ( .not. fe%has_finished() ) 
-                reference_fe_geo => fe%get_reference_fe_geo()
-                max_order_within_fe = fe%get_max_order_all_fields()
-                call this%quadratures_and_maps_position%put(key = max_order_within_fe, &
-                                                            val = current_quadrature_and_map, &
-                                                            stat = istat)
-                if (istat == now_stored) then
-                    ! Create quadrature and fe_map associated to current max_order_within_fe
-                    call reference_fe_geo%create_data_out_quadrature(num_refinements = max_order_within_fe-1, &
-                                                                     quadrature      = this%quadratures(current_quadrature_and_map))
-                    call this%fe_maps(current_quadrature_and_map)%create(this%quadratures(current_quadrature_and_map),&
-                                                                         reference_fe_geo)
-                    current_quadrature_and_map = current_quadrature_and_map + 1
-                end if
-                do field_id=1, fe_space%get_number_fields()
-                    vol_integ_pos_key = this%generate_vol_integ_pos_key(fe_space%get_number_reference_fes(), &
-                                                                        max_order_within_fe, &
-                                                                        fe%get_reference_fe_id(field_id))
-                    call this%volume_integrators_position%put(key=vol_integ_pos_key, &
-                                                              val=current_volume_integrator, &
-                                                              stat=istat)
-                    if (istat == now_stored) then
-                        call this%quadratures_and_maps_position%get(key = max_order_within_fe, &
-                                                                    val = quadrature_and_map_pos, &
-                                                                    stat = istat)
-                        assert ( istat == key_found )
-                        call this%volume_integrators(current_volume_integrator)%create(this%quadratures(quadrature_and_map_pos),&
-                                                                                       fe%get_reference_fe(field_id))
-                        current_volume_integrator = current_volume_integrator + 1
-                    end if
-                end do
-                if ( fe%is_local() ) then
-                    ! Local cell and node counter
-                    this%number_cells = this%number_cells + reference_fe_geo%get_number_subcells(max_order_within_fe-1)
-                    this%number_nodes = this%number_nodes + &
-                            (reference_fe_geo%get_number_subcells(max_order_within_fe-1)*reference_fe_geo%get_number_vertices())
+        !!!!kk     ! Create quadratures, fe_maps, and volume_integrators
+        !!!!kk     call this%quadratures_and_maps_position%init()
+        !!!!kk     call this%volume_integrators_position%init()
+        !!!!kk     current_quadrature_and_map = 1
+        !!!!kk     current_volume_integrator  = 1
+        !!!!kk     
+        !!!!kk     nullify(previous_reference_fe_geo)
+        !!!!kk     call fe%first()
+        !!!!kk     do while ( .not. fe%has_finished() ) 
+        !!!!kk         ! Call to "max()" in order to take into account 
+        !!!!kk         ! reference_fe_void_t (defined with order == -1)
+        !!!!kk         max_order = max(fe%get_max_order(),1)
+        !!!!kk         reference_fe_geo => fe%get_reference_fe_geo()
+        !!!!kk         max_order_reference_fe_id = fe%get_max_order_reference_fe_id()
+        !!!!kk         call this%quadratures_and_maps_position%put(key = max_order_reference_fe_id, &
+        !!!!kk                                                     val = current_quadrature_and_map, &
+        !!!!kk                                                     stat = istat)
+        !!!!kk         if (istat == now_stored) then
+        !!!!kk             ! Create quadrature and fe_map associated to current max_order_within_fe
+        !!!!kk             call reference_fe_geo%create_data_out_quadrature(num_refinements = max_order-1, &
+        !!!!kk                                                              quadrature      = this%quadratures(current_quadrature_and_map))
+        !!!!kk             call this%fe_maps(current_quadrature_and_map)%create(this%quadratures(current_quadrature_and_map),&
+        !!!!kk                                                                  reference_fe_geo)
+        !!!!kk             current_quadrature_and_map = current_quadrature_and_map + 1
+        !!!!kk         end if
+        !!!!kk         do field_id=1, fe_space%get_number_fields()
+        !!!!kk             vol_integ_pos_key = this%generate_vol_integ_pos_key(fe_space%get_number_reference_fes(), &
+        !!!!kk                                                                 max_order_reference_fe_id, &
+        !!!!kk                                                                 fe%get_reference_fe_id(field_id))
+        !!!!kk             call this%volume_integrators_position%put(key=vol_integ_pos_key, &
+        !!!!kk                                                       val=current_volume_integrator, &
+        !!!!kk                                                       stat=istat)
+        !!!!kk             if (istat == now_stored) then
+        !!!!kk                 call this%quadratures_and_maps_position%get(key = max_order_reference_fe_id, &
+        !!!!kk                                                             val = quadrature_and_map_pos, &
+        !!!!kk                                                             stat = istat)
+        !!!!kk                 assert ( istat == key_found )
+        !!!!kk                 call this%volume_integrators(current_volume_integrator)%create(this%quadratures(quadrature_and_map_pos),&
+        !!!!kk                                                                                fe%get_reference_fe(field_id))
+        !!!!kk                 current_volume_integrator = current_volume_integrator + 1
+        !!!!kk             end if
+        !!!!kk         end do
+        !!!!kk         if ( fe%is_local() ) then
+        !!!!kk             ! Call to "max()" in order to take into account 
+        !!!!kk             ! reference_fe_void_t (defined with order == -1)
+        !!!!kk             max_order = max(fe%get_max_order(),1)
+        !!!!kk             ! Local cell and node counter
+        !!!!kk             this%number_cells = this%number_cells + reference_fe_geo%get_number_subcells(max_order-1)
+        !!!!kk             this%number_nodes = this%number_nodes + &
+        !!!!kk                     (reference_fe_geo%get_number_subcells(max_order-1)*reference_fe_geo%get_number_vertices())
 
-                    ! Check if there are several topology types or a single one
-                    if(associated(previous_reference_fe_geo) .and.                       &
-                        .not. same_type_as(previous_reference_fe_geo, reference_fe_geo)) &
-                            this%mixed_cell_topologies = .true.
-                    previous_reference_fe_geo => reference_fe_geo
-                endif
-                call fe%next()
-            end do
-            ! Configure fill_patch_field strategy for each field
-            if(allocated(this%fill_patch_field)) deallocate(this%fill_patch_field)
-            allocate(this%fill_patch_field(number_fields))
-            do number_field = 1, number_fields
-                field_type    = fe_fields(number_field)%get_field_type()
-                diff_operator = fe_fields(number_field)%get_diff_operator()
-                call this%apply_fill_patch_field_strategy(field_type, diff_operator, this%fill_patch_field(number_field)%p)
-            end do
-        end if
+        !!!!kk             ! Check if there are several topology types or a single one
+        !!!!kk             if(associated(previous_reference_fe_geo) .and.                       &
+        !!!!kk                 .not. same_type_as(previous_reference_fe_geo, reference_fe_geo)) &
+        !!!!kk                     this%mixed_cell_topologies = .true.
+        !!!!kk             previous_reference_fe_geo => reference_fe_geo
+        !!!!kk         endif
+        !!!!kk         call fe%next()
+        !!!!kk     end do
+        !!!!kk     ! Configure fill_patch_field strategy for each field
+        !!!!kk     if(allocated(this%fill_patch_field)) deallocate(this%fill_patch_field)
+        !!!!kk     allocate(this%fill_patch_field(number_fields))
+        !!!!kk     do number_field = 1, number_fields
+        !!!!kk         field_type    = fe_fields(number_field)%get_field_type()
+        !!!!kk         diff_operator = fe_fields(number_field)%get_diff_operator()
+        !!!!kk         call this%apply_fill_patch_field_strategy(field_type, diff_operator, this%fill_patch_field(number_field)%p)
+        !!!!kk     end do
+        !!!!kk end if
     end subroutine output_handler_cell_fe_function_create
 
 
@@ -354,7 +360,10 @@ contains
         fe_space => fe_iterator%get_fe_space()
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
-            max_order_within_fe =  fe_iterator%get_max_order_all_fields()
+            ! This sentence leads to a gfortran 5.3.0 internal error why??? 
+            !max_order_within_fe = max(fe_iterator%get_max_order(),1)
+            ! Using next line instead...
+            max_order_within_fe = max(fe_iterator%get_max_order_all_fields(),1)
             reference_fe_geo    => fe_iterator%get_reference_fe_geo()
             fe_map              => this%get_fe_map()
             coordinates         => fe_map%get_coordinates()
@@ -393,7 +402,6 @@ contains
             ! Fill patch cell vectors data
             do idx = 1, number_cell_vectors
                 patch_cell_vector  => patch%get_cell_vector(idx)
-
                 call this%fill_patch_cell_vector(cell_vectors(idx), patch%get_number_subcells(), patch_cell_vector)
             end do
         end if
@@ -859,17 +867,17 @@ contains
     end subroutine output_handler_cell_fe_function_free
 
 
-    function output_handler_cell_fe_function_generate_vol_integ_pos_key (this, num_reference_fes, max_order_within_fe, reference_fe_id ) result(vol_integ_pos_key)
+    function output_handler_cell_fe_function_generate_vol_integ_pos_key (this, num_reference_fes, max_order_reference_fe_id, reference_fe_id ) result(vol_integ_pos_key)
     !-----------------------------------------------------------------
     !< Generate vol_integ_pos_key
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(in) :: this
         integer(ip),                              intent(in) :: num_reference_fes
-        integer(ip),                              intent(in) :: max_order_within_fe
+        integer(ip),                              intent(in) :: max_order_reference_fe_id
         integer(ip),                              intent(in) :: reference_fe_id
         integer(ip)                                          :: vol_integ_pos_key
     !-----------------------------------------------------------------
-        vol_integ_pos_key = reference_fe_id + (max_order_within_fe)*num_reference_fes
+        vol_integ_pos_key = reference_fe_id + (max_order_reference_fe_id)*num_reference_fes
       end function output_handler_cell_fe_function_generate_vol_integ_pos_key
 
 
@@ -882,12 +890,12 @@ contains
         integer(ip)                                                  :: quadratures_position
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
-        assert ( associated(this%current_fe) )
-        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_all_fields(), &
-             val=quadratures_position, &
-             stat=istat)
-        assert ( .not. istat == key_not_found )
-        quadrature => this%quadratures(quadratures_position)
+        !!!!kk assert ( associated(this%current_fe) )
+        !!!!kk call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_reference_fe_id(), &
+        !!!!kk      val=quadratures_position, &
+        !!!!kk      stat=istat)
+        !!!!kk assert ( .not. istat == key_not_found )
+        !!!!kk quadrature => this%quadratures(quadratures_position)
     end function output_handler_cell_fe_function_get_quadrature
 
 
@@ -900,12 +908,12 @@ contains
         integer(ip)                                                  :: fe_maps_position
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
-        assert ( associated(this%current_fe) )
-        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_all_fields(), &
-             val=fe_maps_position, &
-             stat=istat)
-        assert ( .not. istat == key_not_found )
-        fe_map => this%fe_maps(fe_maps_position)
+        !!!kk assert ( associated(this%current_fe) )
+        !!!kk call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_reference_fe_id(), &
+        !!!kk      val=fe_maps_position, &
+        !!!kk      stat=istat)
+        !!!kk assert ( .not. istat == key_not_found )
+        !!!kk fe_map => this%fe_maps(fe_maps_position)
     end function output_handler_cell_fe_function_get_fe_map
 
 
@@ -920,18 +928,18 @@ contains
         integer(ip)                                                  :: vol_integ_pos
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
-        assert ( associated(this%current_fe) )
+        !!!!kk assert ( associated(this%current_fe) )
 
-        vol_integ_pos_key = &
-             this%generate_vol_integ_pos_key(this%get_number_reference_fes(), &
-             this%current_fe%get_max_order_all_fields(), &
-             this%current_fe%get_reference_fe_id(field_id))
+        !!!!kk vol_integ_pos_key = &
+        !!!!kk      this%generate_vol_integ_pos_key(this%get_number_reference_fes(), &
+        !!!!kk      this%current_fe%get_max_order_reference_fe_id(), &
+        !!!!kk      this%current_fe%get_reference_fe_id(field_id))
 
-        call this%volume_integrators_position%get(key=vol_integ_pos_key, &
-             val=vol_integ_pos, &
-             stat=istat)
-        assert ( .not. istat == key_not_found )
-        volume_integrator => this%volume_integrators(vol_integ_pos)
+        !!!!kk call this%volume_integrators_position%get(key=vol_integ_pos_key, &
+        !!!!kk      val=vol_integ_pos, &
+        !!!!kk      stat=istat)
+        !!!!kk assert ( .not. istat == key_not_found )
+        !!!!kk volume_integrator => this%volume_integrators(vol_integ_pos)
     end function output_handler_cell_fe_function_get_volume_integrator
 
 

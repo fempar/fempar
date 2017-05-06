@@ -367,6 +367,18 @@ subroutine void_reference_fe_evaluate_fe_function_scalar( this,                 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
   real(rp), allocatable           , intent(inout) :: quadrature_points_values(:)
+  
+  if ( allocated(quadrature_points_values) ) then
+      if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+         call memrealloc (actual_cell_interpolation%number_quadrature_points, & 
+                          quadrature_points_values, __FILE__, __LINE__)
+      end if
+  else
+    call memalloc (actual_cell_interpolation%number_quadrature_points, & 
+                   quadrature_points_values, __FILE__, __LINE__)
+  end if
+  ! Required by output_handler_t (visualization purposes)
+  quadrature_points_values = 0.0_rp
 end subroutine void_reference_fe_evaluate_fe_function_scalar
 
 !==================================================================================================
@@ -379,6 +391,19 @@ subroutine void_reference_fe_evaluate_fe_function_vector( this,                 
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  integer(ip) :: i, istat
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  ! Required by output_handler_t (visualization purposes)
+  do i=1, size(quadrature_points_values)
+    call quadrature_points_values(i)%init(0.0_rp)
+  end do
 end subroutine void_reference_fe_evaluate_fe_function_vector
 
 !==================================================================================================
@@ -391,6 +416,7 @@ subroutine void_reference_fe_evaluate_fe_function_tensor( this,                 
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  check(.false.)
 end subroutine void_reference_fe_evaluate_fe_function_tensor
 
 !==================================================================================================
@@ -403,6 +429,19 @@ subroutine void_reference_fe_evaluate_gradient_fe_function_scalar( this,        
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  integer(ip) :: i, istat
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  ! Required by output_handler_t (visualization purposes)
+  do i=1, size(quadrature_points_values)
+    call quadrature_points_values(i)%init(0.0_rp)
+  end do
 end subroutine void_reference_fe_evaluate_gradient_fe_function_scalar
 
 !==================================================================================================
@@ -415,6 +454,19 @@ subroutine void_reference_fe_evaluate_gradient_fe_function_vector( this,        
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  integer(ip) :: i, istat
+  if ( allocated(quadrature_points_values) ) then
+     if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+        deallocate(quadrature_points_values, stat=istat); check(istat==0);
+        allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+     end if
+  else
+     allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  ! Required by output_handler_t (visualization purposes)
+  do i=1, size(quadrature_points_values)
+    call quadrature_points_values(i)%init(0.0_rp)
+  end do
 end subroutine void_reference_fe_evaluate_gradient_fe_function_vector
 
 !==================================================================================================
@@ -426,7 +478,7 @@ function void_reference_fe_check_compatibility_of_n_faces                   &
   integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
   integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
   logical :: void_reference_fe_check_compatibility_of_n_faces
-  ! If we end up here means that the terget element is void.
+  ! If we end up here means that the target element is void.
   ! Return always true since the void element will never recover data from the source.
   ! Thus, no compatibility issues will arise.
   void_reference_fe_check_compatibility_of_n_faces = .true.

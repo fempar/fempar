@@ -480,8 +480,11 @@ module fe_space_names
    class(l1_coarse_fe_handler_t), pointer      :: coarse_fe_handler => NULL()
  contains
    procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
+   procedure, private :: serial_fe_space_create_different_between_cells                           => par_fe_space_serial_create_different_between_cells 
    procedure, private :: par_fe_space_create_same_reference_fes_on_all_cells 
-   generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells   
+   procedure, private :: par_fe_space_create_different_between_cells
+   generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells, &
+                                                                                                     par_fe_space_create_different_between_cells
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface

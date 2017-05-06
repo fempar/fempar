@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module poisson_void_fe_conditions_names
   use fempar_names
-  use poisson_static_parameters_names
+  use par_poisson_static_parameters_names
   
   implicit none
 # include "debug.i90"
@@ -48,8 +48,8 @@ contains
 
   subroutine poisson_void_fe_conditions_set_boundary_function (this, boundary_function)
     implicit none
-    class(poisson_void_fe_conditions_t)        , intent(inout) :: this
-    class(scalar_function_t)   , target, intent(in)    :: boundary_function
+    class(poisson_void_fe_conditions_t)     , intent(inout) :: this
+    class(scalar_function_t), target, intent(in)    :: boundary_function
     this%boundary_function => boundary_function
   end subroutine poisson_void_fe_conditions_set_boundary_function
 
@@ -66,8 +66,8 @@ contains
     integer(ip)            , intent(in)  :: boundary_id
     logical                , intent(out) :: components_code(:)
     assert ( size(components_code) == 1 )
-    components_code(1) = .false.
-    if ( boundary_id == SET_ID_DIRI ) then
+    components_code(1) = .true.
+    if ( boundary_id == PAR_POISSON_SET_ID_DIRI ) then
       components_code(1) = .true.
     end if
   end subroutine poisson_void_fe_conditions_get_components_code
@@ -81,7 +81,7 @@ contains
     assert ( component_id == 1 )
     assert ( associated(this%boundary_function) )
     nullify(function)
-    if ( boundary_id == SET_ID_DIRI ) then
+    if ( boundary_id == PAR_POISSON_SET_ID_DIRI ) then
       function => this%boundary_function
     end if  
   end subroutine poisson_void_fe_conditions_get_function 
