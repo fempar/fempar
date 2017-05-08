@@ -94,6 +94,8 @@ module mpi_context_names
      procedure, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_context_neighbours_exchange_wo_pack_unpack_ieep
      procedure, private :: root_send_master_rcv_ip          => mpi_context_root_send_master_rcv_ip
      procedure, private :: root_send_master_rcv_ip_1D_array => mpi_context_root_send_master_rcv_ip_1D_array
+     procedure, private :: root_send_master_rcv_rp          => mpi_context_root_send_master_rcv_rp
+     procedure, private :: root_send_master_rcv_rp_1D_array => mpi_context_root_send_master_rcv_rp_1D_array
      procedure, private :: gather_to_master_ip              => mpi_context_gather_to_master_ip            
      procedure, private :: gather_to_master_igp             => mpi_context_gather_to_master_igp           
      procedure, private :: gather_to_master_ip_1D_array     => mpi_context_gather_to_master_ip_1D_array   
@@ -1181,6 +1183,42 @@ contains
     end if
   end subroutine mpi_context_root_send_master_rcv_ip_1D_array
 
+  !=============================================================================
+  subroutine mpi_context_root_send_master_rcv_rp ( this, input_data, output_data )
+    implicit none
+    class(mpi_context_t), intent(in)      :: this   
+    real(rp)            , intent(in)      :: input_data
+    real(rp)            , intent(inout)   :: output_data
+    integer :: send_rank, recv_rank, istat
+    send_rank = mpi_context_root
+    recv_rank = this%get_num_tasks()-1
+    if(this%get_current_task()==send_rank) then
+       call mpi_send(input_data, 1, mpi_context_rp, recv_rank,  &
+               & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
+    else if(this%get_current_task()==recv_rank) then
+       call mpi_recv(output_data, 1, mpi_context_rp, send_rank,  &
+               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+    end if
+  end subroutine mpi_context_root_send_master_rcv_rp
+
+  !=============================================================================
+  subroutine mpi_context_root_send_master_rcv_rp_1D_array ( this, input_data, output_data )
+    implicit none
+    class(mpi_context_t), intent(in)      :: this
+    real(rp)            , intent(in)      :: input_data(:)
+    real(rp)            , intent(inout)   :: output_data(:)
+    integer :: send_rank, recv_rank, istat
+    send_rank = mpi_context_root
+    recv_rank = this%get_num_tasks()-1
+    if(this%get_current_task()==send_rank) then
+       call mpi_send(input_data, size(input_data), mpi_context_rp, recv_rank,  &
+               & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
+    else if(this%get_current_task()==recv_rank) then
+       call mpi_recv(output_data, size(output_data), mpi_context_rp, send_rank,  &
+               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+    end if
+  end subroutine mpi_context_root_send_master_rcv_rp_1D_array
+  
   !=============================================================================
   !=============================================================================
   subroutine mpi_context_gather_to_master_ip ( this, input_data, output_data )
