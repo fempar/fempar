@@ -152,9 +152,12 @@ module environment_names
 
      procedure, private :: environment_l1_to_l2_transfer_ip
      procedure, private :: environment_l1_to_l2_transfer_ip_1D_array
+     procedure, private :: environment_l1_to_l2_transfer_rp
+     procedure, private :: environment_l1_to_l2_transfer_rp_1D_array
      generic  :: l1_to_l2_transfer => environment_l1_to_l2_transfer_ip, &
-          environment_l1_to_l2_transfer_ip_1D_array             
-
+          environment_l1_to_l2_transfer_ip_1D_array, &
+          environment_l1_to_l2_transfer_rp, &
+          environment_l1_to_l2_transfer_rp_1D_array
 
      ! Deferred TBPs inherited from class(environment_t)
      !procedure :: info                        => environment_info
@@ -856,6 +859,26 @@ contains
     call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
   end subroutine environment_l1_to_l2_transfer_ip_1D_array
 
+  !=============================================================================
+  subroutine environment_l1_to_l2_transfer_rp ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)      :: this
+    real(rp)                , intent(in)      :: input_data
+    real(rp)                , intent(inout)   :: output_data
+    assert ( this%am_i_l1_to_l2_task() )
+    call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
+  end subroutine environment_l1_to_l2_transfer_rp
+
+  !=============================================================================
+  subroutine environment_l1_to_l2_transfer_rp_1D_array ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)      :: this  
+    real(rp)                , intent(in)      :: input_data(:)
+    real(rp)                , intent(inout)   :: output_data(:)
+    assert ( this%am_i_l1_to_l2_task() )
+    call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
+  end subroutine environment_l1_to_l2_transfer_rp_1D_array
+  
   !=============================================================================
   subroutine environment_l2_from_l1_gather_ip ( this, input_data, output_data )
     implicit none
