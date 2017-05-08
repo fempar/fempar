@@ -19,45 +19,45 @@ then
 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0
-            if [ $? -ne 0 ] 
-            then
-              final_exit_code=1
-            fi
+     if [ $? -ne 0 ] 
+     then
+      final_exit_code=1
+     fi
 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 18 18 0"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 18 18 0
-            if [ $? -ne 0 ] 
-            then
-              final_exit_code=1
-            fi
+     if [ $? -ne 0 ] 
+     then
+      final_exit_code=1
+     fi
 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18
-            if [ $? -ne 0 ] 
-            then
-              final_exit_code=1
-            fi
+     if [ $? -ne 0 ] 
+     then
+      final_exit_code=1
+     fi
 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0 -use-voids T -use-voids-case half"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0 -use-voids T -use-voids-case half
-            if [ $? -ne 0 ] 
-            then
-              final_exit_code=1
-            fi
+     if [ $? -ne 0 ] 
+     then
+       final_exit_code=1
+     fi
 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0 -use-voids T -use-voids-case quarter"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0 -use-voids T -use-voids-case quarter
-            if [ $? -ne 0 ] 
-            then
-              final_exit_code=1
-            fi
+     if [ $? -ne 0 ] 
+     then
+        final_exit_code=1
+     fi
 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18 -use-voids T -use-voids-case popcorn"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18 -use-voids T -use-voids-case popcorn
-            if [ $? -ne 0 ] 
-            then
-              final_exit_code=1
-            fi
+     if [ $? -ne 0 ] 
+     then
+       final_exit_code=1
+     fi
 
 
       # Square + Quads (4 parts)

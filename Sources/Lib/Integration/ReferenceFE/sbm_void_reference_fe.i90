@@ -252,7 +252,24 @@ subroutine void_reference_fe_get_values_vector( this, actual_cell_interpolation,
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   type(vector_field_t), allocatable, intent(inout) :: values(:,:)
   integer(ip)          , optional   , intent(in)   :: qpoints_perm(:)
-  check(.false.)
+  integer(ip) :: istat
+  logical     :: reallocate
+  
+  assert( this%field_type == field_type_vector )
+
+  reallocate = .false.
+  if (allocated(values)) reallocate = (size(values,1) < this%number_shape_functions) .or. &
+                                      (size(values,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if ((.not. allocated(values)) .or. reallocate) then
+     if (allocated(values)) then 
+        deallocate(values, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(values(this%number_shape_functions, &
+              actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);     
+  end if   
 end subroutine void_reference_fe_get_values_vector
 
 !==================================================================================================
@@ -312,7 +329,25 @@ subroutine void_reference_fe_get_gradients_vector( this, actual_cell_interpolati
   type(interpolation_t)                        , intent(in)    :: actual_cell_interpolation 
   type(tensor_field_t)            , allocatable, intent(inout) :: gradients(:,:)
   integer(ip)          , optional              , intent(in)    :: qpoints_perm(:)
-  check(.false.)
+  
+  logical     :: reallocate
+  integer(ip) :: istat
+  assert( this%field_type == field_type_vector )
+  
+  reallocate = .false.
+  if (allocated(gradients)) reallocate = (size(gradients,1) < this%number_shape_functions) .or. &
+                                          (size(gradients,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if ((.not. allocated(gradients)) .or. reallocate) then
+     if (allocated(gradients)) then 
+        deallocate(gradients, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(gradients(this%number_shape_functions, &
+                        actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  
 end subroutine void_reference_fe_get_gradients_vector
 
 !==================================================================================================

@@ -169,8 +169,8 @@ module fe_space_names
     final                               :: fe_iterator_free_final
     procedure, non_overridable, private :: fill_own_dofs                              => fe_iterator_fill_own_dofs
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => fe_iterator_fill_own_dofs_on_vef
+    procedure, non_overridable, private :: fill_own_dofs_on_vef_component_wise        => fe_iterator_fill_own_dofs_on_vef_component_wise
     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_fe        => fe_iterator_fill_own_dofs_on_vef_from_source_fe
-    procedure, non_overridable, private :: fill_own_strong_dirichlet_dofs_on_vef      => fe_iterator_fill_own_strong_dirichlet_dofs_on_vef
     procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_iterator_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_iterator_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_iterator_renumber_dofs_field
@@ -194,8 +194,10 @@ module fe_space_names
                                                                                          get_max_order_all_fields
 
     procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_iterator_at_strong_dirichlet_boundary
-    procedure, non_overridable          :: set_at_strong_dirichlet_boundary           => fe_iterator_set_at_strong_dirichlet_boundary
-    procedure, non_overridable          :: unset_at_strong_dirichlet_boundary         => fe_iterator_unset_at_strong_dirichlet_boundary
+    procedure, non_overridable          :: fe_iterator_determine_at_strong_dirichlet_boundary_single_field
+    procedure, non_overridable          :: fe_iterator_determine_at_strong_dirichlet_boundary_all_fields
+    generic                             :: determine_at_strong_dirichlet_boundary     => fe_iterator_determine_at_strong_dirichlet_boundary_single_field, &
+                                                                                         fe_iterator_determine_at_strong_dirichlet_boundary_all_fields 
     procedure, non_overridable          :: compute_volume                             => fe_iterator_compute_volume
     
     procedure, non_overridable          :: get_quadrature                             => fe_iterator_get_quadrature
@@ -488,6 +490,7 @@ module fe_space_names
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
+   procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
 
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
@@ -526,13 +529,13 @@ module fe_space_names
    procedure        , non_overridable, private  :: gather_coarse_dofs_gids_rcv_counts_and_displs   => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
    procedure        , non_overridable, private  :: gather_coarse_dofs_gids                         => par_fe_space_gather_coarse_dofs_gids
    procedure        , non_overridable, private  :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
-   procedure                                   :: get_total_number_coarse_dofs                    => par_fe_space_get_total_number_coarse_dofs
-   procedure                                   :: get_block_number_coarse_dofs                    => par_fe_space_get_block_number_coarse_dofs
-   procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
+   procedure                                    :: get_total_number_coarse_dofs                    => par_fe_space_get_total_number_coarse_dofs
+   procedure                                    :: get_block_number_coarse_dofs                    => par_fe_space_get_block_number_coarse_dofs
+   procedure       , non_overridable            :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
 
    ! Objects-related traversals
-   procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
-   procedure, non_overridable                  :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
+   procedure, non_overridable                   :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
+   procedure, non_overridable                   :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
    end type par_fe_space_t
  
  public :: par_fe_space_t
