@@ -61,10 +61,10 @@ module par_test_poisson_void_fe_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
      
-#ifdef ENABLE_MKL     
+!#ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
      type(mlbddc_t)                            :: mlbddc
-#endif  
+!#endif  
     
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
@@ -88,6 +88,7 @@ module par_test_poisson_void_fe_driver_names
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure        , private :: free
+     procedure, nopass, private :: ls_fun => par_test_poisson_void_fe_driver_ls_fun
   end type par_test_poisson_void_fe_fe_driver_t
 
   ! Types
@@ -123,6 +124,7 @@ contains
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
     integer(ip) :: vertex_pos_in_cell, icell_arround
+    integer(ip) :: inode, num
 
     call this%triangulation%create(this%parameter_list)
     this%par_environment => this%triangulation%get_par_environment()
@@ -138,15 +140,15 @@ contains
       allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
       do while( .not. cell%has_finished() )
         if (cell%is_local()) then
+          set_id = PAR_POISSON_SET_ID_VOID
           call cell%get_coordinates(cell_coords)
-          x = cell_coords(1)%get(1)
-          y = cell_coords(1)%get(2)
-          !if (x>=0.25 .and. y>=0.5) then
-          if (y>=0.5) then
-            set_id = PAR_POISSON_SET_ID_FULL
-          else
-            set_id = PAR_POISSON_SET_ID_VOID
-          end if
+          do inode = 1,cell%get_num_nodes()
+            if ( this%ls_fun(cell_coords(inode),&
+              this%triangulation%get_num_dimensions()) < 0.0 ) then
+              set_id = PAR_POISSON_SET_ID_FULL
+              exit
+            end if
+          end do
           this%cell_set_ids(cell%get_lid()) = set_id
         end if
         call cell%next()
@@ -312,27 +314,27 @@ contains
     type(parameterlist_t) :: parameter_list
     integer(ip) :: FPLError
 
-#ifdef ENABLE_MKL   
+!#ifdef ENABLE_MKL   
     ! Set-up MLBDDC preconditioner
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
-#endif    
+!#endif    
    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
-#ifdef ENABLE_MKL
+!#ifdef ENABLE_MKL
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
-#else
-    call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-    assert(FPLError == 0)
-    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-    call parameter_list%free()
-#endif   
+!#else
+!    call parameter_list%init()
+!    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+!    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+!    assert(FPLError == 0)
+!    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+!    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+!    call parameter_list%free()
+!#endif   
     
   end subroutine setup_solver
   
@@ -486,9 +488,9 @@ contains
     integer(ip) :: i, istat
     
     call this%solution%free()
-#ifdef ENABLE_MKL    
+!#ifdef ENABLE_MKL    
     call this%mlbddc%free()
-#endif    
+!#endif    
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
@@ -505,5 +507,52 @@ contains
     call this%par_environment%free() 
     !call this%w_context%free(.true.)
   end subroutine free  
+
+  function par_test_poisson_void_fe_driver_ls_fun(point,num_dim) result (val)
+    implicit none
+    type(point_t), intent(in) :: point
+    integer(ip),   intent(in) :: num_dim
+    real(rp) :: val
+    type(point_t) :: p
+    real(rp) :: x, y, z
+    real(rp) :: xk, yk, zk
+    real(rp) :: r0, sg, A
+    integer(ip) :: k
+
+    p = point
+    if (num_dim < 3) call p%set(3,0.62)
+    !x = 1.85*( 2.0*p%get(1) - 1.0 )
+    !y = 1.85*( 2.0*p%get(2) - 1.0 )
+    !z = 1.85*( 2.0*p%get(3) - 1.0 )
+    !val = (x**2+y**2-4)**2 + (z**2-1.2)**2 + (y**2+z**2-4)**2 +&
+    !      (x**2-1.2)**2 + (z**2+x**2-4)**2 + (y**2-1.2)**2 - 12
+    x = ( 2.0*p%get(1) - 1.0 )
+    y = ( 2.0*p%get(2) - 1.0 )
+    z = ( 2.0*p%get(3) - 1.0 )
+    r0 = 0.6
+    sg = 0.2
+    A  = 2.0
+    val = sqrt(x**2 + y**2 + z**2) - r0
+    do k = 0,11
+        if (0 <= k .and. k <= 4) then
+            xk = (r0/sqrt(5.0))*2.0*cos(2.0*k*pi/5.0)
+            yk = (r0/sqrt(5.0))*2.0*sin(2.0*k*pi/5.0)
+            zk = (r0/sqrt(5.0))
+        else if (5 <= k .and. k <= 9) then
+            xk = (r0/sqrt(5.0))*2.0*cos((2.0*(k-5)-1.0)*pi/5.0)
+            yk = (r0/sqrt(5.0))*2.0*sin((2.0*(k-5)-1.0)*pi/5.0)
+            zk =-(r0/sqrt(5.0))
+        else if (k == 10) then
+            xk = 0
+            yk = 0
+            zk = r0
+        else
+            xk = 0
+            yk = 0
+            zk = -r0
+        end if
+        val = val - A*exp( -( (x - xk)**2  + (y - yk)**2 + (z - zk)**2 )/(sg**2) )
+    end do
+  end function par_test_poisson_void_fe_driver_ls_fun
   
 end module par_test_poisson_void_fe_driver_names

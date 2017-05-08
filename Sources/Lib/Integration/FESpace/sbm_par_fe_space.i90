@@ -300,11 +300,11 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
                   ivef_in_source_fe = source_fe%find_lpos_vef_lid(vef%get_lid()) 
 
                   ! Check that the source fe has at least one dof on this vef
-                  ! This check can be omitted if we implement a new iterator that for a given vef and field if, 
+                  ! This check can be omitted if we implement a new iterator that for a given vef and field id, 
                   ! iterate only over the neighbor FEs that are non void
                   reference_fe => source_fe%get_reference_fe(field_id)
                   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
-                  if (own_dofs_on_vef_iterator%get_size() .ne. 0) then
+                  if (own_dofs_on_vef_iterator%get_size() > 0) then
                     call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
                                                                   source_fe, & 
                                                                   ivef_in_source_fe, &
@@ -943,7 +943,6 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   type(fe_vef_iterator_t)                :: vef
   class(fe_iterator_t), allocatable :: fe
   type(i1p_t)              , allocatable :: elem2dof(:)
-  logical :: found_local_dofs
 
 
   par_environment   => this%get_par_environment()
@@ -980,29 +979,8 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
      num_parts = 0
      max_part_id = mypart_id
      max_elem_gid = 0
-     num_dofs_current_vef = 0
-     
-     ! Check if this vefs has local dofs
-     found_local_dofs = .false.
-     do ielem=1, vef%get_num_cells_around()
-       call vef%get_cell_around(ielem,fe)
-       if ( fe%is_local() ) then
-         reference_fe => fe%get_reference_fe(field_id)
-         ivef = fe%find_lpos_vef_lid(vef%get_lid())
-         own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-         if ( own_dofs_on_vef_iterator%get_size() /= 0 ) then
-           found_local_dofs = .true.
-           exit
-         end if
-       end if
-     end do
 
-     ! If vef does not have local dofs, we do not add any conection
-     if (.not. found_local_dofs) then
-       call vef%next()
-       cycle
-     end if
-     
+     num_dofs_current_vef = 0
      ! Identify the total set of dofs in current vef
      do ielem=1, vef%get_num_cells_around()
         call vef%get_cell_around(ielem,fe)
