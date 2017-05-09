@@ -91,6 +91,7 @@ module environment_names
      procedure :: print                          => environment_print
      procedure :: created                        => environment_created
      ! Getters
+     procedure :: get_num_levels                 => environment_get_num_levels
      procedure :: get_num_tasks                  => environment_get_num_tasks
      procedure :: get_next_level                 => environment_get_next_level
      procedure :: get_w_context                  => environment_get_w_context
@@ -478,7 +479,14 @@ contains
   end function environment_created
 
   !=============================================================================
+  function environment_get_num_levels (this)
+    implicit none 
+    class(environment_t), intent(in) :: this
+    integer(ip) :: environment_get_num_levels
+    environment_get_num_levels = this%num_levels 
+  end function environment_get_num_levels
 
+  !=============================================================================
   function environment_get_num_tasks (this)
     implicit none 
     class(environment_t), intent(in) :: this
