@@ -482,28 +482,32 @@ subroutine base_mlbddc_compute_subdomain_elmat ( this, subdomain_elmat )
        __LINE__ )
 
   work = 0.0_rp
-  call A%apply_to_dense_matrix ( n     = fe_space%get_block_number_coarse_dofs(1), &
-       alpha = 1.0_rp, &
-       ldb   = A%get_num_rows(), &
-       b     = this%Phi, &
-       beta  = 0.0_rp, &
-       ldc   = A%get_num_rows(), &
-       c     = work )        
+  if ( fe_space%get_block_number_coarse_dofs(1) > 0 ) then
+     call A%apply_to_dense_matrix ( n     = fe_space%get_block_number_coarse_dofs(1), &
+          alpha = 1.0_rp, &
+          ldb   = A%get_num_rows(), &
+          b     = this%Phi, &
+          beta  = 0.0_rp, &
+          ldc   = A%get_num_rows(), &
+          c     = work )  
+  end if
   subdomain_elmat = 0.0_rp
 #ifdef ENABLE_BLAS
-  call DGEMM( 'T', &
-       'N', &
-       fe_space%get_block_number_coarse_dofs(1), &
-       fe_space%get_block_number_coarse_dofs(1), &
-       A%get_num_rows(), &
-       1.0, &
-       this%Phi, &
-       A%get_num_rows() , &
-       work, &
-       A%get_num_rows(), &
-       0.0, &
-       subdomain_elmat, &
-       fe_space%get_block_number_coarse_dofs(1))
+  if ( fe_space%get_block_number_coarse_dofs(1) > 0 ) then
+     call DGEMM( 'T', &
+          'N', &
+          fe_space%get_block_number_coarse_dofs(1), &
+          fe_space%get_block_number_coarse_dofs(1), &
+          A%get_num_rows(), &
+          1.0, &
+          this%Phi, &
+          A%get_num_rows() , &
+          work, &
+          A%get_num_rows(), &
+          0.0, &
+          subdomain_elmat, &
+          fe_space%get_block_number_coarse_dofs(1))
+  end if
 #else
   write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
   write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
