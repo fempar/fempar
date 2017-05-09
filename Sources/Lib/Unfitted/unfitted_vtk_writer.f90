@@ -85,8 +85,8 @@ contains
 
     integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
     integer(ip) :: istat, icell, inode, ino, isubcell
-    type(unfitted_cell_iterator_t)  :: cell_iter
-    type(unfitted_cell_accessor_t)  :: cell
+    class(cell_iterator_t), allocatable, target  :: cell_std
+    class(unfitted_cell_iterator_t), pointer  :: cell
     type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
     integer(ip) :: the_cell_type, the_subcell_type
     integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
@@ -98,19 +98,14 @@ contains
     if ( .not. this%environment%am_i_l1_task() ) return
     my_part_id = this%environment%get_l1_rank() + 1
 
-    select type (triangulation)
-    class is (serial_unfitted_triangulation_t)
-      cell_iter = triangulation%create_unfitted_cell_iterator()
-      num_subcells = triangulation%get_total_num_of_subcells()
-      num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
-    class is (par_unfitted_triangulation_t)
-      cell_iter = triangulation%create_unfitted_cell_iterator()
-      num_subcells = triangulation%get_total_num_of_subcells()
-      num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
+    call triangulation%create_cell_iterator(cell_std)
+
+    select type (cell_std)
+    class is (unfitted_cell_iterator_t)
+      cell => cell_std
     class default 
       check(.false.)
     end select
-    call cell_iter%current(cell)
 
     num_dime = triangulation%get_num_dimensions()
     num_cells = triangulation%get_num_local_cells()
@@ -145,16 +140,14 @@ contains
     end select
 
     ! Fill date to be passed to vtkio
-    call cell_iter%init()
+    call cell%first()
     icell = 1
     inode = 1
-    do while ( .not. cell_iter%has_finished() )
-
-      call cell_iter%current(cell)
+    do while ( .not. cell%has_finished() )
 
       ! Skip ghost elems
       if (cell%is_ghost()) then
-        call cell_iter%next(); cycle
+        call cell%next(); cycle
       end if
 
       call cell%update_sub_triangulation()
@@ -212,7 +205,7 @@ contains
 
       end do
 
-      call cell_iter%next()
+      call cell%next()
     end do
 
 
@@ -223,6 +216,7 @@ contains
     deallocate ( subcell_coords, stat = istat ); check(istat == 0)
     call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
     call memfree ( nodesids, __FILE__, __LINE__ )
+    call triangulation%free_cell_iterator(cell_std)
 
   end subroutine  uvtkw_attach_triangulation
 
@@ -235,8 +229,8 @@ contains
   
     integer(ip) :: num_subfaces, num_subface_nodes, num_dime
     integer(ip) :: istat, iface, inode, ino, isubface
-    type(unfitted_cell_iterator_t)  :: cell_iter
-    type(unfitted_cell_accessor_t)  :: cell
+    class(cell_iterator_t), allocatable, target  :: cell_std
+    class(unfitted_cell_iterator_t), pointer  :: cell
     type(point_t), allocatable, dimension(:) :: subface_coords
     integer(ip) :: the_subface_type
 
@@ -245,8 +239,14 @@ contains
     this%environment => triangulation%get_par_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
 
-    cell_iter = triangulation%create_unfitted_cell_iterator()
-    call cell_iter%current(cell)
+    call triangulation%create_cell_iterator(cell_std)
+    select type (cell_std)
+    class is (unfitted_cell_iterator_t)
+      cell => cell_std
+    class default
+      check(.false.)
+    end select
+
   
     num_dime = triangulation%get_num_dimensions()
     num_subfaces = triangulation%get_total_num_of_subfaces()
@@ -272,16 +272,14 @@ contains
     end select
   
     ! Fill date to be passed to vtkio
-    call cell_iter%init()
+    call cell%first()
     iface = 1
     inode = 1
-    do while ( .not. cell_iter%has_finished() )
+    do while ( .not. cell%has_finished() )
   
-      call cell_iter%current(cell)
-
       ! Skip ghost elems
       if (cell%is_ghost()) then
-        call cell_iter%next(); cycle
+        call cell%next(); cycle
       end if
   
       call cell%update_sub_triangulation()
@@ -304,14 +302,14 @@ contains
   
       end do
   
-      call cell_iter%next()
+      call cell%next()
     end do
   
   
     if (num_dime == 2_ip) this%z(:) = 0
   
     deallocate ( subface_coords, stat = istat ); check(istat == 0)
-    call cell_iter%free()
+    call triangulation%free_cell_iterator(cell_std)
   
   end subroutine uvtkw_attach_boundary_faces
 
@@ -324,10 +322,9 @@ contains
     class(serial_fe_space_t),      intent(in)    :: fe_space
 
     class(base_static_triangulation_t), pointer :: triangulation
-    type(unfitted_fe_iterator_t) :: fe_iterator
-    type(unfitted_fe_accessor_t), target :: fe
-    class(fe_accessor_t), pointer :: fe_ptr
-    class(unfitted_cell_accessor_t), pointer :: cell
+    class(fe_iterator_t), allocatable, target  :: fe_std
+    class(unfitted_fe_iterator_t),     pointer :: fe
+    class(unfitted_cell_iterator_t),   pointer :: cell
     class(reference_fe_t), pointer :: ref_fe
     type(quadrature_t) :: subcel_nodal_quad
     type(interpolation_t) :: fe_interpol
@@ -367,34 +364,31 @@ contains
     call subcel_nodal_quad%create(num_dime,num_subelem_nodes)
     subcell_coords => subcel_nodal_quad%get_coordinates()
 
-    select type(fe_space)
-      class is (serial_unfitted_fe_space_t)
-        fe_iterator = fe_space%create_unfitted_fe_iterator()
-      class is (par_unfitted_fe_space_t)
-        fe_iterator = fe_space%create_unfitted_fe_iterator()
+    call fe_space%create_fe_iterator(fe_std)
+
+    select type(fe_std)
+      class is (unfitted_fe_iterator_t)
+      fe => fe_std
       class default
         check(.false.)
     end select
 
     ipoint = 1
-    do while ( .not. fe_iterator%has_finished() )
-
-       call fe_iterator%current(fe)
+    do while ( .not. fe%has_finished() )
 
        ! Skip ghost elems
        if (fe%is_ghost()) then
-         call fe_iterator%next(); cycle
+         call fe%next(); cycle
        end if
 
-       fe_ptr => fe
-       cell => fe%get_unfitted_cell_accessor()
+       cell => fe%get_unfitted_cell_iterator()
        ref_fe => fe%get_reference_fe(1) ! TODO we assume a single field
 
        ! Recover nodal values
        if (cell%is_exterior()) then
          nodal_vals(:) = 0.0
        else
-         call fe_function%gather_nodal_values(fe_ptr,1,nodal_vals)!TODO we assume a single field
+         call fe_function%gather_nodal_values(fe,1,nodal_vals)!TODO we assume a single field
        end if
 
        do inode = 1,num_elem_nodes
@@ -429,7 +423,7 @@ contains
 
        end do
 
-       call fe_iterator%next()
+       call fe%next()
     end do
 
     call memfree ( nodal_vals,         __FILE__, __LINE__ )
@@ -437,6 +431,7 @@ contains
     deallocate(subcell_points,stat = istat); check(istat == 0)
     call subcel_nodal_quad%free()
     call fe_interpol%free()
+    call fe_space%free_fe_iterator(fe_std)
 
 
   end subroutine  uvtkw_attach_fe_function
@@ -448,8 +443,7 @@ contains
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
   
-    type(unfitted_fe_iterator_t) :: fe_iterator
-    type(unfitted_fe_accessor_t) :: fe
+    type(unfitted_fe_iterator_t) :: fe
     type(quadrature_t), pointer :: quadrature
     type(point_t), pointer :: quadrature_coordinates(:)
     type(piecewise_fe_map_t),     pointer :: fe_map
@@ -478,15 +472,14 @@ contains
     end select
 
   
-    fe_iterator = fe_space%create_unfitted_fe_iterator()
+    call fe_space%create_unfitted_fe_iterator(fe)
     num_gp_subface = 0
-    do while ( .not. fe_iterator%has_finished() )
-       call fe_iterator%current(fe)
+    do while ( .not. fe%has_finished() )
        call fe%update_boundary_integration()
        quadrature => fe%get_boundary_quadrature()
        num_gp_subface = quadrature%get_number_quadrature_points()
        if (num_gp_subface > 0) exit
-       call fe_iterator%next()
+       call fe%next()
     end do
   
     this%Ne = num_subfaces*num_gp_subface
@@ -503,15 +496,12 @@ contains
     call memalloc ( this%Nn, this%v_z, __FILE__, __LINE__ )
   
     ipoint = 1
-    fe_iterator = fe_space%create_unfitted_fe_iterator()
-    do while ( .not. fe_iterator%has_finished() )
+    call fe%first()
+    do while ( .not. fe%has_finished() )
   
-       ! Get current FE
-       call fe_iterator%current(fe)
-
        ! Skip ghost elems
        if (fe%is_ghost()) then
-         call fe_iterator%next(); cycle
+         call fe%next(); cycle
        end if
   
        ! Update FE-integration related data structures
@@ -539,11 +529,12 @@ contains
          ipoint = ipoint + 1
        end do
   
-       call fe_iterator%next()
+       call fe%next()
     end do
   
     if (num_dime == 2_ip) this%z(:) = 0
     if (num_dime == 2_ip) this%v_z(:) = 0
+    call fe_space%free_unfitted_fe_iterator(fe)
   
   end subroutine uvtkw_attach_boundary_quad_points
 

@@ -40,7 +40,7 @@ module unfitted_triangulations_names
 # include "mc_tables_qua4.i90"
 # include "mc_tables_hex8.i90"
   
-  type, extends(cell_accessor_t) :: unfitted_cell_accessor_t
+  type, extends(cell_iterator_t) :: unfitted_cell_iterator_t
   
     private
     class(marching_cubes_t), pointer :: marching_cubes => NULL()
@@ -48,56 +48,44 @@ module unfitted_triangulations_names
   contains
 
     ! Creation / deletion methods
-    generic :: create => unfitted_cell_accessor_create
-    procedure, private :: unfitted_cell_accessor_create
-    procedure :: cell_accessor_create  => unfitted_cell_accessor_cell_accessor_create
-    procedure :: free   => unfitted_cell_accessor_cell_accessor_free
+    generic            :: create                         => unfitted_cell_iterator_create
+    procedure, private :: cell_iterator_create           => unfitted_cell_iterator_cell_iterator_create
+    procedure, private :: unfitted_cell_iterator_create
+    procedure          :: free                           => unfitted_cell_iterator_free
     
     ! Updater: to be called each time the lid changes
-    procedure, non_overridable :: update_sub_triangulation    => unfitted_cell_accessor_update_sub_triangulation
+    procedure, non_overridable :: update_sub_triangulation    => unfitted_cell_iterator_update_sub_triangulation
 
     ! TODO this one should be private in the future
-    ! Now it is public because the fe accessor uses it
-    ! The goal is that the fe accessor does not assume that the mc algorithm is used to subdivide the elements
-    procedure, non_overridable :: get_mc_case   => unfitted_cell_accessor_get_mc_case
+    ! Now it is public because the fe iterator uses it
+    ! The goal is that the fe iterator does not assume that the mc algorithm is used to subdivide the elements
+    procedure, non_overridable :: get_mc_case   => unfitted_cell_iterator_get_mc_case
     
     ! Getters related with the subcells
-    procedure, non_overridable :: get_number_of_subcells      => unfitted_cell_accessor_get_number_of_subcells
-    procedure, non_overridable :: get_number_of_subcell_nodes => unfitted_cell_accessor_get_number_of_subcell_nodes
-    procedure, non_overridable :: get_phys_coords_of_subcell  => unfitted_cell_accessor_get_phys_coords_of_subcell
-    procedure, non_overridable :: get_ref_coords_of_subcell   => unfitted_cell_accessor_get_ref_coords_of_subcell
+    procedure, non_overridable :: get_number_of_subcells      => unfitted_cell_iterator_get_number_of_subcells
+    procedure, non_overridable :: get_number_of_subcell_nodes => unfitted_cell_iterator_get_number_of_subcell_nodes
+    procedure, non_overridable :: get_phys_coords_of_subcell  => unfitted_cell_iterator_get_phys_coords_of_subcell
+    procedure, non_overridable :: get_ref_coords_of_subcell   => unfitted_cell_iterator_get_ref_coords_of_subcell
     
     ! Getters related with the subfaces
-    procedure, non_overridable :: get_number_of_subfaces      => unfitted_cell_accessor_get_number_of_subfaces
-    procedure, non_overridable :: get_number_of_subface_nodes => unfitted_cell_accessor_get_number_of_subface_nodes
-    procedure, non_overridable :: get_phys_coords_of_subface  => unfitted_cell_accessor_get_phys_coords_of_subface
-    procedure, non_overridable :: get_ref_coords_of_subface   => unfitted_cell_accessor_get_ref_coords_of_subface
+    procedure, non_overridable :: get_number_of_subfaces      => unfitted_cell_iterator_get_number_of_subfaces
+    procedure, non_overridable :: get_number_of_subface_nodes => unfitted_cell_iterator_get_number_of_subface_nodes
+    procedure, non_overridable :: get_phys_coords_of_subface  => unfitted_cell_iterator_get_phys_coords_of_subface
+    procedure, non_overridable :: get_ref_coords_of_subface   => unfitted_cell_iterator_get_ref_coords_of_subface
     
     ! Checkers
-    procedure, non_overridable :: is_cut      => unfitted_cell_accessor_is_cut
-    procedure, non_overridable :: is_interior => unfitted_cell_accessor_is_interior
-    procedure, non_overridable :: is_exterior => unfitted_cell_accessor_is_exterior
-    procedure, non_overridable :: is_interior_subcell => unfitted_cell_accessor_is_interior_subcell
-    procedure, non_overridable :: is_exterior_subcell => unfitted_cell_accessor_is_exterior_subcell
+    procedure, non_overridable :: is_cut      => unfitted_cell_iterator_is_cut
+    procedure, non_overridable :: is_interior => unfitted_cell_iterator_is_interior
+    procedure, non_overridable :: is_exterior => unfitted_cell_iterator_is_exterior
+    procedure, non_overridable :: is_interior_subcell => unfitted_cell_iterator_is_interior_subcell
+    procedure, non_overridable :: is_exterior_subcell => unfitted_cell_iterator_is_exterior_subcell
 
     ! Private TBPs
-    procedure, non_overridable, private :: get_number_of_subnodes         => unfitted_cell_accessor_get_number_of_subnodes
-    procedure, non_overridable, private :: subcell_has_been_reoriented    => unfitted_cell_accessor_subcell_has_been_reoriented
-    procedure, non_overridable, private :: subface_touches_interior_reoriented_subcell => unfitted_cell_accessor_subface_touches_reoriented_subcell
+    procedure, non_overridable, private :: get_number_of_subnodes         => unfitted_cell_iterator_get_number_of_subnodes
+    procedure, non_overridable, private :: subcell_has_been_reoriented    => unfitted_cell_iterator_subcell_has_been_reoriented
+    procedure, non_overridable, private :: subface_touches_interior_reoriented_subcell => unfitted_cell_iterator_subface_touches_reoriented_subcell
 
     
-  end type unfitted_cell_accessor_t
-
-  type :: unfitted_cell_iterator_t
-    private
-    type(unfitted_cell_accessor_t) :: current_cell_accessor
-  contains
-    procedure, non_overridable, private :: create       => unfitted_cell_iterator_create
-    procedure, non_overridable          :: free         => unfitted_cell_iterator_free
-    procedure, non_overridable          :: init         => unfitted_cell_iterator_init
-    procedure, non_overridable          :: next         => unfitted_cell_iterator_next
-    procedure, non_overridable          :: has_finished => unfitted_cell_iterator_has_finished
-    procedure, non_overridable          :: current      => unfitted_cell_iterator_current
   end type unfitted_cell_iterator_t
 
   ! We need this to create a par fe space in marching_cubes_t to hold a discrete levelset function
@@ -174,7 +162,9 @@ module unfitted_triangulations_names
     ! Creation / deletion methods
     procedure                  :: create                        => marching_cubes_create
     procedure                  :: free                          => marching_cubes_free
+    procedure, non_overridable :: create_cell_iterator          => marching_cubes_create_cell_iterator
     procedure, non_overridable :: create_unfitted_cell_iterator => marching_cubes_create_unfitted_cell_iterator
+    procedure, non_overridable :: free_unfitted_cell_iterator   => marching_cubes_free_unfitted_cell_iterator
 
     ! Getters
     procedure, non_overridable :: get_num_cut_cells             => marching_cubes_get_num_cut_cells
@@ -224,8 +214,12 @@ module unfitted_triangulations_names
       procedure,  private :: serial_triangulation_create  => sut_serial_triangulation_create
       procedure,  private :: sut_create
 
-      ! Generate iterator
-      procedure, non_overridable :: create_unfitted_cell_iterator => sut_create_unfitted_cell_iterator
+      ! Generate iterator by overloading the procedure of the father
+      procedure :: create_cell_iterator => sut_create_cell_iterator
+
+      !TODO this should be removed in the future
+      procedure :: create_unfitted_cell_iterator => sut_create_unfitted_cell_iterator
+      procedure :: free_unfitted_cell_iterator   => sut_free_unfitted_cell_iterator
 
       ! Getters
       procedure, non_overridable :: get_marching_cubes            => sut_get_marching_cubes
@@ -263,8 +257,12 @@ module unfitted_triangulations_names
       procedure,  private :: par_triangulation_create     => put_par_triangulation_create
       procedure,  private :: put_create
 
-      ! Generate iterator
-      procedure, non_overridable :: create_unfitted_cell_iterator => put_create_unfitted_cell_iterator
+      ! Generate iterator by overloading the procedure of the father
+      procedure :: create_cell_iterator          => put_create_cell_iterator
+
+      ! TODo this should be removed in the future
+      procedure :: create_unfitted_cell_iterator => put_create_unfitted_cell_iterator
+      procedure :: free_unfitted_cell_iterator   => put_free_unfitted_cell_iterator
 
       ! Getters
       procedure, non_overridable :: get_marching_cubes            => put_get_marching_cubes
@@ -292,7 +290,6 @@ module unfitted_triangulations_names
   end type par_unfitted_triangulation_t
 
   ! Derived types
-  public :: unfitted_cell_accessor_t
   public :: unfitted_cell_iterator_t
   public :: marching_cubes_t 
   public :: serial_unfitted_triangulation_t
@@ -300,7 +297,6 @@ module unfitted_triangulations_names
 
 contains
 
-#include "sbm_unfitted_cell_accessor.i90"
 #include "sbm_unfitted_cell_iterator.i90"
 #include "sbm_marching_cubes.i90"
 #include "sbm_serial_unfitted_triangulation.i90"

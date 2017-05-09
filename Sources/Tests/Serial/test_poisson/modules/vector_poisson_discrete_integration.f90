@@ -57,9 +57,8 @@ contains
     class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    type(fe_iterator_t) :: fe_iterator
-    type(fe_accessor_t) :: fe
-    
+    class(fe_iterator_t), allocatable :: fe
+
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
@@ -97,10 +96,9 @@ contains
     call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
     call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    fe_iterator = fe_space%create_fe_iterator()    
-    do while ( .not. fe_iterator%has_finished() )
-       ! Get current FE
-       call fe_iterator%current(fe)
+
+    call fe_space%create_fe_iterator(fe)
+    do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
        call fe%update_integration()
@@ -147,8 +145,9 @@ contains
        ! Apply boundary conditions (IMPLEMENTATION PENDING)
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
-       call fe_iterator%next()
+       call fe%next()
     end do
+    call fe_space%free_fe_iterator(fe)
     deallocate(shape_values, stat=istat); check(istat==0);
     deallocate(shape_gradients, stat=istat); check(istat==0);
     deallocate (elem2dof, stat=istat); check(istat==0);

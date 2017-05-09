@@ -80,9 +80,7 @@ contains
     real(rp), intent(inout) :: h1_semi_norm
     real(rp), intent(inout) :: l2_norm
 
-    type(unfitted_fe_iterator_t) :: fe_iterator
-    type(unfitted_fe_accessor_t), target :: fe
-    class(fe_accessor_t), pointer :: fe_ptr
+    class(fe_iterator_t), allocatable :: fe
     real(rp), allocatable :: nodal_vals(:)
     real(rp), allocatable :: element_vals(:)
     type(vector_field_t), allocatable :: grad_element_vals(:)
@@ -101,8 +99,6 @@ contains
     real(rp) :: l2_gp, h1sn_gp
     class(environment_t), pointer :: environment
     class(serial_fe_space_t), pointer :: fe_space
-    class(par_unfitted_fe_space_t),    pointer :: par_unf_fe_space
-    class(serial_unfitted_fe_space_t), pointer :: unf_fe_space
 
     ! Skip if it is not l1 task
     environment => this%fe_space%get_environment()
@@ -118,24 +114,13 @@ contains
     num_elem_nodes =  this%fe_space%get_max_number_shape_functions()
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
 
-    fe_space => this%fe_space
-    select type(fe_space)
-      class is(serial_unfitted_fe_space_t)
-        fe_iterator = fe_space%create_unfitted_fe_iterator()
-      class is(par_unfitted_fe_space_t)
-        fe_iterator = fe_space%create_unfitted_fe_iterator()
-      class default
-        check(.false.)
-    end select
 
-    do while ( .not. fe_iterator%has_finished() )
+    call this%fe_space%create_fe_iterator(fe)
+    do while ( .not. fe%has_finished() )
 
-       ! Get current FE
-       call fe_iterator%current(fe)
-       
        ! Skip ghost cells
        if (fe%is_ghost()) then
-         call fe_iterator%next(); cycle
+         call fe%next(); cycle
        end if
 
        ! Update FE-integration related data structures
@@ -149,8 +134,7 @@ contains
 
        ! Recover nodal values
        !TODO we assume a single field
-       fe_ptr => fe
-       call this%fe_function%gather_nodal_values(fe_ptr,1,nodal_vals)
+       call this%fe_function%gather_nodal_values(fe,1,nodal_vals)
 
        !TODO move outside
        call memalloc(num_quad_points,element_vals,__FILE__, __LINE__)
@@ -194,8 +178,9 @@ contains
        call memfree(element_vals,__FILE__, __LINE__)
        deallocate(grad_element_vals,stat=istat); check(istat==0)
 
-       call fe_iterator%next()
+       call fe%next()
     end do
+    call this%fe_space%free_fe_iterator(fe)
 
     call memfree ( nodal_vals, __FILE__, __LINE__ )
 

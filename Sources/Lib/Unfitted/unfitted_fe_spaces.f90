@@ -35,65 +35,48 @@ module unfitted_fe_spaces_names
 # include "debug.i90"
   private
 
-  type, extends(fe_accessor_t) :: unfitted_fe_accessor_t
+  type, extends(fe_iterator_t) :: unfitted_fe_iterator_t
 
     private
     class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
-    type(unfitted_cell_accessor_t)                 :: unfitted_cell_accessor
+    type(unfitted_cell_iterator_t)                 :: unfitted_cell_iterator
 
   contains
 
     ! Creation / deletion methods
-    generic            :: create => unfitted_fe_accessor_create
-    procedure, private :: unfitted_fe_accessor_create
-    procedure, private :: fe_accessor_create => unfitted_fe_accessor_fe_accessor_create
-    procedure          :: fe_accessor_free   => unfitted_fe_accessor_free
+    generic            :: create                      => unfitted_fe_iterator_create
+    procedure, private :: unfitted_fe_iterator_create
+    procedure, private :: fe_iterator_create          => unfitted_fe_iterator_fe_iterator_create
+    procedure          :: fe_iterator_free            => unfitted_fe_iterator_free
     
     ! Access to the aggregated object
-    procedure, non_overridable :: get_unfitted_cell_accessor => unfitted_fe_accessor_get_unfitted_cell_accessor
+    procedure, non_overridable :: get_unfitted_cell_iterator => unfitted_fe_iterator_get_unfitted_cell_iterator
 
     ! Getters that override
-    procedure          :: get_quadrature        => unfitted_fe_accessor_get_quadrature
-    procedure          :: get_fe_map            => unfitted_fe_accessor_get_fe_map
-    procedure          :: get_volume_integrator => unfitted_fe_accessor_get_volume_integrator
+    procedure          :: get_quadrature        => unfitted_fe_iterator_get_quadrature
+    procedure          :: get_fe_map            => unfitted_fe_iterator_get_fe_map
+    procedure          :: get_volume_integrator => unfitted_fe_iterator_get_volume_integrator
 
     ! Getters that extend
-    procedure          :: get_boundary_quadrature          => unfitted_fe_accessor_get_boundary_quadrature
-    procedure          :: get_boundary_piecewise_fe_map    => unfitted_fe_accessor_get_boundary_piecewise_fe_map
-    procedure          :: get_boundary_fe_map              => unfitted_fe_accessor_get_boundary_fe_map
-    procedure          :: get_boundary_volume_integrator   => unfitted_fe_accessor_get_boundary_volume_integrator
+    procedure          :: get_boundary_quadrature          => unfitted_fe_iterator_get_boundary_quadrature
+    procedure          :: get_boundary_piecewise_fe_map    => unfitted_fe_iterator_get_boundary_piecewise_fe_map
+    procedure          :: get_boundary_fe_map              => unfitted_fe_iterator_get_boundary_fe_map
+    procedure          :: get_boundary_volume_integrator   => unfitted_fe_iterator_get_boundary_volume_integrator
 
     ! Updater that overrides
-    procedure :: update_integration     => unfitted_fe_accessor_update_integration
+    procedure :: update_integration     => unfitted_fe_iterator_update_integration
     
     ! Updater that extends
-    procedure :: update_boundary_integration  => unfitted_fe_accessor_update_boundary_integration
+    procedure :: update_boundary_integration  => unfitted_fe_iterator_update_boundary_integration
 
     ! Private TBPs
-    procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_accessor_update_cut_quadratures
-    procedure, non_overridable, private :: update_cut_fe_maps     => unfitted_fe_accessor_update_cut_fe_maps
-    procedure, non_overridable, private :: update_cut_vol_integrators  => unfitted_fe_accessor_update_cut_vol_integrators
-    procedure, non_overridable, private :: update_cut_boundary_quadratures => unfitted_fe_accessor_update_cut_boundary_quadratures
-    procedure, non_overridable, private :: update_cut_boundary_fe_maps     => unfitted_fe_accessor_update_cut_boundary_fe_maps
+    procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_iterator_update_cut_quadratures
+    procedure, non_overridable, private :: update_cut_fe_maps     => unfitted_fe_iterator_update_cut_fe_maps
+    procedure, non_overridable, private :: update_cut_vol_integrators  => unfitted_fe_iterator_update_cut_vol_integrators
+    procedure, non_overridable, private :: update_cut_boundary_quadratures => unfitted_fe_iterator_update_cut_boundary_quadratures
+    procedure, non_overridable, private :: update_cut_boundary_fe_maps     => unfitted_fe_iterator_update_cut_boundary_fe_maps
     procedure, non_overridable, private :: update_cut_boundary_vol_integrators  => &
-    unfitted_fe_accessor_update_cut_boundary_vol_integrators
-
-  end type unfitted_fe_accessor_t
-
-  type :: unfitted_fe_iterator_t
-
-    private
-    type(unfitted_fe_accessor_t) :: unfitted_fe_accessor
-
-  contains
-
-    procedure, non_overridable, private :: create       => unfitted_fe_iterator_create
-    procedure, non_overridable          :: free         => unfitted_fe_iterator_free
-    procedure, non_overridable          :: init         => unfitted_fe_iterator_init
-    procedure, non_overridable          :: next         => unfitted_fe_iterator_next
-    procedure, non_overridable          :: has_finished => unfitted_fe_iterator_has_finished
-    procedure, non_overridable, private :: unfitted_fe_iterator_current
-    generic                             :: current      => unfitted_fe_iterator_current
+    unfitted_fe_iterator_update_cut_boundary_vol_integrators
 
   end type unfitted_fe_iterator_t
 
@@ -133,8 +116,10 @@ module unfitted_fe_spaces_names
       procedure, non_overridable :: create => uim_create
       procedure, non_overridable :: free   => uim_free
     
-      ! Creation of the itrator
+      ! Creation of the iterator
+      procedure, non_overridable  :: create_fe_iterator           => uim_create_fe_iterator
       procedure, non_overridable  :: create_unfitted_fe_iterator  => uim_create_unfitted_fe_iterator
+      procedure, non_overridable  :: free_unfitted_fe_iterator    => uim_free_unfitted_fe_iterator
 
       !Private TBPs
       procedure, non_overridable, private :: check_assumptions      => uim_check_assumptions
@@ -163,7 +148,11 @@ module unfitted_fe_spaces_names
       procedure           :: free  => sufs_free
 
       ! Creation of the iterator
-      procedure, non_overridable  :: create_unfitted_fe_iterator  => sufs_create_unfitted_fe_iterator
+      procedure :: create_fe_iterator           => sufs_create_fe_iterator
+
+      ! TODO these two can be deleted when implementing fake methods in fe_iterator_t
+      procedure :: create_unfitted_fe_iterator  => sufs_create_unfitted_fe_iterator
+      procedure :: free_unfitted_fe_iterator    => sufs_free_unfitted_fe_iterator
 
   end type serial_unfitted_fe_space_t
 
@@ -181,19 +170,21 @@ module unfitted_fe_spaces_names
       procedure           :: free  => pufs_free
 
       ! Creation of the iterator
-      procedure, non_overridable  :: create_unfitted_fe_iterator  => pufs_create_unfitted_fe_iterator
+      procedure :: create_fe_iterator           => pufs_create_fe_iterator
+
+      ! TODO these two can be deleted when implementing fake methods in fe_iterator_t
+      procedure :: create_unfitted_fe_iterator  => pufs_create_unfitted_fe_iterator
+      procedure :: free_unfitted_fe_iterator    => pufs_free_unfitted_fe_iterator
 
   end type par_unfitted_fe_space_t
 
 
-  public :: unfitted_fe_accessor_t
   public :: unfitted_fe_iterator_t
   public :: serial_unfitted_fe_space_t
   public :: par_unfitted_fe_space_t
 
 contains
 
-#include "sbm_unfitted_fe_accessor.i90"
 #include "sbm_unfitted_fe_iterator.i90"
 #include "sbm_unfitted_integration_manager.i90"
 #include "sbm_serial_unfitted_fe_space.i90"

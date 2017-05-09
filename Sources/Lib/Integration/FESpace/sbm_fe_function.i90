@@ -55,10 +55,10 @@
     call this%strong_dirichlet_values%copy(strong_dirichlet_values)
   end subroutine fe_function_update_strong_dirichlet_values
   
-  subroutine fe_function_gather_nodal_values ( this, fe_accessor, field_id, nodal_values )
+  subroutine fe_function_gather_nodal_values ( this, fe_iterator, field_id, nodal_values )
     implicit none
     class(fe_function_t)       , intent(in)    :: this 
-    type(fe_accessor_t)        , intent(in)    :: fe_accessor
+    class(fe_iterator_t)       , intent(in)    :: fe_iterator
     integer(ip)                , intent(in)    :: field_id
     real(rp)                   , intent(inout) :: nodal_values(:)
     
@@ -69,11 +69,11 @@
     integer(ip) :: block_id
     integer(ip), pointer :: field_blocks(:)
     
-    call fe_accessor%get_field_elem2dof(field_id,elem2dof)
-    reference_fe => fe_accessor%get_reference_fe(field_id)
+    call fe_iterator%get_field_elem2dof(field_id,elem2dof)
+    reference_fe => fe_iterator%get_reference_fe(field_id)
     number_nodes_field = reference_fe%get_number_shape_functions()
 
-    if ( fe_accessor%at_strong_dirichlet_boundary(field_id) ) then
+    if ( fe_iterator%at_strong_dirichlet_boundary(field_id) ) then
       ! Extract nodal values associated to dirichlet bcs
       strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
       do inode = 1, number_nodes_field
@@ -83,7 +83,7 @@
       end do
     end if
     
-    field_blocks => fe_accessor%get_field_blocks()
+    field_blocks => fe_iterator%get_field_blocks()
     block_id = field_blocks(field_id)
     
     ! Extract nodal values associated to dofs
@@ -94,10 +94,10 @@
     
   end subroutine fe_function_gather_nodal_values
 
-  subroutine fe_function_insert_nodal_values ( this, fe_accessor, field_id, nodal_values )
+  subroutine fe_function_insert_nodal_values ( this, fe, field_id, nodal_values )
     implicit none
     class(fe_function_t)       , intent(inout) :: this 
-    type(fe_accessor_t)        , intent(in)    :: fe_accessor
+    class(fe_iterator_t)       , intent(in)    :: fe
     integer(ip)                , intent(in)    :: field_id
     real(rp)                   , intent(in)    :: nodal_values(:)
     
@@ -108,12 +108,12 @@
     integer(ip) :: block_id
     integer(ip), pointer :: field_blocks(:)
     
-    call fe_accessor%get_field_elem2dof(field_id,elem2dof)
-    reference_fe => fe_accessor%get_reference_fe(field_id)
+    call fe%get_field_elem2dof(field_id,elem2dof)
+    reference_fe => fe%get_reference_fe(field_id)
     number_nodes_field = reference_fe%get_number_shape_functions()
     assert(number_nodes_field<=size(nodal_values))
 
-    if ( fe_accessor%at_strong_dirichlet_boundary(field_id) ) then
+    if ( fe%at_strong_dirichlet_boundary(field_id) ) then
       ! Insert nodal values associated to dirichlet bcs
       strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
       do inode = 1, number_nodes_field
@@ -123,7 +123,7 @@
       end do
     end if
     
-    field_blocks => fe_accessor%get_field_blocks()
+    field_blocks => fe%get_field_blocks()
     block_id = field_blocks(field_id)
     
     ! Extract nodal values associated to dofs
@@ -158,8 +158,7 @@
   type(quadrature_t), pointer    :: nodal_quadrature
   integer(ip)                    :: block_id
   
-  type(fe_iterator_t)            :: fe_iterator
-  type(fe_accessor_t)            :: fe
+  class(fe_iterator_t), allocatable :: fe
   type(point_t)        , pointer :: nodal_coordinates(:)
   type(point_t)        , pointer :: cell_coordinates(:)
   real(rp), allocatable          :: fe_function_values(:,:)
@@ -191,14 +190,11 @@
   field_blocks => fe_space%get_field_blocks()
   block_id = field_blocks(field_id)
   
-  ! Create FE iterator
-  fe_iterator = fe_space%create_fe_iterator()
+  call fe_space%create_fe_iterator(fe)
   
   ! Loop over the elements
-  do while ( .not. fe_iterator%has_finished())
-     ! Get current FE
-     call fe_iterator%current(fe)
-            
+  do while ( .not. fe%has_finished())
+  
      if ( fe%is_local() ) then
      
        ! Create FE_MAP for current cell + field_id if we didn't
@@ -250,9 +246,10 @@
      end if
      
      ! Go to next FE
-     call fe_iterator%next()
-  end do   
-  
+     call fe%next()
+  end do
+  call fe_space%free_fe_iterator(fe)
+
   do i=1, size(fe_maps)
     call fe_maps(i)%free()
   end do
@@ -294,8 +291,7 @@ subroutine fe_function_interpolate_vector_function( this, &
   type(quadrature_t), pointer    :: nodal_quadrature
   integer(ip)                    :: block_id
   
-  type(fe_iterator_t)            :: fe_iterator
-  type(fe_accessor_t)            :: fe
+  class(fe_iterator_t), allocatable :: fe
   type(point_t)        , pointer :: nodal_coordinates(:)
   type(point_t)        , pointer :: cell_coordinates(:)
   type(vector_field_t) , allocatable :: fe_function_values(:,:)
@@ -329,14 +325,11 @@ subroutine fe_function_interpolate_vector_function( this, &
   field_blocks => fe_space%get_field_blocks()
   block_id = field_blocks(field_id)
   
-  ! Create FE iterator
-  fe_iterator = fe_space%create_fe_iterator()
+  call fe_space%create_fe_iterator(fe)
   
   ! Loop over the elements
-  do while ( .not. fe_iterator%has_finished())
-     ! Get current FE
-     call fe_iterator%current(fe)
-            
+  do while ( .not. fe%has_finished())
+
      if ( fe%is_local() ) then
      
        ! Create FE_MAP for current cell + field_id if we didn't
@@ -395,9 +388,10 @@ subroutine fe_function_interpolate_vector_function( this, &
      
      
      ! Go to next FE
-     call fe_iterator%next()
+     call fe%next()
   end do   
-  
+  call fe_space%free_fe_iterator(fe)
+
   do i=1, size(fe_maps)
     call fe_maps(i)%free()
   end do

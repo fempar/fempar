@@ -59,7 +59,7 @@ module timer_names
 
   ! Public types
   public :: timer_t 
-
+  public :: TIMER_MODE_SUM, TIMER_MODE_MIN, TIMER_MODE_LAST
 contains  
     subroutine timer_create ( this, context, message, mode )
       ! Parameters

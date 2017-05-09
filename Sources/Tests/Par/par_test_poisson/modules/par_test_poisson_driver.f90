@@ -74,11 +74,21 @@ module par_test_poisson_driver_names
      type(fe_function_t)                   :: solution
      
      ! Environment required for fe_affine_operator + vtk_handler
-     !type(par_context_t)                       :: w_context
-     type(environment_t), pointer           :: par_environment
+     type(environment_t)                    :: par_environment
+
+     ! Timers
+     type(timer_t) :: timer_triangulation
+     type(timer_t) :: timer_fe_space
+     type(timer_t) :: timer_assemply
+     type(timer_t) :: timer_solver_setup
+     type(timer_t) :: timer_solver_run
+
    contains
-     procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_timers
+     procedure                  :: report_timers
+     procedure                  :: free_timers
+     procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -88,7 +98,10 @@ module par_test_poisson_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: write_solution
+     procedure                  :: run_simulation
      procedure        , private :: free
+     procedure                  :: free_command_line_parameters
+     procedure                  :: free_environment
      procedure, nopass, private :: popcorn_fun => par_test_poisson_driver_popcorn_fun
   end type par_test_poisson_fe_driver_t
 
@@ -101,16 +114,66 @@ contains
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
-    !call this%test_params%parse(this%parameter_list)
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
+
+!========================================================================================
+subroutine setup_timers(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    class(execution_context_t), pointer :: w_context
+    w_context => this%par_environment%get_w_context()
+    call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
+    call this%timer_fe_space%create(     w_context,"SETUP FE SPACE")
+    call this%timer_assemply%create(     w_context,"FE INTEGRATION AND ASSEMBLY")
+    call this%timer_solver_setup%create( w_context,"SETUP SOLVER AND PRECONDITIONER")
+    call this%timer_solver_run%create(   w_context,"SOLVER RUN")
+end subroutine setup_timers
+
+!========================================================================================
+subroutine report_timers(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    call this%timer_triangulation%report(.true.)
+    call this%timer_fe_space%report(.false.)
+    call this%timer_assemply%report(.false.)
+    call this%timer_solver_setup%report(.false.)
+    call this%timer_solver_run%report(.false.)
+    if (this%par_environment%get_l1_rank() == 0) then
+      write(*,*)
+    end if
+end subroutine report_timers
+
+!========================================================================================
+subroutine free_timers(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    call this%timer_triangulation%free()
+    call this%timer_fe_space%free()
+    call this%timer_assemply%free()
+    call this%timer_solver_setup%free()
+    call this%timer_solver_run%free()
+end subroutine free_timers
+
+!========================================================================================
+  subroutine setup_environment(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    integer(ip) :: istat
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
+    else
+       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
+    end if
+    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
+    call this%par_environment%create (this%parameter_list)
+  end subroutine setup_environment
    
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
 
-    type(cell_iterator_t) :: cell_iter
-    type(cell_accessor_t) :: cell
+    class(cell_iterator_t), allocatable :: cell
     type(point_t), allocatable :: cell_coords(:)
     integer(ip) :: istat
     integer(ip) :: set_id
@@ -118,8 +181,7 @@ contains
     integer(ip) :: num_void_neigs
 
     integer(ip)           :: ivef
-    type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef, vef_of_vef
+    type(vef_iterator_t)  :: vef, vef_of_vef
     type(list_t), pointer :: vefs_of_vef
     type(list_t), pointer :: vertices_of_line
     type(list_iterator_t) :: vefs_of_vef_iterator
@@ -129,18 +191,16 @@ contains
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
 
-    call this%triangulation%create(this%parameter_list)
-    this%par_environment => this%triangulation%get_par_environment()
+
+    call this%triangulation%create(this%parameter_list, this%par_environment)
 
     ! Set the cell ids to use void fes
     if (this%test_params%get_use_void_fes()) then
       if ( this%par_environment%am_i_l1_task() ) then
         call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-        cell_iter = this%triangulation%create_cell_iterator()
-        call cell_iter%current(cell)
+        call this%triangulation%create_cell_iterator(cell)
         allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
-        do while( .not. cell_iter%has_finished() )
-          call cell_iter%current(cell)
+        do while( .not. cell%has_finished() )
           if (cell%is_local()) then
             set_id = PAR_TEST_POISSON_VOID
             call cell%get_coordinates(cell_coords)
@@ -165,31 +225,34 @@ contains
             end select
             this%cell_set_ids(cell%get_lid()) = set_id
           end if
-          call cell_iter%next()
+          call cell%next()
         end do
         deallocate(cell_coords, stat = istat); check(istat == 0)
         call this%triangulation%fill_cells_set(this%cell_set_ids)
       end if
+        call this%triangulation%free_cell_iterator(cell)
     end if
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       vef_iterator = this%triangulation%create_vef_iterator()
-       do while ( .not. vef_iterator%has_finished() )
-          call vef_iterator%current(vef)
+       call this%triangulation%create_vef_iterator(vef)
+       do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
-          call vef_iterator%next()
+          call vef%next()
        end do
+       call this%triangulation%free_vef_iterator(vef)
     end if  
 
     ! Set all the vefs on the interface between full/void if there are void fes
     if (this%test_params%get_use_void_fes()) then
-      vef_iterator = this%triangulation%create_vef_iterator()
-      do while ( .not. vef_iterator%has_finished() )
-         call vef_iterator%current(vef)
+      call this%triangulation%create_vef_iterator(vef)
+      call this%triangulation%create_vef_iterator(vef_of_vef)
+      call this%triangulation%create_cell_iterator(cell)
+      do while ( .not. vef%has_finished() )
+
          ! If it is an INTERIOR face
          if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
 
@@ -240,21 +303,22 @@ contains
            end if ! If face on void/full boundary
          end if ! If vef is an interior face
 
-         call vef_iterator%next()
+         call vef%next()
       end do ! Loop in vefs
+      call this%triangulation%free_cell_iterator(cell)
+      call this%triangulation%free_vef_iterator(vef)
+      call this%triangulation%free_vef_iterator(vef_of_vef)
     end if
 
-    
     call this%triangulation%setup_coarse_triangulation()
-    
+
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t)                     :: cell
+    class(cell_iterator_t), allocatable       :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     
     if (this%test_params%get_use_void_fes()) then
@@ -265,8 +329,7 @@ contains
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
-      cell_iterator = this%triangulation%create_cell_iterator()
-      call cell_iterator%current(cell)
+      call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe_geo()
       this%reference_fes(PAR_TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
@@ -282,6 +345,7 @@ contains
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
       end if
+      call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine setup_reference_fes
 
@@ -490,18 +554,31 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    !call this%free()
-    call this%parse_command_line_parameters()
-    !call this%setup_context()
-    !call this%setup_par_environment()
+
+    call this%timer_triangulation%start()
     call this%setup_triangulation()
+    call this%timer_triangulation%stop()
+
+    call this%timer_fe_space%start()
     call this%setup_reference_fes()
     call this%setup_fe_space()
+    call this%timer_fe_space%stop()
+
+    call this%timer_assemply%start()
     call this%setup_system()
     call this%assemble_system()
+    call this%timer_assemply%stop()
+
+    call this%timer_solver_setup%start()
     call this%setup_solver()
+    call this%timer_solver_setup%stop()
+
     call this%solution%create(this%fe_space) 
+
+    call this%timer_solver_run%start()
     call this%solve_system()
+    call this%timer_solver_run%stop()
+
     call this%check_solution()
     call this%write_solution()
     call this%free()
@@ -528,10 +605,21 @@ contains
     end if
     call this%triangulation%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
-    call this%test_params%free()
-    call this%par_environment%free() 
-    !call this%w_context%free(.true.)
   end subroutine free  
+
+  !========================================================================================
+  subroutine free_environment(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    call this%par_environment%free()
+  end subroutine free_environment
+
+  !========================================================================================
+  subroutine free_command_line_parameters(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    call this%test_params%free()
+  end subroutine free_command_line_parameters
 
   function par_test_poisson_driver_popcorn_fun(point,num_dim) result (val)
     implicit none

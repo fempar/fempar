@@ -74,9 +74,8 @@ contains
 
     ! FE space traversal-related data types
     ! TODO We need this because the accesors and iterators are not polymorphic
-    type(unfitted_fe_iterator_t) :: fe_iterator
-    type(unfitted_fe_accessor_t) :: fe
-    type(unfitted_cell_accessor_t), pointer :: cell
+    type(unfitted_fe_iterator_t) :: fe
+    class(unfitted_cell_iterator_t), pointer :: cell
 
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
@@ -132,7 +131,7 @@ contains
     ! we need this because iterator is not polymorpfic
     select type(fe_space)
       class is (par_unfitted_fe_space_t)
-        fe_iterator = fe_space%create_unfitted_fe_iterator()
+        call fe_space%create_unfitted_fe_iterator(fe)
       class default
         check(.false.)
     end select
@@ -147,14 +146,13 @@ contains
 
     ! Find the first non-void FE
     num_quad_points = 0
-    do while ( .not. fe_iterator%has_finished() )
-       call fe_iterator%current(fe)
+    do while ( .not. fe%has_finished() )
        if ( fe%is_local() ) then
          quad            => fe%get_quadrature()
          num_quad_points = quad%get_number_quadrature_points()
          if (num_quad_points > 0) exit
        end if
-       call fe_iterator%next()
+       call fe%next()
     end do    
     if (num_quad_points==0) return
 
@@ -180,12 +178,11 @@ contains
     call memalloc ( num_dofs-1, num_dofs-1, elmatB, __FILE__, __LINE__ )
     call memalloc ( num_dofs-1, num_dofs-1, elmatV, __FILE__, __LINE__ )
 
-    call fe_iterator%init()
+    call fe%first()
     volume = 0.0
     surface = 0.0
-    do while ( .not. fe_iterator%has_finished() )
-       ! Get current FE
-       call fe_iterator%current(fe)
+    do while ( .not. fe%has_finished() )
+
        if ( fe%is_local() ) then
 
          ! Update FE-integration related data structures
@@ -231,7 +228,7 @@ contains
          ! Only for cut elements
          ! TODO @fverdugo FEMPAR PRIORITY LOW EFFORT HIGH
          ! Create iterator for cut and for full elements? Then we can remove this if
-         cell => fe%get_unfitted_cell_accessor()
+         cell => fe%get_unfitted_cell_iterator()
          if (cell%is_cut()) then
 
            call fe%update_boundary_integration()
@@ -355,7 +352,7 @@ contains
          call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
 
        end if
-       call fe_iterator%next()
+       call fe%next()
 
     end do
 
@@ -379,6 +376,14 @@ contains
     call memfree ( elmatV, __FILE__, __LINE__ )
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call eigs%free()
+
+    select type(fe_space)
+      class is (par_unfitted_fe_space_t)
+        call fe_space%free_unfitted_fe_iterator(fe)
+      class default
+        check(.false.)
+    end select
+
   end subroutine integrate
   
 end module poisson_unfitted_discrete_integration_names

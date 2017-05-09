@@ -77,8 +77,7 @@ function error_norms_scalar_compute (this, exact_solution, fe_function, norm_typ
   ! Local variables
   real(rp)                      :: exponent_
   real(rp)                      :: time_(1)
-  type(fe_iterator_t)           :: fe_iterator
-  type(fe_accessor_t)           :: fe
+  class(fe_iterator_t), allocatable :: fe
   real(rp)                      :: values_cell_contribution, values_norm
   real(rp)                      :: gradients_cell_contribution, gradients_norm
   class(environment_t), pointer :: environment
@@ -91,9 +90,8 @@ function error_norms_scalar_compute (this, exact_solution, fe_function, norm_typ
      exponent_ = error_norm_determine_exponent(norm_type, exponent)
      values_norm    = 0.0_rp
      gradients_norm = 0.0_rp
-     fe_iterator = this%fe_space%create_fe_iterator()
-     do while ( .not. fe_iterator%has_finished() ) 
-        call fe_iterator%current(fe)
+     call this%fe_space%create_fe_iterator(fe)
+     do while(.not. fe%has_finished())
         if ( fe%is_local() ) then
            call fe%update_integration()
            call this%cell_fe_function%update(fe, fe_function)
@@ -107,8 +105,9 @@ function error_norms_scalar_compute (this, exact_solution, fe_function, norm_typ
            call update_norm(norm_type, values_cell_contribution   , values_norm)
            call update_norm(norm_type, gradients_cell_contribution, gradients_norm)
         end if
-        call fe_iterator%next() 
+        call fe%next() 
      end do
+     call this%fe_space%free_fe_iterator(fe)
      call finalize_norm(environment, norm_type, exponent_, values_norm, gradients_norm, norm)
   end if
 end function error_norms_scalar_compute
@@ -123,7 +122,7 @@ subroutine error_norms_scalar_compute_cell_contribution (this, &
      time )
   implicit none
   class(error_norms_scalar_t), intent(inout) :: this
-  type(fe_accessor_t)        , intent(in)    :: fe
+  class(fe_iterator_t)       , intent(in)    :: fe
   class(scalar_function_t)   , intent(in)    :: exact_solution
   character(*)               , intent(in)    :: norm_type
   real(rp)                   , intent(in)    :: exponent

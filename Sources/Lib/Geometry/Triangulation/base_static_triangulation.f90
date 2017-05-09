@@ -87,231 +87,168 @@ module base_static_triangulation_names
   public :: geometry_interpolation_order_key
   public :: triangulation_generate_key
   
-  type cell_accessor_t
-    private
-    integer(ip)                                 :: lid = -1
-    class(base_static_triangulation_t), pointer :: base_static_triangulation
-  contains
-    ! create/free/next/set_lid CANNOT longer be private as type(coarse_fe_accessor_t)
-    ! extends type(cell_accessor_t), requires to call these TBPs and cannot be placed
-    ! either within this module or within a submodule of base_static_triangulation_names
-    ! due to module dependencies cycle
-    procedure                            :: cell_accessor_create
-    generic                              :: create                  => cell_accessor_create
-    procedure                            :: free                    => cell_accessor_free
-    procedure, non_overridable           :: next                    => cell_accessor_next
-    procedure, non_overridable           :: set_lid                 => cell_accessor_set_lid
-    procedure, non_overridable, private  :: set_gid                 => cell_accessor_set_gid
-    procedure, non_overridable, private  :: set_mypart              => cell_accessor_set_mypart
-    procedure, non_overridable, private  :: get_triangulation       => cell_accessor_get_triangulation
-    procedure, non_overridable, private  :: cell_accessor_get_vef
-    procedure, non_overridable           :: past_the_end            => cell_accessor_past_the_end
-    procedure, non_overridable           :: get_reference_fe_geo    => cell_accessor_get_reference_fe_geo
-    procedure, non_overridable           :: get_reference_fe_geo_id => cell_accessor_get_reference_fe_geo_id
-    procedure, non_overridable           :: get_coordinates         => cell_accessor_get_coordinates
-    procedure, non_overridable           :: set_coordinates         => cell_accessor_set_coordinates
-    procedure, non_overridable           :: get_coordinates_ref_space => cell_accessor_get_coordinates_ref_space
-    procedure, non_overridable           :: get_lid                 => cell_accessor_get_lid
-    procedure, non_overridable           :: get_gid                 => cell_accessor_get_gid
-    procedure, non_overridable           :: get_my_part             => cell_accessor_get_mypart
-    procedure, non_overridable           :: get_my_subpart          => cell_accessor_get_mysubpart
-    procedure, non_overridable           :: get_my_subpart_lid      => cell_accessor_get_mysubpart_lid
-    procedure, non_overridable           :: get_set_id              => cell_accessor_get_set_id
-    procedure, non_overridable           :: get_num_vefs            => cell_accessor_get_num_vefs
-    procedure, non_overridable           :: get_num_nodes           => cell_accessor_get_num_nodes
-    procedure, non_overridable           :: get_num_vertices        => cell_accessor_get_num_vertices    
-    procedure, non_overridable           :: get_node_lid            => cell_accessor_get_node_lid
-    procedure, non_overridable           :: get_vef_lid             => cell_accessor_get_vef_lid
-    procedure, non_overridable           :: get_vef_lids            => cell_accessor_get_vef_lids
-    procedure, non_overridable           :: get_vef_gid             => cell_accessor_get_vef_gid
-    procedure, non_overridable           :: find_lpos_vef_lid       => cell_accessor_find_lpos_vef_lid
-    procedure, non_overridable           :: find_lpos_vef_gid       => cell_accessor_find_lpos_vef_gid
-    generic                              :: get_vef                 => cell_accessor_get_vef
-    procedure, non_overridable           :: is_local                => cell_accessor_is_local
-    procedure, non_overridable           :: is_ghost                => cell_accessor_is_ghost
-    procedure, non_overridable           :: scan_sum_number_vefs    => cell_accessor_get_scan_sum_number_vefs
-
-    procedure, non_overridable           :: fill_nodes_on_vertices        => cell_accessor_fill_nodes_on_vertices
-    procedure, non_overridable           :: fill_nodes_on_vef_new         => cell_accessor_fill_nodes_on_vef_new
-    procedure, non_overridable           :: fill_nodes_on_vef_from_source => cell_accessor_fill_nodes_on_vef_from_source
-    procedure, non_overridable           :: fill_internal_nodes_new       => cell_accessor_fill_internal_nodes_new
-  end type cell_accessor_t
-  
   type cell_iterator_t
-    private
-    type(cell_accessor_t) :: current_cell_accessor
-  contains
-     procedure, non_overridable, private ::                 cell_iterator_current
-     procedure, non_overridable, private :: create       => cell_iterator_create
-     procedure, non_overridable          :: free         => cell_iterator_free
-     procedure, non_overridable          :: init         => cell_iterator_init
-     procedure, non_overridable          :: next         => cell_iterator_next
-     procedure, non_overridable          :: has_finished => cell_iterator_has_finished
-     generic                             :: current      => cell_iterator_current
-  end type cell_iterator_t  
-  
-  type vef_accessor_t
     private
     integer(ip)                                 :: lid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
-     ! create/free/next/set_lid/past_the_end/get_triangulation CANNOT longer be private as 
-     ! type(coarse_fe_vef_accessor_t) extends type(vef_accessor_t), requires to call these TBPs
-     procedure                           :: vef_accessor_create
-     procedure, non_overridable          :: vef_accessor_get_cell_around
-     generic                             :: create => vef_accessor_create
-     procedure                           :: free                      => vef_accessor_free
-     procedure, non_overridable          :: next                      => vef_accessor_next
-     procedure, non_overridable          :: set_lid                   => vef_accessor_set_lid
-     procedure, non_overridable          :: past_the_end              => vef_accessor_past_the_end
-     procedure, non_overridable          :: get_triangulation         => vef_accessor_get_triangulation
-     procedure, non_overridable          :: get_lid                   => vef_accessor_get_lid
-     procedure, non_overridable          :: get_gid                   => vef_accessor_get_gid
+    ! create/free/next/set_lid CANNOT longer be private as type(coarse_fe_iterator_t)
+    ! extends type(cell_iterator_t), requires to call these TBPs and cannot be placed
+    ! either within this module or within a submodule of base_static_triangulation_names
+    ! due to module dependencies cycle
+    generic                              :: create                  => cell_iterator_create
+    procedure, private                   :: cell_iterator_create
+    procedure                            :: free                    => cell_iterator_free
+    final                                ::                            cell_iterator_free_final
+    procedure, non_overridable           :: next                    => cell_iterator_next
+    procedure, non_overridable           :: first                   => cell_iterator_first
+    procedure, non_overridable           :: last                    => cell_iterator_last
+    procedure, non_overridable           :: set_lid                 => cell_iterator_set_lid
+    procedure, non_overridable, private  :: set_gid                 => cell_iterator_set_gid
+    procedure, non_overridable, private  :: set_mypart              => cell_iterator_set_mypart
+    procedure, non_overridable, private  :: get_triangulation       => cell_iterator_get_triangulation
+    procedure, non_overridable, private  :: cell_iterator_get_vef
+    procedure, non_overridable           :: has_finished            => cell_iterator_has_finished
+    procedure, non_overridable           :: get_reference_fe_geo    => cell_iterator_get_reference_fe_geo
+    procedure, non_overridable           :: get_reference_fe_geo_id => cell_iterator_get_reference_fe_geo_id
+    procedure, non_overridable           :: get_coordinates         => cell_iterator_get_coordinates
+    procedure, non_overridable           :: set_coordinates         => cell_iterator_set_coordinates
+    procedure, non_overridable           :: get_coordinates_ref_space => cell_iterator_get_coordinates_ref_space
+    procedure, non_overridable           :: get_lid                 => cell_iterator_get_lid
+    procedure, non_overridable           :: get_gid                 => cell_iterator_get_gid
+    procedure, non_overridable           :: get_my_part             => cell_iterator_get_mypart
+    procedure, non_overridable           :: get_my_subpart          => cell_iterator_get_mysubpart
+    procedure, non_overridable           :: get_my_subpart_lid      => cell_iterator_get_mysubpart_lid
+    procedure, non_overridable           :: get_set_id              => cell_iterator_get_set_id
+    procedure, non_overridable           :: get_num_vefs            => cell_iterator_get_num_vefs
+    procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
+    procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid
+    procedure, non_overridable           :: get_vef_lid             => cell_iterator_get_vef_lid
+    procedure, non_overridable           :: get_vef_lids            => cell_iterator_get_vef_lids
+    procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
+    procedure, non_overridable           :: find_lpos_vef_lid       => cell_iterator_find_lpos_vef_lid
+    procedure, non_overridable           :: find_lpos_vef_gid       => cell_iterator_find_lpos_vef_gid
+    procedure, non_overridable           :: get_vef                 => cell_iterator_get_vef
+    procedure, non_overridable           :: is_local                => cell_iterator_is_local
+    procedure, non_overridable           :: is_ghost                => cell_iterator_is_ghost
+    procedure, non_overridable           :: scan_sum_number_vefs    => cell_iterator_get_scan_sum_number_vefs
 
-     procedure, non_overridable          :: set_geom_id               => vef_accessor_set_geom_id
-     procedure, non_overridable          :: set_set_id                => vef_accessor_set_set_id
-     procedure, non_overridable          :: get_geom_id               => vef_accessor_get_geom_id
-     procedure, non_overridable          :: get_set_id                => vef_accessor_get_set_id
-
-     procedure, non_overridable          :: set_dimension             => vef_accessor_set_dimension
-     procedure, non_overridable          :: set_it_at_boundary        => vef_accessor_set_it_at_boundary
-     procedure, non_overridable          :: set_it_as_local           => vef_accessor_set_it_as_local
-     procedure, non_overridable          :: set_it_as_ghost           => vef_accessor_set_it_as_ghost
-     procedure, non_overridable          :: set_it_at_interface       => vef_accessor_set_it_at_interface
-
-     procedure, non_overridable          :: get_dimension             => vef_accessor_get_dimension
-     procedure, non_overridable          :: is_at_boundary            => vef_accessor_is_at_boundary
-     procedure, non_overridable          :: is_local                  => vef_accessor_is_local
-     procedure, non_overridable          :: is_ghost                  => vef_accessor_is_ghost
-     procedure, non_overridable          :: is_at_interface           => vef_accessor_is_at_interface
-     procedure, non_overridable          :: is_face                   => vef_accessor_is_face
-     
-     procedure, non_overridable          :: get_num_cells_around      => vef_accessor_get_num_cells_around
-     generic                             :: get_cell_around           => vef_accessor_get_cell_around
-     !procedure, non_overridable          :: get_vertices              => vef_accessor_get_vertices
-  end type vef_accessor_t
-
-  ! So far this is just a rename
-  !type, extends(vef_accessor_t) :: vertex_accessor_t
-  !end type vertex_accessor_t
-
-  ! So far this is just a rename
-  !type, extends(vef_accessor_t) :: edge_accessor_t
-  !end type edge_accessor_t
-
-  ! This will include functions to ask for orientation, rotation, etc.
-  type, extends(vef_accessor_t) :: face_accessor_t
-    private
-  contains
-    procedure, non_overridable          :: get_coordinates                  => face_accessor_get_coordinates
-    procedure, non_overridable          :: get_face_lid                     => face_accessor_get_face_lid
-    procedure, non_overridable          :: get_face_lpos_within_cell_around => face_accessor_get_face_lpos_within_cell_around
-    procedure, non_overridable          :: get_face_orientation             => face_accessor_get_face_orientation
-    procedure, non_overridable          :: get_face_rotation                => face_accessor_get_face_rotation
-    procedure, non_overridable, private :: set_face_orientation             => face_accessor_set_face_orientation
-    procedure, non_overridable, private :: set_face_rotation                => face_accessor_set_face_rotation
-  end type face_accessor_t
-
-  ! In order to define iterators over vertices, edges and faces as extensions of vef_iterator
-  ! we need to overwrite init and next. The alternative is to repeat all TBPs.
+    procedure, non_overridable, private  :: fill_nodes_on_vertices        => cell_iterator_fill_nodes_on_vertices
+    procedure, non_overridable, private  :: fill_nodes_on_vef_new         => cell_iterator_fill_nodes_on_vef_new
+    procedure, non_overridable, private  :: fill_nodes_on_vef_from_source => cell_iterator_fill_nodes_on_vef_from_source
+    procedure, non_overridable, private  :: fill_internal_nodes_new       => cell_iterator_fill_internal_nodes_new
+  end type cell_iterator_t
+  
   type vef_iterator_t
     private
-    type(vef_accessor_t) :: current_vef_accessor
+    integer(ip)                                 :: lid = -1
+    class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
-     procedure, non_overridable, private ::                 vef_iterator_current
-     procedure, non_overridable          :: create       => vef_iterator_create
-     procedure, non_overridable          :: free         => vef_iterator_free
-     procedure                           :: init         => vef_iterator_init
-     procedure                           :: next         => vef_iterator_next
-     procedure, non_overridable          :: has_finished => vef_iterator_has_finished
-     generic                             :: current      => vef_iterator_current
+     procedure                           :: create                    => vef_iterator_create
+     procedure                           :: free                      => vef_iterator_free
+     final                               ::                              vef_iterator_free_final
+     procedure                           :: first                     => vef_iterator_first
+     procedure                           :: next                      => vef_iterator_next
+     procedure, non_overridable          :: set_lid                   => vef_iterator_set_lid
+     procedure                           :: has_finished              => vef_iterator_has_finished
+     procedure, non_overridable          :: get_triangulation         => vef_iterator_get_triangulation
+     procedure, non_overridable          :: get_lid                   => vef_iterator_get_lid
+     procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
+
+     procedure, non_overridable          :: set_geom_id               => vef_iterator_set_geom_id
+     procedure, non_overridable          :: set_set_id                => vef_iterator_set_set_id
+     procedure, non_overridable          :: get_geom_id               => vef_iterator_get_geom_id
+     procedure, non_overridable          :: get_set_id                => vef_iterator_get_set_id
+
+     procedure, non_overridable          :: set_dimension             => vef_iterator_set_dimension
+     procedure, non_overridable          :: set_it_at_boundary        => vef_iterator_set_it_at_boundary
+     procedure, non_overridable          :: set_it_as_local           => vef_iterator_set_it_as_local
+     procedure, non_overridable          :: set_it_as_ghost           => vef_iterator_set_it_as_ghost
+     procedure, non_overridable          :: set_it_at_interface       => vef_iterator_set_it_at_interface
+
+     procedure, non_overridable          :: get_dimension             => vef_iterator_get_dimension
+     procedure, non_overridable          :: is_at_boundary            => vef_iterator_is_at_boundary
+     procedure, non_overridable          :: is_local                  => vef_iterator_is_local
+     procedure, non_overridable          :: is_ghost                  => vef_iterator_is_ghost
+     procedure, non_overridable          :: is_at_interface           => vef_iterator_is_at_interface
+     procedure, non_overridable          :: is_face                   => vef_iterator_is_face
+     
+     procedure, non_overridable          :: get_num_cells_around      => vef_iterator_get_num_cells_around
+     procedure, non_overridable          :: vef_iterator_get_cell_around
+     generic                             :: get_cell_around           => vef_iterator_get_cell_around
   end type vef_iterator_t
-  
-  type :: itfc_vef_iterator_t
-    private
-    integer(ip)          :: itfc_lid = -1
-    type(vef_accessor_t) :: current_vef_accessor
-  contains
-    procedure, non_overridable, private ::                 itfc_vef_iterator_current
-    procedure, non_overridable          :: create       => itfc_vef_iterator_create
-    procedure, non_overridable          :: free         => itfc_vef_iterator_free
-    procedure, non_overridable          :: init         => itfc_vef_iterator_init
-    procedure, non_overridable          :: next         => itfc_vef_iterator_next
-    procedure, non_overridable          :: has_finished => itfc_vef_iterator_has_finished
-    generic                             :: current      => itfc_vef_iterator_current
-  end type itfc_vef_iterator_t
 
   type, extends(vef_iterator_t) :: vertex_iterator_t
     private
-  contains
-    procedure, non_overridable          :: next         => vertex_iterator_next
+    contains
+     procedure          :: first                     => vertex_iterator_first
+     procedure          :: has_finished              => vertex_iterator_has_finished
   end type vertex_iterator_t
 
   type, extends(vef_iterator_t) :: edge_iterator_t
     private
-  contains
-    procedure, non_overridable          :: init         => edge_iterator_init
-    procedure, non_overridable          :: next         => edge_iterator_next
+    contains
+     procedure          :: first                     => edge_iterator_first
+     procedure          :: has_finished              => edge_iterator_has_finished
   end type edge_iterator_t
-
+  
   type, extends(vef_iterator_t) :: face_iterator_t
     private
+    class(cell_iterator_t), allocatable :: cell
   contains
-    procedure, non_overridable          :: init         => face_iterator_init
-    procedure, non_overridable, private :: face_iterator_current
-    generic                             :: current      => face_iterator_current
+    procedure                           :: create                           => face_iterator_create
+    procedure                           :: free                             => face_iterator_free
+    final                               ::                                     face_iterator_free_final
+    procedure                           :: first                            => face_iterator_first
+    procedure                           :: has_finished                     => face_iterator_has_finished
+    procedure                           :: get_coordinates                  => face_iterator_get_coordinates
+    procedure                           :: get_face_lid                     => face_iterator_get_face_lid
+    procedure                           :: get_face_lpos_within_cell_around => face_iterator_get_face_lpos_within_cell_around
+    procedure                           :: get_face_orientation             => face_iterator_get_face_orientation
+    procedure                           :: get_face_rotation                => face_iterator_get_face_rotation
+    procedure, non_overridable, private :: set_face_orientation             => face_iterator_set_face_orientation
+    procedure, non_overridable, private :: set_face_rotation                => face_iterator_set_face_rotation
   end type face_iterator_t
 
-
-  type object_accessor_t
+  type, extends(vef_iterator_t) :: itfc_vef_iterator_t
     private
-    integer(ip)                                 :: lid = -1
-    class(base_static_triangulation_t), pointer :: base_static_triangulation
-  contains
-    procedure                   :: object_accessor_create
-    generic                     :: create                          => object_accessor_create
-    procedure                   :: free                            => object_accessor_free
-    procedure                   :: next                            => object_accessor_next
-    procedure                   :: set_lid                         => object_accessor_set_lid
-    procedure                   :: past_the_end                    => object_accessor_past_the_end
-    procedure, non_overridable  :: get_lid                         => object_accessor_get_lid
-    procedure, non_overridable  :: get_gid                         => object_accessor_get_gid
-    procedure, non_overridable  :: get_dimension                   => object_accessor_get_dimension
-    procedure, non_overridable  :: get_number_parts_around         => object_accessor_get_number_parts_around
-    procedure, non_overridable  :: get_number_subparts_around      => object_accessor_get_number_subparts_around
-    procedure, non_overridable  :: create_parts_around_iterator    => object_accessor_create_parts_around_iterator
-    procedure, non_overridable  :: create_subparts_around_iterator => object_accessor_create_subparts_around_iterator
-    procedure, non_overridable  :: get_number_vefs_on_object       => object_accessor_get_number_vefs_on_object
-    procedure, non_overridable  :: create_vefs_on_object_iterator  => object_accessor_get_vefs_on_object_iterator
-  end type object_accessor_t
-  
+    integer(ip)  :: itfc_lid = -1
+    contains
+     procedure          :: first          => itfc_vef_iterator_first
+     procedure          :: next           => itfc_vef_iterator_next
+     procedure          :: has_finished   => itfc_vef_iterator_has_finished
+  end type itfc_vef_iterator_t
+
+
   type object_iterator_t
     private
-    type(object_accessor_t) :: current_object_accessor
+    integer(ip)                                 :: lid = -1
+    type(list_iterator_t)                       :: vefs_object_iterator
+    type(list_iterator_t)                       :: faces_object_iterator
+    class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
-     procedure, non_overridable, private ::                 object_iterator_current
-     procedure, non_overridable          :: create       => object_iterator_create
-     procedure, non_overridable          :: free         => object_iterator_free
-     procedure, non_overridable          :: init         => object_iterator_init
-     procedure, non_overridable          :: next         => object_iterator_next
-     procedure, non_overridable          :: has_finished => object_iterator_has_finished
-     generic                             :: current      => object_iterator_current
+    procedure                           :: create                          => object_iterator_create
+    procedure                           :: free                            => object_iterator_free
+    final                               ::                                    object_iterator_free_final
+    procedure, non_overridable, private :: update_vefs_object_iterator     => object_iterator_update_vefs_object_iterator
+    procedure, non_overridable, private :: update_faces_object_iterator    => object_iterator_update_faces_object_iterator
+    procedure                           :: first                           => object_iterator_first
+    procedure                           :: next                            => object_iterator_next
+    procedure                           :: set_lid                         => object_iterator_set_lid
+    procedure                           :: has_finished                    => object_iterator_has_finished
+    procedure, non_overridable          :: get_lid                         => object_iterator_get_lid
+    procedure, non_overridable          :: get_gid                         => object_iterator_get_gid
+    procedure, non_overridable          :: get_dimension                   => object_iterator_get_dimension
+    procedure, non_overridable          :: get_number_parts_around         => object_iterator_get_number_parts_around
+    procedure, non_overridable          :: get_number_subparts_around      => object_iterator_get_number_subparts_around
+    procedure, non_overridable          :: create_parts_around_iterator    => object_iterator_create_parts_around_iterator
+    procedure, non_overridable          :: create_subparts_around_iterator => object_iterator_create_subparts_around_iterator
+    procedure, non_overridable          :: get_num_vefs                    => object_iterator_get_num_vefs
+    procedure, non_overridable          :: get_vef                         => object_iterator_get_vef
+    procedure, non_overridable          :: get_num_faces                   => object_iterator_get_num_faces
+    procedure, non_overridable          :: get_face                        => object_iterator_get_face
   end type object_iterator_t
-  
-  type :: vefs_on_object_iterator_t
-    private
-    type(list_iterator_t) :: vefs_lids_on_object_iterator
-    type(vef_accessor_t)  :: current_vef_accessor
-  contains
-    procedure, non_overridable, private ::                 vefs_on_object_iterator_current
-    procedure, non_overridable          :: create       => vefs_on_object_iterator_create
-    procedure, non_overridable          :: free         => vefs_on_object_iterator_free
-    procedure, non_overridable          :: init         => vefs_on_object_iterator_init
-    procedure, non_overridable          :: next         => vefs_on_object_iterator_next
-    procedure, non_overridable          :: has_finished => vefs_on_object_iterator_has_finished
-    generic                             :: current      => vefs_on_object_iterator_current
-  end type vefs_on_object_iterator_t
-   
+       
    ! JP-TODO: implement states: discuss with Alberto and Victor.
    !
    ! State transition diagram for type(base_static_triangulation_t). The
@@ -387,11 +324,12 @@ module base_static_triangulation_names
      integer(igp), allocatable               :: objects_gids(:)
      integer(ip) , allocatable               :: objects_dimension(:)
      type(list_t)                            :: vefs_object
+     type(list_t)                            :: faces_object
      type(list_t)                            :: parts_object
      integer(ip)                             :: number_subparts        ! Number of subparts around part (including those subparts which are local)
      type(list_t)                            :: subparts_object        ! Number and list of subparts GIDs around each coarse n_face
      type(hash_table_ip_ip_t)                :: g2l_subparts           ! Translator among the GIDs of subparts and LIDs
-     type(coarse_triangulation_t), pointer   :: coarse_triangulation
+     type(coarse_triangulation_t), pointer   :: coarse_triangulation => NULL()
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
      type(geometry_t)                        :: geometry
@@ -419,19 +357,21 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_number_objects                  => bst_get_number_objects
 
      ! Cell traversals-related TBPs
-     procedure, non_overridable          :: create_cell_iterator                => bst_create_cell_iterator
-  
+     procedure                           :: create_cell_iterator                => bst_create_cell_iterator
+     procedure                           :: free_cell_iterator                  => bst_free_cell_iterator
+     
      ! Vef traversals-related TBPs
-     procedure, non_overridable          :: create_vef_iterator                 => bst_create_vef_iterator
-     procedure, non_overridable          :: create_vertex_iterator              => bst_create_vertex_iterator
-     procedure, non_overridable          :: create_edge_iterator                => bst_create_edge_iterator
-     procedure, non_overridable          :: create_face_iterator                => bst_create_face_iterator
-     procedure, non_overridable          :: create_itfc_vef_iterator            => bst_create_itfc_vef_iterator
-
+     procedure                           :: create_vef_iterator              => bst_create_vef_iterator
+     procedure                           :: create_itfc_vef_iterator         => bst_create_itfc_vef_iterator
+     procedure                           :: create_vertex_iterator           => bst_create_vertex_iterator
+     procedure                           :: create_edge_iterator             => bst_create_edge_iterator
+     procedure                           :: create_face_iterator             => bst_create_face_iterator
+     procedure                           :: free_vef_iterator                => bst_free_vef_iterator
+     
      ! Objects-related traversals
      procedure, non_overridable          :: create_object_iterator              => bst_create_object_iterator
-     procedure, non_overridable          :: create_vefs_on_object_iterator      => bst_create_vefs_on_object_iterator
-  
+     procedure, non_overridable          :: free_object_iterator                => bst_free_object_iterator
+       
      ! Other
      procedure                           :: print                               => bst_print    
      procedure                           :: free                                => bst_free
@@ -494,6 +434,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: compute_subparts_itfc_vefs                     => bst_compute_subparts_itfc_vefs
      procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => bst_compute_parts_object_from_subparts_object
      procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => bst_compute_part_id_from_subpart_gid
+     procedure, non_overridable, private :: compute_faces_object                           => bst_compute_faces_object
      procedure, non_overridable, private :: compute_objects_dimension                      => bst_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
      procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids
@@ -553,26 +494,21 @@ module base_static_triangulation_names
      ! Private methods for creating vef-related data
      procedure, non_overridable, private :: allocate_and_fill_vefs_dimension    => coarse_triangulation_allocate_and_fill_vefs_dimension
      procedure                           :: print                               => coarse_triangulation_print
-     !procedure, non_overridable, private :: compute_num_itfc_vefs               => coarse_triangulation_compute_num_itfc_vefs
-     !procedure, non_overridable, private :: allocate_and_fill_lst_itfc_vefs     => coarse_triangulation_allocate_and_fill_lst_itfc_vefs
   end type coarse_triangulation_t
 
   public :: base_static_triangulation_t
   public :: serial_triangulation_t
   public :: coarse_triangulation_t 
   public :: par_triangulation_t
-  public :: cell_iterator_t, vef_iterator_t, face_iterator_t, itfc_vef_iterator_t, object_iterator_t, vefs_on_object_iterator_t
-  public :: cell_accessor_t, vef_accessor_t, face_accessor_t, object_accessor_t
+  public :: cell_iterator_t
+  public :: vef_iterator_t
+  public :: itfc_vef_iterator_t, face_iterator_t, object_iterator_t
   
 contains
 
-#include "sbm_cell_accessor.i90"
 #include "sbm_cell_iterator.i90"
-#include "sbm_vef_accessor.i90"
 #include "sbm_vef_iterator.i90"
-#include "sbm_object_accessor.i90"
 #include "sbm_object_iterator.i90"
-#include "sbm_vefs_on_object_iterator.i90"
 #include "sbm_base_static_triangulation.i90"
 #include "sbm_fine_triangulation.i90"
 #include "sbm_serial_triangulation.i90"

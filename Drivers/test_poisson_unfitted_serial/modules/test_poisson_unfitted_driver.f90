@@ -165,13 +165,11 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
-    type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef
+    type(vef_iterator_t)  :: vef
     integer(ip) :: istat
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
-    type(unfitted_cell_iterator_t) :: cell_iter
-    type(unfitted_cell_accessor_t) :: cell
+    type(unfitted_cell_iterator_t) :: cell
     integer(ip) :: set_id
 
     ! Create a structured mesh with a custom domain
@@ -183,32 +181,31 @@ contains
 
     ! Set the cell ids
     call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-    cell_iter = this%triangulation%create_unfitted_cell_iterator()
-    call cell_iter%current(cell)
-    do while( .not. cell_iter%has_finished() )
-      call cell_iter%current(cell)
+    call this%triangulation%create_unfitted_cell_iterator(cell)
+    do while( .not. cell%has_finished() )
       if (cell%is_exterior()) then
         set_id = SERIAL_UNF_POISSON_SET_ID_VOID
       else
         set_id = SERIAL_UNF_POISSON_SET_ID_FULL
       end if
       this%cell_set_ids(cell%get_lid()) = set_id
-      call cell_iter%next()
+      call cell%next()
     end do
     call this%triangulation%fill_cells_set(this%cell_set_ids)
+    call this%triangulation%free_unfitted_cell_iterator(cell)
 
     ! Impose Dirichlet in the boundary of the background mesh
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-       vef_iterator = this%triangulation%create_vef_iterator()
-       do while ( .not. vef_iterator%has_finished() )
-          call vef_iterator%current(vef)
+       call this%triangulation%create_vef_iterator(vef)
+       do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
-          call vef_iterator%next()
+          call vef%next()
        end do
+       call this%triangulation%free_vef_iterator(vef)
     end if
 
   end subroutine setup_triangulation
@@ -223,8 +220,7 @@ contains
     ! Locals
     integer(ip) :: istat
     logical                                   :: continuity
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t)                     :: cell
+    class(cell_iterator_t), allocatable       :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     character(:), allocatable :: field_type
 
@@ -242,8 +238,7 @@ contains
       field_type = field_type_vector
     end if
 
-    cell_iterator = this%triangulation%create_cell_iterator()
-    call cell_iterator%current(cell)
+    call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
 
 
@@ -273,6 +268,7 @@ contains
                                                  order = -1, & ! this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
                                                  continuity = continuity ) 
+    call this%triangulation%free_cell_iterator(cell)
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
@@ -631,8 +627,7 @@ subroutine compute_domain_volume( this )
     implicit none
     class(test_poisson_unfitted_driver_t), intent(in) :: this
 
-    type(unfitted_fe_iterator_t) :: fe_iterator
-    type(unfitted_fe_accessor_t) :: fe
+    class(fe_iterator_t), allocatable :: fe
     real(rp) :: volume, dV
     type(quadrature_t), pointer :: quadrature
     type(fe_map_t),     pointer :: fe_map
@@ -641,13 +636,10 @@ subroutine compute_domain_volume( this )
 
     write(*,*) "Computing domain volume ..."
 
-    fe_iterator = this%fe_space%create_unfitted_fe_iterator()
+    call this%fe_space%create_fe_iterator(fe)
 
     volume = 0.0_rp
-    do while ( .not. fe_iterator%has_finished() )
-
-       ! Get current FE
-       call fe_iterator%current(fe)
+    do while ( .not. fe%has_finished() )
 
        ! Update FE-integration related data structures
        call fe%update_integration()
@@ -666,8 +658,10 @@ subroutine compute_domain_volume( this )
          volume = volume + dV
        end do
 
-       call fe_iterator%next()
+       call fe%next()
     end do
+
+    call this%fe_space%free_fe_iterator(fe)
 
     write(*,*) "Computing domain volume ... OK"
     write(*,*) "Domain volume   = ", volume
@@ -679,8 +673,7 @@ subroutine compute_domain_surface( this )
     implicit none
     class(test_poisson_unfitted_driver_t), intent(in) :: this
 
-    type(unfitted_fe_iterator_t) :: fe_iterator
-    type(unfitted_fe_accessor_t) :: fe
+    type(unfitted_fe_iterator_t) :: fe
     real(rp) :: surface, dS
     type(quadrature_t), pointer :: quadrature
     type(piecewise_fe_map_t),     pointer :: fe_map
@@ -689,13 +682,10 @@ subroutine compute_domain_surface( this )
 
     write(*,*) "Computing domain surface..."
 
-    fe_iterator = this%fe_space%create_unfitted_fe_iterator()
+    call this%fe_space%create_unfitted_fe_iterator(fe)
 
     surface = 0.0_rp
-    do while ( .not. fe_iterator%has_finished() )
-
-       ! Get current FE
-       call fe_iterator%current(fe)
+    do while ( .not. fe%has_finished() )
 
        ! Update FE-integration related data structures
        call fe%update_boundary_integration()
@@ -714,8 +704,10 @@ subroutine compute_domain_surface( this )
          surface = surface + dS !quadrature_coordinates(qpoint)%get(1)*quadrature_coordinates(qpoint)%get(2)*dS
        end do
 
-       call fe_iterator%next()
+       call fe%next()
     end do
+
+    call this%fe_space%free_unfitted_fe_iterator(fe)
 
     write(*,*) "Computing domain surface ... OK"
     write(*,*) "Domain surface = ", surface

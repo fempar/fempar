@@ -64,21 +64,43 @@ subroutine uim_free( this )
 end subroutine uim_free
 
 !========================================================================================
-function uim_create_unfitted_fe_iterator( this ) result( unfitted_fe_iterator )
+subroutine uim_create_fe_iterator( this, fe )
   implicit none
-  class(unfitted_integration_manager_t), intent(in) :: this
-  type(unfitted_fe_iterator_t) :: unfitted_fe_iterator
-  call unfitted_fe_iterator%create(1, this)
-end function uim_create_unfitted_fe_iterator
+  class(unfitted_integration_manager_t), intent(in)    :: this
+  class(fe_iterator_t), allocatable,     intent(inout) :: fe
+  integer(ip) :: istat
+  allocate(unfitted_fe_iterator_t :: fe, stat=istat); check(istat==0)
+  select type(fe)
+  class is (unfitted_fe_iterator_t)
+    call this%create_unfitted_fe_iterator(fe)
+  class default
+    check(.false.)
+  end select
+end subroutine uim_create_fe_iterator
 
+!========================================================================================
+subroutine uim_create_unfitted_fe_iterator( this, fe )
+  implicit none
+  class(unfitted_integration_manager_t), intent(in)    :: this
+  type(unfitted_fe_iterator_t),          intent(inout) :: fe
+  call this%free_unfitted_fe_iterator(fe)
+  call fe%create(this)
+end subroutine uim_create_unfitted_fe_iterator
+
+!========================================================================================
+subroutine uim_free_unfitted_fe_iterator( this, fe )
+  implicit none
+  class(unfitted_integration_manager_t), intent(in)    :: this
+  type(unfitted_fe_iterator_t),          intent(inout) :: fe
+  call fe%free()
+end subroutine uim_free_unfitted_fe_iterator
 
 !========================================================================================
 subroutine uim_check_assumptions(this)
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
 
-  type(fe_iterator_t) :: fe_it
-  type(fe_accessor_t) :: fe
+  class(fe_iterator_t), allocatable :: fe
   integer(ip) :: num_fields, ifield
   class(reference_fe_t), pointer :: ref_fe
   class(reference_fe_t), pointer :: ref_fe_1
@@ -89,16 +111,14 @@ subroutine uim_check_assumptions(this)
   ! Same geom ref element in all cells
   ! Same ref elem in all cells, but possibly different among fields
 
-  fe_it = this%fe_space%create_fe_iterator()
+  call this%fe_space%create_fe_iterator(fe)
   num_fields = this%fe_space%get_number_fields()
 
   ! Check geom ref element
   ! TODO how to check the fe_type? EDIT: I think it is not necessary
-  call fe_it%init()
-  call fe_it%current(fe)
+  call fe%first()
   geo_ref_fe_1 => fe%get_reference_fe_geo()
-  do while (.not. fe_it%has_finished())
-    call fe_it%current(fe)
+  do while (.not. fe%has_finished())
     if (fe%is_local()) then
       geo_ref_fe => fe%get_reference_fe_geo()
       assert( geo_ref_fe_1%get_topology()          ==    geo_ref_fe%get_topology()          )
@@ -107,24 +127,22 @@ subroutine uim_check_assumptions(this)
       assert( geo_ref_fe_1%get_field_type()        ==    geo_ref_fe%get_field_type()        )
       assert( geo_ref_fe_1%get_continuity()        .eqv. geo_ref_fe%get_continuity()        )
     end if
-    call fe_it%next()
+    call fe%next()
   end do
 
   do ifield = 1, num_fields
 
     ! Find first non-empty fe in this field
-    call fe_it%init()
-    do while (.not. fe_it%has_finished())
-      call fe_it%current(fe)
+    call fe%first()
+    do while (.not. fe%has_finished())
       ref_fe_1  => fe%get_reference_fe(ifield)
       if ( ref_fe_1%get_order() > 0) exit
-      call fe_it%next()
+      call fe%next()
     end do
 
     ! Check ref elems
-    call fe_it%init()
-    do while (.not. fe_it%has_finished())
-      call fe_it%current(fe)
+    call fe%first()
+    do while (.not. fe%has_finished())
       if (fe%is_local()) then
         ref_fe     => fe%get_reference_fe(ifield)
         assert( ref_fe_1%get_topology()          ==    ref_fe%get_topology()         )
@@ -133,10 +151,12 @@ subroutine uim_check_assumptions(this)
         assert( ref_fe_1%get_field_type()        ==    ref_fe%get_field_type()       )
         assert( ref_fe_1%get_continuity()        .eqv. ref_fe%get_continuity()       )
       end if
-      call fe_it%next()
+      call fe%next()
     end do
 
   end do
+
+  call this%fe_space%free_fe_iterator(fe)
 
 end subroutine uim_check_assumptions
 
@@ -296,8 +316,7 @@ subroutine uim_init_cut_integration( this )
   integer(ip) :: num_dim, num_gp, num_gp_subelem, num_subelems, num_fields
   integer(ip) :: mc_case, mc_num_cases, istat, ifield
 
-  type(fe_iterator_t) :: fe_iterator
-  type(fe_accessor_t) :: fe
+  class(fe_iterator_t), allocatable :: fe
   class(reference_fe_t),     pointer        :: reference_elem
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
@@ -314,8 +333,7 @@ subroutine uim_init_cut_integration( this )
 
   ! We assume that the same geom ref element is in all the mesh
   ! We assume that the same ref element is in all the mesh (but can be different amnong fields)
-  fe_iterator = this%fe_space%create_fe_iterator()
-  call fe_iterator%current(fe)
+  call this%fe_space%create_fe_iterator(fe)
   geo_reference_elem => fe%get_reference_fe_geo() !This is safe since the geo_reference_elem is always non void
 
   ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
@@ -333,13 +351,12 @@ subroutine uim_init_cut_integration( this )
   do ifield = 1,num_fields
 
     ! Find the fist non void ref FE in the field
-    do while( .not. fe_iterator%has_finished())
-      call fe_iterator%current(fe)
+    do while( .not. fe%has_finished())
       if (fe%is_local()) then
         reference_elem => fe%get_reference_fe(field_id=ifield)
         if (reference_elem%get_order() > 0) exit
       end if
-      call fe_iterator%next()
+      call fe%next()
     end do
 
     do mc_case = 1, mc_num_cases
@@ -356,6 +373,8 @@ subroutine uim_init_cut_integration( this )
     reference_elem => fe%get_reference_fe(field_id=ifield)
     call this%empty_vol_integrator(ifield)%create( this%empty_quadrature, reference_elem )
   end do
+
+  call this%fe_space%free_fe_iterator(fe)
 
 end subroutine uim_init_cut_integration
 
@@ -408,8 +427,7 @@ subroutine uim_init_cut_boundary_integration( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
 
-  type(fe_iterator_t) :: fe_iterator
-  type(fe_accessor_t) :: fe
+  class(fe_iterator_t), allocatable :: fe
   class(reference_fe_t),     pointer        :: reference_elem
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
@@ -454,8 +472,7 @@ subroutine uim_init_cut_boundary_integration( this )
 
 
   !We assume that the same ref element is in all the mesh (discarding void FEs), but possibly different in all fields
-  fe_iterator = this%fe_space%create_fe_iterator()
-  call fe_iterator%current(fe)
+  call this%fe_space%create_fe_iterator(fe)
   geo_reference_elem => fe%get_reference_fe_geo() ! This is safe since the geo_reference_fe is always non-void
 
   !TODO it is very counter intuitive that the reference element is here a tet4 (3d), a quad4 (2d)
@@ -485,13 +502,12 @@ subroutine uim_init_cut_boundary_integration( this )
   do ifield = 1, num_fields
 
     ! Find the fist non void ref FE in the field
-    do while( .not. fe_iterator%has_finished())
-      call fe_iterator%current(fe)
+    do while( .not. fe%has_finished())
       if (fe%is_local()) then
         reference_elem => fe%get_reference_fe(field_id=ifield)
         if (reference_elem%get_order() > 0) exit
       end if
-      call fe_iterator%next()
+      call fe%next()
     end do
 
     do mc_case = 1, mc_num_cases
@@ -502,6 +518,8 @@ subroutine uim_init_cut_boundary_integration( this )
   end do
 
   call this%empty_piecewise_fe_map%create_face_map( this%empty_quadrature, geo_reference_elem, 0 )
+
+  call this%fe_space%free_fe_iterator(fe)
 
 end subroutine uim_init_cut_boundary_integration
 

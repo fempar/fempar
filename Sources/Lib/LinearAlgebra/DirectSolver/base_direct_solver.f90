@@ -150,10 +150,19 @@ module base_direct_solver_names
             type(ParameterList_t),         intent(in)    :: parameter_list
         end subroutine base_direct_solver_set_parameters_from_pl
 
-        subroutine base_direct_solver_symbolic_setup_body(this)
+        ! This function returns .true. if the subclass implementor could actually
+        ! perform the symbolic factorization provided the status of the input matrix to be 
+        ! factorized. Some sparse direct solvers may (depending on the parameter values
+        ! selected by the user) require the entries of the matrix to be factorized
+        ! to be available at this stage. In such a case, this method would return .false.
+        ! if the matrix entries are not avaiable at this stage, deferring the actual 
+        ! symbolic factorization to the numerical factorization stage (where the entries
+        ! of the matrix MUST be actually ready) 
+        function base_direct_solver_symbolic_setup_body(this)
             import base_direct_solver_t
             class(base_direct_solver_t), intent(inout) :: this
-        end subroutine base_direct_solver_symbolic_setup_body
+            logical :: base_direct_solver_symbolic_setup_body
+        end function base_direct_solver_symbolic_setup_body
 
         subroutine base_direct_solver_numerical_setup_body(this)
             import base_direct_solver_t
@@ -202,9 +211,7 @@ contains
         ! Check pre-conditions
         check(this%matrix_is_set())
         if(this%state_is_symbolic() .or. this%state_is_numeric()) return
-        call this%symbolic_setup_body()
-        ! post-conditions
-        call this%set_state_symbolic()
+        if (this%symbolic_setup_body()) call this%set_state_symbolic()
     end subroutine base_direct_solver_symbolic_setup
 
     subroutine base_direct_solver_numerical_setup(this)

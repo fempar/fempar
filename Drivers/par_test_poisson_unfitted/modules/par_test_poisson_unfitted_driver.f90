@@ -236,15 +236,13 @@ end subroutine free_timers
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
 
-    type(unfitted_cell_iterator_t) :: cell_iter
-    type(unfitted_cell_accessor_t) :: cell
+    type(unfitted_cell_iterator_t) :: cell
     integer(ip) :: istat
     integer(ip) :: set_id
 
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
-    type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef
+    type(vef_iterator_t)  :: vef
     integer(ip) :: inode
 
     type(point_t), allocatable :: coords(:)
@@ -265,10 +263,8 @@ end subroutine free_timers
     ! Set the cell ids
     if ( this%par_environment%am_i_l1_task() ) then
       call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-      cell_iter = this%triangulation%create_unfitted_cell_iterator()
-      call cell_iter%current(cell)
-      do while( .not. cell_iter%has_finished() )
-        call cell_iter%current(cell)
+      call this%triangulation%create_unfitted_cell_iterator(cell)
+      do while( .not. cell%has_finished() )
         if (cell%is_local()) then
           if (cell%is_exterior()) then
             set_id = PAR_POISSON_UNFITTED_SET_ID_VOID
@@ -277,27 +273,28 @@ end subroutine free_timers
           end if
           this%cell_set_ids(cell%get_lid()) = set_id
         end if
-        call cell_iter%next()
+        call cell%next()
       end do
       call this%triangulation%fill_cells_set(this%cell_set_ids)
+      call this%triangulation%free_unfitted_cell_iterator(cell)
     end if
 
     ! Initialize all the vefs set ids to SET_ID_FREE
-    vef_iterator = this%triangulation%create_vef_iterator()
-    do while ( .not. vef_iterator%has_finished() )
-      call vef_iterator%current(vef)
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
       call vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_FREE)
-      call vef_iterator%next()
+      call vef%next()
     end do
+    call this%triangulation%free_vef_iterator(vef)
 
     ! Fix all the vefs at the boundary
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-      vef_iterator = this%triangulation%create_vef_iterator()
-      do while ( .not. vef_iterator%has_finished() )
-        call vef_iterator%current(vef)
+      call this%triangulation%create_vef_iterator(vef)
+      do while ( .not. vef%has_finished() )
         if(vef%is_at_boundary()) call vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_DIRI)
-        call vef_iterator%next()
+        call vef%next()
       end do
+      call this%triangulation%free_vef_iterator(vef)
     end if
 
     ! If we use neumann boundary conditions on the unfitted boundary, 
@@ -306,9 +303,8 @@ end subroutine free_timers
     if (this%test_params%get_unfitted_boundary_type() == 'neumann' .and. this%par_environment%am_i_l1_task()) then
 
       allocate(coords(this%triangulation%get_max_number_shape_functions()),stat = istat); check(istat == 0)
-      cell_iter = this%triangulation%create_unfitted_cell_iterator()
-      do while( .not. cell_iter%has_finished() )
-        call cell_iter%current(cell)
+      call this%triangulation%create_unfitted_cell_iterator(cell)
+      do while( .not. cell%has_finished() )
         if (cell%is_local()) then
           call cell%get_coordinates(coords)
           ref_elem_geo => cell%get_reference_fe_geo()
@@ -327,8 +323,9 @@ end subroutine free_timers
           end do
         end if
         if (found_interior_vertex) exit
-        call cell_iter%next()
+        call cell%next()
       end do
+      call this%triangulation%free_unfitted_cell_iterator(cell)
       deallocate(coords,stat = istat); check(istat==0)
       
 #ifdef DEBUG
@@ -351,16 +348,14 @@ end subroutine free_timers
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t)                     :: cell
+    class(cell_iterator_t), allocatable       :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     
     allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
-      cell_iterator = this%triangulation%create_cell_iterator()
-      call cell_iterator%current(cell)
+      call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe_geo()
       this%reference_fes(PAR_POISSON_UNFITTED_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
@@ -375,6 +370,7 @@ end subroutine free_timers
                                                    order = -1, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
+      call this%triangulation%free_cell_iterator(cell)
     end if  
   end subroutine setup_reference_fes
 

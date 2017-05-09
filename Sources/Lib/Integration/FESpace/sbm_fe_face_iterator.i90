@@ -25,49 +25,261 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine fe_face_iterator_create ( this, fe_space ) 
+
+subroutine fe_face_iterator_create ( this, fe_space, vef )
   implicit none
-  class(fe_face_iterator_t), intent(inout) :: this
-  class(serial_fe_space_t) , intent(in)    :: fe_space
-  type(face_accessor_t) :: face
+  class(fe_face_iterator_t), target, intent(inout) :: this
+  class(serial_fe_space_t) , target, intent(in)    :: fe_space
+  class(vef_iterator_t)    , intent(in)            :: vef
   call this%free()
-  this%face_iterator = fe_space%triangulation%create_face_iterator()
-  call this%face_iterator%current(face)
-  call this%current_fe_face_accessor%create(face%get_lid(), fe_space)
+  call this%fe_vef_iterator_t%create(fe_space,vef)
+  ! Type guard against polymorphic vef with dynamic type
+  ! different from face_iterator_t
+  select type(vef=>this%vef)
+  class is (face_iterator_t)
+    this%face => vef
+  class default
+   assert(.false.)
+  end select
+  call this%fe_space%create_fe_iterator(this%fe)
 end subroutine fe_face_iterator_create
 
-subroutine fe_face_iterator_free ( this ) 
+subroutine fe_face_iterator_free ( this )
   implicit none
-  class(fe_face_iterator_t), intent(inout) :: this
-  call this%face_iterator%free()
-  call this%current_fe_face_accessor%free()
+  class(fe_face_iterator_t) , intent(inout)      :: this
+  integer(ip) :: istat
+  call this%fe_vef_iterator_t%free()
+  if (allocated(this%fe)) then
+    call this%fe%free()
+    deallocate(this%fe, stat=istat); check(istat==0);
+    nullify(this%face)
+  end if
 end subroutine fe_face_iterator_free
 
-subroutine fe_face_iterator_init ( this ) 
-  implicit none
-  class(fe_face_iterator_t), intent(inout) :: this
-  call this%face_iterator%init()
-end subroutine fe_face_iterator_init
 
-subroutine fe_face_iterator_next ( this ) 
+subroutine fe_face_iterator_update_integration( this )
   implicit none
-  class(fe_face_iterator_t), intent(inout) :: this
-  call this%face_iterator%next()
-end subroutine fe_face_iterator_next
+  class(fe_face_iterator_t), intent(inout) :: this 
+  integer(ip)                      :: icell_around, field_id
+  integer(ip)                      :: face_lpos_within_cells_around(2)
+  type(point_t)          , pointer :: coords(:)
+  type(quadrature_t)     , pointer :: quadrature
+  type(face_map_t)       , pointer :: face_map
+  type(face_integrator_t), pointer :: face_integrator
+  
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+ 
+  quadrature => this%get_quadrature()
+  face_map   => this%get_face_map()
+  
+  coords => face_map%get_face_coordinates()
+  call this%get_coordinates(coords)
 
-function fe_face_iterator_has_finished ( this ) 
+  do icell_around=1, this%get_num_cells_around()
+    face_lpos_within_cells_around(icell_around) = &
+      this%get_face_lpos_within_cell_around(icell_around)  
+    call this%get_cell_around(icell_around,this%fe)  
+    coords => face_map%get_coordinates_neighbour(icell_around, &
+                                                 face_lpos_within_cells_around(icell_around))
+    call this%fe%get_coordinates(coords)    
+  end do
+
+  call this%get_cell_around(1, this%fe)
+  reference_fe_geo => this%fe%get_reference_fe_geo()
+  
+  call face_map%update(face_lpos_within_cells_around, &
+                       quadrature, &
+                       reference_fe_geo)
+  
+  do field_id = 1, this%fe_space%get_number_fields()
+     face_integrator => this%get_face_integrator(field_id)
+     call face_integrator%update(face_lpos_within_cells_around, &
+                                 this%get_face_map(), &             
+                                 this%get_face_orientation(), &
+                                 this%get_face_rotation())
+  end do
+end subroutine fe_face_iterator_update_integration
+
+
+function fe_face_iterator_get_fe_space(this)
+  implicit none
+  class(fe_face_iterator_t), target, intent(in) :: this
+  class(serial_fe_space_t), pointer :: fe_face_iterator_get_fe_space
+  fe_face_iterator_get_fe_space => this%fe_space
+end function fe_face_iterator_get_fe_space
+
+!==================================================================================================
+subroutine fe_face_iterator_get_elem2dof(this, icell_around, elem2dof)
+  implicit none
+  class(fe_face_iterator_t), target, intent(inout)  :: this
+  integer(ip)                      , intent(in)     :: icell_around
+  type(i1p_t)                      , intent(out)    :: elem2dof(:)
+  call this%get_cell_around(icell_around, this%fe)
+  call this%fe%get_elem2dof(elem2dof)
+end subroutine fe_face_iterator_get_elem2dof
+
+!==================================================================================================
+function fe_face_iterator_get_quadrature ( this )
   implicit none
   class(fe_face_iterator_t), intent(in) :: this
-  logical                               :: fe_face_iterator_has_finished
-  fe_face_iterator_has_finished = this%face_iterator%has_finished()
-end function fe_face_iterator_has_finished
+  type(quadrature_t), pointer :: fe_face_iterator_get_quadrature
+  integer(ip) :: fe_face_quadratures_position
+  integer(ip) :: istat
+  call this%fe_space%fe_face_quadratures_position%get(key=this%fe_space%max_order_per_fe_face(this%get_face_lid()), &
+                                                      val=fe_face_quadratures_position, &
+                                                      stat=istat)
+  assert ( .not. istat == key_not_found )
+  fe_face_iterator_get_quadrature => this%fe_space%fe_face_quadratures(fe_face_quadratures_position)
+end function fe_face_iterator_get_quadrature
 
-subroutine fe_face_iterator_current ( this, fe_face_accessor ) 
+!==================================================================================================
+function fe_face_iterator_get_face_map(this)
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this
-  type(fe_face_accessor_t) , intent(inout) :: fe_face_accessor
-  type(face_accessor_t) :: face
-  call this%face_iterator%current(face)
-  call this%current_fe_face_accessor%set_lid(face%get_lid())
-  fe_face_accessor = this%current_fe_face_accessor
-end subroutine fe_face_iterator_current
+  type(face_map_t)         , pointer    :: fe_face_iterator_get_face_map
+  integer(ip)                           :: icell_around, istat
+  integer(ip)                           :: fe_face_maps_position_key
+  integer(ip)                           :: fe_face_maps_position
+  integer(ip)                           :: reference_fes_geo_id(2)
+   
+  reference_fes_geo_id(2) = 0 
+  do icell_around = 1, this%get_num_cells_around()
+     call this%get_cell_around(icell_around, this%fe)
+     reference_fes_geo_id(icell_around) = this%fe%get_reference_fe_geo_id()
+  end do
+  
+  fe_face_maps_position_key = &
+       this%fe_space%generate_fe_face_maps_position_key(this%fe_space%max_order_per_fe_face(this%get_face_lid()), &
+                                                        reference_fes_geo_id(1), &
+                                                        reference_fes_geo_id(2) )
+       
+  call this%fe_space%fe_face_maps_position%get(key=fe_face_maps_position_key, &
+                                               val=fe_face_maps_position, &
+                                               stat=istat)
+  assert ( .not. istat == key_not_found )
+  
+  fe_face_iterator_get_face_map => this%fe_space%fe_face_maps(fe_face_maps_position)
+  
+end function fe_face_iterator_get_face_map
+
+!==================================================================================================
+function fe_face_iterator_get_face_integrator(this, field_id)
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id
+  type(face_integrator_t)  , pointer    :: fe_face_iterator_get_face_integrator
+  integer(ip)                           :: icell_around, istat
+  integer(ip)                           :: fe_face_integrators_position_key
+  integer(ip)                           :: fe_face_integrators_position
+  integer(ip)                           :: reference_fes_id(2)
+  
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%get_number_fields() )
+ 
+  reference_fes_id(2) = 0 
+  do icell_around = 1, this%get_num_cells_around()
+     call this%get_cell_around(icell_around, this%fe)
+     reference_fes_id(icell_around) = this%fe_space%reference_fe_id_per_fe(field_id, this%fe%get_lid())
+  end do
+  
+  fe_face_integrators_position_key = &
+       this%fe_space%generate_fe_face_integrators_position_key(this%fe_space%max_order_per_fe_face(this%get_face_lid()), &
+                                                               reference_fes_id(1), &
+                                                               reference_fes_id(2) )
+       
+  call this%fe_space%fe_face_integrators_position%get(key=fe_face_integrators_position_key, &
+                                                      val=fe_face_integrators_position, &
+                                                      stat=istat)
+  assert ( .not. istat == key_not_found )
+  
+  fe_face_iterator_get_face_integrator => this%fe_space%fe_face_integrators(fe_face_integrators_position)
+end function fe_face_iterator_get_face_integrator
+
+!==================================================================================================
+subroutine fe_face_iterator_impose_strong_dirichlet_bcs ( this, facemat, facevec )
+ implicit none
+ class(fe_face_iterator_t), intent(inout) :: this
+ real(rp)                 , intent(in)    :: facemat(:,:,:,:)
+ real(rp)                 , intent(inout) :: facevec(:,:)  
+ integer(ip)                              :: idof,ineigh,jneigh, elmat_col, field_id,spos
+ real(rp), pointer                        :: strong_dirichlet_values_entries(:)
+ class(reference_fe_t), pointer           :: reference_fe
+
+ do ineigh = 1,this%get_num_cells_around()
+    do jneigh = 1,this%get_num_cells_around()
+       call this%get_cell_around(jneigh, this%fe)
+       strong_dirichlet_values_entries => this%fe_space%strong_dirichlet_values%get_entries()
+       elmat_col = 0
+       do field_id = 1, this%fe_space%get_number_fields()
+          reference_fe => this%fe%get_reference_fe(field_id)
+          spos = this%fe_space%ptr_dofs_per_fe(field_id, this%fe%get_lid())
+          do idof = 1, reference_fe%get_number_shape_functions()
+             elmat_col = elmat_col + 1
+             if ( this%fe_space%lst_dofs_lids(spos+idof-1) < 0 ) then
+                facevec(:,ineigh) = facevec(:,ineigh) - facemat(:,elmat_col,ineigh,jneigh)* &
+                     &              strong_dirichlet_values_entries(-this%fe_space%lst_dofs_lids(spos+idof-1))
+             end if
+          end do
+       end do
+    end do
+ end do
+ 
+end subroutine fe_face_iterator_impose_strong_dirichlet_bcs
+
+!==================================================================================================
+function fe_face_iterator_compute_surface ( this )
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this
+  real(rp)                         :: fe_face_iterator_compute_surface
+  integer(ip) :: qpoin,number_quadrature_points
+  type(face_map_t)  , pointer :: face_map
+  type(quadrature_t), pointer :: quad
+  
+  face_map => this%get_face_map()
+  quad     => this%get_quadrature()
+  number_quadrature_points = quad%get_number_quadrature_points()
+  
+  fe_face_iterator_compute_surface = 0.0_rp
+  do qpoin = 1, number_quadrature_points
+     fe_face_iterator_compute_surface = fe_face_iterator_compute_surface + &
+          &                        face_map%get_det_jacobian(qpoin) * &
+          &                        quad%get_weight(qpoin)
+  end do
+  
+end function fe_face_iterator_compute_surface
+
+! Exploiting ("inherited from") face_iterator_t
+subroutine fe_face_iterator_get_coordinates (this, face_coordinates)
+  implicit none
+  class(fe_face_iterator_t), intent(inout)  :: this
+  type(point_t)            ,  intent(inout) :: face_coordinates(:)
+  call this%face%get_coordinates(face_coordinates)
+end subroutine fe_face_iterator_get_coordinates
+
+function fe_face_iterator_get_face_lid (this) result(face_lid)
+  implicit none
+  class(fe_face_iterator_t), intent(in)    :: this
+  integer(ip) :: face_lid
+  face_lid = this%face%get_face_lid()
+end function fe_face_iterator_get_face_lid
+
+function fe_face_iterator_get_face_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: icell_around
+  integer(ip)                              :: face_lpos_within_cell_around
+  face_lpos_within_cell_around = this%face%get_face_lpos_within_cell_around(icell_around)
+end function fe_face_iterator_get_face_lpos_within_cell_around
+
+function fe_face_iterator_get_face_orientation ( this ) result(face_orientation)
+  implicit none
+  class(fe_face_iterator_t), intent(in) :: this
+  integer(ip)                           :: face_orientation
+  face_orientation = this%face%get_face_orientation ( )
+end function fe_face_iterator_get_face_orientation 
+
+function fe_face_iterator_get_face_rotation ( this ) result(face_rotation)
+  implicit none
+  class(fe_face_iterator_t), intent(in) :: this
+  integer(ip)                           :: face_rotation
+  face_rotation = this%face%get_face_rotation( )
+end function fe_face_iterator_get_face_rotation

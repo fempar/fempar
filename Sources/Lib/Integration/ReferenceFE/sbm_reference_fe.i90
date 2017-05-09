@@ -326,7 +326,7 @@ function reference_fe_get_node_n_face ( this, i, j )
   integer(ip) :: reference_fe_get_node_n_face
   type(list_iterator_t)   :: iterator
   iterator = this%nodes_n_face%create_iterator(j)
-  reference_fe_get_node_n_face = iterator%reach_from_current(i-1)
+  reference_fe_get_node_n_face = iterator%get_from_current(i-1)
 end function reference_fe_get_node_n_face
 
 function reference_fe_get_number_dofs_on_n_face ( this, i )
@@ -352,7 +352,7 @@ function reference_fe_get_own_node_n_face ( this, i, j )
   integer(ip) :: reference_fe_get_own_node_n_face
   type(list_iterator_t)   :: iterator
   iterator = this%own_nodes_n_faces%create_iterator(j)
-  reference_fe_get_own_node_n_face = iterator%reach_from_current(i-1)
+  reference_fe_get_own_node_n_face = iterator%get_from_current(i-1)
 end function reference_fe_get_own_node_n_face
 
 function reference_fe_get_number_own_nodes_n_face ( this, i )

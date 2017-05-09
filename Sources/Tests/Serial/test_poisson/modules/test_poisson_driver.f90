@@ -113,8 +113,7 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
 
-    type(cell_iterator_t) :: cell_iter
-    type(cell_accessor_t) :: cell
+    class(cell_iterator_t), allocatable :: cell
     type(point_t), allocatable :: cell_coords(:)
     integer(ip) :: istat
     integer(ip) :: set_id
@@ -122,8 +121,7 @@ contains
     integer(ip) :: num_void_neigs
 
     integer(ip)           :: ivef
-    type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef, vef_of_vef
+    type(vef_iterator_t)  :: vef, vef_of_vef
     type(list_t), pointer :: vefs_of_vef
     type(list_t), pointer :: vertices_of_line
     type(list_iterator_t) :: vefs_of_vef_iterator
@@ -143,11 +141,9 @@ contains
     ! Set the cell ids to use void fes
     if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
         call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-        cell_iter = this%triangulation%create_cell_iterator()
-        call cell_iter%current(cell)
+        call this%triangulation%create_cell_iterator(cell)
         allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
-        do while( .not. cell_iter%has_finished() )
-          call cell_iter%current(cell)
+        do while( .not. cell%has_finished() )
           if (cell%is_local()) then
             set_id = TEST_POISSON_VOID
             call cell%get_coordinates(cell_coords)
@@ -172,30 +168,33 @@ contains
             end select
             this%cell_set_ids(cell%get_lid()) = set_id
           end if
-          call cell_iter%next()
+          call cell%next()
         end do
+        call this%triangulation%free_cell_iterator(cell)
         deallocate(cell_coords, stat = istat); check(istat == 0)
         call this%triangulation%fill_cells_set(this%cell_set_ids)
     end if
     
     if ( this%test_params%get_triangulation_type() == 'structured' ) then
-       vef_iterator = this%triangulation%create_vef_iterator()
-       do while ( .not. vef_iterator%has_finished() )
-          call vef_iterator%current(vef)
+       call this%triangulation%create_vef_iterator(vef)
+       do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
-          call vef_iterator%next()
+          call vef%next()
        end do
+       call this%triangulation%free_vef_iterator(vef)
     end if
     
     ! Set all the vefs on the interface between full/void if there are void fes
     if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
-      vef_iterator = this%triangulation%create_vef_iterator()
-      do while ( .not. vef_iterator%has_finished() )
-         call vef_iterator%current(vef)
+      call this%triangulation%create_vef_iterator(vef)
+      call this%triangulation%create_vef_iterator(vef_of_vef)
+      call this%triangulation%create_cell_iterator(cell)
+      do while ( .not. vef%has_finished() )
+                                       
          ! If it is an INTERIOR face
          if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
 
@@ -246,8 +245,11 @@ contains
            end if ! If face on void/full boundary
          end if ! If vef is an interior face
 
-         call vef_iterator%next()
+         call vef%next()
       end do ! Loop in vefs
+      call this%triangulation%free_vef_iterator(vef)
+      call this%triangulation%free_vef_iterator(vef_of_vef)
+      call this%triangulation%free_cell_iterator(cell)
     end if    
   end subroutine setup_triangulation
   
@@ -261,8 +263,7 @@ contains
     ! Locals
     integer(ip) :: istat    
     logical                                   :: continuity
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t)                     :: cell
+    class(cell_iterator_t)      , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     character(:), allocatable :: field_type
     
@@ -284,37 +285,25 @@ contains
       field_type = field_type_vector
     end if
     
-    cell_iterator = this%triangulation%create_cell_iterator()
-    call cell_iterator%current(cell)
+    call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
+    this%reference_fes(TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                                 fe_type = fe_type_lagrangian, &
+                                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                 order = this%test_params%get_reference_fe_order(), &
+                                                                 field_type = field_type, &
+                                                                 continuity = continuity )
     
-    ! BEGIN Checking new polytope_tree_t
-    !if ( reference_fe_geo%get_topology() == topology_hex ) then
-    ! topology = 2**this%triangulation%get_num_dimensions()-1
-    !elseif ( reference_fe_geo%get_topology() == topology_tet ) then
-    ! topology = 0
-    !end if
-    !call poly_old%create_old(this%triangulation%get_num_dimensions(), topology )
-    !call poly%create(this%triangulation%get_num_dimensions(), topology )
-    !call poly_old%print()
-    !call poly%print()
-    ! END Checking ...
-    
-   this%reference_fes(TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                                fe_type = fe_type_lagrangian, &
-                                                                number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                                order = this%test_params%get_reference_fe_order(), &
-                                                                field_type = field_type, &
-                                                                continuity = continuity )
-   
-   if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
-        this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                                     fe_type = fe_type_void, &
-                                                                     number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                                     order = -1, &
-                                                                     field_type = field_type, &
-                                                                     continuity = continuity )
-   end if
+    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+         this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                                      fe_type = fe_type_void, &
+                                                                      number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                      order = -1, &
+                                                                      field_type = field_type, &
+                                                                      continuity = continuity )
+    end if
+
+    call this%triangulation%free_cell_iterator(cell)
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)

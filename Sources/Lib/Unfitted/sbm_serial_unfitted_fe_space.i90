@@ -95,10 +95,26 @@ subroutine sufs_free(this)
 end subroutine sufs_free
 
 !========================================================================================
-function sufs_create_unfitted_fe_iterator(this) result(unfitted_fe_iterator)
+subroutine sufs_create_fe_iterator(this, fe)
   implicit none
-  class(serial_unfitted_fe_space_t), intent(in) :: this
-  type(unfitted_fe_iterator_t) :: unfitted_fe_iterator
-  unfitted_fe_iterator = this%unfitted_integration%create_unfitted_fe_iterator()
-end function sufs_create_unfitted_fe_iterator
+  class(serial_unfitted_fe_space_t), intent(in)    :: this
+  class(fe_iterator_t), allocatable, intent(inout) :: fe
+  call this%unfitted_integration%create_fe_iterator(fe)
+end subroutine sufs_create_fe_iterator
+
+!========================================================================================
+subroutine sufs_create_unfitted_fe_iterator(this, fe)
+  implicit none
+  class(serial_unfitted_fe_space_t), intent(in)    :: this
+  type(unfitted_fe_iterator_t),      intent(inout) :: fe
+  call this%unfitted_integration%create_unfitted_fe_iterator(fe)
+end subroutine sufs_create_unfitted_fe_iterator
+
+!========================================================================================
+subroutine sufs_free_unfitted_fe_iterator(this, fe)
+  implicit none
+  class(serial_unfitted_fe_space_t), intent(in)    :: this
+  type(unfitted_fe_iterator_t),      intent(inout) :: fe
+  call this%unfitted_integration%free_unfitted_fe_iterator(fe)
+end subroutine sufs_free_unfitted_fe_iterator
 
