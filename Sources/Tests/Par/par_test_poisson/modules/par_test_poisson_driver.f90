@@ -264,6 +264,12 @@ end subroutine free_timers
     iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
     plist => this%parameter_list 
+    if ( this%par_environment%get_l1_size() == 1 ) then
+       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    end if
     do ilev=1, this%par_environment%get_num_levels()-1
        ! Set current level Dirichlet solver parameters
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
