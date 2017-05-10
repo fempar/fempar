@@ -96,8 +96,7 @@ module base_static_triangulation_names
     ! extends type(cell_iterator_t), requires to call these TBPs and cannot be placed
     ! either within this module or within a submodule of base_static_triangulation_names
     ! due to module dependencies cycle
-    generic                              :: create                  => cell_iterator_create
-    procedure, private                   :: cell_iterator_create
+    procedure                            :: create                  => cell_iterator_create
     procedure                            :: free                    => cell_iterator_free
     final                                ::                            cell_iterator_free_final
     procedure, non_overridable           :: next                    => cell_iterator_next
@@ -132,6 +131,11 @@ module base_static_triangulation_names
     procedure, non_overridable           :: is_local                => cell_iterator_is_local
     procedure, non_overridable           :: is_ghost                => cell_iterator_is_ghost
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_iterator_get_scan_sum_number_vefs
+
+    ! Declare dummy procedures to be implemented in the corresponding derived classes 
+    procedure :: is_cut      => cell_iterator_is_cut
+    procedure :: is_interior => cell_iterator_is_interior
+    procedure :: is_exterior => cell_iterator_is_exterior
 
     procedure, non_overridable, private  :: fill_nodes_on_vertices        => cell_iterator_fill_nodes_on_vertices
     procedure, non_overridable, private  :: fill_nodes_on_vef_new         => cell_iterator_fill_nodes_on_vef_new

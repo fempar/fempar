@@ -169,7 +169,7 @@ contains
     integer(ip) :: istat
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
-    type(unfitted_cell_iterator_t) :: cell
+    class(cell_iterator_t), allocatable :: cell
     integer(ip) :: set_id
 
     ! Create a structured mesh with a custom domain
@@ -181,7 +181,7 @@ contains
 
     ! Set the cell ids
     call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-    call this%triangulation%create_unfitted_cell_iterator(cell)
+    call this%triangulation%create_cell_iterator(cell)
     do while( .not. cell%has_finished() )
       if (cell%is_exterior()) then
         set_id = SERIAL_UNF_POISSON_SET_ID_VOID
@@ -192,7 +192,7 @@ contains
       call cell%next()
     end do
     call this%triangulation%fill_cells_set(this%cell_set_ids)
-    call this%triangulation%free_unfitted_cell_iterator(cell)
+    call this%triangulation%free_cell_iterator(cell)
 
     ! Impose Dirichlet in the boundary of the background mesh
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
@@ -673,7 +673,8 @@ subroutine compute_domain_surface( this )
     implicit none
     class(test_poisson_unfitted_driver_t), intent(in) :: this
 
-    type(unfitted_fe_iterator_t) :: fe
+    class(unfitted_fe_iterator_t), pointer :: fe
+    class(fe_iterator_t), allocatable, target :: fe_std
     real(rp) :: surface, dS
     type(quadrature_t), pointer :: quadrature
     type(piecewise_fe_map_t),     pointer :: fe_map
@@ -682,7 +683,14 @@ subroutine compute_domain_surface( this )
 
     write(*,*) "Computing domain surface..."
 
-    call this%fe_space%create_unfitted_fe_iterator(fe)
+    call this%fe_space%create_fe_iterator(fe_std)
+    
+    select type (fe_std)
+    class is (unfitted_fe_iterator_t)
+      fe => fe_std
+    class default
+      check(.false.)
+    end select
 
     surface = 0.0_rp
     do while ( .not. fe%has_finished() )
@@ -707,7 +715,7 @@ subroutine compute_domain_surface( this )
        call fe%next()
     end do
 
-    call this%fe_space%free_unfitted_fe_iterator(fe)
+    call this%fe_space%free_fe_iterator(fe_std)
 
     write(*,*) "Computing domain surface ... OK"
     write(*,*) "Domain surface = ", surface

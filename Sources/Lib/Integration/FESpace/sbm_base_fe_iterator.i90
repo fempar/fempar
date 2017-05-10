@@ -235,3 +235,24 @@ subroutine base_fe_iterator_get_vef (this, ivef, vef)
   call this%cell%get_vef(ivef, vef)
 end subroutine base_fe_iterator_get_vef
 
+function base_fe_iterator_is_cut(this)
+  implicit none
+  class(base_fe_iterator_t), intent(in)    :: this
+  logical :: base_fe_iterator_is_cut
+  base_fe_iterator_is_cut = this%cell%is_cut()
+end function base_fe_iterator_is_cut
+
+function base_fe_iterator_is_interior(this)
+  implicit none
+  class(base_fe_iterator_t), intent(in)    :: this
+  logical :: base_fe_iterator_is_interior
+  base_fe_iterator_is_interior = this%cell%is_interior()
+end function base_fe_iterator_is_interior
+
+function base_fe_iterator_is_exterior(this)
+  implicit none
+  class(base_fe_iterator_t), intent(in)    :: this
+  logical :: base_fe_iterator_is_exterior
+  base_fe_iterator_is_exterior = this%cell%is_exterior()
+end function base_fe_iterator_is_exterior
+

@@ -84,7 +84,7 @@ subroutine uim_create_unfitted_fe_iterator( this, fe )
   class(unfitted_integration_manager_t), intent(in)    :: this
   type(unfitted_fe_iterator_t),          intent(inout) :: fe
   call this%free_unfitted_fe_iterator(fe)
-  call fe%create(this)
+  call fe%create(this%fe_space)
 end subroutine uim_create_unfitted_fe_iterator
 
 !========================================================================================

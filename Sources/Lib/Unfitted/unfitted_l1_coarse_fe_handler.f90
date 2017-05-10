@@ -528,8 +528,7 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   class(par_fe_space_t), pointer :: par_fe_space
   class(par_unfitted_fe_space_t), pointer :: par_unf_fe_space
   class(base_static_triangulation_t), pointer :: triangulation
-  type(unfitted_fe_iterator_t)  :: fe
-  class(unfitted_cell_iterator_t), pointer :: cell
+  class(fe_iterator_t), allocatable  :: fe
   integer(ip) :: num_total_cells
   type(environment_t), pointer :: par_environment
   type(cell_import_t), pointer :: cell_import
@@ -554,13 +553,12 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   num_total_cells = triangulation%get_num_local_cells() + triangulation%get_num_ghost_cells()
   call memalloc(num_total_cells,is_cut_cell,__FILE__,__LINE__)
   is_cut_cell(:) = 0
-  call par_unf_fe_space%create_unfitted_fe_iterator(fe)
+  call par_unf_fe_space%create_fe_iterator(fe)
   do while ( .not. fe%has_finished() )
     if ( fe%is_ghost() ) then
       call fe%next(); cycle
     end if
-    cell => fe%get_unfitted_cell_iterator()
-    if (cell%is_cut()) is_cut_cell(cell%get_lid()) = 1
+    if (fe%is_cut()) is_cut_cell(fe%get_lid()) = 1
     call fe%next()
   end do
 
@@ -592,7 +590,7 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
 
   ! Clean up
   call memfree(is_cut_cell,__FILE__,__LINE__)
-  call par_unf_fe_space%free_unfitted_fe_iterator(fe)
+  call par_unf_fe_space%free_fe_iterator(fe)
 
 end subroutine unfitted_l1_identify_problematic_dofs
 

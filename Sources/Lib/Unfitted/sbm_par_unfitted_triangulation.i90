@@ -66,23 +66,6 @@ subroutine put_create_cell_iterator ( this, cell )
 end subroutine put_create_cell_iterator
 
 !========================================================================================
-subroutine put_create_unfitted_cell_iterator ( this, cell )
-  implicit none
-  class(par_unfitted_triangulation_t), intent(in)    :: this
-  type(unfitted_cell_iterator_t),      intent(inout) :: cell
-  call this%free_unfitted_cell_iterator(cell)
-  call this%marching_cubes%create_unfitted_cell_iterator(cell)
-end subroutine put_create_unfitted_cell_iterator
-
-!========================================================================================
-subroutine put_free_unfitted_cell_iterator ( this, cell )
-  implicit none
-  class(par_unfitted_triangulation_t), intent(in)    :: this
-  type(unfitted_cell_iterator_t),      intent(inout) :: cell
-  call this%marching_cubes%free_unfitted_cell_iterator(cell)
-end subroutine put_free_unfitted_cell_iterator
-
-!========================================================================================
 function put_get_marching_cubes(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), target, intent(in)    :: this

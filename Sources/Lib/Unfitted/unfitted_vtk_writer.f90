@@ -454,7 +454,8 @@ contains
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
   
-    type(unfitted_fe_iterator_t) :: fe
+    class(unfitted_fe_iterator_t), pointer :: fe
+    class(fe_iterator_t),allocatable, target :: fe_std
     type(quadrature_t), pointer :: quadrature
     type(point_t), pointer :: quadrature_coordinates(:)
     type(piecewise_fe_map_t),     pointer :: fe_map
@@ -481,9 +482,15 @@ contains
       class default
       check(.false.)
     end select
-
   
-    call fe_space%create_unfitted_fe_iterator(fe)
+    call fe_space%create_fe_iterator(fe_std)
+    select type(fe_std)
+    class is (unfitted_fe_iterator_t)
+      fe => fe_std
+    class default
+      check(.false.)
+    end select
+
     num_gp_subface = 0
     do while ( .not. fe%has_finished() )
        call fe%update_boundary_integration()
@@ -545,7 +552,7 @@ contains
   
     if (num_dime == 2_ip) this%z(:) = 0
     if (num_dime == 2_ip) this%v_z(:) = 0
-    call fe_space%free_unfitted_fe_iterator(fe)
+    call fe_space%free_fe_iterator(fe_std)
   
   end subroutine uvtkw_attach_boundary_quad_points
 

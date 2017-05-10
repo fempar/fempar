@@ -48,10 +48,8 @@ module unfitted_triangulations_names
   contains
 
     ! Creation / deletion methods
-    generic            :: create                         => unfitted_cell_iterator_create
-    procedure, private :: cell_iterator_create           => unfitted_cell_iterator_cell_iterator_create
-    procedure, private :: unfitted_cell_iterator_create
-    procedure          :: free                           => unfitted_cell_iterator_free
+    procedure :: create => unfitted_cell_iterator_create
+    procedure :: free   => unfitted_cell_iterator_free
     
     ! Updater: to be called each time the lid changes
     procedure, non_overridable :: update_sub_triangulation    => unfitted_cell_iterator_update_sub_triangulation
@@ -74,9 +72,9 @@ module unfitted_triangulations_names
     procedure, non_overridable :: get_ref_coords_of_subface   => unfitted_cell_iterator_get_ref_coords_of_subface
     
     ! Checkers
-    procedure, non_overridable :: is_cut      => unfitted_cell_iterator_is_cut
-    procedure, non_overridable :: is_interior => unfitted_cell_iterator_is_interior
-    procedure, non_overridable :: is_exterior => unfitted_cell_iterator_is_exterior
+    procedure :: is_cut      => unfitted_cell_iterator_is_cut
+    procedure :: is_interior => unfitted_cell_iterator_is_interior
+    procedure :: is_exterior => unfitted_cell_iterator_is_exterior
     procedure, non_overridable :: is_interior_subcell => unfitted_cell_iterator_is_interior_subcell
     procedure, non_overridable :: is_exterior_subcell => unfitted_cell_iterator_is_exterior_subcell
 
@@ -162,9 +160,13 @@ module unfitted_triangulations_names
     ! Creation / deletion methods
     procedure                  :: create                        => marching_cubes_create
     procedure                  :: free                          => marching_cubes_free
-    procedure, non_overridable :: create_cell_iterator          => marching_cubes_create_cell_iterator
-    procedure, non_overridable :: create_unfitted_cell_iterator => marching_cubes_create_unfitted_cell_iterator
-    procedure, non_overridable :: free_unfitted_cell_iterator   => marching_cubes_free_unfitted_cell_iterator
+    
+    ! Polymorphic creation of the iterator to be used only within this module
+    procedure, non_overridable, private :: create_cell_iterator          => marching_cubes_create_cell_iterator
+
+    ! Non polimorphic creation / deletion  of iterators to be used only within this module
+    procedure, non_overridable, private :: create_unfitted_cell_iterator => marching_cubes_create_unfitted_cell_iterator
+    procedure, non_overridable, private :: free_unfitted_cell_iterator   => marching_cubes_free_unfitted_cell_iterator
 
     ! Getters
     procedure, non_overridable :: get_num_cut_cells             => marching_cubes_get_num_cut_cells
@@ -217,10 +219,6 @@ module unfitted_triangulations_names
       ! Generate iterator by overloading the procedure of the father
       procedure :: create_cell_iterator => sut_create_cell_iterator
 
-      !TODO this should be removed in the future
-      procedure :: create_unfitted_cell_iterator => sut_create_unfitted_cell_iterator
-      procedure :: free_unfitted_cell_iterator   => sut_free_unfitted_cell_iterator
-
       ! Getters
       procedure, non_overridable :: get_marching_cubes            => sut_get_marching_cubes
       procedure, non_overridable :: get_num_cut_cells             => sut_get_num_cut_cells
@@ -259,10 +257,6 @@ module unfitted_triangulations_names
 
       ! Generate iterator by overloading the procedure of the father
       procedure :: create_cell_iterator          => put_create_cell_iterator
-
-      ! TODo this should be removed in the future
-      procedure :: create_unfitted_cell_iterator => put_create_unfitted_cell_iterator
-      procedure :: free_unfitted_cell_iterator   => put_free_unfitted_cell_iterator
 
       ! Getters
       procedure, non_overridable :: get_marching_cubes            => put_get_marching_cubes

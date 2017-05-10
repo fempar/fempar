@@ -499,3 +499,25 @@ subroutine cell_iterator_fill_internal_nodes_new(this,node_count)
   end do
 
 end subroutine cell_iterator_fill_internal_nodes_new
+
+function cell_iterator_is_cut(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  logical :: cell_iterator_is_cut
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_cut
+ 
+function cell_iterator_is_interior(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  logical :: cell_iterator_is_interior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_interior
+
+function cell_iterator_is_exterior(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  logical :: cell_iterator_is_exterior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_exterior
+

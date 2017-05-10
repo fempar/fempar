@@ -27,23 +27,26 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !========================================================================================
-subroutine unfitted_cell_iterator_cell_iterator_create( this, base_static_triangulation )
+subroutine unfitted_cell_iterator_create ( this, base_static_triangulation )
+  
   implicit none
-  class(unfitted_cell_iterator_t)                    , intent(inout) :: this
+  class(unfitted_cell_iterator_t)           , intent(inout) :: this
   class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
-  mcheck(.false.,'This procedure should never have been called!')
-end subroutine unfitted_cell_iterator_cell_iterator_create
 
-!========================================================================================
-subroutine unfitted_cell_iterator_create ( this, marching_cubes )
+  class(marching_cubes_t), pointer :: marching_cubes
 
-  implicit none
-  class(unfitted_cell_iterator_t), intent(inout) :: this
-  class(marching_cubes_t), target, intent(in)    :: marching_cubes
+  select type (base_static_triangulation)
+  class is (serial_unfitted_triangulation_t)
+    marching_cubes => base_static_triangulation%get_marching_cubes()
+  class is (par_unfitted_triangulation_t)
+    marching_cubes => base_static_triangulation%get_marching_cubes()
+  class default
+    check(.false.)
+  end select
 
   assert(associated(marching_cubes%triangulation))
   call this%free()
-  call this%cell_iterator_t%create(marching_cubes%triangulation)
+  call this%cell_iterator_t%create(base_static_triangulation)
   this%marching_cubes => marching_cubes
 
 end subroutine unfitted_cell_iterator_create

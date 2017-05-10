@@ -66,7 +66,8 @@ contains
 
     ! FE space traversal-related data types
     ! TODO We need this because the accesors and iterators are not polymorphic
-    type(unfitted_fe_iterator_t) :: fe
+    class(unfitted_fe_iterator_t), pointer :: fe
+    class(fe_iterator_t), allocatable, target :: fe_std
     class(unfitted_cell_iterator_t), pointer :: cell
 
     ! FE integration-related data types
@@ -118,9 +119,10 @@ contains
 
 
     ! TODO We will delete this once implemented the fake methods in the father class
-    select type(fe_space)
-      class is (serial_unfitted_fe_space_t)
-        call fe_space%create_unfitted_fe_iterator(fe)
+    call fe_space%create_fe_iterator(fe_std)
+    select type(fe_std)
+      class is (unfitted_fe_iterator_t)
+      fe => fe_std
       class default
         check(.false.)
     end select
@@ -347,13 +349,7 @@ contains
     call memfree ( elmatV, __FILE__, __LINE__ )
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call eigs%free()
-    ! TODO We will delete this once implemented the fake methods in the father class
-    select type(fe_space)
-      class is (serial_unfitted_fe_space_t)
-        call fe_space%free_unfitted_fe_iterator(fe)
-      class default
-        check(.false.)
-    end select
+    call fe_space%free_fe_iterator(fe_std)
   end subroutine integrate
 
 end module poisson_unfitted_cG_discrete_integration_names

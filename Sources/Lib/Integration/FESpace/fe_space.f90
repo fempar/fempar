@@ -59,7 +59,7 @@ module fe_space_names
   use direct_solver_parameters_names
   use iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
-  
+
   
  ! Parallel modules
   use environment_names
@@ -157,6 +157,9 @@ module fe_space_names
     procedure, non_overridable           :: scan_sum_number_vefs    => base_fe_iterator_get_scan_sum_number_vefs
     procedure, non_overridable, private  :: base_fe_iterator_get_vef
     generic                              :: get_vef                 => base_fe_iterator_get_vef
+    procedure                            :: is_cut                  => base_fe_iterator_is_cut
+    procedure                            :: is_interior             => base_fe_iterator_is_interior
+    procedure                            :: is_exterior             => base_fe_iterator_is_exterior
   end type base_fe_iterator_t
   
   
@@ -164,8 +167,7 @@ module fe_space_names
     private
     class(serial_fe_space_t), pointer    :: fe_space => NULL()
   contains
-    generic                             :: create                                     => fe_iterator_create
-    procedure,                  private :: fe_iterator_create
+    procedure                           :: create                                     => fe_iterator_create
     procedure                           :: free                                       => fe_iterator_free
     final                               :: fe_iterator_free_final
     procedure, non_overridable, private :: fill_own_dofs                              => fe_iterator_fill_own_dofs

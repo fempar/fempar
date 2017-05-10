@@ -113,20 +113,3 @@ subroutine pufs_create_fe_iterator(this, fe)
   class(fe_iterator_t), allocatable, intent(inout) :: fe
   call this%unfitted_integration%create_fe_iterator(fe)
 end subroutine pufs_create_fe_iterator
-
-!========================================================================================
-subroutine pufs_create_unfitted_fe_iterator(this, fe)
-  implicit none
-  class(par_unfitted_fe_space_t),    intent(in)    :: this
-  type(unfitted_fe_iterator_t),      intent(inout) :: fe
-  call this%unfitted_integration%create_unfitted_fe_iterator(fe)
-end subroutine pufs_create_unfitted_fe_iterator
-
-!========================================================================================
-subroutine pufs_free_unfitted_fe_iterator(this, fe)
-  implicit none
-  class(par_unfitted_fe_space_t),    intent(in)    :: this
-  type(unfitted_fe_iterator_t),      intent(inout) :: fe
-  call this%unfitted_integration%free_unfitted_fe_iterator(fe)
-end subroutine pufs_free_unfitted_fe_iterator
-

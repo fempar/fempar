@@ -137,7 +137,7 @@ subroutine marching_cubes_create_unfitted_cell_iterator ( this, cell )
   class(marching_cubes_t), intent(in)    :: this
   type(unfitted_cell_iterator_t),  intent(inout) :: cell
   call this%free_unfitted_cell_iterator(cell)
-  call cell%create(this)
+  call cell%create(this%triangulation)
 end subroutine marching_cubes_create_unfitted_cell_iterator
 
 !========================================================================================

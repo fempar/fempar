@@ -44,10 +44,8 @@ module unfitted_fe_spaces_names
   contains
 
     ! Creation / deletion methods
-    generic            :: create                      => unfitted_fe_iterator_create
-    procedure, private :: unfitted_fe_iterator_create
-    procedure, private :: fe_iterator_create          => unfitted_fe_iterator_fe_iterator_create
-    procedure          :: free                        => unfitted_fe_iterator_free
+    procedure :: create => unfitted_fe_iterator_create
+    procedure :: free   => unfitted_fe_iterator_free
     
     ! Access to the aggregated object
     procedure, non_overridable :: get_unfitted_cell_iterator => unfitted_fe_iterator_get_unfitted_cell_iterator
@@ -116,10 +114,12 @@ module unfitted_fe_spaces_names
       procedure, non_overridable :: create => uim_create
       procedure, non_overridable :: free   => uim_free
     
-      ! Creation of the iterator
-      procedure, non_overridable  :: create_fe_iterator           => uim_create_fe_iterator
-      procedure, non_overridable  :: create_unfitted_fe_iterator  => uim_create_unfitted_fe_iterator
-      procedure, non_overridable  :: free_unfitted_fe_iterator    => uim_free_unfitted_fe_iterator
+      ! Polymorphic creation of the iterator to be used only within this module
+      procedure, non_overridable, private  :: create_fe_iterator           => uim_create_fe_iterator
+      
+      ! Non polimorphic creation / deletion  of iterators to be used only within this module
+      procedure, non_overridable, private  :: create_unfitted_fe_iterator  => uim_create_unfitted_fe_iterator
+      procedure, non_overridable, private  :: free_unfitted_fe_iterator    => uim_free_unfitted_fe_iterator
 
       !Private TBPs
       procedure, non_overridable, private :: check_assumptions      => uim_check_assumptions
@@ -150,10 +150,6 @@ module unfitted_fe_spaces_names
       ! Creation of the iterator
       procedure :: create_fe_iterator           => sufs_create_fe_iterator
 
-      ! TODO these two can be deleted when implementing fake methods in fe_iterator_t
-      procedure :: create_unfitted_fe_iterator  => sufs_create_unfitted_fe_iterator
-      procedure :: free_unfitted_fe_iterator    => sufs_free_unfitted_fe_iterator
-
   end type serial_unfitted_fe_space_t
 
   type, extends(par_fe_space_t) :: par_unfitted_fe_space_t
@@ -171,10 +167,6 @@ module unfitted_fe_spaces_names
 
       ! Creation of the iterator
       procedure :: create_fe_iterator           => pufs_create_fe_iterator
-
-      ! TODO these two can be deleted when implementing fake methods in fe_iterator_t
-      procedure :: create_unfitted_fe_iterator  => pufs_create_unfitted_fe_iterator
-      procedure :: free_unfitted_fe_iterator    => pufs_free_unfitted_fe_iterator
 
   end type par_unfitted_fe_space_t
 

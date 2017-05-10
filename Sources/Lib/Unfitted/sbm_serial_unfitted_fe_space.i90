@@ -41,17 +41,7 @@ subroutine sufs_create_same_reference_fes_on_all_cells(&
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                       , optional, intent(in)    :: field_blocks(:)
   logical                           , optional, intent(in)    :: field_coupling(:,:)
-  class(marching_cubes_t), pointer :: marching_cubes
-  call this%free()
-  call this%serial_fe_space_t%create(triangulation,conditions,reference_fes,field_blocks,field_coupling)
-  select type(triangulation)
-  class is (serial_unfitted_triangulation_t)
-    this%unfitted_triangulation => triangulation
-    marching_cubes => triangulation%get_marching_cubes()
-    call this%unfitted_integration%create(this,marching_cubes)
-  class default
-    check(.false.)
-  end select
+  mcheck(.false.,'You cannot create an unfitted fe space with the same reference fe on all cells (you need void and non void ref elems)')
 end subroutine sufs_create_same_reference_fes_on_all_cells
 
 !========================================================================================
@@ -101,20 +91,3 @@ subroutine sufs_create_fe_iterator(this, fe)
   class(fe_iterator_t), allocatable, intent(inout) :: fe
   call this%unfitted_integration%create_fe_iterator(fe)
 end subroutine sufs_create_fe_iterator
-
-!========================================================================================
-subroutine sufs_create_unfitted_fe_iterator(this, fe)
-  implicit none
-  class(serial_unfitted_fe_space_t), intent(in)    :: this
-  type(unfitted_fe_iterator_t),      intent(inout) :: fe
-  call this%unfitted_integration%create_unfitted_fe_iterator(fe)
-end subroutine sufs_create_unfitted_fe_iterator
-
-!========================================================================================
-subroutine sufs_free_unfitted_fe_iterator(this, fe)
-  implicit none
-  class(serial_unfitted_fe_space_t), intent(in)    :: this
-  type(unfitted_fe_iterator_t),      intent(inout) :: fe
-  call this%unfitted_integration%free_unfitted_fe_iterator(fe)
-end subroutine sufs_free_unfitted_fe_iterator
-
