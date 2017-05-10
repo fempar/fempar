@@ -47,7 +47,7 @@ module unfitted_fe_spaces_names
     generic            :: create                      => unfitted_fe_iterator_create
     procedure, private :: unfitted_fe_iterator_create
     procedure, private :: fe_iterator_create          => unfitted_fe_iterator_fe_iterator_create
-    procedure          :: fe_iterator_free            => unfitted_fe_iterator_free
+    procedure          :: free                        => unfitted_fe_iterator_free
     
     ! Access to the aggregated object
     procedure, non_overridable :: get_unfitted_cell_iterator => unfitted_fe_iterator_get_unfitted_cell_iterator

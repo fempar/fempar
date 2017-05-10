@@ -100,6 +100,17 @@ contains
 
     call triangulation%create_cell_iterator(cell_std)
 
+    select type (triangulation)
+    class is (serial_unfitted_triangulation_t)
+      num_subcells = triangulation%get_total_num_of_subcells()
+      num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
+    class is (par_unfitted_triangulation_t)
+      num_subcells = triangulation%get_total_num_of_subcells()
+      num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
+    class default
+      check(.false.)
+    end select
+
     select type (cell_std)
     class is (unfitted_cell_iterator_t)
       cell => cell_std
