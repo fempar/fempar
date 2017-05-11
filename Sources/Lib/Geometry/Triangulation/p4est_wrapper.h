@@ -1,6 +1,5 @@
 /* Module file taken "AS-IS" and adapted to FEMPAR needs from p4est_wrapper.h
    https://github.com/cburstedde/hopest 4feed803f0c61564203a7bc3f2ca1a6adb63d3cd */
-
 /*
   This file is part of hopest.
   hopest is a Fortran/C library and application for high-order mesh
@@ -23,62 +22,17 @@
   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-//#include <p8est_mesh.h>
-//#include <p8est_geometry.h>
+#ifdef ENABLE_P4EST
 
-//#ifdef __cplusplus
-//extern              "C"         /* prevent C++ name mangling */
-//{
-//#if 0
-//}
-//#endif
-//#endif
+#include <p4est.h>
+#include <p4est_mesh.h>
 
-//void p4_initvars();
-
-//void p4_loadmesh(char    filename[],
-//                 p8est_t **p4est_out );
-
-//void p4_connectivity_treevertex (p4est_topidx_t num_vertices,
-//                                 p4est_topidx_t num_trees,
-//                                 double         *vertices,
-//                                 p4est_topidx_t *tree_to_vertex,
-//                                 p4est_topidx_t num_periodics,
-//                                 p4est_topidx_t *join_faces,
-//                                 p8est_connectivity_t        **conn_out );
-//void p4_build_p4est ( p8est_connectivity_t *conn,
-//                      p8est_t              **p4est_out,
-//                      p8est_geometry_t     **geom_out);
-
-//void p4_build_bcs(p8est_t        *p4est,
-//                  p4est_topidx_t num_trees,
-//                  int32_t        *bcelemmap);
-
-//void p4_get_bcs(p8est_t        *p4est,
-//                int32_t        **bcelemmap);
-
-//void p4_build_mesh(p8est_t  *p4est,
-//                   p8est_mesh_t  **mesh_out );
-
-//void p4_get_mesh_info ( p8est_t        *p4est,
-//                        p8est_mesh_t   *mesh,
-//                        p4est_locidx_t *local_num_quadrants,
-//                        p4est_gloidx_t *global_num_quadrants,
-//                        p4est_gloidx_t *global_first_quadrant,
-//                        p4est_locidx_t *num_half_faces,
-//                        p4est_topidx_t *num_trees );
-
-//void p4_get_quadrants( p8est_t       *p4est,
-//                       p8est_mesh_t   *mesh,
-//                       p4est_locidx_t local_num_quadrants,
-//                       p4est_locidx_t   num_half_faces,
-//                       p4est_qcoord_t  *intsize,
-//                       p4est_topidx_t **quad_to_tree,
-//                       p4est_locidx_t **quad_to_quad,
-//                       int8_t         **quad_to_face, 
-//                       p4est_locidx_t **quad_to_half, 
-//                       p4est_qcoord_t *quadcoords,
-//                       int8_t         *quadlevel );
+void F90_p4est_init_environment();
+void F90_p4est_finalize_environment();
+void F90_p4est_new_unit_square_connectivity(p4est_connectivity_t **);
+void F90_p4est_connectivity_destroy(p4est_connectivity_t **);
+void F90_p4est_mesh_destroy(p4est_mesh_t **);
+int refine_callback(p4est_t *,p4est_topidx_t, p4est_quadrant_t *);
 
 //void p4_savemesh ( char    filename[],
 //                   p8est_t *p4est);
@@ -92,3 +46,5 @@
 //#endif
 //}
 //#endif
+
+#endif

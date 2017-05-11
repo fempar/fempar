@@ -1,224 +1,189 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 ! Module file taken "AS-IS" and adapted to FEMPAR needs from p4est_binding.f90 
 ! https://github.com/cburstedde/hopest 4feed803f0c61564203a7bc3f2ca1a6adb63d3cd
 
-!#include "hopest_f.h"
+!> date:   10-May-2017                                                                           
+!> author: Alberto F. Martin
+!> summary: F90 <-> C wrapper subroutines for the p4est (2D) subroutines
+!> This module provides F90 <-> C wrapper subroutines for the p4est (2D) subroutines
+module p4est_bindings_names
+  use types_names
+  use, intrinsic :: iso_c_binding
+  implicit none
 
-!MODULE MOD_P4EST_Binding
-!!===================================================================================================================================
-!! Fortran <-> C wrapper routine for the P4est Routines
-!!===================================================================================================================================
-!! MODULES
-!!USE MOD_P4estBindingTypes
-!! IMPLICIT VARIABLE HANDLING
-!IMPLICIT NONE
+#ifdef ENABLE_P4EST 
+  ! ONLY change these parameter values if p4est changes its types
+  integer(ip), parameter :: P4EST_F90_TOPIDX = C_INT32_T
+  integer(ip), parameter :: P4EST_F90_QCOORD = C_INT32_T
+  integer(ip), parameter :: P4EST_F90_LOCIDX = C_INT32_T
+  integer(ip), parameter :: P4EST_F90_GLOIDX = C_INT64_T
+  integer(ip), parameter :: P4EST_F90_QLEVEL = C_INT8_T
+  
+  interface 
+     !=================================================================================================================================
+     !> summary: Initializes (sc_)MPI, sc, and p4est
+     !>
+     !> @note (sc_)MPI is only initialized if p4est/sc was compiled without MPI support
+     !=================================================================================================================================
+     subroutine F90_p4est_init() bind(c)
+       implicit none
+     end subroutine F90_p4est_init
 
-!INTERFACE 
-
-!  SUBROUTINE p4_initvars() BIND(C)
-!  !=================================================================================================================================
-!  ! initialize MPI, SC, p4est
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_initvars
-!  
-
-!  SUBROUTINE p4_loadmesh(filename,p4est) BIND(C)
-!  !=================================================================================================================================
-!  ! read p4est connectivity from file and build p4est
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  CHARACTER(KIND=C_CHAR),DIMENSION(*) :: filename
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  TYPE(C_PTR)                         :: p4est
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_loadmesh 
-
-
-!  SUBROUTINE p4_connectivity_treevertex(num_vertices,num_trees,vertices,tree_to_vertex,&
-!                                        num_periodics,JoinFaces,connectivity) BIND(C)
-!  !=================================================================================================================================
-!  ! builds up p4est connectivit, using only element connectivity and vertex positions
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  P4EST_F90_TOPIDX,VALUE                :: num_vertices 
-!  P4EST_F90_TOPIDX,VALUE                :: num_trees 
-!  REAL( KIND = C_DOUBLE )               :: Vertices(3,num_vertices)
-!  P4EST_F90_TOPIDX                      :: tree_to_vertex(8*num_trees) 
-!  P4EST_F90_TOPIDX,VALUE                :: num_periodics 
-!  P4EST_F90_TOPIDX                      :: JoinFaces(5*num_periodics) 
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  TYPE(C_PTR)                                 :: connectivity
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_connectivity_treevertex 
-
-
-!  SUBROUTINE p4_build_mesh(p4est,mesh) BIND(C)
-!  !=================================================================================================================================
-!  ! read p4est connectivity from file and build p4est
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  TYPE(C_PTR),VALUE,INTENT(IN)        :: p4est
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  TYPE(C_PTR),INTENT(OUT)             :: mesh
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_build_mesh 
-
-
-!  SUBROUTINE p4_build_p4est(connectivity,p4est,geom) BIND(C)
-!  !=================================================================================================================================
-!  ! builds up p4est connectivit, using only element connectivity and vertex positions
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  TYPE(C_PTR),INTENT(IN),VALUE     :: connectivity
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  TYPE(C_PTR)                      :: p4est
-!  TYPE(C_PTR)                      :: geom
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_build_p4est
-
-
-!  SUBROUTINE p4_build_bcs(p4est,num_trees,bcelemmap) BIND(C)
-!  !=================================================================================================================================
-!  ! simple refine function, giving the level and if refine_elem < 0 then a conformal refinement is applied.
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  TYPE(C_PTR),VALUE,INTENT(IN)       :: p4est
-!  INTEGER( KIND = C_INT),VALUE       :: num_trees 
-!  INTEGER(KIND=C_INT32_T),INTENT(IN) :: bcelemmap(0:5,num_trees)
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_build_bcs
-
-
-!  SUBROUTINE p4_get_bcs(p4est,tree_to_bc) BIND(C)
-!  !=================================================================================================================================
-!  ! simple refine function, giving the level and if refine_elem < 0 then a conformal refinement is applied.
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  TYPE(C_PTR),VALUE,INTENT(IN)        :: p4est
-!  TYPE(C_PTR),INTENT(OUT)             :: tree_to_bc
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_get_bcs
-
-
-!  SUBROUTINE p4_get_mesh_info(p4est,mesh,&
-!                              local_num_quadrants,global_num_quadrants,global_first_quadrant,&
-!                              num_half_faces,num_trees) BIND(C)
-!  !=================================================================================================================================
-!  ! simple refine function, giving the level and if refine_elem < 0 then a conformal refinement is applied.
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  TYPE(C_PTR),VALUE,INTENT(IN)     :: p4est
-!  TYPE(C_PTR),VALUE,INTENT(IN)     :: mesh
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  P4EST_F90_LOCIDX,INTENT(OUT)              :: local_num_quadrants
-!  P4EST_F90_GLOIDX,INTENT(OUT)              :: global_num_quadrants
-!  P4EST_F90_GLOIDX,INTENT(OUT)              :: global_first_quadrant
-!  P4EST_F90_LOCIDX,INTENT(OUT)              :: num_half_faces
-!  P4EST_F90_TOPIDX,INTENT(OUT)              :: num_trees
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_get_mesh_info
-
-
-!  SUBROUTINE p4_get_quadrants(p4est,mesh,local_num_quadrants,num_half_faces,&
-!                                 intsize,quad_to_tree,quad_to_quad,quad_to_face,quad_to_half,&
-!                                 quadcoords,quadlevel) BIND(C)
-!  !=================================================================================================================================
-!  ! simple refine function, giving the level and if refine_elem < 0 then a conformal refinement is applied.
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  TYPE(C_PTR),VALUE            :: p4est
-!  TYPE(C_PTR),VALUE            :: mesh
-!  P4EST_F90_LOCIDX,VALUE       :: local_num_quadrants
-!  P4EST_F90_LOCIDX,VALUE       :: num_half_faces
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  P4EST_F90_QCOORD,INTENT(OUT) :: intsize ! P4EST_ROOT_LEN -> int2real transform in parameter space, REAL=1/intsize*INT [0,1]
-!  TYPE(C_PTR),INTENT(OUT)      :: quad_to_tree
-!  TYPE(C_PTR),INTENT(OUT)      :: quad_to_quad
-!  TYPE(C_PTR),INTENT(OUT)      :: quad_to_face
-!  TYPE(C_PTR),INTENT(OUT)      :: quad_to_half
-!  P4EST_F90_QCOORD,INTENT(OUT) :: quadcoords(  3,local_num_quadrants)
-!  P4EST_F90_QLEVEL,INTENT(OUT) :: quadlevel(     local_num_quadrants)
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_get_quadrants
-
-
-!  SUBROUTINE p4_savemesh(filename, p4est) BIND(C)
-!  !=================================================================================================================================
-!  ! save the p4est data  to a p4est state file 
-!  !=================================================================================================================================
-!  ! MODULES
-!  USE, INTRINSIC :: ISO_C_BINDING  
-!  ! IMPLICIT VARIABLE HANDLING
-!  IMPLICIT NONE
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! INPUT VARIABLES
-!  CHARACTER(KIND=C_CHAR),DIMENSION(*) :: filename
-!  TYPE(C_PTR),VALUE                   :: p4est
-!  !---------------------------------------------------------------------------------------------------------------------------------
-!  ! OUTPUT VARIABLES
-!  !=================================================================================================================================
-!  END SUBROUTINE p4_savemesh
-!  
-
-!END INTERFACE
-
-
-!END MODULE MOD_P4EST_Binding
+     subroutine F90_p4est_finalize() bind(c)
+       implicit none
+     end subroutine F90_p4est_finalize
+     
+     !=================================================================================================================================
+     !> summary: Creates p4est connectivity corresponding to unit square domain
+     !=================================================================================================================================
+     subroutine F90_p4est_connectivity_new_unitsquare(p4est_connectivity) bind(c,name="F90_p4est_connectivity_new_unitsquare")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p4est_connectivity
+     end subroutine F90_p4est_connectivity_new_unitsquare
+     
+     !=================================================================================================================================
+     !> summary: Creates unrefined p4est (it will contain a single root octant)
+     !=================================================================================================================================
+     subroutine F90_p4est_new(p4est_connectivity, p4est) bind(c,name="F90_p4est_new")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value, intent(in)     :: p4est_connectivity
+       type(c_ptr)       , intent(inout)  :: p4est
+     end subroutine F90_p4est_new
+     
+     !=================================================================================================================================
+     !> summary: Creates p4est_mesh from p4est
+     !=================================================================================================================================
+     subroutine F90_p4est_mesh_new(p4est, p4est_mesh) bind(c,name="F90_p4est_mesh_new")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value, intent(in)     :: p4est
+       type(c_ptr)       , intent(inout)  :: p4est_mesh
+     end subroutine F90_p4est_mesh_new
+     
+     !=================================================================================================================================
+     !> summary: Gets mesh info from (p4est, p4est_mesh)
+     !=================================================================================================================================
+     subroutine F90_p4est_get_mesh_info (p4est, &
+                                         p4est_mesh, &
+                                         local_num_quadrants, &
+                                         global_num_quadrants, &
+                                         global_first_quadrant, &
+                                         num_half_faces) bind(c,name="F90_p4est_get_mesh_info")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX, P4EST_F90_GLOIDX
+       type(c_ptr), value       , intent(in)     :: p4est
+       type(c_ptr), value       , intent(in)     :: p4est_mesh
+       integer(P4EST_F90_LOCIDX), intent(out)    :: local_num_quadrants
+       integer(P4EST_F90_GLOIDX), intent(out)    :: global_num_quadrants
+       integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant
+       integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_faces
+     end subroutine F90_p4est_get_mesh_info 
+     
+     !=================================================================================================================================
+     !> summary: Gets mesh topology arrays from (p4est, p4est_mesh)
+     !=================================================================================================================================
+     subroutine F90_p4est_get_mesh_topology_arrays(p4est, &
+                                                   p4est_mesh, &
+                                                   quad_to_quad, &
+                                                   quad_to_face, &
+                                                   quad_to_half, &
+                                                   quadcoords, &
+                                                   quadlevel) bind(c,name="F90_p4est_get_mesh_topology_arrays")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX, P4EST_F90_GLOIDX, P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p4est
+       type(c_ptr), value       , intent(in)     :: p4est_mesh
+       type(c_ptr)              , intent(out)    :: quad_to_quad
+       type(c_ptr)              , intent(out)    :: quad_to_face
+       type(c_ptr)              , intent(out)    :: quad_to_half
+       integer(P4EST_F90_QCOORD), intent(out)    :: quadcoords(2,*)
+       integer(P4EST_F90_QLEVEL), intent(out)    :: quadlevel(*)
+     end subroutine F90_p4est_get_mesh_topology_arrays
+     
+     
+     !=================================================================================================================================
+     !> summary: Refines in place the p4est data structure
+     !=================================================================================================================================
+     subroutine F90_p4est_refine(p4est) bind(c,name="F90_p4est_refine")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p4est
+     end subroutine F90_p4est_refine
+     
+     !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in p4est_connectivity_t
+     !=================================================================================================================================
+     subroutine F90_p4est_connectivity_destroy(p4est_connectivity) bind(c, name="F90_p4est_connectivity_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p4est_connectivity
+     end subroutine F90_p4est_connectivity_destroy
+     
+     !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in p4est_t
+     !=================================================================================================================================
+     subroutine F90_p4est_destroy(p4est) bind(c, name="F90_p4est_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p4est
+     end subroutine F90_p4est_destroy
+     
+     !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in p4mesh_t
+     !=================================================================================================================================
+     subroutine F90_p4est_mesh_destroy(p4est_mesh) bind(c, name="F90_p4est_mesh_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p4est_mesh
+     end subroutine F90_p4est_mesh_destroy
+     
+     !subroutine p4_savemesh(filename, p4est) bind(c)
+     !  !=================================================================================================================================
+     !  ! save the p4est data  to a p4est state file 
+     !  !=================================================================================================================================
+     !  ! modules
+     !  use, intrinsic :: iso_c_binding  
+     !  ! implicit variable handling
+     !  implicit none
+     !  !---------------------------------------------------------------------------------------------------------------------------------
+     !  ! input variables
+     !  character(kind=c_char),dimension(*) :: filename
+     !  type(c_ptr),value                   :: p4est
+     !  !---------------------------------------------------------------------------------------------------------------------------------
+     !  ! output variables
+     !  !=================================================================================================================================
+     !end subroutine p4_savemesh
+  end interface
+#endif
+end module p4est_bindings_names

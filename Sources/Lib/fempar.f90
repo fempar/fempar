@@ -49,6 +49,7 @@ module fempar_names
   use metis_interface_names
   use mesh_distribution_names
   use base_static_triangulation_names
+  use p4est_serial_triangulation_names
 
   use cell_import_names
   use mesh_names
