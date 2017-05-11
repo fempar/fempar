@@ -1,0 +1,312 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
+  implicit none
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
+  type(environment_t), pointer :: par_environment
+  type(fe_object_iterator_t) :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_iterator_t), allocatable      :: fe
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip)                            :: off
+  integer(ip) :: field_id
+  integer(ip) :: num_rows, num_cols
+  integer(ip) :: num_fine_dofs_on_coarse_dof
+  integer(ip) :: iface_within_object, ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
+
+  class(base_static_triangulation_t), pointer :: triangulation
+
+  ! FE space traversal-related data types
+  type(fe_face_iterator_t)            :: fe_face
+
+  ! Face integration-related data types
+  type(quadrature_t)     , pointer     :: quad
+  type(face_map_t)       , pointer     :: face_map
+  type(fe_map_t)         , pointer     :: face_map_face_map 
+  type(face_integrator_t), pointer     :: face_int
+  type(vector_field_t)                 :: shape_trial
+  integer(ip)            , pointer     :: elem2dof(:)
+  type(i1p_t)        , allocatable     :: test_elem2dof(:)
+
+  ! FACE vector
+  real(rp), allocatable                :: facevec(:)
+
+  integer(ip)  :: istat
+  integer(ip)  :: qpoint, num_quad_points
+  real(rp)     :: factor
+			
+  par_environment => par_fe_space%get_par_environment()
+  assert (associated(par_environment))
+  assert (par_environment%am_i_l1_task())
+
+  triangulation => par_fe_space%get_triangulation()
+  allocate (test_elem2dof(1), stat=istat); check(istat==0);
+
+  ! To-think where field_id should come from? Temporarily let us assume that we have
+  ! a single-field PDE problem
+  field_id = 1
+
+  ! Free any dynamic memory that constraint_matrix may have inside
+  call constraint_matrix%free()
+
+  num_rows = par_fe_space%number_dofs_per_field(field_id)
+  num_cols = par_fe_space%ptr_coarse_dofs_per_field(field_id+1)- &
+       par_fe_space%ptr_coarse_dofs_per_field(field_id) 
+
+  call memalloc(par_fe_space%get_max_number_shape_functions(), facevec, __FILE__, __LINE__ )
+
+  ! Create constraint matrix (transposed)
+  call constraint_matrix%create ( num_rows, num_cols )
+ 
+  ! Fill constraint matrix entries (transposed)
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_face_iterator(fe_face)
+  call par_fe_space%create_fe_vef_iterator(vef)
+  do while ( .not. object%has_finished() )
+     if ( object%get_number_coarse_dofs(field_id) > 0 ) then
+
+        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
+        assert ( own_coarse_dofs_iterator%get_size() == 1 )
+
+        coarse_dof_lid = own_coarse_dofs_iterator%get_current() 
+
+        ! Face coarse DoF
+        if ( object%get_dimension () == triangulation%get_num_dimensions()-1) then
+           do iface_within_object=1, object%get_num_faces()
+              call object%get_face(iface_within_object,fe_face)
+              quad     => fe_face%get_quadrature()
+              face_int => fe_face%get_face_integrator(1)
+              face_map => fe_face%get_face_map()
+			  
+              call fe_face%get_cell_around(1,fe)
+              facevec = 0.0_rp
+              call fe_face%update_integration() 
+              do qpoint = 1, quad%get_number_quadrature_points()
+                 factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+                 do idof = 1, fe%get_number_dofs()
+                    call face_int%get_value(idof,qpoint,1,shape_trial)
+                    facevec(idof) = facevec(idof) + factor
+                 end do
+              end do
+
+              call fe_face%get_elem2dof(1, test_elem2dof)
+              call constraint_matrix%insert(fe%get_number_dofs(), &
+                                            test_elem2dof(1)%p, &
+                                            coarse_dof_lid, &
+                                            facevec)
+           end do
+        else    
+           ! Arithmetic average on Either corner or edge coarse DoF
+           num_fine_dofs_on_coarse_dof = 0 
+           ! Count how many fine DoFs current coarse DoF aggregates
+           do ivef_within_object=1, object%get_num_vefs()
+              call object%get_vef(ivef_within_object,vef)
+              call vef%get_cell_around(1,fe)
+              call fe%get_field_elem2dof(field_id, elem2dof)
+              ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 dof_lid = elem2dof(idof)
+                 if ( dof_lid > 0 ) then
+                    num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+           end do
+
+           do ivef_within_object=1, object%get_num_vefs()
+              call object%get_vef(ivef_within_object,vef)
+              call vef%get_cell_around(1,fe)
+              call fe%get_field_elem2dof(field_id, elem2dof)
+              ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 dof_lid = elem2dof(idof)
+                 if ( dof_lid > 0 ) then
+                    call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp/real(num_fine_dofs_on_coarse_dof,rp))
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+           end do
+        end if
+     end if
+     call object%next()
+  end do
+    
+    call this%compute_wire_dof_renumbering(par_fe_space) 
+	
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_vef_iterator(fe_face)
+  call par_fe_space%free_fe_vef_iterator(vef)
+  deallocate (test_elem2dof, stat=istat); check(istat==0);
+  call memfree(facevec, __FILE__, __LINE__ )
+  call constraint_matrix%sort_and_compress()
+  ! call constraint_matrix%print(6)
+end subroutine Hcurl_l1_setup_constraint_matrix
+
+subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_space) 
+  implicit none
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+
+  type(fe_object_iterator_t) :: object
+  type(fe_vef_iterator_t)                :: vef_within_object, vef_within_cell 
+  class(fe_iterator_t), allocatable      :: fe
+  type(fe_face_iterator_t)               :: fe_face
+  integer(ip)            , pointer       :: elem2dof(:)
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip) :: field_id
+  integer(ip) :: iface_within_object, ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
+
+  integer(ip)  :: number_wire_dofs, ivef_within_edge_adjacent_cell
+  integer(ip) , allocatable :: local_to_wire_dof(:), wire_to_local_dof(:)
+
+  ! To-think where field_id should come from? Temporarily let us assume that we have
+  ! a single-field PDE problem
+  field_id = 1
+  call memalloc ( par_fe_space%get_total_number_dofs(), local_to_wire_dof, __FILE__, __LINE__ ) 
+  local_to_wire_dof=0
+
+  ! Compute local numbering for the Wire Basket interface DOFs 
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_face_iterator(fe_face)
+  call par_fe_space%create_fe_vef_iterator(vef_within_object)
+  call par_fe_space%create_fe_vef_iterator(vef_within_cell)
+
+  number_wire_dofs = 0
+  ! Every interface DOF on Edges or edge-container element Faces will be added in the Wire Basket numbering 
+  ! In a first loop we add all DOFs belonging to COARSE EDGES (E)
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 1 ) then 
+        do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object,vef_within_object)
+           call vef_within_object%get_cell_around(1,fe)
+           call fe%get_field_elem2dof(field_id, elem2dof)
+           ivef_within_cell = fe%find_lpos_vef_lid(vef_within_object%get_lid())
+           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+              idof    = own_dofs_on_vef_iterator%get_current()
+              if (local_to_wire_dof(elem2dof(idof)) .eq. 0) then
+			     number_wire_dofs = number_wire_dofs + 1
+                 local_to_wire_dof(elem2dof(idof)) = number_wire_dofs
+              end if
+              call own_dofs_on_vef_iterator%next()
+           end do
+        end do
+     end if
+     call object%next()
+  end do
+
+  ! In a second loop we add all remaining DOFs that are in touch to COARSE EDGES (E^c)
+  call object%first() 
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 1 ) then 
+        do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object,vef_within_object)
+           call vef_within_object%get_cell_around(1,fe)
+           ! Loop over all vefs on fe and count the interface dofs 
+           ! vef_in_cell 
+           do ivef_within_edge_adjacent_cell=1, fe%get_num_vefs()
+              call fe%get_vef(ivef_within_edge_adjacent_cell, vef_within_cell )
+              if ( vef_within_cell%is_at_interface() .and. (.not. vef_within_cell%is_at_boundary()) ) then 
+                 call fe%get_field_elem2dof(field_id, elem2dof)
+                 ivef_within_cell = fe%find_lpos_vef_lid(vef_within_cell%get_lid())
+                 own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                    idof    = own_dofs_on_vef_iterator%get_current()
+                    if (local_to_wire_dof(elem2dof(idof)) .eq. 0) then
+					   number_wire_dofs = number_wire_dofs + 1
+                       local_to_wire_dof(elem2dof(idof)) = number_wire_dofs
+                    end if
+                    call own_dofs_on_vef_iterator%next()
+                 end do
+              end if
+           end do
+        end do
+     end if
+     call object%next()
+  end do
+
+  ! Ready to allocate local wire numbering and build the inverse 
+  call memalloc ( number_wire_dofs, wire_to_local_dof, __FILE__, __LINE__ ) 
+  wire_to_local_dof=0
+  do idof=1, par_fe_space%get_total_number_dofs()
+      if (local_to_wire_dof(idof) /= 0) then
+        wire_to_local_dof(local_to_wire_dof(idof)) = idof
+     end if
+  end do 
+  
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_vef_iterator(fe_face)
+  call par_fe_space%free_fe_vef_iterator(vef_within_object)
+  call par_fe_space%free_fe_vef_iterator(vef_within_cell)
+
+end subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering
+  
+ ! ref_fe => par_fe_space%get_reference_fe(field_id) 
+ ! 
+ ! ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
+ !call d_fe_geo%create(topology          = ref_fe%get_topology()         , &
+ !                     number_dimensions = ref_fe%get_number_dimensions(), &
+ !                     order             = 1,                              &
+ !                     field_type        = field_type_scalar,              &
+ !                     continuity        = .true. )
+ 
+ !  ! Create a 1D scalar lagrangian reference FE of order k-1
+ !call fe_1D%create(topology          = ref_fe%get_topology(),          &
+ !                  number_dimensions = ref_fe%get_number_dimensions(), &
+ !                  order             = 1,                              &
+ !                  field_type        = field_type_scalar,              &
+ !                  continuity        = .true. )
+ 
+ !   select type(ref_fe)
+ !   class is (nedelec_reference_fe_t)  
+ !   call ref_fe%create_edge_quadrature( edge_quadrature )
+ !  class DEFAULT
+ !      assert(.false.) 
+ !   end select
+!	
+ !call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
+ !call edge_map%create_edge_map( edge_quadrature, d_fe_geo )
+ 
+
+ ! 
+ !call fe_1D%free() 
+ 
+

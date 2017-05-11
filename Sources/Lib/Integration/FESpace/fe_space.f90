@@ -565,12 +565,13 @@ module fe_space_names
       type(parameterlist_t)         , intent(in)    :: parameter_list
 	     real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
+
   end interface
   
   type, extends(l1_coarse_fe_handler_t) :: standard_l1_coarse_fe_handler_t
     private
   contains
-    procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
+    procedure                :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
 	   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
 	   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
     procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
@@ -584,7 +585,18 @@ module fe_space_names
 	   procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
   end type H1_l1_coarse_fe_handler_t
   
-  public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t
+    type, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
+    private
+	  ! integer(ip) , allocatable :: local_to_wire_dof(:)
+      ! integer(ip) , allocatable :: wire_to_local_dof(:) 
+	   real(rp), allocatable     :: Discrete_Gradient(:,:) 
+	   
+  contains
+	   procedure :: setup_constraint_matrix       => Hcurl_l1_setup_constraint_matrix
+	   procedure, non_overridable, private :: compute_wire_dof_renumbering  => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
+  end type  Hcurl_l1_coarse_fe_handler_t
+  
+  public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, Hcurl_l1_coarse_fe_handler_t
     
   type , extends(base_fe_iterator_t) :: coarse_fe_iterator_t
     private
@@ -771,6 +783,7 @@ contains
 #include "sbm_fe_object_iterator.i90"
 #include "sbm_standard_coarse_fe_handler.i90"
 #include "sbm_H1_coarse_fe_handler.i90"
+#include "sbm_Hcurl_coarse_fe_handler.i90"
 
 #include "sbm_coarse_fe_space.i90"
 #include "sbm_coarse_fe_object_iterator.i90"

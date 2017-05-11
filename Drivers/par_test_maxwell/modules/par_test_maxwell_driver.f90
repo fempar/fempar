@@ -49,7 +49,7 @@ module par_test_maxwell_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     type(Hcurl_l1_coarse_fe_handler_t)        :: Hcurl_l1_coarse_fe_handler
      type(maxwell_CG_discrete_integration_t)   :: maxwell_integration
      type(maxwell_conditions_t)                :: maxwell_conditions
      type(maxwell_analytical_functions_t)      :: maxwell_analytical_functions
@@ -217,7 +217,7 @@ end subroutine free_timers
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%maxwell_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handler   = this%l1_coarse_fe_handler)
+                               coarse_fe_handler   = this%Hcurl_l1_coarse_fe_handler)
     
     call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)

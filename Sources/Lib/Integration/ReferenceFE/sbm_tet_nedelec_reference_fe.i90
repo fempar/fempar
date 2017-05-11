@@ -1098,7 +1098,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
   if ( num_interior_moments .gt. 0 ) then 
 
-     ! Create dim-D Lagrangian polynomial of order k-d 
+     ! Create dim-D Lagrangian polynomial of order k-D 
      ! VOL in 2D: P_{k-2,k-2} x P_{k-2,k-2}
      ! VOL in 3D: P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}
 

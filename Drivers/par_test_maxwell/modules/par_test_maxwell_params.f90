@@ -57,7 +57,7 @@ contains
     error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
-    error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
+    error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                     ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
