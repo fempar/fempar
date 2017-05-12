@@ -76,12 +76,11 @@ module p4est_serial_triangulation_names
     ! p4est face connectivity for mortars NUM_SUBFACES_FACE_2D/3D,1:nHalfFaces), (~small sides)
     integer(P4EST_F90_LOCIDX),pointer     :: QuadToHalf(:,:) => NULL()
     
-    ! TODO: The following 4x member variables should be replaced by our F200X implementation of "std::vector<T>" 
+    ! TODO: The following 3x member variables should be replaced by our F200X implementation of "std::vector<T>" 
     ! p4est Integer coordinates of first quadrant node (xy/xyz,nQuads)
     integer(P4EST_F90_LOCIDX), allocatable :: QuadCoords(:,:)
     ! p4est Integer Level of quadrant
     integer(P4EST_F90_QLEVEL), allocatable :: QuadLevel(:)
-    integer(ip)              , allocatable :: ptr_vefs_per_cell(:)
     integer(ip)              , allocatable :: lst_vefs_lids(:)    
   contains
     procedure, non_overridable          :: create                          => p4est_serial_triangulation_create
@@ -89,11 +88,8 @@ module p4est_serial_triangulation_names
     procedure, non_overridable          :: refine_and_coarsen              => p4est_serial_triangulation_refine_and_coarsen
     procedure, private, non_overridable :: update_p4est_mesh               => p4est_serial_triangulation_update_p4est_mesh
     procedure, private, non_overridable :: update_topology_from_p4est_mesh => p4est_serial_triangulation_update_topology_from_p4est_mesh
-    
-    procedure, private, non_overridable :: update_ptr_vefs_per_cell        => p4est_serial_triangulation_update_ptr_vefs_per_cell
-    procedure, private, non_overridable :: update_lst_vefs_lids            => p4est_serial_triangulation_update_ptr_vefs_per_cell
-    procedure, private, non_overridable :: fill_lst_vefs_lids              => p4est_serial_triangulation_fill_lst_vefs_lids
-    procedure, private, non_overridable :: free_ptr_vefs_per_cell          => p4est_serial_triangulation_free_ptr_vefs_per_cell
+    procedure, private, non_overridable :: ptr_vefs_per_cell               => p4est_serial_triangulation_ptr_vefs_per_cell
+    procedure, private, non_overridable :: update_lst_vefs_lids            => p4est_serial_triangulation_update_lst_vefs_lids
     procedure, private, non_overridable :: free_lst_vefs_lids              => p4est_serial_triangulation_free_lst_vefs_lids
 #ifndef ENABLE_P4EST
     procedure, non_overridable :: not_enabled_error => p4est_serial_triangulation_not_enabled_error
@@ -121,7 +117,6 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call F90_p4est_new(this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
-    call this%update_ptr_vefs_per_cell()
     call this%update_lst_vefs_lids()
   else if ( this%num_dimensions == 3 ) then
     check(.false.)
@@ -140,7 +135,6 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
     call F90_p4est_refine(this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
-    call this%update_ptr_vefs_per_cell()
     call this%update_lst_vefs_lids()
   else if ( this%num_dimensions == 3 ) then
     check(.false.)
@@ -155,51 +149,31 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   
 end subroutine p4est_serial_triangulation_refine_and_coarsen
 
-subroutine p4est_serial_triangulation_update_ptr_vefs_per_cell(this)
+function p4est_serial_triangulation_ptr_vefs_per_cell(this, icell)
   implicit none
-  class(p4est_serial_triangulation_t), intent(inout) :: this
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_serial_triangulation_ptr_vefs_per_cell
   integer(ip) :: icell
   integer(ip) :: num_vefs_per_cell
 
 #ifdef ENABLE_P4EST
-  call this%free_ptr_vefs_per_cell()
-  
-  if ( this%number_dimensions == 2 ) then
+  assert (icell>= 1 .and. icell <= this%num_cells)
+  if ( this%num_dimensions == 2 ) then
     num_vefs_per_cell = NUM_VEFS_2D
-  else if ( this%number_dimensions == 3 ) then
-    num_vefs_per_cell = 
+  else if ( this%num_dimensions == 3 ) then
   end if
-  
-  
-  call memalloc(this%num_cells+1, this%ptr_vefs_per_cell, __FILE__, __LINE__)
-  this%ptr_vefs_per_cell(1)=1
-  do icell=1, this%num_cells
-    if ( this%number_dimensions == 2 ) then
-       this%ptr_vefs_per_cell(icell+1) = this%ptr_vefs_per_cell(icell) + 
-    end if
-  end do
+  p4est_serial_triangulation_ptr_vefs_per_cell = (icell-1)*num_vefs_per_cell+1
 #else
   call this%not_enabled_error()
 #endif  
   
-end subroutine p4est_serial_triangulation_update_ptr_vefs_per_cell
+end function p4est_serial_triangulation_ptr_vefs_per_cell
 
-subroutine p4est_serial_triangulation_update_lst_vefs_per_cell(this)
+subroutine p4est_serial_triangulation_update_lst_vefs_lids(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout) :: this
-end subroutine p4est_serial_triangulation_update_lst_vefs_per_cell
-
-subroutine p4est_serial_triangulation_fill_lst_vefs_lids(this)
-  implicit none
-  class(p4est_serial_triangulation_t), intent(inout) :: this
-end subroutine p4est_serial_triangulation_fill_lst_vefs_lids
-
-subroutine p4est_serial_triangulation_free_ptr_vefs_per_cell(this)
-  implicit none
-  class(p4est_serial_triangulation_t), intent(inout) :: this  
-  if (allocated(this%ptr_vefs_per_cell)) &
-    call memfree(this%ptr_vefs_per_cell, __FILE__, __LINE__)
-end subroutine p4est_serial_triangulation_free_ptr_vefs_per_cell
+  call this%free_lst_vefs_lids()
+end subroutine p4est_serial_triangulation_update_lst_vefs_lids
 
 subroutine p4est_serial_triangulation_free_lst_vefs_lids(this)
   implicit none
@@ -286,6 +260,8 @@ subroutine p4est_serial_triangulation_free ( this)
   else if ( this%num_dimensions == 3 ) then
     check(.false.)
   end if
+  
+  call this%free_lst_vefs_lids()
   
   nullify(this%QuadToQuad)
   nullify(this%QuadToFace)
