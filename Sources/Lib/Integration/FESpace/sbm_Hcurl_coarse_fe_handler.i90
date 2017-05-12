@@ -164,8 +164,6 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
      end if
      call object%next()
   end do
-    
-    call this%compute_wire_dof_renumbering(par_fe_space) 
 	
   call par_fe_space%free_fe_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
@@ -177,29 +175,71 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   ! call constraint_matrix%print(6)
 end subroutine Hcurl_l1_setup_constraint_matrix
 
-subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_space) 
+subroutine Hcurl_l1_setup_change_basis_tools( this, par_fe_space ) 
+implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
+  type(par_fe_space_t)                  , intent(in)       :: par_fe_space
+  
+  call this%compute_wire_dof_renumbering( par_fe_space )
+  call this%compute_edge_change_basis_matrix( par_fe_space )
+  
+end subroutine Hcurl_l1_setup_change_basis_tools
+
+function Hcurl_l1_get_dof_list_in_coarse_edge(this, par_fe_space, coarse_edge, fine_edge) result( dof_list ) 
+! This function returns the list of dofs associated to the fine_edge-th edge (sorted from one origin)
+! of the coarse_edge-th Edge of the subdomain. Return the list of all DOFs if no fine_edge is requested 
+implicit none 
+class(Hcurl_l1_coarse_fe_handler_t), target   , intent(in)       :: this
+type(par_fe_space_t)                          , intent(in)       :: par_fe_space
+integer(ip)                                   , intent(in)       :: coarse_edge
+integer(ip) , optional                        , intent(in)       :: fine_edge 
+integer(ip),  pointer                                            :: dof_list(:) 
+
+class(reference_fe_t), pointer   :: ref_fe 
+integer(ip)                      :: dofs_per_fine_edge, ipos, iEdge 
+
+assert( coarse_edge .le. this%number_coarse_edges ) 
+ref_fe => par_fe_space%get_reference_fe(1) 
+dofs_per_fine_edge = ref_fe%get_order() 
+
+ipos = 0
+do iedge=1, coarse_edge-1
+ipos = ipos + this%number_fine_edges_per_coarse_edge(iedge)
+end do
+
+if ( present(fine_edge) ) then 
+assert( fine_edge .le. this%number_fine_edges_per_coarse_edge(coarse_edge) ) 
+ipos = ipos + dofs_per_fine_edge*(fine_edge-1) 
+! Return fine_edge within coarse_edge list of dofs 
+dof_list => this%wire_to_local_dof( ipos+1 :ipos+dofs_per_fine_edge )
+else 
+! Return full coarse Edge list of dofs 
+dof_list => this%wire_to_local_dof( ipos+1 :ipos + dofs_per_fine_edge*this%number_fine_edges_per_coarse_edge(coarse_edge) )
+end if 
+
+end function Hcurl_l1_get_dof_list_in_coarse_edge
+
+subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_space ) 
   implicit none
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
 
-  type(fe_object_iterator_t) :: object
+  type(fe_object_iterator_t)             :: object
   type(fe_vef_iterator_t)                :: vef_within_object, vef_within_cell 
   class(fe_iterator_t), allocatable      :: fe
   type(fe_face_iterator_t)               :: fe_face
   integer(ip)            , pointer       :: elem2dof(:)
-  type(list_iterator_t)                  :: own_coarse_dofs_iterator
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
-  integer(ip) :: field_id
+  integer(ip) :: field_id, ielem 
   integer(ip) :: iface_within_object, ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
 
-  integer(ip)  :: number_wire_dofs, ivef_within_edge_adjacent_cell
-  integer(ip) , allocatable :: local_to_wire_dof(:), wire_to_local_dof(:)
+  integer(ip)  :: number_wire_dofs, ivef_within_edge_adjacent_cell, iedge_coarse
 
   ! To-think where field_id should come from? Temporarily let us assume that we have
   ! a single-field PDE problem
   field_id = 1
-  call memalloc ( par_fe_space%get_total_number_dofs(), local_to_wire_dof, __FILE__, __LINE__ ) 
-  local_to_wire_dof=0
+  call memalloc ( par_fe_space%get_total_number_dofs(), this%local_to_wire_dof, __FILE__, __LINE__ ) 
+  this%local_to_wire_dof=0
 
   ! Compute local numbering for the Wire Basket interface DOFs 
   call par_fe_space%create_fe_object_iterator(object)
@@ -209,68 +249,90 @@ subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_s
   call par_fe_space%create_fe_vef_iterator(vef_within_cell)
 
   number_wire_dofs = 0
+  this%number_coarse_edges = 0
   ! Every interface DOF on Edges or edge-container element Faces will be added in the Wire Basket numbering 
   ! In a first loop we add all DOFs belonging to COARSE EDGES (E)
   do while ( .not. object%has_finished() )
      if ( object%get_dimension() == 1 ) then 
+        this%number_coarse_edges = this%number_coarse_edges + 1
         do ivef_within_object=1, object%get_num_vefs()
-           call object%get_vef(ivef_within_object,vef_within_object)
-           call vef_within_object%get_cell_around(1,fe)
-           call fe%get_field_elem2dof(field_id, elem2dof)
-           ivef_within_cell = fe%find_lpos_vef_lid(vef_within_object%get_lid())
-           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
-           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-              idof    = own_dofs_on_vef_iterator%get_current()
-              if (local_to_wire_dof(elem2dof(idof)) .eq. 0) then
-			     number_wire_dofs = number_wire_dofs + 1
-                 local_to_wire_dof(elem2dof(idof)) = number_wire_dofs
-              end if
-              call own_dofs_on_vef_iterator%next()
-           end do
+           call object%get_vef(ivef_within_object, vef_within_object)
+           if ( vef_within_object%get_dimension() == 1 ) then  ! Only act if a fine edge has been found 
+              call vef_within_object%get_cell_around(1,fe)
+              call fe%get_field_elem2dof(field_id, elem2dof)
+              ivef_within_cell = fe%find_lpos_vef_lid(vef_within_object%get_lid())
+              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 if (this%local_to_wire_dof(elem2dof(idof)) .eq. 0) then
+                    number_wire_dofs = number_wire_dofs + 1
+                    this%local_to_wire_dof(elem2dof(idof)) = number_wire_dofs
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+           end if
+
         end do
      end if
      call object%next()
   end do
 
-  ! In a second loop we add all remaining DOFs that are in touch to COARSE EDGES (E^c)
+  ! In a second loop we add all remaining DOFs that are in touch to COARSE EDGES, faces and edges (E^c): 
+  ! Run over fine edges contained in coarse edges > Run over local adjacent cells to those edges > Renumber dofs in local cells interface vefs  
   call object%first() 
+  call memalloc( this%number_coarse_edges, this%number_fine_edges_per_coarse_edge, __FILE__, __LINE__ )
+  this%number_fine_edges_per_coarse_edge = 0
+  iedge_coarse = 0
   do while ( .not. object%has_finished() )
      if ( object%get_dimension() == 1 ) then 
+	     iedge_coarse = iedge_coarse + 1
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object,vef_within_object)
-           call vef_within_object%get_cell_around(1,fe)
-           ! Loop over all vefs on fe and count the interface dofs 
-           ! vef_in_cell 
-           do ivef_within_edge_adjacent_cell=1, fe%get_num_vefs()
-              call fe%get_vef(ivef_within_edge_adjacent_cell, vef_within_cell )
-              if ( vef_within_cell%is_at_interface() .and. (.not. vef_within_cell%is_at_boundary()) ) then 
-                 call fe%get_field_elem2dof(field_id, elem2dof)
-                 ivef_within_cell = fe%find_lpos_vef_lid(vef_within_cell%get_lid())
-                 own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
-                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-                    idof    = own_dofs_on_vef_iterator%get_current()
-                    if (local_to_wire_dof(elem2dof(idof)) .eq. 0) then
-					   number_wire_dofs = number_wire_dofs + 1
-                       local_to_wire_dof(elem2dof(idof)) = number_wire_dofs
-                    end if
-                    call own_dofs_on_vef_iterator%next()
-                 end do
-              end if
-           end do
+           if ( vef_within_object%get_dimension() == 1 ) then ! Only check edge-container elements 
+              this%number_fine_edges_per_coarse_edge( iedge_coarse ) = this%number_fine_edges_per_coarse_edge( iedge_coarse ) + 1
+              ! Take local fes 
+              do ielem = 1, vef_within_object%get_num_cells_around() 
+                 call vef_within_object%get_cell_around(ielem,fe)
+                 if ( fe%is_local() ) then 
+                    ! Loop over all vefs on fe and count the interface dofs, vefs_in_cell all vefs in the cell containing vef_in_object 	   
+                    do ivef_within_edge_adjacent_cell=1, fe%get_num_vefs()
+                       call fe%get_vef(ivef_within_edge_adjacent_cell, vef_within_cell )
+                       if ( vef_within_cell%is_at_interface() ) then ! Only interested in interface wire numbering 
+                          call fe%get_field_elem2dof(field_id, elem2dof)
+                          ivef_within_cell = fe%find_lpos_vef_lid(vef_within_cell%get_lid())
+                          own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+                          ! Loop over interface dofs contained in the interface vef and assign numbering 
+                          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                             idof    = own_dofs_on_vef_iterator%get_current()
+							 if (elem2dof(idof)>0) then 
+                               if ( this%local_to_wire_dof(elem2dof(idof)) .eq. 0 ) then
+                                number_wire_dofs = number_wire_dofs + 1
+                                this%local_to_wire_dof(elem2dof(idof)) = number_wire_dofs
+							   end if 
+                             end if
+                             call own_dofs_on_vef_iterator%next()
+                          end do
+
+                       end if
+                    end do
+                 end if
+              end do
+
+           end if
         end do
      end if
      call object%next()
   end do
 
   ! Ready to allocate local wire numbering and build the inverse 
-  call memalloc ( number_wire_dofs, wire_to_local_dof, __FILE__, __LINE__ ) 
-  wire_to_local_dof=0
+  call memalloc ( number_wire_dofs, this%wire_to_local_dof, __FILE__, __LINE__ ) 
+  this%wire_to_local_dof=0
   do idof=1, par_fe_space%get_total_number_dofs()
-      if (local_to_wire_dof(idof) /= 0) then
-        wire_to_local_dof(local_to_wire_dof(idof)) = idof
+     if (this%local_to_wire_dof(idof) /= 0) then
+        this%wire_to_local_dof(this%local_to_wire_dof(idof)) = idof
      end if
-  end do 
-  
+  end do
+
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_iterator(fe)
   call par_fe_space%free_fe_vef_iterator(fe_face)
@@ -279,34 +341,84 @@ subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_s
 
 end subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering
   
- ! ref_fe => par_fe_space%get_reference_fe(field_id) 
- ! 
- ! ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
- !call d_fe_geo%create(topology          = ref_fe%get_topology()         , &
- !                     number_dimensions = ref_fe%get_number_dimensions(), &
- !                     order             = 1,                              &
- !                     field_type        = field_type_scalar,              &
- !                     continuity        = .true. )
- 
- !  ! Create a 1D scalar lagrangian reference FE of order k-1
- !call fe_1D%create(topology          = ref_fe%get_topology(),          &
- !                  number_dimensions = ref_fe%get_number_dimensions(), &
- !                  order             = 1,                              &
- !                  field_type        = field_type_scalar,              &
- !                  continuity        = .true. )
- 
- !   select type(ref_fe)
- !   class is (nedelec_reference_fe_t)  
- !   call ref_fe%create_edge_quadrature( edge_quadrature )
- !  class DEFAULT
- !      assert(.false.) 
- !   end select
-!	
- !call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
- !call edge_map%create_edge_map( edge_quadrature, d_fe_geo )
- 
+subroutine Hcurl_l1_compute_edge_change_basis_matrix(this, par_fe_space)
+  implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  real(rp) , allocatable                                :: edge_elmat(:,:)
 
- ! 
- !call fe_1D%free() 
- 
+  ! Elemental matrix in edges can be re-used for every edge (phi',phi)_e 
+  call this%compute_edge_elmat(par_fe_space, edge_elmat)  
+
+  call memfree(edge_elmat, __FILE__, __LINE__ ) 
+
+end subroutine Hcurl_l1_compute_edge_change_basis_matrix
+
+subroutine Hcurl_l1_compute_edge_elmat(this, par_fe_space, elmat)
+  implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  real(rp), allocatable                 , intent(inout) :: elmat(:,:) 
+
+  ! Local variables required by Wire edges moments integration
+  class(reference_fe_t), pointer         :: ref_fe 
+  type(hex_lagrangian_reference_fe_t)    :: fe_1D, fe_1D_reduced_order 
+  type(quadrature_t)                     :: edge_quadrature
+  type(interpolation_t)                  :: interpolation_1D, interpolation_1D_reduced_order 
+  real(rp)                               :: shape_test
+  type(vector_field_t)                   :: grad_shape_trial 
+  integer(ip)                            :: ishape, jshape, qpoint, factor 
+  integer(ip)                            :: field_id 
+
+  field_id = 1
+  ref_fe => par_fe_space%get_reference_fe(field_id) 
+
+  ! Create a 1D scalar lagrangian reference FE of order k
+  call fe_1D%create(topology          = ref_fe%get_topology(),          &
+                    number_dimensions = 1,                              &
+                    order             = ref_fe%get_order(),             &
+                    field_type        = field_type_scalar,              &
+                    continuity        = .true. )
+
+  ! Create a 1D scalar lagrangian reference FE of order k-1
+  call fe_1D_reduced_order%create(topology          = ref_fe%get_topology(),  &
+                                  number_dimensions = 1,                      &
+                                  order             = ref_fe%get_order()-1,   &
+                                  field_type        = field_type_scalar,      &
+                                  continuity        = .true. )
+
+  select type(ref_fe)
+     class is (nedelec_reference_fe_t)  
+     call ref_fe%create_edge_quadrature( edge_quadrature )
+     class DEFAULT
+     assert(.false.) 
+  end select
+
+  call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
+  call fe_1D_reduced_order%create_interpolation( edge_quadrature, interpolation_1D_reduced_order )
+
+  ! IDEA: perform edge integrations ONLY over the elementary edge 
+  ! REAL CELL integration ( Phi'*inv(J)'*Phi*|J| )_e = +-( Phi', Phi)_e 
+  ! The sign will be solved latter when assembling to the Wire scheme  
+  call memalloc( fe_1D_reduced_order%get_number_shape_functions(), fe_1D%get_number_shape_functions(), elmat, __FILE__, __LINE__ ) 
+  elmat = 0.0_rp 
+  do qpoint = 1, edge_quadrature%number_quadrature_points
+     factor = edge_quadrature%get_weight(qpoint) 
+     do ishape = 1, fe_1D_reduced_order%get_number_shape_functions() 
+        call fe_1D_reduced_order%get_value(interpolation_1D_reduced_order, ishape, qpoint, shape_test)
+        do jshape = 1, fe_1D%get_number_shape_functions() 
+           call fe_1D%get_gradient(interpolation_1D, jshape, qpoint, grad_shape_trial)
+           elmat(ishape, jshape) = elmat(ishape, jshape) + grad_shape_trial%get(1) * shape_test * factor 
+        end do
+     end do
+  end do
+
+  ! Free data 
+  call fe_1D%free() 
+  call fe_1D_reduced_order%free()
+  call interpolation_1D%free() 
+  call interpolation_1D_reduced_order%free()
+  call edge_quadrature%free()
+
+end subroutine Hcurl_l1_compute_edge_elmat
 
