@@ -38,15 +38,15 @@ module p4est_bindings_names
   use types_names
   use, intrinsic :: iso_c_binding
   implicit none
-
-#ifdef ENABLE_P4EST 
-  ! ONLY change these parameter values if p4est changes its types
+  
+    ! ONLY change these parameter values if p4est changes its types
   integer(ip), parameter :: P4EST_F90_TOPIDX = C_INT32_T
   integer(ip), parameter :: P4EST_F90_QCOORD = C_INT32_T
   integer(ip), parameter :: P4EST_F90_LOCIDX = C_INT32_T
   integer(ip), parameter :: P4EST_F90_GLOIDX = C_INT64_T
   integer(ip), parameter :: P4EST_F90_QLEVEL = C_INT8_T
-  
+
+#ifdef ENABLE_P4EST   
   interface 
      !=================================================================================================================================
      !> summary: Initializes (sc_)MPI, sc, and p4est

@@ -99,7 +99,7 @@ void F90_p4est_new ( p4est_connectivity_t *conn,
   //       SC_ENABLE_MPI is defined???
   /* Create a forest that is not refined; it consists of the root octant. */
   p4est = p4est_new (sc_MPI_COMM_WORLD, conn, 0, NULL, NULL);
-  p4est_refine(p4est, 0, refine_callback, NULL);
+  *p4est_out = p4est;
 }
 
 void F90_p4est_mesh_new(p4est_t  *p4est,
@@ -111,10 +111,10 @@ void F90_p4est_mesh_new(p4est_t  *p4est,
   F90_p4est_mesh_destroy(mesh_out);
 
   //create ghost layer and mesh
-  //ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
-  mesh = p4est_mesh_new (p4est,NULL,P4EST_CONNECT_FULL);
+  ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
+  mesh = p4est_mesh_new (p4est,ghost,P4EST_CONNECT_FULL);
 
-  //p4est_ghost_destroy(ghost);
+  p4est_ghost_destroy(ghost);
   
   //return mesh as pointer address;
   *mesh_out=(p4est_mesh_t *)mesh;
@@ -149,7 +149,7 @@ void F90_p4est_get_mesh_info (p4est_t        *p4est,
                      "mesh->local_num_quadrants [%d] and p4est->local_num_quadrants mismatch [%d]!",
                      mesh->local_num_quadrants,  p4est->local_num_quadrants);
     
-    SC_CHECK_ABORTF (p4est->trees->elem_count == 0,
+    SC_CHECK_ABORTF (p4est->trees->elem_count == 1,
                      "p4est with more [%ld] than one tree!", p4est->trees->elem_count);
     
     *local_num_quadrants   = p4est->local_num_quadrants;

@@ -32,9 +32,12 @@ program test_p4est_triangulation
   type(p4est_serial_triangulation_t) :: p4est_triangulation
   type(ParameterList_t) :: pl
   
+  integer(ip) :: i
+  
   call fempar_init()
   
   call p4est_triangulation%create(pl)
+  call p4est_triangulation%refine_and_coarsen() 
   call p4est_triangulation%free()
   
   call fempar_finalize()

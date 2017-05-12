@@ -58,7 +58,6 @@ module p4est_serial_triangulation_names
   !       and implement its corresponding accessors
   type p4est_serial_triangulation_t
     private
-     
     integer(ip) :: num_cells          = -1
     integer(ip) :: num_dimensions     = -1
     integer(ip) :: num_vefs           = -1
@@ -83,7 +82,7 @@ module p4est_serial_triangulation_names
     ! p4est Integer Level of quadrant
     integer(P4EST_F90_QLEVEL), allocatable :: QuadLevel(:)
     integer(ip)              , allocatable :: ptr_vefs_per_cell(:)
-    integer(ip)              , allocatable :: lst_vefs_lids(:)
+    integer(ip)              , allocatable :: lst_vefs_lids(:)    
   contains
     procedure, non_overridable          :: create                          => p4est_serial_triangulation_create
     procedure, non_overridable          :: free                            => p4est_serial_triangulation_free
@@ -159,6 +158,30 @@ end subroutine p4est_serial_triangulation_refine_and_coarsen
 subroutine p4est_serial_triangulation_update_ptr_vefs_per_cell(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout) :: this
+  integer(ip) :: icell
+  integer(ip) :: num_vefs_per_cell
+
+#ifdef ENABLE_P4EST
+  call this%free_ptr_vefs_per_cell()
+  
+  if ( this%number_dimensions == 2 ) then
+    num_vefs_per_cell = NUM_VEFS_2D
+  else if ( this%number_dimensions == 3 ) then
+    num_vefs_per_cell = 
+  end if
+  
+  
+  call memalloc(this%num_cells+1, this%ptr_vefs_per_cell, __FILE__, __LINE__)
+  this%ptr_vefs_per_cell(1)=1
+  do icell=1, this%num_cells
+    if ( this%number_dimensions == 2 ) then
+       this%ptr_vefs_per_cell(icell+1) = this%ptr_vefs_per_cell(icell) + 
+    end if
+  end do
+#else
+  call this%not_enabled_error()
+#endif  
+  
 end subroutine p4est_serial_triangulation_update_ptr_vefs_per_cell
 
 subroutine p4est_serial_triangulation_update_lst_vefs_per_cell(this)
