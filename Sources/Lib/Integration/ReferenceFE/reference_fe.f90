@@ -1197,6 +1197,7 @@ public :: tet_raviart_thomas_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
 private
+type(interpolation_t) :: h_refinement_interpolation
 contains 
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                                 &
@@ -1222,6 +1223,9 @@ procedure, private :: fill_face_interpolation                            &
 & => hex_lagrangian_reference_fe_fill_face_interpolation
 procedure, private :: set_number_quadrature_points                       &
 & => hex_lagrangian_reference_fe_set_number_quadrature_points
+! Overwriten methods from lagrangian_reference_fe_t
+procedure :: free                       &
+& => hex_lagrangian_reference_fe_free
 end type hex_lagrangian_reference_fe_t
 
 public :: hex_lagrangian_reference_fe_t

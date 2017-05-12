@@ -798,6 +798,14 @@ function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
   hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
 end function hex_lagrangian_reference_fe_set_number_quadrature_points
 
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_free ( this )
+  implicit none 
+  class(hex_lagrangian_reference_fe_t), intent(inout) :: this 
+  call this%h_refinement_interpolation%free()  
+  call lagrangian_reference_fe_free ( this )
+end subroutine hex_lagrangian_reference_fe_free
+
 ! Subroutine to deal with high order parametrizations of the boundary
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_blending(this,values)
