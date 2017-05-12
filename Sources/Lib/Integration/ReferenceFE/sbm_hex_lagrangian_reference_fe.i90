@@ -856,6 +856,22 @@ end subroutine hex_lagrangian_reference_fe_blending
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
 
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation ( this )
+  implicit none 
+  class(hex_lagrangian_reference_fe_t), intent(inout) :: this
+  type(hex_lagrangian_reference_fe_t) :: h_refined_reference_fe
+  call h_refined_reference_fe%create ( this%topology,          &
+                                       this%number_dimensions, &
+                                       2*this%order,           &
+                                       this%field_type,        &
+                                       this%continuity )
+  call h_refined_reference_fe%create_nodal_quadrature()
+  call this%create_interpolation( h_refined_reference_fe%nodal_quadrature, &
+                                  this%h_refinement_interpolation )
+  call h_refined_reference_fe%free()
+end subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation
+
 !**************************************************************************************************
 ! Support functions
 !**************************************************************************************************

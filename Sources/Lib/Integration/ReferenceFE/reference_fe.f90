@@ -1223,9 +1223,12 @@ procedure, private :: fill_face_interpolation                            &
 & => hex_lagrangian_reference_fe_fill_face_interpolation
 procedure, private :: set_number_quadrature_points                       &
 & => hex_lagrangian_reference_fe_set_number_quadrature_points
-! Overwriten methods from lagrangian_reference_fe_t
-procedure :: free                       &
+! Overwriten TBPs from lagrangian_reference_fe_t
+procedure :: free                                                        &
 & => hex_lagrangian_reference_fe_free
+! Concrete TBPs of this derived data type
+procedure, private :: fill_h_refinement_interpolation                    &
+& => hex_lagrangian_reference_fe_fill_h_refinement_interpolation
 end type hex_lagrangian_reference_fe_t
 
 public :: hex_lagrangian_reference_fe_t
