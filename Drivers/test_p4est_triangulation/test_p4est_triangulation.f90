@@ -38,6 +38,7 @@ program test_p4est_triangulation
   
   call p4est_triangulation%create(pl)
   call p4est_triangulation%refine_and_coarsen() 
+  call p4est_triangulation%refine_and_coarsen() 
   call p4est_triangulation%free()
   
   call fempar_finalize()

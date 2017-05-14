@@ -117,6 +117,7 @@ module p4est_bindings_names
                                                    quad_to_quad, &
                                                    quad_to_face, &
                                                    quad_to_half, &
+                                                   quad_to_corner, &
                                                    quadcoords, &
                                                    quadlevel) bind(c,name="F90_p4est_get_mesh_topology_arrays")
        use, intrinsic :: iso_c_binding
@@ -127,6 +128,7 @@ module p4est_bindings_names
        type(c_ptr)              , intent(out)    :: quad_to_quad
        type(c_ptr)              , intent(out)    :: quad_to_face
        type(c_ptr)              , intent(out)    :: quad_to_half
+       type(c_ptr)              , intent(out)    :: quad_to_corner
        integer(P4EST_F90_QCOORD), intent(out)    :: quadcoords(2,*)
        integer(P4EST_F90_QLEVEL), intent(out)    :: quadlevel(*)
      end subroutine F90_p4est_get_mesh_topology_arrays

@@ -164,6 +164,7 @@ void F90_p4est_get_mesh_topology_arrays( p4est_t        *p4est,
                                          p4est_locidx_t **quad_to_quad,
                                          int8_t         **quad_to_face, 
                                          p4est_locidx_t **quad_to_half, 
+                                         p4est_locidx_t **quad_to_corner,
                                          p4est_qcoord_t *quadcoords,
                                          int8_t         *quadlevel ) 
 {
@@ -187,6 +188,7 @@ void F90_p4est_get_mesh_topology_arrays( p4est_t        *p4est,
   *quad_to_face=mesh->quad_to_face;
   *quad_to_half = NULL;
   if(mesh->quad_to_half->elem_count>0) *quad_to_half = (p4est_locidx_t *) mesh->quad_to_half->array;
+  *quad_to_corner=mesh->quad_to_corner;
 }
 
 int refine_callback(p4est_t * p4est,
