@@ -61,6 +61,55 @@ module p4est_serial_triangulation_names
   integer(ip), parameter :: P4EST_2_FEMPAR_CORNER(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
   integer(ip), parameter :: P4EST_2_FEMPAR_FACE  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
   
+  
+  type p4est_cell_iterator_t
+    private
+    integer(ip)                                  :: lid = -1
+    class(p4est_serial_triangulation_t), pointer :: triangulation => NULL()
+  contains
+    !procedure                 , private  :: create                  => cell_iterator_create
+    !procedure                 , private  :: free                    => cell_iterator_free
+    !final                                ::                            cell_iterator_free_final
+    !procedure, non_overridable           :: next                    => cell_iterator_next
+    !procedure, non_overridable           :: first                   => cell_iterator_first
+    !procedure, non_overridable           :: last                    => cell_iterator_last
+    !procedure, non_overridable           :: set_lid                 => cell_iterator_set_lid
+    !procedure, non_overridable, private  :: set_gid                 => cell_iterator_set_gid
+    !procedure, non_overridable, private  :: set_mypart              => cell_iterator_set_mypart
+    !procedure, non_overridable, private  :: get_triangulation       => cell_iterator_get_triangulation
+    !procedure, non_overridable           :: has_finished            => cell_iterator_has_finished
+    !procedure, non_overridable           :: get_reference_fe_geo    => cell_iterator_get_reference_fe_geo
+    !procedure, non_overridable           :: get_reference_fe_geo_id => cell_iterator_get_reference_fe_geo_id
+    !procedure, non_overridable           :: get_coordinates         => cell_iterator_get_coordinates
+    !procedure, non_overridable           :: set_coordinates         => cell_iterator_set_coordinates
+    !procedure, non_overridable           :: get_lid                 => cell_iterator_get_lid
+    !procedure, non_overridable           :: get_gid                 => cell_iterator_get_gid
+    !procedure, non_overridable           :: get_my_part             => cell_iterator_get_mypart
+    !procedure, non_overridable           :: get_my_subpart          => cell_iterator_get_mysubpart
+    !procedure, non_overridable           :: get_my_subpart_lid      => cell_iterator_get_mysubpart_lid
+    !procedure, non_overridable           :: get_set_id              => cell_iterator_get_set_id
+    !procedure, non_overridable           :: get_num_vefs            => cell_iterator_get_num_vefs
+    !procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
+    !procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid
+    !procedure, non_overridable           :: get_vef_lid             => cell_iterator_get_vef_lid
+    !procedure, non_overridable           :: get_vef_lids            => cell_iterator_get_vef_lids
+    !procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
+    !procedure, non_overridable           :: find_lpos_vef_lid       => cell_iterator_find_lpos_vef_lid
+    !procedure, non_overridable           :: find_lpos_vef_gid       => cell_iterator_find_lpos_vef_gid
+    !procedure, non_overridable           :: get_vef                 => cell_iterator_get_vef
+    !procedure, non_overridable           :: is_local                => cell_iterator_is_local
+    !procedure, non_overridable           :: is_ghost                => cell_iterator_is_ghost
+  end type p4est_cell_iterator_t
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   ! TODO: this data type should extend an abstract triangulation,
   !       and implement its corresponding accessors
   type p4est_serial_triangulation_t
@@ -189,6 +238,7 @@ subroutine p4est_serial_triangulation_update_lst_vefs_lids(this)
   logical :: is_proper
   integer(ip) :: isubface
   
+#ifdef ENABLE_P4EST  
   call this%free_lst_vefs_lids()
   
   if ( this%num_dimensions == 2 ) then
@@ -342,13 +392,20 @@ subroutine p4est_serial_triangulation_update_lst_vefs_lids(this)
      end do
   end do
   this%num_vefs = this%num_proper_vefs + this%num_improper_vefs 
+#else
+  call this%not_enabled_error()
+#endif    
 end subroutine p4est_serial_triangulation_update_lst_vefs_lids
 
 subroutine p4est_serial_triangulation_free_lst_vefs_lids(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout) :: this
+#ifdef ENABLE_P4EST
   if (allocated(this%lst_vefs_lids)) &
     call memfree(this%lst_vefs_lids, __FILE__, __LINE__)
+#else
+  call this%not_enabled_error()
+#endif    
 end subroutine p4est_serial_triangulation_free_lst_vefs_lids
 
 subroutine p4est_serial_triangulation_update_p4est_mesh(this)
@@ -545,7 +602,7 @@ end function p4est_get_jcell_icorner
 
 #ifndef ENABLE_P4EST
   subroutine p4est_serial_triangulation_not_enabled_error(this)
-    class(p4est_serial_triangulation_t), intent(inout) :: this
+    class(p4est_serial_triangulation_t), intent(in) :: this
     write (stderr,*) 'Error: FEMPAR was not compiled with -DENABLE_P4EST.'
     write (stderr,*) "Error: You must activate this CPP macro in order to use P4EST"
     check(.false.)
