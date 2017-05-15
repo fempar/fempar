@@ -59,7 +59,7 @@ program test_std_vector
   end do
   
   call v2%copy(v)
-  assert (v2%size() == v%size())
+  check (v2%size() == v%size())
   do i=1, v2%size()
     check ( v2%get(i) == v%get(i) )
   end do
