@@ -30,6 +30,7 @@
 #include "std_vector_macros.i90"
 module std_vector_integer_ip_names
   use types_names
+  use memor_names
   implicit none
   private
   

@@ -76,7 +76,7 @@ SUBROUTINE push_back(T,i)                     ;\
   BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND)  , intent(in)    :: i  ;\
   BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND),ALLOCATABLE::v_aux(:)  ;\
   IF(.NOT.ALLOCATED(T%v)) THEN      ;\
-    ALLOCATE(T%v(1))                ;\
+    call memalloc(1, T%v, __FILE__, __LINE__) ;\
     T%size_ = 1                      ;\
     T%capacity_ = 1                  ;\
     T%v(1)=i                        ;\
@@ -85,10 +85,10 @@ SUBROUTINE push_back(T,i)                     ;\
     T%v(T%size_)=i                   ;\
   ELSE                              ;\
     T%capacity_ = (T%size_*3)/2+1     ;\
-    ALLOCATE(v_aux(T%capacity_))     ;\
+    call memalloc(T%capacity_, v_aux, __FILE__, __LINE__) ;\
     v_aux(1:T%size_) = T%v(1:T%size_) ;\
-    DEALLOCATE(T%v)                 ;\
-    call move_alloc(v_aux,T%v)      ;\
+    call memfree(T%v, __FILE__, __LINE__) ;\
+    call memmovealloc(v_aux,T%v)      ;\
     T%size_ = T%size_ + 1             ;\
     T%v(T%size_) = i                 ;\
   ENDIF                             ;\
@@ -115,7 +115,7 @@ SUBROUTINE resize(T,size,i)  ;\
   assert (size>=0) ;\
   IF(.NOT.ALLOCATED(T%v)) THEN ;\
     IF(size>0)THEN            ;\
-      ALLOCATE(T%v(size))     ;\
+      call memalloc(size,T%v,__FILE__,__LINE__) ;\
     ENDIF                     ;\
     T%size_ = size             ;\
     T%capacity_ = size         ;\
@@ -129,10 +129,10 @@ SUBROUTINE resize(T,size,i)  ;\
     T%size_ = size             ;\
   ELSE                        ;\
     T%capacity_ = size         ;\
-    ALLOCATE(v_aux(T%capacity_));\
+    call memalloc(T%capacity_, v_aux, __FILE__, __LINE__);\
     v_aux (1:T%size_) = T%v(1:T%size_) ;\
-    DEALLOCATE(T%v)           ;\
-    call MOVE_ALLOC(v_aux,T%v);\
+    call memfree(T%v, __FILE__, __LINE__ ) ;\
+    call memmovealloc(v_aux,T%v);\
     IF(PRESENT(i))THEN        ;\
       T%v(T%size_+1:size)=i   ;\
     ENDIF                     ;\
@@ -148,7 +148,7 @@ SUBROUTINE copy(T,T2)  ;\
   call T%free() ;\
   T%capacity_= T2%size_       ;\
   T%size_    = T2%size_       ;\
-  ALLOCATE(T%v(T%capacity_))     ;\
+  call memalloc(T%capacity_, T%v, __FILE__, __LINE__)     ;\
   T%v(1:T%size_) = T2%v(1:T%size_) ;\
 END SUBROUTINE  ;\
 
@@ -156,7 +156,7 @@ END SUBROUTINE  ;\
 SUBROUTINE free(T)  ;\
   IMPLICIT NONE                 ;\
   CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND)  , intent(inout) :: T  ;\
-  if (allocated(t%v)) deallocate(T%v) ;\
+  if (allocated(t%v)) call memfree(T%v, __FILE__, __LINE__) ;\
   T%size_ = 0 ;\
   T%capacity_ = 0 ;\
 END SUBROUTINE  ;\

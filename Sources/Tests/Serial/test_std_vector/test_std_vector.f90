@@ -30,29 +30,38 @@ program test_std_vector
   use fempar_names
   implicit none
   type(std_vector_integer_ip_t) :: v
+  type(std_vector_integer_ip_t) :: v2
   integer(ip) :: i
   
   call fempar_init()
+ 
+  call v%resize(0,1)
+  call v%resize(1,1)
+  
   !Set some initial content:
   do i=1, 100
-    call v%push_back(i)
+    call v%push_back(i+1)
     write(*,'(a,i4,a,i4)') 'Size=', v%size(), ' Capacity=', v%capacity() 
     check ( v%get(i) == i )
   end do
   
   call v%resize(1000,34)
-  do i=1, 100
+  do i=1, 101
     check ( v%get(i) == i )
   end do
-  do i=101,1000
+  do i=102,1000
     check ( v%get(i) == 34 )
   end do
   
-  call v%resize(38)
+  call v%resize(38,1)
   do i=1, v%size()
-    call v%set(i,-i)
-    write(*,'(a,i4,a,i4)') 'Size=', v%size(), ' Capacity=', v%capacity() 
-    check ( v%get(i) == -i )
+    check ( v%get(i) == i )
+  end do
+  
+  call v2%copy(v)
+  assert (v2%size() == v%size())
+  do i=1, v2%size()
+    check ( v2%get(i) == v%get(i) )
   end do
   
   call v%erase(10)
@@ -61,9 +70,10 @@ program test_std_vector
   end do
   
   do i=10, v%size()
-    check ( v%get(i) == -(i+1) )
+    check ( v%get(i) == i+1)
   end do
    
   call v%free()
+  call v2%free()
   call fempar_finalize()
 end program test_std_vector
