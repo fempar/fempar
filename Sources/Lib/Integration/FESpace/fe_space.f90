@@ -600,8 +600,8 @@ module fe_space_names
    	   ! Change Basis Matrix will be stored as 
 	   ! [ G 0      G = diag(G_Ei) block diagonal for every coarse edge  
 	   !   B I ];   B = coupling interface dofs with coarse edge dofs 
-	   real(rp), allocatable  :: G(:,:) 
-	   real(rp), allocatable  :: B(:,:)  
+	   type(sparse_matrix_t), allocatable  :: G(:) 
+	   real(rp)             , allocatable  :: B(:,:)  
    
    contains 
        ! Get local_edge_change_basis_matrix(Ei) = G_Ei 
@@ -612,7 +612,7 @@ module fe_space_names
    
     type, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
     private 
-	   integer(ip)                         :: number_dofs_per_fine_edge
+	   integer(ip)                         :: order
 	   integer(ip)                         :: number_coarse_edges
 	   integer(ip) , allocatable           :: number_fine_edges_per_coarse_edge(:) 
 	   integer(ip) , allocatable           :: perm_sorted_edges(:,:) 
@@ -620,16 +620,22 @@ module fe_space_names
 	   integer(ip)                         :: number_interface_dofs_coupled_to_fine_edges 
 	   integer(ip) , allocatable           :: local_to_wire_dof(:)
        integer(ip) , allocatable           :: wire_to_local_dof(:) 
-       type(edge_change_basis_matrix_t)    :: edge_change_basis_matrix 
+	   integer(ip) , allocatable           :: dofs_new_basis(:) 
+       type(edge_change_basis_matrix_t)    :: change_basis_matrix 
 	   
   contains
 	   procedure                           :: setup_constraint_matrix          => Hcurl_l1_setup_constraint_matrix
 	   procedure                           :: setup_change_basis_tools         => Hcurl_l1_setup_change_basis_tools 
-	   procedure, non_overridable, private :: get_dof_list_in_coarse_edge      => Hcurl_l1_get_dof_list_in_coarse_edge 
 	   procedure, non_overridable, private :: compute_wire_dof_renumbering     => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
 	   procedure, non_overridable, private :: compute_edge_change_basis_matrix => Hcurl_l1_compute_edge_change_basis_matrix
 	   procedure, non_overridable, private :: compute_edge_elmat               => Hcurl_l1_compute_edge_elmat
+	   procedure, non_overridable, private :: fill_edge_local_change_of_basis  => Hcurl_l1_fill_edge_local_change_of_basis 
 	   procedure, non_overridable, private :: sort_fine_edges                  => Hcurl_l1_sort_fine_edges
+	   ! Auxiliar procedures 
+	   procedure, non_overridable, private :: get_dof_list_in_coarse_edge      => Hcurl_l1_get_dof_list_in_coarse_edge 
+	   procedure, non_overridable, private :: get_dof_list_new_basis           => Hcurl_l1_get_dof_list_new_basis 
+	   procedure, non_overridable, private :: is_first_edge                    => Hcurl_l1_is_first_edge
+	   procedure, non_overridable, private :: is_last_edge                     => Hcurl_l1_is_last_edge 
   end type  Hcurl_l1_coarse_fe_handler_t
      
   public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, Hcurl_l1_coarse_fe_handler_t 
