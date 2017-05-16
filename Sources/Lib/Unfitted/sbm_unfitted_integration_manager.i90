@@ -351,13 +351,8 @@ subroutine uim_init_cut_integration( this )
   do ifield = 1,num_fields
 
     ! Find the fist non void ref FE in the field
-    do while( .not. fe%has_finished())
-      if (fe%is_local()) then
-        reference_elem => fe%get_reference_fe(field_id=ifield)
-        if (reference_elem%get_order() > 0) exit
-      end if
-      call fe%next()
-    end do
+    call fe%first_local_non_void(ifield)
+    reference_elem => fe%get_reference_fe(field_id=ifield)
 
     do mc_case = 1, mc_num_cases
       call this%cut_vol_integrators(mc_case,ifield)%create( this%cut_quadratures(mc_case), reference_elem )
@@ -370,6 +365,10 @@ subroutine uim_init_cut_integration( this )
   call this%empty_fe_map%create( this%empty_quadrature, geo_reference_elem )
   allocate (this%empty_vol_integrator(1:num_fields), stat=istat); check(istat==0)
   do ifield = 1,num_fields
+
+    ! Find the fist non void ref FE in the field
+    call fe%first_local_non_void(ifield)
+
     reference_elem => fe%get_reference_fe(field_id=ifield)
     call this%empty_vol_integrator(ifield)%create( this%empty_quadrature, reference_elem )
   end do
@@ -502,13 +501,8 @@ subroutine uim_init_cut_boundary_integration( this )
   do ifield = 1, num_fields
 
     ! Find the fist non void ref FE in the field
-    do while( .not. fe%has_finished())
-      if (fe%is_local()) then
-        reference_elem => fe%get_reference_fe(field_id=ifield)
-        if (reference_elem%get_order() > 0) exit
-      end if
-      call fe%next()
-    end do
+    call fe%first_local_non_void(ifield)
+    reference_elem => fe%get_reference_fe(field_id=ifield)
 
     do mc_case = 1, mc_num_cases
     call this%cut_boundary_vol_integrators(mc_case,ifield)%create(&

@@ -146,15 +146,9 @@ contains
     field_coupling => fe_space%get_field_coupling()
 
     ! Find the first non-void FE
-    num_quad_points = 0
-    do while ( .not. fe%has_finished() )
-       if ( fe%is_local() ) then
-         quad            => fe%get_quadrature()
-         num_quad_points = quad%get_number_quadrature_points()
-         if (num_quad_points > 0) exit
-       end if
-       call fe%next()
-    end do    
+    call fe%first_local_non_void(field_id = 1)
+    quad            => fe%get_quadrature()
+    num_quad_points = quad%get_number_quadrature_points()
     if (num_quad_points==0) return
 
     ! TODO We assume that all non-void FEs are the same...

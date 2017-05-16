@@ -215,6 +215,7 @@ module fe_space_names
     procedure, non_overridable          :: get_reference_fe_id                        => fe_iterator_get_reference_fe_id
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
+    procedure, non_overridable          :: first_local_non_void                       => fe_iterator_first_local_non_void
   end type fe_iterator_t
    
   type :: base_fe_vef_iterator_t
