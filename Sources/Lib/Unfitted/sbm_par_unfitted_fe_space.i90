@@ -43,21 +43,7 @@ subroutine pufs_create_same_reference_fes_on_all_cells(&
   class(l1_coarse_fe_handler_t)     , target, intent(in)     :: coarse_fe_handler
   integer(ip)                     , optional, intent(in)     :: field_blocks(:)
   logical                         , optional, intent(in)     :: field_coupling(:,:)
-  class(marching_cubes_t), pointer :: marching_cubes
-  type(environment_t), pointer :: par_environment
-  par_environment    => this%get_par_environment()
-  call this%free()
-  call this%par_fe_space_t%create(triangulation,conditions,reference_fes,coarse_fe_handler,field_blocks,field_coupling)
-  select type(triangulation)
-  class is (par_unfitted_triangulation_t)
-    if ( par_environment%am_i_l1_task() ) then
-      this%unfitted_triangulation => triangulation
-      marching_cubes => triangulation%get_marching_cubes()
-      call this%unfitted_integration%create(this,marching_cubes)
-    end if
-  class default
-    check(.false.)
-  end select
+  mcheck(.false.,'You cannot create an unfitted fe space with the same reference fe on all cells (you need void and non void ref elems)')
 end subroutine pufs_create_same_reference_fes_on_all_cells
 
 !========================================================================================
@@ -80,18 +66,14 @@ subroutine pufs_create_different_between_cells( &
   integer(ip)                     , optional, intent(in)     :: field_blocks(:)
   logical                         , optional, intent(in)     :: field_coupling(:,:)
   class(marching_cubes_t), pointer :: marching_cubes
-  type(environment_t), pointer :: par_environment
-  par_environment    => triangulation%get_par_environment()
   call this%free()
   call this%par_fe_space_t%create(&
     triangulation,conditions,reference_fes,set_ids_to_reference_fes,coarse_fe_handler,field_blocks,field_coupling)
   select type(triangulation)
   class is (par_unfitted_triangulation_t)
-    if ( par_environment%am_i_l1_task() ) then
-      this%unfitted_triangulation => triangulation
-      marching_cubes => triangulation%get_marching_cubes()
-      call this%unfitted_integration%create(this,marching_cubes)
-    end if
+    this%unfitted_triangulation => triangulation
+    marching_cubes => triangulation%get_marching_cubes()
+    call this%unfitted_integration%create(this,marching_cubes)
   class default
     check(.false.)
   end select

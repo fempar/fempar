@@ -236,7 +236,7 @@ end subroutine free_timers
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
 
-    type(unfitted_cell_iterator_t) :: cell
+    class(cell_iterator_t), allocatable :: cell
     integer(ip) :: istat
     integer(ip) :: set_id
 
@@ -263,7 +263,7 @@ end subroutine free_timers
     ! Set the cell ids
     if ( this%par_environment%am_i_l1_task() ) then
       call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-      call this%triangulation%create_unfitted_cell_iterator(cell)
+      call this%triangulation%create_cell_iterator(cell)
       do while( .not. cell%has_finished() )
         if (cell%is_local()) then
           if (cell%is_exterior()) then
@@ -276,7 +276,7 @@ end subroutine free_timers
         call cell%next()
       end do
       call this%triangulation%fill_cells_set(this%cell_set_ids)
-      call this%triangulation%free_unfitted_cell_iterator(cell)
+      call this%triangulation%free_cell_iterator(cell)
     end if
 
     ! Initialize all the vefs set ids to SET_ID_FREE
@@ -303,7 +303,7 @@ end subroutine free_timers
     if (this%test_params%get_unfitted_boundary_type() == 'neumann' .and. this%par_environment%am_i_l1_task()) then
 
       allocate(coords(this%triangulation%get_max_number_shape_functions()),stat = istat); check(istat == 0)
-      call this%triangulation%create_unfitted_cell_iterator(cell)
+      call this%triangulation%create_cell_iterator(cell)
       do while( .not. cell%has_finished() )
         if (cell%is_local()) then
           call cell%get_coordinates(coords)
@@ -325,7 +325,7 @@ end subroutine free_timers
         if (found_interior_vertex) exit
         call cell%next()
       end do
-      call this%triangulation%free_unfitted_cell_iterator(cell)
+      call this%triangulation%free_cell_iterator(cell)
       deallocate(coords,stat = istat); check(istat==0)
       
 #ifdef DEBUG
