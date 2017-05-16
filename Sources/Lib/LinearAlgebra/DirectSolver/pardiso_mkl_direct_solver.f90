@@ -163,7 +163,7 @@ contains
             elseif(this%matrix%get_symmetric_storage() .and. this%matrix%get_sign() /= SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE) then
                this%matrix_type = pardiso_mkl_sin
             else ! if(.not. this%matrix%get_symmetric_storage()) then
-               this%matrix_type = pardiso_mkl_uss
+               this%matrix_type = pardiso_mkl_uns
              end if
         endif
 #else
