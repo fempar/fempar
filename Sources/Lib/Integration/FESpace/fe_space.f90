@@ -615,6 +615,8 @@ module fe_space_names
 	   integer(ip)                         :: number_dofs_per_fine_edge
 	   integer(ip)                         :: number_coarse_edges
 	   integer(ip) , allocatable           :: number_fine_edges_per_coarse_edge(:) 
+	   integer(ip) , allocatable           :: perm_sorted_edges(:,:) 
+	   real(rp)    , allocatable           :: tangent_size(:,:)
 	   integer(ip)                         :: number_interface_dofs_coupled_to_fine_edges 
 	   integer(ip) , allocatable           :: local_to_wire_dof(:)
        integer(ip) , allocatable           :: wire_to_local_dof(:) 
@@ -627,6 +629,7 @@ module fe_space_names
 	   procedure, non_overridable, private :: compute_wire_dof_renumbering     => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
 	   procedure, non_overridable, private :: compute_edge_change_basis_matrix => Hcurl_l1_compute_edge_change_basis_matrix
 	   procedure, non_overridable, private :: compute_edge_elmat               => Hcurl_l1_compute_edge_elmat
+	   procedure, non_overridable, private :: sort_fine_edges                  => Hcurl_l1_sort_fine_edges
   end type  Hcurl_l1_coarse_fe_handler_t
      
   public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, Hcurl_l1_coarse_fe_handler_t 

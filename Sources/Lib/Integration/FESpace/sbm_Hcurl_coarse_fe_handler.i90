@@ -31,8 +31,8 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
-  type(environment_t), pointer :: par_environment
-  type(fe_object_iterator_t) :: object
+  type(environment_t), pointer           :: par_environment
+  type(fe_object_iterator_t)             :: object
   type(fe_vef_iterator_t)                :: vef
   class(fe_iterator_t), allocatable      :: fe
   type(list_iterator_t)                  :: own_coarse_dofs_iterator
@@ -180,7 +180,11 @@ implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
   type(par_fe_space_t)                  , intent(in)       :: par_fe_space
   
+  ! Define renumbering s.t. Wire Dofs [E,E^c]
   call this%compute_wire_dof_renumbering( par_fe_space )
+  ! Sort fine edges in a coarse edge and give coarse unique orientation 
+  call this%sort_fine_edges(par_fe_space)
+  ! Compute the change basis arrays 
   call this%compute_edge_change_basis_matrix( par_fe_space )
   
 end subroutine Hcurl_l1_setup_change_basis_tools
@@ -398,8 +402,8 @@ subroutine Hcurl_l1_compute_edge_elmat(this, par_fe_space, elmat)
   call fe_1D_reduced_order%create_interpolation( edge_quadrature, interpolation_1D_reduced_order )
 
   ! IDEA: perform edge integrations ONLY over the elementary edge 
-  ! REAL CELL integration ( Phi'*inv(J)'*Phi*|J| )_e = +-( Phi', Phi)_e 
-  ! The sign will be solved latter when assembling to the Wire scheme  
+  ! REAL 1D CELL integration ( Phi'*inv(J)'*Phi*|J| )_e = +-( Phi', Phi)_e 
+  ! The sign will be solved later when assembling to the Wire scheme  
   call memalloc( fe_1D_reduced_order%get_number_shape_functions(), fe_1D%get_number_shape_functions(), elmat, __FILE__, __LINE__ ) 
   elmat = 0.0_rp 
   do qpoint = 1, edge_quadrature%number_quadrature_points
@@ -422,3 +426,163 @@ subroutine Hcurl_l1_compute_edge_elmat(this, par_fe_space, elmat)
 
 end subroutine Hcurl_l1_compute_edge_elmat
 
+subroutine Hcurl_l1_sort_fine_edges( this, par_fe_space )
+  ! This subroutine returns a permutation of fine edges (VEFS) contained in coarse edges such that they 
+  ! are sorted following a path from the beginning to an end. The criteria to define origin and end of 
+  ! the path is minimum in coordinates {x} ( recursive {y} {z} if needed). The path defines a unique 
+  ! orientation for the coarse edge, local edges with different orientation are found in the process 
+  implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+
+  type(fe_object_iterator_t)                :: object
+  type(fe_vef_iterator_t)                   :: vef_within_object
+  type(fe_vef_iterator_t)                   :: vertex 
+  class(lagrangian_reference_fe_t), pointer :: ref_fe_geo
+  class(fe_iterator_t), allocatable         :: fe
+  integer(ip)                               :: ivef_within_object, ivef_within_cell 
+  integer(ip)                               :: vertex_within_cell_id
+  integer(ip)                               :: vertex_within_edge_id
+  integer(ip)                               :: coarse_edge, node_id
+  type(list_t), pointer                     :: vertices_of_line
+  type(list_iterator_t)                     :: vertices_of_line_iterator
+  integer(ip), allocatable                  :: vertices_in_edge(:,:)
+  type(hash_table_ip_ip_t)                  :: nodes_visited 
+  integer(ip)                               :: i, iedge, istat, inode, start_node, end_node 
+  type(point_t)                             :: tangent_vector 
+  type(point_t), allocatable                :: cell_coordinates(:)
+  type(point_t), allocatable, target        :: node_coordinates(:,:) 
+  type(point_t), pointer                    :: start_coords, end_coords
+  integer(ip)                               :: dummy_val, found_nodes, local_edge, orientation_index
+  integer(ip)                               :: perm(2), buffer_node, following_node
+  logical                                   :: following_edge_is_found 
+
+  perm(1) = 2; perm(2) = 1
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_vef_iterator(vertex) 
+  call par_fe_space%create_fe_vef_iterator(vef_within_object)
+  allocate(cell_coordinates( fe%cell%get_num_nodes() ) , stat=istat); check(istat==0) 
+  call memalloc(this%number_coarse_edges , maxval(this%number_fine_edges_per_coarse_edge ), this%perm_sorted_edges, __FILE__, __LINE__ ) 
+  call memalloc(this%number_coarse_edges , maxval(this%number_fine_edges_per_coarse_edge ), this%tangent_size, __FILE__, __LINE__ ) 
+  this%perm_sorted_edges = 0
+  this%tangent_size      = 0.0_rp 
+
+  coarse_edge = 0
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 1 ) then ! Only sort coarse edges
+        coarse_edge = coarse_edge + 1
+        call memalloc( this%number_fine_edges_per_coarse_edge(coarse_edge), 2, vertices_in_edge, __FILE__, __LINE__ )
+        call nodes_visited%init( this%number_fine_edges_per_coarse_edge(coarse_edge) + 1 )
+        allocate( node_coordinates( this%number_fine_edges_per_coarse_edge(coarse_edge), 2 ), stat=istat)
+
+        iedge = 0
+        do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object, vef_within_object)
+           if ( vef_within_object%get_dimension() == 1 ) then    ! Only act if a fine edge has been found 
+              iedge = iedge + 1
+              call vef_within_object%get_cell_around(1,fe)       ! Do not care local or ghost 
+              ref_fe_geo => fe%get_reference_fe_geo()
+              ivef_within_cell          = fe%find_lpos_vef_lid(vef_within_object%get_lid())     
+              vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
+              vertices_of_line_iterator = vertices_of_line%create_iterator(ivef_within_cell)
+              vertex_within_edge_id     = 1
+              do while( .not. vertices_of_line_iterator%is_upper_bound() )
+                 vertex_within_cell_id = vertices_of_line_iterator%get_current()
+                 call fe%get_vef(vertex_within_cell_id, vertex )
+                 node_id = vertex%get_lid() 
+                 call fe%cell%get_coordinates(cell_coordinates)		
+                 ! Build hash table to identify start-end node 
+                 call nodes_visited%put(key=node_id, val=1, stat=istat)
+                 if (istat == was_stored) call nodes_visited%del(key=node_id, stat=istat) 
+                 ! Store nodes in a list 
+                 vertices_in_edge( iedge, vertex_within_edge_id )  = node_id 
+                 node_coordinates( iedge, vertex_within_edge_id)   = cell_coordinates(vertex_within_cell_id) 
+                 if (vertex_within_edge_id == 2) then 
+                    tangent_vector = node_coordinates(iedge,2) - node_coordinates(iedge,1)
+                    this%tangent_size(coarse_edge, iedge) = tangent_vector%nrm2() 
+                 end if
+                 vertex_within_edge_id = vertex_within_edge_id + 1
+                 call vertices_of_line_iterator%next() 
+              end do
+           end if
+        end do
+
+        ! Return potential start-end node and assign direction (decide which one is the origin) 
+        found_nodes = 0
+        do while ( found_nodes < 2 ) 
+           do iedge = 1,this%number_fine_edges_per_coarse_edge(coarse_edge)
+              do inode = 1,2
+                 node_id = vertices_in_edge(iedge, inode)
+                 call nodes_visited%get( key=node_id, val=dummy_val, stat=istat ) 
+                 if (istat==key_found .and. found_nodes==0) then 
+                    start_node = node_id; found_nodes = 1
+                    start_coords => node_coordinates(iedge, inode)
+                 elseif (istat==key_found .and. found_nodes==1) then 
+                    end_node   = node_id; found_nodes = 2
+                    end_coords => node_coordinates(iedge, inode) 
+                 end if
+              end do
+           end do
+        end do
+
+        ! Define unique orientation for the edge, from the lowest x(i)_1 --> x(i)_2 recursively 
+        if  ( end_coords%get(1) < start_coords%get(1)  ) then 
+           buffer_node=start_node; start_node = end_node; end_node=buffer_node;   
+        elseif ( end_coords%get(1) == start_coords%get(1) ) then  
+           if ( end_coords%get(2) < start_coords%get(2)  ) then 
+              buffer_node=start_node; start_node = end_node; end_node=buffer_node; 
+           elseif ( end_coords%get(2) == start_coords%get(2) ) then
+              if ( end_coords%get(3) < start_coords%get(3) ) then 
+                 buffer_node=start_node; start_node = end_node; end_node=buffer_node; 
+              elseif ( end_coords%get(3) > start_coords%get(3) ) then
+			     ! Do-nothing
+			  else 
+                 ! If 3 coordinates are equal it must be the same point 
+                 assert(.false.) 
+              end if
+           end if
+        end if
+
+        ! Build path from first to last fine edge belonging to the coarse edge
+        local_edge     = 0
+        following_node = 0
+        do while (local_edge .ne. this%number_fine_edges_per_coarse_edge(coarse_edge) )
+           following_edge_is_found = .false. 
+           do iedge = 1,this%number_fine_edges_per_coarse_edge(coarse_edge)
+              do inode = 1,2
+                 if ( (vertices_in_edge( iedge, inode )==start_node) ) then 
+                    local_edge = local_edge + 1
+                    orientation_index = inode  ! 1 indicates v1-->v2, 2 gives the orientation 2-->1 must be respected for all fine edges 
+                    this%perm_sorted_edges(coarse_edge, local_edge) = iedge
+                    following_node = vertices_in_edge(iedge, perm(inode)) 
+					vertices_in_edge(iedge,:) = 0 ! Do not let replication, (it should be pulled out from the list)
+                    following_edge_is_found = .true. ; exit 
+                 elseif ( (vertices_in_edge(iedge, inode) == following_node) ) then 
+                    local_edge = local_edge + 1
+                    this%perm_sorted_edges(coarse_edge, local_edge) = iedge
+                    ! Fine edge has changed first edge orientation and the sign must be adjusted 
+                    if ( inode .ne. orientation_index ) this%tangent_size(coarse_edge, iedge) = -this%tangent_size(coarse_edge, iedge) 
+                    following_node = vertices_in_edge(iedge, perm(inode)) 
+					vertices_in_edge(iedge,:) = 0 ! Do not let replication, (it should be pulled out from the list)
+                    following_edge_is_found = .true. ; exit 
+                 end if
+              end do
+              if (following_edge_is_found) exit 
+           end do
+        end do
+
+        call memfree(vertices_in_edge)
+        call nodes_visited%free()
+        deallocate( node_coordinates, stat=istat);  check(istat==0)
+     end if
+     call object%next()
+  end do
+
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_vef_iterator(vef_within_object)
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_vef_iterator(vertex)
+  deallocate( cell_coordinates, stat=istat ); check(istat==0) 
+
+end subroutine Hcurl_l1_sort_fine_edges
