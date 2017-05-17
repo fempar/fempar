@@ -584,6 +584,7 @@ module fe_space_names
 	   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
 	   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
     procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
+	   procedure             :: free                                      => standard_l1_free 
   end type standard_l1_coarse_fe_handler_t
   
   type, extends(standard_l1_coarse_fe_handler_t) :: H1_l1_coarse_fe_handler_t
@@ -625,6 +626,7 @@ module fe_space_names
   contains
 	   procedure                           :: setup_constraint_matrix                     => Hcurl_l1_setup_constraint_matrix
 	   procedure                           :: setup_change_basis_tools                    => Hcurl_l1_setup_change_basis_tools 
+	   procedure                           :: free                                        => Hcurl_l1_free 
 	   procedure, non_overridable, private :: compute_wire_dof_renumbering                => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
 	   procedure, non_overridable, private :: compute_edge_change_basis_matrix            => Hcurl_l1_compute_edge_change_basis_matrix
 	   procedure, non_overridable, private :: compute_edge_elmat                          => Hcurl_l1_compute_edge_elmat

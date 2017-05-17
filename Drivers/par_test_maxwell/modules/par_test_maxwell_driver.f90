@@ -437,6 +437,7 @@ end subroutine free_timers
       check(istat==0)
     end if
     call this%triangulation%free()
+	call this%Hcurl_l1_coarse_fe_handler%free()
   end subroutine free  
 
   !========================================================================================

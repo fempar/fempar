@@ -289,3 +289,9 @@ subroutine standard_lgt1_setup_coarse_dofs(this, coarse_fe_space)
   class(standard_lgt1_coarse_fe_handler_t), intent(in)    :: this
   type(coarse_fe_space_t)                 , intent(inout) :: coarse_fe_space
 end subroutine standard_lgt1_setup_coarse_dofs
+
+subroutine standard_l1_free(this)
+implicit none 
+  class(standard_l1_coarse_fe_handler_t), intent(inout) :: this
+  assert(.false.) 
+end subroutine standard_l1_free

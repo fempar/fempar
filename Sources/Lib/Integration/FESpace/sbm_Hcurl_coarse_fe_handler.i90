@@ -25,6 +25,26 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine Hcurl_l1_free( this ) 
+implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
+  integer(ip) :: coarse_edge, istat 
+  
+   ! Free all allocated data 
+   if (allocated(this%number_fine_edges_per_coarse_edge))  call memfree(this%number_fine_edges_per_coarse_edge, __FILE__, __LINE__ )
+   if (allocated(this%perm_sorted_edges))                  call memfree(this%perm_sorted_edges, __FILE__, __LINE__ )
+   if (allocated(this%tangent_size))                       call memfree(this%tangent_size, __FILE__, __LINE__ )
+   if (allocated(this%local_to_wire_dof))                  call memfree(this%local_to_wire_dof, __FILE__, __LINE__ )
+   if (allocated(this%wire_to_local_dof))                  call memfree(this%wire_to_local_dof, __FILE__, __LINE__ )
+   if (allocated(this%dofs_new_basis))                     call memfree(this%dofs_new_basis, __FILE__, __LINE__ )
+
+   do coarse_edge=1, this%number_coarse_edges
+   call this%change_basis_matrix%G(coarse_edge)%free() 
+   end do 
+  ! if (allocated(this%change_basis_matrix%G))              deallocate(this%change_basis_matrix%G, stat=istat); check(istat==0); 
+   call this%change_basis_matrix%B%free() 
+end subroutine Hcurl_l1_free
+
 subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
