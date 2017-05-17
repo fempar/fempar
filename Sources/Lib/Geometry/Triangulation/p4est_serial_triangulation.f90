@@ -32,6 +32,8 @@ module p4est_serial_triangulation_names
   use stdio_names
   use memor_names
   use p4est_bindings_names
+  use base_static_triangulation_names
+  use std_vector_integer_ip_names
   
   use FPL
 
@@ -62,10 +64,9 @@ module p4est_serial_triangulation_names
   integer(ip), parameter :: P4EST_2_FEMPAR_FACE  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
   
   
-  type p4est_cell_iterator_t
+  type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
-    integer(ip)                                  :: lid = -1
-    class(p4est_serial_triangulation_t), pointer :: triangulation => NULL()
+    type(p4est_serial_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
     !procedure                 , private  :: create                  => cell_iterator_create
     !procedure                 , private  :: free                    => cell_iterator_free
@@ -103,20 +104,13 @@ module p4est_serial_triangulation_names
   
   
   
-  
-  
-  
-  
-  
-  
-  
   ! TODO: this data type should extend an abstract triangulation,
   !       and implement its corresponding accessors
-  type p4est_serial_triangulation_t
+  type, extends(serial_triangulation_t) ::  p4est_serial_triangulation_t
     private
-    integer(ip) :: num_cells          = -1
-    integer(ip) :: num_dimensions     = -1
-    integer(ip) :: num_vefs           = -1
+    integer(ip) :: p4est_num_cells          = -1
+    integer(ip) :: p4est_num_dimensions     = -1
+    integer(ip) :: p4est_num_vefs           = -1
     integer(ip) :: num_proper_vefs    = -1 
     integer(ip) :: num_improper_vefs  = -1 
     type(c_ptr) :: p4est_connectivity = c_null_ptr
@@ -133,19 +127,20 @@ module p4est_serial_triangulation_names
     integer(P4EST_F90_LOCIDX),pointer     :: quad_to_half(:,:)   => NULL()
     integer(P4EST_F90_LOCIDX),pointer     :: quad_to_corner(:,:) => NULL()
 
-    ! TODO: The following 3x member variables should be replaced by our F200X implementation of "std::vector<T>" 
+    ! TODO: The following 2x member variables should be replaced by our F200X implementation of "std::vector<T>" 
     ! p4est Integer coordinates of first quadrant node (xy/xyz,nQuads)
     integer(P4EST_F90_LOCIDX), allocatable :: quad_coords(:,:)
     ! p4est Integer Level of quadrant
     integer(P4EST_F90_QLEVEL), allocatable :: quad_level(:)
-    integer(ip)              , allocatable :: lst_vefs_lids(:)    
+    
+    type(std_vector_integer_ip_t)          :: p4est_lst_vefs_lids   
   contains
-    procedure, non_overridable          :: create                          => p4est_serial_triangulation_create
-    procedure, non_overridable          :: free                            => p4est_serial_triangulation_free
+    procedure                           :: create                          => p4est_serial_triangulation_create
+    procedure                           :: free                            => p4est_serial_triangulation_free
     procedure, non_overridable          :: refine_and_coarsen              => p4est_serial_triangulation_refine_and_coarsen
     procedure, private, non_overridable :: update_p4est_mesh               => p4est_serial_triangulation_update_p4est_mesh
     procedure, private, non_overridable :: update_topology_from_p4est_mesh => p4est_serial_triangulation_update_topology_from_p4est_mesh
-    procedure, private, non_overridable :: ptr_vefs_per_cell               => p4est_serial_triangulation_ptr_vefs_per_cell
+    procedure, private, non_overridable :: get_ptr_vefs_per_cell           => p4est_serial_triangulation_get_ptr_vefs_per_cell
     procedure, private, non_overridable :: update_lst_vefs_lids            => p4est_serial_triangulation_update_lst_vefs_lids
     procedure, private, non_overridable :: free_lst_vefs_lids              => p4est_serial_triangulation_free_lst_vefs_lids
 #ifndef ENABLE_P4EST
@@ -159,23 +154,23 @@ contains
 
 subroutine p4est_serial_triangulation_create (this, parameters)
   implicit none
-  class(p4est_serial_triangulation_t), intent(inout) :: this
-  type(ParameterList_t)              , intent(in)    :: parameters
+  class(p4est_serial_triangulation_t), target, intent(inout) :: this
+  type(ParameterList_t)                      , intent(inout) :: parameters
   
 #ifdef ENABLE_P4EST
   call this%free()
-  this%num_cells = 1
+  this%p4est_num_cells = 1
   
   ! TODO: Extract num_dimensions out of parameters
-  this%num_dimensions = 2
+  this%p4est_num_dimensions = 2
   
-  if ( this%num_dimensions == 2 ) then
+  if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
     call F90_p4est_new(this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_lids()
-  else if ( this%num_dimensions == 3 ) then
+  else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if  
 #else
@@ -188,14 +183,14 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   class(p4est_serial_triangulation_t), intent(inout) :: this
   
 #ifdef ENABLE_P4EST
-  if ( this%num_dimensions == 2 ) then
+  if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_refine(this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     ! Update the number of triangulation cells
-    this%num_cells = size(this%quad_level)
+    this%p4est_num_cells = size(this%quad_level)
     call this%update_lst_vefs_lids()
-  else if ( this%num_dimensions == 3 ) then
+  else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if
 #else
@@ -204,25 +199,25 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   
 end subroutine p4est_serial_triangulation_refine_and_coarsen
 
-function p4est_serial_triangulation_ptr_vefs_per_cell(this, icell)
+function p4est_serial_triangulation_get_ptr_vefs_per_cell(this, icell)
   implicit none
   class(p4est_serial_triangulation_t), intent(in) :: this
-  integer(ip) :: p4est_serial_triangulation_ptr_vefs_per_cell
+  integer(ip) :: p4est_serial_triangulation_get_ptr_vefs_per_cell
   integer(ip) :: icell
   integer(ip) :: num_vefs_per_cell
 
 #ifdef ENABLE_P4EST
-  assert (icell>= 1 .and. icell <= this%num_cells+1)
-  if ( this%num_dimensions == 2 ) then
+  assert (icell>= 1 .and. icell <= this%p4est_num_cells+1)
+  if ( this%p4est_num_dimensions == 2 ) then
     num_vefs_per_cell = NUM_VEFS_2D
-  else if ( this%num_dimensions == 3 ) then
+  else if ( this%p4est_num_dimensions == 3 ) then
   end if
-  p4est_serial_triangulation_ptr_vefs_per_cell = (icell-1)*num_vefs_per_cell+1
+  p4est_serial_triangulation_get_ptr_vefs_per_cell = (icell-1)*num_vefs_per_cell+1
 #else
   call this%not_enabled_error()
 #endif  
   
-end function p4est_serial_triangulation_ptr_vefs_per_cell
+end function p4est_serial_triangulation_get_ptr_vefs_per_cell
 
 subroutine p4est_serial_triangulation_update_lst_vefs_lids(this)
   implicit none
@@ -237,31 +232,29 @@ subroutine p4est_serial_triangulation_update_lst_vefs_lids(this)
   integer(P4EST_F90_QLEVEL) :: jcell_iconn 
   logical :: is_proper
   integer(ip) :: isubface
+  integer(ip) :: base_pos_icell, base_pos_min_cell
   
 #ifdef ENABLE_P4EST  
   call this%free_lst_vefs_lids()
   
-  if ( this%num_dimensions == 2 ) then
+  if ( this%p4est_num_dimensions == 2 ) then
      num_corners_per_cell = NUM_CORNERS_2D
      num_edges_per_cell   = 0 
      num_faces_per_cell   = NUM_FACES_2D
      num_face_corners     = NUM_FACE_CORNERS_2D
      num_faces_at_corner  = NUM_FACES_AT_CORNER_2D
      num_subfaces_face    = NUM_SUBFACES_FACE_2D
-  else if ( this%num_dimensions == 3 ) then
+  else if ( this%p4est_num_dimensions == 3 ) then
      check(.false.)
   end if
  
-
-  call memalloc(this%ptr_vefs_per_cell(this%num_cells+1)-1, &
-                this%lst_vefs_lids, __FILE__, __LINE__)
-
+  call this%p4est_lst_vefs_lids%resize(this%get_ptr_vefs_per_cell(this%p4est_num_cells+1)-1)
 
   this%num_proper_vefs   = 0
   this%num_improper_vefs = 0
-  this%num_vefs          = 0
+  this%p4est_num_vefs          = 0
   
-  do icell=1, this%num_cells
+  do icell=1, this%p4est_num_cells
      do icorner=1, num_corners_per_cell
        is_proper   = .true.
        min_cell    = icell
@@ -342,17 +335,21 @@ subroutine p4est_serial_triangulation_update_lst_vefs_lids(this)
          end if
        end if  
        
+       
+       base_pos_icell    = this%get_ptr_vefs_per_cell(icell)-1
+       base_pos_min_cell = this%get_ptr_vefs_per_cell(min_cell)-1
        ! If am owner of this corner
        if (icell == min_cell) then
          if (is_proper) then
            this%num_proper_vefs = this%num_proper_vefs+1
-           this%lst_vefs_lids(this%ptr_vefs_per_cell(icell)+icorner-1) = this%num_proper_vefs
+           call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), this%num_proper_vefs)
          else 
-          this%num_improper_vefs = this%num_improper_vefs+1
-          this%lst_vefs_lids(this%ptr_vefs_per_cell(icell)+icorner-1) = -this%num_improper_vefs
+           this%num_improper_vefs = this%num_improper_vefs+1
+           call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), -this%num_improper_vefs)
          end if
        else
-         this%lst_vefs_lids(this%ptr_vefs_per_cell(icell)+icorner-1) = this%lst_vefs_lids(this%ptr_vefs_per_cell(min_cell)+min_icorner-1)
+         call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), &
+                                           this%p4est_lst_vefs_lids%get(base_pos_min_cell+P4EST_2_FEMPAR_CORNER(min_icorner)))
        end if
      end do
      
@@ -376,22 +373,25 @@ subroutine p4est_serial_triangulation_update_lst_vefs_lids(this)
          is_proper = .false. 
        end if
 
+       base_pos_icell    = this%get_ptr_vefs_per_cell(icell)-1
+       base_pos_min_cell = this%get_ptr_vefs_per_cell(min_cell)-1
+       
        ! If am owner of this corner
        if (icell == min_cell) then
          if (is_proper) then
            this%num_proper_vefs=this%num_proper_vefs+1
-           this%lst_vefs_lids(this%ptr_vefs_per_cell(icell)+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface)-1) = this%num_proper_vefs
+           call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), this%num_proper_vefs)
          else 
-          this%num_improper_vefs=this%num_improper_vefs+1
-          this%lst_vefs_lids(this%ptr_vefs_per_cell(icell)+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface)-1) = -this%num_improper_vefs
+           this%num_improper_vefs=this%num_improper_vefs+1
+           call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), -this%num_improper_vefs)
          end if
        else ! Borrow vef gid from owner
-         this%lst_vefs_lids(this%ptr_vefs_per_cell(icell)+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface)-1) = & 
-               this%lst_vefs_lids(this%ptr_vefs_per_cell(min_cell)+num_corners_per_cell+P4EST_2_FEMPAR_FACE(min_iface)-1)
+         call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), &
+                                           this%p4est_lst_vefs_lids%get(base_pos_min_cell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(min_iface)))
        end if
      end do
   end do
-  this%num_vefs = this%num_proper_vefs + this%num_improper_vefs 
+  this%p4est_num_vefs = this%num_proper_vefs + this%num_improper_vefs 
 #else
   call this%not_enabled_error()
 #endif    
@@ -401,8 +401,7 @@ subroutine p4est_serial_triangulation_free_lst_vefs_lids(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout) :: this
 #ifdef ENABLE_P4EST
-  if (allocated(this%lst_vefs_lids)) &
-    call memfree(this%lst_vefs_lids, __FILE__, __LINE__)
+  call this%p4est_lst_vefs_lids%free()
 #else
   call this%not_enabled_error()
 #endif    
@@ -413,9 +412,9 @@ subroutine p4est_serial_triangulation_update_p4est_mesh(this)
   class(p4est_serial_triangulation_t), intent(inout) :: this
   
 #ifdef ENABLE_P4EST
-  if ( this%num_dimensions == 2 ) then
+  if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_mesh_new(this%p4est, this%p4est_mesh)
-  else if ( this%num_dimensions == 3 ) then
+  else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if
 #else
@@ -433,7 +432,7 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
  type(c_ptr) :: QQ, QF, QH, QC
  
 #ifdef ENABLE_P4EST
- if ( this%num_dimensions == 2 ) then
+ if ( this%p4est_num_dimensions == 2 ) then
   call F90_p4est_get_mesh_info(this%p4est, &
                                this%p4est_mesh, &
                                local_num_quadrants, &
@@ -463,7 +462,7 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_2D,local_num_quadrants])
   if(num_half_faces>0) call c_f_pointer(qh,this%quad_to_half,[NUM_SUBFACES_FACE_2D,num_half_faces])
   call c_f_pointer(qc,this%quad_to_corner,[NUM_CORNERS_2D,local_num_quadrants])
- else if ( this%num_dimensions == 3 ) then
+ else if ( this%p4est_num_dimensions == 3 ) then
    check(.false.)
  end if 
   
@@ -474,10 +473,10 @@ end subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh
 
 subroutine p4est_serial_triangulation_free ( this)
   implicit none
-  class(p4est_serial_triangulation_t), intent(inout) :: this
+  class(p4est_serial_triangulation_t), target, intent(inout) :: this
 
 #ifdef ENABLE_P4EST
-  if ( this%num_dimensions == 2 ) then
+  if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_destroy(this%p4est)
     call F90_p4est_connectivity_destroy(this%p4est_connectivity)
     call F90_p4est_mesh_destroy(this%p4est_mesh)
@@ -485,7 +484,7 @@ subroutine p4est_serial_triangulation_free ( this)
     this%p4est_connectivity = c_null_ptr
     this%p4est              = c_null_ptr
     this%p4est_mesh         = c_null_ptr
-  else if ( this%num_dimensions == 3 ) then
+  else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if
   
@@ -501,9 +500,9 @@ subroutine p4est_serial_triangulation_free ( this)
   if (allocated(this%quad_level)) &
     call memfree(this%quad_level, __FILE__, __LINE__)
   
-  this%num_dimensions  = -1
-  this%num_cells = -1
-  this%num_vefs = -1
+  this%p4est_num_dimensions  = -1
+  this%p4est_num_cells = -1
+  this%p4est_num_vefs = -1
   this%num_proper_vefs = -1
   this%num_improper_vefs = -1
 #else

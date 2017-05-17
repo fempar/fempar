@@ -388,7 +388,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_per_cell              => bst_free_ptr_vefs_per_cell
-     procedure, non_overridable, private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
+     procedure,                  private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
      procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
      procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set
@@ -472,7 +472,7 @@ module base_static_triangulation_names
 
   type, extends(fine_triangulation_t) :: serial_triangulation_t
   contains
-     procedure, non_overridable          :: create                              => serial_triangulation_create
+     procedure                           :: create                              => serial_triangulation_create
   end type serial_triangulation_t
   
   type, extends(fine_triangulation_t) :: par_triangulation_t
