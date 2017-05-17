@@ -77,6 +77,16 @@ function unfitted_fe_iterator_get_quadrature(this) result (quadrature)
   type(quadrature_t),              pointer   :: quadrature
   class(unfitted_cell_iterator_t), pointer   :: cell
   integer(ip) :: mc_case
+  ! The quadrature method has to be functional also for ghost elements.
+  ! serial_fe_space_initialize_fe_integration uses it...
+  ! QUESTION: Since fempar never integrates in ghost elements, 
+  ! why serial_fe_space_initialize_fe_integration needs quadratures in ghost elements??
+  ! Anyway, for ghost elems we take the quadrature of the standard fe_iterator to make things work
+  if (this%is_ghost()) then
+    quadrature => this%fe_iterator_t%get_quadrature()
+    return
+  end if
+  ! For local elems we possibly take the modified quadrature
   assert(this%is_local())
   cell => this%get_unfitted_cell_iterator()
   if ( cell%is_cut() ) then

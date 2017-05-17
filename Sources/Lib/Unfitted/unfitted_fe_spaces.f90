@@ -100,14 +100,12 @@ module unfitted_fe_spaces_names
     type(fe_map_t),            allocatable :: cut_boundary_fe_maps(:)
     type(volume_integrator_t), allocatable :: cut_boundary_vol_integrators(:,:)    
 
-    ! The exterior elements do not contribute to the integral
-    ! We achieve this with empty quadratures and related things
-    ! TODO Use the void fe in the future
+    ! Auxiliary dummy empty quadratures
     type(quadrature_t)             :: empty_quadrature
     type(fe_map_t)                 :: empty_fe_map
     type(piecewise_fe_map_t)       :: empty_piecewise_fe_map
     type(volume_integrator_t), allocatable  :: empty_vol_integrator(:)
-
+    
     contains
 
       ! Creation / Deletion methods
