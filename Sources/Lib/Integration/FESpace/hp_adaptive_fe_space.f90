@@ -195,33 +195,33 @@ end fe_iterator_recursive_assembly
 end subroutine
 
 subroutine fill_dof_info
-   
-   class(hp_adaptive_fe_iterator_t), allocatable :: fe
-!   type(std_vector_integer_ip_t) :: proper_dofs_on_vefs
-!   type(std_vector_integer_ip_t) :: improper_dofs_on_vefs
-!   integer(ip), allocatable :: ptr_proper_dofs_on_vefs(:)
-!   integer(ip), allocatable :: ptr_improper_dofs_on_vefs(:)
-   integer(ip), allocatable :: cell_owner_proper_vefs(:,:)
-   integer(ip), allocatable :: cell_owner_improper_vefs(:,:)
-   
-   
-   
-   iblock            = this%field_blocks(field_id)
+
+  class(hp_adaptive_fe_iterator_t), allocatable :: fe
+  !   type(std_vector_integer_ip_t) :: proper_dofs_on_vefs
+  !   type(std_vector_integer_ip_t) :: improper_dofs_on_vefs
+  !   integer(ip), allocatable :: ptr_proper_dofs_on_vefs(:)
+  !   integer(ip), allocatable :: ptr_improper_dofs_on_vefs(:)
+  integer(ip), allocatable :: cell_owner_proper_vefs(:,:)
+  integer(ip), allocatable :: cell_owner_improper_vefs(:,:)
+
+
+
+  iblock            = this%field_blocks(field_id)
   init_dof_block    = this%number_dofs_per_block(iblock)
   current_dof_block = init_dof_block
-  
-  
-     call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
-     visited_vef_to_fe_map = -1
 
-     call this%create_fe_iterator(source_fe)
-     call this%create_fe_iterator(fe)
-     do while ( .not. fe%has_finished())
-        if ( fe%is_local() ) then
-           call fe%fill_own_dofs ( field_id, current_dof_block )
-           do ivef = 1, fe%get_num_vefs()
-        call fe%get_vef(ivef,vef)
-        if ( vef%is_proper() ) then
+
+  call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
+  visited_vef_to_fe_map = -1
+
+  call this%create_fe_iterator(source_fe)
+  call this%create_fe_iterator(fe)
+  do while ( .not. fe%has_finished())
+     if ( fe%is_local() ) then
+        call fe%fill_own_dofs ( field_id, current_dof_block )
+        do ivef = 1, fe%get_num_vefs()
+           call fe%get_vef(ivef,vef)
+           if ( vef%is_proper() ) then
               vef_lid = fe%get_vef_lid(ivef)
               if ( visited_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
                  visited_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
@@ -234,9 +234,8 @@ subroutine fill_dof_info
                       visited_vef_to_fe_map(2,vef_lid), &
                       field_id) 
               end if
-           end do
-       else    
-           vef_lid = abs(fe%get_vef_lid(ivef))
+           else    
+              vef_lid = abs(fe%get_vef_lid(ivef))
               if ( visited_improper_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
                  visited_improper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
                  visited_improper_vef_to_fe_map ( 2, vef_lid ) = ivef
@@ -249,68 +248,87 @@ subroutine fill_dof_info
                       field_id) 
               end if
            end do
-           
-           
         end if
         call fe%next()
      end do
-     
-     
+
+end subroutine fill_dof_info
+
+subroutine setup_hanging_nodes_constraints(visited_improper_vef_to_fe_map)
+    
      ! TODO: REPEAT this loop  for each block!
-     
+
      ! Computation of constraints     
      do improper_vef_lid = 1, this%triangulation%get_num_improper_vefs()
-       call fe%set_lid( visited_improper_vef_to_fe_map( 1, improper_vef_lid ) )
-       call fe%get_vef( visited_improper_vef_to_fe_map( 2, improper_vef_lid ), vef )
-       
-       ! Extract improper DoFs on current improper VEF????
-       call fe%get_elem2dof(elem2dof)
-       reference_fe => fe%get_reference_fe(field_id)
-       fe_dofs_on_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(visited_improper_vef_to_fe_map( 2, improper_vef_lid ))
-       do while (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
-          improper_dof_lid = elem2dof(fe_dofs_on_vef_iterator%current())
-          assert ( improper_dof_lid < 0 )
-          improper_dof_lid  = abs(improper_dof_lid)
-          
-          ! Extract all DOFs in the (closed) VEF of the coarser fe
-          call vef%get_improper_cell_around( 1, coarser_fe )
-          coarser_fe_ivef = vef%get_ivef_improper_cell_around() 
-       
-          call coarser_fe%get_elem2dof(coarser_fe_elem2dof)
-          coarser_reference_fe => coarser_fe%get_reference_fe(field_id)
-          coarser_fe_dofs_on_vef_iterator = coarser_fe_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
-          do while (.not. coarser_fe_dofs_on_vef_iterator %is_upper_bound() )
-            call this%constraint_dependency_dofs%push_back(coarser_fe_elem2dof(coarser_fe_dofs_on_vef_iterator%current()))
-            
-            ! TODO: Evaluate coefficient and push_back into the corresponding std_vector data structure
-            ! If current improper VEF is face/edge then
-            !   Extract subvef identifier
-            !   subvef = vef%get_subvef() 
-            !   Extract coarser_fe shape functions corresponding to DoFs on coarser_fe_ivef (closed)
-            !   evaluated on the (open) nodes of the fe on the improper ivef
-            ! call this%constraint_coefficients%push_back(coefficient)
-            
-            ptr_constraint_dofs(improper_dof_lid+1) =  ptr_constraint_dofs(improper_dof_lid+1) + 1
-            call coarser_fe_dofs_on_vef_iterator%next()
-          end do
-          
-          call fe_dofs_on_vef_iterator%next()
-       end do
+        improper_vef_owner_cell_lid = visited_improper_vef_to_fe_map( 1, improper_vef_lid )
+        improper_vef_ivef = visited_improper_vef_to_fe_map( 2, improper_vef_lid )
+        call fe%set_lid(improper_vef_owner_cell_lid)
+        call fe%get_vef(improper_vef_ivef,vef)
+
+        ! Extract improper DoFs on current improper VEF????
+        call fe%get_elem2dof(elem2dof)
+        reference_fe => fe%get_reference_fe(field_id)
+        fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
+        fe_dofs_on_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(improper_vef_ivef)
+        do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
+           improper_dof_lid = elem2dof(fe_own_dofs_on_vef_iterator%current())
+           assert ( improper_dof_lid < 0 )
+           improper_dof_lid  = abs(improper_dof_lid)
+           
+           call fe_dofs_on_vef_iterator%init() 
+           do while (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
+             if ( fe_dofs_on_vef_iterator%current() == fe_own_dofs_on_vef_iterator%current() ) exit
+             call fe_dofs_on_vef_iterator%next() 
+           end do
+           assert (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
+
+           ! Extract all DOFs in the (closed) VEF of the coarser fe
+           call vef%get_improper_cell_around( 1, coarser_fe )
+           coarser_fe_ivef             = vef%get_ivef_improper_cell_around() 
+           coarse_fe_ivef_subentity_id = vef%get_ivef_subentity_id() 
+           call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
+           if ( vef%get_dimension() == 0 ) then ! vef is a corner (2D/3D)
+              if ( coarse_vef%get_dimension()  == 1 .and. this%triangulation%get_num_dimensions() == 3) then
+                 qpoint = coarser_fe%h_refinement_edge_permutation(coarse_fe_ivef,num_subedges_per_edge,1)
+              else
+                 qpoint = coarser_fe%h_refinement_face_permutation(coarse_fe_ivef,num_subface_per_face,1)
+              end if
+           else if ( vef%get_dimension()  == 1 .and. this%triangulation%get_num_dimensions() == 3 ) then ! vef is an edge (only 3D)
+              qpoint = coarser_fe%h_refinement_edge_permutation(coarse_fe_ivef,coarse_fe_ivef_subentity_id,fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
+           else (vef%get_dimension() == this%triangulation%get_num_dimensions()-1) then ! vef is a face (2D/3D)
+              coarser_fe_ivef_subface = vef%get_ivef_subface_improper_cell_around() 
+              ! Extract those quadrature points identifiers which lay on ivef+subface
+              qpoint = coarser_fe%h_refinement_face_permutation(coarse_fe_ivef,coarse_fe_ivef_subentity_id,fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
+           end if
+           
+           call coarser_fe%get_elem2dof(coarser_fe_elem2dof)
+           coarser_reference_fe       => coarser_fe%get_reference_fe(field_id)
+           interpolation_h_refinement => coarser_fe%get_interpolation_h_refinement()
+           coarser_fe_dofs_on_vef_iterator = coarser_fe_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
+           do while (.not. coarser_fe_dofs_on_vef_iterator %is_upper_bound() )
+              this%ptr_constraint_dofs(improper_dof_lid+1) = this%ptr_constraint_dofs(improper_dof_lid+1) + 1
+              ishape = coarser_fe_dofs_on_vef_iterator%current() 
+              call this%constraint_dependency_dofs%push_back(coarser_fe_elem2dof(ishape))
+              ! Evaluate coefficient and push_back into the corresponding std_vector data structure
+              call coarse_reference_fe%get_value(ishape, qpoint, interpolation_h_refinement, coefficient) 
+              call this%constraint_coefficients%push_back(coefficient)
+              call coarser_fe_dofs_on_vef_iterator%next()
+           end do
+           call fe_own_dofs_on_vef_iterator%next()
+        end do
      end do
-     
+
      ! Count to header transformation
-     ptr_constraint_dofs(1) = 1 
+     this%ptr_constraint_dofs(1) = 1 
      do improper_dof_lid = 1, this%get_num_improper_dof_lids(block_id)
-       ptr_constraint_dofs(improper_dof_lid+1) =  ptr_constraint_dofs(improper_dof_lid+1) + &
-                                                  ptr_constraint_dofs(improper_dof_lid)
+        this%ptr_constraint_dofs(improper_dof_lid+1) =  this%ptr_constraint_dofs(improper_dof_lid+1) + &
+             this%ptr_constraint_dofs(improper_dof_lid)
      end do
-     
-     ! TODO: shrink_to_fit this%constraint_dependency_dofs and this%constraint_coefficients?
-     
-     
+
+     ! TODO: shrink_to_fit this%constraint_dependency_dofs and this%constraint_coefficients
      call this%free_fe_iterator(source_fe)
      call this%free_fe_iterator(fe)
-end subroutine
+end subroutine setup_hanging_nodes_constraints
 
 
 
