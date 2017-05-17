@@ -860,16 +860,10 @@ end subroutine hex_lagrangian_reference_fe_blending
 subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation ( this )
   implicit none 
   class(hex_lagrangian_reference_fe_t), intent(inout) :: this
-  type(hex_lagrangian_reference_fe_t) :: h_refined_reference_fe
-  call h_refined_reference_fe%create ( this%topology,          &
-                                       this%number_dimensions, &
-                                       2*this%order,           &
-                                       this%field_type,        &
-                                       this%continuity )
-  call h_refined_reference_fe%create_nodal_quadrature()
-  call this%create_interpolation( h_refined_reference_fe%nodal_quadrature, &
-                                  this%h_refinement_interpolation )
-  call h_refined_reference_fe%free()
+  type(quadrature_t) :: h_refined_quadrature
+  call this%create_data_out_quadrature( 2*this%order-1, h_refined_quadrature )
+  call this%create_interpolation( h_refined_quadrature, this%h_refinement_interpolation )
+  call h_refined_quadrature%free()
 end subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation
 
 !**************************************************************************************************
