@@ -28,7 +28,7 @@
 subroutine Hcurl_l1_free( this ) 
 implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
-  integer(ip) :: coarse_edge, istat 
+  integer(ip) :: coarse_edge 
   
    ! Free all allocated data 
    if (allocated(this%number_fine_edges_per_coarse_edge))  call memfree(this%number_fine_edges_per_coarse_edge, __FILE__, __LINE__ )
@@ -37,7 +37,7 @@ implicit none
    if (allocated(this%local_to_wire_dof))                  call memfree(this%local_to_wire_dof, __FILE__, __LINE__ )
    if (allocated(this%wire_to_local_dof))                  call memfree(this%wire_to_local_dof, __FILE__, __LINE__ )
    if (allocated(this%dofs_new_basis))                     call memfree(this%dofs_new_basis, __FILE__, __LINE__ )
-
+   ! Free local change basis matrices 
    do coarse_edge=1, this%number_coarse_edges
    call this%change_basis_matrix%G(coarse_edge)%free() 
    end do 
@@ -557,7 +557,101 @@ class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
 type(par_fe_space_t)                  , intent(in)    :: par_fe_space
 real(rp), allocatable                 , intent(in)    :: elmat(:,:) 
 
-end subroutine 
+type(fe_object_iterator_t)                :: object
+type(fe_vef_iterator_t)                   :: vef_within_object
+type(fe_vef_iterator_t)                   :: vertex, edge 
+class(lagrangian_reference_fe_t), pointer :: ref_fe_geo
+class(fe_iterator_t), allocatable         :: fe
+integer(ip)                               :: ivef_within_object, ivef_within_cell 
+integer(ip)                               :: vertex_within_cell_id
+integer(ip)                               :: vertex_within_edge_id
+integer(ip)                               :: ielem, edge_id, interior_node_id  
+integer(ip)                               :: coarse_edge, fine_edge, node_id
+type(list_t), pointer                     :: vertices_of_line
+type(list_iterator_t)                     :: vertices_of_line_iterator
+type(hash_table_ip_ip_t)                  :: visited_vef  
+integer(ip)                               :: inode, start_node, end_node 
+integer(ip)                               :: edge_direction 
+integer(ip)                               :: istat 
+
+
+  ! Create local Coupled to Edge change of basis matrix 
+  call this%change_basis_matrix%B%create(num_rows=this%number_interface_dofs_coupled_to_fine_edges, &
+    									   num_cols=size(this%dofs_new_basis)                         )
+		
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_vef_iterator(vertex) 
+  call par_fe_space%create_fe_vef_iterator(edge)
+  call par_fe_space%create_fe_vef_iterator(vef_within_object)
+  
+  coarse_edge = 0
+  ! Find Coupled edges and assembly Discrete Gradient in a first loop 
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 1 ) then ! Only sort coarse edges
+        coarse_edge = coarse_edge + 1
+		call visited_vef%init( 20*this%number_fine_edges_per_coarse_edge(coarse_edge) ) ! (Edges + faces)*number local elements in the edge
+        fine_edge = 0
+        do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object, vef_within_object)
+		   if ( vef_within_object%get_dimension() == 1 ) then ! Add as already visited VEF, looking for coupled edges! 
+		    call visited_vef%put( key=vef_within_object%get_lid(), val=1, stat=istat); 
+			   
+           elseif ( vef_within_object%get_dimension() == 0 .and. (.not. vef_within_object%is_at_boundary()) ) then  ! Only act if an interior vertex is found  			  			  
+			  do ielem = 1, vef_within_object%get_num_cells_around()
+              call vef_within_object%get_cell_around(ielem, fe)      
+			    if ( fe%is_local() ) then 
+                ref_fe_geo => fe%get_reference_fe_geo()
+                ivef_within_cell = fe%find_lpos_vef_lid(vef_within_object%get_lid())     
+				interior_node_id = vef_within_object%get_lid() 
+				! Loop over edges in the element to find coupled edges 
+				do edge_id = ref_fe_geo%get_first_n_face_id_of_dimension(1), & 
+                ref_fe_geo%get_first_n_face_id_of_dimension(1) + ref_fe_geo%get_number_n_faces_of_dimension(1)-1
+			    
+				! Need global ID to check if its been added 
+				call fe%get_vef(edge_id, edge)
+				call visited_vef%put( key=edge%get_lid(), val=1, stat=istat); 
+				if (istat==now_stored) then  
+                vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
+                vertices_of_line_iterator = vertices_of_line%create_iterator(edge_id)
+                vertex_within_edge_id     = 1
+				
+                   do while( .not. vertices_of_line_iterator%is_upper_bound() )
+                   vertex_within_cell_id = vertices_of_line_iterator%get_current()
+                   call fe%get_vef(vertex_within_cell_id, vertex )
+                   node_id = vertex%get_lid() 
+				   if (node_id == interior_node_id) then
+				   ! A coupled edge has been found  
+				   if (vertex_within_edge_id==1) edge_direction = 0 !effluent
+				   if (vertex_within_edge_id==2) edge_direction = 1 !affluent 
+				   end if 
+                   vertex_within_edge_id = vertex_within_edge_id + 1
+                   call vertices_of_line_iterator%next() 
+                   end do ! Loop over vertices in the edge 
+				   
+				   ! Assembly its part to the Discrete Gradient 
+				   
+				   
+				   
+				   end if 
+			    end do 
+			    end if 
+			  end do 
+			  
+           end if
+        end do
+          call visited_vef%free()
+     end if
+     call object%next()
+  end do
+
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_vef_iterator(vef_within_object)
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_vef_iterator(vertex)
+  call par_fe_space%free_fe_vef_iterator(edge)
+  
+end subroutine Hcurl_l1_fill_coupled_to_edges_local_change_of_basis
 
 subroutine Hcurl_l1_sort_fine_edges( this, par_fe_space )
   ! This subroutine returns a permutation of fine edges (VEFS) contained in coarse edges such that they 
@@ -587,7 +681,7 @@ subroutine Hcurl_l1_sort_fine_edges( this, par_fe_space )
   type(point_t), allocatable, target        :: node_coordinates(:,:) 
   type(point_t), pointer                    :: start_coords, end_coords
   integer(ip)                               :: dummy_val, found_nodes, local_edge, orientation_index
-  integer(ip)                               :: perm(2), buffer_node, following_node
+  integer(ip)                               :: perm(2), following_node
   logical                                   :: following_edge_is_found 
 
   perm(1) = 2; perm(2) = 1
@@ -659,24 +753,7 @@ subroutine Hcurl_l1_sort_fine_edges( this, par_fe_space )
            end do
         end do
 
-        ! Define unique orientation for the edge, from the lowest x(i)_start --> x(i)_end recursively 
-		! A switch between the start and the end is performed if x(i)_start > x(i)_end 
-        if  ( end_coords%get(1) < start_coords%get(1)  ) then 
-           buffer_node=start_node; start_node = end_node; end_node=buffer_node;   
-        elseif ( end_coords%get(1) == start_coords%get(1) ) then  
-           if ( end_coords%get(2) < start_coords%get(2)  ) then 
-              buffer_node=start_node; start_node = end_node; end_node=buffer_node; 
-           elseif ( end_coords%get(2) == start_coords%get(2) ) then
-              if ( end_coords%get(3) < start_coords%get(3) ) then 
-                 buffer_node=start_node; start_node = end_node; end_node=buffer_node; 
-              elseif ( end_coords%get(3) > start_coords%get(3) ) then
-			     ! Do-nothing
-			  else 
-                 ! If 3 coordinates are equal it must be the same point 
-                 assert(.false.) 
-              end if
-           end if
-        end if
+		call this%define_coarse_edge_orientation( start_node, end_node, start_coords, end_coords )
 
         ! Build path from first to last fine edge belonging to the coarse edge
         local_edge        = 0
@@ -715,6 +792,36 @@ subroutine Hcurl_l1_sort_fine_edges( this, par_fe_space )
   deallocate( cell_coordinates, stat=istat ); check(istat==0) 
 
 end subroutine Hcurl_l1_sort_fine_edges
+
+subroutine Hcurl_l1_define_coarse_edge_orientation( start_node, end_node, start_coords, end_coords) 
+   ! Define unique orientation for the edge, from the lowest x(i)_start --> x(i)_end recursively 
+   ! A switch between the start and the end is performed if x(i)_start > x(i)_end 
+implicit none 
+  integer(ip)   , intent(inout)   :: start_node
+  integer(ip)   , intent(inout)   :: end_node 
+  type(point_t) , intent(in)      :: start_coords
+  type(point_t) , intent(in)      :: end_coords
+  
+  integer(ip) :: buffer_node 
+  
+          if  ( end_coords%get(1) < start_coords%get(1)  ) then 
+           buffer_node=start_node; start_node = end_node; end_node=buffer_node;   
+        elseif ( end_coords%get(1) == start_coords%get(1) ) then  
+           if ( end_coords%get(2) < start_coords%get(2)  ) then 
+              buffer_node=start_node; start_node = end_node; end_node=buffer_node; 
+           elseif ( end_coords%get(2) == start_coords%get(2) ) then
+              if ( end_coords%get(3) < start_coords%get(3) ) then 
+                 buffer_node=start_node; start_node = end_node; end_node=buffer_node; 
+              elseif ( end_coords%get(3) > start_coords%get(3) ) then
+			     ! Do-nothing
+			  else 
+                 ! If 3 coordinates are equal it must be the same point 
+                 assert(.false.) 
+              end if
+           end if
+        end if
+
+end subroutine Hcurl_l1_define_coarse_edge_orientation
 
 function Hcurl_l1_get_dof_list_in_coarse_edge(this, coarse_edge, fine_edge) result( dof_list ) 
 ! This function returns the list of dofs associated to the fine_edge-th edge  of the coarse_edge-th

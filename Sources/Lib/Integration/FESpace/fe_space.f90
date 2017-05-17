@@ -639,6 +639,7 @@ module fe_space_names
 	   procedure, non_overridable, private :: get_dof_list_new_basis           => Hcurl_l1_get_dof_list_new_basis 
 	   procedure, non_overridable, private :: is_first_edge                    => Hcurl_l1_is_first_edge
 	   procedure, non_overridable, private :: is_last_edge                     => Hcurl_l1_is_last_edge 
+	   procedure, non_overridable, nopass, private :: define_coarse_edge_orientation   => Hcurl_l1_define_coarse_edge_orientation
   end type  Hcurl_l1_coarse_fe_handler_t
      
   public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, Hcurl_l1_coarse_fe_handler_t 
