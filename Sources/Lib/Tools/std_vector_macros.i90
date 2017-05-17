@@ -61,6 +61,7 @@ contains                                                 ;\
  procedure, non_overridable :: push_back                 ;\
  procedure, non_overridable :: erase                     ;\
  procedure, non_overridable :: resize                    ;\
+ procedure, non_overridable :: shrink_to_fit             ;\
  procedure, non_overridable :: copy                      ;\
  procedure, non_overridable :: free                      ;\
  procedure, non_overridable :: get                       ;\
@@ -137,6 +138,21 @@ SUBROUTINE resize(T,size,i)  ;\
       T%v(T%size_+1:size)=i   ;\
     ENDIF                     ;\
     T%size_ = size             ;\
+  ENDIF                       ;\
+END SUBROUTINE                ;\
+
+#define STD_VECTOR_SHRINK_TO_FIT(TINCTYPE,TKIND)  \
+SUBROUTINE shrink_to_fit(T)  ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND)  , intent(inout) :: T  ;\
+  BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND),ALLOCATABLE::v_aux(:)  ;\
+  assert (T%size_ <= T%capacity_) ;\
+  IF( ALLOCATED(T%v) .and. T%size_ < T%capacity_ ) THEN ;\
+    T%capacity_ = T%size_         ;\
+    call memalloc(T%capacity_, v_aux, __FILE__, __LINE__);\
+    v_aux (1:T%size_) = T%v(1:T%size_) ;\
+    call memfree(T%v, __FILE__, __LINE__ ) ;\
+    call memmovealloc(v_aux,T%v);\
   ENDIF                       ;\
 END SUBROUTINE                ;\
 

@@ -43,6 +43,7 @@ contains
   STD_VECTOR_PUSH_BACK(integer,ip)
   STD_VECTOR_ERASE(integer,ip)
   STD_VECTOR_RESIZE(integer,ip)
+  STD_VECTOR_SHRINK_TO_FIT(integer,ip)
   STD_VECTOR_COPY(integer,ip)
   STD_VECTOR_FREE(integer,ip)
   STD_VECTOR_GET(integer,ip)

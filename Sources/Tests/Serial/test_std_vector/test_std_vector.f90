@@ -72,6 +72,19 @@ program test_std_vector
   do i=10, v%size()
     check ( v%get(i) == i+1)
   end do
+  
+  call v%shrink_to_fit()
+  check ( v%size() == v%capacity() )
+  
+  do i=1, 9
+    check ( v%get(i) == i )
+  end do
+  
+  do i=10, v%size()
+    check ( v%get(i) == i+1)
+  end do
+  
+  
    
   call v%free()
   call v2%free()
