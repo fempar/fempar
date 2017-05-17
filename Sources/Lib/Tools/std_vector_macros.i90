@@ -181,7 +181,7 @@ END SUBROUTINE  ;\
 FUNCTION get(T,pos) ;\
   IMPLICIT NONE                 ;\
   CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND)  , intent(in) :: T  ;\
-  BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND)          , intent(in)    :: pos  ;\
+  integer(ip)                                   , intent(in)    :: pos  ;\
   BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND) :: get  ;\
   assert ( allocated(T%v) ) ;\
   assert ( pos>=1 .and. pos<= T%size_ ) ;\
