@@ -432,8 +432,7 @@ module fe_space_names
     procedure, non_overridable           :: get_number_coarse_dofs                => fe_object_iterator_get_number_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_iterator_create_own_coarse_dofs_iterator
   end type fe_object_iterator_t
-    
-  
+      
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
   ! See type(par_fe_space_t)%generate_non_consecutive_dof_gid()
@@ -601,7 +600,7 @@ module fe_space_names
 	   ! [ G 0      G = diag(G_Ei) block diagonal for every coarse edge  
 	   !   B I ];   B = coupling interface dofs with coarse edge dofs 
 	   type(sparse_matrix_t), allocatable  :: G(:) 
-	   real(rp)             , allocatable  :: B(:,:)  
+	   type(sparse_matrix_t)               :: B  
    
    contains 
        ! Get local_edge_change_basis_matrix(Ei) = G_Ei 
@@ -624,15 +623,17 @@ module fe_space_names
        type(edge_change_basis_matrix_t)    :: change_basis_matrix 
 	   
   contains
-	   procedure                           :: setup_constraint_matrix          => Hcurl_l1_setup_constraint_matrix
-	   procedure                           :: setup_change_basis_tools         => Hcurl_l1_setup_change_basis_tools 
-	   procedure, non_overridable, private :: compute_wire_dof_renumbering     => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
-	   procedure, non_overridable, private :: compute_edge_change_basis_matrix => Hcurl_l1_compute_edge_change_basis_matrix
-	   procedure, non_overridable, private :: compute_edge_elmat               => Hcurl_l1_compute_edge_elmat
-	   procedure, non_overridable, private :: fill_edge_local_change_of_basis  => Hcurl_l1_fill_edge_local_change_of_basis 
-	   procedure, non_overridable, private :: sort_fine_edges                  => Hcurl_l1_sort_fine_edges
+	   procedure                           :: setup_constraint_matrix                     => Hcurl_l1_setup_constraint_matrix
+	   procedure                           :: setup_change_basis_tools                    => Hcurl_l1_setup_change_basis_tools 
+	   procedure, non_overridable, private :: compute_wire_dof_renumbering                => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
+	   procedure, non_overridable, private :: compute_edge_change_basis_matrix            => Hcurl_l1_compute_edge_change_basis_matrix
+	   procedure, non_overridable, private :: compute_edge_elmat                          => Hcurl_l1_compute_edge_elmat
+	   procedure, non_overridable, private :: fill_edge_local_change_of_basis             => Hcurl_l1_fill_edge_local_change_of_basis 
+	   procedure, non_overridable, private :: fill_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_coupled_to_edges_local_change_of_basis
+	   procedure, non_overridable, private :: sort_fine_edges                             => Hcurl_l1_sort_fine_edges
 	   ! Auxiliar procedures 
 	   procedure, non_overridable, private :: get_dof_list_in_coarse_edge      => Hcurl_l1_get_dof_list_in_coarse_edge 
+	   procedure, non_overridable, private :: get_dof_list_wire_numbering      => Hcurl_l1_get_dof_list_wire_numbering 
 	   procedure, non_overridable, private :: get_dof_list_new_basis           => Hcurl_l1_get_dof_list_new_basis 
 	   procedure, non_overridable, private :: is_first_edge                    => Hcurl_l1_is_first_edge
 	   procedure, non_overridable, private :: is_last_edge                     => Hcurl_l1_is_last_edge 
