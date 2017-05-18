@@ -456,6 +456,7 @@ module base_static_triangulation_names
   contains
      ! Private methods to create vefs (these functions make use of the reference fe and therefore are not bounded
      ! to the mother class)
+     procedure, non_overridable, private :: fill_reference_fe_geo_list          => fine_triangulation_fill_reference_fe_geo_list
      procedure, non_overridable, private :: generate_vefs                       => fine_triangulation_generate_vefs
      procedure, non_overridable, private :: allocate_and_fill_geometry_and_set  => fine_triangulation_allocate_and_fill_geometry_and_set
      procedure, non_overridable, private :: free_geometry_and_set               => fine_triangulation_free_geometry_and_set

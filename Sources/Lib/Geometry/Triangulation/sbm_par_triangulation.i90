@@ -204,6 +204,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         ! Generate edges and faces
         call this%allocate_and_fill_cells_around()
+        call this%fill_reference_fe_geo_list(geometry_interpolation_order)
         call this%generate_vefs(geometry_interpolation_order)
         call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
 
