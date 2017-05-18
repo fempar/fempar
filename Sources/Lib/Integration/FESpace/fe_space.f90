@@ -612,34 +612,43 @@ module fe_space_names
    
     type, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
     private 
-	   integer(ip)                         :: order
-	   integer(ip)                         :: number_coarse_edges
-	   integer(ip) , allocatable           :: number_fine_edges_per_coarse_edge(:) 
-	   integer(ip) , allocatable           :: perm_sorted_edges(:,:) 
-	   real(rp)    , allocatable           :: tangent_size(:,:)
-	   integer(ip)                         :: number_interface_dofs_coupled_to_fine_edges 
-	   integer(ip) , allocatable           :: local_to_wire_dof(:)
-       integer(ip) , allocatable           :: wire_to_local_dof(:) 
-	   integer(ip) , allocatable           :: dofs_new_basis(:) 
-       type(edge_change_basis_matrix_t)    :: change_basis_matrix 
+	   integer(ip)                             :: order
+	   integer(ip)                             :: number_wire_dofs 
+	   integer(ip)                             :: number_coarse_edges
+	   integer(ip) , allocatable               :: number_fine_edges_per_coarse_edge(:) 
+	   integer(ip) , allocatable               :: perm_sorted_edges(:,:) 
+	   real(rp)    , allocatable               :: tangent_size(:,:)
+	   integer(ip)                             :: number_interface_dofs_coupled_to_fine_edges 
+	   integer(ip) , allocatable               :: local_to_wire_dof(:)
+       integer(ip) , allocatable               :: wire_to_local_dof(:) 
+	   integer(ip) , allocatable               :: dofs_new_basis(:) 
+	   integer(ip) , allocatable               :: vertices_in_edge(:,:,:) 
+	   type(hash_table_ip_ip_t)                :: coupled_vefs_added 
+	   type(hash_table_ip_ip_t), allocatable   :: coarse_edge_nodes_order(:)
+       type(edge_change_basis_matrix_t)        :: change_basis_matrix 
 	   
   contains
+       procedure                           :: free                                        => Hcurl_l1_free 
 	   procedure                           :: setup_constraint_matrix                     => Hcurl_l1_setup_constraint_matrix
 	   procedure                           :: setup_change_basis_tools                    => Hcurl_l1_setup_change_basis_tools 
-	   procedure                           :: free                                        => Hcurl_l1_free 
+	   ! Private TBPs 
 	   procedure, non_overridable, private :: compute_wire_dof_renumbering                => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
 	   procedure, non_overridable, private :: compute_edge_change_basis_matrix            => Hcurl_l1_compute_edge_change_basis_matrix
 	   procedure, non_overridable, private :: compute_edge_elmat                          => Hcurl_l1_compute_edge_elmat
 	   procedure, non_overridable, private :: fill_edge_local_change_of_basis             => Hcurl_l1_fill_edge_local_change_of_basis 
 	   procedure, non_overridable, private :: fill_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_coupled_to_edges_local_change_of_basis
-	   procedure, non_overridable, private :: sort_fine_edges                             => Hcurl_l1_sort_fine_edges
+	   procedure, non_overridable, private :: set_orientation_and_sort_fine_edges         => Hcurl_l1_set_orientation_and_sort_fine_edges
 	   ! Auxiliar procedures 
+	   procedure, non_overridable, private :: define_coarse_edge_orientation   => Hcurl_l1_define_coarse_edge_orientation
+	   procedure, non_overridable, private :: build_fine_edges_oriented_path   => Hcurl_l1_build_fine_edges_oriented_path
+	   ! DoF numbering getters 
 	   procedure, non_overridable, private :: get_dof_list_in_coarse_edge      => Hcurl_l1_get_dof_list_in_coarse_edge 
-	   procedure, non_overridable, private :: get_dof_list_wire_numbering      => Hcurl_l1_get_dof_list_wire_numbering 
+	   ! procedure, non_overridable, private :: get_dof_list_wire_numbering      => Hcurl_l1_get_dof_list_wire_numbering 
+	   procedure, non_overridable, private :: get_wire_basis_dofs_from_vef     => Hcurl_l1_get_wire_basis_dofs_from_vef 
 	   procedure, non_overridable, private :: get_dof_list_new_basis           => Hcurl_l1_get_dof_list_new_basis 
+	   procedure, non_overridable, private :: get_new_basis_dof_from_node_id   => Hcurl_l1_get_new_basis_dof_from_node_id 
 	   procedure, non_overridable, private :: is_first_edge                    => Hcurl_l1_is_first_edge
 	   procedure, non_overridable, private :: is_last_edge                     => Hcurl_l1_is_last_edge 
-	   procedure, non_overridable, nopass, private :: define_coarse_edge_orientation   => Hcurl_l1_define_coarse_edge_orientation
   end type  Hcurl_l1_coarse_fe_handler_t
      
   public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, Hcurl_l1_coarse_fe_handler_t 
@@ -759,7 +768,7 @@ module fe_space_names
     procedure                                   :: get_number_fe_objects                           => coarse_fe_space_get_number_fe_objects
     procedure                                   :: get_total_number_coarse_dofs                    => coarse_fe_space_get_total_number_coarse_dofs
     procedure                                   :: get_block_number_coarse_dofs                    => coarse_fe_space_get_block_number_coarse_dofs
-	   procedure, non_overridable, private         :: free_coarse_dofs                                => coarse_fe_space_free_coarse_dofs
+    procedure, non_overridable, private         :: free_coarse_dofs                                => coarse_fe_space_free_coarse_dofs
     
     procedure                                   :: renumber_dofs_first_interior_then_interface     => coarse_fe_space_renumber_dofs_first_interior_then_interface
     procedure                         , private :: renumber_dofs_block                             => coarse_fe_space_renumber_dofs_block
