@@ -151,7 +151,7 @@ module p4est_serial_triangulation_names
     procedure, private        , non_overridable :: update_topology_from_p4est_mesh       => p4est_serial_triangulation_update_topology_from_p4est_mesh
     procedure, private        , non_overridable :: get_ptr_vefs_per_cell                 => p4est_serial_triangulation_get_ptr_vefs_per_cell
     procedure, private        , non_overridable :: update_lst_vefs_lids_and_cells_around => p4est_st_update_lst_vefs_lids_and_cells_around
-    procedure, private, nopass, non_overridable :: std_vector_transform_length_to_header => p4est_st_std_vector_transform_length_to_header
+    procedure, private        , non_overridable :: std_vector_transform_length_to_header => p4est_st_std_vector_transform_length_to_header
 #ifndef ENABLE_P4EST
     procedure, non_overridable :: not_enabled_error => p4est_serial_triangulation_not_enabled_error
 #endif
@@ -265,6 +265,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
   call this%p4est_lst_cells_around_improper_vefs%resize(0)
   call this%p4est_ptr_improper_cells_around%resize(1)
   call this%p4est_lst_improper_cells_around%resize(0)
+  call this%p4est_improper_vefs_improper_cell_around_ivef%resize(0)
+  call this%p4est_improper_vefs_improper_cell_around_subvef%resize(0)
   
   this%num_proper_vefs   = 0
   this%num_improper_vefs = 0
@@ -463,15 +465,15 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
   
   call work_vector_cells_around%free()
   call work_vector_improper_cells_around%free()
-
 #else
   call this%not_enabled_error()
 #endif    
 end subroutine p4est_st_update_lst_vefs_lids_and_cells_around
 
-subroutine p4est_st_std_vector_transform_length_to_header(std_vector_integer_ip)
+subroutine p4est_st_std_vector_transform_length_to_header(this,std_vector_integer_ip)
   implicit none
-  type(std_vector_integer_ip_t), intent(inout) :: std_vector_integer_ip
+  class(p4est_serial_triangulation_t), intent(in)    :: this
+  type(std_vector_integer_ip_t)      , intent(inout) :: std_vector_integer_ip
   integer(ip) :: i
 #ifdef ENABLE_P4EST    
   call std_vector_integer_ip%set(1,1)
