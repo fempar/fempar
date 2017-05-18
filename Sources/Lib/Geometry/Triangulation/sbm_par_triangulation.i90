@@ -267,7 +267,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
               lst_vefs_gids(i) = this%vefs_gid(lst_vefs_lids(i))
            end do
         else
-           lst_vefs_gids = this%lst_vefs_lids
+           lst_vefs_gids = lst_vefs_lids
         end if
         call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended)
         call this%allocate_and_fill_lst_vefs_lids(lst_vefs_lids,lst_vefs_gids_ghost_extended, this%vefs_gid)

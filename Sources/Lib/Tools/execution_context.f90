@@ -98,8 +98,12 @@ module execution_context_names
 
      procedure (execution_context_root_send_master_rcv_ip         ), deferred, private    :: root_send_master_rcv_ip
      procedure (execution_context_root_send_master_rcv_ip_1D_array), deferred, private    :: root_send_master_rcv_ip_1D_array
-     generic :: root_send_master_rcv => root_send_master_rcv_ip, &
-          &                             root_send_master_rcv_ip_1D_array
+     procedure (execution_context_root_send_master_rcv_rp         ), deferred, private    :: root_send_master_rcv_rp
+     procedure (execution_context_root_send_master_rcv_rp_1D_array), deferred, private    :: root_send_master_rcv_rp_1D_array
+     generic :: root_send_master_rcv => root_send_master_rcv_ip,          &
+          &                             root_send_master_rcv_ip_1D_array, &
+          &                             root_send_master_rcv_rp,          &
+          &                             root_send_master_rcv_rp_1D_array
 
      procedure (execution_context_gather_to_master_ip           ) , deferred, private :: gather_to_master_ip            
      procedure (execution_context_gather_to_master_igp          ) , deferred, private :: gather_to_master_igp           
@@ -406,6 +410,24 @@ module execution_context_names
        integer(ip)         , intent(inout)   :: output_data(:)
      end subroutine execution_context_root_send_master_rcv_ip_1D_array
 
+     !=============================================================================
+     subroutine execution_context_root_send_master_rcv_rp ( this, input_data, output_data )
+       import :: execution_context_t, rp
+       implicit none
+       class(execution_context_t), intent(in)      :: this 
+       real(rp)            , intent(in)      :: input_data
+       real(rp)            , intent(inout)   :: output_data
+     end subroutine execution_context_root_send_master_rcv_rp
+
+     !=============================================================================
+     subroutine execution_context_root_send_master_rcv_rp_1D_array ( this, input_data, output_data )
+       import :: execution_context_t, rp
+       implicit none
+       class(execution_context_t), intent(in)      :: this
+       real(rp)            , intent(in)      :: input_data(:)
+       real(rp)            , intent(inout)   :: output_data(:)
+     end subroutine execution_context_root_send_master_rcv_rp_1D_array
+     
      !=============================================================================
      subroutine execution_context_gather_to_master_ip ( this, input_data, output_data )
        import :: execution_context_t, ip
