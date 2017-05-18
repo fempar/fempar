@@ -798,6 +798,14 @@ function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
   hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
 end function hex_lagrangian_reference_fe_set_number_quadrature_points
 
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_free ( this )
+  implicit none 
+  class(hex_lagrangian_reference_fe_t), intent(inout) :: this 
+  call this%h_refinement_interpolation%free()  
+  call lagrangian_reference_fe_free ( this )
+end subroutine hex_lagrangian_reference_fe_free
+
 ! Subroutine to deal with high order parametrizations of the boundary
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_blending(this,values)
@@ -847,6 +855,16 @@ end subroutine hex_lagrangian_reference_fe_blending
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation ( this )
+  implicit none 
+  class(hex_lagrangian_reference_fe_t), intent(inout) :: this
+  type(quadrature_t) :: h_refined_quadrature
+  call this%create_data_out_quadrature( 2*this%order-1, h_refined_quadrature )
+  call this%create_interpolation( h_refined_quadrature, this%h_refinement_interpolation )
+  call h_refined_quadrature%free()
+end subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation
 
 !**************************************************************************************************
 ! Support functions
