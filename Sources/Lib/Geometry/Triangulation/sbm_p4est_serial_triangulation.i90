@@ -72,15 +72,16 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   
 end subroutine p4est_serial_triangulation_refine_and_coarsen
 
-function p4est_serial_triangulation_get_ptr_vefs_per_cell(this, icell)
+pure function p4est_serial_triangulation_get_ptr_vefs_per_cell(this, icell)
   implicit none
   class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip), intent(in) :: icell
+
   integer(ip) :: p4est_serial_triangulation_get_ptr_vefs_per_cell
-  integer(ip) :: icell
   integer(ip) :: num_vefs_per_cell
 
 #ifdef ENABLE_P4EST
-  assert (icell>= 1 .and. icell <= this%p4est_num_cells+1)
+  !assert (icell>= 1 .and. icell <= this%p4est_num_cells+1)
   if ( this%p4est_num_dimensions == 2 ) then
     num_vefs_per_cell = NUM_VEFS_2D
   else if ( this%p4est_num_dimensions == 3 ) then
@@ -483,6 +484,15 @@ subroutine p4est_serial_triangulation_free ( this)
 #endif     
 end subroutine p4est_serial_triangulation_free
 
+subroutine p4est_create_cell_iterator ( this, cell )
+  implicit none
+  class(p4est_serial_triangulation_t) , intent(in)    :: this
+  class(cell_iterator_t), allocatable, intent(inout) :: cell
+  integer(ip) :: istat
+  call this%free_cell_iterator(cell)
+  allocate(p4est_cell_iterator_t :: cell, stat=istat); check(istat==0)
+  call cell%create(this)
+end subroutine p4est_create_cell_iterator 
 
 SUBROUTINE p4est_eval_connectivity(Conn,nbSide,Flip,Mortar)
   IMPLICIT NONE

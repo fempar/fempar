@@ -96,18 +96,18 @@ module base_static_triangulation_names
     ! extends type(cell_iterator_t), requires to call these TBPs and cannot be placed
     ! either within this module or within a submodule of base_static_triangulation_names
     ! due to module dependencies cycle
-    procedure                 , private  :: create                  => cell_iterator_create
-    procedure                 , private  :: free                    => cell_iterator_free
+    procedure                            :: create                  => cell_iterator_create
+    procedure                            :: free                    => cell_iterator_free
     final                                ::                            cell_iterator_free_final
     procedure, non_overridable           :: next                    => cell_iterator_next
     procedure, non_overridable           :: first                   => cell_iterator_first
-    procedure, non_overridable           :: last                    => cell_iterator_last
+    procedure                            :: last                    => cell_iterator_last
     procedure, non_overridable           :: set_lid                 => cell_iterator_set_lid
     procedure, non_overridable, private  :: set_gid                 => cell_iterator_set_gid
     procedure, non_overridable, private  :: set_mypart              => cell_iterator_set_mypart
     procedure, non_overridable, private  :: get_triangulation       => cell_iterator_get_triangulation
     procedure, non_overridable, private  :: cell_iterator_get_vef
-    procedure, non_overridable           :: has_finished            => cell_iterator_has_finished
+    procedure                            :: has_finished            => cell_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => cell_iterator_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => cell_iterator_get_reference_fe_geo_id
     procedure, non_overridable           :: get_coordinates         => cell_iterator_get_coordinates
@@ -118,17 +118,17 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_my_subpart          => cell_iterator_get_mysubpart
     procedure, non_overridable           :: get_my_subpart_lid      => cell_iterator_get_mysubpart_lid
     procedure, non_overridable           :: get_set_id              => cell_iterator_get_set_id
-    procedure, non_overridable           :: get_num_vefs            => cell_iterator_get_num_vefs
+    procedure                            :: get_num_vefs            => cell_iterator_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid
-    procedure, non_overridable           :: get_vef_lid             => cell_iterator_get_vef_lid
+    procedure                            :: get_vef_lid             => cell_iterator_get_vef_lid
     procedure, non_overridable           :: get_vef_lids            => cell_iterator_get_vef_lids
     procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
-    procedure, non_overridable           :: find_lpos_vef_lid       => cell_iterator_find_lpos_vef_lid
+    procedure                            :: find_lpos_vef_lid       => cell_iterator_find_lpos_vef_lid
     procedure, non_overridable           :: find_lpos_vef_gid       => cell_iterator_find_lpos_vef_gid
-    procedure, non_overridable           :: get_vef                 => cell_iterator_get_vef
-    procedure, non_overridable           :: is_local                => cell_iterator_is_local
-    procedure, non_overridable           :: is_ghost                => cell_iterator_is_ghost
+    procedure                            :: get_vef                 => cell_iterator_get_vef
+    procedure                            :: is_local                => cell_iterator_is_local
+    procedure                            :: is_ghost                => cell_iterator_is_ghost
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_iterator_get_scan_sum_number_vefs
 
     procedure, non_overridable, private  :: fill_nodes_on_vertices        => cell_iterator_fill_nodes_on_vertices
