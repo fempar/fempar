@@ -571,17 +571,28 @@ end function facet_iterator_is_admissible
 !=================================================================================================
 
 !=================================================================================================
-function node_array_create_node_iterator( node_array, parent, own_boundary)
+function node_array_create_node_iterator_on_n_face( node_array, parent, own_boundary)
   implicit none
   class(node_array_t) , intent(in) :: node_array
   integer(ip)         , intent(in) :: parent
   logical             , intent(in) :: own_boundary 
-  type(node_iterator_t) :: node_array_create_node_iterator
-  call node_array_create_node_iterator%create( node_array, parent, own_boundary )
-end function node_array_create_node_iterator
+  type(node_iterator_t) :: node_array_create_node_iterator_on_n_face
+  call node_array_create_node_iterator_on_n_face%create( node_array, parent, own_boundary )
+end function node_array_create_node_iterator_on_n_face
 
 !=================================================================================================
-subroutine node_iterator_create ( this, node_array, n_face, own_boundary )
+function node_array_create_node_iterator_on_n_subface( node_array, parent, child, own_boundary)
+  implicit none
+  class(node_array_t) , intent(in) :: node_array
+  integer(ip)         , intent(in) :: parent
+  integer(ip)         , intent(in) :: child
+  logical             , intent(in) :: own_boundary 
+  type(node_iterator_t) :: node_array_create_node_iterator_on_n_subface
+  call node_array_create_node_iterator_on_n_subface%create( node_array, parent, child, own_boundary )
+end function node_array_create_node_iterator_on_n_subface
+
+!=================================================================================================
+subroutine node_iterator_create_on_n_face ( this, node_array, n_face, own_boundary )
   implicit none
   class(node_iterator_t)            , intent(inout) :: this
   type(node_array_t), target               , intent(in)    :: node_array
@@ -611,7 +622,47 @@ subroutine node_iterator_create ( this, node_array, n_face, own_boundary )
   end if
 
   call this%init()
-end subroutine node_iterator_create
+end subroutine node_iterator_create_on_n_face
+
+!=================================================================================================
+subroutine node_iterator_create_on_n_subface ( this, node_array, n_face, n_subface, own_boundary )
+  implicit none
+  class(node_iterator_t)            , intent(inout) :: this
+  type(node_array_t), target               , intent(in)    :: node_array
+  integer(ip)                       , intent(in)    :: n_face
+  integer(ip)                       , intent(in)    :: n_subface
+  logical                           , intent(in)    :: own_boundary
+  integer(ip) :: c, i, aux_order(SPACE_DIM), num_refinements
+  this%node_array => node_array
+  this%topology = 0
+  this%n_face = n_face
+  this%own_boundary = own_boundary
+  ! Restrict the topology of the polytope_tree to the current n-face
+  c = 0
+  aux_order = 0
+  num_refinements = 1
+  this%min_value = 0
+  do i = 0, node_array%polytope_tree%number_dimensions-1
+     if ( IBITS( this%n_face, node_array%polytope_tree%number_dimensions+i, 1 ) == 1 ) then 
+        aux_order(c+1) = node_array%order(i+1) / ( num_refinements + 1 )
+        if ( IBITS( n_subface, c, 1 ) == 1 ) this%min_value(c) = aux_order(c+1)
+        if ( IBITS( this%node_array%polytope_tree%topology, i, 1 ) == 1 ) then 
+           this%topology = IBSET( this%topology, c )
+        else
+           write(*,*) 'ERROR: node_iterator_create_on_n_subface not implemented for pyramid extended polytopes',__FILE__,__LINE__
+           check(.false.)
+        end if
+        c = c+1
+     end if
+  end do
+  this%max_value = this%min_value + aux_order
+  if ( .not. own_boundary ) then
+     this%min_value = this%min_value + 1
+     this%max_value = this%max_value - 1 ! (!) Safe ?
+  end if
+
+  call this%init()
+end subroutine node_iterator_create_on_n_subface
 
 !=================================================================================================
 subroutine node_iterator_init ( this )
@@ -634,7 +685,7 @@ subroutine node_iterator_init ( this )
 	    this%overflow = .true.
      end if
      else 
-        this%displacement(c) = this%min_value
+        this%displacement(c) = this%min_value(c)
         c = c+1
      end if
   end do
@@ -676,7 +727,7 @@ subroutine node_iterator_next ( this )
            end do
            exit
         else 
-           this%displacement(comp) = this%min_value
+           this%displacement(comp) = this%min_value(comp)
         end if
      end if
      comp = comp+1
