@@ -658,7 +658,7 @@ subroutine node_iterator_create_on_n_subface ( this, node_array, n_face, n_subfa
   this%max_value = this%min_value + aux_order
   if ( .not. own_boundary ) then
      this%min_value = this%min_value + 1
-     this%max_value = this%max_value - 1 ! (!) Safe ?
+     this%max_value = this%max_value - 1 
   end if
 
   call this%init()
