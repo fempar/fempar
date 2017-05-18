@@ -605,20 +605,19 @@ module fe_space_names
    
    contains 
        ! Get local_edge_change_basis_matrix(Ei) = G_Ei 
-       ! Apply change basis to edge 
-       ! Apply change basis to wire 
-       ! Apply inverse change basis 
+       ! Apply change basis
+       ! Apply change basis inverse  
    end type edge_change_basis_matrix_t
    
     type, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
     private 
 	   integer(ip)                             :: order
-	   integer(ip)                             :: number_wire_dofs 
+	   integer(ip)                             :: number_total_wire_dofs 
+	   integer(ip)                             :: number_edge_wire_dofs
 	   integer(ip)                             :: number_coarse_edges
 	   integer(ip) , allocatable               :: number_fine_edges_per_coarse_edge(:) 
 	   integer(ip) , allocatable               :: perm_sorted_edges(:,:) 
 	   real(rp)    , allocatable               :: tangent_size(:,:)
-	   integer(ip)                             :: number_interface_dofs_coupled_to_fine_edges 
 	   integer(ip) , allocatable               :: local_to_wire_dof(:)
        integer(ip) , allocatable               :: wire_to_local_dof(:) 
 	   integer(ip) , allocatable               :: dofs_new_basis(:) 
@@ -631,6 +630,7 @@ module fe_space_names
        procedure                           :: free                                        => Hcurl_l1_free 
 	   procedure                           :: setup_constraint_matrix                     => Hcurl_l1_setup_constraint_matrix
 	   procedure                           :: setup_change_basis_tools                    => Hcurl_l1_setup_change_basis_tools 
+	   procedure                           :: apply_local_change_basis                    => Hcurl_l1_apply_local_change_basis
 	   ! Private TBPs 
 	   procedure, non_overridable, private :: compute_wire_dof_renumbering                => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
 	   procedure, non_overridable, private :: compute_edge_change_basis_matrix            => Hcurl_l1_compute_edge_change_basis_matrix

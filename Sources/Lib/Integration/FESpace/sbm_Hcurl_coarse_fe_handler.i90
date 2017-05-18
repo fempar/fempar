@@ -244,7 +244,7 @@ subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_s
   call par_fe_space%create_fe_vef_iterator(vef_within_object)
   call par_fe_space%create_fe_vef_iterator(vef_within_cell)
 
-  this%number_wire_dofs = 0
+  this%number_total_wire_dofs = 0
   this%number_coarse_edges = 0
   ! Every interface DOF on Edges or edge-container element Faces will be added in the Wire Basket numbering 
   ! In a first loop we add all DOFs belonging to COARSE EDGES (E)
@@ -261,8 +261,8 @@ subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_s
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  if (this%local_to_wire_dof(elem2dof(idof)) .eq. 0) then
-                    this%number_wire_dofs = this%number_wire_dofs + 1
-                    this%local_to_wire_dof(elem2dof(idof)) = this%number_wire_dofs
+                    this%number_total_wire_dofs = this%number_total_wire_dofs + 1
+                    this%local_to_wire_dof(elem2dof(idof)) = this%number_total_wire_dofs
                  end if
                  call own_dofs_on_vef_iterator%next()
               end do
@@ -273,9 +273,10 @@ subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_s
      call object%next()
   end do
 
+    this%number_edge_wire_dofs = this%number_total_wire_dofs 
   ! The new basis functions introduced in Edges will be 
-    call memalloc ( this%number_wire_dofs, this%dofs_new_basis, __FILE__, __LINE__ )
-    do idof=1, this%number_wire_dofs
+    call memalloc ( this%number_total_wire_dofs, this%dofs_new_basis, __FILE__, __LINE__ )
+    do idof=1, this%number_total_wire_dofs
     this%dofs_new_basis(idof) = idof
 	end do 
   
@@ -283,7 +284,7 @@ subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_s
 	 this%order = fe%get_order(field_id) 
 	
   ! Save information about the visited vefs 
-	call this%coupled_vefs_added%init(this%number_wire_dofs/this%order)
+	call this%coupled_vefs_added%init(this%number_total_wire_dofs/this%order)
 	 
   ! In a second loop we add all remaining DOFs that are in touch to COARSE EDGES, faces and edges (E^c): 
   ! Run over fine edges contained in coarse edges > Run over local adjacent cells to those edges > Renumber dofs in local cells interface vefs  
@@ -315,8 +316,8 @@ subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_s
                              idof    = own_dofs_on_vef_iterator%get_current()
 							 if (elem2dof(idof)>0) then 
                                if ( this%local_to_wire_dof(elem2dof(idof)) .eq. 0 ) then
-                                this%number_wire_dofs = this%number_wire_dofs + 1
-                                this%local_to_wire_dof(elem2dof(idof)) = this%number_wire_dofs
+                                this%number_total_wire_dofs = this%number_total_wire_dofs + 1
+                                this%local_to_wire_dof(elem2dof(idof)) = this%number_total_wire_dofs
 							   end if 
                              end if
                              call own_dofs_on_vef_iterator%next()
@@ -334,7 +335,7 @@ subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_s
   end do
 
   ! Ready to allocate local wire numbering and build the inverse 
-  call memalloc ( this%number_wire_dofs, this%wire_to_local_dof, __FILE__, __LINE__ ) 
+  call memalloc ( this%number_total_wire_dofs, this%wire_to_local_dof, __FILE__, __LINE__ ) 
   this%wire_to_local_dof=0
   do idof=1, par_fe_space%get_total_number_dofs()
      if (this%local_to_wire_dof(idof) /= 0) then
@@ -585,13 +586,14 @@ type(list_iterator_t)                     :: vertices_of_line_iterator
 integer(ip)                               :: inode, start_node, end_node 
 integer(ip)                               :: edge_direction, new_basis_dof 
 integer(ip), allocatable                  :: dofs_wire_edge_old_basis(:) 
-integer(ip)                               :: idof, istat, number_fine_edge_dofs_over_coarse_edges 
+integer(ip)                               :: idof, istat
 integer(ip)                               :: dummy_val,i
 
+type(serial_scalar_array_t) :: x_old 
+
   ! Create local Coupled to Edge change of basis matrix 
-  number_fine_edge_dofs_over_coarse_edges = size(this%dofs_new_basis)
-  call this%change_basis_matrix%B%create(num_rows = this%number_wire_dofs - number_fine_edge_dofs_over_coarse_edges,  &
-    									 num_cols = number_fine_edge_dofs_over_coarse_edges                           )
+  call this%change_basis_matrix%B%create(num_rows = this%number_total_wire_dofs - this%number_edge_wire_dofs,  &
+    									 num_cols = this%number_edge_wire_dofs                                 )
 		
   call memalloc( this%order, dofs_wire_edge_old_basis, __FILE__, __LINE__ )
   call par_fe_space%create_fe_object_iterator(object)
@@ -644,17 +646,17 @@ integer(ip)                               :: dummy_val,i
 				   call this%get_wire_basis_dofs_from_vef(par_fe_space, edge, dofs_wire_edge_old_basis)		
 
 				 if ( edge_direction == 1) then  ! Affluent edge 
-                    call this%change_basis_matrix%B%insert(nz       = this%order,                                                         & 
-                                                           ia       = dofs_wire_edge_old_basis - number_fine_edge_dofs_over_coarse_edges, &
-                                                           ja       = new_basis_dof,                                                      &
+                    call this%change_basis_matrix%B%insert(nz       = this%order,                                            & 
+                                                           ia       = dofs_wire_edge_old_basis - this%number_edge_wire_dofs, &
+                                                           ja       = new_basis_dof,                                         &
                                                            val      = elmat(:, this%order+1) )
 
                  elseif ( edge_direction == 0) then ! Effluent edge 
                     ! If edge is effluent to the coarse edge, assembly is rearranged: swap row-order (Nedelec dofs are
                     ! assigned along the tangent direction from start-end of the local edge ) + sign flip for the opposite tangent 			 
                     do idof = 1, this%order ! Loop over all nedelec-like dofs in the fine edge    
-                       call this%change_basis_matrix%B%insert(ia       = dofs_wire_edge_old_basis(idof) - number_fine_edge_dofs_over_coarse_edges,  &
-                                                              ja       = new_basis_dof,                                                             &
+                       call this%change_basis_matrix%B%insert(ia       = dofs_wire_edge_old_basis(idof) - this%number_edge_wire_dofs,  &
+                                                              ja       = new_basis_dof,                                                &
                                                               val      = -elmat( (this%order+1)-idof, this%order+1)   )
                     end do
                  end if
@@ -679,7 +681,14 @@ integer(ip)                               :: dummy_val,i
   end do
 
   call this%change_basis_matrix%B%convert(csr_format)
-  call this%change_basis_matrix%B%print_matrix_market(6) 
+  ! call this%change_basis_matrix%B%print_matrix_market(6) 
+  
+  ! Exercise apply change basis ----------------------------------- 
+  call x_old%create_and_allocate( size(this%local_to_wire_dof) )
+  call x_old%init(1.0_rp) 
+  call this%apply_local_change_basis(x_old) 
+  call x_old%free() 
+  ! ---------------------------------------------------------------
   
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_vef_iterator(vef_within_object)
@@ -690,6 +699,97 @@ integer(ip)                               :: dummy_val,i
   
 end subroutine Hcurl_l1_fill_coupled_to_edges_local_change_of_basis
 
+subroutine Hcurl_l1_apply_local_change_basis(this, x_old)
+implicit none 
+class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)  :: this
+type(serial_scalar_array_t)           , intent(inout)  :: x_old
+
+type(serial_scalar_array_t) :: x_new
+type(serial_scalar_array_t) :: B_times_x_new
+real(rp), pointer :: x_old_entries(:)
+real(rp), pointer :: x_new_entries(:)
+real(rp), pointer :: B_times_x_new_entries(:)
+
+! Direct solver data
+type(direct_solver_t)        :: direct_solver 
+integer                      :: FPLError
+type(parameterlist_t)        :: parameter_list
+integer                      :: iparm(64)
+! Local auxiliar variables 
+integer(ip) :: offcomponent_coarse_edge, coarse_edge
+integer(ip) :: idof 
+
+     x_old_entries => x_old%get_entries()
+
+	 ! Create direct solver to update iterates 
+    call parameter_list%init()
+   
+    FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0); iparm = 0
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
+    call direct_solver%set_type_from_pl(parameter_list)
+    call direct_solver%set_parameters_from_pl(parameter_list)
+    call direct_solver%set_matrix(this%change_basis_matrix%G(1))
+	
+	 ! Apply local inverses to each Coarse Edge  
+	 offcomponent_coarse_edge = 0
+     do coarse_edge = 1, this%number_coarse_edges
+	 if (coarse_edge>1) offcomponent_coarse_edge = offcomponent_coarse_edge + this%number_fine_edges_per_coarse_edge(coarse_edge-1)*this%order
+	 
+	 call x_new%create_and_allocate( this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order )
+	 x_new_entries => x_new%get_entries()
+	 
+	  ! Build Edge local vector from old basis values 
+	  do idof = 1, this%order*this%number_fine_edges_per_coarse_edge(coarse_edge) 
+	      x_new_entries(idof) = x_old_entries(this%wire_to_local_dof(idof+offcomponent_coarse_edge))
+	  end do 
+	  
+	  ! Apply local change basis to built DoF 
+	    call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_edge), same_nonzero_pattern=.false.) 
+        call direct_solver%solve( x_new , x_new )
+		
+		! Assign values to the vector associated to [E] in the new basis 
+	  do idof = 1, this%order*this%number_fine_edges_per_coarse_edge(coarse_edge) 
+	      x_old_entries(this%wire_to_local_dof(idof+offcomponent_coarse_edge)) = x_new_entries(idof)
+	  end do 
+	  
+		!call x_new%print(6)	
+		call x_new%free()
+	 end do 
+	 call direct_solver%free() 
+	 
+	 ! Second part of the application: 
+	 ! x_Ec = B*x_Ei + x_old_Ec	 
+ 	  call x_new%create_and_allocate( this%number_edge_wire_dofs )	
+	  x_new_entries => x_new%get_entries()
+	  call B_times_x_new%create_and_allocate( this%number_total_wire_dofs - this%number_edge_wire_dofs)
+      B_times_x_new_entries => B_times_x_new%get_entries() 
+	  
+	  ! Build Edge local vector from old basis values 
+	  do idof = 1, this%number_edge_wire_dofs
+	      x_new_entries(idof) = x_old_entries(this%wire_to_local_dof(idof))
+	  end do 
+	  
+	  ! Apply local change basis to built DoF 
+        call this%change_basis_matrix%B%apply(x_new, B_times_x_new)
+		
+	  ! Assign values to the vector associated to [E^c] in the new basis 
+	  do idof = this%number_edge_wire_dofs + 1, this%number_total_wire_dofs
+	      x_old_entries(this%wire_to_local_dof(idof)) = x_old_entries(this%wire_to_local_dof(idof)) - B_times_x_new_entries(idof - this%number_edge_wire_dofs)
+	  end do 
+		
+		!call x_new%print(6)	
+		call x_new%free()
+		call B_times_x_new%free()
+		
+end subroutine Hcurl_l1_apply_local_change_basis
+
+! ---------------------------------------------------------------------------
+!
+!               Orientation for FINE edges in a COARSE Edge 
+!
+! ----------------------------------------------------------------------------
 subroutine Hcurl_l1_set_orientation_and_sort_fine_edges( this, par_fe_space )
   ! This subroutine returns a permutation of fine edges (VEFS) contained in coarse edges such that they 
   ! are sorted following a path from the beginning to an end. The criteria to define origin and end of 
@@ -892,6 +992,11 @@ implicit none
 		call memfree(perm, __FILE__, __LINE__) 
 end subroutine Hcurl_l1_build_fine_edges_oriented_path
 
+! -------------------------------------------------------------------------------------------
+! 
+!             Getters for DoFs in different numberings 
+!
+! -------------------------------------------------------------------------------------------
 function Hcurl_l1_get_dof_list_in_coarse_edge(this, coarse_edge, fine_edge) result( dof_list ) 
 ! This function returns the list of dofs associated to the fine_edge-th edge  of the coarse_edge-th
 ! Edge of the subdomain. Return the list of all DOFs if no fine_edge is requested 
@@ -1032,6 +1137,11 @@ end do
 
 end function Hcurl_l1_get_new_basis_dof_from_node_id
 
+! ----------------------------------------------------------------------------------
+! 
+!             Sorted fine edges logical getters
+! 
+! ----------------------------------------------------------------------------------
 function Hcurl_l1_is_first_edge(this, coarse_edge, fine_edge) result( is_first_edge ) 
 ! This function asks for first edge in the sorted fine edges chain 
 implicit none 
