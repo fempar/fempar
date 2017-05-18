@@ -439,8 +439,10 @@ subroutine base_mlbddc_setup_coarse_grid_basis ( this )
      j = j + 1 
   end do
 
-  call this%constrained_neumann_solver%solve(work1, &
-       work2)
+  if (fe_space%get_block_number_coarse_dofs(1)>0) then
+    call this%constrained_neumann_solver%solve(work1, &
+         work2)
+  end if
 
   call this%allocate_coarse_grid_basis()
   this%Phi = work2 (1:fe_space%get_block_number_dofs(1),:) 
@@ -950,17 +952,19 @@ subroutine base_mlbddc_compute_coarse_dofs_values ( this, vector, coarse_dofs_va
 
   coarse_dofs_values = 0.0_rp
 #ifdef ENABLE_BLAS
-  call DGEMV(  'T', & 
-       serial_scalar_array%get_size(), &
-       fe_space%get_block_number_coarse_dofs(1), &
-       1.0_rp, &
-       this%Phi, &
-       serial_scalar_array%get_size(), &
-       serial_scalar_array%get_entries(), &
-       1, &
-       0.0_rp, & 
-       coarse_dofs_values, & 
-       1)
+  if (fe_space%get_block_number_coarse_dofs(1) .ne.0 ) then
+    call DGEMV(  'T', & 
+         serial_scalar_array%get_size(), &
+         fe_space%get_block_number_coarse_dofs(1), &
+         1.0_rp, &
+         this%Phi, &
+         serial_scalar_array%get_size(), &
+         serial_scalar_array%get_entries(), &
+         1, &
+         0.0_rp, & 
+         coarse_dofs_values, & 
+         1)
+  end if
 #else
   write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
   write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
@@ -1234,17 +1238,19 @@ subroutine base_mlbddc_interpolate_coarse_grid_correction (this, coarse_dofs_val
   serial_scalar_array_entries => serial_scalar_array%get_entries()
 
 #ifdef ENABLE_BLAS
-  call DGEMV(  'N', & 
-       serial_scalar_array%get_size(), &
-       fe_space%get_block_number_coarse_dofs(1), &
-       1.0_rp, &
-       this%Phi, &
-       serial_scalar_array%get_size(), &
-       coarse_dofs_values, &
-       1,    &
-       0.0_rp,  & 
-       serial_scalar_array_entries, & 
-       1)
+  if (fe_space%get_block_number_coarse_dofs(1) .ne. 0) then
+    call DGEMV(  'N', & 
+         serial_scalar_array%get_size(), &
+         fe_space%get_block_number_coarse_dofs(1), &
+         1.0_rp, &
+         this%Phi, &
+         serial_scalar_array%get_size(), &
+         coarse_dofs_values, &
+         1,    &
+         0.0_rp,  & 
+         serial_scalar_array_entries, & 
+         1)
+  end if
 #else
   write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
   write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'

@@ -257,6 +257,7 @@ contains
     !assert (allocated (a))
     assert (.not. allocated(this%a))
     call move_alloc(to=this%a, from=a) 
+    this%nd1 = size(this%a)
   end subroutine allocatable_array_rp1_move_alloc_in
   
   function allocatable_array_rp1_get_array(this)

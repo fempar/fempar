@@ -188,7 +188,7 @@ contains
         class(environment_t),             pointer               :: environment
         integer(ip)                                             :: current_quadrature_and_map
         integer(ip)                                             :: current_volume_integrator
-        integer(ip)                                             :: max_order_within_fe, max_order_field_id
+        integer(ip)                                             :: max_order, max_order_reference_fe_id, max_order_field_id
         integer(ip)                                             :: vol_integ_pos_key
         integer(ip)                                             :: istat, field_id, quadrature_and_map_pos
         integer(ip)                                             :: reference_fe_id
@@ -220,14 +220,17 @@ contains
             nullify(previous_reference_fe_geo)
             call fe%first()
             do while ( .not. fe%has_finished() ) 
+                ! Call to "max()" in order to take into account 
+                ! reference_fe_void_t (defined with order == -1)
+                max_order = max(fe%get_max_order_all_fields(),1)
                 reference_fe_geo => fe%get_reference_fe_geo()
-                max_order_within_fe = fe%get_max_order_all_fields()
-                call this%quadratures_and_maps_position%put(key = max_order_within_fe, &
+                max_order_reference_fe_id = fe%get_max_order_reference_fe_id()
+                call this%quadratures_and_maps_position%put(key = max_order_reference_fe_id, &
                                                             val = current_quadrature_and_map, &
                                                             stat = istat)
                 if (istat == now_stored) then
                     ! Create quadrature and fe_map associated to current max_order_within_fe
-                    call reference_fe_geo%create_data_out_quadrature(num_refinements = max_order_within_fe-1, &
+                    call reference_fe_geo%create_data_out_quadrature(num_refinements = max_order-1, &
                                                                      quadrature      = this%quadratures(current_quadrature_and_map))
                     call this%fe_maps(current_quadrature_and_map)%create(this%quadratures(current_quadrature_and_map),&
                                                                          reference_fe_geo)
@@ -235,13 +238,13 @@ contains
                 end if
                 do field_id=1, fe_space%get_number_fields()
                     vol_integ_pos_key = this%generate_vol_integ_pos_key(fe_space%get_number_reference_fes(), &
-                                                                        max_order_within_fe, &
+                                                                        max_order_reference_fe_id, &
                                                                         fe%get_reference_fe_id(field_id))
                     call this%volume_integrators_position%put(key=vol_integ_pos_key, &
                                                               val=current_volume_integrator, &
                                                               stat=istat)
                     if (istat == now_stored) then
-                        call this%quadratures_and_maps_position%get(key = max_order_within_fe, &
+                        call this%quadratures_and_maps_position%get(key = max_order_reference_fe_id, &
                                                                     val = quadrature_and_map_pos, &
                                                                     stat = istat)
                         assert ( istat == key_found )
@@ -251,10 +254,13 @@ contains
                     end if
                 end do
                 if ( fe%is_local() ) then
+                    ! Call to "max()" in order to take into account 
+                    ! reference_fe_void_t (defined with order == -1)
+                    max_order = max(fe%get_max_order_all_fields(),1)
                     ! Local cell and node counter
-                    this%number_cells = this%number_cells + reference_fe_geo%get_number_subcells(max_order_within_fe-1)
+                    this%number_cells = this%number_cells + reference_fe_geo%get_number_subcells(max_order-1)
                     this%number_nodes = this%number_nodes + &
-                            (reference_fe_geo%get_number_subcells(max_order_within_fe-1)*reference_fe_geo%get_number_vertices())
+                            (reference_fe_geo%get_number_subcells(max_order-1)*reference_fe_geo%get_number_vertices())
 
                     ! Check if there are several topology types or a single one
                     if(associated(previous_reference_fe_geo) .and.                       &
@@ -354,7 +360,7 @@ contains
         fe_space => fe_iterator%get_fe_space()
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
-            max_order_within_fe =  fe_iterator%get_max_order_all_fields()
+            max_order_within_fe = max(fe_iterator%get_max_order_all_fields(),1)
             reference_fe_geo    => fe_iterator%get_reference_fe_geo()
             fe_map              => this%get_fe_map()
             coordinates         => fe_map%get_coordinates()
@@ -393,7 +399,6 @@ contains
             ! Fill patch cell vectors data
             do idx = 1, number_cell_vectors
                 patch_cell_vector  => patch%get_cell_vector(idx)
-
                 call this%fill_patch_cell_vector(cell_vectors(idx), patch%get_number_subcells(), patch_cell_vector)
             end do
         end if
@@ -859,17 +864,17 @@ contains
     end subroutine output_handler_cell_fe_function_free
 
 
-    function output_handler_cell_fe_function_generate_vol_integ_pos_key (this, num_reference_fes, max_order_within_fe, reference_fe_id ) result(vol_integ_pos_key)
+    function output_handler_cell_fe_function_generate_vol_integ_pos_key (this, num_reference_fes, max_order_reference_fe_id, reference_fe_id ) result(vol_integ_pos_key)
     !-----------------------------------------------------------------
     !< Generate vol_integ_pos_key
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(in) :: this
         integer(ip),                              intent(in) :: num_reference_fes
-        integer(ip),                              intent(in) :: max_order_within_fe
+        integer(ip),                              intent(in) :: max_order_reference_fe_id
         integer(ip),                              intent(in) :: reference_fe_id
         integer(ip)                                          :: vol_integ_pos_key
     !-----------------------------------------------------------------
-        vol_integ_pos_key = reference_fe_id + (max_order_within_fe)*num_reference_fes
+        vol_integ_pos_key = reference_fe_id + (max_order_reference_fe_id)*num_reference_fes
       end function output_handler_cell_fe_function_generate_vol_integ_pos_key
 
 
@@ -883,7 +888,7 @@ contains
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
         assert ( associated(this%current_fe) )
-        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_all_fields(), &
+        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_reference_fe_id(), &
              val=quadratures_position, &
              stat=istat)
         assert ( .not. istat == key_not_found )
@@ -901,7 +906,7 @@ contains
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
         assert ( associated(this%current_fe) )
-        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_all_fields(), &
+        call this%quadratures_and_maps_position%get(key=this%current_fe%get_max_order_reference_fe_id(), &
              val=fe_maps_position, &
              stat=istat)
         assert ( .not. istat == key_not_found )
@@ -924,7 +929,7 @@ contains
 
         vol_integ_pos_key = &
              this%generate_vol_integ_pos_key(this%get_number_reference_fes(), &
-             this%current_fe%get_max_order_all_fields(), &
+             this%current_fe%get_max_order_reference_fe_id(), &
              this%current_fe%get_reference_fe_id(field_id))
 
         call this%volume_integrators_position%get(key=vol_integ_pos_key, &

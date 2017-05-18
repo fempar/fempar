@@ -44,6 +44,40 @@ then
         done
       done
 
+      # Square + Quads + Hybrid Void/Full FEs (half pattern)
+      for gorder in 1
+      do
+       for order in 1 2 5
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case half"
+            $TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case half 
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+      # Square + Quads + Hybrid Void/Full FEs (quarter pattern)
+      for gorder in 1
+      do
+       for order in 1 2 5
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case quarter"
+            $TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case quarter 
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
 
       # Circle + Quads        
       for gorder in 1 2 5
@@ -113,6 +147,23 @@ then
         done
       done
 
+      # Cube + Hexas + Hybrid Void/Full FEs (popcorn pattern)
+      for gorder in 1
+      do
+       for order in 1 2 #5
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 3 -nx 18 -ny 18 -nz 18 -order $order -gorder $gorder -use-voids T -use-voids-case popcorn"
+            $TEST_BINARY_PATH -tt structured -dim 3 -nx 18 -ny 18 -nz 18 -order $order -gorder $gorder -use-voids T -use-voids-case popcorn 
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
       # Cube + Tetrahedra
       # for gorder in 1 #2 3 4 5 6
       # do
@@ -145,6 +196,40 @@ then
           then
             echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_quads.gid --prefix square_quads -order $order -gorder $gorder -lt vector"
             $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_quads.gid --prefix square_quads -order $order -gorder $gorder  -lt vector
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+      # Square + Quads + Hybrid Void/Full FEs (half pattern)
+      for gorder in 1
+      do
+       for order in 1 2 5
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case half -lt vector"
+            $TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case half -lt vector
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+      # Square + Quads + Hybrid Void/Full FEs (quarter pattern)
+      for gorder in 1
+      do
+       for order in 1 2 5
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -lt vector"
+            $TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -lt vector
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -198,6 +283,23 @@ then
             echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_hexas.gid/ --prefix cube_hexas -order $order -gorder $gorder  -lt vector"
             $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_hexas.gid/ --prefix cube_hexas -order $order -gorder $gorder  -lt vector
             if [ $? -ne 0 ]
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+      # Cube + Hexas + Hybrid Void/Full FEs (popcorn pattern)
+      for gorder in 1
+      do
+       for order in 1 #2 5
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 3 -nx 18 -ny 18 -nz 18 -order $order -gorder $gorder -use-voids T -use-voids-case popcorn -lt vector"
+            $TEST_BINARY_PATH -tt structured -dim 3 -nx 18 -ny 18 -nz 18 -order $order -gorder $gorder -use-voids T -use-voids-case popcorn -lt vector 
+            if [ $? -ne 0 ] 
             then
              final_exit_code=1
             fi
