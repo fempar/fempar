@@ -417,14 +417,14 @@ contains
           if(msh%ndime == 2) then
              if(nnode == 3)  then    ! Linear triangles (2DP1)
                 permu_oriented_tet = compute_oriented_tet_permutation(msh,ielem)
-                permu => permu_oriented_tet
+                permu => permu_2DP1
              elseif(nnode == 4) then ! Linear quadrilaterals(2DQ1)
                 permu => permu_2DQ1
              end if
           elseif(msh%ndime == 3) then
              if(nnode == 4) then     ! Linear tetrahedra (3DP1)           
                 permu_oriented_tet = compute_oriented_tet_permutation(msh,ielem)
-                permu => permu_oriented_tet
+                permu => permu_3DP1
              elseif(nnode == 8) then ! Linear hexahedra (3DQ1)
                 permu => permu_3DQ1
              end if
@@ -437,30 +437,6 @@ contains
     end if
 
   end subroutine mesh_read_from_unit
-  
-  ! ============================================================================
-  function compute_oriented_tet_permutation(msh,ielem) result(permu)
-    !------------------------------------------------------------------------
-    !
-    ! This routine computes the local permutation corresponding to the global 
-    ! number ascending indices. This results in an oriented mesh see: 
-    ! M.E. Rognes, R.C. Kirby and A. Logg. Efficient assembly of H(div) and
-    ! H(curl) conforming finite elements. SIAM J.Sci.Comput. 31(6), 4130-4151
-    !
-    !------------------------------------------------------------------------
-    implicit none 
-    class(mesh_t)     , intent(inout) :: msh
-    integer(ip)       , intent(in)    :: ielem
-
-    integer(ip) :: sorted_nodes(4) 
-    integer(ip) :: permu(4), nnode
-      
-    permu = [1,2,3,4]
-    nnode = msh%pnods(ielem+1) - msh%pnods(ielem)
-    sorted_nodes(1:nnode) = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
-    
-    call sort( nnode, sorted_nodes, index=permu ) 
-    end function compute_oriented_tet_permutation
 
   !=============================================================================
   subroutine mesh_write_file (msh,lunio,title)

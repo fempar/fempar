@@ -56,7 +56,7 @@ subroutine fine_triangulation_fill_reference_fe_geo_list(this,order)
                    &    make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
                    &                        number_dimensions = this%num_dimensions, order = order, &
                    &                        field_type = field_type_scalar, continuity = .true. )
-           else(ielem_num_vertices == 4) then   ! Quadrilateral
+           elseif(ielem_num_vertices == 4) then ! Quadrilateral
               reference_fe_geo_list(icell_type) = &
                    &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
                    &                        number_dimensions = this%num_dimensions, order = order, &

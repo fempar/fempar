@@ -251,6 +251,21 @@ subroutine bst_free_cells_set (this)
   if (allocated (this%cells_set)) call memfree ( this%cells_set, __FILE__, __LINE__ )
 end subroutine bst_free_cells_set
 
+subroutine bst_orient_tet_mesh(this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip) :: icell, spos, epos, nnode, lids(4)  
+  
+  do icell = 1, this%num_local_cells
+     spos = this%ptr_vefs_per_cell(icell)
+     epos = this%ptr_vefs_per_cell(icell+1)-1
+     nnode = epos - spos + 1
+     lids(1:nnode) = this%lst_vefs_lids(spos:epos)
+     call sort(nnode, lids)
+     this%lst_vefs_lids(spos:epos) = lids(1:nnode)
+  end do
+end subroutine bst_orient_tet_mesh
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Private methods to perform nearest neighbor exchange
@@ -2197,3 +2212,104 @@ subroutine bst_print ( this )
        endif
      enddo
    end function bst_get_max_number_shape_functions
+
+   function bst_is_tet_mesh ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     integer(ip) :: dum, istat
+     logical :: bst_is_tet_mesh
+     
+     bst_is_tet_mesh = .false.
+     if (this%num_dimensions == 2) then
+        call this%reference_fe_geo_index%get(key=6,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_tet_mesh = .true.
+        elseif (istat == key_not_found) then
+           bst_is_tet_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=8,val=dum,stat=istat)
+        if (istat == key_found) bst_is_tet_mesh = .false.
+     elseif (this%num_dimensions == 3) then
+        call this%reference_fe_geo_index%get(key=14,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_tet_mesh = .true.
+        elseif (istat == key_not_found) then
+           bst_is_tet_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=20,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_tet_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=26,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_tet_mesh = .false.
+           return
+        end if
+     end if
+     
+   end function bst_is_tet_mesh
+
+   function bst_is_hex_mesh ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     integer(ip) :: dum, istat
+     logical :: bst_is_hex_mesh     
+     
+     bst_is_hex_mesh = .false.
+     if (this%num_dimensions == 2) then
+        call this%reference_fe_geo_index%get(key=8,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_hex_mesh = .true.
+        elseif (istat == key_not_found) then
+           bst_is_hex_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=6,val=dum,stat=istat)
+        if (istat == key_found) bst_is_hex_mesh = .false.
+     elseif (this%num_dimensions == 3) then
+        call this%reference_fe_geo_index%get(key=26,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_hex_mesh = .true.
+        elseif (istat == key_not_found) then
+           bst_is_hex_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=20,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_hex_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=14,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_hex_mesh = .false.
+           return
+        end if
+     end if
+     
+   end function bst_is_hex_mesh
+
+   function bst_is_mix_mesh ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     integer(ip) :: dum, istat, ntypes     
+     logical :: bst_is_mix_mesh
+     
+     ntypes = 0
+     if (this%num_dimensions == 2) then
+        call this%reference_fe_geo_index%get(key=8,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+        call this%reference_fe_geo_index%get(key=6,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+     elseif (this%num_dimensions == 3) then
+        call this%reference_fe_geo_index%get(key=26,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+        call this%reference_fe_geo_index%get(key=20,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+        call this%reference_fe_geo_index%get(key=14,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+     end if
+     bst_is_mix_mesh = ntypes > 1
+   end function bst_is_mix_mesh

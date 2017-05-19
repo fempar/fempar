@@ -121,6 +121,7 @@ program partitioner
 
   ! Read and partition gmesh into lmesh
   call gmesh%read(parameters)
+  call orient_tet_meshes(gmesh)
   call gmesh%write_file_for_postprocess(parameters)
   call gmesh%create_distribution (parameters, distr, env, lmesh)
 
@@ -153,4 +154,31 @@ program partitioner
   call input%free()
   call fempar_finalize()
 
+contains
+
+ subroutine orient_tet_meshes(m)
+   use sort_names
+   implicit none
+   type(mesh_t), intent(inout) :: m
+   integer(ip) :: icell, epos, spos, nnode, lids(4)
+   logical     :: orient
+   
+   orient = .false.
+   if (m%nelty == 1) then
+      if (m%ndime == 2 .and. m%nnode == 3) then
+         orient = .true.
+      elseif (m%ndime == 3 .and. m%nnode == 4) then
+         orient = .true.
+      end if
+   end if
+   if (.not. orient) return
+   nnode = m%nnode
+   do icell = 1, m%nelem
+      spos = m%pnods(icell)
+      epos = m%pnods(icell+1)-1
+      lids(1:nnode) = m%lnods(spos:epos)
+      call sort(nnode, lids)
+      m%lnods(spos:epos) = lids(1:nnode)
+   end do
+ end subroutine
 end program partitioner
