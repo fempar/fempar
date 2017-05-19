@@ -416,14 +416,12 @@ contains
           lnods_aux(1:nnode) = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
           if(msh%ndime == 2) then
              if(nnode == 3)  then    ! Linear triangles (2DP1)
-                permu_oriented_tet = compute_oriented_tet_permutation(msh,ielem)
                 permu => permu_2DP1
              elseif(nnode == 4) then ! Linear quadrilaterals(2DQ1)
                 permu => permu_2DQ1
              end if
           elseif(msh%ndime == 3) then
              if(nnode == 4) then     ! Linear tetrahedra (3DP1)           
-                permu_oriented_tet = compute_oriented_tet_permutation(msh,ielem)
                 permu => permu_3DP1
              elseif(nnode == 8) then ! Linear hexahedra (3DQ1)
                 permu => permu_3DQ1
