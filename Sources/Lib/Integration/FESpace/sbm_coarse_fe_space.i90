@@ -56,7 +56,7 @@ subroutine coarse_fe_space_create (this, &
   par_environment => this%get_par_environment()
   if(par_environment%am_i_l1_task()) then
      this%number_fields = number_fields
-     assert ( number_fields == 1 )
+     !assert ( number_fields == 1 )
      call this%allocate_and_fill_field_blocks_and_coupling(field_blocks,field_coupling)
      this%number_blocks = maxval(this%field_blocks)
      call this%allocate_and_fill_fe_space_type_per_field(fe_space_type_per_field)
@@ -1205,7 +1205,7 @@ subroutine coarse_fe_space_setup_coarse_dofs ( this )
   integer(ip), allocatable             :: num_coarse_dofs(:,:)
   integer(ip)                          :: current_coarse_dof
 
-  assert ( this%number_fields == 1 )
+  !assert ( this%number_fields == 1 )
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_task() )   
   

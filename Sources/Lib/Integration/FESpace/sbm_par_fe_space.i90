@@ -45,7 +45,7 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
                                                                 triangulation, &
                                                                 conditions, &
                                                                 reference_fes, &
-                                                                coarse_fe_handler, &
+                                                                coarse_fe_handlers, &
                                                                 field_blocks, &
                                                                 field_coupling )
   implicit none
@@ -53,7 +53,8 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
   class(base_static_triangulation_t), target, intent(in)     :: triangulation
   class(conditions_t)                       , intent(in)     :: conditions
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
-  class(l1_coarse_fe_handler_t)     , target, intent(in)     :: coarse_fe_handler
+  type(p_l1_coarse_fe_handler_t)    , target, intent(in)     :: coarse_fe_handlers(:)
+  !class(l1_coarse_fe_handler_t)     , target, intent(in)     :: coarse_fe_handler
   integer(ip)                     , optional, intent(in)     :: field_blocks(:)
   logical                         , optional, intent(in)     :: field_coupling(:,:)
 
@@ -65,7 +66,7 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
   ! coarse-grid tasks also associate this (superclass') member variable to a 
   ! target
   this%triangulation     => triangulation
-  this%coarse_fe_handler => coarse_fe_handler 
+  !this%coarse_fe_handler => coarse_fe_handler 
   par_environment    => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%create( triangulation, &
@@ -85,6 +86,9 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
      ! requires that strong_dirichlet_values is created and allocated
      call this%strong_dirichlet_values%create_and_allocate(0)
   end if
+ 
+  call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
+  
 end subroutine par_fe_space_create_same_reference_fes_on_all_cells
 
 subroutine par_fe_space_free( this )
@@ -122,7 +126,8 @@ subroutine par_fe_space_free( this )
         check (istat==0)
      end if
      nullify(this%triangulation)
-     nullify(this%coarse_fe_handler)
+     !nullify(this%coarse_fe_handler)
+     call this%free_coarse_fe_handlers()
   end if
 
 end subroutine par_fe_space_free
@@ -160,6 +165,31 @@ subroutine par_fe_space_print ( this )
      !end do
   end if
 end subroutine par_fe_space_print
+
+subroutine par_fe_space_allocate_and_fill_coarse_fe_handlers ( this, coarse_fe_handlers )
+  implicit none
+  class(par_fe_space_t)         , intent(inout) :: this
+  type(p_l1_coarse_fe_handler_t),  intent(in)   :: coarse_fe_handlers(:)
+  integer(ip) :: i, istat
+
+  assert(size(coarse_fe_handlers) == this%number_fields)
+  allocate( this%coarse_fe_handlers(this%number_fields), stat=istat )
+
+  check ( istat == 0 )
+  do i  = 1, this%number_fields
+     this%coarse_fe_handlers(i) = coarse_fe_handlers(i)
+  end do
+end subroutine par_fe_space_allocate_and_fill_coarse_fe_handlers
+
+subroutine par_fe_space_free_coarse_fe_handlers ( this )
+  implicit none
+  class(par_fe_space_t)          , intent(inout) :: this
+  integer(ip) :: istat
+  if (allocated(this%coarse_fe_handlers)) then
+     deallocate( this%coarse_fe_handlers, stat=istat )
+     check ( istat == 0 )
+  end if
+end subroutine par_fe_space_free_coarse_fe_handlers
 
 subroutine par_fe_space_fill_dof_info( this )
   implicit none
@@ -348,14 +378,16 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   do field_id = 1, this%number_fields
      if ( this%field_blocks(field_id) == iblock ) then
         if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
-           total_num_itfc_couplings = total_num_itfc_couplings + & 
+           !total_num_itfc_couplings = total_num_itfc_couplings + 
+           total_num_itfc_couplings = &
                 this%compute_raw_interface_data_by_continuity(field_id, &
                                                               total_num_itfc_couplings, &
                                                               ubound_num_itfc_couplings(i),&
                                                               dofs_lid,&
                                                               raw_interface_data )
         else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
-           total_num_itfc_couplings = total_num_itfc_couplings + & 
+           !total_num_itfc_couplings = total_num_itfc_couplings +  
+           total_num_itfc_couplings = &
                 this%compute_raw_interface_data_by_face_integ(field_id, &
                                                               total_num_itfc_couplings, &
                                                               ubound_num_itfc_couplings(i),&
@@ -1486,7 +1518,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   integer(ip), allocatable             :: num_coarse_dofs_per_field(:,:), max_num_coarse_dofs_per_field(:)
   integer(ip)                          :: current_coarse_dof
 
-  assert ( this%number_fields == 1 )
+  !assert ( this%number_fields == 1 )
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_task() )   
   
@@ -1506,7 +1538,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   
   this%ptr_coarse_dofs_per_field(1) = 1
   do field_id=1, this%number_fields
-    call this%coarse_fe_handler%get_num_coarse_dofs(this, parameter_list, num_coarse_dofs_per_field(:,field_id))
+    call this%coarse_fe_handlers(field_id)%p%get_num_coarse_dofs(field_id, this, parameter_list, num_coarse_dofs_per_field(:,field_id))
     this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id)
     do i=1, this%get_number_fe_objects()
       this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id+1) + &
@@ -1757,7 +1789,7 @@ subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field( this, number_fields, p
      call par_environment%l2_from_l1_gather( input_data_size = this%get_number_fields(), &
                                              input_data      = this%ptr_coarse_dofs_per_field, &
                                              output_data     = dummy_integer_array )
-     do i=this%number_fields,1
+     do i=this%number_fields,1,-1
        this%ptr_coarse_dofs_per_field(i) = this%ptr_coarse_dofs_per_field(i+1)-this%ptr_coarse_dofs_per_field(i) 
      end do
   end if
@@ -1923,7 +1955,7 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
 	   class(par_fe_space_t), target, intent(in) :: this
 	   integer(ip)                  , intent(in) :: field_id
 	   class(l1_coarse_fe_handler_t), pointer :: par_fe_space_get_coarse_fe_handler
-	   par_fe_space_get_coarse_fe_handler => this%coarse_fe_handler
+	   par_fe_space_get_coarse_fe_handler => this%coarse_fe_handlers(field_id)%p
   end function par_fe_space_get_coarse_fe_handler
   
  subroutine par_fe_space_create_fe_object_iterator (this,fe_object)

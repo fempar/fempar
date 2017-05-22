@@ -25,14 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_coarse_dofs)
+subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
   implicit none
   class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
   
-  integer(ip)                            :: field_id
+  !integer(ip)                            :: field_id
   integer(ip)                            :: ivef_within_cell
   integer(ip)                            :: ivef_within_object
   integer(ip)                            :: idof, dof_lid
@@ -57,7 +58,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
   
   ! To think where field_id should come from? Temporarily let us assume that we have
   ! a single-field PDE problem
-  field_id = 1
+  !field_id = 1
 
   
   
@@ -113,9 +114,10 @@ subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, n
   call par_fe_space%free_fe_object_iterator(object)
 end subroutine standard_l1_get_num_coarse_dofs
 
-subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
+subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
   class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
@@ -127,30 +129,14 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
   integer(ip), pointer                   :: elem2dof(:)
   integer(ip)                            :: off
-  integer(ip) :: field_id
   integer(ip) :: num_rows, num_cols
   integer(ip) :: num_fine_dofs_on_coarse_dof
   integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
   
-  
   par_environment => par_fe_space%get_par_environment()
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
-  
-  ! To-think where field_id should come from? Temporarily let us assume that we have
-  ! a single-field PDE problem
-  field_id = 1
-  
-  ! Free any dynamic memory that constraint_matrix may have inside
-  call constraint_matrix%free()
-   
-  num_cols = par_fe_space%number_dofs_per_field(field_id)
-  num_rows = par_fe_space%ptr_coarse_dofs_per_field(field_id+1)- &
-             par_fe_space%ptr_coarse_dofs_per_field(field_id)    
- 
-  ! Create constraint matrix (transposed)
-  call constraint_matrix%create ( num_cols, num_rows )
-   
+     
   ! Fill constraint matrix entries (transposed)
   call par_fe_space%create_fe_object_iterator(object)
   call par_fe_space%create_fe_iterator(fe)
@@ -200,38 +186,25 @@ subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_lis
      end if
      call object%next()
   end do
-  call constraint_matrix%sort_and_compress()
   call par_fe_space%free_fe_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_vef_iterator(vef)
+
 end subroutine standard_l1_setup_constraint_matrix
 
-subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
+subroutine standard_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
   implicit none
   class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
-  integer(ip)                            :: field_id
   type(fe_object_iterator_t)             :: object
   type(fe_vef_iterator_t)                :: vef
   class(fe_iterator_t), allocatable      :: fe
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
   integer(ip), pointer                   :: elem2dof(:)
   integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid
-  
-  if (allocated(weighting_operator) ) then
-    call memfree ( weighting_operator, __FILE__, __LINE__ )
-  end if
-  
-  ! To-think where field_id should come from? Temporarily let us assume that we have
-  ! a single-field PDE problem
-  field_id = 1
-  
-  call memalloc ( par_fe_space%number_dofs_per_field(field_id), &
-                  weighting_operator, __FILE__, __LINE__ )
-  
-  weighting_operator = 1.0_rp
   
   ! Fill constraint matrix entries (transposed)
   call par_fe_space%create_fe_iterator(fe)

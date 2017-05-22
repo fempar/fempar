@@ -49,7 +49,8 @@ module par_test_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     type(standard_l1_coarse_fe_handler_t)       :: coarse_fe_handler
+     type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -87,6 +88,7 @@ module par_test_poisson_driver_names
      procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
+     procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
@@ -207,6 +209,15 @@ end subroutine free_timers
       call this%triangulation%free_cell_iterator(cell)
     end if  
   end subroutine setup_reference_fes
+  
+  subroutine setup_coarse_fe_handlers(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), target, intent(inout) :: this
+    integer(ip) :: istat
+    allocate(this%coarse_fe_handlers(1), stat=istat)
+    check(istat==0)
+    this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
+  end subroutine setup_coarse_fe_handlers
 
   subroutine setup_fe_space(this)
     implicit none
@@ -215,7 +226,7 @@ end subroutine free_timers
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%poisson_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handler   = this%l1_coarse_fe_handler)
+                               coarse_fe_handlers  = this%coarse_fe_handlers)
     
     call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
@@ -412,6 +423,7 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(in) :: this
     type(output_handler_t)                          :: oh
     if(this%test_params%get_write_solution()) then
+       if ( this%par_environment%am_i_l1_task() ) then
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
@@ -419,6 +431,7 @@ end subroutine free_timers
         call oh%write()
         call oh%close()
         call oh%free()
+       endif
     endif
   end subroutine write_solution
   
@@ -432,6 +445,7 @@ end subroutine free_timers
 
     call this%timer_fe_space%start()
     call this%setup_reference_fes()
+    call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
     call this%timer_fe_space%stop()
 
