@@ -365,6 +365,11 @@ module base_static_triangulation_names
      procedure                           :: create_edge_iterator             => bst_create_edge_iterator
      procedure                           :: create_face_iterator             => bst_create_face_iterator
      procedure                           :: free_vef_iterator                => bst_free_vef_iterator
+     procedure                           :: free_itfc_vef_iterator           => bst_free_itfc_vef_iterator
+     procedure                           :: free_vertex_iterator             => bst_free_vertex_iterator
+     procedure                           :: free_edge_iterator               => bst_free_edge_iterator
+     procedure                           :: free_face_iterator               => bst_free_face_iterator
+     
      
      ! Objects-related traversals
      procedure, non_overridable          :: create_object_iterator              => bst_create_object_iterator

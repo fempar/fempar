@@ -746,7 +746,7 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
   class(base_static_triangulation_t), intent(inout) :: this
   integer(ip)           :: ivef,icell
   class(cell_iterator_t), allocatable :: cell
-  type(vef_iterator_t)  :: vef
+  class(vef_iterator_t), allocatable  :: vef
   logical               :: vef_is_local, vef_is_ghost
 
   assert ( this%num_vefs >= 0 )
@@ -792,7 +792,6 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
      call vef%next()
   end do
   call this%free_vef_iterator(vef)
-  
 end subroutine bst_find_and_list_vefs_at_interfaces
 
 subroutine bst_free_lst_itfc_vefs( this )
@@ -847,7 +846,7 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
     end if
     call face%next()
   end do
-  call this%free_vef_iterator(face)
+  call this%free_face_iterator(face)
   call this%free_cell_iterator(first_cell)
   call this%free_cell_iterator(second_cell)
 end subroutine bst_allocate_and_fill_face_orientation_rotation
@@ -945,7 +944,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
-    call this%free_vef_iterator(itfc_vef)
+    call this%free_itfc_vef_iterator(itfc_vef)
     call this%free_cell_iterator(cell)
   end subroutine bst_compute_parts_itfc_vefs
   
@@ -1047,7 +1046,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_subparts, __FILE__, __LINE__ )
-    call this%free_vef_iterator(itfc_vef)
+    call this%free_itfc_vef_iterator(itfc_vef)
     call this%free_cell_iterator(cell)
   end subroutine bst_compute_subparts_itfc_vefs
   
@@ -1260,7 +1259,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none
     class(base_static_triangulation_t), intent(inout) :: this
     integer(ip) :: iobj
-    type(vef_iterator_t)  :: vef
+    class(vef_iterator_t), allocatable  :: vef
     type(list_iterator_t) :: vefs_object_iterator, faces_object_iterator   
     
     call this%faces_object%create(n=this%number_objects)
@@ -1301,7 +1300,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     class(base_static_triangulation_t), intent(inout) :: this
     integer(ip)                                  :: iobj, vef_lid
     type(list_iterator_t)                        :: vefs_object_iterator
-    type(vef_iterator_t) :: vef
+    class(vef_iterator_t), allocatable  :: vef
     
     call memalloc ( this%number_objects, this%objects_dimension, __FILE__, __LINE__ )
     call this%create_vef_iterator(vef)
@@ -2004,8 +2003,10 @@ end subroutine bst_free_cell_iterator
 subroutine bst_create_vef_iterator ( this, vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
-  type(vef_iterator_t)               , intent(inout) :: vef
+  class(vef_iterator_t), allocatable , intent(inout) :: vef
+  integer(ip) :: istat
   call this%free_vef_iterator(vef)
+  allocate(vef_iterator_t :: vef, stat=istat); check(istat==0)
   call vef%create(this)
 end subroutine bst_create_vef_iterator
 
@@ -2013,23 +2014,25 @@ subroutine bst_create_itfc_vef_iterator ( this, itfc_vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
   type(itfc_vef_iterator_t)          , intent(inout) :: itfc_vef
-  call this%free_vef_iterator(itfc_vef)
+  call this%free_itfc_vef_iterator(itfc_vef)
   call itfc_vef%create(this)
 end subroutine bst_create_itfc_vef_iterator
 
 subroutine bst_create_vertex_iterator ( this, vertex )
   implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(vertex_iterator_t)          , intent(inout) :: vertex
-  call this%free_vef_iterator(vertex)
+  class(base_static_triangulation_t)   , intent(in)    :: this
+  type(vertex_iterator_t), intent(inout) :: vertex
+  integer(ip) :: istat
+  call this%free_vertex_iterator(vertex)
   call vertex%create(this)
 end subroutine bst_create_vertex_iterator
 
 subroutine bst_create_edge_iterator ( this, edge )
   implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(edge_iterator_t)          , intent(inout) :: edge
-  call this%free_vef_iterator(edge)
+  class(base_static_triangulation_t)  , intent(in)    :: this
+  type(edge_iterator_t), intent(inout) :: edge
+  integer(ip) :: istat
+  call this%free_edge_iterator(edge)
   call edge%create(this)
 end subroutine bst_create_edge_iterator
 
@@ -2037,16 +2040,51 @@ subroutine bst_create_face_iterator ( this, face )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
   type(face_iterator_t)          , intent(inout) :: face
-  call this%free_vef_iterator(face)
+  call this%free_face_iterator(face)
   call face%create(this)
 end subroutine bst_create_face_iterator
 
 subroutine bst_free_vef_iterator ( this, vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
-  class(vef_iterator_t)              , intent(inout) :: vef
-  call vef%free()
+  class(vef_iterator_t), allocatable , intent(inout) :: vef
+  integer(ip) :: istat
+  if ( allocated(vef) ) then
+    call vef%free()
+    deallocate(vef, stat=istat); check(istat==0)
+  end if
 end subroutine bst_free_vef_iterator
+
+subroutine bst_free_vertex_iterator ( this, vertex )
+  implicit none
+  class(base_static_triangulation_t)   , intent(in)    :: this
+  type(vertex_iterator_t), intent(inout) :: vertex
+  integer(ip) :: istat
+  call vertex%free()
+end subroutine bst_free_vertex_iterator
+
+subroutine bst_free_itfc_vef_iterator ( this, itfc_vef )
+  implicit none
+  class(base_static_triangulation_t)   , intent(in)    :: this
+  type(itfc_vef_iterator_t), intent(inout) :: itfc_vef 
+  integer(ip) :: istat
+  call itfc_vef%free()
+end subroutine bst_free_itfc_vef_iterator
+
+subroutine bst_free_edge_iterator ( this, edge )
+  implicit none
+  class(base_static_triangulation_t)  , intent(in)    :: this
+  type(edge_iterator_t), intent(inout) :: edge
+  integer(ip) :: istat
+  call edge%free()
+end subroutine bst_free_edge_iterator
+
+subroutine bst_free_face_iterator ( this, face )
+  implicit none
+  class(base_static_triangulation_t) , intent(in)    :: this
+  type(face_iterator_t)          , intent(inout) :: face
+  call face%free()
+end subroutine bst_free_face_iterator
 
 subroutine bst_create_object_iterator(this, object)
   implicit none
@@ -2071,8 +2109,8 @@ end subroutine bst_free_object_iterator
 subroutine bst_print ( this )
    class(base_static_triangulation_t), intent(in) :: this
    integer(ip) :: ivef,inode
-   type(vef_iterator_t)  :: vef
-   class(cell_iterator_t), allocatable       :: cell
+   class(vef_iterator_t), allocatable  :: vef
+   class(cell_iterator_t), allocatable :: cell
    type(point_t), allocatable :: cell_coordinates(:)
    integer(ip) :: vef_lid
 

@@ -317,7 +317,7 @@ end function p4est_cell_iterator_get_vef_lid
 !  implicit none
 !  class(p4est_cell_iterator_t), intent(in)    :: this
 !  integer(ip),            intent(in)    :: ivef
-!  type(vef_iterator_t),   intent(inout) :: vef
+!  class(vef_iterator_t),   intent(inout) :: vef
 !  assert ( this%lid >= 1 .and. .not. this%has_finished() )
 !  call vef%set_lid(this%get_vef_lid(ivef))
 !end subroutine p4est_cell_iterator_get_vef

@@ -157,7 +157,8 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
   integer(ip)                  , intent(in)    :: lst_vefs_dimension(*)
   integer(ip)                                       :: icell, ivef, vef_lid, current
   class(cell_iterator_t), allocatable       :: cell
-  type(vef_iterator_t)  :: vef
+  class(vef_iterator_t), allocatable  :: vef
+
   
   assert ( this%num_vefs >= 0 )
   call this%free_vefs_type()
@@ -184,7 +185,7 @@ end subroutine coarse_triangulation_allocate_and_fill_vefs_dimension
 subroutine coarse_triangulation_print ( this )
    class(coarse_triangulation_t), intent(in) :: this
    integer(ip) :: ivef,inode
-   type(vef_iterator_t)  :: vef
+   class(vef_iterator_t), allocatable  :: vef
    class(cell_iterator_t), allocatable :: cell
    type(point_t), allocatable :: cell_coordinates(:)
    integer(ip) :: vef_lid

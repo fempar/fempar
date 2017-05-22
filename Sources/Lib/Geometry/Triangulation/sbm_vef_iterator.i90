@@ -284,7 +284,7 @@ subroutine face_iterator_create (this, base_static_triangulation )
   class(face_iterator_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
   call this%free()
-  call base_static_triangulation%create_vef_iterator(this%vef_iterator_t)
+  call this%vef_iterator_t%create(base_static_triangulation)
   call this%first()
   call this%base_static_triangulation%create_cell_iterator(this%cell)
 end subroutine face_iterator_create
@@ -294,7 +294,7 @@ subroutine face_iterator_free (this)
   class(face_iterator_t), intent(inout) :: this
   if ( associated(this%base_static_triangulation) ) then
     call this%base_static_triangulation%free_cell_iterator(this%cell)
-    call this%base_static_triangulation%free_vef_iterator(this%vef_iterator_t)
+    call this%vef_iterator_t%free()
   end if
 end subroutine face_iterator_free
 

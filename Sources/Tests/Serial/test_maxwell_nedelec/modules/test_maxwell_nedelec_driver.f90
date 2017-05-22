@@ -105,7 +105,7 @@ contains
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(vef_iterator_t)  :: vef
+    class(vef_iterator_t), allocatable  :: vef
 
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)

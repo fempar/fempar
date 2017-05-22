@@ -163,7 +163,7 @@ subroutine object_iterator_get_vef(this, ivef, vef)
   implicit none
   class(object_iterator_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: ivef
-  type(vef_iterator_t)    , intent(inout) :: vef
+  class(vef_iterator_t)   , intent(inout) :: vef
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
   assert ( ivef >= 1 .and. ivef <= this%get_num_vefs() )
   call vef%set_lid(this%vefs_object_iterator%get_from_current(ivef-1))
