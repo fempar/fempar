@@ -179,7 +179,7 @@ module reference_fe_names
      procedure, non_overridable :: get_normal                        => fe_map_get_normal
      procedure, non_overridable :: get_tangent                       => fe_map_get_tangent
      procedure, non_overridable :: get_jacobian_normalized_column    => fe_map_get_jacobian_normalized_column
-     procedure, non_overridable :: is_det_jacobian_positive          => fe_map_is_det_jacobian_possitive
+     procedure, non_overridable :: is_det_jacobian_positive          => fe_map_is_det_jacobian_positive
   end type fe_map_t
 
   type p_fe_map_t

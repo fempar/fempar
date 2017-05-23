@@ -326,14 +326,7 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   end if
 
   this%current_qpoints_perm_cols = 1
-  ! @sbadia: order+2 only works for topology_hex. When the work for high order TETS with face 
-  ! integration will be performed, it has to be corrected. @jbonilla: this still works for
-  ! tetrahedra since we are using oriented meshes an no permutation is required. 
-  ! For symmetric quadrature points for TETs with no mesh reordering this has to be corrected.
-  ! (For hex topology + lagrangian FE) the number of quadrature points within a face corresponds 
-  ! to the number of interior nodes in a face for a reference FE with order+2 (instead of order+1)
   
-  ! assert ( left_reference_fe%topology == topology_hex )
   call left_reference_fe%fill_qpoints_permutations( quadrature%number_dimensions, &
                                                     this%qpoints_perm )
 end subroutine face_integrator_create

@@ -674,12 +674,12 @@ subroutine fe_map_get_jacobian_normalized_column ( this, column_id, qpoint, norm
   normalized_column = normalized_column * (1.0_rp/normalized_column%nrm2())
 end subroutine fe_map_get_jacobian_normalized_column
 
-function fe_map_is_det_jacobian_possitive ( this )
+function fe_map_is_det_jacobian_positive ( this )
   implicit none
   class(fe_map_t)     , intent(in)    :: this
-  logical  ::  fe_map_is_det_jacobian_possitive
-  fe_map_is_det_jacobian_possitive = this%det_jacobian_positiveness
-end function fe_map_is_det_jacobian_possitive
+  logical  ::  fe_map_is_det_jacobian_positive
+  fe_map_is_det_jacobian_positive = this%det_jacobian_positiveness
+end function fe_map_is_det_jacobian_positive
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures
