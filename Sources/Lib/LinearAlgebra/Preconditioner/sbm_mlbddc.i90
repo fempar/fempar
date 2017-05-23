@@ -25,17 +25,17 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine mlbddc_create ( this, fe_affine_operator, parameter_list )
+subroutine mlbddc_create ( this, fe_affine_operator, mlbddc_params )
   implicit none
   class(mlbddc_t)                   , intent(inout) :: this
   type(fe_affine_operator_t), target, intent(in)    :: fe_affine_operator
-  type(parameterlist_t)    , target , intent(in)    :: parameter_list
+  type(parameterlist_t)    , target , intent(in)    :: mlbddc_params
   type(par_fe_space_t), pointer :: fe_space
 
   call this%free()
 
   this%fe_affine_operator => fe_affine_operator
-  this%parameter_list     => parameter_list
+  this%mlbddc_params      => mlbddc_params
   fe_space                => this%get_par_fe_space()
   call this%create_vector_spaces()
 
@@ -67,7 +67,7 @@ subroutine mlbddc_setup_constraint_matrix (this)
   par_fe_space      => this%get_par_fe_space()
   coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
   call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = par_fe_space, &
-                                                 parameter_list    = this%parameter_list, &
+                                                 parameter_list    = this%mlbddc_params, &
                                                  constraint_matrix = this%constraint_matrix)
 end subroutine mlbddc_setup_constraint_matrix
   
@@ -80,7 +80,7 @@ subroutine mlbddc_setup_weighting_operator (this)
  par_fe_space      => this%get_par_fe_space()
  coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
  call coarse_fe_handler%setup_weighting_operator(par_fe_space       = par_fe_space, &
-                                                 parameter_list     = this%parameter_list, &
+                                                 parameter_list     = this%mlbddc_params, &
                                                  weighting_operator = this%W )
 end subroutine mlbddc_setup_weighting_operator
 

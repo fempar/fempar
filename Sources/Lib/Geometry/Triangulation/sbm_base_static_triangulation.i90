@@ -1230,7 +1230,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     this%number_objects = 0
     do while ( ivef_itfc <= this%num_itfc_vefs ) 
       if ( ivef_itfc < this%num_itfc_vefs ) then
-        do while (icomp(num_rows_parts_itfc_vefs,parts_itfc_vefs(:,ivef_itfc),parts_itfc_vefs(:,ivef_itfc+1)) == 0)
+        do while (all(parts_itfc_vefs(:,ivef_itfc)==parts_itfc_vefs(:,ivef_itfc+1)))
           ivef_itfc = ivef_itfc + 1
           if ( ivef_itfc == this%num_itfc_vefs  ) exit
         end do
@@ -1247,7 +1247,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     do while ( ivef_itfc <= this%num_itfc_vefs ) 
       init_vef = ivef_itfc
       if ( ivef_itfc < this%num_itfc_vefs ) then
-        do while (icomp(num_rows_parts_itfc_vefs,parts_itfc_vefs(:,ivef_itfc),parts_itfc_vefs(:,ivef_itfc+1)) == 0)
+        do while (all(parts_itfc_vefs(:,ivef_itfc)==parts_itfc_vefs(:,ivef_itfc+1)))
           ivef_itfc = ivef_itfc + 1
           if ( ivef_itfc == this%num_itfc_vefs  ) exit
         end do

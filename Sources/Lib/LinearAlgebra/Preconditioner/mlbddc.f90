@@ -68,6 +68,10 @@ module mlbddc_names
 # include "debug.i90"
  private
 
+ character(len=*), parameter :: mlbddc_dirichlet_solver_params = "mlbddc_dirichlet_solver_params"
+ character(len=*), parameter :: mlbddc_neumann_solver_params   = "mlbddc_neumann_solver_params"
+ character(len=*), parameter :: mlbddc_coarse_solver_params    = "mlbddc_coarse_solver_params"
+
  type, abstract, extends(operator_t) :: base_mlbddc_t
    private
 
@@ -106,8 +110,20 @@ module mlbddc_names
    
    ! Next level in the preconditioning hierarchy. It will be a nullified pointer on 
    ! L1 tasks, and associated via target allocation in the case of L2-Ln tasks.
-   type(mlbddc_coarse_t)         , pointer     :: mlbddc_coarse   => NULL() 
+   type(mlbddc_coarse_t)         , pointer     :: mlbddc_coarse   => NULL()
+
+   ! Pointer to parameter_list_t to be re-directed e.g. to TBPs of type(coarse_fe_handler_t).
+   ! This pointer is set-up during mlbddc_t%create() and re-used in the rest of stages.
+   ! Therefore, type(parameter_list_t) to which type(mlbddc_t) points to MUST NOT BE
+   ! freed before type(mlbddc_t). It must contain at least three (key,value) pairs, with each 
+   ! value being in turn a (sub) parameter list
+   type(parameterlist_t)         , pointer     :: mlbddc_params   => NULL()
  contains
+   ! Parameter treatment-related TBPs
+   procedure, non_overridable, private :: assert_dirichlet_solver_params                   => base_mlbddc_assert_dirichlet_solver_params 
+   procedure, non_overridable, private :: assert_neumann_solver_params                     => base_mlbddc_assert_neumann_solver_params 
+   procedure, non_overridable, private :: assert_coarse_solver_params                      => base_mlbddc_assert_coarse_solver_params 
+
    ! Symbolic setup-related TBPs
    procedure, non_overridable          :: symbolic_setup                                   => base_mlbddc_symbolic_setup
    procedure,                  private :: setup_constraint_matrix                          => base_mlbddc_setup_constraint_matrix
@@ -185,8 +201,8 @@ module mlbddc_names
    procedure, private                  :: get_par_sparse_matrix                            => base_mlbddc_get_par_sparse_matrix
    procedure, private                  :: get_fe_space                                     => base_mlbddc_get_fe_space
    procedure, private                  :: get_par_environment                              => base_mlbddc_get_par_environment
-   procedure                 , private :: is_operator_associated                           => base_mlbddc_is_operator_associated
-   procedure                 , private :: nullify_operator                                 => base_mlbddc_nullify_operator
+   procedure, private                  :: is_operator_associated                           => base_mlbddc_is_operator_associated
+   procedure, private                  :: nullify_operator                                 => base_mlbddc_nullify_operator
 end type base_mlbddc_t
  
  type, extends(base_mlbddc_t) :: mlbddc_t
@@ -244,6 +260,7 @@ end type base_mlbddc_t
  end type mlbddc_coarse_t
  
  public :: mlbddc_t
+ public :: mlbddc_dirichlet_solver_params, mlbddc_neumann_solver_params, mlbddc_coarse_solver_params
 
 contains
 

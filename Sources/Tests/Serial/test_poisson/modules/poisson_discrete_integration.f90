@@ -73,7 +73,7 @@ contains
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs
+    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     real(rp)     :: factor
     real(rp)     :: source_term_value
 
@@ -94,24 +94,24 @@ contains
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
-        
-    call fe_space%initialize_fe_integration()
-    call fe_space%create_fe_iterator(fe)
-   
-    num_dofs = fe%get_number_dofs()
-    call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
-    call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
+    
+    max_num_dofs = fe_space%get_max_number_dofs_on_a_cell()
+    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
+    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
     call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
-    fe_map          => fe%get_fe_map()
-    vol_int         => fe%get_volume_integrator(1)
-
+    call fe_space%create_fe_iterator(fe)
     do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
        call fe%update_integration()
+          
+       ! Very important: this has to be inside the loop, as different FEs can be present!
+       quad            => fe%get_quadrature()
+       num_quad_points = quad%get_number_quadrature_points()
+       fe_map          => fe%get_fe_map()
+       vol_int         => fe%get_volume_integrator(1)
+       num_dofs = fe%get_number_dofs()
+       call fe%get_number_dofs_per_field(num_dofs_per_field)
        
        ! Get DoF numbering within current FE
        call fe%get_elem2dof(elem2dof)

@@ -62,52 +62,64 @@ contains
 
     subroutine wsmp_direct_solver_initialize(this)
         class(wsmp_direct_solver_t),   intent(inout) :: this
+        check(.false.)
     end subroutine wsmp_direct_solver_initialize
 
     subroutine wsmp_direct_solver_set_defaults(this)
         class(wsmp_direct_solver_t),   intent(inout) :: this
+        check(.false.)
     end subroutine wsmp_direct_solver_set_defaults
 
     subroutine wsmp_direct_solver_set_parameters_from_pl(this, parameter_list)
         class(wsmp_direct_solver_t),  intent(inout) :: this
         type(ParameterList_t),        intent(in)    :: parameter_list
+        check(.false.)
     end subroutine wsmp_direct_solver_set_parameters_from_pl
 
-    subroutine wsmp_direct_solver_symbolic_setup_body(this)
+    function wsmp_direct_solver_symbolic_setup_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
-    end subroutine wsmp_direct_solver_symbolic_setup_body
+        logical :: wsmp_direct_solver_symbolic_setup_body
+        check(.false.)
+    end function wsmp_direct_solver_symbolic_setup_body
 
     subroutine wsmp_direct_solver_numerical_setup_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
+        check(.false.)
     end subroutine wsmp_direct_solver_numerical_setup_body
 
     function wsmp_direct_solver_is_linear(this) result(is_linear)
         class(wsmp_direct_solver_t), intent(inout) :: this
         logical                                            :: is_linear
+        check(.false.)
     end function wsmp_direct_solver_is_linear
 
     subroutine wsmp_direct_solver_solve_single_rhs_body(op, x, y)
         class(wsmp_direct_solver_t),  intent(inout) :: op
         type(serial_scalar_array_t),  intent(in)    :: x
         type(serial_scalar_array_t),  intent(inout) :: y
+        check(.false.)
     end subroutine wsmp_direct_solver_solve_single_rhs_body
 
     subroutine wsmp_direct_solver_solve_several_rhs_body(op, x, y)
         class(wsmp_direct_solver_t), intent(inout) :: op
         real(rp),                    intent(inout) :: x(:, :)
         real(rp),                    intent(inout) :: y(:, :)
+        check(.false.)
     end subroutine wsmp_direct_solver_solve_several_rhs_body
 
     subroutine wsmp_direct_solver_free_clean_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
+        check(.false.)
     end subroutine wsmp_direct_solver_free_clean_body
 
     subroutine wsmp_direct_solver_free_symbolic_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
+        check(.false.)
     end subroutine wsmp_direct_solver_free_symbolic_body
 
     subroutine wsmp_direct_solver_free_numerical_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
+        check(.false.)
     end subroutine wsmp_direct_solver_free_numerical_body
 
 end module wsmp_direct_solver_names

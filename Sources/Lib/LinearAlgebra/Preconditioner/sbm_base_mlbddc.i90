@@ -25,6 +25,31 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine base_mlbddc_assert_dirichlet_solver_params ( this )
+  implicit none
+  class(base_mlbddc_t), intent(in) :: this
+  assert ( associated(this%mlbddc_params) )
+  assert ( this%mlbddc_params%isPresent(Key=mlbddc_dirichlet_solver_params) ) 
+  assert ( this%mlbddc_params%isSubList(Key=mlbddc_dirichlet_solver_params) ) 
+end subroutine base_mlbddc_assert_dirichlet_solver_params 
+
+subroutine base_mlbddc_assert_neumann_solver_params ( this )
+  implicit none
+  class(base_mlbddc_t), intent(in) :: this
+  assert ( associated(this%mlbddc_params) )
+  assert ( this%mlbddc_params%isPresent(Key=mlbddc_neumann_solver_params) ) 
+  assert ( this%mlbddc_params%isSubList(Key=mlbddc_neumann_solver_params) ) 
+end subroutine base_mlbddc_assert_neumann_solver_params 
+
+subroutine base_mlbddc_assert_coarse_solver_params ( this )
+  implicit none
+  class(base_mlbddc_t), intent(in) :: this
+  assert ( associated(this%mlbddc_params) )
+  assert ( this%mlbddc_params%isPresent(Key=mlbddc_coarse_solver_params) ) 
+  assert ( this%mlbddc_params%isSubList(Key=mlbddc_coarse_solver_params) ) 
+end subroutine base_mlbddc_assert_coarse_solver_params 
+
 recursive subroutine base_mlbddc_symbolic_setup ( this )
   implicit none
   class(base_mlbddc_t), intent(inout) :: this
@@ -92,11 +117,21 @@ subroutine base_mlbddc_symbolic_setup_dirichlet_problem ( this)
   end if
 end subroutine base_mlbddc_symbolic_setup_dirichlet_problem
 
-subroutine base_mlbddc_symbolic_setup_dirichlet_solver ( this) 
+subroutine base_mlbddc_symbolic_setup_dirichlet_solver (this) 
   implicit none
   class(base_mlbddc_t), intent(inout) :: this
+  type(ParameterList_t), pointer :: dirichlet_solver_params 
+  integer(ip) :: ierror
+
   assert ( this%am_i_l1_task() )
-  call this%dirichlet_solver%set_type(name   = pardiso_mkl)
+  call this%assert_dirichlet_solver_params()
+
+  ierror = this%mlbddc_params%getSubList(Key=mlbddc_dirichlet_solver_params, & 
+                                         SubList=dirichlet_solver_params) 
+  assert(ierror==0)
+
+  call this%dirichlet_solver%set_type_from_pl(dirichlet_solver_params)
+  call this%dirichlet_solver%set_parameters_from_pl(dirichlet_solver_params)
   call this%dirichlet_solver%set_matrix(matrix = this%A_II)
   call this%dirichlet_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_dirichlet_solver
@@ -123,8 +158,18 @@ end subroutine base_mlbddc_symbolic_setup_constrained_neumann_problem
 subroutine base_mlbddc_symbolic_setup_constrained_neumann_solver(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
+  type(ParameterList_t), pointer :: neumann_solver_params 
+  integer(ip) :: ierror
+  
   assert ( this%am_i_l1_task() )
-  call this%constrained_neumann_solver%set_type(name   = pardiso_mkl)
+  call this%assert_neumann_solver_params()
+
+  ierror = this%mlbddc_params%getSubList(Key=mlbddc_neumann_solver_params, & 
+                                         SubList=neumann_solver_params) 
+  assert(ierror==0)
+
+  call this%constrained_neumann_solver%set_type_from_pl(neumann_solver_params)
+  call this%constrained_neumann_solver%set_parameters_from_pl(neumann_solver_params)
   call this%constrained_neumann_solver%set_matrix(matrix = this%constrained_neumann_matrix)
   call this%constrained_neumann_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_constrained_neumann_solver
@@ -211,7 +256,7 @@ subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
   
   call this%coarse_grid_matrix%convert(csr_format)
 end subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly
-
+ 
 subroutine base_mlbddc_symbolic_setup_mlbddc_coarse(this)
   implicit none
   class(base_mlbddc_t), intent(inout)     :: this
@@ -219,9 +264,16 @@ subroutine base_mlbddc_symbolic_setup_mlbddc_coarse(this)
   integer(ip)                        :: istat 
   class(base_fe_space_t)   , pointer   :: fe_space
   type(coarse_fe_space_t), pointer   :: coarse_fe_space
+  type(ParameterList_t), pointer :: coarse_solver_params 
+  integer(ip) :: ierror
 
   par_environment => this%get_par_environment()
   if ( par_environment%am_i_lgt1_task() ) then
+     call this%assert_coarse_solver_params()
+     ierror = this%mlbddc_params%getSubList(Key=mlbddc_coarse_solver_params, & 
+                                            SubList=coarse_solver_params) 
+     assert(ierror==0)
+
      fe_space    => this%get_fe_space()
      coarse_fe_space => fe_space%get_coarse_fe_space()
 
@@ -229,7 +281,8 @@ subroutine base_mlbddc_symbolic_setup_mlbddc_coarse(this)
      allocate  ( this%mlbddc_coarse, stat = istat )
      check( istat == 0 )
      call this%mlbddc_coarse%create(coarse_fe_space, &
-          this%coarse_grid_matrix)
+                                    this%coarse_grid_matrix, &
+                                    coarse_solver_params)
      call this%mlbddc_coarse%symbolic_setup()
   else
      ! L1 tasks do not hold any piece of the coarse triangulation
@@ -242,11 +295,14 @@ subroutine base_mlbddc_symbolic_setup_coarse_solver(this)
   class(base_mlbddc_t), intent(inout)     :: this
   type(environment_t)  , pointer :: par_environment
   type(par_sparse_matrix_t), pointer :: par_sparse_matrix
+  integer(ip) :: ierror
   par_environment => this%get_par_environment()
   assert ( par_environment%get_l1_size() == 1 )
   assert ( par_environment%am_i_l1_task() )
+
   par_sparse_matrix => this%get_par_sparse_matrix()
-  call this%coarse_solver%set_type(name   = pardiso_mkl)
+  call this%coarse_solver%set_type_from_pl(this%mlbddc_params)
+  call this%coarse_solver%set_parameters_from_pl(this%mlbddc_params)
   call this%coarse_solver%set_matrix(matrix = par_sparse_matrix%get_sparse_matrix())
   call this%coarse_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_coarse_solver
@@ -383,8 +439,10 @@ subroutine base_mlbddc_setup_coarse_grid_basis ( this )
      j = j + 1 
   end do
 
-  call this%constrained_neumann_solver%solve(work1, &
-       work2)
+  if (fe_space%get_block_number_coarse_dofs(1)>0) then
+    call this%constrained_neumann_solver%solve(work1, &
+         work2)
+  end if
 
   call this%allocate_coarse_grid_basis()
   this%Phi = work2 (1:fe_space%get_block_number_dofs(1),:) 
@@ -426,28 +484,32 @@ subroutine base_mlbddc_compute_subdomain_elmat ( this, subdomain_elmat )
        __LINE__ )
 
   work = 0.0_rp
-  call A%apply_to_dense_matrix ( n     = fe_space%get_block_number_coarse_dofs(1), &
-       alpha = 1.0_rp, &
-       ldb   = A%get_num_rows(), &
-       b     = this%Phi, &
-       beta  = 0.0_rp, &
-       ldc   = A%get_num_rows(), &
-       c     = work )        
+  if ( fe_space%get_block_number_coarse_dofs(1) > 0 ) then
+     call A%apply_to_dense_matrix ( n     = fe_space%get_block_number_coarse_dofs(1), &
+          alpha = 1.0_rp, &
+          ldb   = A%get_num_rows(), &
+          b     = this%Phi, &
+          beta  = 0.0_rp, &
+          ldc   = A%get_num_rows(), &
+          c     = work )  
+  end if
   subdomain_elmat = 0.0_rp
 #ifdef ENABLE_BLAS
-  call DGEMM( 'T', &
-       'N', &
-       fe_space%get_block_number_coarse_dofs(1), &
-       fe_space%get_block_number_coarse_dofs(1), &
-       A%get_num_rows(), &
-       1.0, &
-       this%Phi, &
-       A%get_num_rows() , &
-       work, &
-       A%get_num_rows(), &
-       0.0, &
-       subdomain_elmat, &
-       fe_space%get_block_number_coarse_dofs(1))
+  if ( fe_space%get_block_number_coarse_dofs(1) > 0 ) then
+     call DGEMM( 'T', &
+          'N', &
+          fe_space%get_block_number_coarse_dofs(1), &
+          fe_space%get_block_number_coarse_dofs(1), &
+          A%get_num_rows(), &
+          1.0, &
+          this%Phi, &
+          A%get_num_rows() , &
+          work, &
+          A%get_num_rows(), &
+          0.0, &
+          subdomain_elmat, &
+          fe_space%get_block_number_coarse_dofs(1))
+  end if
 #else
   write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
   write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
@@ -890,17 +952,19 @@ subroutine base_mlbddc_compute_coarse_dofs_values ( this, vector, coarse_dofs_va
 
   coarse_dofs_values = 0.0_rp
 #ifdef ENABLE_BLAS
-  call DGEMV(  'T', & 
-       serial_scalar_array%get_size(), &
-       fe_space%get_block_number_coarse_dofs(1), &
-       1.0_rp, &
-       this%Phi, &
-       serial_scalar_array%get_size(), &
-       serial_scalar_array%get_entries(), &
-       1, &
-       0.0_rp, & 
-       coarse_dofs_values, & 
-       1)
+  if (fe_space%get_block_number_coarse_dofs(1) .ne.0 ) then
+    call DGEMV(  'T', & 
+         serial_scalar_array%get_size(), &
+         fe_space%get_block_number_coarse_dofs(1), &
+         1.0_rp, &
+         this%Phi, &
+         serial_scalar_array%get_size(), &
+         serial_scalar_array%get_entries(), &
+         1, &
+         0.0_rp, & 
+         coarse_dofs_values, & 
+         1)
+  end if
 #else
   write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
   write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
@@ -1174,17 +1238,19 @@ subroutine base_mlbddc_interpolate_coarse_grid_correction (this, coarse_dofs_val
   serial_scalar_array_entries => serial_scalar_array%get_entries()
 
 #ifdef ENABLE_BLAS
-  call DGEMV(  'N', & 
-       serial_scalar_array%get_size(), &
-       fe_space%get_block_number_coarse_dofs(1), &
-       1.0_rp, &
-       this%Phi, &
-       serial_scalar_array%get_size(), &
-       coarse_dofs_values, &
-       1,    &
-       0.0_rp,  & 
-       serial_scalar_array_entries, & 
-       1)
+  if (fe_space%get_block_number_coarse_dofs(1) .ne. 0) then
+    call DGEMV(  'N', & 
+         serial_scalar_array%get_size(), &
+         fe_space%get_block_number_coarse_dofs(1), &
+         1.0_rp, &
+         this%Phi, &
+         serial_scalar_array%get_size(), &
+         coarse_dofs_values, &
+         1,    &
+         0.0_rp,  & 
+         serial_scalar_array_entries, & 
+         1)
+  end if
 #else
   write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
   write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
@@ -1243,10 +1309,7 @@ subroutine base_mlbddc_apply_A_IG(this, x_G, y_I)
      par_sparse_matrix => this%get_par_sparse_matrix()
      A => par_sparse_matrix%get_sparse_matrix()
      y_I_serial => y_I%get_serial_scalar_array()
-     if ( A%get_symmetric_storage() ) then
-        call this%A_IG%apply(x_G%get_serial_scalar_array(), &
-             y_I_serial)
-     end if
+     call this%A_IG%apply(x_G%get_serial_scalar_array(), y_I_serial)
   end if
 end subroutine base_mlbddc_apply_A_IG
 
@@ -1347,6 +1410,7 @@ subroutine base_mlbddc_free_clean(this)
   class(base_mlbddc_t)           , intent(inout) :: this
   call this%nullify_operator()
   call this%free_vector_spaces()
+  nullify(this%mlbddc_params)
 end subroutine base_mlbddc_free_clean
 
 recursive subroutine base_mlbddc_free_symbolic_setup(this)

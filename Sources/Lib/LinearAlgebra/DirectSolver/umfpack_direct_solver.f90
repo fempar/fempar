@@ -30,7 +30,6 @@ module umfpack_direct_solver_names
 
     USE types_names
     USE memor_names
-!    USE iso_c_binding
     USE sparse_matrix_names
     USE base_sparse_matrix_names
     USE csr_sparse_matrix_names
@@ -144,7 +143,7 @@ contains
     end subroutine umfpack_direct_solver_set_parameters_from_pl
 
 
-    subroutine umfpack_direct_solver_symbolic_setup_body(this)
+    function umfpack_direct_solver_symbolic_setup_body(this)
     !-----------------------------------------------------------------
     !< Pre-orders the columns of the matrix to reduce fill-in
     !< adn performs a symbolic analysis
@@ -152,14 +151,13 @@ contains
         class(umfpack_direct_solver_t), intent(inout) :: this
         class(base_sparse_matrix_t), pointer          :: matrix
         integer(ip)                                   :: status
+        logical                                       :: umfpack_direct_solver_symbolic_setup_body
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         ! Check pre-conditions
         assert ( .not. this%matrix%get_symmetric_storage() )
 
-!        print*, '(1) --> symbolic_setup'
         matrix => this%matrix%get_pointer_to_base_matrix()
-
         select type (matrix)
             type is (csr_sparse_matrix_t)
                 ! Fortran to C numbering 
@@ -186,11 +184,12 @@ contains
                 call this%set_mem_perm_symb( int((this%Info(UMFPACK_SYMBOLIC_SIZE)*this%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp) )
             class DEFAULT
                 check(.false.)
-        end select    
+        end select   
+        umfpack_direct_solver_symbolic_setup_body = .true. 
 #else
         call this%not_enabled_error
 #endif
-    end subroutine umfpack_direct_solver_symbolic_setup_body
+    end function umfpack_direct_solver_symbolic_setup_body
 
 
     subroutine umfpack_direct_solver_numerical_setup_body(this)
@@ -204,7 +203,6 @@ contains
         integer(ip)                                   :: status
 #ifdef ENABLE_UMFPACK
         assert ( .not. this%matrix%get_symmetric_storage() )
-!        print*, '(2) --> numerical_setup'
         matrix => this%matrix%get_pointer_to_base_matrix()
         select type (matrix)
             type is (csr_sparse_matrix_t)
@@ -257,7 +255,6 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
-!        print*, '(3) --> solve'
         matrix => op%matrix%get_pointer_to_base_matrix()
         select type (matrix)
             type is (csr_sparse_matrix_t)
@@ -309,7 +306,6 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
-!        print*, '(3) --> solve'
         matrix      => op%matrix%get_pointer_to_base_matrix()
         number_rows = size(x,1)
         number_rhs  = size(x,2)
@@ -357,7 +353,6 @@ contains
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-!        print*, '(4) --> free_clean'
 #else
         call this%not_enabled_error()
 #endif
@@ -371,7 +366,6 @@ contains
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-!        print*, '(5) --> free_symbolic'
         call umfpack_di_free_symbolic ( this%Symbolic )
 #else
         call this%not_enabled_error()
@@ -387,7 +381,6 @@ contains
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-!        print*, '(6) --> free_numeric'
         call umfpack_di_free_numeric ( this%Numeric )
 #else
         call this%not_enabled_error()

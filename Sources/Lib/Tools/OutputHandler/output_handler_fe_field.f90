@@ -138,6 +138,7 @@ private
     private
         procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_1D_value_value_is_allocated
         procedure, non_overridable, public :: create                => output_handler_fe_field_1D_value_create
+        procedure, non_overridable, public :: init                  => output_handler_fe_field_1D_value_init
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_1D_value_get_value
         procedure, non_overridable, public :: get_number_components => output_handler_fe_field_1D_value_get_number_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_1D_value_free
@@ -160,6 +161,7 @@ private
     private
         procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_2D_value_value_is_allocated
         procedure, non_overridable, public :: create                => output_handler_fe_field_2D_value_create
+        procedure, non_overridable, public :: init                  => output_handler_fe_field_2D_value_init
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_2D_value_get_value
         procedure, non_overridable, public :: get_number_components => output_handler_fe_field_2D_value_get_number_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_2D_value_free
@@ -446,6 +448,16 @@ contains
         call memalloc(number_components*number_nodes, this%value, __FILE__, __LINE__)
         this%number_components = number_components
     end subroutine output_handler_fe_field_1D_value_create
+    
+    subroutine output_handler_fe_field_1D_value_init(this, value) 
+    !-----------------------------------------------------------------
+    !< Init field to value given on input
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_1D_value_t), intent(inout) :: this
+        real(rp)                                 , intent(in)    :: value
+    !-----------------------------------------------------------------
+        this%value = value
+    end subroutine output_handler_fe_field_1D_value_init
 
 
     function output_handler_fe_field_1D_value_get_value(this) result(value)
@@ -510,6 +522,16 @@ contains
         call memalloc(number_components, number_nodes, this%value, __FILE__, __LINE__)
         this%number_components = number_components
     end subroutine output_handler_fe_field_2D_value_create
+    
+    subroutine output_handler_fe_field_2D_value_init(this, value) 
+    !-----------------------------------------------------------------
+    !< Init field to value given on input
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_2D_value_t), intent(inout) :: this
+        real(rp)                                 , intent(in)    :: value
+    !-----------------------------------------------------------------
+        this%value = value
+    end subroutine output_handler_fe_field_2D_value_init
 
 
     function output_handler_fe_field_2D_value_get_value(this) result(value)

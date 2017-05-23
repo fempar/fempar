@@ -241,13 +241,17 @@ subroutine fe_map_update( this, quadrature)
   end do
   ! When using oriented tetrahedral meshes |J| may become negative, absolute value should be used
   ! to ensure positiveness
-  if (this%det_jacobian(1)<0.0_rp) then
-     this%det_jacobian_positiveness = .false.
-     this%det_jacobian = abs(this%det_jacobian)
-  else
-     this%det_jacobian_positiveness = .true.
+  if (nlocs > 0) then
+     if (this%det_jacobian(1)<0.0_rp) then
+        this%det_jacobian_positiveness = .false.
+        this%det_jacobian = abs(this%det_jacobian)
+     else
+        this%det_jacobian_positiveness = .true.
+     end if
+  else 
+     this%det_jacobian_positiveness = .true.  
   end if
-
+  
   ! Evaluation (Gauss) point coordinates
   call this%compute_quadrature_coordinates()
 
@@ -937,7 +941,6 @@ subroutine volume_integrator_evaluate_fe_function_scalar ( this, nodal_values, q
   class(volume_integrator_t), intent(in)    :: this
   real(rp)                  , intent(in)    :: nodal_values(:)
   real(rp), allocatable     , intent(inout) :: quadrature_points_values(:)
-
   call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_scalar
 
@@ -946,7 +949,6 @@ subroutine volume_integrator_evaluate_fe_function_vector ( this, nodal_values, q
   class(volume_integrator_t)       , intent(in)    :: this
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-
   call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_vector
 
@@ -955,7 +957,6 @@ subroutine volume_integrator_evaluate_fe_function_tensor ( this, nodal_values, q
   class(volume_integrator_t)       , intent(in)    :: this
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-
   call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_tensor
 
@@ -964,7 +965,6 @@ subroutine volume_integrator_evaluate_gradient_fe_function_scalar ( this, nodal_
   class(volume_integrator_t)       , intent(in)    :: this
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-
   call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_gradient_fe_function_scalar
 
@@ -973,7 +973,6 @@ subroutine volume_integrator_evaluate_gradient_fe_function_vector ( this, nodal_
   class(volume_integrator_t)       , intent(in)    :: this
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-
   call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_gradient_fe_function_vector
 
