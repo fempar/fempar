@@ -38,7 +38,6 @@ module mesh_names
   use postpro_names
   use FPL
   use environment_names
-  use sort_names
 
   implicit none
 # include "debug.i90"
@@ -309,7 +308,6 @@ contains
     integer(ip), allocatable :: bound_list_aux(:)
     type(list_iterator_t)    :: bound_iterator
     integer(ip), pointer     :: permu(:)
-    integer(ip), target      :: permu_oriented_tet(4)
     logical                  :: permute_c2z_
 
     ! Read first line: "MESH dimension  2  order  0  types  1  elements          1  vertices          4  vefs          8
@@ -421,7 +419,7 @@ contains
                 permu => permu_2DQ1
              end if
           elseif(msh%ndime == 3) then
-             if(nnode == 4) then     ! Linear tetrahedra (3DP1)           
+             if(nnode == 4) then     ! Linear tetrahedra (3DP1)
                 permu => permu_3DP1
              elseif(nnode == 8) then ! Linear hexahedra (3DQ1)
                 permu => permu_3DQ1

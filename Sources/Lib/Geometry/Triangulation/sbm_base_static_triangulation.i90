@@ -251,19 +251,33 @@ subroutine bst_free_cells_set (this)
   if (allocated (this%cells_set)) call memfree ( this%cells_set, __FILE__, __LINE__ )
 end subroutine bst_free_cells_set
 
-subroutine bst_orient_tet_mesh(this)
+subroutine bst_orient_tet_mesh(this,lst_vefs_gids_ghost_extended)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
-  integer(ip) :: icell, spos, epos, nnode, lids(4)  
+  integer(igp)            , optional, intent(in)    :: lst_vefs_gids_ghost_extended(:)
+  integer(ip)  :: icell, spos, epos, nnode, i
+  integer(igp), allocatable :: gids(:)
+  integer(ip) , allocatable :: perm(:)
   
-  do icell = 1, this%num_local_cells
+  nnode = this%ptr_vefs_per_cell(2) - this%ptr_vefs_per_cell(1)
+  call memalloc(nnode, gids,__FILE__,__LINE__)
+  call memalloc(nnode, perm,__FILE__,__LINE__)
+  
+  do icell = 1, this%num_local_cells + this%num_ghost_cells
      spos = this%ptr_vefs_per_cell(icell)
      epos = this%ptr_vefs_per_cell(icell+1)-1
-     nnode = epos - spos + 1
-     lids(1:nnode) = this%lst_vefs_lids(spos:epos)
-     call sort(nnode, lids)
-     this%lst_vefs_lids(spos:epos) = lids(1:nnode)
+     if ( present(lst_vefs_gids_ghost_extended) ) then
+       gids = lst_vefs_gids_ghost_extended(spos:epos)
+       perm = (/(i, i=1,nnode, 1)/)
+       call sort(nnode, gids, index=perm)
+       this%lst_vefs_lids(spos:epos) = this%lst_vefs_lids(spos+perm(1:nnode)-1)
+     else
+       call sort(nnode, this%lst_vefs_lids(spos:epos))
+     end if
   end do
+  
+  call memfree(gids,__FILE__,__LINE__)
+  call memfree(perm,__FILE__,__LINE__)
 end subroutine bst_orient_tet_mesh
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
