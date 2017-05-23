@@ -684,10 +684,16 @@ type(serial_scalar_array_t) :: x_old
   ! call this%change_basis_matrix%B%print_matrix_market(6) 
   
   ! Exercise apply change basis ----------------------------------- 
-  call x_old%create_and_allocate( size(this%local_to_wire_dof) )
-  call x_old%init(1.0_rp) 
-  call this%apply_local_change_basis(x_old) 
-  call x_old%free() 
+  !call x_old%create_and_allocate( size(this%local_to_wire_dof) )
+  !do i=1, size(this%local_to_wire_dof)
+  !call x_old%insert(i, i*1.0_rp) 
+  !end do 
+  !call x_old%print(6) 
+  !call this%apply_inverse_local_change_basis(x_old) 
+  !call x_old%print(6) 
+  !call this%apply_local_change_basis(x_old) 
+  !call x_old%print(6) 
+  !call x_old%free() 
   ! ---------------------------------------------------------------
   
   call par_fe_space%free_fe_object_iterator(object)
@@ -699,15 +705,89 @@ type(serial_scalar_array_t) :: x_old
   
 end subroutine Hcurl_l1_fill_coupled_to_edges_local_change_of_basis
 
-subroutine Hcurl_l1_apply_local_change_basis(this, x_old)
+subroutine Hcurl_l1_apply_local_change_basis(this, x_new)
+implicit none 
+class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)  :: this
+type(serial_scalar_array_t)           , intent(inout)  :: x_new
+
+type(serial_scalar_array_t) :: x_old, x_old2
+type(serial_scalar_array_t) :: B_times_x_new
+real(rp), pointer :: x_old_entries(:), x_old2_entries(:)
+real(rp), pointer :: x_new_entries(:)
+real(rp), pointer :: B_times_x_new_entries(:)
+
+! Local auxiliar variables 
+integer(ip) :: offcomponent_coarse_edge, coarse_edge
+integer(ip) :: idof 
+
+	 ! First part of the application: u_old_Ec = B*u_new_E + u_new_Ec 
+     x_new_entries => x_new%get_entries()
+	 
+	 ! x_old_Ec = B*x_new_Ei + x_new_Ec	 
+ 	  call x_old%create_and_allocate( this%number_edge_wire_dofs )	
+	  x_old_entries => x_old%get_entries()
+	  call B_times_x_new%create_and_allocate( this%number_total_wire_dofs - this%number_edge_wire_dofs)
+      B_times_x_new_entries => B_times_x_new%get_entries() 
+	  
+	  ! Build Edge local vector from old basis values 
+	  do idof = 1, this%number_edge_wire_dofs
+	      x_old_entries(idof) = x_new_entries(this%wire_to_local_dof(idof))
+	  end do 
+	  
+	  ! Apply local change basis to built DoF 
+      call this%change_basis_matrix%B%apply(x_old, B_times_x_new)
+		
+	  ! Assign values to the vector associated to [E^c] in the new basis 
+	  do idof = this%number_edge_wire_dofs + 1, this%number_total_wire_dofs
+	      x_new_entries(this%wire_to_local_dof(idof)) = B_times_x_new_entries(idof - this%number_edge_wire_dofs) + x_new_entries(this%wire_to_local_dof(idof))
+	  end do 
+		
+		!call x_new%print(6)	
+		call x_old%free()
+		call B_times_x_new%free()
+
+     ! Second part of the application: u_old_E = G*u_new_E
+		
+	 ! Apply local change of basis to each Coarse Edge  
+	 offcomponent_coarse_edge = 0
+     do coarse_edge = 1, this%number_coarse_edges
+	 if (coarse_edge>1) offcomponent_coarse_edge = offcomponent_coarse_edge + this%number_fine_edges_per_coarse_edge(coarse_edge-1)*this%order
+	 
+	 call x_old%create_and_allocate( this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order )
+	 x_old_entries => x_old%get_entries()
+	 	 call x_old2%create_and_allocate( this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order )
+	 x_old2_entries => x_old2%get_entries()
+	 call x_old2%init(0.0_rp) 
+	 
+	  ! Build Edge local vector from old basis values 
+	  do idof = 1, this%order*this%number_fine_edges_per_coarse_edge(coarse_edge) 
+	      x_old_entries(idof) = x_new_entries(this%wire_to_local_dof(idof+offcomponent_coarse_edge))
+	  end do 
+
+	  ! Apply local change basis to built DoF 
+       call this%change_basis_matrix%G(coarse_edge)%apply(x_old, x_old2)
+	  
+		! Assign values to the vector associated to [E] in the new basis 
+	  do idof = 1, this%order*this%number_fine_edges_per_coarse_edge(coarse_edge) 
+	      x_new_entries(this%wire_to_local_dof(idof+offcomponent_coarse_edge)) = x_old2_entries(idof)
+	  end do 
+	  
+		!call x_new%print(6)	
+		call x_old%free()
+		call x_old2%free()
+	 end do 
+	 		
+end subroutine Hcurl_l1_apply_local_change_basis
+
+subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old) 
 implicit none 
 class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)  :: this
 type(serial_scalar_array_t)           , intent(inout)  :: x_old
 
-type(serial_scalar_array_t) :: x_new
+type(serial_scalar_array_t) :: x_new, x_new2
 type(serial_scalar_array_t) :: B_times_x_new
 real(rp), pointer :: x_old_entries(:)
-real(rp), pointer :: x_new_entries(:)
+real(rp), pointer :: x_new_entries(:), x_new2_entries(:)
 real(rp), pointer :: B_times_x_new_entries(:)
 
 ! Direct solver data
@@ -740,6 +820,11 @@ integer(ip) :: idof
 	 call x_new%create_and_allocate( this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order )
 	 x_new_entries => x_new%get_entries()
 	 
+	  call x_new2%create_and_allocate( this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order )
+	  call x_new2%init(0.0_rp)
+	  x_new2_entries => x_new2%get_entries()
+
+	 
 	  ! Build Edge local vector from old basis values 
 	  do idof = 1, this%order*this%number_fine_edges_per_coarse_edge(coarse_edge) 
 	      x_new_entries(idof) = x_old_entries(this%wire_to_local_dof(idof+offcomponent_coarse_edge))
@@ -747,15 +832,16 @@ integer(ip) :: idof
 	  
 	  ! Apply local change basis to built DoF 
 	    call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_edge), same_nonzero_pattern=.false.) 
-        call direct_solver%solve( x_new , x_new )
-		
+        call direct_solver%solve( x_new , x_new2 )
+
 		! Assign values to the vector associated to [E] in the new basis 
 	  do idof = 1, this%order*this%number_fine_edges_per_coarse_edge(coarse_edge) 
-	      x_old_entries(this%wire_to_local_dof(idof+offcomponent_coarse_edge)) = x_new_entries(idof)
+	      x_old_entries(this%wire_to_local_dof(idof+offcomponent_coarse_edge)) = x_new2_entries(idof)
 	  end do 
 	  
 		!call x_new%print(6)	
 		call x_new%free()
+		call x_new2%free()
 	 end do 
 	 call direct_solver%free() 
 	 
@@ -782,8 +868,8 @@ integer(ip) :: idof
 		!call x_new%print(6)	
 		call x_new%free()
 		call B_times_x_new%free()
-		
-end subroutine Hcurl_l1_apply_local_change_basis
+
+end subroutine Hcurl_l1_apply_inverse_local_change_basis 
 
 ! ---------------------------------------------------------------------------
 !
