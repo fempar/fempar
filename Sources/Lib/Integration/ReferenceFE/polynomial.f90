@@ -37,26 +37,21 @@ module polynomial_names
 
   integer(ip), parameter :: NUM_POLY_DERIV = 3
 
-  type :: polynomial_t
+  
+  type, abstract :: polynomial_t
      private
      integer(ip)           :: order
      real(rp), allocatable :: coefficients(:)
    contains
-     procedure                           :: create          => polynomial_create
-     procedure, non_overridable          :: copy            => polynomial_copy
-     procedure, non_overridable          :: free            => polynomial_free
-     procedure                           :: get_values      => polynomial_get_values
-     procedure, nopass                   :: generate_basis  => polynomial_generate_basis
+     procedure, non_overridable                  :: create => polynomial_create
+     procedure, non_overridable                  :: copy   => polynomial_copy
+     procedure, non_overridable                  :: free   => polynomial_free
+     procedure(polynomial_get_values_interface)            , deferred :: get_values
+     procedure(polynomial_generate_basis_interface), nopass, deferred :: generate_basis
      ! procedure ( polynomial_assign_interface), deferred :: assign
      ! generic(=) :: assign
   end type polynomial_t
   
-  type, extends(polynomial_t) :: monomial_t
-   contains
-     procedure                           :: get_values      => monomial_get_values
-     procedure, nopass                   :: generate_basis  => monomial_generate_basis
-  end type monomial_t
-
   type :: polynomial_allocatable_array_t
      private
      class(polynomial_t), allocatable :: polynomials(:)
@@ -65,14 +60,36 @@ module polynomial_names
      procedure, non_overridable          :: copy          => polynomial_allocatable_array_copy
      procedure, non_overridable          :: free          => polynomial_allocatable_array_free
   end type polynomial_allocatable_array_t
-
-  ! type, extends(polynomial_t) :: lagrange_polynomial_t
-  !    private
-  !    ! For the moment, all the functionality of lagrange_polynomial_t in polynomial_t,
-  !    ! by a re-interpretation of the coefficients and an if in the get_values functions
-  !  contains
-  ! end type lagrange_polynomial_t
   
+  abstract interface
+    subroutine polynomial_get_values_interface( this, x, p_x)
+      import :: polynomial_t, rp
+      implicit none
+      class(polynomial_t), intent(in)    :: this
+      real(rp)           , intent(in)    :: x
+      real(rp)           , intent(inout) :: p_x(3)
+    end subroutine polynomial_get_values_interface
+    
+    subroutine polynomial_generate_basis_interface( order, basis )
+      import :: polynomial_allocatable_array_t, ip
+      implicit none
+      integer(ip)                         , intent(in)    :: order
+      type(polynomial_allocatable_array_t), intent(inout) :: basis
+    end subroutine polynomial_generate_basis_interface
+  end interface
+  
+  type, extends(polynomial_t) :: lagrange_polynomial_t
+   contains
+     procedure          :: get_values      => lagrange_polynomial_get_values
+     procedure, nopass  :: generate_basis  => lagrange_polynomial_generate_basis
+  end type lagrange_polynomial_t
+
+  type, extends(polynomial_t) :: monomial_t
+   contains
+     procedure          :: get_values      => monomial_get_values
+     procedure, nopass  :: generate_basis  => monomial_generate_basis
+  end type monomial_t
+ 
   type :: tensor_product_polynomial_space_t
      private
      integer(ip)                          :: number_dimensions
@@ -107,7 +124,7 @@ module polynomial_names
      
   end type tet_polynomial_prebase_t
   
-  public :: polynomial_t, monomial_t, polynomial_allocatable_array_t
+  public :: polynomial_t, lagrange_polynomial_t, monomial_t, polynomial_allocatable_array_t
   public :: tensor_product_polynomial_space_t, tet_polynomial_prebase_t
 
 contains
@@ -117,13 +134,13 @@ contains
 
 ! Generate the basis of 1D Lagrange polynomials for a given order of interpolation
 ! ===================================================================================================
-subroutine polynomial_generate_basis ( order, basis )
+subroutine lagrange_polynomial_generate_basis ( order, basis )
   implicit none
   integer(ip)                         , intent(in)    :: order
   type(polynomial_allocatable_array_t), intent(inout) :: basis
   integer(ip) :: i,j,istat
   real(rp) :: node_coordinates(order+1)
-  type(polynomial_t) :: mold_polynomial
+  type(lagrange_polynomial_t) :: mold_polynomial
   
   call basis%create (order+1, mold_polynomial )
   do i = 0,order
@@ -142,14 +159,14 @@ subroutine polynomial_generate_basis ( order, basis )
      end do
      basis%polynomials(i)%coefficients(order+1) = 1/basis%polynomials(i)%coefficients(order+1)
   end do
-end subroutine polynomial_generate_basis
+end subroutine lagrange_polynomial_generate_basis
 
 ! Compute the 1d shape function and n-th derivatives on ALL gauss points for ALL Lagrange polynomials
 ! ===================================================================================================
-  subroutine polynomial_get_values (this,x,p_x)
-    class(polynomial_t), intent(in)    :: this
-    real(rp)           , intent(in)    :: x
-    real(rp)           , intent(inout) :: p_x(3)
+  subroutine lagrange_polynomial_get_values (this,x,p_x)
+    class(lagrange_polynomial_t), intent(in)    :: this
+    real(rp)                    , intent(in)    :: x
+    real(rp)                    , intent(inout) :: p_x(3)
     integer(ip) :: i,j
     p_x = 0.0_rp
     p_x(1) = 1.0_rp
@@ -160,7 +177,7 @@ end subroutine polynomial_generate_basis
        p_x(1) = p_x(1)*(x-this%coefficients(i))
     end do
     p_x = p_x*this%coefficients(this%order+1)
-  end subroutine polynomial_get_values
+  end subroutine lagrange_polynomial_get_values
   
   subroutine polynomial_create ( this, order )
     class(polynomial_t), intent(inout) :: this
@@ -172,7 +189,7 @@ end subroutine polynomial_generate_basis
 
   subroutine polynomial_copy (lhs, rhs)
      class(polynomial_t), intent(inout) :: lhs
-     type(polynomial_t),  intent(in)    :: rhs
+     class(polynomial_t), intent(in)    :: rhs
 
      call lhs%free()
      if(allocated(rhs%coefficients)) then
@@ -189,13 +206,6 @@ end subroutine polynomial_generate_basis
   
   ! monomial_t TBPS
   !===================================================================================
-  subroutine monomial_create ( this, order )
-    class(monomial_t), intent(inout) :: this
-    integer(ip)      , intent(in)    :: order 
-    call this%free()
-    this%order = order
-  end subroutine monomial_create
-  
   subroutine monomial_get_values(this,x,p_x)
     implicit none
     class(monomial_t), intent(in)    :: this
@@ -439,7 +449,7 @@ end subroutine polynomial_generate_basis
    class(polynomial_allocatable_array_t), intent(inout) :: lhs
    type(polynomial_allocatable_array_t),  intent(in)    :: rhs
    integer(ip)                                          :: idx
-   type(polynomial_t)                                   :: mold_polynomial
+   class(polynomial_t), allocatable                     :: mold_polynomial
    call lhs%free()
    if(allocated(rhs%polynomials)) then
       if (size(rhs%polynomials) > 0) then

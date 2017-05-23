@@ -637,7 +637,7 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
   
   type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
   type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
-  type(polynomial_t)                      :: polynomial_1D
+  type(lagrange_polynomial_t)             :: polynomial_1D
 
   real(rp), allocatable :: tensor_product_values(:)
   real(rp), allocatable :: tensor_product_gradients(:,:)
