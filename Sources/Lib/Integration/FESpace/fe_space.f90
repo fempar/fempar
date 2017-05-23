@@ -639,6 +639,7 @@ module fe_space_names
 	   
   contains
        procedure                           :: free                                        => Hcurl_l1_free 
+	   procedure                           :: get_num_coarse_dofs                         => Hcurl_l1_get_num_coarse_dofs 
 	   procedure                           :: setup_constraint_matrix                     => Hcurl_l1_setup_constraint_matrix
 	   procedure                           :: setup_change_basis_tools                    => Hcurl_l1_setup_change_basis_tools 
 	   procedure                           :: apply_local_change_basis                    => Hcurl_l1_apply_local_change_basis
