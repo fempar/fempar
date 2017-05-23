@@ -893,7 +893,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   class(tet_nedelec_reference_fe_t), intent(inout) ::  this
   
   ! Local variables required by edge boundary moments integration
-  type(new_tet_lagrangian_reference_fe_t) :: fe_1D
+  type(tet_lagrangian_reference_fe_t) :: fe_1D
   type(quadrature_t)                      :: edge_quadrature
   type(interpolation_t)                   :: interpolation_1D, edge_interpolation
   type(fe_map_t)                          :: edge_map
@@ -902,7 +902,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   type(vector_field_t)                    :: tangent
   
   ! Local variables required by face boundary moments integration
-  type(new_tet_lagrangian_reference_fe_t) :: fe_2D
+  type(tet_lagrangian_reference_fe_t) :: fe_2D
   type(quadrature_t)                  :: face_quadrature
   type(interpolation_t)               :: interpolation_2D, face_interpolation
   integer(ip)                         :: local_face_id
@@ -912,7 +912,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   integer(ip)                         :: direction  
   
   ! Local variables required by interior moments integration
-  type(new_tet_lagrangian_reference_fe_t) :: fe
+  type(tet_lagrangian_reference_fe_t) :: fe
   type(quadrature_t)                  :: cell_quadrature
   type(interpolation_t)               :: interpolation, cell_interpolation
   type(fe_map_t)                      :: cell_map

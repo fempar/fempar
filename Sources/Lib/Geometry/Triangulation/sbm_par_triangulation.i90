@@ -204,6 +204,8 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         ! Generate edges and faces
         call this%allocate_and_fill_cells_around()
+        call this%fill_reference_fe_geo_list(geometry_interpolation_order)
+        if (this%is_tet_mesh()) call this%orient_tet_mesh(lst_vefs_gids_ghost_extended)
         call this%generate_vefs(geometry_interpolation_order)
         call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
 
@@ -267,7 +269,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
               lst_vefs_gids(i) = this%vefs_gid(lst_vefs_lids(i))
            end do
         else
-           lst_vefs_gids = this%lst_vefs_lids
+           lst_vefs_gids = lst_vefs_lids
         end if
         call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended)
         call this%allocate_and_fill_lst_vefs_lids(lst_vefs_lids,lst_vefs_gids_ghost_extended, this%vefs_gid)

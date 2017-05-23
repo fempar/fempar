@@ -36,6 +36,9 @@ module par_test_poisson_driver_names
   implicit none
   private
 
+  integer(ip), parameter :: PAR_TEST_POISSON_FULL = 1 ! Has to be == 1
+  integer(ip), parameter :: PAR_TEST_POISSON_VOID = 2
+
   type par_test_poisson_fe_driver_t 
      private 
      
@@ -45,6 +48,7 @@ module par_test_poisson_driver_names
      
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
+     integer(ip), allocatable              :: cell_set_ids(:)
      
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
@@ -98,6 +102,7 @@ module par_test_poisson_driver_names
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
+     procedure, nopass, private :: popcorn_fun => par_test_poisson_driver_popcorn_fun
   end type par_test_poisson_fe_driver_t
 
   ! Types
@@ -167,9 +172,67 @@ end subroutine free_timers
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    type(vef_iterator_t)  :: vef
+
+    class(cell_iterator_t), allocatable :: cell
+    type(point_t), allocatable :: cell_coords(:)
+    integer(ip) :: istat
+    integer(ip) :: set_id
+    real(rp) :: x, y
+    integer(ip) :: num_void_neigs
+
+    integer(ip)           :: ivef
+    type(vef_iterator_t)  :: vef, vef_of_vef
+    type(list_t), pointer :: vefs_of_vef
+    type(list_t), pointer :: vertices_of_line
+    type(list_iterator_t) :: vefs_of_vef_iterator
+    type(list_iterator_t) :: vertices_of_line_iterator
+    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
+    integer(ip) :: vertex_pos_in_cell, icell_arround
+    integer(ip) :: inode, num
+
 
     call this%triangulation%create(this%parameter_list, this%par_environment)
+
+    ! Set the cell ids to use void fes
+    if (this%test_params%get_use_void_fes()) then
+      if ( this%par_environment%am_i_l1_task() ) then
+        call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
+        call this%triangulation%create_cell_iterator(cell)
+        allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
+        do while( .not. cell%has_finished() )
+          if (cell%is_local()) then
+            set_id = PAR_TEST_POISSON_VOID
+            call cell%get_coordinates(cell_coords)
+            select case (trim(this%test_params%get_use_void_fes_case()))
+            case ('half')
+              y = cell_coords(1)%get(2)
+              if (y>=0.5) set_id = PAR_TEST_POISSON_FULL
+            case ('quarter')
+              x = cell_coords(1)%get(1)
+              y = cell_coords(1)%get(2)
+              if (x>=0.5 .and. y>=0.5) set_id = PAR_TEST_POISSON_FULL
+            case ('popcorn')
+              do inode = 1,cell%get_num_nodes()
+                if ( this%popcorn_fun(cell_coords(inode),&
+                  this%triangulation%get_num_dimensions()) < 0.0 ) then
+                  set_id = PAR_TEST_POISSON_FULL
+                  exit
+                end if
+              end do
+            case default
+              check(.false.)
+            end select
+            this%cell_set_ids(cell%get_lid()) = set_id
+          end if
+          call cell%next()
+        end do
+        deallocate(cell_coords, stat = istat); check(istat == 0)
+        call this%triangulation%fill_cells_set(this%cell_set_ids)
+      end if
+        call this%triangulation%free_cell_iterator(cell)
+    end if
+
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
@@ -182,7 +245,73 @@ end subroutine free_timers
        end do
        call this%triangulation%free_vef_iterator(vef)
     end if  
+
+    ! Set all the vefs on the interface between full/void if there are void fes
+    if (this%test_params%get_use_void_fes()) then
+      call this%triangulation%create_vef_iterator(vef)
+      call this%triangulation%create_vef_iterator(vef_of_vef)
+      call this%triangulation%create_cell_iterator(cell)
+      do while ( .not. vef%has_finished() )
+
+         ! If it is an INTERIOR face
+         if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
+
+           ! Compute number of void neighbors
+           num_void_neigs = 0
+           do icell_arround = 1,vef%get_num_cells_around()
+             call vef%get_cell_around(icell_arround,cell)
+             if (cell%get_set_id() == PAR_TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
+           end do
+
+           if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
+
+               ! Set this face as Dirichlet boundary
+               call vef%set_set_id(1)
+
+               ! Do a loop on all edges in 3D (vertex in 2D) of the face
+               ivef = vef%get_lid()
+               call vef%get_cell_around(1,cell) ! There is always one cell around
+               reference_fe_geo => cell%get_reference_fe_geo()
+               ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
+               vefs_of_vef => reference_fe_geo%get_n_faces_n_face()
+               vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
+               do while( .not. vefs_of_vef_iterator%is_upper_bound() )
+
+                  ! Set edge (resp. vertex) as Dirichlet
+                  vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
+                  call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
+                  call vef_of_vef%set_set_id(1)
+
+                  ! If 3D, traverse vertices of current line
+                  if ( this%triangulation%get_num_dimensions() == 3 ) then
+                    vertices_of_line          => reference_fe_geo%get_vertices_n_face()
+                    vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
+                    do while( .not. vertices_of_line_iterator%is_upper_bound() )
+
+                      ! Set vertex as Dirichlet
+                      vertex_pos_in_cell = vertices_of_line_iterator%get_current()
+                      call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
+                      call vef_of_vef%set_set_id(1)
+
+                      call vertices_of_line_iterator%next()
+                    end do ! Loop in vertices in 3D only
+                  end if
+
+                  call vefs_of_vef_iterator%next()
+               end do ! Loop in edges (resp. vertices)
+
+           end if ! If face on void/full boundary
+         end if ! If vef is an interior face
+
+         call vef%next()
+      end do ! Loop in vefs
+      call this%triangulation%free_cell_iterator(cell)
+      call this%triangulation%free_vef_iterator(vef)
+      call this%triangulation%free_vef_iterator(vef_of_vef)
+    end if
+
     call this%triangulation%setup_coarse_triangulation()
+
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -192,30 +321,55 @@ end subroutine free_timers
     class(cell_iterator_t), allocatable       :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     
-    allocate(this%reference_fes(1), stat=istat)
+    if (this%test_params%get_use_void_fes()) then
+      allocate(this%reference_fes(2), stat=istat)
+    else
+      allocate(this%reference_fes(1), stat=istat)
+    end if
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe_geo()
-      this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+      this%reference_fes(PAR_TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
+      if (this%test_params%get_use_void_fes()) then
+        this%reference_fes(PAR_TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                   fe_type = fe_type_void, &
+                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   order = -1, &
+                                                   field_type = field_type_scalar, &
+                                                   continuity = .true. )
+      end if
       call this%triangulation%free_cell_iterator(cell)
-    end if  
+    end if
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
+
+    integer(ip) :: set_ids_to_reference_fes(1,2)
+
     
-    call this%fe_space%create( triangulation       = this%triangulation, &
-                               conditions          = this%poisson_conditions, &
-                               reference_fes       = this%reference_fes, &
-                               coarse_fe_handler   = this%l1_coarse_fe_handler)
+    if (this%test_params%get_use_void_fes()) then
+      set_ids_to_reference_fes(1,PAR_TEST_POISSON_FULL) = PAR_TEST_POISSON_FULL
+      set_ids_to_reference_fes(1,PAR_TEST_POISSON_VOID) = PAR_TEST_POISSON_VOID
+      call this%fe_space%create( triangulation            = this%triangulation, &
+                                 conditions               = this%poisson_conditions, &
+                                 reference_fes            = this%reference_fes, &
+                                 set_ids_to_reference_fes = set_ids_to_reference_fes, &
+                                 coarse_fe_handler        = this%l1_coarse_fe_handler)
+    else
+      call this%fe_space%create( triangulation       = this%triangulation, &
+                                 conditions          = this%poisson_conditions, &
+                                 reference_fes       = this%reference_fes, &
+                                 coarse_fe_handler   = this%l1_coarse_fe_handler)
+    end if
     
     call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
@@ -244,11 +398,56 @@ end subroutine free_timers
   
   subroutine setup_solver (this)
     implicit none
-    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), target, intent(inout) :: this
     type(parameterlist_t) :: parameter_list
-    integer(ip) :: FPLError
+    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
 
-#ifdef ENABLE_MKL   
+    integer(ip) :: ilev
+    integer(ip) :: FPLError
+    integer(ip) :: iparm(64)
+
+#ifdef ENABLE_MKL  
+    ! See https://software.intel.com/en-us/node/470298 for details
+    iparm      = 0 ! Init all entries to zero
+    iparm(1)   = 1 ! no solver default
+    iparm(2)   = 2 ! fill-in reordering from METIS
+    iparm(8)   = 2 ! numbers of iterative refinement steps
+    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1 ! use scaling 
+    iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    iparm(21)  = 1 ! 1x1 + 2x2 pivots
+
+    plist => this%parameter_list 
+    if ( this%par_environment%get_l1_size() == 1 ) then
+       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    end if
+    do ilev=1, this%par_environment%get_num_levels()-1
+       ! Set current level Dirichlet solver parameters
+       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
+       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+       
+       ! Set current level Neumann solver parameters
+       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
+       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+     
+       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
+       plist  => coarse 
+    end do
+    ! Set coarsest-grid solver parameters
+    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+
     ! Set-up MLBDDC preconditioner
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
@@ -263,6 +462,7 @@ end subroutine free_timers
 #else
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    assert(FPLError == 0)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
@@ -365,14 +565,35 @@ end subroutine free_timers
     implicit none
     class(par_test_poisson_fe_driver_t), intent(in) :: this
     type(output_handler_t)                          :: oh
+    real(rp),allocatable :: cell_vector(:)
+    real(rp),allocatable :: mypart_vector(:)
     if(this%test_params%get_write_solution()) then
+      if (this%par_environment%am_i_l1_task()) then
+
+        if (this%test_params%get_use_void_fes()) then
+          call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
+          cell_vector(:) = this%cell_set_ids(:)
+        end if
+
+        call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
+        mypart_vector(:) = this%par_environment%get_l1_rank()
+
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
+        if (this%test_params%get_use_void_fes()) then
+          call oh%add_cell_vector(cell_vector,'cell_set_ids')
+        end if
+        call oh%add_cell_vector(mypart_vector,'l1_rank')
         call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
         call oh%write()
         call oh%close()
         call oh%free()
+
+        if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
+        call memfree(mypart_vector,__FILE__,__LINE__)
+
+      end if
     endif
   end subroutine write_solution
   
@@ -429,6 +650,7 @@ end subroutine free_timers
       check(istat==0)
     end if
     call this%triangulation%free()
+    if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free  
 
   !========================================================================================
@@ -444,5 +666,46 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%free()
   end subroutine free_command_line_parameters
+
+  function par_test_poisson_driver_popcorn_fun(point,num_dim) result (val)
+    implicit none
+    type(point_t), intent(in) :: point
+    integer(ip),   intent(in) :: num_dim
+    real(rp) :: val
+    type(point_t) :: p
+    real(rp) :: x, y, z
+    real(rp) :: xk, yk, zk
+    real(rp) :: r0, sg, A
+    integer(ip) :: k
+    p = point
+    if (num_dim < 3) call p%set(3,0.62)
+    x = ( 2.0*p%get(1) - 1.0 )
+    y = ( 2.0*p%get(2) - 1.0 )
+    z = ( 2.0*p%get(3) - 1.0 )
+    r0 = 0.6
+    sg = 0.2
+    A  = 2.0
+    val = sqrt(x**2 + y**2 + z**2) - r0
+    do k = 0,11
+        if (0 <= k .and. k <= 4) then
+            xk = (r0/sqrt(5.0))*2.0*cos(2.0*k*pi/5.0)
+            yk = (r0/sqrt(5.0))*2.0*sin(2.0*k*pi/5.0)
+            zk = (r0/sqrt(5.0))
+        else if (5 <= k .and. k <= 9) then
+            xk = (r0/sqrt(5.0))*2.0*cos((2.0*(k-5)-1.0)*pi/5.0)
+            yk = (r0/sqrt(5.0))*2.0*sin((2.0*(k-5)-1.0)*pi/5.0)
+            zk =-(r0/sqrt(5.0))
+        else if (k == 10) then
+            xk = 0
+            yk = 0
+            zk = r0
+        else
+            xk = 0
+            yk = 0
+            zk = -r0
+        end if
+        val = val - A*exp( -( (x - xk)**2  + (y - yk)**2 + (z - zk)**2 )/(sg**2) )
+    end do
+  end function par_test_poisson_driver_popcorn_fun
   
 end module par_test_poisson_driver_names

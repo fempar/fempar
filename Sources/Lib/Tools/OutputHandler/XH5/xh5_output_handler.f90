@@ -289,10 +289,11 @@ contains
         do i=1, this%get_number_fields()
             field => this%get_fe_field(i)
             call this%FieldValues(i)%create(field%get_number_components(), this%get_number_nodes())
+            call this%FieldValues(i)%init(0.0_rp)
         end do
         do i=1, this%get_number_cell_vectors()
             call this%CellValues(i)%create(1, this%get_number_cells())
-	
+	           call this%CellValues(i)%init(0.0_rp)
         enddo
     end subroutine xh5_output_handler_allocate_cell_and_nodal_arrays
 

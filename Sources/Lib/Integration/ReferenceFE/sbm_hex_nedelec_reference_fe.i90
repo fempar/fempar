@@ -940,6 +940,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
         call vertex_iterator%next()
         vertex_within_face_id = vertex_within_face_id + 1
      end do
+
      ! Update face_map on current face
      local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
      call face_map%update_face_map(number_cell_dimensions = d_fe_geo%number_dimensions, &

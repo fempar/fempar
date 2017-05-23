@@ -320,7 +320,7 @@ end subroutine polynomial_generate_basis
     this%number_dimensions = dim
     this%number_polynomials = 1
     this%number_pols_dim = 1
-    max_polynomials = 1.0_rp
+    max_polynomials = 1
     do i = 1, dim
        call this%polynomial_1D_basis(i)%copy(polynomial_1D_prebasis(i))
        this%number_pols_dim(i) = size(polynomial_1D_prebasis(i)%polynomials)
@@ -330,23 +330,16 @@ end subroutine polynomial_generate_basis
     work_array = this%number_pols_dim-1
     call sort(SPACE_DIM, work_array)
     i = 0
-    this%number_polynomials = 0!count_polynomials(work_array,0,1,this%number_dimensions,i)
+    this%number_polynomials = 0
     countp : do i=1,max_polynomials
        call index_to_ijk(i,this%number_dimensions, this%number_pols_dim, ijk)
        do j=1,dim
           if (ijk(j) > this%number_pols_dim(j))  cycle countp
        end do
        if (sum(ijk)-SPACE_DIM < maxval(this%number_pols_dim)) then
-          this%number_polynomials = this%number_polynomials + 1.0_rp
+          this%number_polynomials = this%number_polynomials + 1
        end if
     end do countp
-    !do i = 0, work_array(1)
-    !   do j = 0, work_array(2)-i
-    !      do k = 0, work_array(3)-i-j
-    !         this%number_polynomials = this%number_polynomials + 1.0_rp
-    !      end do
-    !   end do
-    !end do
   end subroutine tet_polynomial_prebase_create
   
   subroutine tet_polynomial_prebase_fill(this, points)
@@ -410,46 +403,6 @@ end subroutine polynomial_generate_basis
           ishape = ishape + 1
        end if
     end do countp
-    
-    
-    
-    !work_array = this%number_pols_dim-1
-    !forall (i=1:SPACE_DIM) permu(i) = i 
-    !call sort(SPACE_DIM, work_array, index=permu)
-    !ishape = 1
-    !if (this%number_dimensions .eq. 2) then
-    !   do i = 0, work_array(1)
-    !      do j = 0, work_array(2)-i
-    !         values(ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
-    !                          this%work_shape_data(permu(2))%a(1,j+1,q_point)
-    !         gradients(1,ishape) = this%work_shape_data(permu(1))%a(2,i+1,q_point) * &
-    !                               this%work_shape_data(permu(2))%a(1,j+1,q_point)
-    !         gradients(2,ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
-    !                               this%work_shape_data(permu(2))%a(2,j+1,q_point)
-    !         ishape = ishape + 1_ip
-    !      end do
-    !   end do
-    !elseif (this%number_dimensions .eq. 3) then
-    !   do i = 0, work_array(1)
-    !      do j = 0, work_array(2)-i
-    !         do k = 0, work_array(3)-i-j
-    !            values(ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
-    !                             this%work_shape_data(permu(2))%a(1,j+1,q_point) * &
-    !                             this%work_shape_data(permu(3))%a(1,k+1,q_point)
-    !            gradients(1,ishape) = this%work_shape_data(permu(1))%a(2,i+1,q_point) * &
-    !                                  this%work_shape_data(permu(2))%a(1,j+1,q_point) * &
-    !                                  this%work_shape_data(permu(3))%a(1,k+1,q_point)
-    !            gradients(2,ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
-    !                                  this%work_shape_data(permu(2))%a(2,j+1,q_point) * &
-    !                                  this%work_shape_data(permu(3))%a(1,k+1,q_point)
-    !            gradients(2,ishape) = this%work_shape_data(permu(1))%a(1,i+1,q_point) * &
-    !                                  this%work_shape_data(permu(2))%a(1,j+1,q_point) * &
-    !                                  this%work_shape_data(permu(3))%a(2,k+1,q_point)
-    !            ishape = ishape + 1_ip
-    !         end do
-    !      end do
-    !   end do
-    !end if    
   end subroutine tet_polynomial_prebase_evaluate
   
   
@@ -549,21 +502,5 @@ subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
   ijk(ndime) = aux
   ijk = ijk+1
 end subroutine index_to_ijk
-
-recursive function count_polynomials(orders,i,idime,ndime,prev_count) result(count)
-  implicit none
-  integer(ip), intent(in) :: orders(SPACE_DIM),i,idime,ndime
-  integer(ip), intent(inout) :: prev_count
-  integer(ip) :: count, j
-  
-  if (idime .eq. ndime) then
-     count = prev_count + orders(idime)-i+1
-     prev_count = count
-  else
-     do j=0,orders(idime)-i
-        count = count_polynomials(orders,i+j,idime+1,ndime,prev_count)
-     end do
-  end if
-end function count_polynomials
 
 end module polynomial_names

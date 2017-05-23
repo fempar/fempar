@@ -25,15 +25,68 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!****************************************************************************************************
-program test_poisson
+#include "debug.i90"
+program test_std_vector
   use fempar_names
-  use test_poisson_driver_names  
   implicit none
-  type(test_poisson_driver_t) :: test_driver
+  type(std_vector_integer_ip_t) :: v
+  type(std_vector_integer_ip_t) :: v2
+  integer(ip) :: i
+  
   call fempar_init()
-  call test_driver%run_simulation()
+ 
+  call v%resize(0,1)
+  call v%resize(1,1)
+  
+  !Set some initial content:
+  do i=1, 100
+    call v%push_back(i+1)
+    write(*,'(a,i4,a,i4)') 'Size=', v%size(), ' Capacity=', v%capacity() 
+    check ( v%get(i) == i )
+  end do
+  
+  call v%resize(1000,34)
+  do i=1, 101
+    check ( v%get(i) == i )
+  end do
+  do i=102,1000
+    check ( v%get(i) == 34 )
+  end do
+  
+  call v%resize(38,1)
+  do i=1, v%size()
+    check ( v%get(i) == i )
+  end do
+  
+  call v2%copy(v)
+  check (v2%size() == v%size())
+  do i=1, v2%size()
+    check ( v2%get(i) == v%get(i) )
+  end do
+  
+  call v%erase(10)
+  do i=1, 9
+    check ( v%get(i) == i )
+  end do
+  
+  do i=10, v%size()
+    check ( v%get(i) == i+1)
+  end do
+  
+  call v%shrink_to_fit()
+  check ( v%size() == v%capacity() )
+  
+  do i=1, 9
+    check ( v%get(i) == i )
+  end do
+  
+  do i=10, v%size()
+    check ( v%get(i) == i+1)
+  end do
+  
+  
+   
+  call v%free()
+  call v2%free()
   call fempar_finalize()
-contains
-end program test_poisson
+end program test_std_vector

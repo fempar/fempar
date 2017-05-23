@@ -65,6 +65,8 @@ module serial_context_names
      procedure, private :: neighbours_exchange_wo_pack_unpack_ieep =>  serial_context_neighbours_exchange_wo_pack_unpack_ieep
      procedure, private :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
      procedure, private :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
+     procedure, private :: root_send_master_rcv_rp          => serial_context_root_send_master_rcv_rp
+     procedure, private :: root_send_master_rcv_rp_1D_array => serial_context_root_send_master_rcv_rp_1D_array
      procedure, private :: gather_to_master_ip              => serial_context_gather_to_master_ip           
      procedure, private :: gather_to_master_igp             => serial_context_gather_to_master_igp          
      procedure, private :: gather_to_master_ip_1D_array     => serial_context_gather_to_master_ip_1D_array  
@@ -346,6 +348,24 @@ contains
     check(.false.)       ! This routine should be never called
   end subroutine serial_context_root_send_master_rcv_ip_1D_array
 
+  !=============================================================================
+  subroutine serial_context_root_send_master_rcv_rp ( this, input_data, output_data )
+    implicit none
+    class(serial_context_t), intent(in)      :: this
+    real(rp)            , intent(in)      :: input_data
+    real(rp)            , intent(inout)   :: output_data
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_root_send_master_rcv_rp
+
+  !=============================================================================
+  subroutine serial_context_root_send_master_rcv_rp_1D_array ( this, input_data, output_data )
+    implicit none
+    class(serial_context_t), intent(in)      :: this
+    real(rp)            , intent(in)      :: input_data(:)
+    real(rp)            , intent(inout)   :: output_data(:)
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_root_send_master_rcv_rp_1D_array
+  
   !=============================================================================
   !=============================================================================
   subroutine serial_context_gather_to_master_ip ( this, input_data, output_data )

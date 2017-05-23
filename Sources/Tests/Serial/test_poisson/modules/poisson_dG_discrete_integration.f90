@@ -210,7 +210,6 @@ contains
     
     do while ( .not. fe_face%has_finished() ) 
        
-       
        if ( .not. fe_face%is_at_boundary() ) then
          facemat = 0.0_rp
          facevec = 0.0_rp

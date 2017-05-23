@@ -25,14 +25,16 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine mlbddc_coarse_create ( this, fe_space, par_sparse_matrix )
+subroutine mlbddc_coarse_create ( this, fe_space, par_sparse_matrix, mlbddc_params )
   implicit none
   class(mlbddc_coarse_t)           , intent(inout) :: this
   type(coarse_fe_space_t)  , target, intent(in)    :: fe_space
   type(par_sparse_matrix_t), target, intent(in)    :: par_sparse_matrix
+  type(parameterlist_t)    , target, intent(in)    :: mlbddc_params 
   call this%free()
   this%fe_space => fe_space
   this%par_sparse_matrix => par_sparse_matrix
+  this%mlbddc_params => mlbddc_params
   call this%create_vector_spaces()
 end subroutine mlbddc_coarse_create
 
