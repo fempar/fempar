@@ -25,6 +25,69 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine fine_triangulation_fill_reference_fe_geo_list(this,order)
+  implicit none
+  ! This routine assumes a triangulation with vertices and ghost elements
+  ! Parameters
+  class(fine_triangulation_t), intent(inout) :: this
+  integer(ip)                , intent(in)    :: order
+  class(cell_iterator_t), allocatable :: icell
+  
+  integer(ip) :: istat, ielem, icell_type
+  integer(ip) :: ielem_num_vefs, ielem_num_vertices
+  type(p_reference_fe_t) :: reference_fe_geo_list(max_num_reference_fes_geo)
+  
+  call  this%reference_fe_geo_index%init(max_num_reference_fes_geo)
+  call this%create_cell_iterator(icell)
+  icell_type = 0
+  do while ( .not. icell%has_finished() )
+     ielem = icell%get_lid()
+     ielem_num_vertices = this%ptr_vefs_per_cell(ielem+1)-this%ptr_vefs_per_cell(ielem)
+     ielem_num_vefs = compute_vefs_from_vertices(this%num_dimensions,ielem_num_vertices)
+     call this%reference_fe_geo_index%get(key=ielem_num_vefs,val=icell_type,stat=istat)
+     if (istat == key_not_found ) then
+        icell_type = icell_type + 1
+        call this%reference_fe_geo_index%put(key=ielem_num_vefs,val=icell_type,stat=istat)
+     end if
+     if ( istat == now_stored ) then
+        if(this%num_dimensions == 2) then
+           if(ielem_num_vertices == 3) then     ! Triangle
+              reference_fe_geo_list(icell_type) = &
+                   &    make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
+                   &                        number_dimensions = this%num_dimensions, order = order, &
+                   &                        field_type = field_type_scalar, continuity = .true. )
+           elseif(ielem_num_vertices == 4) then ! Quadrilateral
+              reference_fe_geo_list(icell_type) = &
+                   &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
+                   &                        number_dimensions = this%num_dimensions, order = order, &
+                   &                        field_type = field_type_scalar, continuity = .true. )
+           end if
+        else
+           if(ielem_num_vertices == 4) then     ! Tetrahedra
+              reference_fe_geo_list(icell_type) = &
+                   &    make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
+                   &                        number_dimensions = this%num_dimensions, order = order, &
+                   &                        field_type = field_type_scalar, continuity = .true. )
+           elseif(ielem_num_vertices == 6) then ! Prism
+              assert(.false.)
+           elseif(ielem_num_vertices == 8) then ! Hexahedra
+              reference_fe_geo_list(icell_type) = &
+                   &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
+                   &                        number_dimensions = this%num_dimensions, order = order, &
+                   &                        field_type = field_type_scalar, continuity = .true. )
+           end if
+        end if
+        ! Transfer allocated target from local variable to member variable of base_static_triangulation
+        select type(reference_fe => reference_fe_geo_list(icell_type)%p)
+        class is(lagrangian_reference_fe_t)
+           this%reference_fe_geo_list(icell_type)%p => reference_fe
+        end select
+     end if
+     call icell%next()
+  end do
+  call this%free_cell_iterator(icell)
+end subroutine fine_triangulation_fill_reference_fe_geo_list
+
 subroutine fine_triangulation_generate_vefs(this,order)
   implicit none
   ! This routine assumes a triangulation with vertices and ghost elements
@@ -32,13 +95,11 @@ subroutine fine_triangulation_generate_vefs(this,order)
   class(fine_triangulation_t), intent(inout) :: this
   integer(ip)                , intent(in)    :: order
 
-  integer(ip)          , allocatable :: ptr_vertices(:)
-  integer(ip)          , allocatable :: lst_vertices(:)
+  integer(ip)           , allocatable :: ptr_vertices(:)
+  integer(ip)           , allocatable :: lst_vertices(:)
   class(cell_iterator_t), allocatable :: icell
   class(cell_iterator_t), allocatable :: jcell
-  type(vef_iterator_t)               :: vef
-
-  type(position_hash_table_t) :: pos_ref_fe
+  type(vef_iterator_t)                :: vef
 
   type(list_t), pointer    :: vertices_ivef
   type(list_t), pointer    :: vertices_jvef
@@ -60,55 +121,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
   call memmovealloc(this%ptr_vefs_per_cell,ptr_vertices,__FILE__,__LINE__)
   call memmovealloc(this%lst_vefs_lids,lst_vertices,__FILE__,__LINE__)
 
-  ! Build reference_fe_geo index and list:
-  ! A scalar reference fe is used for the geometry as it is always interpolated
-  ! using a Lagrangian type fe and nodal values are stored into a point_t array.
-  call pos_ref_fe%init(max_num_reference_fes_geo)
 
   call this%create_cell_iterator(icell)
   call this%create_cell_iterator(jcell)
-  do while ( .not. icell%has_finished() )
-     ielem = icell%get_lid()
-     ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
-     call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-     if ( istat == new_index ) then
-        if(this%num_dimensions==2) then
-           if(ielem_num_vertices==3) then ! Triangle
-              reference_fe_geo_list(icell_type) = &
-                   &    make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
-                   &                        number_dimensions = this%num_dimensions, order = order, &
-                   &                        field_type = field_type_scalar, continuity = .true. )
-           else ! Quadrilateral
-              reference_fe_geo_list(icell_type) = &
-                   &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-                   &                        number_dimensions = this%num_dimensions, order = order, &
-                   &                        field_type = field_type_scalar, continuity = .true. )
-           end if
-        else
-           if(ielem_num_vertices==4) then ! Tetrahedra
-              reference_fe_geo_list(icell_type) = &
-                   &    make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
-                   &                        number_dimensions = this%num_dimensions, order = order, &
-                   &                        field_type = field_type_scalar, continuity = .true. )
-           else if(ielem_num_vertices==6) then ! Prism
-              assert(.false.)
-           else if(ielem_num_vertices==8) then ! Hexahedra
-              reference_fe_geo_list(icell_type) = &
-                   &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-                   &                        number_dimensions = this%num_dimensions, order = order, &
-                   &                        field_type = field_type_scalar, continuity = .true. )
-           end if
-        end if
-        ! Transfer allocated target from local variable to member variable of base_static_triangulation
-        select type(reference_fe => reference_fe_geo_list(icell_type)%p)
-        class is(lagrangian_reference_fe_t)
-           this%reference_fe_geo_list(icell_type)%p => reference_fe
-        end select
-     end if
-     call icell%next()
-  end do
-  !write(*,*) 'Ref fe list done'
-  !call this%reference_fe_geo_list(1)%p%print()
 
   ! Compute this%ptr_vefs_per_cell and allocate this%lst_vefs_lids
   call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_vefs_per_cell, __FILE__, __LINE__ )
@@ -118,9 +133,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
   call icell%first()
   do while ( .not. icell%has_finished() )
      ielem = icell%get_lid()
-     ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
-     call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-     assert(istat==old_index)
+     ielem_num_vefs = compute_vefs_from_vertices(this%num_dimensions, ptr_vertices(ielem+1)-ptr_vertices(ielem))
+     call this%reference_fe_geo_index%get(key=ielem_num_vefs,val=icell_type,stat=istat)
+     assert(istat==key_found)
      this%ptr_vefs_per_cell(ielem+1)  = this%ptr_vefs_per_cell(ielem)  + this%reference_fe_geo_list(icell_type)%p%get_number_n_faces()
      !this%ptr_nodes_per_cell(ielem+1) = this%ptr_nodes_per_cell(ielem) + this%reference_fe_geo_list(ielem_type)%p%get_number_nodes()
      call icell%next()
@@ -136,8 +151,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
      ielem = icell%get_lid()
      !write(*,*) 'Element i:',ielem
      ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
-     call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-     assert(istat==old_index)
+     ielem_num_vefs = compute_vefs_from_vertices(this%num_dimensions, ielem_num_vertices)
+     call this%reference_fe_geo_index%get(key=ielem_num_vefs,val=icell_type,stat=istat)
+     assert(istat==key_found)
      ! Fill vefs (only vertices)
      this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem):this%ptr_vefs_per_cell(ielem)+ielem_num_vertices-1) = &
           & lst_vertices(ptr_vertices(ielem):ptr_vertices(ielem+1)-1)
@@ -152,9 +168,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
   do while ( .not. icell%has_finished() )
      ielem = icell%get_lid()
      !write(*,*) 'Element i:',ielem
-     ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
-     call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-     assert(istat==old_index)
+     ielem_num_vefs = compute_vefs_from_vertices(this%num_dimensions, ptr_vertices(ielem+1)-ptr_vertices(ielem))
+     call this%reference_fe_geo_index%get(key=ielem_num_vefs,val=icell_type,stat=istat)
+     assert(istat==key_found)
      ielem_num_vefs     = this%reference_fe_geo_list(icell_type)%p%get_number_n_faces_of_dimension(1)
      ielem_first_vef_id = this%reference_fe_geo_list(icell_type)%p%get_first_n_face_id_of_dimension(1)
      vertices_ivef => this%reference_fe_geo_list(icell_type)%p%get_vertices_n_face()
@@ -172,9 +188,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
               call vef%get_cell_around(jelpo, jcell)
               jelem = jcell%get_lid()
               if(jelem>ielem) then
-                 jelem_num_vertices=ptr_vertices(jelem+1)-ptr_vertices(jelem)
-                 call pos_ref_fe%get(key=jelem_num_vertices,val=jelem_type,stat=istat)
-                 assert(istat==old_index)
+                 jelem_num_vefs = compute_vefs_from_vertices(this%num_dimensions, ptr_vertices(jelem+1)-ptr_vertices(jelem))
+                 call this%reference_fe_geo_index%get(key=jelem_num_vefs,val=jelem_type,stat=istat)
+                 assert(istat==key_found)
                  jelem_num_vefs     = this%reference_fe_geo_list(jelem_type)%p%get_number_n_faces_of_dimension(1)
                  jelem_first_vef_id = this%reference_fe_geo_list(jelem_type)%p%get_first_n_face_id_of_dimension(1)
                  vertices_jvef => this%reference_fe_geo_list(jelem_type)%p%get_vertices_n_face()
@@ -213,9 +229,8 @@ subroutine fine_triangulation_generate_vefs(this,order)
      do while ( .not. icell%has_finished() )
         ielem = icell%get_lid()
         !write(*,*) 'Element i:',ielem
-        ielem_num_vertices = ptr_vertices(ielem+1)-ptr_vertices(ielem)
-        call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-        assert(istat==old_index)
+        ielem_num_vefs = compute_vefs_from_vertices(this%num_dimensions, ptr_vertices(ielem+1)-ptr_vertices(ielem))
+        call this%reference_fe_geo_index%get(key=ielem_num_vefs,val=icell_type,stat=istat)
         ielem_num_vefs      = this%reference_fe_geo_list(icell_type)%p%get_number_n_faces_of_dimension(2)
         ielem_first_vef_id  = this%reference_fe_geo_list(icell_type)%p%get_first_n_face_id_of_dimension(2)
         do ivef=1,ielem_num_vefs
@@ -235,9 +250,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
                  call vef%get_cell_around(jelpo, jcell)
                  jelem = jcell%get_lid()
                  if(jelem>ielem) then
-                    jelem_num_vertices=ptr_vertices(jelem+1)-ptr_vertices(jelem)
-                    call pos_ref_fe%get(key=jelem_num_vertices,val=jelem_type,stat=istat)
-                    assert(istat==old_index)
+                    jelem_num_vefs = compute_vefs_from_vertices(this%num_dimensions, ptr_vertices(jelem+1)-ptr_vertices(jelem))
+                    call this%reference_fe_geo_index%get(key=jelem_num_vefs,val=jelem_type,stat=istat)
+                    assert(istat==key_found)
                     jelem_num_vefs      = this%reference_fe_geo_list(jelem_type)%p%get_number_n_faces_of_dimension(2)
                     jelem_first_vef_id  = this%reference_fe_geo_list(jelem_type)%p%get_first_n_face_id_of_dimension(2)
                     vertices_jvef => this%reference_fe_geo_list(jelem_type)%p%get_vertices_n_face()
@@ -275,52 +290,6 @@ subroutine fine_triangulation_generate_vefs(this,order)
      this%num_faces=this%num_vefs-this%num_vertices-this%num_edges
   end if
   call this%free_vef_iterator(vef)
-
-  ! Generate the ref fe position hash table using the number of vefs (instead of vertices) as keys
-  call  this%reference_fe_geo_index%init(max_num_reference_fes_geo)
-  if(this%num_dimensions==3) then
-     ! Tetrahedra
-     ielem_num_vertices=4
-     ielem_num_vefs=14
-     call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-     if(istat==old_index) then
-        call this%reference_fe_geo_index%put(key=ielem_num_vefs,val=icell_type,stat=istat)
-        assert(istat==now_stored)
-     end if
-     ! Prisms
-     ielem_num_vertices=6
-     ielem_num_vefs=20
-     call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-     if(istat==old_index) then
-        call this%reference_fe_geo_index%put(key=ielem_num_vefs,val=icell_type,stat=istat)
-        assert(istat==now_stored)
-     end if
-     ! Hexahedra
-     ielem_num_vertices=8
-     ielem_num_vefs=26
-     call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-     if(istat==old_index) then
-        call this%reference_fe_geo_index%put(key=ielem_num_vefs,val=icell_type,stat=istat)
-        assert(istat==now_stored)
-     end if
-  else if(this%num_dimensions==2) then
-     ! Triangle
-     ielem_num_vertices=3
-     ielem_num_vefs =6
-     call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-     if(istat==old_index) then
-        call this%reference_fe_geo_index%put(key=ielem_num_vefs,val=icell_type,stat=istat)
-        assert(istat==now_stored)
-     end if
-     ! Quad
-     ielem_num_vertices=4
-     ielem_num_vefs =8
-     call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
-     if(istat==old_index) then
-        call this%reference_fe_geo_index%put(key=ielem_num_vefs,val=icell_type,stat=istat)
-        assert(istat==now_stored)
-     end if
-  end if
   call memfree(ptr_vertices,__FILE__,__LINE__)
   call memfree(lst_vertices,__FILE__,__LINE__)
   call this%free_cell_iterator(icell)
@@ -810,3 +779,26 @@ subroutine fine_triangulation_free ( this )
   enddo
   call this%base_static_triangulation_t%free()  
 end subroutine fine_triangulation_free
+
+
+pure function compute_vefs_from_vertices(ndime, num_vertices)
+  implicit none
+  integer(ip), intent(in) :: ndime
+  integer(ip), intent(in) :: num_vertices
+  integer(ip) :: compute_vefs_from_vertices
+  if(ndime == 3) then
+     if (num_vertices == 4) then      ! Tetrahedra
+        compute_vefs_from_vertices = 14
+     elseif (num_vertices == 6) then  ! Prisms
+        compute_vefs_from_vertices = 20
+     elseif (num_vertices == 8) then  ! Hexa
+        compute_vefs_from_vertices = 26
+     end if
+  elseif(ndime == 2) then
+     if (num_vertices == 3) then      ! Triangle
+        compute_vefs_from_vertices = 6
+     elseif (num_vertices == 4) then  ! Quad
+        compute_vefs_from_vertices = 8
+     end if
+  end if
+end function

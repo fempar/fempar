@@ -204,6 +204,11 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         ! Generate edges and faces
         call this%allocate_and_fill_cells_around()
+        call this%fill_reference_fe_geo_list(geometry_interpolation_order)
+        ! IMPORTANT NOTE: Both lst_vefs_gids_ghost_extended and cell_coordinates_ghost_extended are inconsistent
+        ! after renumbering the local nodes in procedure this%orient_tet_mesh. If any of these two arrays has to
+        ! be used, it must be done before the call to this%orient_tet_mesh.
+        if (this%is_tet_mesh()) call this%orient_tet_mesh(lst_vefs_gids_ghost_extended)
         call this%generate_vefs(geometry_interpolation_order)
         call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
 

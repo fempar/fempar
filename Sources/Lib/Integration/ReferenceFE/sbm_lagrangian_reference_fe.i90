@@ -829,12 +829,7 @@ subroutine lagrangian_reference_fe_fill (this)
 
   if ( this%continuity ) then
      allocate(this%own_node_permutations(this%number_dimensions-1))
-     do idime = 1, this%number_dimensions-1
-        call this%node_array%fill_permutations( this%order, &
-                                                idime, &
-                                                this%polytope, &
-                                                this%own_node_permutations(idime) )
-     end do
+     call this%fill_own_node_permutations()
   end if
 
   if ( this%number_field_components /= 1 ) then
@@ -892,6 +887,42 @@ subroutine lagrangian_reference_fe_fill (this)
   end do
 
 end subroutine lagrangian_reference_fe_fill
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_fill_own_node_permutations (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout) :: this
+  integer(ip) :: idime
+  
+  do idime = 1, this%number_dimensions-1
+     call this%node_array%fill_permutations( this%order, &
+                                             idime, &
+                                             this%polytope, &
+                                             this%own_node_permutations(idime) )
+  end do
+end subroutine lagrangian_reference_fe_fill_own_node_permutations
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_fill_qpoints_permutations(this, ndime, qpoints_perm, max_order)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                     , intent(in)    :: ndime
+  type(allocatable_array_ip2_t)   , intent(inout) :: qpoints_perm
+  integer(ip)          , optional , intent(in)    :: max_order
+  integer(ip)  :: order
+  
+  if (present(max_order)) then
+     order = max_order
+  else
+     order = this%get_max_order()+2
+  end if
+  
+  call this%node_array%fill_permutations( order, &
+                                          ndime, &
+                                          this%polytope, &
+                                          qpoints_perm )
+  
+end subroutine lagrangian_reference_fe_fill_qpoints_permutations
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_fill_field_components (this)
@@ -1247,6 +1278,33 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
      end if
   end if
 end subroutine lagrangian_reference_fe_fill_scalar
+
+!==================================================================================================
+function lagrangian_reference_fe_get_normal_orientation_factor( this, face_lid, fe_map )          &
+  result(orientation_factor)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                     , intent(in)    :: face_lid
+  type(fe_map_t)       , optional , intent(in)    :: fe_map
+  real(rp)    :: orientation_factor
+  real(rp)    :: jacobian_reorientation_factor
+  integer(ip) :: number_cell_dimensions, orientation_face, local_vef_id
+  
+  jacobian_reorientation_factor = 1.0_rp
+  if (present(fe_map)) then
+     if (.not. fe_map%is_det_jacobian_positive()) jacobian_reorientation_factor = -1.0_rp
+  end if 
+  
+  number_cell_dimensions = this%number_dimensions
+  if (number_cell_dimensions.ne.1) then
+     local_vef_id = this%number_n_faces_per_dimension(number_cell_dimensions) + face_lid - 1
+     orientation_face  = this%orientation%a(local_vef_id)
+     orientation_factor = (-1)**orientation_face*jacobian_reorientation_factor
+  else ! 1D special case
+     orientation_factor = -1.0_rp**(real(face_lid))
+  end if
+  
+end function lagrangian_reference_fe_get_normal_orientation_factor
 
 !==================================================================================================
 subroutine p_lagrangian_reference_fe_free( this )

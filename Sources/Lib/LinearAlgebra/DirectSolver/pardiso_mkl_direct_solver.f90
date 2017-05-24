@@ -226,6 +226,8 @@ contains
         integer, target                                   :: idum(1)
         real(dp), target                                  :: ddum(1)
         real(rp), pointer                                 :: val(:)
+        integer(ip), pointer                              :: ia(:)
+        integer(ip), pointer                              :: ja(:)
         logical                                           :: pardiso_mkl_direct_solver_symbolic_setup_body
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
@@ -252,7 +254,11 @@ contains
                     end if
                   end if
                 end if 
+                
                 if ( .not. pardiso_mkl_direct_solver_symbolic_setup_body ) return 
+
+                ia => matrix%get_irp()
+                ja => matrix%get_ja()
             
                 ! Reordering and symbolic factorization, this step also allocates 
                 ! all memory that is necessary for the factorization
@@ -261,10 +267,10 @@ contains
                              mnum   = this%actual_matrix,          & !< Actual matrix for the solution phase. The value must be: 1 <= mnum <= maxfct. 
                              mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                              phase  = this%phase,                  & !< Controls the execution of the solver (11 == Analysis)
-                             n      = this%matrix%get_num_rows(),  & !< Number of equations in the sparse linear systems of equations
+                             n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
                              a      = val,                         & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
-                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
+                             ia     = ia,                          & !< Pointers to columns in CSR format
+                             ja     = ja,                          & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = this%pardiso_mkl_iparm,      & !< This array is used to pass various parameters to Intel MKL PARDISO 
@@ -298,6 +304,9 @@ contains
         integer                                           :: error
         integer, target                                   :: idum(1)
         real(dp)                                          :: ddum(1)
+        real(rp), pointer                                 :: val(:)
+        integer(ip), pointer                              :: ia(:)
+        integer(ip), pointer                              :: ja(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         ! Factorization.
@@ -308,6 +317,9 @@ contains
 
         select type (matrix)
             type is (csr_sparse_matrix_t)
+                val => matrix%get_val()
+                ia => matrix%get_irp()
+                ja => matrix%get_ja()
                 ! Reordering and symbolic factorization, this step also allocates 
                 ! all memory that is necessary for the factorization
                 call pardiso(pt     = this%pardiso_mkl_pt,         & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
@@ -316,9 +328,9 @@ contains
                              mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                              phase  = this%phase,                  & !< Controls the execution of the solver (22 == Numerical factorization)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
-                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
+                             a      = val,                         & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = ia,                          & !< Pointers to columns in CSR format
+                             ja     = ja,                          & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = this%pardiso_mkl_iparm,      & !< This array is used to pass various parameters to Intel MKL PARDISO 
@@ -356,6 +368,9 @@ contains
         real(rp), pointer                                 :: y_b(:)
         integer                                           :: error
         integer,  target                                  :: idum(1)
+        real(rp), pointer                                 :: val(:)
+        integer(ip), pointer                              :: ia(:)
+        integer(ip), pointer                              :: ja(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         ! (c) y  <- A^-1 * x
@@ -365,6 +380,9 @@ contains
 
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
+                val => matrix%get_val()
+                ia => matrix%get_irp()
+                ja => matrix%get_ja()
                 ! Solve, iterative refinement
                 call pardiso(pt     = op%pardiso_mkl_pt,           & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
                              maxfct = op%max_number_of_factors,    & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
@@ -372,9 +390,9 @@ contains
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
-                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
+                             a      = val,                         & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = ia,                          & !< Pointers to columns in CSR format
+                             ja     = ja,                          & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
@@ -408,6 +426,9 @@ contains
         integer(ip)                                       :: number_rhs
         integer                                           :: error
         integer,  target                                  :: idum(1)
+        real(rp), pointer                                 :: val(:)
+        integer(ip), pointer                              :: ia(:)
+        integer(ip), pointer                              :: ja(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         ! (c) y  <- A^-1 * x
@@ -420,15 +441,18 @@ contains
                 assert(matrix%get_num_rows()==number_rows .and. size(y,1) == number_rows)
                 assert(size(y,2) == number_rhs)
                 ! Solve, iterative refinement
+                val => matrix%get_val()
+                ia => matrix%get_irp()
+                ja => matrix%get_ja()
                 call pardiso(pt     = op%pardiso_mkl_pt,           & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
                              maxfct = op%max_number_of_factors,    & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
                              mnum   = op%actual_matrix,            & !< Actual matrix for the solution phase. The value must be: 1 <= mnum <= maxfct. 
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
                              n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
-                             a      = matrix%get_val(),            & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
-                             ia     = matrix%get_irp(),            & !< Pointers to columns in CSR format
-                             ja     = matrix%get_ja(),             & !< Column indices of the CSR sparse matrix
+                             a      = val,                         & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = ia,                          & !< Pointers to columns in CSR format
+                             ja     = ja,                          & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
                              nrhs   = number_rhs,                  & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
