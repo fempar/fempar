@@ -865,11 +865,11 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
                                                               first_cell%find_lpos_vef_lid(face%lid), &
                                                               second_cell%find_lpos_vef_lid(face%lid))
       face_rotation = &
-        first_reference_fe_geo%compute_relative_rotation( second_reference_fe_geo, &
-                                                          second_cell%find_lpos_vef_lid(face%lid), &
-                                                          first_cell%find_lpos_vef_lid(face%lid),  &
-                                                          second_cell%get_vef_lids(), &
-                                                          first_cell%get_vef_lids() )
+        second_reference_fe_geo%compute_relative_rotation( first_reference_fe_geo, &
+                                                          first_cell%find_lpos_vef_lid(face%lid), &
+                                                          second_cell%find_lpos_vef_lid(face%lid),  &
+                                                          first_cell%get_vef_lids(), &
+                                                          second_cell%get_vef_lids() )
         
       call face%set_face_orientation(face_orientation)
       call face%set_face_rotation(face_rotation)
