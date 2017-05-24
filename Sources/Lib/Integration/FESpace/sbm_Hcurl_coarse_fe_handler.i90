@@ -86,8 +86,6 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_
   ! a single-field PDE problem
   field_id = 1
 
-  
-  
   ! First, count how many coarse_dofs there are on the interface of my subdomain
   num_coarse_dofs = 0
   call par_fe_space%create_fe_object_iterator(object)
@@ -179,7 +177,10 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   integer(ip)  :: istat
   integer(ip)  :: qpoint, num_quad_points
   real(rp)     :: factor
-			
+
+  type(serial_scalar_array_t) :: first_moment_constraint_in_edges 
+  real(rp), pointer           :: first_moment_constraint_in_edges_entries(:)
+  
   par_environment => par_fe_space%get_par_environment()
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
@@ -190,10 +191,12 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   ! To-think where field_id should come from? Temporarily let us assume that we have
   ! a single-field PDE problem
   field_id = 1
-
+	
   ! Free any dynamic memory that constraint_matrix may have inside
   call constraint_matrix%free()
-
+  call this%compute_first_order_moment_in_edges(par_fe_space, first_moment_constraint_in_edges)
+  first_moment_constraint_in_edges_entries => first_moment_constraint_in_edges%get_entries()
+  
   num_rows = par_fe_space%number_dofs_per_field(field_id)
   num_cols = par_fe_space%ptr_coarse_dofs_per_field(field_id+1)- &
        par_fe_space%ptr_coarse_dofs_per_field(field_id) 
@@ -205,6 +208,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   call par_fe_space%create_fe_object_iterator(object)
   call par_fe_space%create_fe_iterator(fe)
   call par_fe_space%create_fe_vef_iterator(vef)
+
   do while ( .not. object%has_finished() )
      if ( object%get_number_coarse_dofs(field_id) > 0 ) then
         own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
@@ -213,6 +217,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
         if ( object%get_dimension () == 1) then
            do ivef_within_object=1, object%get_num_vefs()
               call object%get_vef(ivef_within_object,vef)
+			  if (vef%get_dimension() == 1) then 
               call vef%get_cell_around(1,fe)
               call fe%get_field_elem2dof(field_id, elem2dof)
               ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
@@ -221,19 +226,21 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = elem2dof(idof)
                  if ( dof_lid > 0 ) then
-				    ! Average of the tangent component over the Coarse Edge
+				    ! Average of the tangent component over the Coarse Edge (new basis)
                     call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp )
-					! First order moment of the tangent component over the Coarse Edge 
-					call constraint_matrix%insert(dof_lid, coarse_dof_lid + 1, 1.0_rp )
+					! First order moment of the tangent component over the Coarse Edge (new basis) 
+					call constraint_matrix%insert(dof_lid, coarse_dof_lid + 1, first_moment_constraint_in_edges_entries(dof_lid) )
                  end if
                  call own_dofs_on_vef_iterator%next()
               end do
+			  end if 
            end do
         end if
      end if
      call object%next()
   end do
-	
+  
+  call first_moment_constraint_in_edges%free() 
   call par_fe_space%free_fe_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_vef_iterator(vef)
@@ -241,6 +248,36 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   call constraint_matrix%sort_and_compress()
   ! call constraint_matrix%print(6)
 end subroutine Hcurl_l1_setup_constraint_matrix
+
+subroutine Hcurl_l1_apply_weighting_operator(this, W, x, y) 
+  implicit none
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  real(rp),            allocatable,       intent(in)    :: W(:) 
+  type(par_scalar_array_t)  , intent(inout) :: x
+  type(par_scalar_array_t)  , intent(inout) :: y
+  type(serial_scalar_array_t), pointer :: x_local
+  type(serial_scalar_array_t), pointer :: y_local
+  real(rp), pointer :: x_local_entries(:)
+  real(rp), pointer :: y_local_entries(:)
+ integer(ip) :: i 
+     x_local         => x%get_serial_scalar_array()
+     x_local_entries => x_local%get_entries()
+     y_local         => y%get_serial_scalar_array()
+     y_local_entries => y_local%get_entries()
+	 
+	 ! Old to new basis 
+	 call this%apply_inverse_local_change_basis( x_local, x_local ) 
+	 ! Apply weighting, defined in the new basis 
+     y_local_entries = x_local_entries*W
+	 ! New to old basis 
+	 call this%apply_local_change_basis( y_local, y_local ) 
+
+end subroutine Hcurl_l1_apply_weighting_operator
+! -------------------------------------------------------------------------------------------------
+!
+!                                 Not overriding procedures 
+!
+! -------------------------------------------------------------------------------------------------
 
 subroutine Hcurl_l1_setup_change_basis_tools( this, par_fe_space ) 
 implicit none 
@@ -399,7 +436,7 @@ subroutine Hcurl_l1_compute_edge_change_basis_matrix(this, par_fe_space)
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   real(rp) , allocatable                                :: edge_elmat(:,:)
 
-  call this%compute_edge_elmat(par_fe_space, edge_elmat)  
+  call this%compute_edge_discrete_gradient_elmat(par_fe_space, edge_elmat)  
   ! Fill own coarse edges change basis arrays (uncoupled coarse edges)
   call this%fill_edge_local_change_of_basis(par_fe_space, edge_elmat)
   ! Fill coupled-to fine edges remaining DoFs array 
@@ -409,12 +446,12 @@ subroutine Hcurl_l1_compute_edge_change_basis_matrix(this, par_fe_space)
 
 end subroutine Hcurl_l1_compute_edge_change_basis_matrix
 
-subroutine Hcurl_l1_compute_edge_elmat(this, par_fe_space, elmat)
+subroutine Hcurl_l1_compute_edge_discrete_gradient_elmat(this, par_fe_space, elmat)
   ! This subroutine computes the elemental 1D Discrete Gradient (phi',phi)_e matrix in a 
   ! reference edge. As the integration to be performed is not edge size-dependent Elemental 
   ! matrix in edges can be re-used for every edge just taking into acount the tangent direction.  
   implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   real(rp), allocatable                 , intent(inout) :: elmat(:,:) 
 
@@ -478,7 +515,173 @@ subroutine Hcurl_l1_compute_edge_elmat(this, par_fe_space, elmat)
   call interpolation_1D_reduced_order%free()
   call edge_quadrature%free()
 
-end subroutine Hcurl_l1_compute_edge_elmat
+end subroutine Hcurl_l1_compute_edge_discrete_gradient_elmat
+
+subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, constraint_in_edges)
+implicit none 
+class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+type(par_fe_space_t)                  , intent(in)    :: par_fe_space 
+type(serial_scalar_array_t)           , intent(inout) :: constraint_in_edges
+
+type(fe_object_iterator_t)             :: object
+type(fe_vef_iterator_t)                :: vef_within_object
+integer(ip)                            :: ivef_within_object
+integer(ip)                 :: field_id, idof, offcomponent_coarse_edge 
+integer(ip)                 :: coarse_edge, fine_edge 
+real(rp),    allocatable    :: elvec(:) 
+integer(ip), pointer        :: dofs_new_basis(:) 
+type(serial_scalar_array_t) :: x_new_local_edge 
+type(serial_scalar_array_t) :: x_old_local_edge 
+
+! Direct solver data
+type(direct_solver_t)        :: direct_solver 
+integer                      :: FPLError
+type(parameterlist_t)        :: parameter_list
+integer                      :: iparm(64)
+  
+  field_id = 1
+  call constraint_in_edges%create_and_allocate( par_fe_space%get_block_number_dofs(field_id) )
+  call constraint_in_edges%init(0.0_rp) 
+
+  ! Elemental vector int(Phi), lack of lenght  
+  call this%compute_edge_elvec( par_fe_space, elvec ) 
+
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_vef_iterator(vef_within_object)
+  ! Loop on fine edges and assemble the elemental vector, C_new 
+  coarse_edge = 0
+  offcomponent_coarse_edge = this%number_interior_dofs 
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 1 ) then 
+        coarse_edge = coarse_edge + 1	
+		if (coarse_edge>1) offcomponent_coarse_edge = offcomponent_coarse_edge + this%number_fine_edges_per_coarse_edge(coarse_edge-1)*this%order
+        fine_edge = 0
+        do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object, vef_within_object)
+           if ( vef_within_object%get_dimension() == 1 ) then 
+              fine_edge = fine_edge + 1  
+              dofs_new_basis  => this%get_dof_list_new_basis( coarse_edge, fine_edge ) 
+
+              ! Fill local Edge average (new basis) 
+              if ( this%is_first_edge(coarse_edge, fine_edge) ) then 
+                 ! First fine edge, Starting Nodal Lagrangian shape function must not be taken into account
+                 do idof = 1, this%order    
+                       call constraint_in_edges%insert( i    = offcomponent_coarse_edge + dofs_new_basis(idof),  &
+                                                        val  = elvec(idof+1)*abs(this%tangent_size(coarse_edge,fine_edge))  )
+                 end do
+
+              elseif ( (.not. this%is_first_edge(coarse_edge, fine_edge)) .and. (.not. this%is_last_edge(coarse_edge, fine_edge)) ) then  
+                    do idof = 1, this%order+1  
+                       call constraint_in_edges%insert(i    = offcomponent_coarse_edge + dofs_new_basis(idof),  &
+                                                       val  = elvec(idof)*abs(this%tangent_size(coarse_edge,fine_edge))  )
+					end do 
+              else  
+                 ! Last fine edge, Nodal Lagrangian Ending shape function must not be taken into account
+                  do idof = 1, this%order    
+                       call constraint_in_edges%insert( i    = offcomponent_coarse_edge + dofs_new_basis(idof),  &
+                                                        val  = elvec(idof)*abs(this%tangent_size(coarse_edge,fine_edge))  )
+                 end do
+              end if
+
+           end if
+        end do
+     end if
+     call object%next()
+  end do
+
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_vef_iterator(vef_within_object) 
+  
+  ! Change of basis for the assembled vector: C_new*inv(G) = C_old --> SOLVE G^t C_old = C_new 
+  iparm      = 0
+  iparm(1)   = 1 ! no solver default
+  iparm(12)  = 2 ! Solve A^t u = b 
+  
+  	 ! Create direct solver
+    call parameter_list%init()
+    FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0); 
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
+    call direct_solver%set_type_from_pl(parameter_list)
+    call direct_solver%set_parameters_from_pl(parameter_list)
+    call direct_solver%set_matrix(this%change_basis_matrix%G(1))
+	
+	 ! Apply local inverse to each Coarse Edge  
+	 offcomponent_coarse_edge = this%number_interior_dofs 
+     do coarse_edge = 1, this%number_coarse_edges
+	 if (coarse_edge>1) offcomponent_coarse_edge = offcomponent_coarse_edge + this%number_fine_edges_per_coarse_edge(coarse_edge-1)*this%order
+
+	 call constraint_in_edges%create_view(offcomponent_coarse_edge + 1,                                                              & 
+								          offcomponent_coarse_edge + this%order*this%number_fine_edges_per_coarse_edge(coarse_edge), &
+								          x_new_local_edge )
+	 
+	 call x_old_local_edge%create_and_allocate(this%order*this%number_fine_edges_per_coarse_edge(coarse_edge))
+	 call x_old_local_edge%init(0.0_rp) 
+		 
+	 ! Get transpose of the local Edge change of basis matrix 
+	    call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_edge), same_nonzero_pattern=.false.) 
+        call direct_solver%solve( x_new_local_edge, x_old_local_edge)		
+		
+		call x_old_local_edge%free()
+		call x_new_local_edge%free()
+	 end do 
+	 call direct_solver%free() 
+	 
+call memfree(elvec, __FILE__, __LINE__ )
+end subroutine Hcurl_l1_compute_first_order_moment_in_edges
+
+subroutine Hcurl_l1_compute_edge_elvec(this, par_fe_space, elvec)
+  ! This subroutine computes the elemental 1D integration of Lagrangian 
+  ! shape functions over a reference 1D element 
+  implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  real(rp), allocatable                 , intent(inout) :: elvec(:) 
+  
+  class(reference_fe_t), pointer         :: ref_fe 
+  type(hex_lagrangian_reference_fe_t)    :: fe_1D
+  type(quadrature_t)                     :: edge_quadrature
+  type(interpolation_t)                  :: interpolation_1D 
+  real(rp)                               :: shape_test, factor 
+  integer(ip)                            :: ishape, qpoint 
+  integer(ip)                            :: field_id 
+
+  field_id = 1
+  ref_fe => par_fe_space%get_reference_fe(field_id) 
+
+  ! Create a 1D scalar lagrangian reference FE of order k
+  call fe_1D%create(topology          = ref_fe%get_topology(),          &
+                    number_dimensions = 1,                              &
+                    order             = ref_fe%get_order(),             &
+                    field_type        = field_type_scalar,              &
+                    continuity        = .true. )
+
+  select type(ref_fe)
+     class is (nedelec_reference_fe_t)  
+     call ref_fe%create_edge_quadrature( edge_quadrature )
+     class DEFAULT
+     assert(.false.) 
+  end select
+
+  call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
+ 
+  call memalloc( fe_1D%get_number_shape_functions(), elvec, __FILE__, __LINE__ ) 
+  elvec = 0.0_rp 
+  do qpoint = 1, edge_quadrature%number_quadrature_points
+     factor = edge_quadrature%get_weight(qpoint) 
+     do ishape = 1, fe_1D%get_number_shape_functions() 
+        call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
+           elvec(ishape) = elvec(ishape) + shape_test * factor 
+     end do
+  end do
+
+  ! Free data 
+  call fe_1D%free() 
+  call interpolation_1D%free() 
+  call edge_quadrature%free()
+
+end subroutine Hcurl_l1_compute_edge_elvec
 
 subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
   ! Fill change of basis local to Coarse EDGES, G_Ee
@@ -732,25 +935,20 @@ integer(ip)                               :: dummy_val,i
   
 end subroutine Hcurl_l1_fill_coupled_to_edges_local_change_of_basis
 
-subroutine Hcurl_l1_apply_local_change_basis(this, x_new, x_old)
+subroutine Hcurl_l1_apply_local_change_basis(this, x_new_local, x_old_local)
 implicit none 
-class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)  :: this
-type(par_scalar_array_t)              , intent(in)     :: x_new
-type(par_scalar_array_t)              , intent(inout)  :: x_old
-
-type(serial_scalar_array_t), pointer :: x_new_local
-type(serial_scalar_array_t), pointer :: x_old_local 
+class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
+type(serial_scalar_array_t)              , intent(in)     :: x_new_local
+type(serial_scalar_array_t)              , intent(inout)  :: x_old_local
 
 type(serial_scalar_array_t)  :: x_new_local_edge, x_new_local_Ec
 type(serial_scalar_array_t)  :: x_old_local_edge, x_old_local_Ec 
-type(serial_scalar_array_t) :: B_times_x_new
+type(serial_scalar_array_t)  :: B_times_x_new
+type(serial_scalar_array_t)  :: G_times_x_new 
 
 ! Local auxiliar variables 
 integer(ip) :: offcomponent_coarse_edge, coarse_edge
 integer(ip) :: idof 
-
-     x_new_local   => x_new%get_serial_scalar_array()
-	 x_old_local   => x_old%get_serial_scalar_array() 
 	 
 	 ! First part of the application: x_old_Ec = B*x_new_E + x_new_Ec   	  
 	  call x_new_local%create_view( this%number_interior_dofs + 1,                              & 
@@ -790,28 +988,29 @@ integer(ip) :: idof
 	 call x_new_local%create_view(offcomponent_coarse_edge + 1,                                                              & 
 								  offcomponent_coarse_edge + this%order*this%number_fine_edges_per_coarse_edge(coarse_edge), &
 								  x_new_local_edge )
-
-       ! Apply local change basis to built DoF 
-       call this%change_basis_matrix%G(coarse_edge)%apply(x_new_local_edge, x_old_local_edge)
-
+	 
+	   ! Apply local change basis to built DoF
+	   call G_times_x_new%create_and_allocate( this%order*this%number_fine_edges_per_coarse_edge(coarse_edge) ) 
+       call this%change_basis_matrix%G(coarse_edge)%apply(x_new_local_edge, G_times_x_new)
+       call x_old_local_edge%copy( G_times_x_new ) 
+	    
 		call x_old_local_edge%free()
 		call x_new_local_edge%free()
+		call G_times_x_new%free()
 	 end do 
 	 	
 end subroutine Hcurl_l1_apply_local_change_basis
 
-subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old, x_new) 
+subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_local) 
 implicit none 
-class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)  :: this
-type(par_scalar_array_t)              , intent(in)     :: x_old
-type(par_scalar_array_t)              , intent(inout)  :: x_new
-
-type(serial_scalar_array_t), pointer :: x_new_local
-type(serial_scalar_array_t), pointer :: x_old_local 
+class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
+type(serial_scalar_array_t)              , intent(in)     :: x_old_local
+type(serial_scalar_array_t)              , intent(inout)  :: x_new_local
 
 type(serial_scalar_array_t)  :: x_new_local_edge, x_new_local_Ec
 type(serial_scalar_array_t)  :: x_old_local_edge, x_old_local_Ec 
-type(serial_scalar_array_t) :: B_times_x_new
+type(serial_scalar_array_t)  :: B_times_x_new
+type(serial_scalar_array_t)  :: inv_G_times_x_old  
 
 ! Direct solver data
 type(direct_solver_t)        :: direct_solver 
@@ -821,15 +1020,12 @@ integer                      :: iparm(64)
 ! Local auxiliar variables 
 integer(ip) :: offcomponent_coarse_edge, coarse_edge
 
-     x_new_local   => x_new%get_serial_scalar_array()
-	 x_old_local   => x_old%get_serial_scalar_array() 
-
 	 ! Create direct solver to update iterates 
     call parameter_list%init()
-   
+    iparm = 0
     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0); iparm = 0
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
     call direct_solver%set_type_from_pl(parameter_list)
     call direct_solver%set_parameters_from_pl(parameter_list)
@@ -848,11 +1044,16 @@ integer(ip) :: offcomponent_coarse_edge, coarse_edge
 								  offcomponent_coarse_edge + this%order*this%number_fine_edges_per_coarse_edge(coarse_edge), &
 								  x_new_local_edge )
 	 
+	    call inv_G_times_x_old%create_and_allocate(this%order*this%number_fine_edges_per_coarse_edge(coarse_edge)) 
+		call inv_G_times_x_old%init(0.0_rp) 
+		
 	    call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_edge), same_nonzero_pattern=.false.) 
-        call direct_solver%solve( x_old_local_edge , x_new_local_edge )
-
+        call direct_solver%solve( x_old_local_edge , inv_G_times_x_old )
+		call x_new_local_edge%copy(inv_G_times_x_old)
+		
 		call x_old_local_edge%free()
 		call x_new_local_edge%free()
+		call inv_G_times_x_old%free()
 	 end do 
 	 call direct_solver%free() 
 	 

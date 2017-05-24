@@ -549,6 +549,7 @@ module fe_space_names
        procedure (l1_get_num_coarse_dofs_interface), deferred :: get_num_coarse_dofs
 	   procedure (l1_setup_constraint_matrix)      , deferred :: setup_constraint_matrix
 	   procedure (l1_setup_weighting_operator)     , deferred :: setup_weighting_operator
+	   procedure (l1_apply_weighting_operator)     , deferred :: apply_weighting_operator 
   end type l1_coarse_fe_handler_t
  
   abstract interface	
@@ -586,6 +587,14 @@ module fe_space_names
       type(parameterlist_t)         , intent(in)    :: parameter_list
 	     real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
+	
+	 subroutine l1_apply_weighting_operator(this, W, x, y) 
+	     import :: l1_coarse_fe_handler_t, par_scalar_array_t, rp
+      class(l1_coarse_fe_handler_t) , intent(in)    :: this
+	  real(rp)         , allocatable, intent(in)    :: W(:)
+	  type(par_scalar_array_t)      , intent(inout) :: x
+      type(par_scalar_array_t)      , intent(inout) :: y
+    end subroutine l1_apply_weighting_operator
 
   end interface
   
@@ -596,6 +605,7 @@ module fe_space_names
        procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
 	   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
 	   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
+	   procedure             :: apply_weighting_operator                  => standard_l1_apply_weighting_operator 
     procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
 	   procedure             :: free                                      => standard_l1_free 
   end type standard_l1_coarse_fe_handler_t
@@ -641,16 +651,21 @@ module fe_space_names
        type(edge_change_basis_matrix_t)        :: change_basis_matrix 
 	   
   contains
-       procedure                           :: free                                                     => Hcurl_l1_free 
-	   procedure                           :: get_num_coarse_dofs                                      => Hcurl_l1_get_num_coarse_dofs 
-	   procedure                           :: setup_constraint_matrix                                  => Hcurl_l1_setup_constraint_matrix
+       ! Overriding procedures 
+       procedure                           :: free                        => Hcurl_l1_free 
+	   procedure                           :: get_num_coarse_dofs         => Hcurl_l1_get_num_coarse_dofs 
+	   procedure                           :: setup_constraint_matrix     => Hcurl_l1_setup_constraint_matrix
+	   procedure                           :: apply_weighting_operator    => Hcurl_l1_apply_weighting_operator   
+	   ! Local procedures 
 	   procedure                           :: setup_change_basis_tools                                 => Hcurl_l1_setup_change_basis_tools 
 	   procedure                           :: apply_local_change_basis                                 => Hcurl_l1_apply_local_change_basis
 	   procedure                           :: apply_inverse_local_change_basis                         => Hcurl_l1_apply_inverse_local_change_basis 
 	   ! Private TBPs 
 	   procedure, non_overridable, private :: compute_wire_dof_renumbering                => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
 	   procedure, non_overridable, private :: compute_edge_change_basis_matrix            => Hcurl_l1_compute_edge_change_basis_matrix
-	   procedure, non_overridable, private :: compute_edge_elmat                          => Hcurl_l1_compute_edge_elmat
+	   procedure, non_overridable, private :: compute_edge_discrete_gradient_elmat        => Hcurl_l1_compute_edge_discrete_gradient_elmat
+	   procedure, non_overridable, private :: compute_first_order_moment_in_edges         => Hcurl_l1_compute_first_order_moment_in_edges 
+	   procedure, non_overridable, private :: compute_edge_elvec                          => Hcurl_l1_compute_edge_elvec
 	   procedure, non_overridable, private :: fill_edge_local_change_of_basis             => Hcurl_l1_fill_edge_local_change_of_basis 
 	   procedure, non_overridable, private :: fill_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_coupled_to_edges_local_change_of_basis
 	   procedure, non_overridable, private :: set_orientation_and_sort_fine_edges         => Hcurl_l1_set_orientation_and_sort_fine_edges
@@ -659,7 +674,6 @@ module fe_space_names
 	   procedure, non_overridable, private :: build_fine_edges_oriented_path   => Hcurl_l1_build_fine_edges_oriented_path
 	   ! DoF numbering getters 
 	   procedure, non_overridable, private :: get_dof_list_in_coarse_edge      => Hcurl_l1_get_dof_list_in_coarse_edge 
-	   ! procedure, non_overridable, private :: get_dof_list_wire_numbering      => Hcurl_l1_get_dof_list_wire_numbering 
 	   procedure, non_overridable, private :: get_wire_basis_dofs_from_vef     => Hcurl_l1_get_wire_basis_dofs_from_vef 
 	   procedure, non_overridable, private :: get_dof_list_new_basis           => Hcurl_l1_get_dof_list_new_basis 
 	   procedure, non_overridable, private :: get_new_basis_dof_from_node_id   => Hcurl_l1_get_new_basis_dof_from_node_id 
