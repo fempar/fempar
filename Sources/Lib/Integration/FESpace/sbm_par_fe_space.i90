@@ -360,6 +360,7 @@ subroutine par_fe_space_renumber_dofs_first_interior_then_interface( this )
     do iblock=1, this%get_number_blocks()
       call memalloc (this%number_dofs_per_block(iblock), perm_old2new_block, __FILE__, __LINE__)
       call this%blocks_dof_import(iblock)%fill_first_I_then_G_renumbering(perm_old2new_block)
+	  call this%renumber_interface_dofs_first_E_then_Ec(iblock, perm_old2new_block)
       call this%renumber_dofs_block(iblock, perm_old2new_block)
       call this%blocks_dof_import(iblock)%renumber_dofs(perm_old2new_block)
       call memfree (perm_old2new_block, __FILE__, __LINE__)
@@ -367,6 +368,145 @@ subroutine par_fe_space_renumber_dofs_first_interior_then_interface( this )
   end if
 end subroutine par_fe_space_renumber_dofs_first_interior_then_interface
 
+subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec(this, iblock, perm_old2new) 
+! This subroutine receives a permutation array that fills first the interior and then the 
+! interface DoFs (perm_old2new) and renumbers the interface DoFs such that we get a final 
+! numbering such that: x_G = [ x_E, x_Ec, x_F ] being E the coarse edges (objects with dim=1), 
+! Ec the set of degrees of freedom coupled with those ones in the edges and x_F the rest of DoFs. 
+! Particularly, x_E = [x_E1, x_E2, ..., x_En], i.e. DoFs are packed with coarse edges local ascending ordering.  
+! By composition of permutations, perm_old2wire = perm_new2wire(perm_old2new)
+  implicit none
+  class(par_fe_space_t)   , intent(in)     :: this
+  integer(ip)             , intent(in)     :: iblock 
+  integer(ip)             , intent(inout)  :: perm_old2new(this%number_dofs_per_block(iblock))
+
+  type(fe_object_iterator_t)             :: object
+  type(fe_vef_iterator_t)                :: vef_within_object, vef_within_cell 
+  class(fe_iterator_t), allocatable      :: fe
+  type(fe_face_iterator_t)               :: fe_face
+  integer(ip)            , pointer       :: elem2dof(:)
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip) :: field_id, ielem, istat 
+  integer(ip) :: iface_within_object, ivef_within_cell, ivef_within_object, dof_lid, coarse_dof_lid
+
+  integer(ip)  :: ivef_within_edge_adjacent_cell, iedge_coarse
+  class(reference_fe_t), pointer :: reference_fe 
+  integer(ip), allocatable       :: perm_new2wire(:)
+  integer(ip)                    :: idof, current_dof 
+  
+  ! Decide if the change will be applied, only applied for 3D Nedelec-like element space
+  field_id = this%field_blocks(iblock)  
+  call this%create_fe_iterator(fe)
+  reference_fe => fe%get_reference_fe(field_id)
+  
+  if ( reference_fe%get_fe_type() == fe_type_nedelec .and. reference_fe%get_number_dimensions()==3 ) then 
+
+  call memalloc ( this%number_dofs_per_block(iblock), perm_new2wire, __FILE__, __LINE__ ) 
+  perm_new2wire=0
+
+  ! Interior DoFs are not renumbered 
+  current_dof = 1
+  do idof = 1, this%get_block_number_interior_dofs(iblock) 
+  perm_new2wire(idof) = current_dof  
+  current_dof = current_dof + 1
+  end do 
+  
+  ! Compute local numbering for the Wire Basket interface DOFs 
+  call this%create_fe_object_iterator(object)
+  call this%create_fe_face_iterator(fe_face)
+  call this%create_fe_vef_iterator(vef_within_object)
+  call this%create_fe_vef_iterator(vef_within_cell)
+
+  ! In a first loop we add all DOFs belonging to COARSE EDGES (E)
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 1 ) then 
+        do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object, vef_within_object)
+           if ( vef_within_object%get_dimension() == 1 ) then  ! Only act if a fine edge has been found 
+              call vef_within_object%get_cell_around(1,fe)
+              call fe%get_field_elem2dof(field_id, elem2dof)
+              ivef_within_cell = fe%find_lpos_vef_lid(vef_within_object%get_lid())
+              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 if (perm_new2wire(perm_old2new(elem2dof(idof))) .eq. 0) then
+                    perm_new2wire(perm_old2new(elem2dof(idof))) = current_dof
+					current_dof = current_dof + 1
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+           end if
+
+        end do
+     end if
+     call object%next()
+  end do
+ 
+  ! In a second loop we add all remaining DOFs that are in touch to COARSE EDGES, faces and edges (Ec): 
+  ! Run over fine edges contained in coarse edges > Run over local adjacent cells to those edges > Renumber dofs in local cells interface vefs  
+  call object%first() 
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 1 ) then 
+       do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object,vef_within_object)
+           if ( vef_within_object%get_dimension() == 1 ) then ! Only check edge-container elements 
+              ! Take local fes 
+              do ielem = 1, vef_within_object%get_num_cells_around() 
+                 call vef_within_object%get_cell_around(ielem,fe)
+                 if ( fe%is_local() ) then 
+                    ! Loop over all vefs on fe and count the interface dofs, vefs_in_cell all vefs in the cell containing vef_in_object 	   
+                    do ivef_within_edge_adjacent_cell=1, fe%get_num_vefs()
+                       call fe%get_vef(ivef_within_edge_adjacent_cell, vef_within_cell )
+                       if ( vef_within_cell%is_at_interface() ) then ! Only interested in interface wire numbering 
+                          call fe%get_field_elem2dof(field_id, elem2dof)
+                          ivef_within_cell = fe%find_lpos_vef_lid(vef_within_cell%get_lid())
+                          own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+                          ! Loop over interface dofs contained in the interface vef and assign numbering 
+                          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                             idof    = own_dofs_on_vef_iterator%get_current()
+        					 if (elem2dof(idof)>0) then 
+                              if ( perm_new2wire(perm_old2new(elem2dof(idof))) .eq. 0 ) then
+                                perm_new2wire(perm_old2new(elem2dof(idof))) = current_dof 
+								current_dof = current_dof + 1
+							   end if 
+                             end if
+                             call own_dofs_on_vef_iterator%next()
+                          end do
+
+                       end if
+                    end do
+                 end if
+              end do
+
+           end if
+        end do
+     end if
+     call object%next()
+  end do
+
+  ! Last, remaining interface dofs that are not coupled to edges are filled 
+  do idof = 1, this%get_block_number_dofs(iblock)
+  if (perm_new2wire(idof) == 0) then 
+  perm_new2wire(idof) = current_dof   
+  current_dof = current_dof + 1
+  end if 
+  end do 
+  
+  call this%free_fe_object_iterator(object)
+  call this%free_fe_vef_iterator(fe_face)
+  call this%free_fe_vef_iterator(vef_within_object)
+  call this%free_fe_vef_iterator(vef_within_cell)
+  
+  ! Compose both permutations to end up with a old2wire unique permutation 
+  do idof=1, this%get_block_number_dofs(iblock) 
+  perm_old2new(idof) = perm_new2wire(perm_old2new(idof))
+  end do 
+  
+  call memfree(perm_new2wire, __FILE__, __LINE__)
+  end if 
+  
+  call this%free_fe_iterator(fe)
+end subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec
 
 subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
   implicit none

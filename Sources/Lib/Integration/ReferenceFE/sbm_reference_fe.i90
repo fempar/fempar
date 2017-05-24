@@ -168,6 +168,13 @@ function reference_fe_get_topology( this )
   reference_fe_get_topology => this%topology
 end function reference_fe_get_topology
 
+function reference_fe_get_fe_type( this )
+  implicit none
+  class(reference_fe_t), target, intent(in) :: this
+  character(:), pointer :: reference_fe_get_fe_type
+  reference_fe_get_fe_type => this%fe_type
+end function reference_fe_get_fe_type
+
 function reference_fe_get_field_type( this )
   implicit none
   class(reference_fe_t), target, intent(in) :: this

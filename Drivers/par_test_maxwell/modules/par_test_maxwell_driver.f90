@@ -220,6 +220,10 @@ end subroutine free_timers
                                coarse_fe_handler   = this%Hcurl_l1_coarse_fe_handler)
     
     call this%fe_space%fill_dof_info() 
+		! Setup alternative fe space in 3D Hcurl problems 
+	if ( this%par_environment%am_I_l1_task() ) then 
+	call this%Hcurl_l1_coarse_fe_handler%setup_change_basis_tools( this%fe_space ) 
+	end if 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
 	call this%fe_space%initialize_fe_face_integration() 
@@ -235,10 +239,7 @@ end subroutine free_timers
 	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) ! Nedelec element 
     !call this%fe_space%interpolate_dirichlet_values(this%maxwell_conditions)    ! Lagrangian element
 
-	! Setup alternative fe space in 3D Hcurl problems 
-	if ( this%par_environment%am_I_l1_task() ) then 
-	call this%Hcurl_l1_coarse_fe_handler%setup_change_basis_tools( this%fe_space ) 
-	end if 
+
   end subroutine setup_fe_space
   
   subroutine setup_system (this)

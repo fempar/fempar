@@ -439,7 +439,7 @@ module fe_space_names
     procedure, non_overridable           :: get_number_coarse_dofs                => fe_object_iterator_get_number_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_iterator_create_own_coarse_dofs_iterator
   end type fe_object_iterator_t
-      
+        
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
   ! See type(par_fe_space_t)%generate_non_consecutive_dof_gid()
@@ -489,6 +489,7 @@ module fe_space_names
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
+   procedure        , non_overridable, private :: renumber_interface_dofs_first_E_then_Ec         => par_fe_space_renumber_interface_dofs_first_E_then_Ec
    procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
 
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
@@ -543,13 +544,14 @@ module fe_space_names
   type, abstract :: l1_coarse_fe_handler_t
   contains
     ! Deferred methods
+      ! procedure (l1_renumber_interface_dofs_first_E_then_Ec_then_the_rest), deferred :: renumber_interface_dofs_first_E_then_Ec_then_the_rest
        procedure (l1_setup_change_basis_tools)     , deferred :: setup_change_basis_tools
        procedure (l1_get_num_coarse_dofs_interface), deferred :: get_num_coarse_dofs
 	   procedure (l1_setup_constraint_matrix)      , deferred :: setup_constraint_matrix
 	   procedure (l1_setup_weighting_operator)     , deferred :: setup_weighting_operator
   end type l1_coarse_fe_handler_t
  
-  abstract interface
+  abstract interface	
     ! In H(curl) conforming spaces a specific change of basis is needed in the 3D case. 
     ! In all other cases this subroutine will have no impact 
     subroutine l1_setup_change_basis_tools( this, par_fe_space ) 
@@ -623,6 +625,7 @@ module fe_space_names
     type, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
     private 
 	   integer(ip)                             :: order
+	   integer(ip)                             :: number_interior_dofs 
 	   integer(ip)                             :: number_total_wire_dofs 
 	   integer(ip)                             :: number_edge_wire_dofs
 	   integer(ip)                             :: number_coarse_edges
@@ -638,12 +641,12 @@ module fe_space_names
        type(edge_change_basis_matrix_t)        :: change_basis_matrix 
 	   
   contains
-       procedure                           :: free                                        => Hcurl_l1_free 
-	   procedure                           :: get_num_coarse_dofs                         => Hcurl_l1_get_num_coarse_dofs 
-	   procedure                           :: setup_constraint_matrix                     => Hcurl_l1_setup_constraint_matrix
-	   procedure                           :: setup_change_basis_tools                    => Hcurl_l1_setup_change_basis_tools 
-	   procedure                           :: apply_local_change_basis                    => Hcurl_l1_apply_local_change_basis
-	   procedure                           :: apply_inverse_local_change_basis            => Hcurl_l1_apply_inverse_local_change_basis 
+       procedure                           :: free                                                     => Hcurl_l1_free 
+	   procedure                           :: get_num_coarse_dofs                                      => Hcurl_l1_get_num_coarse_dofs 
+	   procedure                           :: setup_constraint_matrix                                  => Hcurl_l1_setup_constraint_matrix
+	   procedure                           :: setup_change_basis_tools                                 => Hcurl_l1_setup_change_basis_tools 
+	   procedure                           :: apply_local_change_basis                                 => Hcurl_l1_apply_local_change_basis
+	   procedure                           :: apply_inverse_local_change_basis                         => Hcurl_l1_apply_inverse_local_change_basis 
 	   ! Private TBPs 
 	   procedure, non_overridable, private :: compute_wire_dof_renumbering                => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
 	   procedure, non_overridable, private :: compute_edge_change_basis_matrix            => Hcurl_l1_compute_edge_change_basis_matrix
