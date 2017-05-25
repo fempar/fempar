@@ -1225,6 +1225,7 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   integer(ip)         :: max_order, max_order_reference_fe_id_within_fe
   integer(ip)         :: fe_volume_integrators_position_key
   integer(ip)         :: istat
+  type(quadrature_t), pointer :: quadrature
 
   class(reference_fe_t), pointer :: reference_fe
 
@@ -1312,7 +1313,8 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
              val=current_volume_integrator, &
              stat=istat)
         if (istat == now_stored) then 
-           call this%fe_volume_integrators(current_volume_integrator)%create(fe%get_quadrature(),&
+           quadrature => fe%get_quadrature()
+           call this%fe_volume_integrators(current_volume_integrator)%create(quadrature,&
                 fe%get_reference_fe(field_id))
            current_volume_integrator = current_volume_integrator + 1
         end if

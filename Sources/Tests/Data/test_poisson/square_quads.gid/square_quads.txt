@@ -1,52 +1,52 @@
 ENTITIES
 POINT
-Num: 1 HigherEntity: 2 conditions: 0 material: 0
+Num: 1 HigherEntity: 2 conditions: 1 material: 0
 LAYER: Layer0
 Coord: 0.0 0.0 0.0
 END POINT
 POINT
-Num: 2 HigherEntity: 2 conditions: 0 material: 0
+Num: 2 HigherEntity: 2 conditions: 1 material: 0
 LAYER: Layer0
 Coord: 1.0 0.0 0.0
 END POINT
 POINT
-Num: 3 HigherEntity: 2 conditions: 0 material: 0
+Num: 3 HigherEntity: 2 conditions: 1 material: 0
 LAYER: Layer0
 Coord: 1.0 1.0 0.0
 END POINT
 POINT
-Num: 4 HigherEntity: 2 conditions: 0 material: 0
+Num: 4 HigherEntity: 2 conditions: 1 material: 0
 LAYER: Layer0
 Coord: 0.0 1.0 0.0
 END POINT
 STLINE
 Num: 1 HigherEntity: 1 conditions: 1 material: 0
 LAYER: Layer0
-Meshing Info: (num=7,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
+Meshing Info: (num=2,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
 Points: 1 2
 END STLINE
 STLINE
 Num: 2 HigherEntity: 1 conditions: 1 material: 0
 LAYER: Layer0
-Meshing Info: (num=8,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
+Meshing Info: (num=4,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
 Points: 2 3
 END STLINE
 STLINE
 Num: 3 HigherEntity: 1 conditions: 1 material: 0
 LAYER: Layer0
-Meshing Info: (num=9,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
+Meshing Info: (num=5,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
 Points: 3 4
 END STLINE
 STLINE
 Num: 4 HigherEntity: 1 conditions: 1 material: 0
 LAYER: Layer0
-Meshing Info: (num=6,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
+Meshing Info: (num=3,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
 Points: 4 1
 END STLINE
 NURBSURFACE
-Num: 1 HigherEntity: 0 conditions: 0 material: 0
+Num: 1 HigherEntity: 0 conditions: 1 material: 0
 LAYER: Layer0
-Meshing Info: (num=5,NOE=1) Elemtype=3 IsStructured=1 Meshing=Default size=0
+Meshing Info: (num=1,NOE=1) Elemtype=3 IsStructured=0 Meshing=Default size=0
 NumLines: 4
 Line: 1 Orientation: SAME1ST
 Line: 2 Orientation: SAME1ST
@@ -75,72 +75,61 @@ END NURBSURFACE
 END ENTITIES
 MESH dimension 3 ElemType Quadrilateral Nnode 4
 Coordinates
-    1               0               1               0
-    2            0.25               1               0
-    3               0            0.75               0
-    4            0.25            0.75               0
-    5             0.5               1               0
-    6               0             0.5               0
-    7            0.25             0.5               0
-    8             0.5            0.75               0
-    9             0.5             0.5               0
-   10            0.75               1               0
-   11               0            0.25               0
-   12            0.25            0.25               0
-   13            0.75            0.75               0
-   14             0.5            0.25               0
-   15            0.75             0.5               0
-   16               0               0               0
-   17               1               1               0
+    1               1               1               0
+    2     0.666666667               1               0
+    3               1     0.666666667               0
+    4     0.657275507     0.676803565               0
+    5     0.333333333               1               0
+    6               1     0.333333333               0
+    7     0.325485094     0.715552326               0
+    8     0.636950267     0.324995266               0
+    9     0.304850456     0.439075652               0
+   10     0.466144294     0.179433692               0
+   11               1               0               0
+   12               0               1               0
+   13            0.75               0               0
+   14               0            0.75               0
+   15     0.256966462     0.215755018               0
+   16             0.5               0               0
+   17               0             0.5               0
    18            0.25               0               0
-   19               1            0.75               0
-   20            0.75            0.25               0
-   21             0.5               0               0
-   22               1             0.5               0
-   23            0.75               0               0
-   24               1            0.25               0
-   25               1               0               0
+   19               0            0.25               0
+   20               0               0               0
 End Coordinates
 
 Elements
-1 18 12 11 16
-2 21 14 12 18
-3 23 20 14 21
-4 25 24 20 23
-5 12 7 6 11
-6 14 9 7 12
-7 20 15 9 14
-8 24 22 15 20
-9 7 4 3 6
-10 9 8 4 7
-11 15 13 8 9
-12 22 19 13 15
-13 4 2 1 3
-14 8 5 2 4
-15 13 10 5 8
-16 19 17 10 13
+1 13 11 6 8
+2 12 14 7 5
+3 19 20 18 15
+4 14 17 9 7
+5 17 19 15 9
+6 16 13 8 10
+7 18 16 10 15
+8 6 3 4 8
+9 3 1 2 4
+10 2 5 7 4
+11 15 10 8 9
+12 8 4 7 9
 End Elements
 MESH dimension 3 ElemType Linear Nnode 2
 Coordinates
 End Coordinates
 
 Elements
-17 16 18
-18 18 21
-19 21 23
-20 23 25
-21 25 24
-22 24 22
-23 22 19
-24 19 17
-25 17 10
-26 10 5
-27 5 2
-28 2 1
-29 1 3
-30 3 6
-31 6 11
-32 11 16
+13 20 18
+14 18 16
+15 16 13
+16 13 11
+17 11 6
+18 6 3
+19 3 1
+20 1 2
+21 2 5
+22 5 12
+23 12 14
+24 14 17
+25 17 19
+26 19 20
 End Elements
 PROBLEM DATA
 Title:  value: name
@@ -155,8 +144,16 @@ QUESTION: Point_number#FUNC#(NumEntity)
 VALUE: 0
 END CONDITION
 Geometry Entities
+    1  Conds: 1 0 
+    2  Conds: 1 0 
+    3  Conds: 1 0 
+    4  Conds: 1 0 
 End Geometry Entities
 Mesh Entities
+N    20  Conds: 1 1 
+N    11  Conds: 1 2 
+N     1  Conds: 1 3 
+N    12  Conds: 1 4 
 End Mesh Entities
 NUMBER: 21 CONDITION: Line_id
 CONDTYPE: over lines
@@ -173,22 +170,20 @@ Geometry Entities
     4  Conds: 1 0 
 End Geometry Entities
 Mesh Entities
-E    17  Conds: 1 1 
-E    18  Conds: 1 1 
-E    19  Conds: 1 1 
-E    20  Conds: 1 1 
-E    21  Conds: 1 2 
-E    22  Conds: 1 2 
-E    23  Conds: 1 2 
-E    24  Conds: 1 2 
-E    25  Conds: 1 3 
-E    26  Conds: 1 3 
-E    27  Conds: 1 3 
-E    28  Conds: 1 3 
-E    29  Conds: 1 4 
-E    30  Conds: 1 4 
-E    31  Conds: 1 4 
-E    32  Conds: 1 4 
+E    13  Conds: 1 1 
+E    14  Conds: 1 1 
+E    15  Conds: 1 1 
+E    16  Conds: 1 1 
+E    17  Conds: 1 2 
+E    18  Conds: 1 2 
+E    19  Conds: 1 2 
+E    20  Conds: 1 3 
+E    21  Conds: 1 3 
+E    22  Conds: 1 3 
+E    23  Conds: 1 4 
+E    24  Conds: 1 4 
+E    25  Conds: 1 4 
+E    26  Conds: 1 4 
 End Mesh Entities
 NUMBER: 31 CONDITION: Surface_id
 CONDTYPE: over surfaces
@@ -199,8 +194,21 @@ QUESTION: Surface_number#FUNC#(NumEntity)
 VALUE: 0
 END CONDITION
 Geometry Entities
+    1  Conds: 1 0 
 End Geometry Entities
 Mesh Entities
+E     1  Conds: 1 1 
+E     2  Conds: 1 1 
+E     3  Conds: 1 1 
+E     4  Conds: 1 1 
+E     5  Conds: 1 1 
+E     6  Conds: 1 1 
+E     7  Conds: 1 1 
+E     8  Conds: 1 1 
+E     9  Conds: 1 1 
+E    10  Conds: 1 1 
+E    11  Conds: 1 1 
+E    12  Conds: 1 1 
 End Mesh Entities
 NUMBER: 41 CONDITION: Volume_id
 CONDTYPE: over volumes
