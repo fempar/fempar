@@ -35,6 +35,13 @@ function base_fe_space_get_number_fields ( this )
   base_fe_space_get_number_fields = this%number_fields
 end function base_fe_space_get_number_fields
 
+subroutine base_fe_space_set_number_fields ( this, number_fields )
+  implicit none
+  class(base_fe_space_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: number_fields
+  this%number_fields = number_fields
+end subroutine base_fe_space_set_number_fields
+
 ! Although in principle this%fe_space_type_per_field(:) was though to be
 ! private member variable, I had to make it visible to the exterior
 ! via a raw pointer it as type(mlbddc_coarse_t) requires it in order to construct 
@@ -117,6 +124,19 @@ function base_fe_space_get_field_number_dofs( this, field_id )
   end if
 end function base_fe_space_get_field_number_dofs
 
+subroutine base_fe_space_set_field_number_dofs( this, field_id, field_number_dofs )
+  implicit none
+  class(base_fe_space_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: field_id
+  integer(ip)           , intent(in)    :: field_number_dofs
+  class(environment_t), pointer  :: environment
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+     assert ( field_id >=1 .and. field_id <= this%number_fields )
+     this%number_dofs_per_field(field_id) = field_number_dofs
+  end if
+end subroutine base_fe_space_set_field_number_dofs
+
 ! Returns the number of DoFs associated to block with identifier block_id
 function base_fe_space_get_block_number_dofs ( this, block_id )
   implicit none
@@ -131,6 +151,19 @@ function base_fe_space_get_block_number_dofs ( this, block_id )
      base_fe_space_get_block_number_dofs  = this%number_dofs_per_block(block_id)
   end if
 end function base_fe_space_get_block_number_dofs
+
+subroutine base_fe_space_set_block_number_dofs ( this, block_id, block_number_dofs )
+  implicit none
+  class(base_fe_space_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: block_id
+  integer(ip)                           :: block_number_dofs
+  class(environment_t), pointer         :: environment
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+     assert ( block_id >=1 .and. block_id <= this%number_blocks )
+     this%number_dofs_per_block(block_id) = block_number_dofs
+  end if
+end subroutine base_fe_space_set_block_number_dofs
 
 function base_fe_space_get_total_number_interior_dofs ( this )
   implicit none

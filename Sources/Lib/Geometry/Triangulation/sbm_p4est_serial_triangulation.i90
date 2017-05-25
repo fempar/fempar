@@ -25,17 +25,67 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+function p4est_serial_triangulation_get_num_dimensions(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_serial_triangulation_get_num_dimensions
+  p4est_serial_triangulation_get_num_dimensions = this%p4est_num_dimensions
+end function p4est_serial_triangulation_get_num_dimensions
+
+function p4est_serial_triangulation_get_num_cells(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_serial_triangulation_get_num_cells
+  p4est_serial_triangulation_get_num_cells = this%p4est_num_cells
+end function p4est_serial_triangulation_get_num_cells
+
+function p4est_serial_triangulation_get_num_vefs(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_serial_triangulation_get_num_vefs
+  p4est_serial_triangulation_get_num_vefs = this%p4est_num_vefs
+end function p4est_serial_triangulation_get_num_vefs
+
+function p4est_serial_triangulation_get_num_proper_vefs(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_serial_triangulation_get_num_proper_vefs
+  p4est_serial_triangulation_get_num_proper_vefs = this%num_proper_vefs
+end function p4est_serial_triangulation_get_num_proper_vefs
+
+function p4est_serial_triangulation_get_num_improper_vefs(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_serial_triangulation_get_num_improper_vefs
+  p4est_serial_triangulation_get_num_improper_vefs = this%num_improper_vefs
+end function p4est_serial_triangulation_get_num_improper_vefs
+
+
 subroutine p4est_serial_triangulation_create (this, parameters)
   implicit none
   class(p4est_serial_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)                      , intent(inout) :: parameters
+  integer(ip) :: istat
   
 #ifdef ENABLE_P4EST
   call this%free()
+  
+  istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
+  call this%create_environment(parameters)
+  
   this%p4est_num_cells = 1
   
   ! TODO: Extract num_dimensions out of parameters
   this%p4est_num_dimensions = 2
+  
+  call this%reference_fe_geo%create( topology_hex, &
+                                     this%p4est_num_dimensions, &
+                                     1, &
+                                     field_type_scalar, & 
+                                     continuity=.true.)
+  
+  
   
   if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
@@ -43,6 +93,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_lids_and_cells_around()
+    call this%allocate_and_fill_per_cell_vertex_coordinates()
   else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if  
@@ -63,6 +114,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
     ! Update the number of triangulation cells
     this%p4est_num_cells = size(this%quad_level)
     call this%update_lst_vefs_lids_and_cells_around()
+    call this%allocate_and_fill_per_cell_vertex_coordinates()
   else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if
@@ -134,6 +186,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
   call this%p4est_lst_improper_cells_around%resize(0)
   call this%p4est_improper_vefs_improper_cell_around_ivef%resize(0)
   call this%p4est_improper_vefs_improper_cell_around_subvef%resize(0)
+  call this%p4est_proper_vefs_dimension%resize(0)
+  call this%p4est_improper_vefs_dimension%resize(0)
   
   this%num_proper_vefs   = 0
   this%num_improper_vefs = 0
@@ -246,6 +300,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
            do i=1, work_vector_cells_around%size()
             call this%p4est_lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
            end do
+           ! Fill proper vefs dimension
+           call this%p4est_proper_vefs_dimension%push_back(0)
          else 
            this%num_improper_vefs = this%num_improper_vefs+1
            call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), -this%num_improper_vefs)
@@ -264,6 +320,9 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
            
            call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(improper_cell_around_ivef)
            call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(improper_cell_around_subvef)
+           
+           ! Fill improper vefs dimension
+           call this%p4est_improper_vefs_dimension%push_back(0)
          end if
        else
          call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), &
@@ -320,6 +379,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
             call this%p4est_lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
            end do
            
+           ! Fill proper vefs dimension
+           call this%p4est_proper_vefs_dimension%push_back(this%get_num_dimensions()-1)
          else 
            this%num_improper_vefs=this%num_improper_vefs+1
            call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), -this%num_improper_vefs)
@@ -338,6 +399,9 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
            
            call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(improper_cell_around_ivef)
            call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(improper_cell_around_subvef)
+           
+           ! Fill improper vefs dimension
+           call this%p4est_improper_vefs_dimension%push_back(this%get_num_dimensions()-1)
            
          end if
        else ! Borrow vef gid from owner
@@ -373,10 +437,55 @@ subroutine p4est_st_std_vector_transform_length_to_header(this,std_vector_intege
 #endif      
 end subroutine p4est_st_std_vector_transform_length_to_header
 
+subroutine p4est_st_allocate_and_fill_per_cell_vertex_coordinates(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(inout)    :: this
+  integer(ip) :: idime, icell, istat, num_corners, current, corner
+  real(rp) :: vxyz(3)
+  
+#ifdef ENABLE_P4EST
+  call this%free_per_cell_vertex_coordinates()
+  if ( this%p4est_num_dimensions == 2 ) then
+    num_corners = NUM_CORNERS_2D
+  else if ( this%p4est_num_dimensions == 3 ) then
+    check(.false.)
+  end if
+  allocate(this%per_cell_vertex_coordinates(this%p4est_num_cells*num_corners), stat=istat); check(istat==0);  
+  
+  current = 1 
+  do icell=1, this%p4est_num_cells
+     do corner=0, num_corners-1
+       call F90_p4est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
+                                                      int(0,P4EST_F90_TOPIDX),&
+                                                      this%quad_coords(1,icell),&
+                                                      this%quad_coords(2,icell), &
+                                                      this%quad_level(icell),&
+                                                      corner,&
+                                                      vxyz)
+       call this%per_cell_vertex_coordinates(current)%init(vxyz)
+       current = current + 1 
+     end do  
+  end do
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_st_allocate_and_fill_per_cell_vertex_coordinates
+
+subroutine p4est_st_free_per_cell_vertex_coordinates(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(inout)    :: this
+  integer(ip) :: istat
+#ifdef ENABLE_P4EST
+  if ( allocated(this%per_cell_vertex_coordinates) ) & 
+    deallocate(this%per_cell_vertex_coordinates, stat=istat); check(istat==0);
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_st_free_per_cell_vertex_coordinates
+
 subroutine p4est_serial_triangulation_update_p4est_mesh(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout) :: this
-  
 #ifdef ENABLE_P4EST
   if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_mesh_new(this%p4est, this%p4est_mesh)
@@ -463,6 +572,8 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%p4est_lst_improper_cells_around%free()
   call this%p4est_improper_vefs_improper_cell_around_ivef%free()
   call this%p4est_improper_vefs_improper_cell_around_subvef%free()
+  call this%p4est_proper_vefs_dimension%free()
+  call this%p4est_improper_vefs_dimension%free()
   
   nullify(this%quad_to_quad)
   nullify(this%quad_to_face)
@@ -479,6 +590,9 @@ subroutine p4est_serial_triangulation_free ( this)
   this%p4est_num_vefs = -1
   this%num_proper_vefs = -1
   this%num_improper_vefs = -1
+  
+  call this%reference_fe_geo%free()
+  call this%environment_free_or_nullify()
 #else
   call this%not_enabled_error()
 #endif     
@@ -493,6 +607,17 @@ subroutine p4est_create_cell_iterator ( this, cell )
   allocate(p4est_cell_iterator_t :: cell, stat=istat); check(istat==0)
   call cell%create(this)
 end subroutine p4est_create_cell_iterator 
+
+subroutine p4est_create_vef_iterator ( this, vef )
+  implicit none
+  class(p4est_serial_triangulation_t) , intent(in)    :: this
+  class(vef_iterator_t), allocatable , intent(inout) :: vef
+  integer(ip) :: istat
+  call this%free_vef_iterator(vef)
+  allocate(p4est_vef_iterator_t :: vef, stat=istat); check(istat==0)
+  call vef%create(this)
+end subroutine p4est_create_vef_iterator
+
 
 SUBROUTINE p4est_eval_connectivity(Conn,nbSide,Flip,Mortar)
   IMPLICIT NONE

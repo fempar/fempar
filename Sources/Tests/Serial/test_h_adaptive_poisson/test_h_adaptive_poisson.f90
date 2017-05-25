@@ -26,30 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-#include "debug.i90"
-#include "std_vector_macros.i90"
-module std_vector_integer_ip_names
-  use types_names
-  use memor_names
+!****************************************************************************************************
+program test_h_adaptive_poisson
+  use fempar_names
+  use test_h_adaptive_poisson_driver_names  
   implicit none
-  private
-  
-  STD_VECTOR_TYPE(integer,ip)
-    
-  public :: std_vector_integer_ip_t
-  
-contains
-  
-  STD_VECTOR_PUSH_BACK(integer,ip)
-  STD_VECTOR_ERASE(integer,ip)
-  STD_VECTOR_RESIZE(integer,ip)
-  STD_VECTOR_SHRINK_TO_FIT(integer,ip)
-  STD_VECTOR_COPY(integer,ip)
-  STD_VECTOR_FREE(integer,ip)
-  STD_VECTOR_GET(integer,ip)
-  STD_VECTOR_GET_POINTER_TO_RANGE(integer,ip)
-  STD_VECTOR_SET(integer,ip)
-  STD_VECTOR_SIZE(integer,ip)
-  STD_VECTOR_CAPACITY(integer,ip)
-  
-end module std_vector_integer_ip_names
+  type(test_h_adaptive_poisson_driver_t) :: test_driver
+  call fempar_init()
+  call test_driver%run_simulation()
+  call fempar_finalize()
+end program test_h_adaptive_poisson

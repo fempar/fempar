@@ -196,6 +196,7 @@ int refine_callback(p4est_t * p4est,
                     p4est_quadrant_t * quadrant)
 {
     P4EST_ASSERT(which_tree == 0);
+    
     if (quadrant->level == 0 || p4est_quadrant_child_id(quadrant) == 1) return 1;
     else return 0;
 }
@@ -204,6 +205,53 @@ void F90_p4est_refine( p4est_t * p4est )
 {
     p4est_refine(p4est, 0, refine_callback, NULL);
 }
+
+void F90_p4est_get_quadrant_vertex_coordinates(p4est_connectivity_t * connectivity,
+                                               p4est_topidx_t treeid,
+                                               p4est_qcoord_t x,
+                                               p4est_qcoord_t y, 
+                                               int8_t level,
+                                               int   corner,
+                                               double vxyz[3])
+{
+    P4EST_ASSERT(treeid == 0);
+    p4est_quadrant_t myself;
+    p4est_quadrant_t neighbour;
+    
+    // Create myself
+    myself.x     = x;
+    myself.y     = y; 
+    myself.level = level;
+    
+    if ( corner == 0 ) {
+          neighbour = myself;
+      }      
+    else if ( corner == 1 ) {
+       p4est_quadrant_face_neighbor(&myself, 
+                                    corner, 
+                                    &neighbour);
+    }
+    else if ( corner == 2 ) { 
+       p4est_quadrant_face_neighbor(&myself, 
+                                    corner+1, 
+                                    &neighbour); 
+   }
+    else if ( corner == 3 ) {   
+       p4est_quadrant_corner_neighbor(&myself, 
+                                    corner, 
+                                    &neighbour); 
+   }
+   
+    // Extract numerical coordinates of lower_left corner of my corner neighbour
+    p4est_qcoord_to_vertex (connectivity, 
+                            treeid, 
+                            neighbour.x, 
+                            neighbour.y, 
+                            vxyz);
+    vxyz[2] = 0.0;
+}
+
+
 //void p4_savemesh ( char    filename[],
 //                   p4est_t *p4est)
 //{

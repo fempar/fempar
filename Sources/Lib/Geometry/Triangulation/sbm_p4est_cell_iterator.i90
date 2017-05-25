@@ -105,46 +105,36 @@ function p4est_cell_iterator_has_finished(this)
   p4est_cell_iterator_has_finished = (this%get_lid() > this%p4est_triangulation%p4est_num_cells)
 end function p4est_cell_iterator_has_finished
 
-!function p4est_cell_iterator_get_reference_fe_geo (this)
-!  implicit none
-!  class(p4est_cell_iterator_t), intent(in) :: this
-!  class(lagrangian_reference_fe_t), pointer     :: p4est_cell_iterator_get_reference_fe_geo
-!  integer(ip) :: cell_type, istat
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  call this%base_static_triangulation%reference_fe_geo_index%get(key=this%get_num_vefs(),val=cell_type,stat=istat)
-!  assert(istat==key_found)
-!  p4est_cell_iterator_get_reference_fe_geo => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p
-!end function p4est_cell_iterator_get_reference_fe_geo
+function p4est_cell_iterator_get_reference_fe_geo (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  class(lagrangian_reference_fe_t), pointer     :: p4est_cell_iterator_get_reference_fe_geo
+  p4est_cell_iterator_get_reference_fe_geo => this%p4est_triangulation%reference_fe_geo
+end function p4est_cell_iterator_get_reference_fe_geo
 
-!function p4est_cell_iterator_get_reference_fe_geo_id (this) 
-!  implicit none
-!  class(p4est_cell_iterator_t), intent(in) :: this
-!  integer(ip) :: p4est_cell_iterator_get_reference_fe_geo_id
-!  integer(ip) :: istat
-!  call this%base_static_triangulation%reference_fe_geo_index%get(key=this%get_num_vefs(), &
-!                                                                 val=p4est_cell_iterator_get_reference_fe_geo_id, &
-!                                                                 stat=istat)
-!end function p4est_cell_iterator_get_reference_fe_geo_id
+function p4est_cell_iterator_get_reference_fe_geo_id (this) 
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_cell_iterator_get_reference_fe_geo_id
+  p4est_cell_iterator_get_reference_fe_geo_id = 1 
+end function p4est_cell_iterator_get_reference_fe_geo_id
 
-!subroutine p4est_cell_iterator_get_coordinates (this, cell_coordinates)
-!  implicit none
-!  class(p4est_cell_iterator_t), intent(in)    :: this
-!  type(point_t)        ,  intent(inout) :: cell_coordinates(:)
-!  integer(ip)                    :: inode
-!  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  assert ( allocated ( this%base_static_triangulation%coordinates ) )
-!  reference_fe_geo => this%get_reference_fe_geo()
-!  if ( this%is_local() ) then
-!    do inode=1, reference_fe_geo%get_number_shape_functions()
-!      cell_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_lid(inode))
-!    end do
-! else
-!    do inode=1, reference_fe_geo%get_number_shape_functions()
-!      cell_coordinates(inode) = 0.0_rp
-!    end do
-! end if
-!end subroutine p4est_cell_iterator_get_coordinates
+subroutine p4est_cell_iterator_get_coordinates (this, cell_coordinates)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  type(point_t)        ,  intent(inout) :: cell_coordinates(:)
+  integer(ip)                    :: inode, number_vertices
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  assert ( allocated ( this%p4est_triangulation%per_cell_vertex_coordinates) )
+  
+  reference_fe_geo => this%get_reference_fe_geo()
+  number_vertices  = reference_fe_geo%get_number_vertices()
+  do inode=1, number_vertices
+    cell_coordinates(inode) = &
+        this%p4est_triangulation%per_cell_vertex_coordinates((this%get_lid()-1)*number_vertices+inode)
+  end do
+end subroutine p4est_cell_iterator_get_coordinates
 
 !subroutine p4est_cell_iterator_set_coordinates (this, cell_coordinates)
 !  implicit none
@@ -263,14 +253,18 @@ function p4est_cell_iterator_get_vef_lid (this, ivef)
   p4est_cell_iterator_get_vef_lid = this%p4est_triangulation%p4est_lst_vefs_lids%get(this%p4est_triangulation%get_ptr_vefs_per_cell(this%get_lid())+ivef-1)
 end function p4est_cell_iterator_get_vef_lid
 
-!function p4est_cell_iterator_get_vef_lids (this)
-!  implicit none
-!  class(p4est_cell_iterator_t), intent(in) :: this
-!  integer(ip)                        :: ivef
-!  integer(ip), pointer               :: p4est_cell_iterator_get_vef_lids(:)
-!  p4est_cell_iterator_get_vef_lids => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid): &
-!                                                                             this%base_static_triangulation%ptr_vefs_per_cell(this%lid+1)-1)
-!end function p4est_cell_iterator_get_vef_lids
+function p4est_cell_iterator_get_vef_lids (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(ip), pointer               :: p4est_cell_iterator_get_vef_lids(:)
+  
+  integer(ip) :: spos, epos
+  
+  spos = this%p4est_triangulation%get_ptr_vefs_per_cell(this%get_lid())
+  epos = this%p4est_triangulation%get_ptr_vefs_per_cell(this%get_lid()+1)-1
+  p4est_cell_iterator_get_vef_lids => this%p4est_triangulation%p4est_lst_vefs_lids%get_pointer_to_range(spos,epos)
+end function p4est_cell_iterator_get_vef_lids
 
 !function p4est_cell_iterator_get_vef_gid (this, ivef)
 !  implicit none

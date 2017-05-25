@@ -108,9 +108,9 @@ module base_static_triangulation_names
     procedure, non_overridable, private  :: get_triangulation       => cell_iterator_get_triangulation
     procedure, non_overridable, private  :: cell_iterator_get_vef
     procedure                            :: has_finished            => cell_iterator_has_finished
-    procedure, non_overridable           :: get_reference_fe_geo    => cell_iterator_get_reference_fe_geo
-    procedure, non_overridable           :: get_reference_fe_geo_id => cell_iterator_get_reference_fe_geo_id
-    procedure, non_overridable           :: get_coordinates         => cell_iterator_get_coordinates
+    procedure                            :: get_reference_fe_geo    => cell_iterator_get_reference_fe_geo
+    procedure                            :: get_reference_fe_geo_id => cell_iterator_get_reference_fe_geo_id
+    procedure                            :: get_coordinates         => cell_iterator_get_coordinates
     procedure, non_overridable           :: set_coordinates         => cell_iterator_set_coordinates
     procedure, non_overridable           :: get_lid                 => cell_iterator_get_lid
     procedure, non_overridable           :: get_gid                 => cell_iterator_get_gid
@@ -122,7 +122,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid
     procedure                            :: get_vef_lid             => cell_iterator_get_vef_lid
-    procedure, non_overridable           :: get_vef_lids            => cell_iterator_get_vef_lids
+    procedure                            :: get_vef_lids            => cell_iterator_get_vef_lids
     procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
     procedure                            :: find_lpos_vef_lid       => cell_iterator_find_lpos_vef_lid
     procedure, non_overridable           :: find_lpos_vef_gid       => cell_iterator_find_lpos_vef_gid
@@ -139,7 +139,7 @@ module base_static_triangulation_names
   
   type vef_iterator_t
     private
-    integer(ip)                                 :: lid = -1
+    integer(ip)                                 :: lid = 0
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
      procedure                           :: create                    => vef_iterator_create
@@ -156,7 +156,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: set_geom_id               => vef_iterator_set_geom_id
      procedure, non_overridable          :: set_set_id                => vef_iterator_set_set_id
      procedure, non_overridable          :: get_geom_id               => vef_iterator_get_geom_id
-     procedure, non_overridable          :: get_set_id                => vef_iterator_get_set_id
+     procedure                           :: get_set_id                => vef_iterator_get_set_id
 
      procedure, non_overridable          :: set_dimension             => vef_iterator_set_dimension
      procedure, non_overridable          :: set_it_at_boundary        => vef_iterator_set_it_at_boundary
@@ -164,16 +164,23 @@ module base_static_triangulation_names
      procedure, non_overridable          :: set_it_as_ghost           => vef_iterator_set_it_as_ghost
      procedure, non_overridable          :: set_it_at_interface       => vef_iterator_set_it_at_interface
 
-     procedure, non_overridable          :: get_dimension             => vef_iterator_get_dimension
+     procedure                           :: get_dimension             => vef_iterator_get_dimension
      procedure, non_overridable          :: is_at_boundary            => vef_iterator_is_at_boundary
-     procedure, non_overridable          :: is_local                  => vef_iterator_is_local
-     procedure, non_overridable          :: is_ghost                  => vef_iterator_is_ghost
-     procedure, non_overridable          :: is_at_interface           => vef_iterator_is_at_interface
+     procedure                           :: is_local                  => vef_iterator_is_local
+     procedure                           :: is_ghost                  => vef_iterator_is_ghost
+     procedure                           :: is_at_interface           => vef_iterator_is_at_interface
      procedure, non_overridable          :: is_face                   => vef_iterator_is_face
+     procedure                           :: is_within_valid_range     => vef_iterator_is_within_valid_range
      
-     procedure, non_overridable          :: get_num_cells_around      => vef_iterator_get_num_cells_around
-     procedure, non_overridable          :: vef_iterator_get_cell_around
-     generic                             :: get_cell_around           => vef_iterator_get_cell_around
+     procedure                           :: get_num_cells_around      => vef_iterator_get_num_cells_around
+     procedure                           :: get_cell_around           => vef_iterator_get_cell_around
+     
+     ! Improper VEFs-only TBPs
+     procedure                           :: is_proper                       => vef_iterator_is_proper
+     procedure                           :: get_num_improper_cells_around   => vef_iterator_get_num_improper_cells_around
+     procedure                           :: get_improper_cell_around        => vef_iterator_get_improper_cell_around
+     procedure                           :: get_improper_cell_around_ivef   => vef_iterator_get_improper_cell_around_ivef
+     procedure                           :: get_improper_cell_around_subvef => vef_iterator_get_improper_cell_around_subvef
   end type vef_iterator_t
 
   type, extends(vef_iterator_t) :: vertex_iterator_t
@@ -346,10 +353,10 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_par_environment                 => bst_get_par_environment
      procedure, non_overridable          :: get_cell_import                     => bst_get_cell_import
      procedure, non_overridable          :: get_coarse_triangulation            => bst_get_coarse_triangulation
-     procedure, non_overridable          :: get_num_dimensions                  => bst_get_num_dimensions
-     procedure, non_overridable          :: get_num_vefs                        => bst_get_num_vefs 
+     procedure                           :: get_num_dimensions                  => bst_get_num_dimensions
+     procedure                           :: get_num_vefs                        => bst_get_num_vefs 
      procedure, non_overridable          :: get_num_faces                       => bst_get_num_faces
-     procedure, non_overridable          :: get_num_cells                       => bst_get_num_cells
+     procedure                           :: get_num_cells                       => bst_get_num_cells
      procedure, non_overridable          :: get_num_local_cells                 => bst_get_num_local_cells
      procedure, non_overridable          :: get_num_ghost_cells                 => bst_get_num_ghost_cells
      procedure, non_overridable          :: get_number_objects                  => bst_get_number_objects
@@ -378,6 +385,7 @@ module base_static_triangulation_names
      ! Other
      procedure                           :: print                               => bst_print    
      procedure                           :: free                                => bst_free
+     procedure                           :: environment_free_or_nullify         => bst_environment_free_or_nullify
      
      ! Getters
      procedure                           :: get_number_reference_fes_geo        => bst_get_number_reference_fes_geo
@@ -459,6 +467,9 @@ module base_static_triangulation_names
   type, extends(base_static_triangulation_t) :: fine_triangulation_t
      private
   contains
+  
+    procedure                           :: create_environment                  => fine_triangulation_create_environment
+  
      ! Private methods to create vefs (these functions make use of the reference fe and therefore are not bounded
      ! to the mother class)
      procedure, non_overridable, private :: generate_vefs                       => fine_triangulation_generate_vefs

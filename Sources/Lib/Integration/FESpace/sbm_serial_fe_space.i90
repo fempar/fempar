@@ -43,8 +43,8 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
 
   call this%free()
 
-  this%triangulation => triangulation
-  this%number_fields = size(reference_fes)
+  call this%set_triangulation(triangulation)  
+  call this%set_number_fields(size(reference_fes))
   call this%allocate_and_fill_reference_fes(reference_fes)
   call this%allocate_and_fill_field_blocks_and_coupling(field_blocks, field_coupling)
   call this%allocate_ref_fe_id_per_fe()
@@ -73,9 +73,9 @@ subroutine serial_fe_space_create_different_between_cells( this, &
   logical                           , optional, intent(in)    :: field_coupling(:,:)
 
   call this%free()
-
-  this%triangulation => triangulation
-  this%number_fields = size(set_ids_to_reference_fes,1)
+  
+  call this%set_triangulation(triangulation)  
+  call this%set_number_fields(size(set_ids_to_reference_fes,1))
   call this%allocate_and_fill_reference_fes(reference_fes)
   call this%allocate_and_fill_field_blocks_and_coupling(field_blocks, field_coupling)
   call this%allocate_ref_fe_id_per_fe()
@@ -1759,17 +1759,40 @@ end subroutine serial_fe_space_create_dof_values
 subroutine serial_fe_space_fill_dof_info( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
-  integer(ip) :: field_id
+  integer(ip) :: block_id, field_id
 
-  call memalloc( this%number_blocks, this%number_dofs_per_block, __FILE__, __LINE__ )
-  call memalloc( this%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
-
-  this%number_dofs_per_block = 0
-  this%number_dofs_per_field = 0
-  do field_id = 1, this%number_fields
+  call this%allocate_number_dofs_per_block()
+  do block_id=1, this%get_number_blocks()
+    call this%set_block_number_dofs(block_id, 0)
+  end do
+  
+  call this%allocate_number_dofs_per_field()
+  do field_id=1, this%get_number_fields()
+    call this%set_field_number_dofs(field_id, 0)
+  end do
+  
+  do field_id = 1, this%get_number_fields()
      call this%fill_elem2dof_and_count_dofs( field_id )
   end do
 end subroutine serial_fe_space_fill_dof_info
+
+subroutine serial_fe_space_allocate_number_dofs_per_block( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this 
+  if ( .not. allocated(this%number_dofs_per_block) ) & 
+     call memalloc( this%get_number_blocks(), this%number_dofs_per_block, __FILE__, __LINE__ )
+  assert ( size(this%number_dofs_per_block) == this%get_number_blocks() ) 
+end subroutine serial_fe_space_allocate_number_dofs_per_block
+
+subroutine serial_fe_space_allocate_number_dofs_per_field( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  if ( .not. allocated(this%number_dofs_per_field) ) & 
+     call memalloc( this%get_number_fields(), this%number_dofs_per_field, __FILE__, __LINE__ )
+  assert ( size(this%number_dofs_per_field) == this%get_number_fields() )
+end subroutine serial_fe_space_allocate_number_dofs_per_field
+
+
 
 subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
   implicit none
@@ -1782,17 +1805,17 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   integer(ip) :: iblock, init_dof_block, current_dof_block, previous_dof_block
   integer(ip), allocatable :: visited_vef_to_fe_map(:,:)
   class(fe_iterator_t), allocatable :: fe, source_fe
+  
 
   iblock            = this%field_blocks(field_id)
   init_dof_block    = this%number_dofs_per_block(iblock)
   current_dof_block = init_dof_block
 
+  call this%create_fe_iterator(fe)
   if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
      call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
      visited_vef_to_fe_map = -1
-
      call this%create_fe_iterator(source_fe)
-     call this%create_fe_iterator(fe)
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
            call fe%fill_own_dofs ( field_id, current_dof_block )
@@ -1817,18 +1840,16 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
         call fe%next()
      end do
      call this%free_fe_iterator(source_fe)
-     call this%free_fe_iterator(fe)
      call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
   else 
-     call this%create_fe_iterator(fe)
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
            call fe%fill_own_dofs ( field_id, current_dof_block )
         end if
         call fe%next()
      end do
-     call this%free_fe_iterator(fe)
   end if
+  call this%free_fe_iterator(fe)
   this%number_dofs_per_field(field_id) = current_dof_block - init_dof_block
   this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
        this%number_dofs_per_field(field_id)     
@@ -1984,6 +2005,13 @@ function serial_fe_space_get_triangulation( this) result(triangulation)
   assert ( associated(this%triangulation) )
   triangulation => this%triangulation
 end function serial_fe_space_get_triangulation
+
+subroutine serial_fe_space_set_triangulation( this, triangulation )
+  implicit none
+  class(serial_fe_space_t)                  , intent(inout) :: this 
+  class(base_static_triangulation_t), target, intent(in)    :: triangulation
+  this%triangulation => triangulation
+end subroutine serial_fe_space_set_triangulation
 
 function serial_fe_space_get_environment(this) result(environment)
   implicit none

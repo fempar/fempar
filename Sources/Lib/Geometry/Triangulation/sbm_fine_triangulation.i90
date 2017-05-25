@@ -25,6 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine fine_triangulation_create_environment (this, parameters)
+  implicit none
+  class(fine_triangulation_t), target, intent(inout) :: this
+  type(parameterlist_t)              , intent(in)    :: parameters
+  call this%par_environment%create (parameters)
+  this%p_env => this%par_environment
+end subroutine fine_triangulation_create_environment
+
 subroutine fine_triangulation_generate_vefs(this,order)
   implicit none
   ! This routine assumes a triangulation with vertices and ghost elements

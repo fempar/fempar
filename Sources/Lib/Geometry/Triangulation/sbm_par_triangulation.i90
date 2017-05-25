@@ -111,8 +111,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
      if( .not. parameters%isPresent(key = execution_context_key) ) then
         istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
      end if
-     call this%par_environment%create (parameters)
-     this%p_env => this%par_environment
+     call this%create_environment(parameters)
   end if
 
 
