@@ -136,13 +136,21 @@ subroutine face_map_update(this,face_lid,face_quadrature,left_reference_fe_geo)
   integer(ip)          , intent(in)    :: face_lid(2)
   type(quadrature_t), intent(in)    :: face_quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
+  integer(ip)             :: number_cell_dimensions
+  real   (rp)             :: reorientation_factor
 
-  call this%face_map%update_face_map(face_lid(1),left_reference_fe_geo,face_quadrature)
+  ! Update fe_maps
   call this%fe_maps(1)%update(face_lid(1),face_quadrature)
   if (.not. this%is_boundary) then
      assert ( face_lid(2) >= 1 )
      call this%fe_maps(2)%update(face_lid(2),face_quadrature)
   end if
+  
+  ! Compute normals reorientation factors from |J|'s original sign and face orientation
+  number_cell_dimensions = left_reference_fe_geo%number_dimensions
+  reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(face_lid(1),this%fe_maps(1)%fe_map(face_lid(1)))
+  ! Update face_map
+  call this%face_map%update_face_map(number_cell_dimensions,reorientation_factor,face_quadrature)
 end subroutine face_map_update
 
 !==================================================================================================
@@ -305,7 +313,7 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   class(face_integrator_t)      , intent(inout) :: this
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
-
+  
   call this%free()
 
   this%is_boundary = (.not. associated(right_reference_fe))
@@ -318,14 +326,9 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   end if
 
   this%current_qpoints_perm_cols = 1
-  ! @sbadia: order+2 only works for topology_hex. When the work for high order TETS with face 
-  ! integration will be performed, it has to be corrected
-  assert ( left_reference_fe%topology == topology_hex )
-
-  call left_reference_fe%node_array%fill_permutations( left_reference_fe%get_max_order()+2, &
-                                                       quadrature%number_dimensions, &
-                                                       left_reference_fe%polytope, &
-                                                       this%qpoints_perm )
+  
+  call left_reference_fe%fill_qpoints_permutations( quadrature%number_dimensions, &
+                                                    this%qpoints_perm )
 end subroutine face_integrator_create
 
 !==================================================================================================
