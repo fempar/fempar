@@ -243,14 +243,17 @@ module reference_fe_names
      integer(ip), allocatable       :: ijk_to_index(:)
      integer(ip), allocatable       :: coordinates(:,:)
    contains
-     procedure                  :: create                   => node_array_create
-     procedure                  :: print                    => node_array_print
-     procedure                  :: free                     => node_array_free
-     procedure                  :: create_node_iterator     => node_array_create_node_iterator
-     procedure                  :: get_number_nodes         => node_array_get_number_nodes
-     procedure        , private :: fill                     => node_array_fill
-     procedure, nopass, private :: fill_permutations        => node_array_fill_permutations
-     procedure, nopass, private :: compute_num_rot_and_perm => node_array_compute_num_rot_and_perm
+     procedure                  :: create                            => node_array_create
+     procedure                  :: print                             => node_array_print
+     procedure                  :: free                              => node_array_free
+     procedure        , private :: create_node_iterator_on_n_face    => node_array_create_node_iterator_on_n_face
+     procedure        , private :: create_node_iterator_on_n_subface => node_array_create_node_iterator_on_n_subface
+     generic                    :: create_node_iterator              => create_node_iterator_on_n_face, &
+                                                                        create_node_iterator_on_n_subface 
+     procedure                  :: get_number_nodes                  => node_array_get_number_nodes
+     procedure        , private :: fill                              => node_array_fill
+     procedure, nopass, private :: fill_permutations                 => node_array_fill_permutations
+     procedure, nopass, private :: compute_num_rot_and_perm          => node_array_compute_num_rot_and_perm
   end type node_array_t
 
   public :: node_array_t
@@ -285,18 +288,20 @@ module reference_fe_names
      integer(ip)                 :: displacement(0:SPACE_DIM-1)
      integer(ip)                 :: coordinate(0:SPACE_DIM-1)
      logical                     :: overflow
-     integer(ip)                  :: min_value ! 0 or 1
-     integer(ip)                  :: max_value(0:SPACE_DIM-1) ! order or order-1
+     integer(ip)                 :: min_value(0:SPACE_DIM-1) ! 0 or 1
+     integer(ip)                 :: max_value(0:SPACE_DIM-1) ! order or order-1
    contains
-     procedure :: create        => node_iterator_create     
-     procedure :: current       => node_iterator_current
-     procedure :: init          => node_iterator_init
-     procedure :: next          => node_iterator_next
-     procedure :: has_finished  => node_iterator_has_finished
-     !procedure :: free          => node_iterator_free
-     procedure :: print         => node_iterator_print
-     procedure, private :: current_ijk => node_iterator_current_ijk  
-     procedure, private :: in_bound    => node_iterator_in_bound 
+     procedure, private :: create_on_n_face    => node_iterator_create_on_n_face
+     procedure, private :: create_on_n_subface => node_iterator_create_on_n_subface   
+     generic            :: create              => create_on_n_face, create_on_n_subface     
+     procedure          :: current             => node_iterator_current
+     procedure          :: init                => node_iterator_init
+     procedure          :: next                => node_iterator_next
+     procedure          :: has_finished        => node_iterator_has_finished
+     !procedure          :: free                => node_iterator_free
+     procedure          :: print               => node_iterator_print
+     procedure, private :: current_ijk         => node_iterator_current_ijk  
+     procedure, private :: in_bound            => node_iterator_in_bound 
   end type node_iterator_t
 
   public :: node_iterator_t
@@ -1236,6 +1241,9 @@ public :: tet_raviart_thomas_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
 private
+type(interpolation_t)    :: h_refinement_interpolation
+integer(ip), allocatable :: h_refinement_subface_permutation(:,:,:)
+integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
 contains 
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                                 &
@@ -1261,6 +1269,22 @@ procedure, private :: fill_face_interpolation                            &
 & => hex_lagrangian_reference_fe_fill_face_interpolation
 procedure, private :: set_number_quadrature_points                       &
 & => hex_lagrangian_reference_fe_set_number_quadrature_points
+! Overwriten TBPs from lagrangian_reference_fe_t
+procedure :: free                                                        &
+& => hex_lagrangian_reference_fe_free
+! Concrete TBPs of this derived data type
+procedure, private :: fill_h_refinement_interpolation                    &
+& => hex_lagrangian_reference_fe_fill_h_refinement_interpolation
+procedure, private :: fill_h_refinement_permutations                     &
+& => hex_lagrangian_reference_fe_fill_h_refinement_permutations
+procedure, private :: fill_n_subface_permutation                         &
+& => hex_lagrangian_reference_fe_fill_n_subface_permutation
+procedure          :: get_h_refinement_interpolation                     &
+& => hex_lagrangian_reference_fe_get_h_refinement_interpolation
+procedure          :: get_h_refinement_subedge_permutation               &
+& => hex_lagrangian_reference_fe_get_h_refinement_subedge_perm
+procedure          :: get_h_refinement_subface_permutation               &
+& => hex_lagrangian_reference_fe_get_h_refinement_subface_perm
 end type hex_lagrangian_reference_fe_t
 
 public :: hex_lagrangian_reference_fe_t
