@@ -120,7 +120,7 @@ function p4est_vef_iterator_get_set_id(this)
   class(p4est_vef_iterator_t), intent(in) :: this
   integer(ip) :: p4est_vef_iterator_get_set_id
   assert ( this%is_within_valid_range() )
-  if ( this%get_lid() == 1 ) then 
+  if ( this%is_at_boundary()) then 
     p4est_vef_iterator_get_set_id = 1
   else 
     p4est_vef_iterator_get_set_id = 0
@@ -191,13 +191,17 @@ function p4est_vef_iterator_get_dimension(this)
   end if
 end function p4est_vef_iterator_get_dimension
 
-!function p4est_vef_iterator_is_at_boundary (this)
-!  implicit none
-!  class(p4est_vef_iterator_t), intent(in) :: this
-!  logical :: p4est_vef_iterator_is_at_boundary 
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  p4est_vef_iterator_is_at_boundary  = (mod(this%base_static_triangulation%vefs_type(this%lid)/10,10)==1)
-!end function p4est_vef_iterator_is_at_boundary
+function p4est_vef_iterator_is_at_boundary (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_at_boundary 
+  assert ( this%is_within_valid_range()  )
+  p4est_vef_iterator_is_at_boundary  = .false.
+  if ( this%get_lid() > 0 ) then
+    p4est_vef_iterator_is_at_boundary = (this%p4est_triangulation%p4est_proper_vefs_at_boundary%get(this%get_lid()) == 1)
+  end if  
+  
+end function p4est_vef_iterator_is_at_boundary
 
 function p4est_vef_iterator_is_local (this)
   implicit none

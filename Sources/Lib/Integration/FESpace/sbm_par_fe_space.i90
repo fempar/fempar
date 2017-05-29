@@ -413,6 +413,7 @@ subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
             end if
           end do
           call fe%determine_at_strong_dirichlet_boundary(field_id)  
+          call fe%determine_has_fixed_dofs(field_id)  
         end if
         call fe%next() 
      end do
@@ -1548,7 +1549,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
                     ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
                     subset_elem2dof = 0
                     do idof = 1, size(elem2dof(field_id)%p)
-                       if ( (elem2dof(field_id)%p(idof) < 0) ) then 
+                       if ( fe%is_strong_dirichlet_dof(elem2dof(field_id)%p(idof)) ) then 
                           subset_elem2dof(idof) = global2subset_dirichlet_dofs( -elem2dof(field_id)%p(idof) )
                        end if
                     end do

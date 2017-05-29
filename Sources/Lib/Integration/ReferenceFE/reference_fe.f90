@@ -1245,6 +1245,10 @@ type(interpolation_t)    :: h_refinement_interpolation
 integer(ip), allocatable :: h_refinement_subface_permutation(:,:,:)
 integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
 contains 
+
+procedure :: create                    => hex_lagrangian_reference_fe_create
+
+
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                                 &
 &   => hex_lagrangian_reference_fe_check_compatibility_of_n_faces

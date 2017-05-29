@@ -71,13 +71,13 @@ void F90_p4est_init()
 void F90_p4est_finalize()
 {
 #ifndef SC_ENABLE_MPI
-  int mpiret;
-  if ( sc_mpi_initialized )
-  {    
-     sc_finalize ();   
-     mpiret = sc_MPI_Finalize ();
-     SC_CHECK_MPI (mpiret);    
-  } 
+    int mpiret;
+    if ( sc_mpi_initialized )
+    {    
+        sc_finalize ();   
+        mpiret = sc_MPI_Finalize ();
+        SC_CHECK_MPI (mpiret);    
+    } 
 #else  
 #endif    
 }

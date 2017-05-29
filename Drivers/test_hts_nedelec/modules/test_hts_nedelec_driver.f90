@@ -490,7 +490,7 @@ contains
 
      if (.not. this%theta_method%finished() ) then 
         call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, time=this%theta_method%get_current_time(), fields_to_project=(/ 1 /) )
-        call this%H_current%update_strong_dirichlet_values(this%fe_space) 
+        call this%H_current%update_fixed_dof_values(this%fe_space) 
         call this%assemble_system() 
      end if
 

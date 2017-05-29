@@ -87,7 +87,7 @@ contains
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    result = 0.0_rp 
+    result = -4.0_rp 
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -98,7 +98,7 @@ contains
     real(rp)                , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      result = 1.0 !point%get(1)+ point%get(2) ! x+y
+      result = point%get(1)**2+ point%get(2)**2 ! x+y
     else if ( this%num_dimensions == 3 ) then
       result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
     end if  
@@ -112,7 +112,7 @@ contains
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      result = 1.0 !point%get(1)+ point%get(2) ! x+y 
+      result = point%get(1)**2+ point%get(2)**2 ! x+y 
     else if ( this%num_dimensions == 3 ) then
       result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
     end if  
@@ -127,8 +127,8 @@ contains
     type(vector_field_t)      , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      call result%set( 1, 0.0_rp )  !call result%set( 1, 1.0_rp ) 
-      call result%set( 1, 0.0_rp )  !call result%set( 2, 1.0_rp )
+      call result%set( 1, point%get(1)*2 ) !call result%set( 1, 1.0_rp ) 
+      call result%set( 2, point%get(2)*2 ) !call result%set( 2, 1.0_rp )
     else if ( this%num_dimensions == 3 ) then
       call result%set( 1, 1.0_rp ) 
       call result%set( 2, 1.0_rp )

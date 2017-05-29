@@ -53,6 +53,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
   call this%allocate_and_init_at_strong_dirichlet_bound()
+  call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine serial_fe_space_create_same_reference_fes_on_all_cells
 
@@ -84,6 +85,7 @@ subroutine serial_fe_space_create_different_between_cells( this, &
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
   call this%allocate_and_init_at_strong_dirichlet_bound()
+  call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine serial_fe_space_create_different_between_cells
 
@@ -96,6 +98,7 @@ subroutine serial_fe_space_free (this)
   call this%free_fe_space_type_per_field()
   call this%free_ptr_lst_dofs()
   call this%free_at_strong_dirichlet_bound()
+  call this%free_has_fixed_dofs()
   call this%strong_dirichlet_values%free()
   if (allocated(this%number_dofs_per_block)) call memfree( this%number_dofs_per_block, __FILE__, __LINE__ )
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
@@ -211,6 +214,7 @@ end subroutine serial_fe_space_free_ptr_lst_dofs
 subroutine serial_fe_space_allocate_and_init_at_strong_dirichlet_bound(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
+  call this%free_at_strong_dirichlet_bound()
   call memalloc ( this%number_fields, &
        this%triangulation%get_num_cells(), &
        this%at_strong_dirichlet_boundary_per_fe, __FILE__, __LINE__ )
@@ -224,6 +228,24 @@ subroutine serial_fe_space_free_at_strong_dirichlet_bound (this)
      call memfree ( this%at_strong_dirichlet_boundary_per_fe, __FILE__, __LINE__ )
   end if
 end subroutine serial_fe_space_free_at_strong_dirichlet_bound
+
+subroutine serial_fe_space_allocate_and_init_has_fixed_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  call this%free_has_fixed_dofs()
+  call memalloc ( this%number_fields, &
+       this%triangulation%get_num_cells(), &
+       this%has_fixed_dofs_per_fe, __FILE__, __LINE__ )
+  this%has_fixed_dofs_per_fe = .false. 
+end subroutine serial_fe_space_allocate_and_init_has_fixed_dofs
+
+subroutine serial_fe_space_free_has_fixed_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  if (allocated(this%has_fixed_dofs_per_fe)) then
+     call memfree ( this%has_fixed_dofs_per_fe, __FILE__, __LINE__ )
+  end if
+end subroutine serial_fe_space_free_has_fixed_dofs
 
 subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   implicit none
@@ -272,7 +294,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
 
     call fe%first()
     do while (.not. fe%has_finished() )
-
       if ( fe%is_local() ) then
          do ivef = 1, fe%get_num_vefs()
             call fe%get_vef(ivef, vef)
@@ -307,6 +328,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
             end if
          end do
          call fe%determine_at_strong_dirichlet_boundary(field_id)
+         call fe%determine_has_fixed_dofs(field_id)
       end if
 
       call fe%next()
@@ -547,7 +569,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
                        component_id = offset_component(field_id) + reference_fe%get_component_node(local_within_ref_fe_dof_id)
                        if ( components_code(component_id) ) then 
                           ! Check if current node is subject to strong Dirichlet boundary conditions
-                          if(elem2dof(field_id)%p(local_within_ref_fe_dof_id) < 0) then
+                          if(fe%is_strong_dirichlet_dof(elem2dof(field_id)%p(local_within_ref_fe_dof_id))) then
                              local_within_ref_fe_scalar_dof_id = reference_fe%get_scalar_from_vector_node(local_within_ref_fe_dof_id)
                              strong_dirichlet_dof_id = -elem2dof(field_id)%p(local_within_ref_fe_dof_id)
                              call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
@@ -587,6 +609,21 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
   check(istat==0)
   call memfree ( fields_to_interpolate_, __FILE__, __LINE__ ) 
 end subroutine serial_fe_space_interpolate_dirichlet_values
+
+
+subroutine serial_fe_space_update_fixed_dof_values(this, free_dof_values, fixed_dof_values)
+  implicit none
+  class(serial_fe_space_t)   , intent(in)       :: this
+  class(vector_t)            , intent(in)       :: free_dof_values
+  type(serial_scalar_array_t), intent(inout)    :: fixed_dof_values
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  real(rp), pointer :: strong_dirichlet_values_entries(:)
+  real(rp), pointer :: fixed_dof_values_entries(:)
+  strong_dirichlet_values         => this%get_strong_dirichlet_values()
+  strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+  fixed_dof_values_entries        => fixed_dof_values%get_entries()
+  fixed_dof_values_entries(1:size(strong_dirichlet_values_entries)) = strong_dirichlet_values_entries
+end subroutine serial_fe_space_update_fixed_dof_values
 
 subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time, fields_to_project)
   implicit none
@@ -721,7 +758,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                  ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
                  subset_elem2dof = 0
                  do idof = 1, size(elem2dof(field_id)%p)
-                    if ( (elem2dof(field_id)%p(idof) < 0) ) then 
+                    if ( fe%is_strong_dirichlet_dof(elem2dof(field_id)%p(idof)) ) then 
                         subset_elem2dof(idof) = global2subset_dirichlet_dofs( -elem2dof(field_id)%p(idof) )
                     end if
                  end do
@@ -889,7 +926,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
            if ( fe%at_strong_dirichlet_boundary(field_id) ) then 
               call fe%get_elem2dof(elem2dof)
               do idof = 1,size(elem2dof(field_id)%p)
-                 if ( (elem2dof(field_id)%p(idof) < 0)) then 
+                 if ( fe%is_strong_dirichlet_dof(elem2dof(field_id)%p(idof)) ) then 
                     if (global2subset(-elem2dof(field_id)%p(idof))==0) then 
                        num_subset_strong_dirichlet_dofs = num_subset_strong_dirichlet_dofs + 1
                        global2subset(-elem2dof(field_id)%p(idof)) = num_subset_strong_dirichlet_dofs 
@@ -2022,12 +2059,26 @@ function serial_fe_space_get_environment(this) result(environment)
   environment => this%triangulation%get_par_environment()
 end function serial_fe_space_get_environment
 
+function serial_fe_space_get_number_strong_dirichlet_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this 
+  integer(ip) :: serial_fe_space_get_number_strong_dirichlet_dofs
+  serial_fe_space_get_number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs
+end function serial_fe_space_get_number_strong_dirichlet_dofs
+
 function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichlet_values)
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this 
   type(serial_scalar_array_t), pointer :: strong_dirichlet_values
   strong_dirichlet_values => this%strong_dirichlet_values
 end function serial_fe_space_get_strong_dirichlet_values
+
+function serial_fe_space_get_number_fixed_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this 
+  integer(ip) :: serial_fe_space_get_number_fixed_dofs
+  serial_fe_space_get_number_fixed_dofs = this%number_strong_dirichlet_dofs
+end function serial_fe_space_get_number_fixed_dofs
 
 subroutine serial_fe_space_create_fe_iterator ( this, fe )
   implicit none

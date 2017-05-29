@@ -165,7 +165,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: set_it_at_interface       => vef_iterator_set_it_at_interface
 
      procedure                           :: get_dimension             => vef_iterator_get_dimension
-     procedure, non_overridable          :: is_at_boundary            => vef_iterator_is_at_boundary
+     procedure                           :: is_at_boundary            => vef_iterator_is_at_boundary
      procedure                           :: is_local                  => vef_iterator_is_local
      procedure                           :: is_ghost                  => vef_iterator_is_ghost
      procedure                           :: is_at_interface           => vef_iterator_is_at_interface

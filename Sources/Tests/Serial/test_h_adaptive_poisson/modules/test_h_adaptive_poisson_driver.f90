@@ -123,7 +123,7 @@ contains
     call this%triangulation%refine_and_coarsen()
     call this%triangulation%refine_and_coarsen()
     call this%triangulation%refine_and_coarsen()
-        
+    call this%triangulation%refine_and_coarsen()
     !call this%triangulation%refine_and_coarsen()
     !call this%triangulation%refine_and_coarsen()
     !call this%triangulation%refine_and_coarsen()
@@ -283,6 +283,9 @@ contains
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
 #endif    
+    
+    call this%solution%update_fixed_dof_values(this%fe_space)
+    
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
     !   call dof_values%print(6)

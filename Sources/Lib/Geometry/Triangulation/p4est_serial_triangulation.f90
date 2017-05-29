@@ -132,7 +132,7 @@ module p4est_serial_triangulation_names
      !procedure, non_overridable          :: set_it_at_interface       => p4est_vef_iterator_set_it_at_interface
 
      procedure                           :: get_dimension             => p4est_vef_iterator_get_dimension
-     !procedure, non_overridable          :: is_at_boundary            => p4est_vef_iterator_is_at_boundary
+     procedure                           :: is_at_boundary            => p4est_vef_iterator_is_at_boundary
      procedure                           :: is_local                  => p4est_vef_iterator_is_local
      procedure                           :: is_ghost                  => p4est_vef_iterator_is_ghost
      procedure                           :: is_at_interface           => p4est_vef_iterator_is_at_interface
@@ -200,6 +200,7 @@ module p4est_serial_triangulation_names
     type(std_vector_integer_ip_t)          :: p4est_improper_vefs_improper_cell_around_subvef
     type(std_vector_integer_ip_t)          :: p4est_proper_vefs_dimension
     type(std_vector_integer_ip_t)          :: p4est_improper_vefs_dimension
+    type(std_vector_integer_ip_t)          :: p4est_proper_vefs_at_boundary
   contains
   
     ! Getters

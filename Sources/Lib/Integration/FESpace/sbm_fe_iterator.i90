@@ -31,19 +31,34 @@ subroutine fe_iterator_create ( this, fe_space )
   class(fe_iterator_t)            , intent(inout) :: this
   class(serial_fe_space_t), target, intent(in)    :: fe_space
   call this%free()
-  this%fe_space => fe_space
-  call this%fe_space%triangulation%create_cell_iterator(this%cell)
+  call this%set_fe_space(fe_space)
+  call this%create_cell(fe_space%triangulation)
 end subroutine fe_iterator_create
+
+subroutine fe_iterator_create_cell ( this, triangulation )
+  implicit none
+  class(fe_iterator_t)              , intent(inout) :: this
+  class(base_static_triangulation_t), intent(in)    :: triangulation
+  call triangulation%create_cell_iterator(this%cell)
+end subroutine fe_iterator_create_cell
+
+subroutine fe_iterator_free_cell ( this, triangulation )
+  implicit none
+  class(fe_iterator_t)              , intent(inout) :: this
+  class(base_static_triangulation_t), intent(in)    :: triangulation
+  call triangulation%free_cell_iterator(this%cell)
+end subroutine fe_iterator_free_cell
+
 
 subroutine fe_iterator_free (this)
   implicit none
   class(fe_iterator_t), intent(inout) :: this
   if ( associated(this%fe_space) ) then
     if ( associated(this%fe_space%triangulation) ) then
-      call this%fe_space%triangulation%free_cell_iterator(this%cell)
+      call this%free_cell(this%fe_space%triangulation)
     end if
   end if
-  nullify(this%fe_space)
+  call this%nullify_fe_space()
 end subroutine fe_iterator_free
 
 subroutine fe_iterator_free_final(this)
@@ -52,6 +67,20 @@ subroutine fe_iterator_free_final(this)
   assert ( .not. allocated(this%cell) )
   assert ( .not. associated(this%fe_space))
 end subroutine fe_iterator_free_final
+
+subroutine fe_iterator_set_fe_space(this,fe_space)
+  implicit none
+  class(fe_iterator_t)             , intent(inout) :: this
+  class(serial_fe_space_t), target, intent(in)    :: fe_space
+  this%fe_space => fe_space
+end subroutine fe_iterator_set_fe_space
+
+subroutine fe_iterator_nullify_fe_space(this)
+  implicit none
+  class(fe_iterator_t)             , intent(inout) :: this
+  nullify(this%fe_space)
+end subroutine fe_iterator_nullify_fe_space
+
 
 subroutine fe_iterator_fill_own_dofs ( this, field_id, current_dof )
   implicit none
@@ -322,6 +351,15 @@ subroutine fe_iterator_update_integration( this )
   
 end subroutine fe_iterator_update_integration
 
+subroutine fe_iterator_assemble(this,elmat,elvec,matrix_array_assembler)
+  implicit none
+  class(fe_iterator_t)            , intent(in)    :: this
+  real(rp)                        , intent(in)    :: elmat(:,:)
+  real(rp)                        , intent(in)    :: elvec(:)
+  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+  check(.false.)
+end subroutine fe_iterator_assemble 
+
 function fe_iterator_get_fe_space(this)
   implicit none
   class(fe_iterator_t), target, intent(in) :: this
@@ -466,15 +504,47 @@ function fe_iterator_at_strong_dirichlet_boundary ( this, field_id )
   fe_iterator_at_strong_dirichlet_boundary = this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid())
 end function fe_iterator_at_strong_dirichlet_boundary
 
+function fe_iterator_has_fixed_dofs ( this, field_id )
+  implicit none
+  class(fe_iterator_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: field_id
+  logical                             :: fe_iterator_has_fixed_dofs
+  fe_iterator_has_fixed_dofs = this%fe_space%has_fixed_dofs_per_fe(field_id,this%get_lid())
+end function fe_iterator_has_fixed_dofs
+
+
 subroutine fe_iterator_determine_at_strong_dirichlet_boundary_single_field ( this, field_id )
   implicit none
   class(fe_iterator_t)   , intent(inout) :: this
   integer(ip)            , intent(in)    :: field_id
   integer(ip), pointer :: elem2dof(:)
+  integer(ip) :: i 
   call this%get_field_elem2dof(field_id, elem2dof)
   this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid()) = .false.
-  if (any(elem2dof(:)<0)) this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid()) = .true.
+  do i=1, size(elem2dof)
+    if ( this%is_strong_dirichlet_dof(elem2dof(i)) ) then
+      this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid()) = .true.
+      exit
+    end if  
+  end do  
 end subroutine fe_iterator_determine_at_strong_dirichlet_boundary_single_field
+
+subroutine fe_iterator_determine_has_fixed_dofs ( this, field_id )
+  implicit none
+  class(fe_iterator_t)   , intent(inout) :: this
+  integer(ip)            , intent(in)    :: field_id
+  integer(ip), pointer :: elem2dof(:)
+  integer(ip) :: i 
+  call this%get_field_elem2dof(field_id, elem2dof)
+  this%fe_space%has_fixed_dofs_per_fe(field_id,this%get_lid()) = .false.
+  do i=1, size(elem2dof)
+    if ( this%is_fixed_dof(elem2dof(i)) ) then
+      this%fe_space%has_fixed_dofs_per_fe(field_id,this%get_lid()) = .true.
+      exit
+    end if  
+  end do  
+end subroutine fe_iterator_determine_has_fixed_dofs
+
 
 subroutine fe_iterator_determine_at_strong_dirichlet_boundary_all_fields ( this )
   implicit none
@@ -485,6 +555,24 @@ subroutine fe_iterator_determine_at_strong_dirichlet_boundary_all_fields ( this 
   end do
 end subroutine fe_iterator_determine_at_strong_dirichlet_boundary_all_fields
 
+
+
+
+function fe_iterator_is_strong_dirichlet_dof ( this, dof_lid )
+  implicit none
+  class(fe_iterator_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: dof_lid
+  logical :: fe_iterator_is_strong_dirichlet_dof
+  fe_iterator_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%fe_space%get_number_strong_dirichlet_dofs() )
+end function fe_iterator_is_strong_dirichlet_dof
+
+function fe_iterator_is_fixed_dof ( this, dof_lid )
+  implicit none
+  class(fe_iterator_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: dof_lid
+  logical :: fe_iterator_is_fixed_dof
+  fe_iterator_is_fixed_dof = dof_lid < 0
+end function fe_iterator_is_fixed_dof
 
 function fe_iterator_compute_volume ( this )
   implicit none
@@ -630,7 +718,7 @@ subroutine fe_iterator_impose_strong_dirichlet_bcs ( this, elmat, elvec )
  class(fe_iterator_t), intent(in)    :: this
  real(rp)            , intent(in)    :: elmat(:,:)
  real(rp)            , intent(inout) :: elvec(:)  
- integer(ip)                         :: idof, elmat_col, field_id, spos
+ integer(ip)                         :: idof, dof_lid, elmat_col, field_id, spos
  
  class(reference_fe_t), pointer :: reference_fe
  real(rp)             , pointer :: strong_dirichlet_values_entries(:)
@@ -642,7 +730,8 @@ subroutine fe_iterator_impose_strong_dirichlet_bcs ( this, elmat, elvec )
    spos = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
    do idof = 1, reference_fe%get_number_shape_functions()
        elmat_col = elmat_col + 1
-       if ( this%fe_space%lst_dofs_lids(spos+idof-1) < 0 ) then
+       dof_lid = this%fe_space%lst_dofs_lids(spos+idof-1)  
+       if ( this%is_strong_dirichlet_dof(dof_lid) ) then
           elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(-this%fe_space%lst_dofs_lids(spos+idof-1))
        end if
    end do

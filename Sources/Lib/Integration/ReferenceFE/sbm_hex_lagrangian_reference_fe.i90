@@ -31,6 +31,27 @@
 !**************************************************************************************************
 
 !==================================================================================================
+
+subroutine hex_lagrangian_reference_fe_create(this, &
+                                              topology, &
+                                              number_dimensions, &
+                                              order, &
+                                              field_type, & 
+                                              continuity, &
+                                              enable_face_integration )
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(inout)  :: this
+  character(*)                        , intent(in)    :: topology
+  integer(ip)                         , intent(in)    :: number_dimensions
+  integer(ip)                         , intent(in)    :: order
+  character(*)                        , intent(in)    :: field_type
+  logical                             , intent(in)    :: continuity
+  logical              , optional     , intent(in)    :: enable_face_integration
+  call lagrangian_reference_fe_create(this,topology,number_dimensions,order,field_type,continuity,enable_face_integration)
+  call this%fill_h_refinement_interpolation()
+  call this%fill_h_refinement_permutations()
+end subroutine hex_lagrangian_reference_fe_create
+
 function hex_lagrangian_reference_fe_check_compatibility_of_n_faces                   &
      &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
   implicit none
