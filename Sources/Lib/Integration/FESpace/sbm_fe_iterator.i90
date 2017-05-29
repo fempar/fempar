@@ -273,7 +273,7 @@ subroutine fe_iterator_renumber_dofs_field ( this, field_id, perm_old2new )
   if ( field_id == this%fe_space%get_number_fields() ) then
     end_pos_lst_dofs_lids = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)-1
   else  
-    end_pos_lst_dofs_lids   = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())
+    end_pos_lst_dofs_lids   = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())-1
   end if  
   
   assert ( field_id >= 1 .and. field_id <= this%fe_space%get_number_fields() )

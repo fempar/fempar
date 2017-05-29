@@ -1516,7 +1516,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   type(fe_object_iterator_t)           :: object
   type(list_iterator_t)                :: own_coarse_dofs_iterator
   integer(ip), allocatable             :: num_coarse_dofs_per_field(:,:), max_num_coarse_dofs_per_field(:)
-  integer(ip)                          :: current_coarse_dof
+  integer(ip)                          :: current_coarse_dof, max_num_coarse_dofs
 
   !assert ( this%number_fields == 1 )
   par_environment => this%get_par_environment()
@@ -1537,6 +1537,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   check ( istat == 0 )
   
   this%ptr_coarse_dofs_per_field(1) = 1
+  max_num_coarse_dofs = 0
   do field_id=1, this%number_fields
     call this%coarse_fe_handlers(field_id)%p%get_num_coarse_dofs(field_id, this, parameter_list, num_coarse_dofs_per_field(:,field_id))
     this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id)
@@ -1546,6 +1547,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
     end do  
     
     max_num_coarse_dofs_per_field(field_id) = maxval(num_coarse_dofs_per_field(:,field_id))
+    max_num_coarse_dofs = max_num_coarse_dofs + max_num_coarse_dofs_per_field(field_id)
     call par_environment%l1_max(max_num_coarse_dofs_per_field(field_id))
   end do
   
@@ -1554,6 +1556,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   
   ! Enumerate coarse DoFs and map them to coarse n_faces
   current_coarse_dof = 1 
+  coarse_dof_lid = 1
   do field_id=1, this%number_fields
      call this%own_coarse_dofs_per_field(field_id)%create(this%get_number_fe_objects())
      do i=1, this%get_number_fe_objects()
@@ -1562,7 +1565,6 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
      call this%own_coarse_dofs_per_field(field_id)%calculate_header()
      call this%own_coarse_dofs_per_field(field_id)%allocate_list_from_pointer()
      
-     coarse_dof_lid = 1
      do coarse_n_face_lid=1, this%own_coarse_dofs_per_field(field_id)%get_num_pointers()
        own_coarse_dofs_iterator = this%own_coarse_dofs_per_field(field_id)%create_iterator(coarse_n_face_lid)
        do while ( .not. own_coarse_dofs_iterator%is_upper_bound() )
@@ -1585,10 +1587,11 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
      do while ( .not. object%has_finished() )
        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
        do while (.not. own_coarse_dofs_iterator%is_upper_bound())
-         this%coarse_dof_gids_per_field(field_id)%a(own_coarse_dofs_iterator%get_current()) = &
-               this%generate_coarse_dof_gid(object%get_gid(),&
+         this%coarse_dof_gids_per_field(field_id)%a(own_coarse_dofs_iterator%get_current()-this%ptr_coarse_dofs_per_field(field_id)+1) = &
+               this%generate_coarse_dof_gid(object%get_gid(),field_id, &
                                             own_coarse_dofs_iterator%get_distance_to_lower_bound(), &
-                                            max_num_coarse_dofs_per_field(field_id))
+                                            max_num_coarse_dofs_per_field(field_id), &
+                                            max_num_coarse_dofs)
          call own_coarse_dofs_iterator%next()
        end do
        call object%next()
@@ -1600,15 +1603,22 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   call memfree ( max_num_coarse_dofs_per_field, __FILE__, __LINE__ )
 end subroutine par_fe_space_setup_coarse_dofs
 
-function par_fe_space_generate_coarse_dof_gid(object_gid, &
+function par_fe_space_generate_coarse_dof_gid(object_gid, field_id, &
                                               current_coarse_dof, &
+                                              max_num_coarse_dofs_per_object_and_field, &
                                               max_num_coarse_dofs_per_object ) result(coarse_dof_gid)
   implicit none
   integer(igp)         , intent(in) :: object_gid
+  integer(ip)          , intent(in) :: field_id
   integer(ip)          , intent(in) :: current_coarse_dof
   integer(ip)          , intent(in) :: max_num_coarse_dofs_per_object
+  integer(ip)          , intent(in) :: max_num_coarse_dofs_per_object_and_field
   integer(igp) :: coarse_dof_gid
-  coarse_dof_gid = object_gid*int(max_num_coarse_dofs_per_object,igp) - (int(max_num_coarse_dofs_per_object,igp)-int(current_coarse_dof,igp))
+  !coarse_dof_gid = object_gid*int(max_num_coarse_dofs_per_object,igp) - (int(max_num_coarse_dofs_per_object,igp)-int(current_coarse_dof,igp))
+  coarse_dof_gid = (object_gid-1)*int(max_num_coarse_dofs_per_object,igp) &
+                 + int((field_id-1)*max_num_coarse_dofs_per_object_and_field,igp)  &
+                 + int(current_coarse_dof,igp)
+
 end function par_fe_space_generate_coarse_dof_gid
 
 subroutine par_fe_space_free_coarse_dofs(this)
