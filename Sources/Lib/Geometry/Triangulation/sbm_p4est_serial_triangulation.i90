@@ -500,8 +500,10 @@ subroutine p4est_st_free_per_cell_vertex_coordinates(this)
   class(p4est_serial_triangulation_t), intent(inout)    :: this
   integer(ip) :: istat
 #ifdef ENABLE_P4EST
-  if ( allocated(this%per_cell_vertex_coordinates) ) & 
-    deallocate(this%per_cell_vertex_coordinates, stat=istat); check(istat==0);
+  if ( allocated(this%per_cell_vertex_coordinates) ) then
+    deallocate(this%per_cell_vertex_coordinates, stat=istat)
+    check(istat==0)
+  end if  
 #else
   call this%not_enabled_error()
 #endif        
