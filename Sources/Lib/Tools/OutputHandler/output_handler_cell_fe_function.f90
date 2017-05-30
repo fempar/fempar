@@ -263,11 +263,13 @@ contains
                             (reference_fe_geo%get_number_subcells(max_order-1)*reference_fe_geo%get_number_vertices())
 
                     ! Check if there are several topology types or a single one
-                    if(associated(previous_reference_fe_geo) .and.                       &
-                        .not. same_type_as(previous_reference_fe_geo, reference_fe_geo)) &
+                    if(associated(previous_reference_fe_geo)) then
+                       if  (.not. same_type_as(previous_reference_fe_geo, reference_fe_geo)) then
                             this%mixed_cell_topologies = .true.
+                       end if
+                    end if
                     previous_reference_fe_geo => reference_fe_geo
-                endif
+                 endif
                 call fe%next()
             end do
             ! Configure fill_patch_field strategy for each field
