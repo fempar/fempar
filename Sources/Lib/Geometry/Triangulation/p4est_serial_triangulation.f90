@@ -66,6 +66,10 @@ module p4est_serial_triangulation_names
   integer(ip), parameter :: P4EST_2_FEMPAR_CORNER(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
   integer(ip), parameter :: P4EST_2_FEMPAR_FACE  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
   
+  integer(ip), parameter :: refinement = 1 
+  integer(ip), parameter :: coarsening = -1 
+  integer(ip), parameter :: do_nothing = 0 
+  
   
   type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
@@ -103,6 +107,12 @@ module p4est_serial_triangulation_names
     !procedure, non_overridable           :: get_vef                 => p4est_cell_iterator_get_vef
     procedure                            :: is_local                => p4est_cell_iterator_is_local
     procedure                            :: is_ghost                => p4est_cell_iterator_is_ghost
+    
+    procedure                            :: set_for_coarsening      => p4est_cell_iterator_set_for_coarsening
+    procedure                            :: set_for_refinement      => p4est_cell_iterator_set_for_refinement
+    procedure                            :: set_for_do_nothing      => p4est_cell_iterator_set_for_do_nothing
+    procedure                            :: get_transformation_flag => p4est_cell_iterator_get_transformation_flag
+    
   end type p4est_cell_iterator_t
   
   type, extends(vef_iterator_t) :: p4est_vef_iterator_t
@@ -201,6 +211,7 @@ module p4est_serial_triangulation_names
     type(std_vector_integer_ip_t)          :: p4est_proper_vefs_dimension
     type(std_vector_integer_ip_t)          :: p4est_improper_vefs_dimension
     type(std_vector_integer_ip_t)          :: p4est_proper_vefs_at_boundary
+    type(std_vector_integer_ip_t)          :: p4est_refinement_and_coarsening_flags
   contains
   
     ! Getters
@@ -221,6 +232,7 @@ module p4est_serial_triangulation_names
     procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_st_std_vector_transform_length_to_header
     procedure, private        , non_overridable :: allocate_and_fill_per_cell_vertex_coordinates => p4est_st_allocate_and_fill_per_cell_vertex_coordinates
     procedure, private        , non_overridable :: free_per_cell_vertex_coordinates              => p4est_st_free_per_cell_vertex_coordinates
+    procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_st_clear_refinement_and_coarsening_flags
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator

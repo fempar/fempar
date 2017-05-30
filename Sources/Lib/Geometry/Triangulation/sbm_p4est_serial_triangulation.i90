@@ -94,6 +94,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_lids_and_cells_around()
     call this%allocate_and_fill_per_cell_vertex_coordinates()
+    call this%clear_refinement_and_coarsening_flags()
   else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if  
@@ -108,6 +109,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   
 #ifdef ENABLE_P4EST
   if ( this%p4est_num_dimensions == 2 ) then
+    call F90_p4est_set_user_pointer(this%p4est_refinement_and_coarsening_flags%get_raw_pointer(),this%p4est)
     call F90_p4est_refine(this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
@@ -509,6 +511,18 @@ subroutine p4est_st_free_per_cell_vertex_coordinates(this)
 #endif        
 end subroutine p4est_st_free_per_cell_vertex_coordinates
 
+subroutine p4est_st_clear_refinement_and_coarsening_flags(this)
+   implicit none
+   class(p4est_serial_triangulation_t), intent(inout)    :: this
+  integer(ip) :: istat
+#ifdef ENABLE_P4EST
+  call this%p4est_refinement_and_coarsening_flags%resize(0)
+  call this%p4est_refinement_and_coarsening_flags%resize(this%p4est_num_cells, do_nothing)
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_st_clear_refinement_and_coarsening_flags
+
 subroutine p4est_serial_triangulation_update_p4est_mesh(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout) :: this
@@ -601,6 +615,7 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%p4est_proper_vefs_dimension%free()
   call this%p4est_improper_vefs_dimension%free()
   call this%p4est_proper_vefs_at_boundary%free()
+  call this%p4est_refinement_and_coarsening_flags%free()
   
   nullify(this%quad_to_quad)
   nullify(this%quad_to_face)

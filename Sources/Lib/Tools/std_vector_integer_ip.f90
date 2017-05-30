@@ -51,5 +51,6 @@ contains
   STD_VECTOR_SET(integer,ip)
   STD_VECTOR_SIZE(integer,ip)
   STD_VECTOR_CAPACITY(integer,ip)
+  STD_VECTOR_GET_RAW_POINTER(integer,ip)
   
 end module std_vector_integer_ip_names

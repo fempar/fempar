@@ -332,6 +332,37 @@ function p4est_cell_iterator_is_ghost (this)
   p4est_cell_iterator_is_ghost = .false.
 end function p4est_cell_iterator_is_ghost
 
+subroutine p4est_cell_iterator_set_for_coarsening(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_lid(), coarsening)
+end subroutine p4est_cell_iterator_set_for_coarsening
+
+subroutine p4est_cell_iterator_set_for_refinement(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_lid(), refinement)
+end subroutine p4est_cell_iterator_set_for_refinement
+
+subroutine p4est_cell_iterator_set_for_do_nothing(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_lid(), do_nothing)
+end subroutine p4est_cell_iterator_set_for_do_nothing
+
+function p4est_cell_iterator_get_transformation_flag(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: p4est_cell_iterator_get_transformation_flag
+  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_transformation_flag = this%p4est_triangulation%p4est_refinement_and_coarsening_flags%get(this%get_lid())
+end function p4est_cell_iterator_get_transformation_flag
+
+
+
 !! Returns the sum of num_vefs over all cells up-to the present one (exclusive, i.e.,
 !! without considering the present one), with the cells being ordered consistently 
 !! with the iterator sequential traversal over all cells. At the moment of writing this

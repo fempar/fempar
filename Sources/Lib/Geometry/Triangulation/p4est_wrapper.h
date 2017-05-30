@@ -27,12 +27,23 @@
 #include <p4est.h>
 #include <p4est_mesh.h>
 
+
+//These three globals values MUST match the corresponding ones
+//in the accompanying Fortran module within FEMPAR
+const static int FEMPAR_do_nothing_flag =  0;
+const static int FEMPAR_refinement_flag =  1;
+const static int FEMPAR_coarsening_flag = -1;
+
+static int current_quadrant_index = 0;
+
 void F90_p4est_init_environment();
 void F90_p4est_finalize_environment();
 void F90_p4est_new_unit_square_connectivity(p4est_connectivity_t **);
 void F90_p4est_connectivity_destroy(p4est_connectivity_t **);
 void F90_p4est_mesh_destroy(p4est_mesh_t **);
 int refine_callback(p4est_t *,p4est_topidx_t, p4est_quadrant_t *);
+void init_fn_callback(p4est_t *,p4est_topidx_t,p4est_quadrant_t *);
+
 
 //void p4_savemesh ( char    filename[],
 //                   p8est_t *p4est);

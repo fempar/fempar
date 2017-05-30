@@ -97,9 +97,38 @@ void F90_p4est_new ( p4est_connectivity_t *conn,
   
   // TODO: from where are we going to extract the MPI communicator in case
   //       SC_ENABLE_MPI is defined???
-  /* Create a forest that is not refined; it consists of the root octant. */
+  /* Create a forest that is not refined; it consists of the root octant. */                                        
   p4est = p4est_new (sc_MPI_COMM_WORLD, conn, 0, NULL, NULL);
   *p4est_out = p4est;
+}
+
+
+void init_fn_callback(p4est_t * p4est,p4est_topidx_t which_tree,p4est_quadrant_t * quadrant)
+{
+    p4est_tree_t       *tree;
+    p4est_quadrant_t   *q;
+    sc_array_t         *quadrants;
+    int                *user_pointer;
+    int                *quadrant_data;
+    int                 output;
+    
+    P4EST_ASSERT(which_tree == 0);
+    
+    // Extract a reference to the first (and uniquely allowed) tree
+    tree = p4est_tree_array_index (p4est->trees,0);
+    quadrants = &(tree->quadrants);
+    q = p4est_quadrant_array_index(quadrants, current_quadrant_index);
+    P4EST_ASSERT(p4est_quadrant_compare(q,quadrant) == 0);
+    user_pointer  = (int *) p4est->user_pointer;
+    quadrant_data = (int *) quadrant->p.user_data;
+    *quadrant_data = user_pointer[current_quadrant_index];
+    current_quadrant_index = (current_quadrant_index+1) % (quadrants->elem_count);    
+}
+
+
+void F90_p4est_set_user_pointer(int * user_data, p4est_t * p4est) 
+{
+    p4est_reset_data(p4est,sizeof(int),init_fn_callback,(void *)user_data);
 }
 
 void F90_p4est_mesh_new(p4est_t  *p4est,
@@ -196,9 +225,7 @@ int refine_callback(p4est_t * p4est,
                     p4est_quadrant_t * quadrant)
 {
     P4EST_ASSERT(which_tree == 0);
-    
-    if (quadrant->level == 0 || p4est_quadrant_child_id(quadrant) == 1) return 1;
-    else return 0;
+    return (*((int *)quadrant->p.user_data) ==  FEMPAR_refinement_flag);
 }
 
 void F90_p4est_refine( p4est_t * p4est )

@@ -70,6 +70,7 @@ module test_h_adaptive_poisson_driver_names
      procedure                  :: run_simulation
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
+     procedure        , private :: set_cells_for_refinement
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
@@ -120,10 +121,18 @@ contains
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%parameter_list)
+   
+    call this%set_cells_for_refinement()
     call this%triangulation%refine_and_coarsen()
+    
+    call this%triangulation%clear_refinement_and_coarsening_flags()
+    call this%set_cells_for_refinement()
     call this%triangulation%refine_and_coarsen()
-    call this%triangulation%refine_and_coarsen()
-    call this%triangulation%refine_and_coarsen()
+    
+    
+    !call this%triangulation%refine_and_coarsen()
+    !call this%triangulation%refine_and_coarsen()
+    !call this%triangulation%refine_and_coarsen()
     !call this%triangulation%refine_and_coarsen()
     !call this%triangulation%refine_and_coarsen()
     !call this%triangulation%refine_and_coarsen()
@@ -144,6 +153,20 @@ contains
     !   call this%triangulation%free_vef_iterator(vef)
     !end if   
   end subroutine setup_triangulation
+  
+  subroutine set_cells_for_refinement(this)
+    implicit none
+    class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
+    class(cell_iterator_t)      , allocatable :: cell
+    call this%triangulation%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      if ( mod(cell%get_lid()-1,2) == 0 ) then
+        call cell%set_for_refinement()
+      end if
+      call cell%next()
+    end do
+    call this%triangulation%free_cell_iterator(cell)
+  end subroutine set_cells_for_refinement
   
   subroutine setup_reference_fes(this)
     implicit none

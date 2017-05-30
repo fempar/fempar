@@ -81,6 +81,16 @@ module p4est_bindings_names
      end subroutine F90_p4est_new
      
      !=================================================================================================================================
+     !> summary: set user_pointer member variable of p4est_t struct to input integer user_data array
+     !=================================================================================================================================
+     subroutine F90_p4est_set_user_pointer(user_data, p4est) bind(c,name="F90_p4est_set_user_pointer")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       integer(c_int)     , intent(in)  :: user_data(*)
+       type(c_ptr) , value, intent(in)  :: p4est
+     end subroutine F90_p4est_set_user_pointer
+     
+     !=================================================================================================================================
      !> summary: Creates p4est_mesh from p4est
      !=================================================================================================================================
      subroutine F90_p4est_mesh_new(p4est, p4est_mesh) bind(c,name="F90_p4est_mesh_new")

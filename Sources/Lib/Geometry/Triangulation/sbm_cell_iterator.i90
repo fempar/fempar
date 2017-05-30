@@ -336,6 +336,32 @@ function cell_iterator_is_ghost (this)
   cell_iterator_is_ghost = (this%lid > this%base_static_triangulation%num_local_cells)
 end function cell_iterator_is_ghost
 
+subroutine cell_iterator_set_for_coarsening(this)
+  implicit none
+  class(cell_iterator_t), intent(inout) :: this
+  assert(.false.)
+end subroutine cell_iterator_set_for_coarsening
+
+subroutine cell_iterator_set_for_refinement(this)
+  implicit none
+  class(cell_iterator_t), intent(inout) :: this
+  assert(.false.)
+end subroutine cell_iterator_set_for_refinement
+
+subroutine cell_iterator_set_for_do_nothing(this)
+  implicit none
+  class(cell_iterator_t), intent(inout) :: this
+  assert(.false.)
+end subroutine cell_iterator_set_for_do_nothing
+
+function cell_iterator_get_transformation_flag(this)
+  implicit none
+  class(cell_iterator_t), intent(inout) :: this
+  integer(ip) :: cell_iterator_get_transformation_flag
+  assert(.false.)
+end function cell_iterator_get_transformation_flag
+
+
 ! Returns the sum of num_vefs over all cells up-to the present one (exclusive, i.e.,
 ! without considering the present one), with the cells being ordered consistently 
 ! with the iterator sequential traversal over all cells. At the moment of writing this

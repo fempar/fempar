@@ -129,6 +129,14 @@ module base_static_triangulation_names
     procedure                            :: get_vef                 => cell_iterator_get_vef
     procedure                            :: is_local                => cell_iterator_is_local
     procedure                            :: is_ghost                => cell_iterator_is_ghost
+    
+    procedure                            :: set_for_coarsening      => cell_iterator_set_for_coarsening
+    procedure                            :: set_for_refinement      => cell_iterator_set_for_refinement
+    procedure                            :: set_for_do_nothing      => cell_iterator_set_for_do_nothing
+    procedure                            :: get_transformation_flag => cell_iterator_get_transformation_flag
+    
+    
+    
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_iterator_get_scan_sum_number_vefs
 
     procedure, non_overridable, private  :: fill_nodes_on_vertices        => cell_iterator_fill_nodes_on_vertices
