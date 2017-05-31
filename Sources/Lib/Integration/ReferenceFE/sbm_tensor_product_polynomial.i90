@@ -1,0 +1,216 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published byfill_inter
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Tensor product polynomial space TBP
+!==================================================================================================
+subroutine tensor_product_polynomial_space_create( this, dim, polynomial_1D_basis )
+  class(tensor_product_polynomial_space_t), intent(inout) :: this
+  integer(ip)                             , intent(in)    :: dim
+  type(polynomial_allocatable_array_t)    , intent(in)        :: polynomial_1D_basis(:)
+  integer(ip) :: i
+  
+  this%number_dimensions = dim
+  this%number_polynomials = 1
+  do i = 1, dim
+     call this%polynomial_1D_basis(i)%copy(polynomial_1D_basis(i))
+     this%number_pols_dim(i) = size(polynomial_1D_basis(i)%polynomials)
+     this%number_polynomials = this%number_polynomials * this%number_pols_dim(i)
+  end do
+end subroutine tensor_product_polynomial_space_create
+
+subroutine tensor_product_polynomial_space_free( this )
+  implicit none
+  class(tensor_product_polynomial_space_t), intent(inout)    :: this
+  integer(ip) :: i
+  do i=1,this%number_dimensions
+  call this%work_shape_data(i)%free()
+  call this%polynomial_1D_basis(i)%free()
+  end do
+end subroutine tensor_product_polynomial_space_free
+
+function tensor_product_polynomial_space_get_number_polynomials ( this ) result(num_poly)
+  implicit none
+  class(tensor_product_polynomial_space_t), intent(in)    :: this
+  integer(ip) :: num_poly
+  num_poly = this%number_polynomials
+end function tensor_product_polynomial_space_get_number_polynomials 
+ 
+subroutine tensor_product_polynomial_space_fill( this, points )
+  implicit none
+  class(tensor_product_polynomial_space_t), intent(inout) :: this
+  real(rp)                                , intent(in)    :: points(:,:)
+  integer(ip)                 :: n_q_points, i, j, q
+  
+  do i=1,this%number_dimensions
+  call this%work_shape_data(i)%free()
+  end do
+  n_q_points = size(points,2)
+  do i=1, this%number_dimensions
+     call this%work_shape_data(i)%create(NUM_POLY_DERIV, &
+                                        size(this%polynomial_1D_basis(i)%polynomials), &
+                                        n_q_points)
+  end do
+  ! Can we make it more efficient having an array of points
+  do i = 1,this%number_dimensions
+     do j = 1,size(this%polynomial_1D_basis(i)%polynomials)
+          do q = 1,n_q_points
+             call this%polynomial_1D_basis(i)%polynomials(j)%get_values(points(i,q),this%work_shape_data(i)%a(:,j,q))
+          end do
+     end do
+  end do
+end subroutine tensor_product_polynomial_space_fill
+
+subroutine tensor_product_polynomial_space_evaluate( this, q_point, values, gradients )
+  implicit none
+  class(tensor_product_polynomial_space_t), intent(in)    :: this
+  integer(ip)                             , intent(in)    :: q_point
+  real(rp)                                , intent(inout) :: values(:)
+  real(rp)                                , intent(inout) :: gradients(:,:)
+  integer(ip) :: ijk(SPACE_DIM),idime,ishape,jdime
+  values = 1.0_rp
+  
+  !write(*,*) 'iq',q_point
+  do ishape = 1, this%number_polynomials
+     call index_to_ijk(ishape, this%number_dimensions, this%number_pols_dim, ijk)
+        !write(*,*) 'ishape',ishape
+        !write(*,*) 'ishape_ijk',ijk
+     do idime = 1, this%number_dimensions
+        !write(*,*) 'iq',q_point
+        !write(*,*) 'dim_tensor',idime
+        !write(*,*) 'value pol scalar', this%work_shape_data(idime)%a(1,ijk(idime),q_point)          
+        values(ishape) = values(ishape)* &
+             this%work_shape_data(idime)%a(1,ijk(idime),q_point)
+        !write(*,*) 'value',values(ishape)
+     end do
+     !write(*,*) 'final value',values(ishape)
+  end do
+  do ishape = 1, this%number_polynomials
+     call index_to_ijk(ishape, this%number_dimensions, this%number_pols_dim, ijk)
+     do idime = 1, this%number_dimensions
+        gradients(idime,ishape) = this%work_shape_data(idime)%a(2,ijk(idime),q_point)
+        do jdime = 1, this%number_dimensions
+           if ( jdime /= idime ) then
+              gradients(idime,ishape) = & 
+                 gradients(idime,ishape) * this%work_shape_data(jdime)%a(1,ijk(jdime),q_point)
+           end if
+        end do
+     end do
+  end do    
+end subroutine tensor_product_polynomial_space_evaluate   
+
+! Truncated tensor product polynomial space TBP
+!==================================================================================================
+subroutine truncated_tensor_product_polynomial_space_create ( this, dim, polynomial_1D_basis )
+  implicit none
+  class(truncated_tensor_product_polynomial_space_t), intent(inout) :: this
+  integer(ip)                         , intent(in)    :: dim
+  type(polynomial_allocatable_array_t), intent(in)    :: polynomial_1D_basis(:)
+  integer(ip) :: i, j, work_array(3), max_polynomials, ijk(SPACE_DIM)
+  
+  this%number_dimensions = dim
+  this%number_polynomials = 1
+  this%number_pols_dim = 1
+  max_polynomials = 1
+  do i = 1, dim
+     call this%polynomial_1D_basis(i)%copy(polynomial_1D_basis(i))
+     this%number_pols_dim(i) = size(polynomial_1D_basis(i)%polynomials)
+     max_polynomials = max_polynomials*this%number_pols_dim(i)
+  end do
+  
+  work_array = this%number_pols_dim-1
+  call sort(SPACE_DIM, work_array)
+  i = 0
+  this%number_polynomials = 0
+  countp : do i=1,max_polynomials
+     call index_to_ijk(i,this%number_dimensions, this%number_pols_dim, ijk)
+     do j=1,dim
+        if (ijk(j) > this%number_pols_dim(j))  cycle countp
+     end do
+     if (sum(ijk)-SPACE_DIM < maxval(this%number_pols_dim)) then
+        this%number_polynomials = this%number_polynomials + 1
+     end if
+  end do countp
+end subroutine truncated_tensor_product_polynomial_space_create
+
+subroutine truncated_tensor_product_polynomial_space_evaluate(this, q_point, values, gradients)
+  implicit none
+  class(truncated_tensor_product_polynomial_space_t), intent(in) :: this
+  integer(ip)                             , intent(in)    :: q_point
+  real(rp)                                , intent(inout) :: values(:)
+  real(rp)                                , intent(inout) :: gradients(:,:)
+  integer(ip) :: ishape, i,j, idime, jdime, max_polynomials, ijk(SPACE_DIM)
+  
+  
+  max_polynomials = 1
+  do i = 1, this%number_dimensions
+     max_polynomials = max_polynomials*this%number_pols_dim(i)
+  end do
+  values = 1.0_rp
+  gradients = 0.0_rp
+  gradients(1:this%number_dimensions,:) = 1.0_rp
+  ishape = 1
+  countp : do i=1,max_polynomials
+     call index_to_ijk(i,this%number_dimensions, this%number_pols_dim, ijk)
+     do j=1,this%number_dimensions
+        if (ijk(j) > this%number_pols_dim(j))  cycle countp
+     end do
+     if (sum(ijk)-SPACE_DIM < maxval(this%number_pols_dim)) then
+        do idime=1,this%number_dimensions
+           values(ishape) = values(ishape)*this%work_shape_data(idime)%a(1,ijk(idime),q_point) 
+           gradients(idime,ishape) = gradients(idime,ishape)*this%work_shape_data(idime)%a(2,ijk(idime),q_point)
+           do jdime=1,this%number_dimensions
+              if (idime /= jdime) then
+                 gradients(idime,ishape) = gradients(idime,ishape)*this%work_shape_data(jdime)%a(1,ijk(jdime),q_point)
+              end if
+           end do
+        end do
+        ishape = ishape + 1
+     end if
+  end do countp
+end subroutine truncated_tensor_product_polynomial_space_evaluate
+
+
+! Support subroutines
+!==================================================================================================
+subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
+  implicit none
+  integer(ip)                         , intent(in) :: index
+  integer(ip)                         , intent(in) :: ndime
+  integer(ip)                         , intent(in) :: n_pols_dim(SPACE_DIM)
+  integer(ip)                         , intent(inout) :: ijk(SPACE_DIM)
+  integer(ip) :: i,aux
+
+  ijk = 0
+  aux = (index-1)
+  do i = 1,ndime-1
+     ijk(i) = mod(aux, n_pols_dim(i))
+     aux = aux/n_pols_dim(i)
+  end do
+  ijk(ndime) = aux
+  ijk = ijk+1
+end subroutine index_to_ijk
