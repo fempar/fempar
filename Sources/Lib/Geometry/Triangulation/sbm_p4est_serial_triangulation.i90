@@ -95,6 +95,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%update_lst_vefs_lids_and_cells_around()
     call this%allocate_and_fill_per_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
+    call this%clear_cell_set_ids()
   else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if  
@@ -123,6 +124,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
     this%p4est_num_cells = size(this%quad_level)
     call this%update_lst_vefs_lids_and_cells_around()
     call this%allocate_and_fill_per_cell_vertex_coordinates()
+    call this%update_cell_set_ids()
   else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if
@@ -450,6 +452,55 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
 #endif    
 end subroutine p4est_st_update_lst_vefs_lids_and_cells_around
 
+
+subroutine p4est_st_update_cell_set_ids(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(inout)    :: this
+  type(std_vector_integer_ip_t) :: old_cell_set_ids
+  integer(ip) :: num_children_per_cell
+  integer(ip) :: old_cell_set_id
+  integer(ip) :: transformation_flag
+  integer(ip) :: i, j
+  
+#ifdef ENABLE_P4EST
+  call old_cell_set_ids%copy(this%p4est_cell_set_ids)
+  call this%p4est_cell_set_ids%resize(0)
+  if ( this%p4est_num_dimensions == 2 ) then
+    num_children_per_cell = NUM_CORNERS_2D
+  else if ( this%p4est_num_dimensions == 3 ) then
+    check(.false.)
+  end if
+  
+  assert ( old_cell_set_ids%size() == this%p4est_refinement_and_coarsening_flags%size() )
+  
+  i=1
+  do while ( i <= old_cell_set_ids%size() )
+    transformation_flag = this%p4est_refinement_and_coarsening_flags%get(i)
+    old_cell_set_id     = old_cell_set_ids%get(i)
+    if ( transformation_flag == do_nothing ) then
+      call this%p4est_cell_set_ids%push_back(old_cell_set_id)
+    else if ( transformation_flag == refinement ) then
+      do j=1, num_children_per_cell
+        call this%p4est_cell_set_ids%push_back(old_cell_set_id)
+      end do
+    else if ( transformation_flag == coarsening ) then
+      call this%p4est_cell_set_ids%push_back(old_cell_set_id)
+      do j=1, num_children_per_cell
+        i=i+1
+      end do
+      cycle
+    else 
+      assert(.false.)
+    end if
+    i=i+1
+  end do
+  call old_cell_set_ids%free()
+#else
+  call this%not_enabled_error()
+#endif        
+  
+end subroutine p4est_st_update_cell_set_ids
+
 subroutine p4est_st_std_vector_transform_length_to_header(this,std_vector_integer_ip)
   implicit none
   class(p4est_serial_triangulation_t), intent(in)    :: this
@@ -524,6 +575,35 @@ subroutine p4est_st_clear_refinement_and_coarsening_flags(this)
   call this%not_enabled_error()
 #endif        
 end subroutine p4est_st_clear_refinement_and_coarsening_flags
+
+subroutine p4est_st_clear_cell_set_ids(this)
+   implicit none
+   class(p4est_serial_triangulation_t), intent(inout)    :: this
+  integer(ip) :: istat
+#ifdef ENABLE_P4EST
+  call this%p4est_cell_set_ids%resize(0)
+  call this%p4est_cell_set_ids%resize(this%p4est_num_cells, 0)
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_st_clear_cell_set_ids
+
+subroutine p4est_st_fill_cells_set (this, cells_set)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(inout) :: this
+  integer(ip)                        , intent(in)    :: cells_set(:)
+  integer(ip)  :: i 
+#ifdef ENABLE_P4EST
+  
+  assert ( size(cells_set) == this%p4est_cell_set_ids%size() )
+  do i=1, size(cells_set)
+    call this%p4est_cell_set_ids%set(i,cells_set(i))
+  end do
+  
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_st_fill_cells_set 
 
 subroutine p4est_serial_triangulation_update_p4est_mesh(this)
   implicit none
@@ -618,6 +698,9 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%p4est_improper_vefs_dimension%free()
   call this%p4est_proper_vefs_at_boundary%free()
   call this%p4est_refinement_and_coarsening_flags%free()
+  call this%p4est_cell_set_ids%free()
+  call this%p4est_proper_vefs_set_ids%free()
+  call this%p4est_improper_vefs_set_ids%free()
   
   nullify(this%quad_to_quad)
   nullify(this%quad_to_face)

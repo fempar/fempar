@@ -117,7 +117,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_my_part             => cell_iterator_get_mypart
     procedure, non_overridable           :: get_my_subpart          => cell_iterator_get_mysubpart
     procedure, non_overridable           :: get_my_subpart_lid      => cell_iterator_get_mysubpart_lid
-    procedure, non_overridable           :: get_set_id              => cell_iterator_get_set_id
+    procedure                            :: get_set_id              => cell_iterator_get_set_id
     procedure                            :: get_num_vefs            => cell_iterator_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid
@@ -410,7 +410,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: allocate_cells_mypart               => bst_allocate_cells_mypart
      procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
-     procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
+     procedure                           :: fill_cells_set                      => bst_fill_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_per_cell              => bst_free_ptr_vefs_per_cell
      procedure,                  private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
      procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid

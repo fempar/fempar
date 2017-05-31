@@ -195,17 +195,17 @@ end subroutine p4est_cell_iterator_get_coordinates
 !  assert ( istat == key_found )
 !end function p4est_cell_iterator_get_mysubpart_lid
 
-!! get_set_id() let's the user to get the cell set ID assigned to
-!! a cell. Note that the counterpart, set_set_id(), does not exist, as we do not let 
-!! the user to set "set cell IDs" on a individual basis (but instead all in one shot via the 
-!! fill_cells_set member TBP of class(base_static_triangulation_t)).
-!function p4est_cell_iterator_get_set_id(this)
-!  implicit none
-!  class(p4est_cell_iterator_t), intent(in) :: this
-!  integer(ip) :: p4est_cell_iterator_get_set_id
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  p4est_cell_iterator_get_set_id = this%base_static_triangulation%cells_set(this%lid)
-!end function p4est_cell_iterator_get_set_id
+! get_set_id() let's the user to get the cell set ID assigned to
+! a cell. Note that the counterpart, set_set_id(), does not exist, as we do not let 
+! the user to set "set cell IDs" on a individual basis (but instead all in one shot via the 
+! fill_cells_set member TBP of class(base_static_triangulation_t)).
+function p4est_cell_iterator_get_set_id(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_cell_iterator_get_set_id
+  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_set_id = this%p4est_triangulation%p4est_cell_set_ids%get(this%get_lid())
+end function p4est_cell_iterator_get_set_id
 
 pure function p4est_cell_iterator_get_num_vefs (this)
   implicit none
