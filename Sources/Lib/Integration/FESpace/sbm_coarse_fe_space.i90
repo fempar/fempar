@@ -499,6 +499,8 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   integer(ip)                               :: num_dofs_in_current_cell
   integer(ip)                               :: i, j, ivef
   integer(igp)                              :: vef_gid
+  integer(ip)                               :: vef_lid
+  integer(ip), allocatable                  :: num_assigned_dofs_per_vef(:)
 
   call this%create_coarse_fe_iterator(coarse_fe)
   
@@ -549,27 +551,39 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   
   ! List DoFs on each vef of each cell
   if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+     
+     call memalloc ( this%coarse_triangulation%get_num_vefs(), num_assigned_dofs_per_vef, __FILE__, __LINE__  )
+     num_assigned_dofs_per_vef(:) = 0
      ! In the case of DG coarse FE spaces, the boundary vefs do not have own coarse DoFs, i.e.,
      ! all interior coarse DoFs belong to the interior of the coarse cell
      base_pointer = 1
      i = field_id
      do while ( .not. coarse_fe%has_finished() )
+
+       ! Re-init to zero work array only on those positions we are interested in
+       do ivef=1, coarse_fe%get_num_vefs()
+          num_assigned_dofs_per_vef(coarse_fe%get_vef_lid(ivef)) = 0
+       end do
+
        ! Traverse all DoFs in current cell
        do j = this%ptr_dofs_per_fe_and_field(i),this%ptr_dofs_per_fe_and_field(i+1)-1
           ! Retrieve vef gid
           vef_gid = lst_vefs_gids_dofs_objects_ghost_extended(j)
           
           ! Retrieve position of vef_gid in current cell
-          ivef = coarse_fe%find_lpos_vef_gid(vef_gid)
+          ivef    = coarse_fe%find_lpos_vef_gid(vef_gid)
+          vef_lid = coarse_fe%get_vef_lid(ivef)
           assert ( ivef /= -1 )
           ! Associate dof to vef
           list_iterator = this%own_dofs_vef_per_fe(field_id)%create_iterator(base_pointer+ivef-1)
-          call list_iterator%set_current(j-this%ptr_dofs_per_fe_and_field(i)+1)
+          call list_iterator%set_from_current(num_assigned_dofs_per_vef(vef_lid), j-this%ptr_dofs_per_fe_and_field(i)+1)
+          num_assigned_dofs_per_vef(vef_lid) = num_assigned_dofs_per_vef(vef_lid) + 1 
        end do  
        i = i + this%number_fields
        base_pointer = base_pointer + coarse_fe%get_num_vefs() + 1
        call coarse_fe%next()
      end do
+     call memfree ( num_assigned_dofs_per_vef, __FILE__, __LINE__  )
   else
      check ( .false. )
      !! Not completely implemented yet. The code below compiles, but was not tested. It is just
@@ -598,6 +612,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   end if
   call this%free_coarse_fe_iterator(coarse_fe)
 end subroutine coarse_fe_space_fill_own_dofs_per_fe_field
+
 
 subroutine coarse_fe_space_free_free_own_dofs_vef_per_fe (this)
   implicit none

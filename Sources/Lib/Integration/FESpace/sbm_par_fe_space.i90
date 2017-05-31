@@ -1516,7 +1516,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   type(fe_object_iterator_t)           :: object
   type(list_iterator_t)                :: own_coarse_dofs_iterator
   integer(ip), allocatable             :: num_coarse_dofs_per_field(:,:), max_num_coarse_dofs_per_field(:)
-  integer(ip)                          :: current_coarse_dof, max_num_coarse_dofs
+  integer(ip)                          :: current_coarse_dof, sum_max_num_coarse_dofs, max_max_num_coarse_dofs
 
   !assert ( this%number_fields == 1 )
   par_environment => this%get_par_environment()
@@ -1537,7 +1537,8 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   check ( istat == 0 )
   
   this%ptr_coarse_dofs_per_field(1) = 1
-  max_num_coarse_dofs = 0
+  sum_max_num_coarse_dofs = 0
+  max_max_num_coarse_dofs = 0
   do field_id=1, this%number_fields
     call this%coarse_fe_handlers(field_id)%p%get_num_coarse_dofs(field_id, this, parameter_list, num_coarse_dofs_per_field(:,field_id))
     this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id)
@@ -1547,7 +1548,8 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
     end do  
     
     max_num_coarse_dofs_per_field(field_id) = maxval(num_coarse_dofs_per_field(:,field_id))
-    max_num_coarse_dofs = max_num_coarse_dofs + max_num_coarse_dofs_per_field(field_id)
+    max_max_num_coarse_dofs = max(max_max_num_coarse_dofs,max_num_coarse_dofs_per_field(field_id))
+    sum_max_num_coarse_dofs = sum_max_num_coarse_dofs + max_num_coarse_dofs_per_field(field_id)
     call par_environment%l1_max(max_num_coarse_dofs_per_field(field_id))
   end do
   
@@ -1590,8 +1592,8 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
          this%coarse_dof_gids_per_field(field_id)%a(own_coarse_dofs_iterator%get_current()-this%ptr_coarse_dofs_per_field(field_id)+1) = &
                this%generate_coarse_dof_gid(object%get_gid(),field_id, &
                                             own_coarse_dofs_iterator%get_distance_to_lower_bound(), &
-                                            max_num_coarse_dofs_per_field(field_id), &
-                                            max_num_coarse_dofs)
+                                            max_max_num_coarse_dofs, & ! max_num_coarse_dofs_per_field(field_id), &
+                                            sum_max_num_coarse_dofs)
          call own_coarse_dofs_iterator%next()
        end do
        call object%next()
