@@ -545,6 +545,9 @@ contains
             call this%allocate_cell_and_nodal_arrays()
         endif
 
+        ! Otherwise ifc issues an error in the fill_patch call below
+        if(.not.allocated(this%cell_vectors)) allocate(this%cell_vectors(1))
+        
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         call patch%create(this%number_fields, this%number_cell_vectors)
         call fe%first()

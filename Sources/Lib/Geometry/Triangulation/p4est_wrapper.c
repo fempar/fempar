@@ -27,6 +27,7 @@
 
 #include <sc.h>
 #include <p4est.h>
+#include <p4est_extended.h>
 #include <p4est_mesh.h>
 #include <p4est_bits.h>
 #include "p4est_wrapper.h"
@@ -266,7 +267,6 @@ int coarsen_callback (p4est_t * p4est,
     for (quadrant_index=0; quadrant_index < P4EST_CHILDREN; quadrant_index++)
     {
       coarsen = (*((int *)(quadrants[quadrant_index]->p.user_data)) ==  FEMPAR_coarsening_flag);
-      printf("XXX %d\n", (*((int *)(quadrants[quadrant_index]->p.user_data))));
       if (!coarsen) return coarsen;
     }
     return coarsen;
@@ -277,6 +277,74 @@ void F90_p4est_coarsen( p4est_t * p4est )
     p4est_coarsen(p4est, 0, coarsen_callback, NULL);
 }
 
+void F90_p4est_copy( p4est_t * p4est_input, p4est_t ** p4est_output )
+{
+   F90_p4est_destroy(p4est_output);
+   *p4est_output = p4est_copy(p4est_input,0);
+}
+
+void F90_p4est_balance( p4est_t * p4est )
+{
+  p4est_balance(p4est, P4EST_CONNECT_FULL, NULL);
+}
+
+void F90_p4est_update_refinement_and_coarsening_flags(p4est_t * p4est_old, p4est_t * p4est_new)
+{
+    p4est_tree_t       *tree_old;
+    p4est_quadrant_t   *q_old;
+    sc_array_t         *quadrants_old;
+    int                old_quadrant_index;
+    
+    p4est_tree_t       *tree_new;
+    p4est_quadrant_t   *q_new;
+    sc_array_t         *quadrants_new;
+    int                new_quadrant_index;
+    
+    int * user_pointer;
+   
+    P4EST_ASSERT(p4est_old->user_pointer == p4est_new->user_pointer);
+    
+    user_pointer = (int *) p4est_old->user_pointer;
+    
+    // Extract references to the first (and uniquely allowed) trees
+    tree_old = p4est_tree_array_index (p4est_old->trees,0);
+    tree_new = p4est_tree_array_index (p4est_new->trees,0);
+    
+    quadrants_old = &(tree_old->quadrants);
+    quadrants_new = &(tree_new->quadrants);
+    
+    new_quadrant_index = 0;
+    for (old_quadrant_index=0; old_quadrant_index < quadrants_old->elem_count;)
+    {
+       q_old = p4est_quadrant_array_index(quadrants_old, old_quadrant_index);
+       q_new = p4est_quadrant_array_index(quadrants_new, new_quadrant_index);
+       if ( p4est_quadrant_compare(q_old,q_new) == 0 ) //q_old was not refined nor coarsened
+       {
+           user_pointer[old_quadrant_index] = FEMPAR_do_nothing_flag;
+           old_quadrant_index++;
+           new_quadrant_index++;
+       }
+       else if ( p4est_quadrant_is_parent(q_old,q_new)  )  //q_old was refined
+       { 
+           user_pointer[old_quadrant_index] = FEMPAR_refinement_flag;
+           old_quadrant_index++;
+           new_quadrant_index = new_quadrant_index + P4EST_CHILDREN;
+       }
+       else if ( p4est_quadrant_is_parent(q_new,q_old) ) //q_old and its siblings were coarsened 
+       {
+           for (int i=0; i < P4EST_CHILDREN; i++)
+           {
+               user_pointer[old_quadrant_index] = FEMPAR_coarsening_flag;
+               old_quadrant_index++;
+           }
+           new_quadrant_index++;
+       }
+       else
+       {
+         P4EST_ASSERT(0);
+       }
+    }
+}
 
 void F90_p4est_get_quadrant_vertex_coordinates(p4est_connectivity_t * connectivity,
                                                p4est_topidx_t treeid,
