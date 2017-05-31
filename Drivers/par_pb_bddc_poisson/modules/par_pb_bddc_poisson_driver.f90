@@ -49,8 +49,9 @@ module par_pb_bddc_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(H1_l1_coarse_fe_handler_t)           :: H1_coarse_fe_handler
-     type(standard_l1_coarse_fe_handler_t)     :: standard_coarse_fe_handler
+     type(H1_l1_coarse_fe_handler_t)             :: H1_coarse_fe_handler
+     type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
+     type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -78,6 +79,7 @@ module par_pb_bddc_poisson_driver_names
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_cell_set_ids
      procedure        , private :: setup_reference_fes
+     procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
@@ -297,23 +299,28 @@ contains
     end if
   end subroutine setup_reference_fes
 
+  subroutine setup_coarse_fe_handlers(this)
+    implicit none
+    class(par_pb_bddc_poisson_driver_t), intent(inout) :: this
+    integer(ip) :: istat
+    allocate(this%coarse_fe_handlers(1), stat=istat)
+    check(istat==0)
+
+    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+       this%coarse_fe_handlers(1)%p => this%H1_coarse_fe_handler
+    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
+       this%coarse_fe_handlers(1)%p => this%standard_coarse_fe_handler
+    end if
+  end subroutine setup_coarse_fe_handlers
+  
   subroutine setup_fe_space(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
-    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
-       call this%fe_space%create( triangulation       = this%triangulation, &
-                                  conditions          = this%poisson_conditions, &
-                                  reference_fes       = this%reference_fes, &
-                                  coarse_fe_handler   = this%H1_coarse_fe_handler)
-    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
-       call this%fe_space%create( triangulation       = this%triangulation, &
-                                  conditions          = this%poisson_conditions, &
-                                  reference_fes       = this%reference_fes, &
-                                  coarse_fe_handler   = this%standard_coarse_fe_handler)
-    else
-      check(.false.)
-    end if
+    call this%fe_space%create( triangulation       = this%triangulation, &
+                               conditions          = this%poisson_conditions, &
+                               reference_fes       = this%reference_fes, &
+                               coarse_fe_handlers  = this%coarse_fe_handlers)
 
     call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
