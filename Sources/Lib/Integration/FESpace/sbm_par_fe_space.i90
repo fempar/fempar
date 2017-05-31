@@ -246,6 +246,8 @@ subroutine par_fe_space_allocate_and_fill_coarse_fe_handlers ( this, coarse_fe_h
   class(par_fe_space_t)         , intent(inout) :: this
   type(p_l1_coarse_fe_handler_t),  intent(in)   :: coarse_fe_handlers(:)
   integer(ip) :: i, istat
+  
+  call this%free_coarse_fe_handlers()
 
   assert(size(coarse_fe_handlers) == this%number_fields)
   allocate( this%coarse_fe_handlers(this%number_fields), stat=istat )
