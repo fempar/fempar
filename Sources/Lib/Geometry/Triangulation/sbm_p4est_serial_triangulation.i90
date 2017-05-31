@@ -135,16 +135,12 @@ pure function p4est_serial_triangulation_get_ptr_vefs_per_cell(this, icell)
   integer(ip) :: p4est_serial_triangulation_get_ptr_vefs_per_cell
   integer(ip) :: num_vefs_per_cell
 
-#ifdef ENABLE_P4EST
   !assert (icell>= 1 .and. icell <= this%p4est_num_cells+1)
   if ( this%p4est_num_dimensions == 2 ) then
     num_vefs_per_cell = NUM_VEFS_2D
   else if ( this%p4est_num_dimensions == 3 ) then
   end if
-  p4est_serial_triangulation_get_ptr_vefs_per_cell = (icell-1)*num_vefs_per_cell+1
-#else
-  call this%not_enabled_error()
-#endif  
+  p4est_serial_triangulation_get_ptr_vefs_per_cell = (icell-1)*num_vefs_per_cell+1  
   
 end function p4est_serial_triangulation_get_ptr_vefs_per_cell
 
