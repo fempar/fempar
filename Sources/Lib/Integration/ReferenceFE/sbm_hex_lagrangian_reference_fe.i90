@@ -920,7 +920,7 @@ subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face
   
   num_refinements    = 1
   num_n_faces        = this%get_number_n_faces_of_dimension(n_face_dimension)
-  num_n_subfaces     = ( num_refinements + 1 ) * n_face_dimension      ! Topology-dependent
+  num_n_subfaces     = ( num_refinements + 1 ) ** n_face_dimension      ! Topology-dependent
   first_n_face_id    = this%get_first_n_face_id_of_dimension(n_face_dimension)
   num_dofs_on_n_face = this%get_number_dofs_on_n_face(first_n_face_id) ! Only cubes and simplices
 
