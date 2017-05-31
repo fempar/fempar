@@ -246,6 +246,7 @@ module p4est_serial_triangulation_names
   end type p4est_serial_triangulation_t
   
   public :: p4est_serial_triangulation_t, p4est_cell_iterator_t, p4est_vef_iterator_t
+  public :: refinement, coarsening, do_nothing
   
 contains
 

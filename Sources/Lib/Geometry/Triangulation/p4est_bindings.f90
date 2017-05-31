@@ -163,6 +163,37 @@ module p4est_bindings_names
      end subroutine F90_p4est_coarsen
      
      !=================================================================================================================================
+     !> summary: Makes a deep copy of p4est_input into p4est_output
+     !=================================================================================================================================
+     subroutine F90_p4est_copy(p4est_input, p4est_output) bind(c,name="F90_p4est_copy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p4est_input
+       type(c_ptr)              , intent(inout)  :: p4est_output
+     end subroutine F90_p4est_copy
+     
+     !=================================================================================================================================
+     !> summary: 2:1 (FULL) balance the size differences of neighboring elements in a forest
+     !=================================================================================================================================
+     subroutine F90_p4est_balance(p4est) bind(c,name="F90_p4est_balance")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p4est
+     end subroutine F90_p4est_balance
+     
+     !=================================================================================================================================
+     !> summary: compares p4est_old with p4est_new and updates refinement+coarsening flags of the former accordingly to how  
+     !>          the former has been transformed into the latter via refine+coarsen+balance
+     !=================================================================================================================================
+     subroutine F90_p4est_update_refinement_and_coarsening_flags(p4est_old, p4est_new) bind(c,name="F90_p4est_update_refinement_and_coarsening_flags")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p4est_old
+       type(c_ptr), value       , intent(in)     :: p4est_new
+     end subroutine F90_p4est_update_refinement_and_coarsening_flags
+     
+     
+     !=================================================================================================================================
      !> summary: Frees all dynamic memory involved in p4est_connectivity_t
      !=================================================================================================================================
      subroutine F90_p4est_connectivity_destroy(p4est_connectivity) bind(c, name="F90_p4est_connectivity_destroy")

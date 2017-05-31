@@ -115,7 +115,7 @@ contains
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
     integer(ip) :: vertex_pos_in_cell, icell_arround
-    integer(ip) :: inode, num
+    integer(ip) :: inode, num, i
 
 
     !call this%triangulation%create(this%test_params%get_dir_path(),&
@@ -123,28 +123,18 @@ contains
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%parameter_list)
    
-    call this%set_cells_for_refinement()
-    call this%triangulation%refine_and_coarsen()
-    
-    call this%triangulation%clear_refinement_and_coarsening_flags()
-    call this%set_cells_for_refinement()
-    call this%triangulation%refine_and_coarsen()
-    
-    call this%triangulation%clear_refinement_and_coarsening_flags()
-    call this%set_cells_for_coarsening()
-    call this%triangulation%refine_and_coarsen()
-    
-    
-    !call this%triangulation%refine_and_coarsen()
-    !call this%triangulation%refine_and_coarsen()
-    !call this%triangulation%refine_and_coarsen()
-    !call this%triangulation%refine_and_coarsen()
-    !call this%triangulation%refine_and_coarsen()
-    !call this%triangulation%refine_and_coarsen()
-
-    !call this%triangulation%print()
-    
-   
+    do i=1, 10
+       call this%triangulation%clear_refinement_and_coarsening_flags()
+       call this%set_cells_for_refinement()
+       call this%triangulation%refine_and_coarsen()
+       
+       if ( mod(i,3) == 0 ) then
+         call this%triangulation%clear_refinement_and_coarsening_flags()
+         call this%set_cells_for_coarsening()
+         call this%triangulation%refine_and_coarsen()
+       end if
+    end do   
+       
     !if ( this%test_params%get_triangulation_type() == 'structured' ) then
     !   call this%triangulation%create_vef_iterator(vef)
     !   do while ( .not. vef%has_finished() )
