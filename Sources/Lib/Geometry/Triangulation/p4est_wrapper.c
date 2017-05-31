@@ -228,10 +228,55 @@ int refine_callback(p4est_t * p4est,
     return (*((int *)quadrant->p.user_data) ==  FEMPAR_refinement_flag);
 }
 
+
+void  refine_replace_callback (p4est_t * p4est,
+                               p4est_topidx_t which_tree,
+                               int num_outgoing,
+                               p4est_quadrant_t * outgoing[],
+                               int num_incoming,
+                               p4est_quadrant_t * incoming[])
+ {
+    int quadrant_index;
+    int *quadrant_data;
+    P4EST_ASSERT(which_tree   == 0);
+    P4EST_ASSERT(num_outgoing == 1);
+    P4EST_ASSERT(num_incoming == P4EST_CHILDREN);
+    for (quadrant_index=0; quadrant_index < P4EST_CHILDREN; quadrant_index++)
+    {
+      quadrant_data = (int *) incoming[quadrant_index]->p.user_data;
+      *quadrant_data = FEMPAR_do_nothing_flag;
+    }
+ }
+
 void F90_p4est_refine( p4est_t * p4est )
 {
-    p4est_refine(p4est, 0, refine_callback, NULL);
+    p4est_refine_ext(p4est, 0, -1, refine_callback, NULL, refine_replace_callback);
 }
+
+
+int coarsen_callback (p4est_t * p4est,
+                      p4est_topidx_t which_tree,
+                      p4est_quadrant_t * quadrants[])
+{
+    int quadrant_index;
+    int coarsen;
+    P4EST_ASSERT(which_tree == 0);
+    
+    coarsen = 1;
+    for (quadrant_index=0; quadrant_index < P4EST_CHILDREN; quadrant_index++)
+    {
+      coarsen = (*((int *)(quadrants[quadrant_index]->p.user_data)) ==  FEMPAR_coarsening_flag);
+      printf("XXX %d\n", (*((int *)(quadrants[quadrant_index]->p.user_data))));
+      if (!coarsen) return coarsen;
+    }
+    return coarsen;
+}
+
+void F90_p4est_coarsen( p4est_t * p4est )
+{
+    p4est_coarsen(p4est, 0, coarsen_callback, NULL);
+}
+
 
 void F90_p4est_get_quadrant_vertex_coordinates(p4est_connectivity_t * connectivity,
                                                p4est_topidx_t treeid,

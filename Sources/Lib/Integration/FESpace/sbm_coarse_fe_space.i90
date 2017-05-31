@@ -446,7 +446,7 @@ subroutine coarse_fe_space_allocate_and_fill_own_dofs_vef_per_fe (this, &
   class(coarse_fe_space_t) , intent(inout)  :: this
   integer(igp)             , intent(in)     :: lst_dofs_gids_ghost_extended(*)
   integer(igp)             , intent(in)     :: lst_vefs_gids_dofs_objects_ghost_extended(*)
-  type(environment_t), pointer          :: par_environment
+  type(environment_t), pointer              :: par_environment
   integer(ip)                               :: sum_num_vefs_all_cells
   type(coarse_fe_iterator_t)                :: coarse_fe
   integer(ip)                               :: istat

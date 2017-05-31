@@ -71,6 +71,7 @@ module test_h_adaptive_poisson_driver_names
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
      procedure        , private :: set_cells_for_refinement
+     procedure        , private :: set_cells_for_coarsening
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
@@ -129,6 +130,10 @@ contains
     call this%set_cells_for_refinement()
     call this%triangulation%refine_and_coarsen()
     
+    call this%triangulation%clear_refinement_and_coarsening_flags()
+    call this%set_cells_for_coarsening()
+    call this%triangulation%refine_and_coarsen()
+    
     
     !call this%triangulation%refine_and_coarsen()
     !call this%triangulation%refine_and_coarsen()
@@ -167,6 +172,18 @@ contains
     end do
     call this%triangulation%free_cell_iterator(cell)
   end subroutine set_cells_for_refinement
+  
+  subroutine set_cells_for_coarsening(this)
+    implicit none
+    class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
+    class(cell_iterator_t)      , allocatable :: cell
+    call this%triangulation%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      call cell%set_for_coarsening()
+      call cell%next()
+    end do
+    call this%triangulation%free_cell_iterator(cell)
+  end subroutine set_cells_for_coarsening
   
   subroutine setup_reference_fes(this)
     implicit none

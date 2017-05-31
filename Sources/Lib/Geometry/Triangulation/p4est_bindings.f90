@@ -154,6 +154,15 @@ module p4est_bindings_names
      end subroutine F90_p4est_refine
      
      !=================================================================================================================================
+     !> summary: Coarsens in place the p4est data structure
+     !=================================================================================================================================
+     subroutine F90_p4est_coarsen(p4est) bind(c,name="F90_p4est_coarsen")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p4est
+     end subroutine F90_p4est_coarsen
+     
+     !=================================================================================================================================
      !> summary: Frees all dynamic memory involved in p4est_connectivity_t
      !=================================================================================================================================
      subroutine F90_p4est_connectivity_destroy(p4est_connectivity) bind(c, name="F90_p4est_connectivity_destroy")

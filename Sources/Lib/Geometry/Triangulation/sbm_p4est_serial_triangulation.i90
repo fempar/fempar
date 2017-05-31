@@ -111,6 +111,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_set_user_pointer(this%p4est_refinement_and_coarsening_flags%get_raw_pointer(),this%p4est)
     call F90_p4est_refine(this%p4est)
+    call F90_p4est_coarsen(this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     ! Update the number of triangulation cells
