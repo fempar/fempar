@@ -1283,6 +1283,8 @@ procedure, private :: fill_h_refinement_permutations                     &
 & => hex_lagrangian_reference_fe_fill_h_refinement_permutations
 procedure, private :: fill_n_subface_permutation                         &
 & => hex_lagrangian_reference_fe_fill_n_subface_permutation
+procedure          :: get_node_indices_on_child_fes                      &
+& => hex_lagrangian_reference_fe_get_node_indices_on_child_fes
 procedure          :: get_h_refinement_interpolation                     &
 & => hex_lagrangian_reference_fe_get_h_refinement_interpolation
 procedure          :: get_h_refinement_subedge_permutation               &

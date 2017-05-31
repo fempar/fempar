@@ -926,9 +926,10 @@ subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face
 
   call memalloc(num_n_faces,num_n_subfaces,num_dofs_on_n_face,permutation_array,__FILE__,__LINE__)
 
+  call h_refinement_node_array%create( this%polytope, ( num_refinements + 1 ) * this%order_vector )
+  
   do n_face_id = first_n_face_id, first_n_face_id+num_n_faces-1
      do n_subface_id = 0, num_n_subfaces-1
-        call h_refinement_node_array%create( this%polytope, ( num_refinements + 1 ) * this%order_vector )
         node_iterator_on_n_subface = h_refinement_node_array%create_node_iterator ( this%polytope%get_n_face(n_face_id), & 
                                                                                     n_subface_id, own_boundary = .true. )
         dof_on_n_subface_id = 0
@@ -944,6 +945,40 @@ subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face
   call h_refinement_node_array%free()
   
 end subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_get_node_indices_on_child_fes ( this )
+  implicit none 
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this              
+  type(node_iterator_t) :: node_iterator
+  integer(ip)           :: num_subcells, subcell_id
+  integer(ip)           :: parent_index, parent_ijk, parent_coordinate(0:SPACE_DIM-1)
+  integer(ip)           :: child_coordinate(0:SPACE_DIM-1), child_index, subface_id
+  integer(ip)           :: i
+  
+  node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%number_n_faces), &
+                                                        own_boundary = .true. )
+  do while (.not. node_iterator%has_finished() )
+     subface_id        = 0
+     parent_index      = node_iterator%current()
+     parent_ijk        = node_iterator%current_ijk()
+     parent_coordinate = node_iterator%coordinate
+     child_coordinate  = 2 * parent_coordinate
+     do i = 0,this%node_array%polytope_tree%number_dimensions-1
+        if ( child_coordinate(i) .ge. this%order_vector(i+1) ) then
+           child_coordinate(i) = child_coordinate(i) - this%order_vector(i+1)
+           subface_id = IBSET(subface_id,i)
+        end if
+     end do
+     child_index = ijk_to_index( child_coordinate,      &
+                                 this%node_array%order, &
+                                 this%node_array%polytope_tree%number_dimensions )
+     child_index = this%node_array%ijk_to_index( child_index )
+     write(*,*) 'NODE ',parent_index,' in parent is NODE ',child_index,' in subface',subface_id
+     call node_iterator%next()
+  end do
+  
+end subroutine hex_lagrangian_reference_fe_get_node_indices_on_child_fes
 
 !==================================================================================================
 function hex_lagrangian_reference_fe_get_h_refinement_interpolation ( this )
