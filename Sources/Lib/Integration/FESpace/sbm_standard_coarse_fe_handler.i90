@@ -350,6 +350,25 @@ subroutine standard_l1_apply_weighting_operator(this, W, x, y)
 
 end subroutine standard_l1_apply_weighting_operator
 
+subroutine standard_l1_apply_transpose_weighting_operator(this, W, x, y) 
+  implicit none
+  class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  real(rp),            allocatable,       intent(in)    :: W(:) 
+  type(par_scalar_array_t)  , intent(inout) :: x
+  type(par_scalar_array_t)  , intent(inout) :: y
+  type(serial_scalar_array_t), pointer :: x_local
+  type(serial_scalar_array_t), pointer :: y_local
+  real(rp), pointer :: x_local_entries(:)
+  real(rp), pointer :: y_local_entries(:)
+
+     x_local         => x%get_serial_scalar_array()
+     x_local_entries => x_local%get_entries()
+     y_local         => y%get_serial_scalar_array()
+     y_local_entries => y_local%get_entries()
+     y_local_entries = x_local_entries*W
+
+end subroutine standard_l1_apply_transpose_weighting_operator
+
 subroutine standard_get_coarse_space_use_vertices_edges_faces ( parameter_list, use_vertices, use_edges, use_faces )
   implicit none
   type(parameterlist_t)                 , intent(in)    :: parameter_list

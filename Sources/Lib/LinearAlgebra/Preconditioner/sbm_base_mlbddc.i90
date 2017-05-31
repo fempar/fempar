@@ -194,9 +194,9 @@ subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
      L2_environment  => L1_environment%get_next_level()
      call this%coarse_grid_matrix%create( p_env             = L2_environment, &
           dof_import        = coarse_fe_space%get_block_dof_import(1), &
-          symmetric_storage = .true., &
-          is_symmetric      = .true., &
-          sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
+          symmetric_storage = .false., &
+          is_symmetric      = .false., &
+          sign              = SPARSE_MATRIX_SIGN_UNKNOWN) !SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
 
      if ( L2_environment%am_i_l1_task() ) then
         call this%coarse_grid_matrix_symbolic_assembly()
@@ -387,7 +387,6 @@ subroutine base_mlbddc_numerical_constrained_neumann_problem(this)
   call A%expand_matrix_numeric(C_T = this%constraint_matrix, &
        to  = this%constrained_neumann_matrix)
 
-  !call this%constrained_neumann_matrix%print(6)
 end subroutine  base_mlbddc_numerical_constrained_neumann_problem
 
 subroutine base_mlbddc_numerical_setup_constrained_neumann_solver(this)
@@ -676,7 +675,7 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
   deallocate ( elem2dof, stat=istat )
   check(istat==0)     
   call this%coarse_grid_matrix%convert(csr_format)
-  !call this%coarse_grid_matrix%print(6)
+  ! call this%coarse_grid_matrix%print_matrix_market(6)
 end subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly
 
 subroutine base_mlbddc_numerical_setup_mlbddc_coarse ( this )
@@ -759,8 +758,13 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
        coarse_correction_I, &
        coarse_correction_G
   type(environment_t), pointer :: par_environment
+  
+    type(serial_scalar_array_t), pointer :: x_local
+  real(rp), pointer :: x_local_entries(:)
 
+  
   par_environment => this%get_par_environment()
+  
   if ( par_environment%get_l1_size() == 1 ) then
      call this%solve_coarse_problem(x, y)
   else ! l1_size > 1 .or. l1_size < 1    
@@ -809,15 +813,17 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
      ! residual_G = residual_G - delta_G =
      !              residual_G - sum(A_GI*A_II^{-1}*residual_I,i=1..P)
      call residual_G%axpby(-1.0_rp, delta_G, 1.0_rp)
-
+ 
      ! 4) Compute delta_G = A_{BDDC}^{-1} r
-     call this%apply_weight_operator(residual,residual) 
+     call this%apply_transpose_weight_operator(residual,residual) 
      call this%compute_coarse_correction(residual, coarse_correction)
      call this%solve_constrained_neumann_problem ( residual, constrained_neumann_correction )
      call delta_G%copy (coarse_correction_G)
      call delta_G%axpby(1.0_rp, constrained_neumann_correction_G,1.0_rp)
      call this%apply_weight_operator(delta,delta) 
+
      call delta%comm()
+
      ! y_G = delta_G
      call y_G%copy(delta_G)
 
@@ -827,7 +833,7 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
      call this%solve_dirichlet_problem(residual_I, delta_I)
      ! y_I = y_I - delta_I
      call y_I%axpby(-1.0_rp, delta_I, 1.0_rp)
-
+  
      call constrained_neumann_correction_I%free()
      call constrained_neumann_correction_G%free()
      call constrained_neumann_correction%free()
@@ -1369,6 +1375,14 @@ subroutine base_mlbddc_apply_weight_operator(this, x, y)
   type(par_scalar_array_t)  , intent(inout) :: y
   assert(.false.)
 end subroutine base_mlbddc_apply_weight_operator
+
+subroutine base_mlbddc_apply_transpose_weight_operator(this, x, y)
+  implicit none
+  class(base_mlbddc_t)    , intent(in)    :: this
+  type(par_scalar_array_t)  , intent(inout) :: x
+  type(par_scalar_array_t)  , intent(inout) :: y
+  assert(.false.)
+end subroutine base_mlbddc_apply_transpose_weight_operator
 
 subroutine base_mlbddc_create_interior_interface_views ( this, x, x_I, X_G )
   implicit none

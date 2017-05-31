@@ -162,6 +162,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   integer(ip) :: field_id
   integer(ip) :: num_rows, num_cols
   integer(ip) :: iface_within_object, ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
+  real(rp) :: coarse_edge_size 
 
   class(base_static_triangulation_t), pointer :: triangulation
 
@@ -174,10 +175,11 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   integer(ip)            , pointer     :: elem2dof(:)
   type(i1p_t)        , allocatable     :: test_elem2dof(:)
 
-  integer(ip)  :: istat
+  integer(ip)  :: istat, i
   integer(ip)  :: qpoint, num_quad_points
   real(rp)     :: factor
 
+  integer(ip)                 :: fine_edge, coarse_edge, icdof 
   type(serial_scalar_array_t) :: first_moment_constraint_in_edges 
   real(rp), pointer           :: first_moment_constraint_in_edges_entries(:)
   
@@ -191,7 +193,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   ! To-think where field_id should come from? Temporarily let us assume that we have
   ! a single-field PDE problem
   field_id = 1
-	
+
   ! Free any dynamic memory that constraint_matrix may have inside
   call constraint_matrix%free()
   call this%compute_first_order_moment_in_edges(par_fe_space, first_moment_constraint_in_edges)
@@ -209,15 +211,21 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   call par_fe_space%create_fe_iterator(fe)
   call par_fe_space%create_fe_vef_iterator(vef)
 
+  coarse_edge = 0
   do while ( .not. object%has_finished() )
-     if ( object%get_number_coarse_dofs(field_id) > 0 ) then
-        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
-        coarse_dof_lid = own_coarse_dofs_iterator%get_current() 
-        ! Arithmetic average on edge coarse DoFs
         if ( object%get_dimension () == 1) then
+		   coarse_edge      = coarse_edge + 1
+		   coarse_edge_size = 0
+		   do i=1, this%number_fine_edges_per_coarse_edge(coarse_edge)
+		   coarse_edge_size = coarse_edge_size + abs(this%tangent_size(coarse_edge,i))
+		   end do 
+	      own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
+          coarse_dof_lid = own_coarse_dofs_iterator%get_current()
+		   fine_edge   = 0
            do ivef_within_object=1, object%get_num_vefs()
               call object%get_vef(ivef_within_object,vef)
 			  if (vef%get_dimension() == 1) then 
+			  fine_edge = fine_edge + 1
               call vef%get_cell_around(1,fe)
               call fe%get_field_elem2dof(field_id, elem2dof)
               ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
@@ -226,17 +234,16 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = elem2dof(idof)
                  if ( dof_lid > 0 ) then
-				    ! Average of the tangent component over the Coarse Edge (new basis)
-                    call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp )
-					! First order moment of the tangent component over the Coarse Edge (new basis) 
-					call constraint_matrix%insert(dof_lid, coarse_dof_lid + 1, first_moment_constraint_in_edges_entries(dof_lid) )
-                 end if
+				    ! Average of the tangent component over the Coarse Edge (old basis)
+                     call constraint_matrix%insert(dof_lid, coarse_dof_lid, this%tangent_size(coarse_edge,fine_edge)/coarse_edge_size )	
+					! First order moment of the tangent component over the Coarse Edge (old basis)
+					 call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid)/coarse_edge_size )
+                end if
                  call own_dofs_on_vef_iterator%next()
               end do
 			  end if 
-           end do
-        end if
-     end if
+           end do 
+	 end if
      call object%next()
   end do
   
@@ -246,7 +253,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   call par_fe_space%free_fe_vef_iterator(vef)
   deallocate (test_elem2dof, stat=istat); check(istat==0);
   call constraint_matrix%sort_and_compress()
-  ! call constraint_matrix%print(6)
+ ! call constraint_matrix%print(6)
 end subroutine Hcurl_l1_setup_constraint_matrix
 
 subroutine Hcurl_l1_apply_weighting_operator(this, W, x, y) 
@@ -259,20 +266,41 @@ subroutine Hcurl_l1_apply_weighting_operator(this, W, x, y)
   type(serial_scalar_array_t), pointer :: y_local
   real(rp), pointer :: x_local_entries(:)
   real(rp), pointer :: y_local_entries(:)
- integer(ip) :: i 
+
+  integer(ip) :: i 
      x_local         => x%get_serial_scalar_array()
      x_local_entries => x_local%get_entries()
      y_local         => y%get_serial_scalar_array()
      y_local_entries => y_local%get_entries()
-	 
-	 ! Old to new basis 
-	 call this%apply_inverse_local_change_basis( x_local, x_local ) 
-	 ! Apply weighting, defined in the new basis 
+
+	 call this%apply_inverse_local_change_basis( x_local, x_local )
      y_local_entries = x_local_entries*W
-	 ! New to old basis 
 	 call this%apply_local_change_basis( y_local, y_local ) 
 
 end subroutine Hcurl_l1_apply_weighting_operator
+
+subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y) 
+  implicit none
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  real(rp),            allocatable,       intent(in)    :: W(:) 
+  type(par_scalar_array_t)  , intent(inout) :: x
+  type(par_scalar_array_t)  , intent(inout) :: y
+  type(serial_scalar_array_t), pointer :: x_local
+  type(serial_scalar_array_t), pointer :: y_local
+  real(rp), pointer :: x_local_entries(:)
+  real(rp), pointer :: y_local_entries(:)
+
+  integer(ip) :: i 
+     x_local         => x%get_serial_scalar_array()
+     x_local_entries => x_local%get_entries()
+     y_local         => y%get_serial_scalar_array()
+     y_local_entries => y_local%get_entries()
+
+	 call this%apply_local_change_basis_transpose( x_local, x_local )
+     y_local_entries = x_local_entries*W
+	 call this%apply_inverse_local_change_basis_transpose( y_local, y_local ) 
+	 
+end subroutine Hcurl_l1_apply_transpose_weighting_operator
 ! -------------------------------------------------------------------------------------------------
 !
 !                                 Not overriding procedures 
@@ -503,7 +531,7 @@ subroutine Hcurl_l1_compute_edge_discrete_gradient_elmat(this, par_fe_space, elm
         call fe_1D_reduced_order%get_value(interpolation_1D_reduced_order, ishape, qpoint, shape_test)
         do jshape = 1, fe_1D%get_number_shape_functions() 
            call fe_1D%get_gradient(interpolation_1D, jshape, qpoint, grad_shape_trial)
-           elmat(ishape, jshape) = elmat(ishape, jshape) + grad_shape_trial%get(1) * shape_test * factor 
+           elmat(ishape, jshape) = elmat(ishape, jshape) + grad_shape_trial%get(1) * shape_test * factor
         end do
      end do
   end do
@@ -532,6 +560,7 @@ real(rp),    allocatable    :: elvec(:)
 integer(ip), pointer        :: dofs_new_basis(:) 
 type(serial_scalar_array_t) :: x_new_local_edge 
 type(serial_scalar_array_t) :: x_old_local_edge 
+real(rp)                    :: factor 
 
 ! Direct solver data
 type(direct_solver_t)        :: direct_solver 
@@ -543,7 +572,7 @@ integer                      :: iparm(64)
   call constraint_in_edges%create_and_allocate( par_fe_space%get_block_number_dofs(field_id) )
   call constraint_in_edges%init(0.0_rp) 
 
-  ! Elemental vector int(Phi), lack of lenght  
+  ! Elemental vector int(Phi), lack of lenght (Jacobian)  
   call this%compute_edge_elvec( par_fe_space, elvec ) 
 
   call par_fe_space%create_fe_object_iterator(object)
@@ -561,25 +590,25 @@ integer                      :: iparm(64)
            if ( vef_within_object%get_dimension() == 1 ) then 
               fine_edge = fine_edge + 1  
               dofs_new_basis  => this%get_dof_list_new_basis( coarse_edge, fine_edge ) 
-
+              factor = abs(this%tangent_size(coarse_edge,fine_edge))/2.0_rp 
               ! Fill local Edge average (new basis) 
               if ( this%is_first_edge(coarse_edge, fine_edge) ) then 
                  ! First fine edge, Starting Nodal Lagrangian shape function must not be taken into account
                  do idof = 1, this%order    
                        call constraint_in_edges%insert( i    = offcomponent_coarse_edge + dofs_new_basis(idof),  &
-                                                        val  = elvec(idof+1)*abs(this%tangent_size(coarse_edge,fine_edge))  )
+                                                        val  = elvec(idof+1)*factor  )
                  end do
 
               elseif ( (.not. this%is_first_edge(coarse_edge, fine_edge)) .and. (.not. this%is_last_edge(coarse_edge, fine_edge)) ) then  
                     do idof = 1, this%order+1  
                        call constraint_in_edges%insert(i    = offcomponent_coarse_edge + dofs_new_basis(idof),  &
-                                                       val  = elvec(idof)*abs(this%tangent_size(coarse_edge,fine_edge))  )
+                                                       val  = elvec(idof)*factor  )
 					end do 
               else  
                  ! Last fine edge, Nodal Lagrangian Ending shape function must not be taken into account
                   do idof = 1, this%order    
                        call constraint_in_edges%insert( i    = offcomponent_coarse_edge + dofs_new_basis(idof),  &
-                                                        val  = elvec(idof)*abs(this%tangent_size(coarse_edge,fine_edge))  )
+                                                        val  = elvec(idof)*factor  )
                  end do
               end if
 
@@ -593,9 +622,15 @@ integer                      :: iparm(64)
   call par_fe_space%free_fe_vef_iterator(vef_within_object) 
   
   ! Change of basis for the assembled vector: C_new*inv(G) = C_old --> SOLVE G^t C_old = C_new 
-  iparm      = 0
-  iparm(1)   = 1 ! no solver default
-  iparm(12)  = 2 ! Solve A^t u = b 
+    iparm      = 0 ! Init all entries to zero
+    iparm(1)   = 1 ! no solver default
+    iparm(2)   = 2 ! fill-in reordering from METIS
+    iparm(8)   = 2 ! numbers of iterative refinement steps
+    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1 ! use scaling 
+	iparm(12)  = 2 ! Solve transposed problem A^t u = b
+    iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    iparm(21)  = 1 ! 1x1 + 2x2 pivots
   
   	 ! Create direct solver
     call parameter_list%init()
@@ -622,6 +657,10 @@ integer                      :: iparm(64)
 	 ! Get transpose of the local Edge change of basis matrix 
 	    call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_edge), same_nonzero_pattern=.false.) 
         call direct_solver%solve( x_new_local_edge, x_old_local_edge)		
+		
+		! Assign values 		
+		call x_new_local_edge%copy(x_old_local_edge)
+		
 		
 		call x_old_local_edge%free()
 		call x_new_local_edge%free()
@@ -699,6 +738,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
   integer(ip)                            :: offset_wire_edge_dofs 
 
   integer(ip) :: idof, jdof, istat 
+  real(rp)    :: factor 
 
   allocate( this%change_basis_matrix%G(this%number_coarse_edges), stat=istat); check(istat==0)
   call par_fe_space%create_fe_object_iterator(object)
@@ -725,7 +765,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
               fine_edge = fine_edge + 1  
 			  call this%get_wire_basis_dofs_from_vef(par_fe_space, vef_within_object, dofs_wire_edge_old_basis)
               dofs_new_basis  => this%get_dof_list_new_basis( coarse_edge, fine_edge ) 
-
+              factor = this%tangent_size(coarse_edge, fine_edge) 
               ! Fill local Edge change of basis matrix
               if ( this%is_first_edge(coarse_edge, fine_edge) ) then 
                  ! First fine edge, Starting Nodal Lagrangian shape function must not be taken into account
@@ -833,6 +873,7 @@ integer(ip)                               :: edge_direction, new_basis_dof
 integer(ip), allocatable                  :: dofs_wire_edge_old_basis(:) 
 integer(ip)                               :: idof, istat
 integer(ip)                               :: dummy_val,i
+integer(ip)                               :: factor 
 
   ! Create local Coupled to Edge change of basis matrix 
   call this%change_basis_matrix%B%create(num_rows = this%number_total_wire_dofs - this%number_edge_wire_dofs,  &
@@ -882,9 +923,10 @@ integer(ip)                               :: dummy_val,i
 				   if (node_id == interior_node_id) then
 				   ! A coupled edge has been found  
 				   if (vertex_within_edge_id==1) edge_direction = 0 ! Effluent
-				   if (vertex_within_edge_id==2) edge_direction = 1 ! Affluent 
+				   if (vertex_within_edge_id==2) edge_direction = 1 ! Affluent  
 				   
                    ! Assembly its part to the Discrete Gradient for the coupled EDGE  
+				   factor  = 1.0_rp
 				   new_basis_dof       =  this%get_new_basis_dof_from_node_id(coarse_edge, interior_node_id) 
 				   call this%get_wire_basis_dofs_from_vef(par_fe_space, edge, dofs_wire_edge_old_basis)		
 
@@ -892,7 +934,7 @@ integer(ip)                               :: dummy_val,i
                     call this%change_basis_matrix%B%insert(nz       = this%order,                                            & 
                                                            ia       = dofs_wire_edge_old_basis - this%number_edge_wire_dofs, &
                                                            ja       = new_basis_dof,                                         &
-                                                           val      = elmat(:, this%order+1) )
+                                                           val      = elmat(:, this%order+1)*factor )
 
                  elseif ( edge_direction == 0) then ! Effluent edge 
                     ! If edge is effluent to the coarse edge, assembly is rearranged: swap row-order (Nedelec dofs are
@@ -900,7 +942,7 @@ integer(ip)                               :: dummy_val,i
                     do idof = 1, this%order ! Loop over all nedelec-like dofs in the fine edge    
                        call this%change_basis_matrix%B%insert(ia       = dofs_wire_edge_old_basis(idof) - this%number_edge_wire_dofs,  &
                                                               ja       = new_basis_dof,                                                &
-                                                              val      = -elmat( (this%order+1)-idof, this%order+1)   )
+                                                              val      = -elmat( (this%order+1)-idof, this%order+1)*factor   )
                     end do
                  end if
 
@@ -924,7 +966,7 @@ integer(ip)                               :: dummy_val,i
   end do
 
   call this%change_basis_matrix%B%convert(csr_format)
-  ! call this%change_basis_matrix%B%print_matrix_market(6) 
+ ! call this%change_basis_matrix%B%print_matrix_market(6) 
     
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_vef_iterator(vef_within_object)
@@ -964,12 +1006,13 @@ integer(ip) :: idof
 									x_new_local_Ec )
 
 	  call B_times_x_new%create_and_allocate( this%number_total_wire_dofs - this%number_edge_wire_dofs)
+	  call B_times_x_new%init(0.0_rp)
 	  
 	  ! Apply local change basis to built DoF 
         call this%change_basis_matrix%B%apply(x_new_local_edge, B_times_x_new)
 		
-	  ! Assign values to the vector associated to [E^c] in the new basis 
-	  x_old_local_Ec = B_times_x_new + x_new_local_Ec 
+	  ! Assign values to the vector associated to [E^c] in the new basis  
+	  call x_old_local_Ec%axpby(1.0_rp, B_times_x_new, 1.0_rp) 
 
 	  call x_new_local_edge%free()
 	  call x_old_local_Ec%free()
@@ -992,7 +1035,7 @@ integer(ip) :: idof
 	   ! Apply local change basis to built DoF
 	   call G_times_x_new%create_and_allocate( this%order*this%number_fine_edges_per_coarse_edge(coarse_edge) ) 
        call this%change_basis_matrix%G(coarse_edge)%apply(x_new_local_edge, G_times_x_new)
-       call x_old_local_edge%copy( G_times_x_new ) 
+       call x_old_local_edge%axpby(1.0_rp, G_times_x_new, 0.0_rp ) 
 	    
 		call x_old_local_edge%free()
 		call x_new_local_edge%free()
@@ -1000,6 +1043,67 @@ integer(ip) :: idof
 	 end do 
 	 	
 end subroutine Hcurl_l1_apply_local_change_basis
+
+subroutine Hcurl_l1_apply_local_change_basis_transpose(this, x_old_local, x_new_local)
+implicit none 
+class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
+type(serial_scalar_array_t)              , intent(in)     :: x_old_local
+type(serial_scalar_array_t)              , intent(inout)  :: x_new_local
+
+type(serial_scalar_array_t)  :: x_old_local_edge, x_old_local_Ec 
+type(serial_scalar_array_t)  :: x_new_local_edge, x_new_local_Ec
+type(serial_scalar_array_t)  :: Bt_times_x_old
+type(serial_scalar_array_t)  :: Gt_times_x_old 
+
+! Local auxiliar variables 
+integer(ip) :: offcomponent_coarse_edge, coarse_edge
+integer(ip) :: idof 
+	 
+	 ! First part of the application: x_new_Ec = x_old_Ec (do-nothing)  
+	 
+     ! Second part of the application: x_new_E =  G^t x_old_E + B^t*x_old_Ec	
+	  offcomponent_coarse_edge = this%number_interior_dofs
+	    do coarse_edge = 1, this%number_coarse_edges
+	 if (coarse_edge>1) offcomponent_coarse_edge = offcomponent_coarse_edge + this%number_fine_edges_per_coarse_edge(coarse_edge-1)*this%order
+	 
+	 call x_old_local%create_view(offcomponent_coarse_edge + 1,                                                              & 
+								  offcomponent_coarse_edge + this%order*this%number_fine_edges_per_coarse_edge(coarse_edge), &
+								  x_old_local_edge )
+
+	 call x_new_local%create_view(offcomponent_coarse_edge + 1,                                                              & 
+								  offcomponent_coarse_edge + this%order*this%number_fine_edges_per_coarse_edge(coarse_edge), &
+								  x_new_local_edge )
+	 
+	   ! Apply local change basis to built DoF
+	   call Gt_times_x_old%create_and_allocate( this%order*this%number_fine_edges_per_coarse_edge(coarse_edge) ) 
+       call this%change_basis_matrix%G(coarse_edge)%apply_transpose(x_old_local_edge, Gt_times_x_old)
+       call x_new_local_edge%copy(Gt_times_x_old) 
+	    
+		call x_old_local_edge%free()
+		call x_new_local_edge%free()
+		call Gt_times_x_old%free()
+	 end do 
+	 
+ 	  call x_old_local%create_view( this%number_interior_dofs + this%number_edge_wire_dofs + 1, & 
+								    this%number_interior_dofs + this%number_total_wire_dofs,    &
+									x_old_local_Ec )
+		  	  
+	  call x_new_local%create_view( this%number_interior_dofs + 1,                              & 
+								    this%number_interior_dofs + this%number_edge_wire_dofs,     &
+									x_new_local_edge )
+	  
+	  call Bt_times_x_old%create_and_allocate(this%number_edge_wire_dofs)
+	  call Bt_times_x_old%init(0.0_rp)
+	  
+	  ! Apply local change basis to built DoF 
+      call this%change_basis_matrix%B%apply_transpose(x_old_local_Ec, Bt_times_x_old) 
+	  call x_new_local_edge%axpby(1.0_rp, Bt_times_x_old, 1.0_rp) 
+
+	  call x_new_local_edge%free()
+	  call x_old_local_Ec%free()
+	  call Bt_times_x_old%free() 
+	  	 	
+end subroutine Hcurl_l1_apply_local_change_basis_transpose
 
 subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_local) 
 implicit none 
@@ -1020,9 +1124,17 @@ integer                      :: iparm(64)
 ! Local auxiliar variables 
 integer(ip) :: offcomponent_coarse_edge, coarse_edge
 
+    iparm      = 0 ! Init all entries to zero
+    iparm(1)   = 1 ! no solver default
+    iparm(2)   = 2 ! fill-in reordering from METIS
+    iparm(8)   = 2 ! numbers of iterative refinement steps
+    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1 ! use scaling 
+    iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    iparm(21)  = 1 ! 1x1 + 2x2 pivots
+	
 	 ! Create direct solver to update iterates 
     call parameter_list%init()
-    iparm = 0
     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
@@ -1049,7 +1161,7 @@ integer(ip) :: offcomponent_coarse_edge, coarse_edge
 		
 	    call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_edge), same_nonzero_pattern=.false.) 
         call direct_solver%solve( x_old_local_edge , inv_G_times_x_old )
-		call x_new_local_edge%copy(inv_G_times_x_old)
+		call x_new_local_edge%axpby(1.0_rp, inv_G_times_x_old, 0.0_rp)
 		
 		call x_old_local_edge%free()
 		call x_new_local_edge%free()
@@ -1073,17 +1185,112 @@ integer(ip) :: offcomponent_coarse_edge, coarse_edge
 	  call B_times_x_new%create_and_allocate( this%number_total_wire_dofs - this%number_edge_wire_dofs)
 	  
 	  ! Apply local change basis to built DoF 
-        call this%change_basis_matrix%B%apply(x_new_local_edge, B_times_x_new)
+		call this%change_basis_matrix%B%apply(x_new_local_edge, B_times_x_new)
 		
 	  ! Assign values to the vector associated to [E^c] in the new basis 
-      x_new_local_Ec = x_old_local_Ec - B_times_x_new 
+	  call x_new_local_Ec%axpby(-1.0_rp, B_times_x_new, 1.0_rp)
 
 	  call x_new_local_edge%free()
 	  call x_old_local_Ec%free()
 	  call x_new_local_Ec%free() 
 	  call B_times_x_new%free()
-
+	  
 end subroutine Hcurl_l1_apply_inverse_local_change_basis 
+
+subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local, x_old_local) 
+implicit none 
+class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
+type(serial_scalar_array_t)              , intent(in)     :: x_new_local
+type(serial_scalar_array_t)              , intent(inout)  :: x_old_local
+
+type(serial_scalar_array_t)  :: x_new_local_edge, x_new_local_Ec
+type(serial_scalar_array_t)  :: x_old_local_edge, x_old_local_Ec 
+type(serial_scalar_array_t)  :: Bt_times_x_old
+type(serial_scalar_array_t)  :: inv_Gt_application 
+
+! Direct solver data
+type(direct_solver_t)        :: direct_solver 
+integer                      :: FPLError
+type(parameterlist_t)        :: parameter_list
+integer                      :: iparm(64)
+! Local auxiliar variables 
+integer(ip) :: offcomponent_coarse_edge, coarse_edge
+    iparm      = 0 ! Init all entries to zero
+    iparm(1)   = 1 ! no solver default
+    iparm(2)   = 2 ! fill-in reordering from METIS
+    iparm(8)   = 2 ! numbers of iterative refinement steps
+    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1 ! use scaling 
+	iparm(12)  = 2 ! Solve transposed system 
+    iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    iparm(21)  = 1 ! 1x1 + 2x2 pivots
+	
+	 ! Create direct solver to update iterates 
+    call parameter_list%init()
+    FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
+    call direct_solver%set_type_from_pl(parameter_list)
+    call direct_solver%set_parameters_from_pl(parameter_list)
+    call direct_solver%set_matrix(this%change_basis_matrix%G(1))
+
+ ! First step, do-nothign for the Ec part 
+
+ ! Second step, apply local inverses transposed	  
+      call x_old_local%create_view( this%number_interior_dofs + this%number_edge_wire_dofs + 1  , & 
+								    this%number_interior_dofs + this%number_total_wire_dofs     , &
+									x_old_local_Ec )
+	  
+	  call x_new_local%create_view( this%number_interior_dofs + this%number_edge_wire_dofs + 1 , & 
+								    this%number_interior_dofs + this%number_total_wire_dofs    , &
+									x_new_local_Ec )
+		  
+	  call x_old_local%create_view( this%number_interior_dofs + 1,                             & 
+								    this%number_interior_dofs + this%number_edge_wire_dofs   , &
+									x_old_local_edge )
+	  	  
+	  call Bt_times_x_old%create_and_allocate(this%number_edge_wire_dofs)
+	  
+	  ! Apply local change basis to built DoF 
+	  call this%change_basis_matrix%B%apply_transpose(x_old_local_Ec, Bt_times_x_old)
+		
+	  ! Assign values to the vector associated to [E^c] in the new basis 
+	  call x_old_local_edge%axpby(-1.0_rp, Bt_times_x_old, 1.0_rp)
+
+	  call x_old_local_edge%free()
+	  call x_old_local_Ec%free()
+	  call x_new_local_Ec%free() 
+	  call Bt_times_x_old%free()
+	  
+	 ! Apply local inverse to each Coarse Edge  
+	 offcomponent_coarse_edge = this%number_interior_dofs 
+     do coarse_edge = 1, this%number_coarse_edges
+	 if (coarse_edge>1) offcomponent_coarse_edge = offcomponent_coarse_edge + this%number_fine_edges_per_coarse_edge(coarse_edge-1)*this%order
+	 
+	 call x_old_local%create_view(offcomponent_coarse_edge + 1,                                                              & 
+								  offcomponent_coarse_edge + this%order*this%number_fine_edges_per_coarse_edge(coarse_edge), &
+								  x_old_local_edge )
+
+	 call x_new_local%create_view(offcomponent_coarse_edge + 1,                                                              & 
+								  offcomponent_coarse_edge + this%order*this%number_fine_edges_per_coarse_edge(coarse_edge), &
+								  x_new_local_edge )
+	 
+	    call inv_Gt_application%create_and_allocate(this%order*this%number_fine_edges_per_coarse_edge(coarse_edge)) 
+		call inv_Gt_application%init(0.0_rp) 
+		
+	    call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_edge), same_nonzero_pattern=.false.) 
+        call direct_solver%solve( x_new_local_edge , inv_Gt_application )
+		call x_old_local_edge%copy(inv_Gt_application)
+		
+		call x_old_local_edge%free()
+		call x_new_local_edge%free()
+		call inv_Gt_application%free()
+	 end do 
+	 call direct_solver%free() 
+	 	  
+end subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose 
+
 
 ! ---------------------------------------------------------------------------
 !
@@ -1184,7 +1391,7 @@ subroutine Hcurl_l1_set_orientation_and_sort_fine_edges( this, par_fe_space )
      end if
      call object%next()
   end do
-
+  
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_vef_iterator(vef_within_object)
   call par_fe_space%free_fe_iterator(fe)
@@ -1209,6 +1416,7 @@ implicit none
   type(point_t), pointer      :: start_coords
   type(point_t), pointer      :: end_coords
   
+  
         ! Return potential start-end node and assign direction (decide which one is the origin) 
         found_nodes = 0
         do while ( found_nodes < 2 ) 
@@ -1226,7 +1434,7 @@ implicit none
               end do
            end do
         end do
-   
+
           if  ( end_coords%get(1) < start_coords%get(1)  ) then 
            buffer_node=start_node; start_node = end_node; end_node=buffer_node;   
         elseif ( end_coords%get(1) == start_coords%get(1) ) then  

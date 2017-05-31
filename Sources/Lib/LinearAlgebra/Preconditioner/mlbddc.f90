@@ -173,6 +173,7 @@ module mlbddc_names
     procedure, non_overridable, private :: apply_A_IG                                      => base_mlbddc_apply_A_IG
     procedure, non_overridable, private :: solve_constrained_neumann_problem               => base_mlbddc_solve_constrained_neumann_problem
     procedure,                  private :: apply_weight_operator                           => base_mlbddc_apply_weight_operator
+	procedure,                  private :: apply_transpose_weight_operator                 => base_mlbddc_apply_transpose_weight_operator
     procedure, non_overridable, private :: create_interior_interface_views                 => base_mlbddc_create_interior_interface_views
    
    ! Free-related TBPs
@@ -226,6 +227,7 @@ end type base_mlbddc_t
     
 	! Apply related TBPs
     procedure,                  private :: apply_weight_operator                           => mlbddc_apply_weight_operator
+	procedure,                  private :: apply_transpose_weight_operator                 => mlbddc_apply_transpose_weight_operator
 	
     ! Miscellaneous 
     procedure, private                  :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix
