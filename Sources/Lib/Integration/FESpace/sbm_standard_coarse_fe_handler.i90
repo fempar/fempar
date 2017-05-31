@@ -33,7 +33,6 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
   
-  !integer(ip)                            :: field_id
   integer(ip)                            :: ivef_within_cell
   integer(ip)                            :: ivef_within_object
   integer(ip)                            :: icell_around
@@ -57,13 +56,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
                                                       use_vertices, &
                                                       use_edges, &
                                                       use_faces)
-  
-  ! To think where field_id should come from? Temporarily let us assume that we have
-  ! a single-field PDE problem
-  !field_id = 1
 
-  
-  
   ! First, count how many coarse_dofs there are on the interface of my subdomain
   num_coarse_dofs = 0
   call par_fe_space%create_fe_object_iterator(object)
@@ -115,7 +108,6 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
         
         if ( dofs_on_vef ) then
            ! It must be thought for more general cases (vectors, tensor product...)
-           !num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 1
            num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + reference_fe%get_number_field_components()
            exit
         end if
