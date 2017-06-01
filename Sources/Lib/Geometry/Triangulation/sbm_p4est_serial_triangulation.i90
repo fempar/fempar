@@ -113,10 +113,12 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   type(c_ptr) :: p4est_old
   
   type(std_vector_integer_ip_t) :: old_lst_vefs_lids
+  integer(ip), pointer :: user_pointer(:)
 
 #ifdef ENABLE_P4EST
   if ( this%p4est_num_dimensions == 2 ) then
-    call F90_p4est_set_user_pointer(this%p4est_refinement_and_coarsening_flags%get_raw_pointer(),this%p4est)
+    user_pointer => this%p4est_refinement_and_coarsening_flags%get_raw_pointer()
+    call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
     p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
     call F90_p4est_refine(this%p4est)
     call F90_p4est_coarsen(this%p4est)

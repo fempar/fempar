@@ -86,7 +86,7 @@ module p4est_bindings_names
      subroutine F90_p4est_set_user_pointer(user_data, p4est) bind(c,name="F90_p4est_set_user_pointer")
        use, intrinsic :: iso_c_binding
        implicit none
-       integer(c_int)     , intent(in)  :: user_data(*)
+       type(c_ptr) , value, intent(in)  :: user_data
        type(c_ptr) , value, intent(in)  :: p4est
      end subroutine F90_p4est_set_user_pointer
      
