@@ -99,13 +99,17 @@ end function p4est_vef_iterator_has_finished
 !  p4est_vef_iterator_get_gid = this%base_static_triangulation%vefs_gid(this%lid)
 !end function p4est_vef_iterator_get_gid
 
-!subroutine p4est_vef_iterator_set_set_id(this,set_id)
-!  implicit none
-!  class(p4est_vef_iterator_t), intent(inout) :: this
-!  integer(ip)          , intent(in) :: set_id
-!  assert (this%lid >= 1 .and. .not. this%has_finished())
-!  this%base_static_triangulation%vefs_set(this%lid) = set_id
-!end subroutine p4est_vef_iterator_set_set_id  
+subroutine p4est_vef_iterator_set_set_id(this,set_id)
+  implicit none
+  class(p4est_vef_iterator_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: set_id
+  assert ( this%is_within_valid_range() )
+  if ( this%is_proper() ) then
+    call this%p4est_triangulation%p4est_proper_vefs_set_ids%set(this%get_lid(),set_id)
+  else 
+    call this%p4est_triangulation%p4est_improper_vefs_set_ids%set(abs(this%get_lid()),set_id)
+  end if
+end subroutine p4est_vef_iterator_set_set_id  
 
 !subroutine p4est_vef_iterator_set_geom_id(this,geom_id)
 !  implicit none
@@ -120,11 +124,12 @@ function p4est_vef_iterator_get_set_id(this)
   class(p4est_vef_iterator_t), intent(in) :: this
   integer(ip) :: p4est_vef_iterator_get_set_id
   assert ( this%is_within_valid_range() )
-  if ( this%is_at_boundary()) then 
-    p4est_vef_iterator_get_set_id = 1
+  if ( this%is_proper() ) then
+    p4est_vef_iterator_get_set_id = this%p4est_triangulation%p4est_proper_vefs_set_ids%get(this%get_lid())
   else 
-    p4est_vef_iterator_get_set_id = 0
-  end if  
+    p4est_vef_iterator_get_set_id = this%p4est_triangulation%p4est_improper_vefs_set_ids%get(abs(this%get_lid()))
+  end if
+  
 end function p4est_vef_iterator_get_set_id  
 
 !function p4est_vef_iterator_get_geom_id(this)

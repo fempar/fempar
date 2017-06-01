@@ -67,6 +67,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   class(p4est_serial_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)                      , intent(inout) :: parameters
   integer(ip) :: istat
+  type(std_vector_integer_ip_t) :: old_lst_vefs_lids
   
 #ifdef ENABLE_P4EST
   call this%free()
@@ -92,10 +93,12 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call F90_p4est_new(this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
-    call this%update_lst_vefs_lids_and_cells_around()
+    call this%update_lst_vefs_lids_and_cells_around(old_lst_vefs_lids)
+    call old_lst_vefs_lids%free()
     call this%allocate_and_fill_per_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
+    call this%clear_vef_set_ids()
   else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if  
@@ -109,6 +112,8 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   class(p4est_serial_triangulation_t), intent(inout) :: this
   type(c_ptr) :: p4est_old
   
+  type(std_vector_integer_ip_t) :: old_lst_vefs_lids
+
 #ifdef ENABLE_P4EST
   if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_set_user_pointer(this%p4est_refinement_and_coarsening_flags%get_raw_pointer(),this%p4est)
@@ -122,9 +127,11 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
     call this%update_topology_from_p4est_mesh()
     ! Update the number of triangulation cells
     this%p4est_num_cells = size(this%quad_level)
-    call this%update_lst_vefs_lids_and_cells_around()
+    call this%update_lst_vefs_lids_and_cells_around(old_lst_vefs_lids)
     call this%allocate_and_fill_per_cell_vertex_coordinates()
     call this%update_cell_set_ids()
+    call this%update_vef_set_ids(old_lst_vefs_lids)
+    call old_lst_vefs_lids%free()
   else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if
@@ -151,9 +158,10 @@ pure function p4est_serial_triangulation_get_ptr_vefs_per_cell(this, icell)
   
 end function p4est_serial_triangulation_get_ptr_vefs_per_cell
 
-subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
+subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lids)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t)      , intent(inout) :: old_lst_vefs_lids
   integer(ip) :: num_corners_per_cell, num_edges_per_cell, num_faces_per_cell
   integer(ip) :: num_face_corners, num_faces_at_corner, num_subfaces_face
   integer(ip) :: icell, icell_iface, icell_icorner
@@ -183,6 +191,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this)
      check(.false.)
   end if
  
+  call old_lst_vefs_lids%copy(this%p4est_lst_vefs_lids)
+  
   call this%p4est_lst_vefs_lids%resize(this%get_ptr_vefs_per_cell(this%p4est_num_cells+1)-1)
   call this%p4est_ptr_cells_around_proper_vefs%resize(1)
   call this%p4est_lst_cells_around_proper_vefs%resize(0)
@@ -501,6 +511,133 @@ subroutine p4est_st_update_cell_set_ids(this)
   
 end subroutine p4est_st_update_cell_set_ids
 
+subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t)      , intent(in)    :: old_lst_vefs_lids
+  
+  integer(ip) :: old_num_cells
+  integer(ip) :: old_cell_id, new_cell_id, old_cell_base_pos
+  integer(ip) :: transformation_flag
+  integer(ip) :: num_corners
+  integer(ip) :: ivef, iface, j
+  integer(ip) :: old_vef_lid, old_vef_set_id
+  class(cell_iterator_t), allocatable :: cell
+  class(vef_iterator_t) , allocatable :: vef
+  !type(std_vector_integer_ip_t) :: old_vef_set_ids
+  
+  type(list_t), pointer :: vertices_n_face
+  type(list_iterator_t) :: vertices_per_n_face_iterator
+  type(std_vector_integer_ip_t) :: old_proper_vefs_set_ids
+  type(std_vector_integer_ip_t) :: old_improper_vefs_set_ids
+
+#ifdef ENABLE_P4EST    
+  
+  call old_proper_vefs_set_ids%copy(this%p4est_proper_vefs_set_ids)
+  call old_improper_vefs_set_ids%copy(this%p4est_improper_vefs_set_ids)
+  
+  call this%clear_vef_set_ids()
+  
+  call this%create_cell_iterator(cell)
+  call this%create_vef_iterator(vef)
+  
+  old_num_cells = old_lst_vefs_lids%size()/(this%get_ptr_vefs_per_cell(1)-this%get_ptr_vefs_per_cell(0))
+ 
+  vertices_n_face => this%reference_fe_geo%get_vertices_n_face()
+  old_cell_id = 1
+  new_cell_id = 1
+  do while (old_cell_id <= old_num_cells)
+    
+    transformation_flag = this%p4est_refinement_and_coarsening_flags%get(old_cell_id)
+    old_cell_base_pos   = this%get_ptr_vefs_per_cell(old_cell_id)
+    
+    call cell%set_lid(new_cell_id)
+    
+    if ( transformation_flag == do_nothing ) then
+      do ivef=1, cell%get_num_vefs()
+        call cell%get_vef(ivef,vef)
+        old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
+        old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+        call vef%set_set_id(old_vef_set_id)
+      end do
+      new_cell_id = new_cell_id + 1
+      old_cell_id = old_cell_id+1
+    else if ( transformation_flag == refinement ) then
+      ! Transfer set_id's of coarse cell vertices from coarse to refined cells
+      do j=1, this%reference_fe_geo%get_number_n_faces_of_dimension(0) !num_children_per_cell 
+        call cell%set_lid(new_cell_id+j-1)
+        call cell%get_vef(j,vef)
+        old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+j-1)
+        old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+        call vef%set_set_id(old_vef_set_id)
+      end do
+      
+      do iface=1, this%reference_fe_geo%get_number_faces()
+         ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0)  + iface
+         do j=1, NUM_SUBCELLS_IN_TOUCH_FACE_2D
+            call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(iface,j)-1)
+            call cell%get_vef(ivef,vef)
+            old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
+            old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+            call vef%set_set_id(old_vef_set_id)
+         end do
+         vertices_per_n_face_iterator = vertices_n_face%create_iterator(ivef)
+         call cell%get_vef(vertices_per_n_face_iterator%get_current(),vef)
+         old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
+         old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+         call vef%set_set_id(old_vef_set_id)
+      end do
+      new_cell_id = new_cell_id + this%reference_fe_geo%get_number_n_faces_of_dimension(0)
+      old_cell_id = old_cell_id+1
+    else if ( transformation_flag == coarsening ) then
+      ! Transfer set_id's of refined cells vertices from refined to coarse cells
+      do j=1, this%reference_fe_geo%get_number_n_faces_of_dimension(0) ! (num_children_per_cell)
+        call cell%get_vef(j,vef)
+        old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ (j-1)*this%reference_fe_geo%get_number_n_faces() + j-1)
+        old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+        call vef%set_set_id(old_vef_set_id)
+      end do
+      
+      do iface=1, this%reference_fe_geo%get_number_faces()
+         ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0)  + iface
+         call cell%get_vef(ivef,vef)
+         ! The VEF set id of a face in the coarse cell is extracted (arbitrarily) from the refined cell corresponding to its first subface
+         old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ (FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(iface,1)-1)*this%reference_fe_geo%get_number_n_faces() + ivef-1)
+         old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+         call vef%set_set_id(old_vef_set_id)
+      end do
+      old_cell_id = old_cell_id + this%reference_fe_geo%get_number_n_faces_of_dimension(0)
+      new_cell_id = new_cell_id+1
+    else 
+      assert(.false.)
+    end if
+  end do
+  
+  call this%free_cell_iterator(cell)
+  call this%free_vef_iterator(vef)
+  call old_proper_vefs_set_ids%free()
+  call old_improper_vefs_set_ids%free()
+  
+#else
+  call this%not_enabled_error()
+#endif        
+  
+contains
+  function get_vef_set_id( vef_lid, proper_vefs_set_ids, improper_vefs_set_ids)
+    implicit none
+    integer(ip), intent(in) :: vef_lid
+    type(std_vector_integer_ip_t), intent(in) :: proper_vefs_set_ids
+    type(std_vector_integer_ip_t), intent(in) :: improper_vefs_set_ids
+    integer(ip) :: get_vef_set_id
+    if ( vef_lid > 0 ) then
+        get_vef_set_id = old_proper_vefs_set_ids%get(vef_lid)
+    else
+        get_vef_set_id = old_improper_vefs_set_ids%get(abs(vef_lid))
+    end if
+  end function get_vef_set_id
+  
+end subroutine p4est_st_update_vef_set_ids
+
 subroutine p4est_st_std_vector_transform_length_to_header(this,std_vector_integer_ip)
   implicit none
   class(p4est_serial_triangulation_t), intent(in)    :: this
@@ -587,6 +724,21 @@ subroutine p4est_st_clear_cell_set_ids(this)
   call this%not_enabled_error()
 #endif        
 end subroutine p4est_st_clear_cell_set_ids
+
+subroutine p4est_st_clear_vef_set_ids(this)
+   implicit none
+   class(p4est_serial_triangulation_t), intent(inout)    :: this
+  integer(ip) :: istat
+#ifdef ENABLE_P4EST
+  call this%p4est_proper_vefs_set_ids%resize(0)
+  call this%p4est_proper_vefs_set_ids%resize(this%num_proper_vefs, 0)
+  
+  call this%p4est_improper_vefs_set_ids%resize(0)
+  call this%p4est_improper_vefs_set_ids%resize(this%num_improper_vefs, 0)
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_st_clear_vef_set_ids
 
 subroutine p4est_st_fill_cells_set (this, cells_set)
   implicit none
@@ -842,5 +994,3 @@ end function p4est_get_jcell_icorner
     check(.false.)
   end subroutine p4est_serial_triangulation_not_enabled_error
 #endif
-
-

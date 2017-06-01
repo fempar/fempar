@@ -29,6 +29,7 @@ module p4est_serial_triangulation_names
   use, intrinsic :: iso_c_binding
   
   use types_names
+  use list_types_names
   use stdio_names
   use memor_names
   use environment_names
@@ -44,11 +45,13 @@ module p4est_serial_triangulation_names
 # include "debug.i90"
   private
 
-  integer(ip), parameter :: NUM_CORNERS_2D           = 4
-  integer(ip), parameter :: NUM_FACES_2D             = 4
-  integer(ip), parameter :: NUM_SUBFACES_FACE_2D     = 2
-  integer(ip), parameter :: NUM_FACE_CORNERS_2D      = 2
-  integer(ip), parameter :: NUM_FACES_AT_CORNER_2D   = 2
+  
+  integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_2D = 2
+  integer(ip), parameter :: NUM_CORNERS_2D                = 4
+  integer(ip), parameter :: NUM_FACES_2D                  = 4
+  integer(ip), parameter :: NUM_SUBFACES_FACE_2D          = 2
+  integer(ip), parameter :: NUM_FACE_CORNERS_2D           = 2
+  integer(ip), parameter :: NUM_FACES_AT_CORNER_2D        = 2
   integer(ip), parameter :: NUM_VEFS_2D              = NUM_CORNERS_2D+NUM_FACES_2D
   integer(ip), parameter :: P4EST_FACE_CORNERS_2D(NUM_FACE_CORNERS_2D,NUM_FACES_2D) = & 
                                                   reshape([1, 3,&
@@ -61,7 +64,13 @@ module p4est_serial_triangulation_names
                                                              2, 3,&  
                                                              1, 4,&
                                                              2, 4], [NUM_FACES_AT_CORNER_2D, NUM_CORNERS_2D])
-                                                  
+                                                    
+  integer(ip), parameter :: FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(NUM_FACES_2D,NUM_SUBCELLS_IN_TOUCH_FACE_2D) = &
+                                                    reshape([1, 3,&
+                                                             1, 2,&  
+                                                             2, 4,&
+                                                             3, 4], [NUM_FACES_2D, NUM_SUBCELLS_IN_TOUCH_FACE_2D])
+  
   integer(ip), parameter :: P4EST_OPPOSITE_CORNER(NUM_CORNERS_2D) = [ 4, 3, 2, 1 ]
   integer(ip), parameter :: P4EST_2_FEMPAR_CORNER(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
   integer(ip), parameter :: P4EST_2_FEMPAR_FACE  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
@@ -130,7 +139,7 @@ module p4est_serial_triangulation_names
      !procedure, non_overridable          :: get_gid                   => p4est_vef_iterator_get_gid
 
      !procedure, non_overridable          :: set_geom_id               => p4est_vef_iterator_set_geom_id
-     !procedure, non_overridable          :: set_set_id                => p4est_vef_iterator_set_set_id
+     procedure                           :: set_set_id                => p4est_vef_iterator_set_set_id
      !procedure, non_overridable          :: get_geom_id               => p4est_vef_iterator_get_geom_id
      procedure                           :: get_set_id                => p4est_vef_iterator_get_set_id
 
@@ -232,12 +241,14 @@ module p4est_serial_triangulation_names
     procedure, private        , non_overridable :: get_ptr_vefs_per_cell                         => p4est_serial_triangulation_get_ptr_vefs_per_cell
     procedure, private        , non_overridable :: update_lst_vefs_lids_and_cells_around         => p4est_st_update_lst_vefs_lids_and_cells_around
     procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_st_update_cell_set_ids
+    procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_st_update_vef_set_ids
     procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_st_std_vector_transform_length_to_header
     procedure, private        , non_overridable :: allocate_and_fill_per_cell_vertex_coordinates => p4est_st_allocate_and_fill_per_cell_vertex_coordinates
     procedure, private        , non_overridable :: free_per_cell_vertex_coordinates              => p4est_st_free_per_cell_vertex_coordinates
     procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_st_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_st_clear_cell_set_ids
     procedure                                   :: fill_cells_set                                => p4est_st_fill_cells_set
+    procedure                 , non_overridable :: clear_vef_set_ids                             => p4est_st_clear_vef_set_ids
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator

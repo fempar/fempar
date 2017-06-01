@@ -162,7 +162,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
 
      procedure, non_overridable          :: set_geom_id               => vef_iterator_set_geom_id
-     procedure, non_overridable          :: set_set_id                => vef_iterator_set_set_id
+     procedure                           :: set_set_id                => vef_iterator_set_set_id
      procedure, non_overridable          :: get_geom_id               => vef_iterator_get_geom_id
      procedure                           :: get_set_id                => vef_iterator_get_set_id
 

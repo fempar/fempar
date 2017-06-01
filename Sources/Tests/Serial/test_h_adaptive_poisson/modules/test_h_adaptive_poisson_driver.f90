@@ -108,7 +108,7 @@ contains
     integer(ip) :: num_void_neigs
 
     integer(ip)           :: ivef
-    class(vef_iterator_t),allocatable :: vef, vef_of_vef
+    class(vef_iterator_t),allocatable :: vef
     type(list_t), pointer :: vefs_of_vef
     type(list_t), pointer :: vertices_of_line
     type(list_iterator_t) :: vefs_of_vef_iterator
@@ -123,6 +123,16 @@ contains
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%parameter_list)
+    
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+      if(vef%is_at_boundary()) then
+         call vef%set_set_id(1)
+      end if
+      call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
+     
    
     do i=1, 10
        call this%triangulation%clear_refinement_and_coarsening_flags()
@@ -132,24 +142,13 @@ contains
 
         
        if ( mod(i,3) == 0 ) then
-         call this%triangulation%clear_refinement_and_coarsening_flags()
-         call this%set_cells_for_coarsening()
-         call this%triangulation%refine_and_coarsen()
+       call this%triangulation%clear_refinement_and_coarsening_flags()
+       call this%set_cells_for_coarsening()
+       call this%triangulation%refine_and_coarsen()
        end if
     end do   
        
-    !if ( this%test_params%get_triangulation_type() == 'structured' ) then
-    !   call this%triangulation%create_vef_iterator(vef)
-    !   do while ( .not. vef%has_finished() )
-    !      if(vef%is_at_boundary()) then
-    !         call vef%set_set_id(1)
-    !      else
-    !         call vef%set_set_id(0)
-    !      end if
-    !      call vef%next()
-    !   end do
-    !   call this%triangulation%free_vef_iterator(vef)
-    !end if   
+    
   end subroutine setup_triangulation
   
   subroutine set_cells_for_refinement(this)
