@@ -167,7 +167,9 @@ SUBROUTINE copy(T,T2)  ;\
   T%capacity_= T2%size_       ;\
   T%size_    = T2%size_       ;\
   call memalloc(T%capacity_, T%v, __FILE__, __LINE__)     ;\
-  T%v(1:T%size_) = T2%v(1:T%size_) ;\
+  if (allocated(T2%v)) then ;\
+    if (T%size_ >0) T%v(1:T%size_) = T2%v(1:T%size_) ;\
+  end if  ;\
 END SUBROUTINE  ;\
 
 #define STD_VECTOR_FREE(TINCTYPE,TKIND) \
