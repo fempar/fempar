@@ -40,7 +40,6 @@ subroutine mlbddc_create ( this, fe_affine_operator, mlbddc_params )
   call this%create_vector_spaces()
 
   assert ( fe_space%get_number_blocks() == 1 )
-  !assert ( fe_space%get_number_fields() == 1 )
 end subroutine mlbddc_create
 
 subroutine mlbddc_create_vector_spaces (this)
