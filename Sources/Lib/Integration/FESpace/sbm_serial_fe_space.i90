@@ -2084,6 +2084,7 @@ subroutine serial_fe_space_copy_ptr_dofs_per_fe ( this, ptr_dofs_per_fe )
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this
   integer(ip)                     , intent(inout) :: ptr_dofs_per_fe(:,:)
+  assert ( size(ptr_dofs_per_fe,2) == size(this%ptr_dofs_per_fe,2) )
   ptr_dofs_per_fe = this%ptr_dofs_per_fe
 end subroutine serial_fe_space_copy_ptr_dofs_per_fe
 
@@ -2091,6 +2092,7 @@ subroutine serial_fe_space_copy_lst_dofs_lids ( this, lst_dofs_lids )
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this
   integer(ip)                     , intent(inout) :: lst_dofs_lids(:)  
+  assert ( size(lst_dofs_lids) == size(this%lst_dofs_lids) )
   lst_dofs_lids = this%lst_dofs_lids
 end subroutine serial_fe_space_copy_lst_dofs_lids
 
