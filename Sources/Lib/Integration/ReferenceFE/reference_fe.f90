@@ -207,7 +207,7 @@ module reference_fe_names
   end type fe_map_face_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-  type polytope_tree_t
+  type polytope_t
      private
      integer(ip)              :: number_dimensions
      integer(ip)              :: topology
@@ -216,27 +216,27 @@ module reference_fe_names
      integer(ip), allocatable :: n_face_array(:)     
      integer(ip), allocatable :: ijk_to_index(:)
    contains
-     procedure          :: create                   => polytope_tree_create 
-     procedure          :: create_facet_iterator    => polytope_tree_create_facet_iterator
-     procedure          :: get_n_face               => polytope_tree_get_n_face
-     procedure          :: get_n_face_dimension     => polytope_tree_get_n_face_dimension
-     procedure          :: n_face_type              => polytope_tree_n_face_type
-     procedure          :: n_face_dir_is_fixed      => polytope_tree_n_face_dir_is_fixed 
-     procedure          :: n_face_dir_coordinate    => polytope_tree_n_face_dir_coordinate
-     procedure          :: n_face_coordinate        => polytope_tree_n_face_coordinate
-     procedure          :: get_number_n_faces       => polytope_tree_get_number_n_faces
-     procedure          :: get_ijk_to_index         => polytope_tree_get_ijk_to_index
-     procedure          :: print                    => polytope_tree_print
-     procedure          :: free                     => polytope_tree_free
+     procedure          :: create                   => polytope_create 
+     procedure          :: create_facet_iterator    => polytope_create_facet_iterator
+     procedure          :: get_n_face               => polytope_get_n_face
+     procedure          :: get_n_face_dimension     => polytope_get_n_face_dimension
+     procedure          :: n_face_type              => polytope_n_face_type
+     procedure          :: n_face_dir_is_fixed      => polytope_n_face_dir_is_fixed 
+     procedure          :: n_face_dir_coordinate    => polytope_n_face_dir_coordinate
+     procedure          :: n_face_coordinate        => polytope_n_face_coordinate
+     procedure          :: get_number_n_faces       => polytope_get_number_n_faces
+     procedure          :: get_ijk_to_index         => polytope_get_ijk_to_index
+     procedure          :: print                    => polytope_print
+     procedure          :: free                     => polytope_free
      procedure, private :: fill_polytope_chain 
-  end type polytope_tree_t
+  end type polytope_t
 
-  public :: polytope_tree_t
+  public :: polytope_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type node_array_t
      private
-     type(polytope_tree_t), pointer :: polytope_tree
+     type(polytope_t), pointer :: polytope
      integer(ip)                    :: order(SPACE_DIM)
      integer(ip)                    :: number_nodes
      integer(ip), allocatable       :: node_array(:)
@@ -258,7 +258,7 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type facet_iterator_t
      private 
-     type(polytope_tree_t), pointer :: polytope_tree
+     type(polytope_t), pointer :: polytope
      integer(ip)                  :: root
      integer(ip)                  :: component
      integer(ip)                  :: coordinate
@@ -339,7 +339,7 @@ module reference_fe_names
           number_shape_functions,             &        
           number_n_faces_per_dimension(5)
 
-     type(polytope_tree_t)         :: polytope
+     type(polytope_t)         :: polytope
      type(node_array_t)            :: node_array
      type(node_array_t)            :: vertex_array
 
