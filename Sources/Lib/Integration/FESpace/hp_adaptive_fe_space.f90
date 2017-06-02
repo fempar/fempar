@@ -380,7 +380,7 @@ subroutine serial_hp_adaptive_fe_space_free(this)
   call this%free_constraint_dofs_dependencies()
   call this%free_constraint_dofs_coefficients()
   nullify(this%p4est_triangulation)
-end subroutine   
+end subroutine serial_hp_adaptive_fe_space_free
 
 subroutine shpafs_free_ptr_constraint_dofs( this )
   implicit none
@@ -513,7 +513,7 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
   integer(ip)                         ,  intent(in)   :: field_id
 
   ! Local variables
-  integer(ip) :: ivef, vef_lid, ielem
+  integer(ip) :: ivef, vef_lid
   integer(ip) :: iblock, init_dof_block, current_dof_block, previous_dof_block
   integer(ip) :: init_fixed_dof, current_fixed_dof, previous_fixed_dof
   integer(ip), allocatable :: visited_proper_vef_to_fe_map(:,:)
