@@ -32,6 +32,7 @@ module hp_adaptive_fe_space_names
   use p4est_serial_triangulation_names
   use reference_fe_names
   use fe_space_names
+  use fe_function_names
   use environment_names
   use conditions_names
   use std_vector_integer_ip_names
@@ -88,6 +89,8 @@ module hp_adaptive_fe_space_names
      procedure                            :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
      procedure                            :: update_fixed_dof_values                                => shpafs_update_fixed_dof_values
      procedure                            :: interpolate_dirichlet_values                           => shpafs_interpolate_dirichlet_values
+     
+     procedure                            :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
      
  end type serial_hp_adaptive_fe_space_t  
  
@@ -815,6 +818,96 @@ subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients(this)
      call this%constraint_dofs_coefficients%set(improper_dof_lid, strong_dirichlet_values_entries(improper_dof_lid) )
   end do
 end subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients
+
+subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
+                                                           triangulation, &
+                                                           conditions,    &
+                                                           reference_fes, &
+                                                           fe_function )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t),         intent(inout) :: this
+  class(base_static_triangulation_t)  , target, intent(in)    :: triangulation
+  class(conditions_t)                         , intent(in)    :: conditions
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
+  type(fe_function_t)                         , intent(inout) :: fe_function
+  class(vector_t)              , pointer     :: old_dof_values
+  type(serial_scalar_array_t)  , pointer     :: old_fixed_dof_values
+  real(rp)                     , pointer     :: old_fixed_dof_values_entries(:)
+  type(fe_function_t)                        :: transformed_fe_function
+  type(std_vector_integer_ip_t), pointer     :: p4est_refinement_and_coarsening_flags
+  integer(ip)                  , allocatable :: old_ptr_dofs_per_fe(:,:)
+  integer(ip)                  , allocatable :: old_lst_dofs_lids(:)
+  integer(ip)                                :: num_children_per_cell
+  integer(ip)                                :: transformation_flag
+  integer(ip)                                :: icell, old_cell_lid, new_cell_lid
+  integer(ip)                                :: num_cells_old_triangulation
+  
+  select type(triangulation)
+  class is (p4est_serial_triangulation_t)
+    p4est_refinement_and_coarsening_flags => triangulation%get_p4est_refinement_and_coarsening_flags()
+  class default
+    assert(.false.)
+  end select
+  
+  num_cells_old_triangulation = p4est_refinement_and_coarsening_flags%size()
+  
+  call memalloc(this%get_number_fields(),      &
+                num_cells_old_triangulation+1, &
+                old_ptr_dofs_per_fe,__FILE__,__LINE__)
+  call this%copy_ptr_dofs_per_fe(old_ptr_dofs_per_fe)
+  call memalloc(old_ptr_dofs_per_fe(1,num_cells_old_triangulation+1)-1, &
+                old_lst_dofs_lids,__FILE__,__LINE__)
+  call this%copy_lst_dofs_lids(old_lst_dofs_lids)
+  
+  call this%create(triangulation,conditions,reference_fes)
+  call this%fill_dof_info()
+  
+  if ( this%p4est_triangulation%get_num_dimensions() == 2 ) then
+    num_children_per_cell = 4 ! NUM_CORNERS_2D
+  else if ( this%p4est_triangulation%get_num_dimensions() == 2 ) then
+    check(.false.)
+  end if
+  
+  old_dof_values               => fe_function%get_dof_values()
+  old_fixed_dof_values         => fe_function%get_fixed_dof_values()
+  old_fixed_dof_values_entries => old_fixed_dof_values%get_entries()
+  
+  call transformed_fe_function%create(this)
+  
+  old_cell_lid = 1
+  new_cell_lid = 0
+  do while ( old_cell_lid .le. num_cells_old_triangulation )
+    transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
+    if ( transformation_flag == do_nothing ) then
+      new_cell_lid = new_cell_lid + 1
+    else if ( transformation_flag == refinement ) then
+      assert(.false.)
+      do icell = 1,num_children_per_cell
+        new_cell_lid = new_cell_lid + 1
+      end do
+    else if ( transformation_flag == coarsening ) then
+      assert(.false.)
+      new_cell_lid = new_cell_lid + 1
+      do icell = 1,num_children_per_cell
+        old_cell_lid = old_cell_lid + 1
+      end do
+      cycle
+    else
+      assert(.false.)
+    end if
+    old_cell_lid = old_cell_lid + 1
+  end do
+  
+  assert ( new_cell_lid == this%p4est_triangulation%get_num_cells() )
+  
+  call fe_function%create(this)
+  fe_function = transformed_fe_function
+  
+  call transformed_fe_function%free()
+  call memfree(old_ptr_dofs_per_fe,__FILE__,__LINE__)
+  call memfree(old_lst_dofs_lids,__FILE__,__LINE__)
+  
+end subroutine serial_hp_adaptive_fe_space_refine_and_coarsen
 
 
 end module hp_adaptive_fe_space_names
