@@ -294,7 +294,7 @@ contains
             number_dimensions = this%triangulation%get_num_dimensions(), &
             order = this%test_params%get_reference_fe_order(), &
             field_type = field_type_scalar, &
-            continuity = .true. )
+            conformity = .true. )
        call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine setup_reference_fes

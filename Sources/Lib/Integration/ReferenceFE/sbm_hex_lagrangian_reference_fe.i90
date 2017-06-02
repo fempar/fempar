@@ -51,7 +51,7 @@ function hex_lagrangian_reference_fe_check_compatibility_of_n_faces             
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
      assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-     assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+     assert (target_reference_fe%get_number_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_number_own_dofs_n_face(source_n_face_id))
      hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
      class default
      hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.

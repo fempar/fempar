@@ -115,7 +115,7 @@ contains
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_vector, &
-                                                 continuity = .true. ) 
+                                                 conformity = .true. ) 
     
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        call this%triangulation%create_vef_iterator(vef)
