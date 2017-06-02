@@ -210,7 +210,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
       own_dof_within_vef_target_fe = 1
       do while (.not. own_dofs_on_vef_iterator_target%is_upper_bound())
         idof_target = own_dofs_on_vef_iterator_target%get_current()
-        idof_source = reference_fe_source%get_permuted_own_node_n_face(own_dof_within_vef_target_fe, &
+        idof_source = reference_fe_source%get_permuted_own_dof_n_face(own_dof_within_vef_target_fe, &
                                                                     source_ivef, & 
                                                                     relative_orientation, &
                                                                     relative_rotation)
@@ -239,14 +239,16 @@ subroutine fe_iterator_fill_dofs_face_integration_coupling ( this, ivef, field_i
   reference_fe => this%get_reference_fe(field_id)
   assert ( reference_fe%get_n_face_dimension(ivef) == reference_fe%get_number_dimensions()-1 )
   
-  face_integration_coupling_dofs = reference_fe%create_facet_integration_coupling_dofs_iterator(ivef)
-  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())-1
-  do while (.not. face_integration_coupling_dofs%is_upper_bound())
-    idof = face_integration_coupling_dofs%get_current()
-    dof_count = dof_count +1 
-    this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+idof) = dof_count
-    call face_integration_coupling_dofs%next()
-  end do
+  if ( reference_fe%get_continuity() ) then
+    face_integration_coupling_dofs = reference_fe%create_dofs_on_n_face_iterator(ivef)
+    base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())-1
+    do while (.not. face_integration_coupling_dofs%is_upper_bound())
+      idof = face_integration_coupling_dofs%get_current()
+      dof_count = dof_count +1 
+      this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+idof) = dof_count
+      call face_integration_coupling_dofs%next()
+    end do
+  end if
 end subroutine fe_iterator_fill_dofs_face_integration_coupling
 
 
@@ -343,11 +345,11 @@ function fe_iterator_get_fe_space_type(this, field_id)
   integer(ip)                      :: fe_iterator_get_fe_space_type
   class(reference_fe_t), pointer   :: reference_fe
   reference_fe => this%get_reference_fe(field_id)
-  if ( reference_fe%get_continuity() ) then
+  if ( reference_fe%get_conformity() .and. reference_fe%get_continuity()  ) then
     fe_iterator_get_fe_space_type = fe_space_type_cg
-  else if ( reference_fe%get_conformity() ) then
+  else if ( reference_fe%get_conformity() .and. .not. reference_fe%get_continuity() ) then
     fe_iterator_get_fe_space_type = fe_space_type_dg_conforming
-  else
+  else 
     fe_iterator_get_fe_space_type = fe_space_type_dg
   end if
 end function fe_iterator_get_fe_space_type

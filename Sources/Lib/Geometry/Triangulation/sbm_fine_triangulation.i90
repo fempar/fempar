@@ -55,26 +55,26 @@ subroutine fine_triangulation_fill_reference_fe_geo_list(this,order)
               reference_fe_geo_list(icell_type) = &
                    &    make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
                    &                        number_dimensions = this%num_dimensions, order = order, &
-                   &                        field_type = field_type_scalar, continuity = .true. )
+                   &                        field_type = field_type_scalar, conformity = .true. )
            elseif(ielem_num_vertices == 4) then ! Quadrilateral
               reference_fe_geo_list(icell_type) = &
                    &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
                    &                        number_dimensions = this%num_dimensions, order = order, &
-                   &                        field_type = field_type_scalar, continuity = .true. )
+                   &                        field_type = field_type_scalar, conformity = .true. )
            end if
         else
            if(ielem_num_vertices == 4) then     ! Tetrahedra
               reference_fe_geo_list(icell_type) = &
                    &    make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
                    &                        number_dimensions = this%num_dimensions, order = order, &
-                   &                        field_type = field_type_scalar, continuity = .true. )
+                   &                        field_type = field_type_scalar, conformity = .true. )
            elseif(ielem_num_vertices == 6) then ! Prism
               assert(.false.)
            elseif(ielem_num_vertices == 8) then ! Hexahedra
               reference_fe_geo_list(icell_type) = &
                    &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
                    &                        number_dimensions = this%num_dimensions, order = order, &
-                   &                        field_type = field_type_scalar, continuity = .true. )
+                   &                        field_type = field_type_scalar, conformity = .true. )
            end if
         end if
         ! Transfer allocated target from local variable to member variable of base_static_triangulation
@@ -685,7 +685,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
         call this%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
         assert(istat==key_found)
         vertices_of_vefs => this%reference_fe_geo_list(cell_type)%p%get_vertices_n_face()
-        face_num_nodes = this%reference_fe_geo_list(cell_type)%p%get_number_own_nodes_n_face(ivef_pos_in_cell)
+        face_num_nodes = this%reference_fe_geo_list(cell_type)%p%get_number_own_dofs_n_face(ivef_pos_in_cell)
         call memrealloc( face_num_nodes, coordinates, __FILE__,__LINE__)
         ! assert(face_num_nodes<=10) ! see declaration of points above
 
@@ -724,7 +724,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
         ! write(*,*) points(3)%get_value()
 
         do inode=1,face_num_nodes
-           l_node = cell%get_node_lid( this%reference_fe_geo_list(cell_type)%p%get_own_node_n_face(inode,ivef_pos_in_cell) )
+           l_node = cell%get_node_lid( this%reference_fe_geo_list(cell_type)%p%get_own_dof_n_face(inode,ivef_pos_in_cell) )
            this%coordinates(l_node) = coordinates(inode)
         end do
      end if      

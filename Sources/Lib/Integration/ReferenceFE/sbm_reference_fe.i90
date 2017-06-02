@@ -49,10 +49,8 @@ subroutine reference_fe_free( this )
      check(istat==0)
   end if
 
-  call this%interior_nodes_n_face%free()
-  call this%nodes_n_face%free()
-  call this%own_nodes_n_faces%free()
-  call this%face_integration_coupling_nodes_facet%free()
+  call this%own_dofs_n_face%free()
+  call this%dofs_n_face%free()
   call this%vertices_n_face%free()
   call this%n_faces_n_face%free()
   call this%orientation%free()
@@ -66,7 +64,7 @@ subroutine reference_fe_free( this )
   this%number_n_faces = 0
   this%number_shape_functions = 0
   this%number_n_faces_per_dimension  = 0
-  this%continuity = .true.
+  this%conformity = .true.
 
 end subroutine reference_fe_free
 
@@ -83,18 +81,16 @@ subroutine reference_fe_print ( reference_fe )
   write(*,*) 'fe_type: ', reference_fe%number_field_components
   write(*,*) 'number_dimensions: ', reference_fe%number_dimensions
   write(*,*) 'order: ', reference_fe%order
-  write(*,*) 'continuity: ',reference_fe%continuity
+  write(*,*) 'conformity: ',reference_fe%conformity
   write(*,*) 'number_n_faces', reference_fe%number_n_faces
   write(*,*) 'number_nodes', reference_fe%number_shape_functions
   write(*,*) 'number_n_faces_dimension', reference_fe%number_n_faces_per_dimension
 
   write(*,*) 'orientation', reference_fe%orientation%a
 
-  write(*,*) 'interior_nodes_n_face'
-  call reference_fe%interior_nodes_n_face%print(6)
 
   write(*,*) 'nodes_n_face'
-  call reference_fe%nodes_n_face%print(6)
+  call reference_fe%dofs_n_face%print(6)
 
   write(*,*) 'vertices_n_face'
   call reference_fe%vertices_n_face%print(6)
@@ -103,34 +99,31 @@ subroutine reference_fe_print ( reference_fe )
   call reference_fe%n_faces_n_face%print(6)
 
   write(*,*) 'own_nodes_n_face'
-  call reference_fe%own_nodes_n_faces%print(6)
-
-  write(*,*) 'face_integration_coupling_nodes_face'
-  call reference_fe%face_integration_coupling_nodes_facet%print(6)
+  call reference_fe%own_dofs_n_face%print(6)
 
 end subroutine reference_fe_print
 
-subroutine reference_fe_set_common_data( this, number_dimensions, order, field_type, continuity, enable_face_integration )
+subroutine reference_fe_set_common_data( this, number_dimensions, order, field_type, conformity, continuity )
   implicit none 
   class(reference_fe_t), intent(inout) :: this 
   integer(ip)          , intent(in)    :: number_dimensions
   integer(ip)          , intent(in)    :: order              
   character(*)         , intent(in)    :: field_type
-  logical              , intent(in)    :: continuity
-  logical    , optional, intent(in)    :: enable_face_integration
-
+  logical              , intent(in)    :: conformity
+  logical    , optional, intent(in)    :: continuity
+  
   this%number_dimensions = number_dimensions
   this%order             = order
-  this%continuity        = continuity
-  this%conformity        = continuity
-
-  if ( present( enable_face_integration ) ) then
-     if (this%continuity) then
-        write(0,'(a)') 'Warning: reference_fe_t%set_common_data :: ignoring enable_face_integration as continuity == .true.' 
-     else
-        this%conformity = .not. enable_face_integration
-     end if
+  this%conformity    = conformity
+  
+  if ( present(continuity) ) then
+    this%continuity = continuity
+  else
+    this%continuity = .true.
   end if
+   
+  massert ( .not. ((this%conformity .eqv. .false.) .and. (this%continuity .eqv. .false.)), "reference_fe_set_common_data: the discrete function space cannot be non-conforming and discontinuous" )
+  
 
   this%field_type = field_type
   if( this%field_type == field_type_scalar ) then
@@ -280,12 +273,12 @@ function reference_fe_get_n_face_dimension ( this, n_face_id )
   end do
 end function reference_fe_get_n_face_dimension
 
-function reference_fe_get_nodes_n_face ( this )
+function reference_fe_get_dofs_n_face ( this )
   implicit none
   class(reference_fe_t), target, intent(in) :: this
-  type(list_t), pointer :: reference_fe_get_nodes_n_face
-  reference_fe_get_nodes_n_face => this%nodes_n_face
-end function reference_fe_get_nodes_n_face
+  type(list_t), pointer :: reference_fe_get_dofs_n_face
+  reference_fe_get_dofs_n_face => this%dofs_n_face
+end function reference_fe_get_dofs_n_face
 
 function reference_fe_get_vertices_n_face ( this )
   implicit none
@@ -307,7 +300,7 @@ function reference_fe_get_node_n_face ( this, i, j )
   integer(ip), intent(in) :: i, j
   integer(ip) :: reference_fe_get_node_n_face
   type(list_iterator_t)   :: iterator
-  iterator = this%nodes_n_face%create_iterator(j)
+  iterator = this%dofs_n_face%create_iterator(j)
   reference_fe_get_node_n_face = iterator%get_from_current(i-1)
 end function reference_fe_get_node_n_face
 
@@ -316,7 +309,7 @@ function reference_fe_get_number_dofs_on_n_face ( this, i )
   class(reference_fe_t), intent(in) :: this
   integer(ip), intent(in) :: i
   integer(ip) :: reference_fe_get_number_dofs_on_n_face
-  reference_fe_get_number_dofs_on_n_face = this%nodes_n_face%get_sublist_size(i)
+  reference_fe_get_number_dofs_on_n_face = this%dofs_n_face%get_sublist_size(i)
 end function reference_fe_get_number_dofs_on_n_face
 
 function reference_fe_create_dofs_on_n_face_iterator ( this, i )
@@ -324,33 +317,33 @@ function reference_fe_create_dofs_on_n_face_iterator ( this, i )
   class(reference_fe_t), intent(in) :: this
   integer(ip), intent(in) :: i
   type(list_iterator_t) :: reference_fe_create_dofs_on_n_face_iterator
-  reference_fe_create_dofs_on_n_face_iterator = this%nodes_n_face%create_iterator(i)    
+  reference_fe_create_dofs_on_n_face_iterator = this%dofs_n_face%create_iterator(i)    
 end function reference_fe_create_dofs_on_n_face_iterator
 
-function reference_fe_get_own_node_n_face ( this, i, j )
+function reference_fe_get_own_dof_n_face ( this, i, j )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip), intent(in) :: i, j
-  integer(ip) :: reference_fe_get_own_node_n_face
+  integer(ip) :: reference_fe_get_own_dof_n_face
   type(list_iterator_t)   :: iterator
-  iterator = this%own_nodes_n_faces%create_iterator(j)
-  reference_fe_get_own_node_n_face = iterator%get_from_current(i-1)
-end function reference_fe_get_own_node_n_face
+  iterator = this%own_dofs_n_face%create_iterator(j)
+  reference_fe_get_own_dof_n_face = iterator%get_from_current(i-1)
+end function reference_fe_get_own_dof_n_face
 
-function reference_fe_get_number_own_nodes_n_face ( this, i )
+function reference_fe_get_number_own_dofs_n_face ( this, i )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip), intent(in) :: i
-  integer(ip) :: reference_fe_get_number_own_nodes_n_face
-  reference_fe_get_number_own_nodes_n_face = this%own_nodes_n_faces%get_sublist_size(i)
-end function reference_fe_get_number_own_nodes_n_face
+  integer(ip) :: reference_fe_get_number_own_dofs_n_face
+  reference_fe_get_number_own_dofs_n_face = this%own_dofs_n_face%get_sublist_size(i)
+end function reference_fe_get_number_own_dofs_n_face
 
 function reference_fe_create_own_dofs_on_n_face_iterator ( this, i )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip), intent(in) :: i
   type(list_iterator_t) :: reference_fe_create_own_dofs_on_n_face_iterator
-  reference_fe_create_own_dofs_on_n_face_iterator = this%own_nodes_n_faces%create_iterator(i)    
+  reference_fe_create_own_dofs_on_n_face_iterator = this%own_dofs_n_face%create_iterator(i)    
 end function reference_fe_create_own_dofs_on_n_face_iterator
 
 function reference_fe_get_number_vertices_n_face ( this, i )
@@ -360,14 +353,6 @@ function reference_fe_get_number_vertices_n_face ( this, i )
   integer(ip) :: reference_fe_get_number_vertices_n_face
   reference_fe_get_number_vertices_n_face = this%vertices_n_face%get_sublist_size(i)
 end function reference_fe_get_number_vertices_n_face
-
-function reference_fe_create_facet_integration_coupling_dofs_iterator ( this, i )
-  implicit none
-  class(reference_fe_t), intent(in) :: this
-  integer(ip), intent(in) :: i
-  type(list_iterator_t) :: reference_fe_create_facet_integration_coupling_dofs_iterator
-  reference_fe_create_facet_integration_coupling_dofs_iterator = this%face_integration_coupling_nodes_facet%create_iterator(i)    
-end function reference_fe_create_facet_integration_coupling_dofs_iterator
 
 ! This query should return .true. only for interpolatory FEs.
 ! By default, we assume that the reference fe is NOT interpolatory.
@@ -452,7 +437,7 @@ function reference_fe_compute_relative_rotation(target_reference_fe,source_refer
 end function reference_fe_compute_relative_rotation
 
 !==================================================================================================
-function reference_fe_get_permuted_own_node_n_face(this,inode,target_n_face_id,     &
+function reference_fe_get_permuted_own_dof_n_face(this,inode,target_n_face_id,     &
      &                                               relative_orientation, relative_rotation)
   implicit none
   class(reference_fe_t), intent(in)  :: this
@@ -460,10 +445,8 @@ function reference_fe_get_permuted_own_node_n_face(this,inode,target_n_face_id, 
   integer(ip)          , intent(in)  :: target_n_face_id ! Local n-face ID
   integer(ip)          , intent(in)  :: relative_orientation
   integer(ip)          , intent(in)  :: relative_rotation
-  integer(ip) :: reference_fe_get_permuted_own_node_n_face
+  integer(ip) :: reference_fe_get_permuted_own_dof_n_face
   integer(ip) :: n_face_dimension, permutation_key, permuted_own_node
-
-  assert ( this%continuity  )
 
   n_face_dimension = this%get_n_face_dimension(target_n_face_id)
 
@@ -477,8 +460,8 @@ function reference_fe_get_permuted_own_node_n_face(this,inode,target_n_face_id, 
           & (n_face_dimension)%a(inode,permutation_key)
 
   end if
-  reference_fe_get_permuted_own_node_n_face = this%get_own_node_n_face(permuted_own_node, target_n_face_id)
-end function reference_fe_get_permuted_own_node_n_face
+  reference_fe_get_permuted_own_dof_n_face = this%get_own_dof_n_face(permuted_own_node, target_n_face_id)
+end function reference_fe_get_permuted_own_dof_n_face
 
 !==================================================================================================
 subroutine p_reference_fe_free( this )

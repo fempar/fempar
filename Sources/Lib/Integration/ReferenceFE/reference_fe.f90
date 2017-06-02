@@ -330,26 +330,24 @@ module reference_fe_names
           number_field_components
 
      logical                  ::    &
-          continuity,               &      ! CG(.true.)/DG(.false.)
-          conformity                       ! .true. for discontinuous L2 conforming spaces 
-     ! that do not require to enforce weakly continuity
+          conformity,           &      ! Is the discrete space of functions conforming with its continuous counterpart?
+          continuity                   ! Does the continuous space of functions require continuity?    
+                                           
 
      integer(ip)              ::    &
           number_n_faces,              &        
           number_shape_functions,             &        
           number_n_faces_per_dimension(5)
 
-     type(polytope_t)         :: polytope
+     type(polytope_t)              :: polytope
      type(node_array_t)            :: node_array
      type(node_array_t)            :: vertex_array
 
-     type(allocatable_array_ip1_t)  :: orientation        ! orientation of the n-faces 
-     type(list_t)                   :: interior_nodes_n_face ! interior nodes per n-face
-     type(list_t)                   :: nodes_n_face          ! all nodes per n-face
-     type(list_t)                   :: vertices_n_face       ! vertices per n-face
-     type(list_t)                   :: n_faces_n_face           ! all n-faces per n-face
-     type(list_t)                   :: own_nodes_n_faces
-     type(list_t)                   :: face_integration_coupling_nodes_facet
+     type(allocatable_array_ip1_t)  :: orientation      ! orientation of the n-faces 
+     type(list_t)                   :: vertices_n_face  ! vertices per n-face
+     type(list_t)                   :: n_faces_n_face   ! all n-faces per n-face
+     type(list_t)                   :: dofs_n_face      ! all DoFs per n-face
+     type(list_t)                   :: own_dofs_n_face  ! owned DoFs per n-face
 
      integer(ip), allocatable :: number_rotations_per_dimension(:)
      integer(ip), allocatable :: number_orientations_per_dimension(:)
@@ -428,9 +426,7 @@ module reference_fe_names
      procedure(evaluate_gradient_fe_function_vector_interface), deferred :: evaluate_gradient_fe_function_vector
      generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
           & evaluate_gradient_fe_function_vector
-		  
-     ! This subroutine gives the reodering (o2n) of the nodes of an n-face given an orientation 'o'
-     ! and a delay 'r' wrt to a refence element sharing the same n-face.
+
      procedure (check_compatibility_of_n_faces_interface), deferred :: &
           &     check_compatibility_of_n_faces
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
@@ -467,24 +463,23 @@ module reference_fe_names
      procedure :: get_number_shape_functions => reference_fe_get_number_shape_functions
      procedure :: get_n_face_dimension  => reference_fe_get_n_face_dimension
      procedure :: get_vertices_n_face  =>   reference_fe_get_vertices_n_face
-     procedure :: get_nodes_n_face   =>   reference_fe_get_nodes_n_face
+     procedure :: get_dofs_n_face   =>   reference_fe_get_dofs_n_face
      procedure :: get_n_faces_n_face   =>   reference_fe_get_n_faces_n_face
      procedure :: get_number_vertices_n_face => reference_fe_get_number_vertices_n_face
 
      procedure :: get_number_dofs_on_n_face => reference_fe_get_number_dofs_on_n_face
      procedure :: create_dofs_on_n_face_iterator => reference_fe_create_dofs_on_n_face_iterator
 
-     procedure :: get_number_own_nodes_n_face => reference_fe_get_number_own_nodes_n_face
+     procedure :: get_number_own_dofs_n_face => reference_fe_get_number_own_dofs_n_face
      procedure :: create_own_dofs_on_n_face_iterator => reference_fe_create_own_dofs_on_n_face_iterator
-     procedure :: get_own_node_n_face => reference_fe_get_own_node_n_face
+     procedure :: get_own_dof_n_face => reference_fe_get_own_dof_n_face
 
-     procedure :: create_facet_integration_coupling_dofs_iterator => reference_fe_create_facet_integration_coupling_dofs_iterator
      procedure :: has_nodal_quadrature => reference_fe_has_nodal_quadrature
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
-     procedure :: get_permuted_own_node_n_face  => reference_fe_get_permuted_own_node_n_face
-     procedure(fill_own_node_permutations_interface), deferred :: fill_own_node_permutations
+     procedure :: get_permuted_own_dof_n_face  => reference_fe_get_permuted_own_dof_n_face
+     procedure(fill_own_dof_permutations_interface), deferred :: fill_own_dof_permutations
      procedure(fill_qpoints_permutations_interface), deferred :: fill_qpoints_permutations
   end type reference_fe_t
 
@@ -496,7 +491,7 @@ module reference_fe_names
 
   abstract interface
      subroutine create_interface ( this, topology, number_dimensions, order, field_type, &
-          continuity, enable_face_integration )
+          conformity, continuity )
        import :: reference_fe_t, ip, SPACE_DIM
        implicit none 
        class(reference_fe_t), intent(inout) :: this 
@@ -504,8 +499,8 @@ module reference_fe_names
        integer(ip)          , intent(in)    :: number_dimensions
        integer(ip)          , intent(in)    :: order
        character(*)         , intent(in)    :: field_type
-       logical              , intent(in)    :: continuity
-       logical, optional    , intent(in)    :: enable_face_integration
+       logical              , intent(in)    :: conformity
+       logical, optional    , intent(in)    :: continuity
      end subroutine create_interface
 
      subroutine create_quadrature_interface ( this, quadrature, max_order )
@@ -785,7 +780,7 @@ module reference_fe_names
        class(reference_fe_t), intent(inout) :: this 
      end subroutine create_nodal_quadrature_interface
      
-     subroutine fill_own_node_permutations_interface (this)
+     subroutine fill_own_dof_permutations_interface (this)
         import :: reference_fe_t
         implicit none
         class(reference_fe_t), intent(inout) :: this 
@@ -875,8 +870,8 @@ contains
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
        & => lagrangian_reference_fe_fill
-  procedure :: fill_own_node_permutations           &
-       & => lagrangian_reference_fe_fill_own_node_permutations
+  procedure :: fill_own_dof_permutations           &
+       & => lagrangian_reference_fe_fill_own_dof_permutations
   procedure :: fill_qpoints_permutations                                   &
        & => lagrangian_reference_fe_fill_qpoints_permutations
   procedure, private, non_overridable :: fill_field_components        & 
@@ -1141,8 +1136,8 @@ contains
              &  => tet_lagrangian_reference_fe_get_subcells_connectivity
    procedure :: blending                                                                &
              &  => tet_lagrangian_reference_fe_blending 
-   procedure :: fill_own_node_permutations                                              &
-             &  => tet_lagrangian_reference_fe_fill_own_node_permutations
+   procedure :: fill_own_dof_permutations                                               &
+             &  => tet_lagrangian_reference_fe_fill_own_dof_permutations
    procedure :: fill_qpoints_permutations                                               &
              &  => tet_lagrangian_reference_fe_fill_qpoints_permutations
    ! Deferred TBP implementors from lagrangian_reference_fe_t
@@ -1170,10 +1165,10 @@ contains
              & => tet_lagrangian_reference_fe_fill_nodes_n_face
    procedure, private, non_overridable :: fill_n_face_dimension_and_vertices            &
              & => tet_lagrangian_reference_fe_fill_n_face_dimension_and_vertices
-   procedure, private, non_overridable :: compute_number_interior_nodes                 &
-             & => tet_lagrangian_reference_fe_compute_number_interior_nodes
-   procedure, private, non_overridable :: compute_sum_of_nodes_in_simplices             &
-             & => tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
+   procedure, private, non_overridable :: compute_number_interior_dofs                 &
+             & => tet_lagrangian_reference_fe_compute_number_interior_dofs
+   procedure, private, non_overridable :: compute_sum_of_dofs_in_simplices             &
+             & => tet_lagrangian_reference_fe_compute_sum_of_dofs_in_simplices
    procedure, private, non_overridable :: get_n_face_orientation                        &
              & => tet_lagrangian_reference_fe_get_n_face_orientation
    procedure, private :: fill_interpolation_pre_basis                                   &
@@ -1219,10 +1214,10 @@ procedure, private, non_overridable :: raviart_thomas_fill_nodes_n_face         
 & => tet_raviart_thomas_fill_nodes_n_face
 procedure, private, non_overridable :: raviart_thomas_fill_n_face_dimension_and_vertices   &
 & => tet_raviart_thomas_fill_n_face_dimension_and_vertices
-procedure, private, non_overridable :: compute_number_interior_nodes     &
-& => tet_raviart_thomas_compute_number_interior_nodes
-procedure, private, non_overridable :: raviart_thomas_compute_sum_of_nodes_in_simplices &
-& => tet_raviart_thomas_compute_sum_of_nodes_in_simplices
+procedure, private, non_overridable :: compute_number_interior_dofs     &
+& => tet_raviart_thomas_compute_number_interior_dofs
+procedure, private, non_overridable :: raviart_thomas_compute_sum_of_dofs_in_simplices &
+& => tet_raviart_thomas_compute_sum_of_dofs_in_simplices
 procedure, private, non_overridable :: raviart_thomas_evaluate_interpolation            &
 & => tet_raviart_thomas_evaluate_interpolation
 procedure, private, non_overridable :: raviart_thomas_get_n_face_orientation               &
@@ -1363,7 +1358,7 @@ contains
   procedure :: evaluate_gradient_fe_function_vector => void_reference_fe_evaluate_gradient_fe_function_vector
   procedure :: check_compatibility_of_n_faces       => void_reference_fe_check_compatibility_of_n_faces
   procedure :: get_characteristic_length            => void_reference_fe_get_characteristic_length  
-  procedure :: fill_own_node_permutations           => void_reference_fe_fill_own_node_permutations
+  procedure :: fill_own_dof_permutations           => void_reference_fe_fill_own_dof_permutations
   procedure :: fill_qpoints_permutations            => void_reference_fe_fill_qpoints_permutations     
   procedure :: free                                 => void_reference_fe_free
   ! Concrete TBPs of this derived data type
