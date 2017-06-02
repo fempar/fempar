@@ -61,6 +61,13 @@ function p4est_serial_triangulation_get_num_improper_vefs(this)
   p4est_serial_triangulation_get_num_improper_vefs = this%num_improper_vefs
 end function p4est_serial_triangulation_get_num_improper_vefs
 
+function p4est_st_get_p4est_refinement_and_coarsening_flags(this)
+  implicit none
+  class(p4est_serial_triangulation_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: p4est_st_get_p4est_refinement_and_coarsening_flags
+  p4est_st_get_p4est_refinement_and_coarsening_flags => this%p4est_refinement_and_coarsening_flags
+end function p4est_st_get_p4est_refinement_and_coarsening_flags
+
 
 subroutine p4est_serial_triangulation_create (this, parameters)
   implicit none

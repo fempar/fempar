@@ -231,6 +231,7 @@ module p4est_serial_triangulation_names
     procedure                                   :: get_num_vefs                                  => p4est_serial_triangulation_get_num_vefs
     procedure                                   :: get_num_proper_vefs                           => p4est_serial_triangulation_get_num_proper_vefs
     procedure                                   :: get_num_improper_vefs                         => p4est_serial_triangulation_get_num_improper_vefs
+    procedure                                   :: get_p4est_refinement_and_coarsening_flags     => p4est_st_get_p4est_refinement_and_coarsening_flags
     
     ! Set up related methods
     procedure                                   :: create                                        => p4est_serial_triangulation_create
