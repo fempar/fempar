@@ -418,6 +418,9 @@ module fe_space_names
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      procedure                           :: get_number_fixed_dofs                        => serial_fe_space_get_number_fixed_dofs
      
+     procedure, non_overridable          :: copy_ptr_dofs_per_fe                         => serial_fe_space_copy_ptr_dofs_per_fe     
+     procedure, non_overridable          :: copy_lst_dofs_lids                           => serial_fe_space_copy_lst_dofs_lids
+     
      ! fes, fe_vefs and fe_faces traversals-related TBPs
      procedure                           :: create_fe_iterator                           => serial_fe_space_create_fe_iterator
      procedure                           :: free_fe_iterator                             => serial_fe_space_free_fe_iterator

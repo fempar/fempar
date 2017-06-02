@@ -2080,6 +2080,20 @@ function serial_fe_space_get_number_fixed_dofs(this)
   serial_fe_space_get_number_fixed_dofs = this%number_strong_dirichlet_dofs
 end function serial_fe_space_get_number_fixed_dofs
 
+subroutine serial_fe_space_copy_ptr_dofs_per_fe ( this, ptr_dofs_per_fe )
+  implicit none
+  class(serial_fe_space_t), target, intent(in)    :: this
+  integer(ip)                     , intent(inout) :: ptr_dofs_per_fe(:,:)
+  ptr_dofs_per_fe = this%ptr_dofs_per_fe
+end subroutine serial_fe_space_copy_ptr_dofs_per_fe
+
+subroutine serial_fe_space_copy_lst_dofs_lids ( this, lst_dofs_lids )
+  implicit none
+  class(serial_fe_space_t), target, intent(in)    :: this
+  integer(ip)                     , intent(inout) :: lst_dofs_lids(:)  
+  lst_dofs_lids = this%lst_dofs_lids
+end subroutine serial_fe_space_copy_lst_dofs_lids
+
 subroutine serial_fe_space_create_fe_iterator ( this, fe )
   implicit none
   class(serial_fe_space_t)         , intent(in)  :: this
