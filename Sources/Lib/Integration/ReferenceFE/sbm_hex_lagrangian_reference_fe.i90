@@ -947,11 +947,49 @@ subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face
 end subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation
 
 !==================================================================================================
+subroutine hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
+                                                                             subcell_id,             &
+                                                                             nodal_values_on_parent, & 
+                                                                             nodal_values_on_child )
+  implicit none 
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this              
+  integer(ip)                         , intent(in)    :: subcell_id
+  real(rp)                            , intent(in)    :: nodal_values_on_parent(:)
+  real(rp)                            , intent(inout) :: nodal_values_on_child(:)
+  integer(ip)           :: num_refinements
+  integer(ip)           :: i, ishape, qpoint
+  real(rp)              :: coefficient
+  type(node_array_t)    :: h_refinement_node_array
+  type(node_iterator_t) :: node_iterator_on_subcell
+  
+  num_refinements = 1
+  call h_refinement_node_array%create( this%polytope, ( num_refinements + 1 ) * this%order_vector )
+  
+  node_iterator_on_subcell = h_refinement_node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%number_n_faces), &
+                                                                subcell_id, own_boundary = .true. )
+  
+  nodal_values_on_child = 0.0_rp
+  i = 0
+  do while (.not. node_iterator_on_subcell%has_finished() )
+     qpoint = node_iterator_on_subcell%current()
+     i = i + 1
+     do ishape = 1, this%get_number_shape_functions()
+        call this%get_value(this%h_refinement_interpolation,ishape,qpoint,coefficient)
+        nodal_values_on_child(i) = nodal_values_on_child(i) + &
+                                   coefficient * nodal_values_on_parent(ishape)
+     end do
+     call node_iterator_on_subcell%next()
+  end do
+
+  call h_refinement_node_array%free()
+  
+end subroutine hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell
+
+!==================================================================================================
 subroutine hex_lagrangian_reference_fe_get_node_indices_on_child_fes ( this )
   implicit none 
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this              
   type(node_iterator_t) :: node_iterator
-  integer(ip)           :: num_subcells, subcell_id
   integer(ip)           :: parent_index, parent_ijk, parent_coordinate(0:SPACE_DIM-1)
   integer(ip)           :: child_coordinate(0:SPACE_DIM-1), child_index, subface_id
   integer(ip)           :: i
