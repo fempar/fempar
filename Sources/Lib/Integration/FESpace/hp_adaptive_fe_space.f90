@@ -823,24 +823,32 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
                                                            triangulation, &
                                                            conditions,    &
                                                            reference_fes, &
-                                                           fe_function )
+                                                           fe_function,   &
+                                                           field_blocks,  &
+                                                           field_coupling )
   implicit none
-  class(serial_hp_adaptive_fe_space_t),         intent(inout) :: this
-  class(base_static_triangulation_t)  , target, intent(in)    :: triangulation
-  class(conditions_t)                         , intent(in)    :: conditions
-  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
-  type(fe_function_t)                         , intent(inout) :: fe_function
-  class(vector_t)              , pointer     :: old_dof_values
-  type(serial_scalar_array_t)  , pointer     :: old_fixed_dof_values
-  real(rp)                     , pointer     :: old_fixed_dof_values_entries(:)
-  type(fe_function_t)                        :: transformed_fe_function
-  type(std_vector_integer_ip_t), pointer     :: p4est_refinement_and_coarsening_flags
-  integer(ip)                  , allocatable :: old_ptr_dofs_per_fe(:,:)
-  integer(ip)                  , allocatable :: old_lst_dofs_lids(:)
-  integer(ip)                                :: num_children_per_cell
-  integer(ip)                                :: transformation_flag
-  integer(ip)                                :: icell, old_cell_lid, new_cell_lid
-  integer(ip)                                :: num_cells_old_triangulation
+  class(serial_hp_adaptive_fe_space_t),           intent(inout) :: this
+  class(base_static_triangulation_t)  , target  , intent(in)    :: triangulation
+  class(conditions_t)                           , intent(in)    :: conditions
+  type(p_reference_fe_t)                        , intent(in)    :: reference_fes(:)
+  type(fe_function_t)                           , intent(inout) :: fe_function
+  integer(ip)                         , optional, intent(in)    :: field_blocks(:)
+  logical                             , optional, intent(in)    :: field_coupling(:,:)
+  type(fe_function_t)                                :: transformed_fe_function
+  type(std_vector_integer_ip_t)        , pointer     :: p4est_refinement_and_coarsening_flags
+  integer(ip)                          , allocatable :: old_ptr_dofs_per_fe(:,:)
+  integer(ip)                  , target, allocatable :: old_lst_dofs_lids(:)
+  integer(ip)                          , pointer     :: old_field_elem2dof(:)
+  integer(ip)                                        :: num_children_per_cell
+  integer(ip)                                        :: transformation_flag
+  integer(ip)                                        :: subcell_id, old_cell_lid, new_cell_lid
+  integer(ip)                                        :: old_num_cells
+  integer(ip)                                        :: field_id
+  class(fe_iterator_t)                 , allocatable :: new_fe
+  real(rp)                             , allocatable :: old_nodal_values(:,:)
+  real(rp)                             , allocatable :: new_nodal_values(:)
+  class(reference_fe_t)                , pointer     :: reference_fe
+  integer(ip)                                        :: number_nodes_field
   
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
@@ -849,63 +857,118 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
     assert(.false.)
   end select
   
-  num_cells_old_triangulation = p4est_refinement_and_coarsening_flags%size()
+  old_num_cells = p4est_refinement_and_coarsening_flags%size()
   
-  call memalloc(this%get_number_fields(),      &
-                num_cells_old_triangulation+1, &
+  call memalloc(this%get_number_fields(), &
+                old_num_cells+1,          &
                 old_ptr_dofs_per_fe,__FILE__,__LINE__)
   call this%copy_ptr_dofs_per_fe(old_ptr_dofs_per_fe)
-  call memalloc(old_ptr_dofs_per_fe(1,num_cells_old_triangulation+1)-1, &
+  call memalloc(old_ptr_dofs_per_fe(1,old_num_cells+1)-1, &
                 old_lst_dofs_lids,__FILE__,__LINE__)
   call this%copy_lst_dofs_lids(old_lst_dofs_lids)
   
-  call this%create(triangulation,conditions,reference_fes)
+  call this%create(triangulation,conditions,reference_fes,field_blocks,field_coupling)
   call this%fill_dof_info()
   
-  if ( this%p4est_triangulation%get_num_dimensions() == 2 ) then
-    num_children_per_cell = 4 ! NUM_CORNERS_2D
-  else if ( this%p4est_triangulation%get_num_dimensions() == 2 ) then
-    check(.false.)
-  end if
-  
-  old_dof_values               => fe_function%get_dof_values()
-  old_fixed_dof_values         => fe_function%get_fixed_dof_values()
-  old_fixed_dof_values_entries => old_fixed_dof_values%get_entries()
+  assert( reference_fes(1)%p%get_topology() == topology_hex )
+  num_children_per_cell = reference_fes(1)%p%get_number_n_faces_of_dimension(0)
+  call memalloc(num_children_per_cell, &
+                this%get_max_number_shape_functions(),old_nodal_values,__FILE__,__LINE__)
+  call memalloc(this%get_max_number_shape_functions(),new_nodal_values,__FILE__,__LINE__)
   
   call transformed_fe_function%create(this)
   
+  call this%create_fe_iterator(new_fe)
+  
   old_cell_lid = 1
-  new_cell_lid = 0
-  do while ( old_cell_lid .le. num_cells_old_triangulation )
+  new_cell_lid = 1
+  do while ( old_cell_lid .le. old_num_cells )
     transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
-    if ( transformation_flag == do_nothing ) then
-      new_cell_lid = new_cell_lid + 1
-    else if ( transformation_flag == refinement ) then
-      assert(.false.)
-      do icell = 1,num_children_per_cell
+    call new_fe%set_lid(new_cell_lid)
+    do field_id = 1,this%get_number_fields()
+      reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
+      number_nodes_field = reference_fe%get_number_shape_functions()
+      old_field_elem2dof => get_field_elem2dof()
+      call fe_function%gather_nodal_values( field_id,                & 
+                                            old_field_elem2dof,      &
+                                            number_nodes_field,      & 
+                                            this%get_field_blocks(), &
+                                            old_nodal_values(1,1:number_nodes_field) )
+      if ( transformation_flag == do_nothing ) then
+        call transformed_fe_function%scatter_nodal_values( new_fe,   &
+                                                           field_id, &
+                                                           old_nodal_values(1,1:number_nodes_field) )
         new_cell_lid = new_cell_lid + 1
-      end do
-    else if ( transformation_flag == coarsening ) then
-      assert(.false.)
-      new_cell_lid = new_cell_lid + 1
-      do icell = 1,num_children_per_cell
-        old_cell_lid = old_cell_lid + 1
-      end do
-      cycle
-    else
-      assert(.false.)
-    end if
+      else if ( transformation_flag == refinement ) then
+        do subcell_id = 0,num_children_per_cell-1
+          select type(reference_fe)
+          type is (hex_lagrangian_reference_fe_t)
+            call reference_fe%interpolate_nodal_values_on_subcell( subcell_id,                               & 
+                                                                   old_nodal_values(1,1:number_nodes_field), &
+                                                                   new_nodal_values(1:number_nodes_field) )
+          class default
+            assert(.false.)
+          end select
+          call transformed_fe_function%scatter_nodal_values( new_fe,   &
+                                                             field_id, &
+                                                             new_nodal_values(1:number_nodes_field) )
+          new_cell_lid = new_cell_lid + 1
+          call new_fe%set_lid(new_cell_lid)
+        end do
+      else if ( transformation_flag == coarsening ) then
+        do subcell_id = 2,num_children_per_cell
+          old_cell_lid = old_cell_lid + 1
+          old_field_elem2dof => get_field_elem2dof()
+          call fe_function%gather_nodal_values( field_id,                & 
+                                                old_field_elem2dof,      &
+                                                number_nodes_field,      & 
+                                                this%get_field_blocks(), &
+                                                old_nodal_values(subcell_id,1:number_nodes_field) )
+        end do
+        select type(reference_fe)
+        type is (hex_lagrangian_reference_fe_t)
+          call reference_fe%project_nodal_values_on_cell( old_nodal_values(:,1:number_nodes_field), &
+                                                          new_nodal_values(1:number_nodes_field) )
+        class default
+          assert(.false.)
+        end select
+        call transformed_fe_function%scatter_nodal_values( new_fe,   &
+                                                           field_id, &
+                                                           new_nodal_values(1:number_nodes_field) )        
+        new_cell_lid = new_cell_lid + 1
+      else
+        assert(.false.)
+      end if
+    end do
     old_cell_lid = old_cell_lid + 1
   end do
-  
-  assert ( new_cell_lid == this%p4est_triangulation%get_num_cells() )
+
+  assert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells() )
   
   call fe_function%create(this)
   fe_function = transformed_fe_function
   
+  call this%free_fe_iterator(new_fe)
   call transformed_fe_function%free()
+  call memfree(old_nodal_values,__FILE__,__LINE__)
+  call memfree(new_nodal_values,__FILE__,__LINE__)
   call memfree(old_ptr_dofs_per_fe,__FILE__,__LINE__)
   call memfree(old_lst_dofs_lids,__FILE__,__LINE__)
+  
+contains
+  
+  function get_field_elem2dof()
+    implicit none
+    integer(ip), pointer     :: get_field_elem2dof(:)
+    integer(ip)              :: spos, epos
+    spos = old_ptr_dofs_per_fe(field_id,old_cell_lid)
+    if ( field_id == this%get_number_fields() ) then
+      epos = old_ptr_dofs_per_fe(1,old_cell_lid+1)-1
+    else
+      epos = old_ptr_dofs_per_fe(field_id+1,old_cell_lid)-1
+    end if
+    get_field_elem2dof => old_lst_dofs_lids(spos:epos)    
+  end function get_field_elem2dof
   
 end subroutine serial_hp_adaptive_fe_space_refine_and_coarsen
 
