@@ -1285,8 +1285,8 @@ procedure, private :: fill_n_subface_permutation                         &
 & => hex_lagrangian_reference_fe_fill_n_subface_permutation
 procedure          :: interpolate_nodal_values_on_subcell                &
 & => hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell
-procedure          :: get_node_indices_on_child_fes                      &
-& => hex_lagrangian_reference_fe_get_node_indices_on_child_fes
+procedure          :: project_nodal_values_on_cell                       &
+& => hex_lagrangian_reference_fe_project_nodal_values_on_cell
 procedure          :: get_h_refinement_interpolation                     &
 & => hex_lagrangian_reference_fe_get_h_refinement_interpolation
 procedure          :: get_h_refinement_subedge_permutation               &
