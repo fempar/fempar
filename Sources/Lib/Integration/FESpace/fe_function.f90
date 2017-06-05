@@ -49,20 +49,24 @@ module fe_function_names
    class(vector_t), allocatable  :: dof_values
    type(serial_scalar_array_t)   :: fixed_dof_values
   contains
-     procedure, non_overridable          :: create                         => fe_function_create
-     procedure, non_overridable          :: update_fixed_dof_values        => fe_function_update_fixed_dof_values
-     procedure, non_overridable          :: gather_nodal_values            => fe_function_gather_nodal_values
-     procedure, private, non_overridable :: interpolate_scalar_function    => fe_function_interpolate_scalar_function
-     procedure, private, non_overridable :: interpolate_vector_function    => fe_function_interpolate_vector_function
-     procedure, private, non_overridable :: interpolate_tensor_function    => fe_function_interpolate_tensor_function
-     generic                             :: interpolate_function           => interpolate_scalar_function , &
-                                                                              interpolate_vector_function, &
-                                                                              interpolate_tensor_function
-     procedure, non_overridable          :: copy                           => fe_function_copy
-     procedure, non_overridable          :: get_dof_values                 => fe_function_get_dof_values
-     procedure, non_overridable          :: get_fixed_dof_values           => fe_function_get_fixed_dof_values
-     procedure, non_overridable          :: free                           => fe_function_free
-     generic                             :: assignment(=)                  => copy
+     procedure, non_overridable          :: create                               => fe_function_create
+     procedure, non_overridable          :: update_fixed_dof_values              => fe_function_update_fixed_dof_values
+     procedure, non_overridable          :: gather_nodal_values_through_iterator => fe_function_gather_nodal_values_through_iterator
+     procedure, non_overridable          :: gather_nodal_values_from_raw_data    => fe_function_gather_nodal_values_from_raw_data
+     generic                             :: gather_nodal_values                  => gather_nodal_values_through_iterator, &
+                                                                                    gather_nodal_values_from_raw_data
+     procedure, non_overridable          :: scatter_nodal_values                 => fe_function_scatter_nodal_values
+     procedure, private, non_overridable :: interpolate_scalar_function          => fe_function_interpolate_scalar_function
+     procedure, private, non_overridable :: interpolate_vector_function          => fe_function_interpolate_vector_function
+     procedure, private, non_overridable :: interpolate_tensor_function          => fe_function_interpolate_tensor_function
+     generic                             :: interpolate_function                 => interpolate_scalar_function, &
+                                                                                    interpolate_vector_function, &
+                                                                                    interpolate_tensor_function
+     procedure, non_overridable          :: copy                                 => fe_function_copy
+     procedure, non_overridable          :: get_dof_values                       => fe_function_get_dof_values
+     procedure, non_overridable          :: get_fixed_dof_values                 => fe_function_get_fixed_dof_values
+     procedure, non_overridable          :: free                                 => fe_function_free
+     generic                             :: assignment(=)                        => copy
   end type fe_function_t 
    
   public :: fe_function_t  
