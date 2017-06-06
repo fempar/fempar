@@ -75,10 +75,11 @@ module test_h_adaptive_poisson_driver_names
      procedure        , private :: fill_cells_set
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
+     procedure        , private :: refine_and_coarsen
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
-     procedure        , private :: solve_system
+     procedure        , private :: solve_system     
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure        , private :: free
@@ -99,24 +100,7 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
-
-    class(cell_iterator_t), allocatable :: cell
-    type(point_t), allocatable :: cell_coords(:)
-    integer(ip) :: istat
-    integer(ip) :: set_id
-    real(rp) :: x, y
-    integer(ip) :: num_void_neigs
-
-    integer(ip)           :: ivef
     class(vef_iterator_t),allocatable :: vef
-    type(list_t), pointer :: vefs_of_vef
-    type(list_t), pointer :: vertices_of_line
-    type(list_iterator_t) :: vefs_of_vef_iterator
-    type(list_iterator_t) :: vertices_of_line_iterator
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-    integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
-    integer(ip) :: vertex_pos_in_cell, icell_arround
-    integer(ip) :: inode, num, i
 
 
     !call this%triangulation%create(this%test_params%get_dir_path(),&
@@ -131,24 +115,8 @@ contains
       end if
       call vef%next()
     end do
-    call this%triangulation%free_vef_iterator(vef)
-     
-   
-    do i=1, 10
-       call this%triangulation%clear_refinement_and_coarsening_flags()
-       call this%set_cells_for_refinement()
-       call this%fill_cells_set()
-       call this%triangulation%refine_and_coarsen()
+    call this%triangulation%free_vef_iterator(vef) 
 
-        
-       if ( mod(i,3) == 0 ) then
-       call this%triangulation%clear_refinement_and_coarsening_flags()
-       call this%set_cells_for_coarsening()
-       call this%triangulation%refine_and_coarsen()
-       end if
-    end do   
-       
-    
   end subroutine setup_triangulation
   
   subroutine set_cells_for_refinement(this)
@@ -229,14 +197,43 @@ contains
     
     call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-    call this%fe_space%create( triangulation       = this%triangulation, &
-                               conditions          = this%poisson_conditions, &
-                               reference_fes       = this%reference_fes)
-        
-    call this%fe_space%fill_dof_info() 
-    call this%fe_space%initialize_fe_integration()    
+    
+    call this%fe_space%create( triangulation = this%triangulation,      &
+                               conditions    = this%poisson_conditions, &
+                               reference_fes = this%reference_fes )  
+    call this%fe_space%fill_dof_info()
+    call this%fe_space%initialize_fe_integration() 
     call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
+    
   end subroutine setup_fe_space
+  
+  subroutine refine_and_coarsen(this)
+    implicit none
+    class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
+    integer(ip) :: i
+    
+    do i=1, 10
+       
+       call this%triangulation%clear_refinement_and_coarsening_flags()
+       if ( mod(i,3) == 0 ) then 
+          call this%set_cells_for_coarsening()
+       else
+          call this%set_cells_for_refinement()
+       end if
+       call this%fill_cells_set()
+       call this%triangulation%refine_and_coarsen()
+    
+       call this%fe_space%refine_and_coarsen( triangulation = this%triangulation,      &
+                                              conditions    = this%poisson_conditions, &
+                                              reference_fes = this%reference_fes,      &
+                                              fe_function   = this%solution )
+       call this%fe_space%initialize_fe_integration()
+       
+       call this%check_solution()
+       
+    end do  
+    
+  end subroutine refine_and_coarsen
   
   subroutine setup_system (this)
     implicit none
@@ -353,7 +350,7 @@ contains
     !   assert(.false.) 
     !end select
   end subroutine solve_system
-    
+  
   subroutine check_solution(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
@@ -422,12 +419,13 @@ contains
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
+    call this%solution%create(this%fe_space) 
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%solution%create(this%fe_space) 
     call this%solve_system()
     call this%check_solution()
+    call this%refine_and_coarsen()
     call this%write_solution()
     call this%free()
   end subroutine run_simulation
