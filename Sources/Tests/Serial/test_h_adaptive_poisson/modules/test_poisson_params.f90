@@ -42,6 +42,7 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_reference_fe_geo_order
      character(len=:), allocatable :: default_reference_fe_order
      character(len=:), allocatable :: default_write_solution
+     character(len=:), allocatable :: default_laplacian_type
      character(len=:), allocatable :: default_triangulation_type
      character(len=:), allocatable :: default_num_dimensions
      character(len=:), allocatable :: default_nx
@@ -61,6 +62,7 @@ module test_poisson_params_names
      integer(ip)                   :: reference_fe_geo_order
      integer(ip)                   :: reference_fe_order
      logical                       :: write_solution
+     character(len=str_cla_len)    :: laplacian_type
 
      character(len=str_cla_len)    :: triangulation_type
      integer(ip) :: num_dimensions     
@@ -79,6 +81,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
+     procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dimensions
   end type test_poisson_params_t  
@@ -117,6 +120,7 @@ contains
     this%default_reference_fe_geo_order = '1'
     this%default_reference_fe_order = '1'
     this%default_write_solution = '.false.'
+    this%default_laplacian_type = 'scalar'
     
     this%default_triangulation_type = 'unstructured'
     this%default_num_dimensions = '2'
@@ -156,7 +160,10 @@ contains
     check(error==0) 
     call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
          &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
-    check(error==0) 
+    check(error==0)
+    call this%cli%add(switch='--laplacian-type',switch_ab='-lt',help='Scalar or Vector-Valued Laplacian PDE?',&
+         &            required=.false.,act='store',def=trim(this%default_laplacian_type),choices='scalar,vector',error=error) 
+    check(error==0)
     call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
          &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
     check(error==0) 
@@ -198,6 +205,7 @@ contains
     call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=istat); check(istat==0)
     call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
     call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
+    call this%cli%get(switch='-lt',val=this%laplacian_type,error=istat); check(istat==0)
     call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
     call this%cli%get(switch='-dim',val=this%num_dimensions,error=istat); check(istat==0)
     call this%cli%get(switch='-nx',val=this%number_of_cells_per_dir(0),error=istat); check(istat==0)
@@ -234,6 +242,7 @@ contains
     if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
+    if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
     call this%cli%free()
   end subroutine test_poisson_free
 
@@ -284,6 +293,14 @@ contains
     logical :: get_write_solution
     get_write_solution = this%write_solution
   end function get_write_solution
+  
+  !==================================================================================================
+  function get_laplacian_type(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable :: get_laplacian_type
+    get_laplacian_type = trim(this%laplacian_type)
+  end function get_laplacian_type 
   
   !==================================================================================================
   function get_triangulation_type(this)
