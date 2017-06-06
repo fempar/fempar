@@ -81,6 +81,7 @@ module hp_adaptive_fe_space_names
      
      procedure                            :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
      procedure                            :: transfer_dirichlet_to_constraint_dof_coefficients      => shpafs_transfer_dirichlet_to_constraint_dof_coefficients
+     procedure                            :: transfer_dirichlet_to_fe_space                         => shpafs_transfer_dirichlet_to_fe_space
      procedure                            :: free_ptr_constraint_dofs                               => shpafs_free_ptr_constraint_dofs
      procedure                            :: free_constraint_dofs_dependencies                      => shpafs_free_constraint_dofs_dependencies
      procedure                            :: free_constraint_dofs_coefficients                      => shpafs_free_constraint_dofs_coefficients
@@ -819,6 +820,25 @@ subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients(this)
   end do
 end subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients
 
+subroutine shpafs_transfer_dirichlet_to_fe_space(this,fixed_dof_values)
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
+  type(serial_scalar_array_t)         , intent(in)    :: fixed_dof_values
+  type(serial_scalar_array_t), pointer     :: strong_dirichlet_values
+  real(rp)                   , pointer     :: strong_dirichlet_values_entries(:)
+  integer(ip)                              :: i, num_strong_dirichlet_dofs
+  integer(ip)                , allocatable :: indices(:)
+  num_strong_dirichlet_dofs = this%get_number_strong_dirichlet_dofs()
+  call memalloc(num_strong_dirichlet_dofs,indices,__FILE__,__LINE__)
+  indices = (/ (i, i=1,num_strong_dirichlet_dofs) /)
+  strong_dirichlet_values => this%get_strong_dirichlet_values()
+  strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+  call fixed_dof_values%extract_subvector( 1, num_strong_dirichlet_dofs, &
+                                           indices, strong_dirichlet_values_entries )
+  call this%transfer_dirichlet_to_constraint_dof_coefficients()
+  call memfree(indices,__FILE__,__LINE__)
+end subroutine shpafs_transfer_dirichlet_to_fe_space
+
 subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
                                                            triangulation, &
                                                            conditions,    &
@@ -947,6 +967,8 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
   
   call fe_function%create(this)
   fe_function = transformed_fe_function
+  
+  call this%transfer_dirichlet_to_fe_space( fe_function%get_fixed_dof_values() )
   
   call this%free_fe_iterator(new_fe)
   call transformed_fe_function%free()
