@@ -1287,6 +1287,8 @@ procedure          :: interpolate_nodal_values_on_subcell                &
 & => hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell
 procedure          :: project_nodal_values_on_cell                       &
 & => hex_lagrangian_reference_fe_project_nodal_values_on_cell
+procedure          :: get_h_refinement_coefficient                       &
+& => hex_lagrangian_reference_fe_get_h_refinement_coefficient
 procedure          :: get_h_refinement_interpolation                     &
 & => hex_lagrangian_reference_fe_get_h_refinement_interpolation
 procedure          :: get_h_refinement_subedge_permutation               &

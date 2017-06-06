@@ -914,7 +914,7 @@ subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face
   integer(ip)                         , intent(in)    :: n_face_dimension
   integer(ip)           , allocatable , intent(inout) :: permutation_array(:,:,:)
   integer(ip)           :: num_refinements, num_n_faces, num_n_subfaces, num_dofs_on_n_face
-  integer(ip)           :: first_n_face_id, n_face_id, n_subface_id, dof_on_n_subface_id
+  integer(ip)           :: first_n_face_id, n_face_id, n_subface_id, dof_on_n_subface_id, icomp
   type(node_array_t)    :: h_refinement_node_array   
   type(node_iterator_t) :: node_iterator_on_n_subface
   
@@ -930,15 +930,18 @@ subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face
   
   do n_face_id = first_n_face_id, first_n_face_id+num_n_faces-1
      do n_subface_id = 0, num_n_subfaces-1
+        dof_on_n_subface_id = 0
         node_iterator_on_n_subface = h_refinement_node_array%create_node_iterator ( this%polytope%get_n_face(n_face_id), & 
                                                                                     n_subface_id, own_boundary = .true. )
-        dof_on_n_subface_id = 0
-        do while (.not. node_iterator_on_n_subface%has_finished() )
-           dof_on_n_subface_id = dof_on_n_subface_id + 1
-           permutation_array(n_face_id-first_n_face_id+1,n_subface_id+1,dof_on_n_subface_id) = node_iterator_on_n_subface%current()
-           call node_iterator_on_n_subface%next()
+        do icomp = 1, this%number_field_components
+           call node_iterator_on_n_subface%init()
+           do while (.not. node_iterator_on_n_subface%has_finished() )
+              dof_on_n_subface_id = dof_on_n_subface_id + 1
+              permutation_array(n_face_id-first_n_face_id+1,n_subface_id+1,dof_on_n_subface_id) = node_iterator_on_n_subface%current()
+              call node_iterator_on_n_subface%next()
+           end do
         end do
-        !assert( dof_on_n_subface_id == num_dofs_on_n_face )
+        assert( dof_on_n_subface_id == num_dofs_on_n_face )
      end do
   end do
 
@@ -1023,6 +1026,28 @@ subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell ( this,     
   end do
   
 end subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient ( this, ishape_fe,   & 
+                                                                      ishape_coarser_fe, & 
+                                                                      qpoint, coefficient )
+  implicit none 
+  class(hex_lagrangian_reference_fe_t), target, intent(in)    :: this
+  integer(ip)                                 , intent(in)    :: ishape_fe
+  integer(ip)                                 , intent(in)    :: ishape_coarser_fe
+  integer(ip)                                 , intent(in)    :: qpoint
+  real(rp)                                    , intent(inout) :: coefficient
+  assert( ishape_fe >= 1 .and. ishape_fe <= this%number_shape_functions )
+  assert( ishape_coarser_fe >= 1 .and. ishape_coarser_fe <= this%number_shape_functions )
+  assert( qpoint >= 1 )
+  if ( this%node_component_array(ishape_fe,2) == & 
+       this%node_component_array(ishape_coarser_fe,2) ) then
+     coefficient = this%h_refinement_interpolation%shape_functions(1, & 
+                               this%node_component_array(ishape_coarser_fe,1),qpoint)
+  else
+     coefficient = 0.0_rp
+  end if
+end subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient
 
 !==================================================================================================
 function hex_lagrangian_reference_fe_get_h_refinement_interpolation ( this )
