@@ -960,7 +960,7 @@ subroutine hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell ( thi
   real(rp)                            , intent(in)    :: nodal_values_on_parent(:)
   real(rp)                            , intent(inout) :: nodal_values_on_child(:)
   integer(ip)           :: num_refinements
-  integer(ip)           :: i, ishape, qpoint
+  integer(ip)           :: icomp, ishape_fe, ishape_coarser_fe, qpoint
   real(rp)              :: coefficient
   type(node_array_t)    :: h_refinement_node_array
   type(node_iterator_t) :: node_iterator_on_subcell
@@ -972,18 +972,22 @@ subroutine hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell ( thi
                                                                 subcell_id, own_boundary = .true. )
   
   nodal_values_on_child = 0.0_rp
-  i = 0
-  do while (.not. node_iterator_on_subcell%has_finished() )
-     qpoint = node_iterator_on_subcell%current()
-     i = i + 1
-     do ishape = 1, this%get_number_shape_functions()
-        call this%get_value(this%h_refinement_interpolation,ishape,qpoint,coefficient)
-        nodal_values_on_child(i) = nodal_values_on_child(i) + &
-                                   coefficient * nodal_values_on_parent(ishape)
+  ishape_fe = 0
+  do icomp = 0, this%number_field_components-1
+     call node_iterator_on_subcell%init()
+     do while (.not. node_iterator_on_subcell%has_finished() )
+        qpoint = node_iterator_on_subcell%current()
+        ishape_fe = ishape_fe + 1
+        do ishape_coarser_fe = 1, this%get_number_shape_functions()
+           call this%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient)
+           nodal_values_on_child(ishape_fe) = nodal_values_on_child(ishape_fe) + &
+                                      coefficient * nodal_values_on_parent(ishape_coarser_fe)
+        end do
+        call node_iterator_on_subcell%next()
      end do
-     call node_iterator_on_subcell%next()
   end do
-
+  assert( ishape_fe == this%get_number_shape_functions() )
+  
   call h_refinement_node_array%free()
   
 end subroutine hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell
@@ -999,30 +1003,35 @@ subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell ( this,     
   type(node_iterator_t) :: node_iterator
   integer(ip)           :: parent_index, parent_ijk, parent_coordinate(0:SPACE_DIM-1)
   integer(ip)           :: child_coordinate(0:SPACE_DIM-1), child_index, subcell_id
-  integer(ip)           :: i
+  integer(ip)           :: i, icomp
   
   node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%number_n_faces), &
                                                         own_boundary = .true. )
   
-  do while (.not. node_iterator%has_finished() )
-     subcell_id        = 0
-     parent_index      = node_iterator%current()
-     parent_ijk        = node_iterator%current_ijk()
-     parent_coordinate = node_iterator%coordinate
-     child_coordinate  = 2 * parent_coordinate
-     do i = 0,this%node_array%polytope_tree%number_dimensions-1
-        if ( child_coordinate(i) .ge. this%order_vector(i+1) ) then
-           child_coordinate(i) = child_coordinate(i) - this%order_vector(i+1)
-           subcell_id = IBSET(subcell_id,i)
-        end if
+  do icomp = 0, this%number_field_components-1
+     call node_iterator%init()
+     do while (.not. node_iterator%has_finished() )
+        subcell_id        = 0
+        parent_index      = node_iterator%current()
+        parent_ijk        = node_iterator%current_ijk()
+        parent_coordinate = node_iterator%coordinate
+        child_coordinate  = 2 * parent_coordinate
+        do i = 0,this%node_array%polytope_tree%number_dimensions-1
+           if ( child_coordinate(i) .ge. this%order_vector(i+1) ) then
+              child_coordinate(i) = child_coordinate(i) - this%order_vector(i+1)
+              subcell_id = IBSET(subcell_id,i)
+           end if
+        end do
+        child_index = ijk_to_index( child_coordinate,      &
+                                    this%node_array%order, &
+                                    this%node_array%polytope_tree%number_dimensions )
+        child_index = this%node_array%ijk_to_index( child_index ) + &
+                      icomp * this%node_array%number_nodes
+        parent_index = parent_index + icomp * this%node_array%number_nodes
+        nodal_values_on_parent( parent_index ) = nodal_values_on_children( subcell_id+1, &
+                                                                           child_index )
+        call node_iterator%next()
      end do
-     child_index = ijk_to_index( child_coordinate,      &
-                                 this%node_array%order, &
-                                 this%node_array%polytope_tree%number_dimensions )
-     child_index = this%node_array%ijk_to_index( child_index )
-     nodal_values_on_parent( parent_index ) = nodal_values_on_children( subcell_id+1, &
-                                                                        child_index )
-     call node_iterator%next()
   end do
   
 end subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell
