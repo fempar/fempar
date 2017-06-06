@@ -631,7 +631,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   integer(ip) :: improper_dof_lid
   integer(ip) :: improper_vef_ivef, coarser_fe_ivef, coarse_fe_subvef
   integer(ip), pointer :: field_blocks(:)
-  integer(ip) :: qpoint, ishape
+  integer(ip) :: qpoint, ishape_fe, ishape_coarser_fe
   type(interpolation_t), pointer :: h_refinement_interpolation
   integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
   integer(ip), pointer :: h_refinement_subface_permutation(:,:,:)
@@ -730,12 +730,8 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         reference_fe => fe%get_reference_fe(field_id)
         coarser_reference_fe => coarser_fe%get_reference_fe(field_id)
         
-        assert ( reference_fe%get_field_type() == field_type_scalar )
-        assert ( coarser_reference_fe%get_field_type() == field_type_scalar )
-        
         select type(coarser_reference_fe)
         type is (hex_lagrangian_reference_fe_t)
-           h_refinement_interpolation       => coarser_reference_fe%get_h_refinement_interpolation()
            h_refinement_subedge_permutation => coarser_reference_fe%get_h_refinement_subedge_permutation()
            h_refinement_subface_permutation => coarser_reference_fe%get_h_refinement_subface_permutation()
         class default
@@ -746,13 +742,14 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
         fe_dofs_on_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(improper_vef_ivef)
         do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
-           improper_dof_lid = elem2dof(field_id)%p(fe_own_dofs_on_vef_iterator%get_current())
+           ishape_fe = fe_own_dofs_on_vef_iterator%get_current()
+           improper_dof_lid = elem2dof(field_id)%p(ishape_fe)
            assert ( fe%is_fixed_dof(improper_dof_lid) )
            improper_dof_lid = abs(improper_dof_lid)   
            
            call fe_dofs_on_vef_iterator%begin() 
            do while (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
-             if ( fe_dofs_on_vef_iterator%get_current() == fe_own_dofs_on_vef_iterator%get_current() ) exit
+             if ( fe_dofs_on_vef_iterator%get_current() == ishape_fe ) exit
              call fe_dofs_on_vef_iterator%next() 
            end do
            assert (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
@@ -773,16 +770,21 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
                                                         coarse_fe_subvef, &
                                                         fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
            end if
-            
+           
            coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
            do while (.not. coarser_fe_dofs_on_vef_iterator %is_upper_bound() )
               
-              ishape = coarser_fe_dofs_on_vef_iterator%get_current() 
+              ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current() 
               call this%constraint_dofs_dependencies%set(this%ptr_constraint_dofs%get(improper_dof_lid),&
-                                                         coarser_fe_elem2dof(field_id)%p(ishape))
-              
+                                                         coarser_fe_elem2dof(field_id)%p(ishape_coarser_fe))
+
               ! Evaluate coefficient and push_back into the corresponding std_vector data structure
-              call coarser_reference_fe%get_value(h_refinement_interpolation, ishape, qpoint, coefficient) 
+              select type(coarser_reference_fe)
+                type is (hex_lagrangian_reference_fe_t)
+                call coarser_reference_fe%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient) 
+              class default
+                assert(.false.)
+              end select
               call this%constraint_dofs_coefficients%set(this%ptr_constraint_dofs%get(improper_dof_lid),&
                                                          coefficient)
 
