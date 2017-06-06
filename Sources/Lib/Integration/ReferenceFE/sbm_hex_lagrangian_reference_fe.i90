@@ -938,7 +938,7 @@ subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face
            permutation_array(n_face_id-first_n_face_id+1,n_subface_id+1,dof_on_n_subface_id) = node_iterator_on_n_subface%current()
            call node_iterator_on_n_subface%next()
         end do
-        assert( dof_on_n_subface_id == num_dofs_on_n_face )
+        !assert( dof_on_n_subface_id == num_dofs_on_n_face )
      end do
   end do
 
