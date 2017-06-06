@@ -182,6 +182,10 @@ contains
     class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
     character(:)                    , allocatable :: field_type
     
+    type(interpolation_t), pointer :: h_refinement_interpolation
+    integer(ip), pointer :: h_refinement_subface_permutation(:,:,:)
+    integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
+    
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
@@ -199,6 +203,16 @@ contains
                                                  field_type = field_type, &
                                                  continuity = .true. )
     call this%triangulation%free_cell_iterator(cell)
+    
+    select type( reference_fe => this%reference_fes(1)%p )
+    type is (hex_lagrangian_reference_fe_t)
+       h_refinement_interpolation       => reference_fe%get_h_refinement_interpolation()
+       h_refinement_subface_permutation => reference_fe%get_h_refinement_subface_permutation()
+       h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedge_permutation()
+    class default
+      assert(.false.)
+    end select
+    
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
@@ -244,14 +258,26 @@ contains
        end if
        call this%fill_cells_set()
        call this%triangulation%refine_and_coarsen()
-    
-       call this%fe_space%refine_and_coarsen( triangulation = this%triangulation,      &
-                                              conditions    = this%poisson_conditions, &
-                                              reference_fes = this%reference_fes,      &
-                                              fe_function   = this%solution )
+       
+       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+         call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,      &
+                                                conditions          = this%poisson_conditions, &
+                                                reference_fes       = this%reference_fes,      &
+                                                fe_function         = this%solution ) 
+       else
+         call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
+                                                conditions          = this%vector_poisson_conditions, &
+                                                reference_fes       = this%reference_fes,      &
+                                                fe_function         = this%solution )
+       end if
+       
        call this%fe_space%initialize_fe_integration()
        
-       call this%check_solution()
+       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+         call this%check_solution()
+       else
+         call this%check_solution_vector()
+       end if
        
     end do  
     
@@ -367,12 +393,12 @@ contains
     
     call this%solution%update_fixed_dof_values(this%fe_space)
     
-    select type (dof_values)
-    class is (serial_scalar_array_t)  
-       call dof_values%print(6)
-    class DEFAULT
-       assert(.false.) 
-    end select
+    !select type (dof_values)
+    !class is (serial_scalar_array_t)  
+    !   call dof_values%print(6)
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
     
     !select type (matrix)
     !class is (sparse_matrix_t)  
@@ -501,7 +527,7 @@ contains
     else
       call this%check_solution_vector()
     end if
-    !call this%refine_and_coarsen()
+    call this%refine_and_coarsen()
     call this%write_solution()
     call this%free()
   end subroutine run_simulation
