@@ -201,7 +201,7 @@ contains
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
-                                                 continuity = .true. )
+                                                 conformity = .true. )
     call this%triangulation%free_cell_iterator(cell)
     
     select type( reference_fe => this%reference_fes(1)%p )

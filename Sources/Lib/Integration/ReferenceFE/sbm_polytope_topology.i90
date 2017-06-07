@@ -639,16 +639,16 @@ subroutine node_iterator_create_on_n_subface ( this, node_array, n_face, n_subfa
   this%topology = 0
   this%n_face = n_face
   this%own_boundary = own_boundary
-  ! Restrict the topology of the polytope_tree to the current n-face
+  ! Restrict the topology of the polytope to the current n-face
   c = 0
   aux_order = 0
   num_refinements = 1
   this%min_value = 0
-  do i = 0, node_array%polytope_tree%number_dimensions-1
-     if ( IBITS( this%n_face, node_array%polytope_tree%number_dimensions+i, 1 ) == 1 ) then 
+  do i = 0, node_array%polytope%number_dimensions-1
+     if ( IBITS( this%n_face, node_array%polytope%number_dimensions+i, 1 ) == 1 ) then 
         aux_order(c+1) = node_array%order(i+1) / ( num_refinements + 1 )
         if ( IBITS( n_subface, c, 1 ) == 1 ) this%min_value(c) = aux_order(c+1)
-        if ( IBITS( this%node_array%polytope_tree%topology, i, 1 ) == 1 ) then 
+        if ( IBITS( this%node_array%polytope%topology, i, 1 ) == 1 ) then 
            this%topology = IBSET( this%topology, c )
         else
            write(*,*) 'ERROR: node_iterator_create_on_n_subface not implemented for pyramid extended polytopes',__FILE__,__LINE__
