@@ -171,14 +171,14 @@ contains
                                                  number_dimensions = this%triangulation%get_num_dimensions(),      &
                                                  order = this%test_params%get_magnetic_field_reference_fe_order(), &
                                                  field_type = field_type_vector,                                   &
-                                                 continuity = .true. ) 
+                                                 conformity = .true. ) 
     
     this%reference_fes(2) =  make_reference_fe ( topology = topology_hex,                                             &
                                                  fe_type = fe_type_lagrangian,                                        &
                                                  number_dimensions = this%triangulation%get_num_dimensions(),         &
                                                  order = this%test_params%get_magnetic_pressure_reference_fe_order(), &
                                                  field_type = field_type_scalar,                                      &
-                                                 continuity = .true. ) 
+                                                 conformity = .true. ) 
     
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)

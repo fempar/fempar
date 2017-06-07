@@ -595,7 +595,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
               ivef = fe%find_lpos_vef_lid(vef%get_lid())
               reference_fe => fe%get_reference_fe(field_id)
               result_previous = result
-              result = result + reference_fe%get_number_own_nodes_n_face(ivef)
+              result = result + reference_fe%get_number_own_dofs_n_face(ivef)
               if (result>result_previous) touched_neighbours (local_part_id) = .true.
            end if
         end if
@@ -794,7 +794,7 @@ function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity( this, fie
                  touched_neighbours (local_part_id) = .true.
                  ivef = fe%find_lpos_vef_lid(vef%get_lid())
                  reference_fe => fe%get_reference_fe(field_id)
-                 result = result + reference_fe%get_number_own_nodes_n_face(ivef)
+                 result = result + reference_fe%get_number_own_dofs_n_face(ivef)
               end if
            end if
         end do

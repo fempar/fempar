@@ -262,7 +262,7 @@ contains
     
     ! Locals
     integer(ip) :: istat    
-    logical                                   :: continuity
+    logical                                   :: conformity
     class(cell_iterator_t)      , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     character(:), allocatable :: field_type
@@ -275,9 +275,9 @@ contains
     end if
     check(istat==0)
     
-    continuity = .true.
+    conformity = .true.
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
-      continuity = .false.
+      conformity = .false.
     end if
     
     field_type = field_type_scalar
@@ -292,7 +292,7 @@ contains
                                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                                  order = this%test_params%get_reference_fe_order(), &
                                                                  field_type = field_type, &
-                                                                 continuity = continuity )
+                                                                 conformity = conformity )
     
     if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
          this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
@@ -300,7 +300,7 @@ contains
                                                                       number_dimensions = this%triangulation%get_num_dimensions(), &
                                                                       order = -1, &
                                                                       field_type = field_type, &
-                                                                      continuity = continuity )
+                                                                      conformity = conformity )
     end if
 
     call this%triangulation%free_cell_iterator(cell)

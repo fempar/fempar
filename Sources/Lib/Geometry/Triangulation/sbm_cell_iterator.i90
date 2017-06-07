@@ -393,8 +393,8 @@ subroutine cell_iterator_fill_nodes_on_vertices (this)
 
   reference_fe => this%get_reference_fe_geo()
   do ivef=1,reference_fe%get_number_n_faces_of_dimension(0)
-     assert(reference_fe%get_number_own_nodes_n_face(ivef)==1)
-     inode = reference_fe%get_own_node_n_face(1,ivef)
+     assert(reference_fe%get_number_own_dofs_n_face(ivef)==1)
+     inode = reference_fe%get_own_dof_n_face(1,ivef)
      lnode = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid) + ivef - 1 )
      this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid) + inode - 1 ) = lnode
   end do
@@ -412,8 +412,8 @@ subroutine cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
   reference_fe => this%get_reference_fe_geo()
   ivef_pos_in_cell = this%find_lpos_vef_lid(ivef)
 
-  do inode = 1,reference_fe%get_number_own_nodes_n_face(ivef_pos_in_cell)
-    l_node = reference_fe%get_own_node_n_face(inode,ivef_pos_in_cell)
+  do inode = 1,reference_fe%get_number_own_dofs_n_face(ivef_pos_in_cell)
+    l_node = reference_fe%get_own_dof_n_face(inode,ivef_pos_in_cell)
     assert(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+l_node-1)<=0)
     if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+l_node-1)==0) then
        node_count = node_count + 1
@@ -454,7 +454,7 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   assert(size(source_vefs)==source_ref_fe%get_number_n_faces())
   assert(size(target_vefs)==target_ref_fe%get_number_n_faces())
 
-  own_nnode = source_ref_fe%get_number_own_nodes_n_face(source_vef_lid)
+  own_nnode = source_ref_fe%get_number_own_dofs_n_face(source_vef_lid)
 
   if ( own_nnode > 0 ) then
 
@@ -470,8 +470,8 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
           &                                           target_vef_lid)
      
      do own_inode = 1, own_nnode
-        inode_source = source_ref_fe%get_own_node_n_face(own_inode,source_vef_lid)
-        inode_target = target_ref_fe%get_permuted_own_node_n_face(own_inode,               &
+        inode_source = source_ref_fe%get_own_dof_n_face(own_inode,source_vef_lid)
+        inode_target = target_ref_fe%get_permuted_own_dof_n_face(own_inode,               &
              &                          target_vef_lid, relative_orientation,relative_rotation)
         assert ( target_node_list(inode_target) <= 0 )
         if ( target_node_list(inode_target) == 0 ) then
@@ -492,8 +492,8 @@ subroutine cell_iterator_fill_internal_nodes_new(this,node_count)
   reference_fe => this%get_reference_fe_geo()  
   
   ivef = reference_fe%get_number_n_faces()+1 ! volume
-  do inode = 1, reference_fe%get_number_own_nodes_n_face(ivef)
-     l_node = reference_fe%get_own_node_n_face(inode,ivef)
+  do inode = 1, reference_fe%get_number_own_dofs_n_face(ivef)
+     l_node = reference_fe%get_own_dof_n_face(inode,ivef)
      node_count = node_count +1
      this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)-1+l_node) = node_count
   end do
