@@ -1178,8 +1178,8 @@ contains
              & => tet_lagrangian_reference_fe_invert_change_basis_matrix
    procedure, private :: apply_change_basis_matrix_to_interpolation                     &
              & => tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
-   procedure :: get_permuted_own_node_n_face                                            &
-             & => tet_lagrangian_reference_fe_get_permuted_own_node_n_face
+   procedure :: get_permuted_own_dof_n_face                                            &
+             & => tet_lagrangian_reference_fe_get_permuted_own_dof_n_face
 end type tet_lagrangian_reference_fe_t
 
 public :: tet_lagrangian_reference_fe_t

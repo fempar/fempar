@@ -1410,7 +1410,7 @@ end subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation
 
 
 !==================================================================================================
-function tet_lagrangian_reference_fe_get_permuted_own_node_n_face(this,inode,target_n_face_id,     &
+function tet_lagrangian_reference_fe_get_permuted_own_dof_n_face(this,inode,target_n_face_id,     &
      &                                               relative_orientation, relative_rotation)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)  :: this
@@ -1418,9 +1418,9 @@ function tet_lagrangian_reference_fe_get_permuted_own_node_n_face(this,inode,tar
   integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
   integer(ip)                         , intent(in)  :: relative_orientation
   integer(ip)                         , intent(in)  :: relative_rotation
-  integer(ip) :: tet_lagrangian_reference_fe_get_permuted_own_node_n_face
-  integer(ip) :: n_face_dimension, permutation_key, permuted_own_node
+  integer(ip) :: tet_lagrangian_reference_fe_get_permuted_own_dof_n_face
+  integer(ip) :: n_face_dimension, permutation_key, permuted_own_dof
   
-  permuted_own_node = inode
-  tet_lagrangian_reference_fe_get_permuted_own_node_n_face = this%get_own_dof_n_face(permuted_own_node, target_n_face_id)
-end function tet_lagrangian_reference_fe_get_permuted_own_node_n_face
+  permuted_own_dof = inode
+  tet_lagrangian_reference_fe_get_permuted_own_dof_n_face = this%get_own_dof_n_face(permuted_own_dof, target_n_face_id)
+end function tet_lagrangian_reference_fe_get_permuted_own_dof_n_face

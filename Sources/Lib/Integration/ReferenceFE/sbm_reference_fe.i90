@@ -446,21 +446,21 @@ function reference_fe_get_permuted_own_dof_n_face(this,inode,target_n_face_id,  
   integer(ip)          , intent(in)  :: relative_orientation
   integer(ip)          , intent(in)  :: relative_rotation
   integer(ip) :: reference_fe_get_permuted_own_dof_n_face
-  integer(ip) :: n_face_dimension, permutation_key, permuted_own_node
+  integer(ip) :: n_face_dimension, permutation_key, permuted_own_dof
 
   n_face_dimension = this%get_n_face_dimension(target_n_face_id)
 
   if ( n_face_dimension == 0 ) then
-     permuted_own_node = inode
+     permuted_own_dof = inode
   else
      permutation_key = relative_rotation +                                                         &
           &              this%number_rotations_per_dimension(n_face_dimension)*relative_orientation
 
-     permuted_own_node = this%own_node_permutations          &
+     permuted_own_dof = this%own_node_permutations          &
           & (n_face_dimension)%a(inode,permutation_key)
 
   end if
-  reference_fe_get_permuted_own_dof_n_face = this%get_own_dof_n_face(permuted_own_node, target_n_face_id)
+  reference_fe_get_permuted_own_dof_n_face = this%get_own_dof_n_face(permuted_own_dof, target_n_face_id)
 end function reference_fe_get_permuted_own_dof_n_face
 
 !==================================================================================================
