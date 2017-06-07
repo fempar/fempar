@@ -58,9 +58,8 @@ contains
     class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    type(fe_iterator_t) :: fe_iterator
-    type(fe_accessor_t) :: fe
-    
+    class(fe_iterator_t), allocatable :: fe
+
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
@@ -74,7 +73,7 @@ contains
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs
+    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     real(rp)     :: factor
     real(rp)     :: source_term_value
 
@@ -95,24 +94,24 @@ contains
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
-        
-    fe_iterator = fe_space%create_fe_iterator()
-    call fe_iterator%current(fe)
-    num_dofs = fe%get_number_dofs()
-    call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
-    call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
+    
+    max_num_dofs = fe_space%get_max_number_dofs_on_a_cell()
+    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
+    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
     call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
-    fe_map          => fe%get_fe_map()
-    vol_int         => fe%get_volume_integrator(1)
-    do while ( .not. fe_iterator%has_finished() )
-       ! Get current FE
-       call fe_iterator%current(fe)
+    call fe_space%create_fe_iterator(fe)
+    do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
        call fe%update_integration()
+          
+       ! Very important: this has to be inside the loop, as different FEs can be present!
+       quad            => fe%get_quadrature()
+       num_quad_points = quad%get_number_quadrature_points()
+       fe_map          => fe%get_fe_map()
+       vol_int         => fe%get_volume_integrator(1)
+       num_dofs = fe%get_number_dofs()
+       call fe%get_number_dofs_per_field(num_dofs_per_field)
        
        ! Get DoF numbering within current FE
        call fe%get_elem2dof(elem2dof)
@@ -144,8 +143,10 @@ contains
        ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
-       call fe_iterator%next()
+       call fe%next()
     end do
+    call fe_space%free_fe_iterator(fe)
+
     call memfree(shape_values, __FILE__, __LINE__)
     deallocate (shape_gradients, stat=istat); check(istat==0);
     deallocate (elem2dof, stat=istat); check(istat==0);

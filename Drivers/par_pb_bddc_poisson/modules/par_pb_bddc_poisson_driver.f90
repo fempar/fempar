@@ -49,8 +49,9 @@ module par_pb_bddc_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(H1_l1_coarse_fe_handler_t)           :: H1_coarse_fe_handler
-     type(standard_l1_coarse_fe_handler_t)     :: standard_coarse_fe_handler
+     type(H1_l1_coarse_fe_handler_t)             :: H1_coarse_fe_handler
+     type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
+     type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -74,10 +75,11 @@ module par_pb_bddc_poisson_driver_names
      procedure                  :: run_simulation
      procedure                  :: parse_command_line_parameters
      procedure                  :: setup_environment
-     procedure                  :: get_icontxt
+     !procedure                  :: get_icontxt
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_cell_set_ids
      procedure        , private :: setup_reference_fes
+     procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
@@ -105,22 +107,21 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef
+    type(vef_iterator_t)  :: vef
     
     call this%triangulation%create(this%parameter_list, this%environment)
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       vef_iterator = this%triangulation%create_vef_iterator()
-       do while ( .not. vef_iterator%has_finished() )
-          call vef_iterator%current(vef)
+       call this%triangulation%create_vef_iterator(vef)
+       do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
-          call vef_iterator%next()
+          call vef%next()
        end do
+       call this%triangulation%free_vef_iterator(vef)
     end if
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
@@ -137,9 +138,7 @@ contains
   subroutine setup_cell_set_ids(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t)                     :: cell
+    class(cell_iterator_t), allocatable       :: cell
     integer(ip)                               :: istat
     integer(ip), allocatable                  :: cells_set(:)
     type(point_t), allocatable :: cell_coords(:)
@@ -151,11 +150,9 @@ contains
 
     if ( this%environment%am_i_l1_task() ) then
        call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
-       cell_iterator = this%triangulation%create_cell_iterator()
-       call cell_iterator%current(cell)
+       call this%triangulation%create_cell_iterator(cell)
        allocate (cell_coords(cell%get_num_nodes()),stat=istat)
-       do while( .not. cell_iterator%has_finished() )
-          call cell_iterator%current(cell)
+       do while( .not. cell%has_finished() )
           if ( cell%is_local() ) then
              call cell%get_coordinates(cell_coords)
              call grav_center%init(0.0_rp)
@@ -167,11 +164,13 @@ contains
                   this%triangulation%get_num_dimensions(), &
                   this%test_params%get_jump(), this%test_params%get_inclusion() )
           end if
-          call cell_iterator%next()
+          call cell%next()
        end do
        call this%triangulation%fill_cells_set( cells_set )
        call memfree( cells_set, __FILE__, __LINE__ )
+       call this%triangulation%free_cell_iterator(cell)
     end if
+    
   end subroutine setup_cell_set_ids
 
   function cell_set_id( coord, num_dimensions, jump, inclusion )
@@ -281,43 +280,47 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t)                     :: cell
+    class(cell_iterator_t), allocatable       :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
 
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
     if ( this%environment%am_i_l1_task() ) then
-       cell_iterator = this%triangulation%create_cell_iterator()
-       call cell_iterator%current(cell)
+       call this%triangulation%create_cell_iterator(cell)
        reference_fe_geo => cell%get_reference_fe_geo()
        this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
             fe_type = fe_type_lagrangian, &
             number_dimensions = this%triangulation%get_num_dimensions(), &
             order = this%test_params%get_reference_fe_order(), &
             field_type = field_type_scalar, &
-            continuity = .true. )
+            conformity = .true. )
+       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine setup_reference_fes
 
+  subroutine setup_coarse_fe_handlers(this)
+    implicit none
+    class(par_pb_bddc_poisson_driver_t), intent(inout) :: this
+    integer(ip) :: istat
+    allocate(this%coarse_fe_handlers(1), stat=istat)
+    check(istat==0)
+
+    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+       this%coarse_fe_handlers(1)%p => this%H1_coarse_fe_handler
+    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
+       this%coarse_fe_handlers(1)%p => this%standard_coarse_fe_handler
+    end if
+  end subroutine setup_coarse_fe_handlers
+  
   subroutine setup_fe_space(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
-    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
-       call this%fe_space%create( triangulation       = this%triangulation, &
-                                  conditions          = this%poisson_conditions, &
-                                  reference_fes       = this%reference_fes, &
-                                  coarse_fe_handler   = this%H1_coarse_fe_handler)
-    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
-       call this%fe_space%create( triangulation       = this%triangulation, &
-                                  conditions          = this%poisson_conditions, &
-                                  reference_fes       = this%reference_fes, &
-                                  coarse_fe_handler   = this%standard_coarse_fe_handler)
-    else
-      check(.false.)
-    end if
+    call this%fe_space%create( triangulation       = this%triangulation, &
+                               conditions          = this%poisson_conditions, &
+                               reference_fes       = this%reference_fes, &
+                               coarse_fe_handlers  = this%coarse_fe_handlers)
 
     call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
@@ -462,9 +465,8 @@ contains
     class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
     type(output_handler_t)                             :: oh
     type(parameterlist_t)                              :: parameter_list
-    type(fe_iterator_t)                                :: fe_iterator
     class(base_static_triangulation_t), pointer        :: triangulation
-    type(fe_accessor_t)                                :: fe
+    class(fe_iterator_t), allocatable :: fe
     real(rp), allocatable                              :: set_id_cell_vector(:)
     integer(ip)                                        :: i, istat
     if(this%test_params%get_write_solution()) then
@@ -486,18 +488,18 @@ contains
     end if
   contains
     subroutine build_set_id_cell_vector()
-      fe_iterator = this%fe_space%create_fe_iterator()
       triangulation => this%fe_space%get_triangulation()
       call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
       i = 1
-      do while (.not. fe_iterator%has_finished())
-         call fe_iterator%current(fe)
+      call this%fe_space%create_fe_iterator(fe)  
+      do while ( .not. fe%has_finished())
          if (fe%is_local()) then
             set_id_cell_vector(i) = fe%get_set_id()
             i = i + 1
          end if
-         call fe_iterator%next()
+         call fe%next()
       enddo
+      call this%fe_space%free_fe_iterator(fe)  
     end subroutine build_set_id_cell_vector
 
     subroutine free_set_id_cell_vector()
@@ -509,7 +511,7 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    type(par_timer_t) :: t_solve_system
+    type(timer_t) :: t_solve_system
     
     !call this%free()
     !call this%parse_command_line_parameters()
@@ -519,7 +521,7 @@ contains
     call this%setup_system()
     call this%assemble_system()
     
-    call t_solve_system%create("SOLVE SYSTEM", this%get_icontxt(), 0)
+    call t_solve_system%create(this%environment%get_w_context() , "SOLVE SYSTEM", TIMER_MODE_MIN)
     call t_solve_system%start()
     call this%setup_solver()
     call this%solution%create(this%fe_space) 
@@ -554,17 +556,17 @@ contains
   end subroutine free
 
 
-  function get_icontxt(this)
-    implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
-    integer(ip) :: get_icontxt
-    class(execution_context_t), pointer :: w_context
-    w_context => this%environment%get_w_context()
-    select type(w_context)
-    type is (mpi_context_t)
-       get_icontxt = w_context%get_icontxt()
-    end select
-  end function get_icontxt
+  !function get_icontxt(this)
+  !  implicit none
+  !  class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+  !  integer(ip) :: get_icontxt
+  !  class(execution_context_t), pointer :: w_context
+  !  w_context => this%environment%get_w_context()
+  !  select type(w_context)
+  !  type is (mpi_context_t)
+  !     get_icontxt = w_context%get_icontxt()
+  !  end select
+  !end function get_icontxt
   
   subroutine free_command_line_parameters(this)
     implicit none

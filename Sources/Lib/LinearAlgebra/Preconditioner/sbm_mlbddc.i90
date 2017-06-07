@@ -25,22 +25,21 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine mlbddc_create ( this, fe_affine_operator, parameter_list )
+subroutine mlbddc_create ( this, fe_affine_operator, mlbddc_params )
   implicit none
   class(mlbddc_t)                   , intent(inout) :: this
   type(fe_affine_operator_t), target, intent(in)    :: fe_affine_operator
-  type(parameterlist_t)    , target , intent(in)    :: parameter_list
+  type(parameterlist_t)    , target , intent(in)    :: mlbddc_params
   type(par_fe_space_t), pointer :: fe_space
 
   call this%free()
 
   this%fe_affine_operator => fe_affine_operator
-  this%parameter_list     => parameter_list
+  this%mlbddc_params      => mlbddc_params
   fe_space                => this%get_par_fe_space()
   call this%create_vector_spaces()
 
   assert ( fe_space%get_number_blocks() == 1 )
-  assert ( fe_space%get_number_fields() == 1 )
 end subroutine mlbddc_create
 
 subroutine mlbddc_create_vector_spaces (this)
@@ -63,12 +62,34 @@ subroutine mlbddc_setup_constraint_matrix (this)
   class(mlbddc_t), intent(inout) :: this
   type(par_fe_space_t)         , pointer :: par_fe_space
   class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+  integer(ip) :: field_id, num_rows, num_cols
+  integer(ip) :: block_id
+  integer(ip), pointer :: field_blocks(:)
+
+  ! To think about
+  block_id = 1
+  
   assert ( this%am_i_l1_task() )
-  par_fe_space      => this%get_par_fe_space()
-  coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
-  call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = par_fe_space, &
-                                                 parameter_list    = this%parameter_list, &
-                                                 constraint_matrix = this%constraint_matrix)
+  par_fe_space => this%get_par_fe_space()
+  field_blocks => par_fe_space%get_field_blocks()
+
+  ! Free any dynamic memory that constraint_matrix may have inside and create it (transposed)
+  call this%constraint_matrix%free()
+  num_cols = par_fe_space%get_block_number_dofs        (block_id=block_id)
+  num_rows = par_fe_space%get_block_number_coarse_dofs (block_id=block_id) 
+  call this%constraint_matrix%create ( num_cols, num_rows )
+  
+  do field_id = 1, par_fe_space%get_number_fields()
+     if ( field_blocks(field_id) == block_id ) then
+        coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
+        call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = par_fe_space, &
+                                                       field_id          = field_id, &
+                                                       parameter_list    = this%mlbddc_params, &
+                                                       constraint_matrix = this%constraint_matrix)
+     end if
+  end do
+  call this%constraint_matrix%sort_and_compress()
+
 end subroutine mlbddc_setup_constraint_matrix
   
 subroutine mlbddc_setup_weighting_operator (this)
@@ -76,12 +97,32 @@ subroutine mlbddc_setup_weighting_operator (this)
  class(mlbddc_t), intent(inout) :: this
  type(par_fe_space_t), pointer :: par_fe_space
  class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+ integer(ip) :: field_id, num_rows
+ integer(ip) :: block_id
+ integer(ip), pointer :: field_blocks(:)
+
+ ! To think about
+ block_id = 1
+ 
  assert ( this%am_i_l1_task() )
- par_fe_space      => this%get_par_fe_space()
- coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
- call coarse_fe_handler%setup_weighting_operator(par_fe_space       = par_fe_space, &
-                                                 parameter_list     = this%parameter_list, &
-                                                 weighting_operator = this%W )
+ par_fe_space => this%get_par_fe_space()
+ field_blocks => par_fe_space%get_field_blocks()
+
+  if (allocated(this%W) ) call memfree ( this%W, __FILE__, __LINE__ )
+  num_rows = par_fe_space%get_block_number_dofs(block_id=block_id)
+  call memalloc ( num_rows, this%W, __FILE__, __LINE__ )
+  this%W = 1.0_rp
+
+ do field_id = 1, par_fe_space%get_number_fields()
+    if ( field_blocks(field_id) == block_id ) then
+       coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
+       call coarse_fe_handler%setup_weighting_operator(par_fe_space       = par_fe_space, &
+                                                       field_id           = field_id, &
+                                                       parameter_list     = this%mlbddc_params, &
+                                                       weighting_operator = this%W )
+     end if
+  end do
+
 end subroutine mlbddc_setup_weighting_operator
 
 ! Helper function that extracts a run-time polymorphic class(matrix_t)
@@ -122,7 +163,7 @@ function mlbddc_get_par_fe_space(this)
   class(serial_fe_space_t) , pointer    :: fe_space
   fe_space => this%fe_affine_operator%get_fe_space()
   select type(fe_space)
-  type is (par_fe_space_t)
+  class is (par_fe_space_t)
      mlbddc_get_par_fe_space => fe_space
      class default
      check(.false.)

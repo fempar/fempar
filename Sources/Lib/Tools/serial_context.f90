@@ -53,6 +53,7 @@ module serial_context_names
      procedure :: max_scalar_rp      => serial_context_max_scalar_rp
      procedure :: max_vector_rp      => serial_context_max_vector_rp
      procedure :: min_scalar_rp      => serial_context_min_scalar_rp
+     procedure :: max_scalar_ip      => serial_context_max_scalar_ip
      procedure :: scatter            => serial_context_scatter_scalar_ip
      procedure :: gather             => serial_context_gather_scalar_ip
      procedure :: bcast              => serial_context_bcast_scalar_ip
@@ -64,6 +65,8 @@ module serial_context_names
      procedure, private :: neighbours_exchange_wo_pack_unpack_ieep =>  serial_context_neighbours_exchange_wo_pack_unpack_ieep
      procedure, private :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
      procedure, private :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
+     procedure, private :: root_send_master_rcv_rp          => serial_context_root_send_master_rcv_rp
+     procedure, private :: root_send_master_rcv_rp_1D_array => serial_context_root_send_master_rcv_rp_1D_array
      procedure, private :: gather_to_master_ip              => serial_context_gather_to_master_ip           
      procedure, private :: gather_to_master_igp             => serial_context_gather_to_master_igp          
      procedure, private :: gather_to_master_ip_1D_array     => serial_context_gather_to_master_ip_1D_array  
@@ -201,6 +204,13 @@ contains
     class(serial_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha
   end subroutine serial_context_min_scalar_rp
+  
+  !=============================================================================
+  subroutine serial_context_max_scalar_ip (this,n)
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(ip)             , intent(inout) :: n
+  end subroutine serial_context_max_scalar_ip
 
   !=============================================================================
   subroutine serial_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
@@ -338,6 +348,24 @@ contains
     check(.false.)       ! This routine should be never called
   end subroutine serial_context_root_send_master_rcv_ip_1D_array
 
+  !=============================================================================
+  subroutine serial_context_root_send_master_rcv_rp ( this, input_data, output_data )
+    implicit none
+    class(serial_context_t), intent(in)      :: this
+    real(rp)            , intent(in)      :: input_data
+    real(rp)            , intent(inout)   :: output_data
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_root_send_master_rcv_rp
+
+  !=============================================================================
+  subroutine serial_context_root_send_master_rcv_rp_1D_array ( this, input_data, output_data )
+    implicit none
+    class(serial_context_t), intent(in)      :: this
+    real(rp)            , intent(in)      :: input_data(:)
+    real(rp)            , intent(inout)   :: output_data(:)
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_root_send_master_rcv_rp_1D_array
+  
   !=============================================================================
   !=============================================================================
   subroutine serial_context_gather_to_master_ip ( this, input_data, output_data )

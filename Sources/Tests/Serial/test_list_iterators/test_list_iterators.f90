@@ -111,8 +111,8 @@ print*, '!----------------------------------------------------------------- '
     do i=iterator%get_distance_to_upper_bound()-1, 1, -1
         print*, '  current item: ', trim(str(no_sign=.true., n=iterator%get_current())), &
                 ', remaining items in iterator:', trim(str(no_sign=.true., n=iterator%get_distance_to_upper_bound())), &
-                ', reached item:', iterator%reach_from_current(i)
-        assert(l(p(4)+i) == iterator%reach_from_current(i))
+                ', reached item:', iterator%get_from_current(i)
+        assert(l(p(4)+i) == iterator%get_from_current(i))
     enddo
 
 

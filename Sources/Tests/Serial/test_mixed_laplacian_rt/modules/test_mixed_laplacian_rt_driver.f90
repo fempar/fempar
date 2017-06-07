@@ -114,14 +114,14 @@ contains
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_vector, &
-                                                 continuity = .true. ) 
+                                                 conformity = .true. ) 
     
     this%reference_fes(2) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_scalar, &
-                                                 continuity = .false. ) 
+                                                 conformity = .false. ) 
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
@@ -320,9 +320,8 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(in) :: this
     class(vector_t), pointer :: dof_values
-    type(fe_iterator_t) :: fe_iterator
-    type(fe_accessor_t) :: fe
-    
+    class(fe_iterator_t), allocatable :: fe
+
     real(rp), allocatable :: nodal_values_rt(:)
     real(rp), allocatable :: nodal_values_pre_basis(:)
     type(i1p_t), allocatable :: elem2dof(:)
@@ -342,11 +341,8 @@ contains
     number_fields = this%fe_space%get_number_fields()
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     
-    fe_iterator = this%fe_space%create_fe_iterator()
-    call fe_iterator%current(fe)
-    do while ( .not. fe_iterator%has_finished() )
-       ! Get current FE
-       call fe_iterator%current(fe)
+    call this%fe_space%create_fe_iterator(fe)
+    do while ( .not. fe%has_finished())
        
        ! Get DoF numbering within current FE
        call fe%get_elem2dof(elem2dof)
@@ -364,9 +360,10 @@ contains
        write(*,*) 'ELEMENT ID', fe%get_lid()
        write(*,*) nodal_values_pre_basis
        
-       call fe_iterator%next()
+       call fe%next()
     end do
-    
+    call this%fe_space%free_fe_iterator(fe)
+
     deallocate( elem2dof, stat=istat); check(istat==0);
     call memfree ( nodal_values_rt, __FILE__, __LINE__ )
     call memfree ( nodal_values_pre_basis, __FILE__, __LINE__ )

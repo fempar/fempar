@@ -51,7 +51,7 @@ function hex_raviart_thomas_reference_fe_check_compatibility_of_n_faces         
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
      assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-     assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+     assert (target_reference_fe%get_number_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_number_own_dofs_n_face(source_n_face_id))
      hex_raviart_thomas_reference_fe_check_compatibility_of_n_faces = .true.
      class default
      hex_raviart_thomas_reference_fe_check_compatibility_of_n_faces = .false.
@@ -638,7 +638,7 @@ subroutine hex_raviart_thomas_reference_fe_fill_interpolation_pre_basis( this, q
   
   type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
   type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
-  type(polynomial_t)                      :: polynomial_1D
+  type(lagrange_polynomial_t)             :: polynomial_1D
 
   real(rp), allocatable :: tensor_product_values(:)
   real(rp), allocatable :: tensor_product_gradients(:,:)
@@ -776,11 +776,14 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   real(rp)                            :: factor
   integer(ip)                         :: idime
   
+  ! Local variable required for normals reorientation calcs (required to update_face_map)
+  integer(ip)                         :: local_face_id
+  
   ! Rest of local variables
   integer(ip)                         :: c, d, i, j, istat
   integer(ip)                         :: num_rows_own_node_permutations
   integer(ip)                         :: num_cols_own_node_permutations
-  type(list_iterator_t)               :: interior_nodes_iterator
+  type(list_iterator_t)               :: interior_dofs_iterator
   
   ! Facets and vertices within reference cell traversal-related data structures
   type(list_iterator_t)               :: vertex_iterator
@@ -789,7 +792,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   integer(ip)                         :: facet_id
   
   assert ( .not. this%basis_changed )
-  assert ( this%continuity )
+  assert ( this%conformity .and. this%continuity )
  
   ! Allocate change_basis_matrix
   if ( allocated(this%change_basis_matrix) ) & 
@@ -806,14 +809,14 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
                      number_dimensions = this%number_dimensions-1, &
                      order             = this%order, &
                      field_type        = field_type_scalar, &
-                     continuity        = .true. )
+                     conformity        = .true. )
 
   ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
   call d_fe_geo%create(topology          = this%get_topology(), &
                        number_dimensions = this%number_dimensions, &
                        order             = 1, &
                        field_type        = field_type_scalar, &
-                       continuity        = .true. )
+                       conformity        = .true. )
 
   ! Create a d-1 dimension quadrature from RT reference FE
   ! Project it later to d dimensions on face_quadrature
@@ -843,9 +846,10 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
      end do
 
      ! Update face_map on current face
-     call face_map%update_face_map(local_face_id = facet_id - d_fe_geo%get_first_face_id()+1, &
-                                   reference_fe  = d_fe_geo, &
-                                   quadrature    = d_1_quadrature ) 
+     local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
+     call face_map%update_face_map(number_cell_dimensions = d_fe_geo%number_dimensions, &
+                                   reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+                                   quadrature             = d_1_quadrature ) 
      
      call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
                                           d_1_quadrature, &
@@ -931,34 +935,33 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   call this%invert_change_basis_matrix()
   
   ! Transform type(list_t) member variables of this to reflect change of basis
-  call this%interior_nodes_n_face%create( this%number_n_faces + 1 )
+  call this%own_dofs_n_face%create( this%number_n_faces + 1 )
   do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
-     call this%interior_nodes_n_face%sum_to_pointer_index(facet_id, d_1_interpolation%number_shape_functions )
+     call this%own_dofs_n_face%sum_to_pointer_index(facet_id, d_1_interpolation%number_shape_functions )
   end do   
-  call this%interior_nodes_n_face%sum_to_pointer_index(this%number_n_faces + 1, num_interior_moments)
-  call this%interior_nodes_n_face%calculate_header()
-  call this%interior_nodes_n_face%allocate_list_from_pointer()
+  call this%own_dofs_n_face%sum_to_pointer_index(this%number_n_faces + 1, num_interior_moments)
+  call this%own_dofs_n_face%calculate_header()
+  call this%own_dofs_n_face%allocate_list_from_pointer()
   
   c = 1
   do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
-     interior_nodes_iterator = this%interior_nodes_n_face%create_iterator(facet_id)
-     do while ( .not. interior_nodes_iterator%is_upper_bound() )
-        call interior_nodes_iterator%set_current(c)
+     interior_dofs_iterator = this%own_dofs_n_face%create_iterator(facet_id)
+     do while ( .not. interior_dofs_iterator%is_upper_bound() )
+        call interior_dofs_iterator%set_current(c)
         c = c + 1
-        call interior_nodes_iterator%next()
+        call interior_dofs_iterator%next()
      end do
-     call interior_nodes_iterator%next()
+     call interior_dofs_iterator%next()
   end do   
   
-  interior_nodes_iterator = this%interior_nodes_n_face%create_iterator(this%number_n_faces + 1)
-  do while ( .not. interior_nodes_iterator%is_upper_bound() )
-     call interior_nodes_iterator%set_current(c)
+  interior_dofs_iterator = this%own_dofs_n_face%create_iterator(this%number_n_faces + 1)
+  do while ( .not. interior_dofs_iterator%is_upper_bound() )
+     call interior_dofs_iterator%set_current(c)
      c = c + 1
-     call interior_nodes_iterator%next()
+     call interior_dofs_iterator%next()
   end do
   
-  this%nodes_n_face      = this%interior_nodes_n_face
-  this%own_nodes_n_faces = this%interior_nodes_n_face
+  this%dofs_n_face      = this%own_dofs_n_face
   
   ! Re-define own_node_permutations-related stuff
   if ( allocated(this%number_rotations_per_dimension) )  call memfree (this%number_rotations_per_dimension,__FILE__,__LINE__)

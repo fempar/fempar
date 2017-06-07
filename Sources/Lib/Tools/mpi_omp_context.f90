@@ -128,6 +128,7 @@ module mpi_omp_context_names
      procedure :: max_scalar_rp      => mpi_omp_context_max_scalar_rp
      procedure :: max_vector_rp      => mpi_omp_context_max_vector_rp
      procedure :: min_scalar_rp      => mpi_omp_context_min_scalar_rp
+     procedure :: max_scalar_ip      => mpi_omp_context_max_scalar_ip
      procedure :: scatter            => mpi_omp_context_scatter_scalar_ip
      procedure :: gather             => mpi_omp_context_gather_scalar_ip
      procedure :: bcast              => mpi_omp_context_bcast_scalar_ip
@@ -139,6 +140,8 @@ module mpi_omp_context_names
      procedure, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_omp_context_neighbours_exchange_wo_pack_unpack_ieep
      procedure, private :: root_send_master_rcv_ip          => mpi_omp_context_root_send_master_rcv_ip
      procedure, private :: root_send_master_rcv_ip_1D_array => mpi_omp_context_root_send_master_rcv_ip_1D_array
+     procedure, private :: root_send_master_rcv_rp          => mpi_omp_context_root_send_master_rcv_rp
+     procedure, private :: root_send_master_rcv_rp_1D_array => mpi_omp_context_root_send_master_rcv_rp_1D_array
      procedure, private :: gather_to_master_ip              => mpi_omp_context_gather_to_master_ip            
      procedure, private :: gather_to_master_igp             => mpi_omp_context_gather_to_master_igp           
      procedure, private :: gather_to_master_ip_1D_array     => mpi_omp_context_gather_to_master_ip_1D_array   
@@ -726,6 +729,27 @@ contains
     !$OMP BARRIER
     alpha = rp1_buffer(this%current_thread)
   end subroutine mpi_omp_context_min_scalar_rp
+  
+  !=============================================================================
+  subroutine mpi_omp_context_max_scalar_ip (this,n)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(ip)              , intent(inout) :: n
+    integer  :: i, istat
+    integer(ip) :: dat
+    ip1_buffer(this%current_thread) = n
+    !$OMP BARRIER
+    if(this%current_thread==this%root_thread) then
+      do i=0,this%num_threads-1
+          ip1_buffer(this%root_thread) = max(ip1_buffer(this%root_thread),ip1_buffer(i))
+       end  do
+       call mpi_allreduce(ip1_buffer,n,1,mpi_omp_context_ip,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
+       ip1_buffer=n
+    end if
+    !$OMP BARRIER
+    n = ip1_buffer(this%current_thread)
+  end subroutine mpi_omp_context_max_scalar_ip
+  
 
   !=============================================================================
   subroutine mpi_omp_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
@@ -1578,6 +1602,46 @@ contains
                & mpi_omp_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
     end if
   end subroutine mpi_omp_context_root_send_master_rcv_ip_1D_array
+
+  !=============================================================================
+  subroutine mpi_omp_context_root_send_master_rcv_rp ( this, input_data, output_data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)      :: this
+    real(rp)                , intent(in)      :: input_data
+    real(rp)                , intent(inout)   :: output_data
+    integer :: send_rank, recv_rank, istat
+    integer :: send_thread
+    send_rank = mpi_omp_context_root_rank
+    recv_rank = (this%get_num_tasks()-1)/this%max_num_threads
+    send_thread = this%root_thread
+    if(this%current_rank==send_rank.and.this%current_thread==send_thread) then
+       call mpi_send(input_data, 1, mpi_omp_context_rp, recv_rank,  &
+               & mpi_omp_context_tag, this%icontxt, istat); check( istat == mpi_success )
+    else if(this%current_rank==recv_rank) then
+       call mpi_recv(output_data, 1, mpi_omp_context_rp, send_rank,  &
+               & mpi_omp_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+    end if
+    end subroutine mpi_omp_context_root_send_master_rcv_rp
+
+  !=============================================================================
+  subroutine mpi_omp_context_root_send_master_rcv_rp_1D_array ( this, input_data, output_data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)      :: this
+    real(rp)                , intent(in)      :: input_data(:)
+    real(rp)                , intent(inout)   :: output_data(:)
+    integer :: send_rank, recv_rank, istat
+    integer :: send_thread
+    send_rank = mpi_omp_context_root_rank
+    recv_rank = (this%get_num_tasks()-1)/this%max_num_threads
+    send_thread = this%root_thread
+    if(this%current_rank==send_rank.and.this%current_thread==send_thread) then
+       call mpi_send(input_data, size(input_data), mpi_omp_context_rp, recv_rank,  &
+               & mpi_omp_context_tag, this%icontxt, istat); check( istat == mpi_success )
+    else if(this%current_rank==recv_rank) then
+       call mpi_recv(output_data, size(output_data), mpi_omp_context_rp, send_rank,  &
+               & mpi_omp_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+    end if
+  end subroutine mpi_omp_context_root_send_master_rcv_rp_1D_array
 
   !=============================================================================
   !=============================================================================

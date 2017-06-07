@@ -91,6 +91,7 @@ module environment_names
      procedure :: print                          => environment_print
      procedure :: created                        => environment_created
      ! Getters
+     procedure :: get_num_levels                 => environment_get_num_levels
      procedure :: get_num_tasks                  => environment_get_num_tasks
      procedure :: get_next_level                 => environment_get_next_level
      procedure :: get_w_context                  => environment_get_w_context
@@ -152,9 +153,12 @@ module environment_names
 
      procedure, private :: environment_l1_to_l2_transfer_ip
      procedure, private :: environment_l1_to_l2_transfer_ip_1D_array
+     procedure, private :: environment_l1_to_l2_transfer_rp
+     procedure, private :: environment_l1_to_l2_transfer_rp_1D_array
      generic  :: l1_to_l2_transfer => environment_l1_to_l2_transfer_ip, &
-          environment_l1_to_l2_transfer_ip_1D_array             
-
+          environment_l1_to_l2_transfer_ip_1D_array, &
+          environment_l1_to_l2_transfer_rp, &
+          environment_l1_to_l2_transfer_rp_1D_array
 
      ! Deferred TBPs inherited from class(environment_t)
      !procedure :: info                        => environment_info
@@ -165,9 +169,9 @@ module environment_names
      procedure :: l1_sum_vector_rp            => environment_l1_sum_vector_rp
      procedure :: l1_max_scalar_rp            => environment_l1_max_scalar_rp
      procedure :: l1_max_vector_rp            => environment_l1_max_vector_rp
+     procedure :: l1_max_scalar_ip            => environment_l1_max_scalar_ip
      generic  :: l1_sum                       => l1_sum_scalar_rp, l1_sum_vector_rp
-     generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp
-
+     generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp, l1_max_scalar_ip
   end type environment_t
 
   ! Types
@@ -475,7 +479,14 @@ contains
   end function environment_created
 
   !=============================================================================
+  function environment_get_num_levels (this)
+    implicit none 
+    class(environment_t), intent(in) :: this
+    integer(ip) :: environment_get_num_levels
+    environment_get_num_levels = this%num_levels 
+  end function environment_get_num_levels
 
+  !=============================================================================
   function environment_get_num_tasks (this)
     implicit none 
     class(environment_t), intent(in) :: this
@@ -672,6 +683,15 @@ contains
     assert (this%am_i_l1_task())
     call this%l1_context%max_vector_rp(alpha)
   end subroutine environment_l1_max_vector_rp
+  
+  !=============================================================================
+  subroutine environment_l1_max_scalar_ip (this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: n
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%max_scalar_ip(n)
+  end subroutine environment_l1_max_scalar_ip
 
   !=============================================================================
   !=============================================================================
@@ -847,6 +867,26 @@ contains
     call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
   end subroutine environment_l1_to_l2_transfer_ip_1D_array
 
+  !=============================================================================
+  subroutine environment_l1_to_l2_transfer_rp ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)      :: this
+    real(rp)                , intent(in)      :: input_data
+    real(rp)                , intent(inout)   :: output_data
+    assert ( this%am_i_l1_to_l2_task() )
+    call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
+  end subroutine environment_l1_to_l2_transfer_rp
+
+  !=============================================================================
+  subroutine environment_l1_to_l2_transfer_rp_1D_array ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)      :: this  
+    real(rp)                , intent(in)      :: input_data(:)
+    real(rp)                , intent(inout)   :: output_data(:)
+    assert ( this%am_i_l1_to_l2_task() )
+    call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
+  end subroutine environment_l1_to_l2_transfer_rp_1D_array
+  
   !=============================================================================
   subroutine environment_l2_from_l1_gather_ip ( this, input_data, output_data )
     implicit none
