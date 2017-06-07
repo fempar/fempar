@@ -331,8 +331,7 @@ module reference_fe_names
 
      logical                  ::    &
           conformity,           &      ! Is the discrete space of functions conforming with its continuous counterpart?
-          continuity                   ! Does the continuous space of functions require continuity?    
-                                           
+          continuity                   ! Does the infinite-dimensional functional space include discontinuous functions?  
 
      integer(ip)              ::    &
           number_n_faces,              &        
