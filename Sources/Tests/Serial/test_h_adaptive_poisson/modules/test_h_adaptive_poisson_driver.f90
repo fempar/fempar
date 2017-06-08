@@ -34,6 +34,8 @@ module test_h_adaptive_poisson_driver_names
   use vector_poisson_discrete_integration_names
   use vector_poisson_conditions_names
   use vector_poisson_analytical_functions_names
+  use IR_Precision ! VTK_IO
+  use Lib_VTK_IO ! VTK_IO
     
 # include "debug.i90"
 
@@ -91,6 +93,7 @@ module test_h_adaptive_poisson_driver_names
      procedure        , private :: check_solution
      procedure        , private :: check_solution_vector
      procedure        , private :: write_solution
+     procedure        , private :: write_filling_curve
      procedure        , private :: free
   end type test_h_adaptive_poisson_driver_t
 
@@ -132,14 +135,45 @@ contains
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
     class(cell_iterator_t)      , allocatable :: cell
+    type(point_t), allocatable :: coords(:)
+    integer(ip) :: istat, k
+    real(rp) ::  x,y
+    real(rp), parameter :: Re = 0.46875
+    real(rp), parameter :: Ri = 0.15625
+    real(rp) :: R
+    integer(ip), parameter :: max_num_cell_nodes = 4
+    integer(ip), parameter :: max_level = 4
+
     call this%triangulation%create_cell_iterator(cell)
+    allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
+
     do while ( .not. cell%has_finished() )
-      if ( mod(cell%get_lid()-1,2) == 0 ) then
+
+      !if ( mod(cell%get_lid()-1,2) == 0 ) then
+      !  call cell%set_for_refinement()
+      !end if
+
+      call cell%get_coordinates(coords)
+      x = 0.0
+      y = 0.0
+      do k=1,max_num_cell_nodes
+       x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
+       y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
+      end do
+      R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
+     
+      if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
         call cell%set_for_refinement()
       end if
+
+      !write(*,*) 'cid= ', cell%get_lid(), ' l= ', cell%get_level()
+
       call cell%next()
     end do
+
+    deallocate(coords,stat=istat); check(istat==0)
     call this%triangulation%free_cell_iterator(cell)
+
   end subroutine set_cells_for_refinement
   
   subroutine set_cells_for_coarsening(this)
@@ -254,7 +288,7 @@ contains
        if ( mod(i,3) == 0 ) then 
           call this%set_cells_for_coarsening()
        else
-          call this%set_cells_for_refinement()
+         call this%set_cells_for_refinement()
        end if
        call this%fill_cells_set()
        call this%triangulation%refine_and_coarsen()
@@ -495,6 +529,9 @@ contains
     type(output_handler_t)                   :: oh
     character(len=:), allocatable            :: path
     character(len=:), allocatable            :: prefix
+    real(rp),allocatable :: cell_vector(:)
+    integer(ip) :: N, P, pid, i
+    class(cell_iterator_t), allocatable :: cell
     if(this%test_params%get_write_solution()) then
         path = this%test_params%get_dir_path_out()
         prefix = this%test_params%get_prefix()
@@ -502,12 +539,103 @@ contains
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
+        call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
+        
+        N=this%triangulation%get_num_cells()
+        P=6
+        call this%triangulation%create_cell_iterator(cell)
+        do pid=0, P-1
+            i=0
+            do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
+              cell_vector(cell%get_lid()) = pid 
+              call cell%next()
+              i=i+1
+            end do
+        end do
+        call this%triangulation%free_cell_iterator(cell)
+
+        call oh%add_cell_vector(cell_vector,'cell_set_ids')
+
         call oh%open(path, prefix)
         call oh%write()
         call oh%close()
         call oh%free()
+        call memfree(cell_vector,__FILE__,__LINE__)
     endif
   end subroutine write_solution
+
+  subroutine write_filling_curve(this)
+    implicit none
+    class(test_h_adaptive_poisson_driver_t), intent(in) :: this
+
+    integer(ip) :: Nn, Ne
+    real(rp), allocatable :: x(:), y(:), z(:)
+    integer(ip), allocatable :: cell_type(:), offset(:), connect(:)
+    class(cell_iterator_t)      , allocatable :: cell
+    type(point_t), allocatable :: coords(:)
+    integer(ip) :: istat, k
+    real(rp) ::  xc,yc
+    integer(ip), parameter :: max_num_cell_nodes = 4
+    integer(ip), parameter :: vtk_1d_elem_id = 3
+    character(len=*), parameter :: filename_out = 'output/filling_curve.vtu'
+    integer(ip) :: E_IO
+    if(this%test_params%get_write_solution()) then
+
+      Nn = this%triangulation%get_num_cells()
+      Ne = Nn - 1
+
+      call memalloc ( Nn, x, __FILE__, __LINE__ )
+      call memalloc ( Nn, y, __FILE__, __LINE__ )
+      call memalloc ( Nn, z, __FILE__, __LINE__ )
+      call memalloc ( Ne, cell_type, __FILE__, __LINE__ )
+      call memalloc ( Ne, offset   , __FILE__, __LINE__ )
+      call memalloc ( 2*Ne, connect  , __FILE__, __LINE__ )
+
+      call this%triangulation%create_cell_iterator(cell)
+      allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
+
+      do while ( .not. cell%has_finished() )
+
+        call cell%get_coordinates(coords)
+        xc = 0.0
+        yc = 0.0
+        do k=1,max_num_cell_nodes
+          xc = xc + (1.0/max_num_cell_nodes)*coords(k)%get(1)
+          yc = yc + (1.0/max_num_cell_nodes)*coords(k)%get(2)
+        end do
+
+        x(cell%get_lid()) = xc;
+        y(cell%get_lid()) = yc;
+        z(cell%get_lid()) = 0.0;
+
+        if (cell%get_lid()>1) then
+          connect(  2*(cell%get_lid()-1)-1  ) = cell%get_lid()-2
+          connect(  2*(cell%get_lid()-1)    ) = cell%get_lid()-1
+          offset( cell%get_lid()-1 ) = 2*(cell%get_lid()-1)
+          cell_type( cell%get_lid()-1 ) = vtk_1d_elem_id
+        end if
+
+        call cell%next()
+      end do
+
+      deallocate(coords,stat=istat); check(istat==0)
+      call this%triangulation%free_cell_iterator(cell)
+
+      E_IO = VTK_INI_XML(output_format = 'ascii', filename = filename_out, mesh_topology = 'UnstructuredGrid')
+      E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
+      E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) )
+      E_IO = VTK_GEO_XML()
+      E_IO = VTK_END_XML()
+
+      call memfree ( x, __FILE__, __LINE__ )
+      call memfree ( y, __FILE__, __LINE__ )
+      call memfree ( z, __FILE__, __LINE__ )
+      call memfree ( cell_type, __FILE__, __LINE__ )
+      call memfree ( offset   , __FILE__, __LINE__ )
+      call memfree ( connect  , __FILE__, __LINE__ )
+
+    endif
+  end subroutine write_filling_curve
   
   subroutine run_simulation(this) 
     implicit none
@@ -529,6 +657,7 @@ contains
     end if
     call this%refine_and_coarsen()
     call this%write_solution()
+    call this%write_filling_curve()
     call this%free()
   end subroutine run_simulation
   
