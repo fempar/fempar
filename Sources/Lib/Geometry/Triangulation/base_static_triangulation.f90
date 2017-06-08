@@ -118,6 +118,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_my_subpart          => cell_iterator_get_mysubpart
     procedure, non_overridable           :: get_my_subpart_lid      => cell_iterator_get_mysubpart_lid
     procedure                            :: get_set_id              => cell_iterator_get_set_id
+    procedure                            :: get_level               => cell_iterator_get_level
     procedure                            :: get_num_vefs            => cell_iterator_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid

@@ -215,6 +215,14 @@ function cell_iterator_get_set_id(this)
   cell_iterator_get_set_id = this%base_static_triangulation%cells_set(this%lid)
 end function cell_iterator_get_set_id
 
+function cell_iterator_get_level(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip) :: cell_iterator_get_level
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
+  cell_iterator_get_level = 0
+end function cell_iterator_get_level
+
 pure function cell_iterator_get_num_vefs (this)
   implicit none
   class(cell_iterator_t), intent(in) :: this

@@ -207,6 +207,14 @@ function p4est_cell_iterator_get_set_id(this)
   p4est_cell_iterator_get_set_id = this%p4est_triangulation%p4est_cell_set_ids%get(this%get_lid())
 end function p4est_cell_iterator_get_set_id
 
+function p4est_cell_iterator_get_level(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_cell_iterator_get_level
+  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_level = this%p4est_triangulation%quad_level(this%get_lid())
+end function p4est_cell_iterator_get_level
+
 pure function p4est_cell_iterator_get_num_vefs (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this

@@ -105,6 +105,7 @@ module p4est_serial_triangulation_names
     !procedure, non_overridable           :: get_my_subpart          => p4est_cell_iterator_get_mysubpart
     !procedure, non_overridable           :: get_my_subpart_lid      => p4est_cell_iterator_get_mysubpart_lid
     procedure                            :: get_set_id              => p4est_cell_iterator_get_set_id
+    procedure                            :: get_level               => p4est_cell_iterator_get_level
     procedure                            :: get_num_vefs            => p4est_cell_iterator_get_num_vefs
     !procedure, non_overridable           :: get_num_nodes           => p4est_cell_iterator_get_num_nodes
     !procedure, non_overridable           :: get_node_lid            => p4est_cell_iterator_get_node_lid
