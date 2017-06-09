@@ -327,7 +327,7 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
 
   this%current_qpoints_perm_cols = 1
   
-  call left_reference_fe%fill_qpoints_permutations( quadrature%number_dimensions, &
+  call left_reference_fe%fill_qpoints_permutations( quadrature, &
                                                     this%qpoints_perm )
 end subroutine face_integrator_create
 
@@ -345,18 +345,16 @@ subroutine face_integrator_free(this)
 end subroutine face_integrator_free
 
 !==================================================================================================
-subroutine face_integrator_update(this,face_lid,face_map,relative_orientation,relative_rotation)
+subroutine face_integrator_update(this,face_lid,face_map,permutation_index)
   implicit none
   ! Parameters
   class(face_integrator_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: face_lid(2)
-  integer(ip)             , intent(in)    :: relative_orientation,relative_rotation
+  integer(ip)             , intent(in)    :: permutation_index
   type(face_map_t)        , intent(in)    :: face_map
   call this%volume_integrator_face_restriction(1)%update(face_map%fe_maps(1)%get_active_fe_map(),face_lid(1))
   if (.not. this%is_boundary) then
-     this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
-         & this%reference_fe(2)%p%number_rotations_per_dimension(this%reference_fe(2)%p%number_dimensions-1)  &
-         & * relative_orientation
+     this%current_qpoints_perm_cols(2) = permutation_index
      call this%volume_integrator_face_restriction(2)%update(face_map%fe_maps(2)%get_active_fe_map(),face_lid(2))
   end if
 end subroutine face_integrator_update
