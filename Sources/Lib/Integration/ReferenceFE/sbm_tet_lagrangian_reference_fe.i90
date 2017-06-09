@@ -200,28 +200,25 @@ subroutine tet_lagrangian_reference_fe_fill_own_dof_permutations (this)
   ! Create emtpy permutation table, we do not want to fill own node permutations for tets since 
   ! meshes are ordered.
   do idime=1,this%number_dimensions-1
-     this%own_node_permutations(idime)%nd1 = 0
-     this%own_node_permutations(idime)%nd2 = 0
+     this%own_dof_permutations(idime)%nd1 = 0
+     this%own_dof_permutations(idime)%nd2 = 0
   end do  
 end subroutine tet_lagrangian_reference_fe_fill_own_dof_permutations
 
 !==================================================================================================
-subroutine tet_lagrangian_reference_fe_fill_qpoints_permutations (this, ndime, qpoints_perm, max_order)
+subroutine tet_lagrangian_reference_fe_fill_qpoints_permutations (this, quadrature, qpoints_perm)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                             , intent(in)    :: ndime
-  type(allocatable_array_ip2_t)           , intent(inout) :: qpoints_perm
-  integer(ip)                  , optional , intent(in)    :: max_order
-  integer(ip)    :: i, order
+  type(quadrature_t)                  , intent(in)    :: quadrature
+  type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
+  integer(ip)    :: ndime, n_q_points, i
   
-  if (present(max_order)) then
-     order = max_order
-  else
-     order = this%get_max_order()+2
-  end if
+  ndime      = quadrature%get_number_dimensions()
+  n_q_points = quadrature%get_number_quadrature_points()
   
-  call qpoints_perm%create((order+1)**ndime, &  !> Number of quadrature points
-          &                ndime*2**ndime)      !> Number of possible permutations x possible rotations
+  
+  call qpoints_perm%create(n_q_points, &    !> Number of quadrature points
+          &                ndime*2**ndime)  !> Number of possible permutations x possible rotations
   forall (i = 1:qpoints_perm%nd1) qpoints_perm%a(i,:) = i
   
 end subroutine tet_lagrangian_reference_fe_fill_qpoints_permutations
@@ -376,53 +373,44 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, local_quad
 end subroutine tet_lagrangian_reference_fe_fill_face_interpolation
 
 !=================================================================================================
-function tet_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
+function tet_lagrangian_reference_fe_compute_number_quadrature_points( this, degree, dimension )
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                             , intent(in)    :: order
+  integer(ip)                             , intent(in)    :: degree
   integer(ip)                             , intent(in)    :: dimension
-  integer(ip) :: tet_lagrangian_reference_fe_set_number_quadrature_points
+  integer(ip) :: tet_lagrangian_reference_fe_compute_number_quadrature_points
   
   if( dimension .eq. 1 ) then
-     tet_lagrangian_reference_fe_set_number_quadrature_points = order + 1
+     tet_lagrangian_reference_fe_compute_number_quadrature_points = ceiling(real(degree)/2.0) + 1
   elseif( dimension .eq. 2 ) then
      !*************************************************************************
-     ! Uncomment the following lines for using efficent symmetrical gaussian 
-     ! quadrature rules. Uncomment function get_quadratures_from_hex too.
-     ! Take into account that these quadratures DO NOT work for face integration.
-     !
-     ! Symmetric trianglular quadratures
-     !if( order .eq. 1 ) then
-     !   tet_lagrangian_reference_fe_set_number_quadrature_points = 3
-     !elseif( order .eq. 2 ) then
-     !   tet_lagrangian_reference_fe_set_number_quadrature_points = 6
-     !elseif( order .eq. 3 ) then
-     !   tet_lagrangian_reference_fe_set_number_quadrature_points = 13
-     !elseif( order .eq. 4 ) then
-     !   tet_lagrangian_reference_fe_set_number_quadrature_points = 19
-     !elseif( order .eq. 5 ) then
-     !   tet_lagrangian_reference_fe_set_number_quadrature_points = 28
+     ! Using efficent symmetrical gaussian quadrature rules (when available). 
+     !if( degree .le. 2 ) then
+     !   tet_lagrangian_reference_fe_compute_number_quadrature_points = 3
+     !elseif( degree .le. 4 ) then
+     !   tet_lagrangian_reference_fe_compute_number_quadrature_points = 6
+     !elseif( degree .le. 6 ) then
+     !   tet_lagrangian_reference_fe_compute_number_quadrature_points = 13
+     !elseif( degree .le. 8 ) then
+     !   tet_lagrangian_reference_fe_compute_number_quadrature_points = 19
+     !elseif( degree .le. 10 ) then
+     !   tet_lagrangian_reference_fe_compute_number_quadrature_points = 28
      !else ! Quadratures based on brick quadratures transformation
-     !_________________________________________________________________________
-        tet_lagrangian_reference_fe_set_number_quadrature_points = (order+1)**2
+       tet_lagrangian_reference_fe_compute_number_quadrature_points = ( ceiling(real(degree)/2.0) + 1 )**2
      !end if
   elseif( dimension .eq. 3 ) then
      !*************************************************************************
-     ! Uncomment the following lines for using efficent symmetrical gaussian 
-     ! quadrature rules. Uncomment function get_quadratures_from_hex too.
-     ! Take into account that these quadratures DO NOT work for face integration.
-     !
-     !if( order .eq. 1 ) then
-     !   tet_lagrangian_reference_fe_set_number_quadrature_points = 4
-     !elseif( order .eq. 2) then
-     !   tet_lagrangian_reference_fe_set_number_quadrature_points = 11
+     ! Using efficent symmetrical gaussian quadrature rules (when available). 
+     !if( degree .le. 2 ) then
+     !   tet_lagrangian_reference_fe_compute_number_quadrature_points = 4
+     !elseif( degree .le. 4) then
+     !   tet_lagrangian_reference_fe_compute_number_quadrature_points = 11
      !else ! Quadratures based on brick quadratures transformation
-     !_________________________________________________________________________
-        tet_lagrangian_reference_fe_set_number_quadrature_points = (order+2)**3
+        tet_lagrangian_reference_fe_compute_number_quadrature_points = ( ceiling(real(degree)/2.0) + 2 )**3
      !end if
   end if
   
-end function tet_lagrangian_reference_fe_set_number_quadrature_points
+end function tet_lagrangian_reference_fe_compute_number_quadrature_points
 
 !=================================================================================================
 function get_quadratures_from_hex(quadrature)
@@ -1411,13 +1399,12 @@ end subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation
 
 !==================================================================================================
 function tet_lagrangian_reference_fe_get_permuted_own_dof_n_face(this,inode,target_n_face_id,     &
-     &                                               relative_orientation, relative_rotation)
+     &                                               permutation_index)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)  :: this
   integer(ip)                         , intent(in)  :: inode
   integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
-  integer(ip)                         , intent(in)  :: relative_orientation
-  integer(ip)                         , intent(in)  :: relative_rotation
+  integer(ip)                         , intent(in)  :: permutation_index
   integer(ip) :: tet_lagrangian_reference_fe_get_permuted_own_dof_n_face
   integer(ip) :: n_face_dimension, permutation_key, permuted_own_dof
   

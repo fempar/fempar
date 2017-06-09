@@ -54,20 +54,20 @@ subroutine void_reference_fe_create ( this, topology, number_dimensions, order, 
 end subroutine void_reference_fe_create
 
 !==================================================================================================
-subroutine void_reference_fe_create_quadrature ( this, quadrature, max_order )
+subroutine void_reference_fe_create_quadrature ( this, quadrature, degree )
   implicit none 
   class(void_reference_fe_t), intent(in)       :: this  
   type(quadrature_t)        , intent(inout)    :: quadrature
-  integer(ip)           , optional, intent(in) :: max_order
+  integer(ip)           , optional, intent(in) :: degree
   call quadrature%create( this%number_dimensions, 0 )
 end subroutine void_reference_fe_create_quadrature
 
 !==================================================================================================
-subroutine void_reference_fe_create_face_quadrature ( this, quadrature, max_order )
+subroutine void_reference_fe_create_face_quadrature ( this, quadrature, degree )
   implicit none
   class(void_reference_fe_t)      , intent(in)    :: this
   type(quadrature_t)              , intent(inout) :: quadrature
-  integer(ip)           , optional, intent(in)    :: max_order
+  integer(ip)           , optional, intent(in)    :: degree
   integer(ip) :: face_dimensions
   face_dimensions = this%number_dimensions - 1
   call quadrature%create( face_dimensions, 0 )
@@ -538,12 +538,11 @@ end subroutine void_reference_fe_fill_own_dof_permutations
 
 
 !=================================================================================================
-subroutine void_reference_fe_fill_qpoints_permutations  ( this, ndime, qpoints_perm, max_order )
+subroutine void_reference_fe_fill_qpoints_permutations  ( this, quadrature, qpoints_perm )
   implicit none 
   class(void_reference_fe_t)   , intent(in)    :: this 
-  integer(ip)                  , intent(in)    :: ndime
+  type(quadrature_t)           , intent(in)    :: quadrature
   type(allocatable_array_ip2_t), intent(inout) :: qpoints_perm
-  integer(ip)       , optional , intent(in)    :: max_order
   check(.false.)
 end subroutine void_reference_fe_fill_qpoints_permutations 
 

@@ -789,14 +789,34 @@ end subroutine index_to_ijk
 
 ! @sbadia: It could be replaced by an anisotropic quadrature
 !==================================================================================================
-function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
+function hex_lagrangian_reference_fe_compute_number_quadrature_points( this, degree, dimension )
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: order
+  integer(ip)                         , intent(in)    :: degree
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: hex_lagrangian_reference_fe_set_number_quadrature_points
-  hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
-end function hex_lagrangian_reference_fe_set_number_quadrature_points
+  integer(ip) :: hex_lagrangian_reference_fe_compute_number_quadrature_points
+  hex_lagrangian_reference_fe_compute_number_quadrature_points = (ceiling( real(degree + 1) / 2.0 ))**dimension
+end function hex_lagrangian_reference_fe_compute_number_quadrature_points
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations(this, quadrature, qpoints_perm)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                  , intent(in)    :: quadrature
+  type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
+  integer(ip)    :: ndime, n_q_points, order
+  
+  ndime      = quadrature%get_number_dimensions()
+  n_q_points = quadrature%get_number_quadrature_points()
+  order      = int(real(n_q_points,rp)**(1.0_rp/real(ndime,rp)),ip)+1
+  
+  call this%node_array%fill_permutations( order, &
+                                          ndime, &
+                                          this%polytope, &
+                                          qpoints_perm )
+  
+end subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations
+
 
 ! Subroutine to deal with high order parametrizations of the boundary
 !==================================================================================================

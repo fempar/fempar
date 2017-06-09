@@ -407,7 +407,7 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   integer(ip)          :: source_vef_lid, target_vef_lid
   integer(ip), pointer :: source_vefs(:), target_vefs(:), source_node_list(:), target_node_list(:)
   integer(ip) :: own_inode, l_node, own_nnode, inode_source, inode_target
-  integer(ip) :: relative_orientation, relative_rotation
+  integer(ip) :: permutation_index
 
   source_ref_fe => this%get_reference_fe_geo()
   source_vef_lid = this%find_lpos_vef_lid(ivef)
@@ -433,20 +433,16 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   if ( own_nnode > 0 ) then
 
      check (target_ref_fe%check_compatibility_of_n_faces(source_ref_fe,source_vef_lid,target_vef_lid))
-     relative_rotation = target_ref_fe%compute_relative_rotation( source_ref_fe, &
-          &                                                      source_vef_lid, &
-          &                                                      target_vef_lid, &
-          &                                                      source_vefs,    &
-          &                                                      target_vefs)
-
-     relative_orientation = target_ref_fe%compute_relative_orientation( source_ref_fe,            &
-          &                                           source_vef_lid,                             &
-          &                                           target_vef_lid)
+     permutation_index = source_ref_fe%compute_permutation_index( target_ref_fe, &
+          &                                                       source_vef_lid, &
+          &                                                       target_vef_lid, &
+          &                                                       source_vefs,    &
+          &                                                       target_vefs)
      
      do own_inode = 1, own_nnode
         inode_source = source_ref_fe%get_own_dof_n_face(own_inode,source_vef_lid)
         inode_target = target_ref_fe%get_permuted_own_dof_n_face(own_inode,               &
-             &                          target_vef_lid, relative_orientation,relative_rotation)
+             &                          target_vef_lid, permutation_index)
         assert ( target_node_list(inode_target) <= 0 )
         if ( target_node_list(inode_target) == 0 ) then
           target_node_list(inode_target) = source_node_list(inode_source)

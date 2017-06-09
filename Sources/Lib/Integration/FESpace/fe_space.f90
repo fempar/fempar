@@ -268,8 +268,7 @@ module fe_space_names
     procedure, non_overridable          :: get_coordinates                  => fe_face_iterator_get_coordinates
     procedure, non_overridable          :: get_face_lid                     => fe_face_iterator_get_face_lid
     procedure, non_overridable          :: get_face_lpos_within_cell_around => fe_face_iterator_get_face_lpos_within_cell_around
-    procedure, non_overridable          :: get_face_orientation             => fe_face_iterator_get_face_orientation
-    procedure, non_overridable          :: get_face_rotation                => fe_face_iterator_get_face_rotation
+    procedure, non_overridable          :: get_face_permutation_index       => fe_face_iterator_get_face_permutation_index
   end type fe_face_iterator_t
       
   integer(ip), parameter :: fe_space_type_cg            = 0 ! H^1 conforming FE space

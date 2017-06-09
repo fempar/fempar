@@ -350,7 +350,7 @@ module reference_fe_names
 
      integer(ip), allocatable :: number_rotations_per_dimension(:)
      integer(ip), allocatable :: number_orientations_per_dimension(:)
-     type(allocatable_array_ip2_t), allocatable :: own_node_permutations(:)
+     type(allocatable_array_ip2_t), allocatable :: own_dof_permutations(:)
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity                                                              
@@ -475,8 +475,7 @@ module reference_fe_names
 
      procedure :: has_nodal_quadrature => reference_fe_has_nodal_quadrature
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
-     procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
-     procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
+     procedure :: compute_permutation_index => reference_fe_compute_permutation_index
      procedure :: get_permuted_own_dof_n_face  => reference_fe_get_permuted_own_dof_n_face
      procedure(fill_own_dof_permutations_interface), deferred :: fill_own_dof_permutations
      procedure(fill_qpoints_permutations_interface), deferred :: fill_qpoints_permutations
@@ -502,20 +501,20 @@ module reference_fe_names
        logical, optional    , intent(in)    :: continuity
      end subroutine create_interface
 
-     subroutine create_quadrature_interface ( this, quadrature, max_order )
+     subroutine create_quadrature_interface ( this, quadrature, degree )
        import :: reference_fe_t, quadrature_t, ip
        implicit none 
        class(reference_fe_t), intent(in)    :: this
        type(quadrature_t)   , intent(inout) :: quadrature
-       integer(ip), optional, intent(in)    :: max_order
+       integer(ip), optional, intent(in)    :: degree
      end subroutine create_quadrature_interface
 
-     subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
+     subroutine create_face_quadrature_interface ( this, quadrature, degree  )
        import :: reference_fe_t, quadrature_t, ip
        implicit none
        class(reference_fe_t), intent(in)    :: this
        type(quadrature_t)   , intent(inout) :: quadrature
-       integer(ip), optional, intent(in)    :: max_order
+       integer(ip), optional, intent(in)    :: degree
      end subroutine create_face_quadrature_interface
 
      subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
@@ -785,13 +784,12 @@ module reference_fe_names
         class(reference_fe_t), intent(inout) :: this 
      end subroutine
      
-     subroutine fill_qpoints_permutations_interface (this, ndime, qpoints_perm, max_order)
-        import :: reference_fe_t, allocatable_array_ip2_t, ip
+     subroutine fill_qpoints_permutations_interface (this, quadrature, qpoints_perm)
+        import :: reference_fe_t, allocatable_array_ip2_t, quadrature_t
         implicit none
         class(reference_fe_t)        , intent(in)    :: this 
-        integer(ip)                  , intent(in)    :: ndime
+        type(quadrature_t)           , intent(in)    :: quadrature
         type(allocatable_array_ip2_t), intent(inout) :: qpoints_perm
-        integer(ip)       , optional , intent(in)    :: max_order
      end subroutine
   end interface
 
@@ -822,7 +820,7 @@ contains
   procedure (fill_nodal_quadrature_interface)       , private, deferred :: fill_nodal_quadrature
   procedure (fill_interpolation_interface)          , private, deferred :: fill_interpolation
   procedure (fill_face_interpolation_interface)     , private, deferred :: fill_face_interpolation
-  procedure (set_number_quadrature_points_interface), private, deferred :: set_number_quadrature_points
+  procedure (compute_number_quadrature_points_interface), private, deferred :: compute_number_quadrature_points
   ! Blending function to generate interpolations in the interior (given values on the boundary)
   procedure(blending_interface), deferred :: blending
 
@@ -871,8 +869,8 @@ contains
        & => lagrangian_reference_fe_fill
   procedure :: fill_own_dof_permutations           &
        & => lagrangian_reference_fe_fill_own_dof_permutations
-  procedure :: fill_qpoints_permutations                                   &
-       & => lagrangian_reference_fe_fill_qpoints_permutations
+  procedure :: fill_qpoints_permutations           &
+       & => lagrangian_fill_qpoints_permutations
   procedure, private, non_overridable :: fill_field_components        & 
        & => lagrangian_reference_fe_fill_field_components
 
@@ -951,14 +949,14 @@ abstract interface
     type(interpolation_t)           , intent(inout) :: face_interpolation
   end subroutine fill_face_interpolation_interface
 
-  function set_number_quadrature_points_interface ( this, order, dimension )
+  function compute_number_quadrature_points_interface ( this, degree, dimension )
     import :: lagrangian_reference_fe_t, ip, SPACE_DIM
     implicit none 
     class(lagrangian_reference_fe_t), intent(in)    :: this
-    integer(ip)                     , intent(in)    :: order
+    integer(ip)                     , intent(in)    :: degree
     integer(ip)                     , intent(in)    :: dimension
-    integer(ip) :: set_number_quadrature_points_interface
-  end function set_number_quadrature_points_interface
+    integer(ip) :: compute_number_quadrature_points_interface
+  end function compute_number_quadrature_points_interface
 
   subroutine blending_interface( this,values)
     import :: lagrangian_reference_fe_t, point_t
@@ -1150,8 +1148,8 @@ contains
              &  => tet_lagrangian_reference_fe_fill_interpolation
    procedure, private :: fill_face_interpolation                                        &
              &  => tet_lagrangian_reference_fe_fill_face_interpolation
-   procedure, private :: set_number_quadrature_points                                   &
-             &  => tet_lagrangian_reference_fe_set_number_quadrature_points
+   procedure, private :: compute_number_quadrature_points                                   &
+             &  => tet_lagrangian_reference_fe_compute_number_quadrature_points
    procedure, private :: get_node_local_id                                              &
              &  => tet_lagrangian_reference_fe_get_node_local_id
    procedure, private :: set_permutation_2D                                             &
@@ -1204,8 +1202,8 @@ procedure, private :: fill_face_interpolation                            &
 & => tet_raviart_thomas_fill_face_interpolation
 procedure, private :: set_permutation_2D                                 &
 & => tet_raviart_thomas_set_permutation_2D
-procedure, private :: set_number_quadrature_points                       &
-& => tet_raviart_thomas_set_number_quadrature_points
+procedure, private :: compute_number_quadrature_points                       &
+& => tet_raviart_thomas_compute_number_quadrature_points
 procedure, private :: get_node_local_id                   &
 & => tet_raviart_thomas_get_node_local_id
 ! Concrete TBPs of this derived data type
@@ -1253,8 +1251,10 @@ procedure, private :: fill_interpolation                                 &
 & => hex_lagrangian_reference_fe_fill_interpolation
 procedure, private :: fill_face_interpolation                            &
 & => hex_lagrangian_reference_fe_fill_face_interpolation
-procedure, private :: set_number_quadrature_points                       &
-& => hex_lagrangian_reference_fe_set_number_quadrature_points
+procedure, private :: compute_number_quadrature_points                       &
+& => hex_lagrangian_reference_fe_compute_number_quadrature_points
+procedure :: fill_qpoints_permutations                                   &
+       & => hex_lagrangian_reference_fe_fill_qpoints_permutations
 end type hex_lagrangian_reference_fe_t
 
 public :: hex_lagrangian_reference_fe_t
@@ -1278,11 +1278,13 @@ procedure, private :: fill_interpolation_pre_basis                       &
 & => hex_raviart_thomas_reference_fe_fill_interpolation_pre_basis
 procedure, private :: fill_face_interpolation                            &
 & => hex_raviart_thomas_reference_fe_fill_face_interpolation
-procedure, private :: set_number_quadrature_points                       &
-& => hex_raviart_thomas_reference_fe_set_number_quadrature_points
+procedure, private :: compute_number_quadrature_points                       &
+& => hrtrf_compute_number_quadrature_points
 procedure, private :: change_basis &
 & => hex_raviart_thomas_reference_fe_change_basis
-
+procedure :: fill_qpoints_permutations                                   &
+       & => hrtrf_fill_qpoints_permutations
+       
 end type hex_raviart_thomas_reference_fe_t
 
 public :: hex_raviart_thomas_reference_fe_t
@@ -1308,10 +1310,12 @@ procedure, private :: fill_face_interpolation                            &
 & => hex_nedelec_reference_fe_fill_face_interpolation
 procedure, private :: fill_edge_interpolation                            &
 & => hex_nedelec_reference_fe_fill_edge_interpolation
-procedure, private :: set_number_quadrature_points                       &
-& => hex_nedelec_reference_fe_set_number_quadrature_points
+procedure, private :: compute_number_quadrature_points                       &
+& => hex_nedelec_reference_fe_compute_number_quadrature_points
 procedure, private :: change_basis &
 & => hex_nedelec_reference_fe_change_basis
+procedure :: fill_qpoints_permutations           &
+& =>  hex_nedelec_reference_fe_fill_qpoints_permutations 
 
 end type hex_nedelec_reference_fe_t
 
@@ -1321,12 +1325,6 @@ public :: hex_nedelec_reference_fe_t
   type, extends(reference_fe_t) :: void_reference_fe_t
   private
 contains
-  ! Additional deferred methods
-  !procedure (fill_scalar_interface)                 , private, deferred :: fill_scalar
-  !procedure (fill_quadrature_interface)             , private, deferred :: fill_quadrature
-  !procedure (fill_interpolation_interface)          , private, deferred :: fill_interpolation
-  !procedure (fill_face_interpolation_interface)     , private, deferred :: fill_face_interpolation
-  !procedure (set_number_quadrature_points_interface), private, deferred :: set_number_quadrature_points
   procedure :: create                      => void_reference_fe_create
   procedure :: create_quadrature           => void_reference_fe_create_quadrature
   procedure :: create_face_quadrature      => void_reference_fe_create_face_quadrature

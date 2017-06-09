@@ -52,47 +52,47 @@ subroutine lagrangian_reference_fe_create ( this, topology, number_dimensions, o
 end subroutine lagrangian_reference_fe_create
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
+subroutine lagrangian_reference_fe_create_quadrature ( this, quadrature, degree )
   implicit none 
   class(lagrangian_reference_fe_t), intent(in)    :: this  
   type(quadrature_t)              , intent(inout) :: quadrature
-  integer(ip)           , optional, intent(in)    :: max_order
+  integer(ip)           , optional, intent(in)    :: degree
 
-  integer(ip) :: ngaus, order, idime
+  integer(ip) :: ngaus, degree_, idime
   ! @sbadia: to be improved to anisotropic quadratures
-  if ( present(max_order) ) then
-     order = max_order
+  if ( present(degree) ) then
+     degree_ = degree
   else
-     order = 0
+     degree_ = 0
      do idime = 1,this%number_dimensions
-        order = max(order,this%order_vector(idime))
+        degree_ = max(degree_,2*this%order_vector(idime))
      end do
   end if
-  ngaus = this%set_number_quadrature_points(order,this%number_dimensions)
+  ngaus = this%compute_number_quadrature_points( degree_,this%number_dimensions)
   call quadrature%create( this%number_dimensions, ngaus )
   call this%fill_quadrature( quadrature )
 
 end subroutine lagrangian_reference_fe_create_quadrature
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_create_face_quadrature ( this, quadrature, max_order )
+subroutine lagrangian_reference_fe_create_face_quadrature ( this, quadrature, degree )
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(inout) :: quadrature
-  integer(ip)           , optional, intent(in)    :: max_order
+  integer(ip)           , optional, intent(in)    :: degree
 
-  integer(ip) :: ngaus, order, face_dimensions, idime
+  integer(ip) :: ngaus, degree_, face_dimensions, idime
   ! @sbadia: to be improved to anisotropic quadratures
-  if ( present(max_order) ) then
-     order = max_order
+  if ( present(degree) ) then
+     degree_ = degree
   else
-     order = 0
+     degree_ = 0
      do idime = 1,this%number_dimensions
-        order = max(order,this%order_vector(idime))
+        degree_ = max(degree_,2*this%order_vector(idime))
      end do
   end if
   face_dimensions = this%number_dimensions - 1
-  ngaus = this%set_number_quadrature_points(order,face_dimensions)
+  ngaus = this%compute_number_quadrature_points(degree_,face_dimensions)
   call quadrature%create( face_dimensions, ngaus )
   call this%fill_quadrature( quadrature )
 
@@ -828,7 +828,7 @@ subroutine lagrangian_reference_fe_fill (this)
   end do
 
   if ( this%conformity ) then
-     allocate(this%own_node_permutations(this%number_dimensions-1))
+     allocate(this%own_dof_permutations(this%number_dimensions-1))
      call this%fill_own_dof_permutations()
   end if
 
@@ -836,7 +836,7 @@ subroutine lagrangian_reference_fe_fill (this)
      call this%fill_field_components( )
      if ( this%conformity ) then
         do dimension = 1, this%number_dimensions-1
-           if ( this%own_node_permutations(dimension)%nd1 > 0 .and. this%own_node_permutations(dimension)%nd2 > 0 ) then
+           if ( this%own_dof_permutations(dimension)%nd1 > 0 .and. this%own_dof_permutations(dimension)%nd2 > 0 ) then
               ! Compute the number of interior nodes x edge or face
               j = this%get_first_n_face_id_of_dimension(dimension)
               number_interior_dofs        = this%get_number_own_dofs_n_face(j)
@@ -845,10 +845,10 @@ subroutine lagrangian_reference_fe_fill (this)
                    this%number_orientations_per_dimension(dimension) 
               call memrealloc ( number_interior_dofs,                   &
                    num_columns,                             &
-                   this%own_node_permutations(dimension)%a, &
+                   this%own_dof_permutations(dimension)%a, &
                    __FILE__, __LINE__ )
-              this%own_node_permutations(dimension)%nd1 = size(this%own_node_permutations(dimension)%a,1)
-              this%own_node_permutations(dimension)%nd2 = size(this%own_node_permutations(dimension)%a,2)
+              this%own_dof_permutations(dimension)%nd1 = size(this%own_dof_permutations(dimension)%a,1)
+              this%own_dof_permutations(dimension)%nd2 = size(this%own_dof_permutations(dimension)%a,2)
               do column = 1, num_columns
                  ! Fill the rest of components
                  inode = number_interior_dofs_scalar
@@ -857,9 +857,9 @@ subroutine lagrangian_reference_fe_fill (this)
                     ! in case this ordering change, this will not work anymore.
                     do inode_scalar = 1, number_interior_dofs_scalar
                        inode = inode + 1
-                       this%own_node_permutations(dimension)%a(inode,column) = & 
+                       this%own_dof_permutations(dimension)%a(inode,column) = & 
                             & number_interior_dofs_scalar * (idime-1) + & 
-                            & this%own_node_permutations(dimension)%a(inode_scalar,column)
+                            & this%own_dof_permutations(dimension)%a(inode_scalar,column)
                     end do
                  end do
               end do
@@ -898,31 +898,17 @@ subroutine lagrangian_reference_fe_fill_own_dof_permutations (this)
      call this%node_array%fill_permutations( this%order, &
                                              idime, &
                                              this%polytope, &
-                                             this%own_node_permutations(idime) )
+                                             this%own_dof_permutations(idime) )
   end do
 end subroutine lagrangian_reference_fe_fill_own_dof_permutations
 
-!==================================================================================================
-subroutine lagrangian_reference_fe_fill_qpoints_permutations(this, ndime, qpoints_perm, max_order)
+subroutine lagrangian_fill_qpoints_permutations (this, quadrature, qpoints_perm)
   implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: ndime
-  type(allocatable_array_ip2_t)   , intent(inout) :: qpoints_perm
-  integer(ip)          , optional , intent(in)    :: max_order
-  integer(ip)  :: order
-  
-  if (present(max_order)) then
-     order = max_order
-  else
-     order = this%get_max_order()+2
-  end if
-  
-  call this%node_array%fill_permutations( order, &
-                                          ndime, &
-                                          this%polytope, &
-                                          qpoints_perm )
-  
-end subroutine lagrangian_reference_fe_fill_qpoints_permutations
+  class(lagrangian_reference_fe_t)        , intent(in)    :: this 
+  type(quadrature_t)           , intent(in)    :: quadrature
+  type(allocatable_array_ip2_t), intent(inout) :: qpoints_perm
+  check(.false.)
+end subroutine lagrangian_fill_qpoints_permutations
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_fill_field_components (this)

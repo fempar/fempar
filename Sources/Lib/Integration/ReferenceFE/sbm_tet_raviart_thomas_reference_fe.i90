@@ -849,12 +849,12 @@ subroutine tet_raviart_thomas_set_permutation_2D( this, permutation, number_node
 end subroutine tet_raviart_thomas_set_permutation_2D
 
 !=================================================================================================
-function tet_raviart_thomas_set_number_quadrature_points( this, order, dimension )
+function tet_raviart_thomas_compute_number_quadrature_points( this, degree, dimension )
   implicit none
   class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: order
+  integer(ip)                         , intent(in)    :: degree
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: tet_raviart_thomas_set_number_quadrature_points
+  integer(ip) :: tet_raviart_thomas_compute_number_quadrature_points
   !tet_raviart_thomas_set_number_quadrature_points = & 
   ! & this%compute_number_nodes_scalar( order, dimension )
   !if( dimension .eq. 2 ) then
@@ -866,7 +866,7 @@ function tet_raviart_thomas_set_number_quadrature_points( this, order, dimension
   !      tet_raviart_thomas_set_number_quadrature_points = 11
   !   end if
   !end if
-end function tet_raviart_thomas_set_number_quadrature_points
+end function tet_raviart_thomas_compute_number_quadrature_points
 
 !=================================================================================================
 recursive function tet_raviart_thomas_compute_number_nodes_scalar(this, order, dimension)

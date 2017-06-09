@@ -182,7 +182,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   
   integer(ip)                    :: idof_source, idof_target
   integer(ip)                    :: own_dof_within_vef_target_fe
-  integer(ip)                    :: relative_orientation, relative_rotation
+  integer(ip)                    :: permutation_index
 
   assert ( target_ivef <= this%get_num_vefs() )
   assert ( source_ivef <= source_fe%get_num_vefs() )
@@ -198,22 +198,17 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   own_dofs_on_vef_iterator_target = reference_fe_target%create_own_dofs_on_n_face_iterator(target_ivef)
   if ( own_dofs_on_vef_iterator_target%get_size() > 0 ) then
        assert (reference_fe_source%check_compatibility_of_n_faces(reference_fe_target,target_ivef,source_ivef))
-       relative_rotation = reference_fe_source%compute_relative_rotation( reference_fe_target, &
+       permutation_index = reference_fe_target%compute_permutation_index( reference_fe_source, &
                                                                           target_ivef, &
                                                                           source_ivef, &
                                                                           this%get_vef_lids(), &
                                                                           source_fe%get_vef_lids())
-       relative_orientation = reference_fe_source%compute_relative_orientation( reference_fe_target, &
-                                                                                target_ivef, &
-                                                                                source_ivef)
-       
       own_dof_within_vef_target_fe = 1
       do while (.not. own_dofs_on_vef_iterator_target%is_upper_bound())
         idof_target = own_dofs_on_vef_iterator_target%get_current()
         idof_source = reference_fe_source%get_permuted_own_dof_n_face(own_dof_within_vef_target_fe, &
                                                                     source_ivef, & 
-                                                                    relative_orientation, &
-                                                                    relative_rotation)
+                                                                    permutation_index)
         
         this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target+idof_target) = &                                                      
             this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_source+idof_source)
