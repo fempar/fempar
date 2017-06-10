@@ -1034,7 +1034,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
      integer(ip)                         , intent(in)    :: degree
      integer(ip)                         , intent(in)    :: dimension
      integer(ip) :: hrtrf_compute_number_quadrature_points
-     hrtrf_compute_number_quadrature_points = (ceiling( real(degree + 1) / 2.0 ))**dimension
+     hrtrf_compute_number_quadrature_points = int(ceiling(real(degree + 1,rp)/2.0_rp)**real(dimension,rp),ip)
    end function hrtrf_compute_number_quadrature_points
    
    

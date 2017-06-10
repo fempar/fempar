@@ -536,7 +536,6 @@ subroutine void_reference_fe_fill_own_dof_permutations  ( this )
   check(.false.)
 end subroutine void_reference_fe_fill_own_dof_permutations 
 
-
 !=================================================================================================
 subroutine void_reference_fe_fill_qpoints_permutations  ( this, quadrature, qpoints_perm )
   implicit none 
@@ -546,7 +545,6 @@ subroutine void_reference_fe_fill_qpoints_permutations  ( this, quadrature, qpoi
   check(.false.)
 end subroutine void_reference_fe_fill_qpoints_permutations 
 
-
 !==================================================================================================
 subroutine void_reference_fe_free ( this )
   implicit none 
@@ -554,10 +552,17 @@ subroutine void_reference_fe_free ( this )
   call reference_fe_free ( this )
 end subroutine void_reference_fe_free
 
+!==================================================================================================
+function void_reference_fe_get_default_quadrature_degree ( this )
+  implicit none 
+  class(void_reference_fe_t), intent(in) :: this 
+  integer(ip) :: void_reference_fe_get_default_quadrature_degree 
+  void_reference_fe_get_default_quadrature_degree = -1
+end function void_reference_fe_get_default_quadrature_degree
+
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
-
 !==================================================================================================
 subroutine void_reference_fe_fill (this)
   implicit none

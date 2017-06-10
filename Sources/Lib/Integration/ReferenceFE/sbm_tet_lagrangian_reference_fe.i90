@@ -381,7 +381,7 @@ function tet_lagrangian_reference_fe_compute_number_quadrature_points( this, deg
   integer(ip) :: tet_lagrangian_reference_fe_compute_number_quadrature_points
   
   if( dimension .eq. 1 ) then
-     tet_lagrangian_reference_fe_compute_number_quadrature_points = ceiling(real(degree)/2.0) + 1
+     tet_lagrangian_reference_fe_compute_number_quadrature_points = int(ceiling(real(degree,rp)/2.0_rp),ip)+1
   elseif( dimension .eq. 2 ) then
      !*************************************************************************
      ! Using efficent symmetrical gaussian quadrature rules (when available). 
@@ -396,7 +396,7 @@ function tet_lagrangian_reference_fe_compute_number_quadrature_points( this, deg
      !elseif( degree .le. 10 ) then
      !   tet_lagrangian_reference_fe_compute_number_quadrature_points = 28
      !else ! Quadratures based on brick quadratures transformation
-       tet_lagrangian_reference_fe_compute_number_quadrature_points = ( ceiling(real(degree)/2.0) + 1 )**2
+       tet_lagrangian_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 1.0_rp )**2.0_rp,ip)
      !end if
   elseif( dimension .eq. 3 ) then
      !*************************************************************************
@@ -406,7 +406,7 @@ function tet_lagrangian_reference_fe_compute_number_quadrature_points( this, deg
      !elseif( degree .le. 4) then
      !   tet_lagrangian_reference_fe_compute_number_quadrature_points = 11
      !else ! Quadratures based on brick quadratures transformation
-        tet_lagrangian_reference_fe_compute_number_quadrature_points = ( ceiling(real(degree)/2.0) + 2 )**3
+        tet_lagrangian_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 2.0_rp )**3.0_rp,ip)
      !end if
   end if
   

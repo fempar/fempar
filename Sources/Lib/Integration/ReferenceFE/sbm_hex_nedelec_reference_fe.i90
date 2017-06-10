@@ -1171,7 +1171,7 @@ function hex_nedelec_reference_fe_compute_number_quadrature_points( this, degree
   integer(ip)                         , intent(in)    :: degree
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: hex_nedelec_reference_fe_compute_number_quadrature_points
-  hex_nedelec_reference_fe_compute_number_quadrature_points = (ceiling( real(degree + 1) / 2.0 ))**dimension
+  hex_nedelec_reference_fe_compute_number_quadrature_points = int(ceiling(real(degree + 1,rp)/2.0_rp)**real(dimension,rp),ip)
  end function hex_nedelec_reference_fe_compute_number_quadrature_points
  
  !==================================================================================================

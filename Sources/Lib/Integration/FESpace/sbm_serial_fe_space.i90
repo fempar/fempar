@@ -52,6 +52,10 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_fe_quadratures_degree()
+  call this%clear_fe_quadratures_degree()
+  call this%allocate_max_order_reference_fe_id_per_fe()
+  call this%compute_max_order_reference_fe_id_per_fe()
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine serial_fe_space_create_same_reference_fes_on_all_cells
@@ -84,6 +88,10 @@ subroutine serial_fe_space_create_different_between_cells( this, &
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
   call this%allocate_and_init_at_strong_dirichlet_bound()
+  call this%allocate_fe_quadratures_degree()
+  call this%clear_fe_quadratures_degree()
+  call this%allocate_max_order_reference_fe_id_per_fe()
+  call this%compute_max_order_reference_fe_id_per_fe()
   call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine serial_fe_space_create_different_between_cells
 
@@ -101,6 +109,8 @@ subroutine serial_fe_space_free (this)
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
   call this%free_fe_face_integration()
+  call this%free_fe_quadratures_degree()
+  call this%free_max_order_reference_fe_id_per_fe()
 end subroutine serial_fe_space_free
 
 subroutine serial_fe_space_print ( this )
@@ -1213,34 +1223,45 @@ subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
 
 end subroutine serial_fe_space_check_cell_vs_fe_topology_consistency
 
-subroutine serial_fe_space_initialize_fe_integration ( this )
+subroutine serial_fe_space_allocate_fe_quadratures_degree ( this ) 
   implicit none
-  class(serial_fe_space_t)          , intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
+  call this%free_fe_quadratures_degree()
+  call memalloc ( this%triangulation%get_num_cells(), this%fe_quadratures_degree, __FILE__, __LINE__ )
+end subroutine serial_fe_space_allocate_fe_quadratures_degree 
 
+subroutine serial_fe_space_clear_fe_quadratures_degree ( this ) 
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  assert ( allocated(this%fe_quadratures_degree) )
+  this%fe_quadratures_degree = fe_space_default_quadrature_degree_flag
+end subroutine serial_fe_space_clear_fe_quadratures_degree
+
+subroutine serial_fe_space_free_fe_quadratures_degree ( this ) 
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  if (allocated(this%fe_quadratures_degree)) call memfree ( this%fe_quadratures_degree, __FILE__, __LINE__ )
+end subroutine serial_fe_space_free_fe_quadratures_degree
+
+subroutine serial_fe_space_allocate_max_order_reference_fe_id_per_fe ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  call this%free_max_order_reference_fe_id_per_fe()
+  call memalloc ( this%triangulation%get_num_cells(), this%max_order_reference_fe_id_per_fe, __FILE__, __LINE__ )
+end subroutine serial_fe_space_allocate_max_order_reference_fe_id_per_fe 
+
+subroutine serial_fe_space_free_max_order_reference_fe_id_per_fe ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  if (allocated(this%max_order_reference_fe_id_per_fe)) call memfree ( this%max_order_reference_fe_id_per_fe, __FILE__, __LINE__ )
+end subroutine serial_fe_space_free_max_order_reference_fe_id_per_fe 
+
+subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
   class(fe_iterator_t), allocatable :: fe
-  integer(ip)         :: current_quadrature_and_map
-  integer(ip)         :: current_volume_integrator
-
-  integer(ip)         :: field_id
-  integer(ip)         :: max_order, max_order_reference_fe_id_within_fe
-  integer(ip)         :: fe_volume_integrators_position_key
-  integer(ip)         :: istat
-  type(quadrature_t), pointer :: quadrature
-
-  class(reference_fe_t), pointer :: reference_fe
-
-  call this%free_fe_integration()
-
-  call memalloc ( this%triangulation%get_num_cells(), &
-       this%max_order_reference_fe_id_per_fe, &
-       __FILE__, __LINE__ )
-
-  ! Determine the size of fe_quadratures, fe_maps, and fe_volume_integrators 
-  ! while filling the corresponding hash tables
-  call this%fe_quadratures_and_maps_position%init()
-  call this%fe_volume_integrators_position%init()
-  current_quadrature_and_map = 1
-  current_volume_integrator  = 1
+  integer(ip) :: max_order, max_order_reference_fe_id_within_fe
+  integer(ip) :: field_id
   
   call this%create_fe_iterator(fe)
   do while ( .not. fe%has_finished())
@@ -1252,21 +1273,60 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
         end if
      end do
      this%max_order_reference_fe_id_per_fe(fe%get_lid()) = max_order_reference_fe_id_within_fe
+     call fe%next()
+  end do
+  call this%free_fe_iterator(fe) 
+end subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe 
 
-     call this%fe_quadratures_and_maps_position%put(key = max_order_reference_fe_id_within_fe, &
-                                                          val=current_quadrature_and_map, &
-                                                          stat=istat)
+
+
+subroutine serial_fe_space_initialize_fe_integration ( this )
+  implicit none
+  class(serial_fe_space_t)          , intent(inout) :: this
+
+  class(fe_iterator_t), allocatable :: fe
+  integer(ip)         :: current_quadrature_and_map
+  integer(ip)         :: current_volume_integrator
+
+  integer(ip)         :: field_id
+  integer(ip)         :: max_order, max_order_reference_fe_id_within_fe
+  integer(ip)         :: fe_quadrature_and_map_key
+  integer(ip)         :: fe_volume_integrators_position_key
+  integer(ip)         :: istat
+  type(quadrature_t), pointer :: quadrature
+
+  class(reference_fe_t), pointer :: reference_fe
+
+  call this%free_fe_integration()
+
+  ! Determine the size of fe_quadratures, fe_maps, and fe_volume_integrators 
+  ! while filling the corresponding hash tables
+  call this%fe_quadratures_and_maps_position%init()
+  call this%fe_volume_integrators_position%init()
+  current_quadrature_and_map = 1
+  current_volume_integrator  = 1
+  
+  call this%create_fe_iterator(fe)
+  do while ( .not. fe%has_finished())
+     fe_quadrature_and_map_key = this%generate_fe_quadratures_position_key(fe%get_reference_fe_geo_id(),&
+                                                                           fe%get_quadrature_degree())
+
+     call this%fe_quadratures_and_maps_position%put(key = fe_quadrature_and_map_key,  &
+                                                    val = current_quadrature_and_map, &
+                                                    stat= istat)
      if (istat == now_stored) then
         current_quadrature_and_map = current_quadrature_and_map + 1
      end if
 
      do field_id=1, this%get_number_fields()
         fe_volume_integrators_position_key = &
-             this%generate_fe_volume_integrators_position_key(max_order_reference_fe_id_within_fe, &
-             this%reference_fe_id_per_fe(field_id, fe%get_lid()))
+             this%generate_fe_volume_integrators_position_key(fe%get_reference_fe_geo_id(), &
+                                                 fe%get_quadrature_degree(), &
+                                                 this%reference_fe_id_per_fe(field_id, fe%get_lid()))
+
         call this%fe_volume_integrators_position%put(key=fe_volume_integrators_position_key, &
-             val=current_volume_integrator, &
-             stat=istat)
+                                                     val=current_volume_integrator, &
+                                                     stat=istat)
         if (istat == now_stored) then
            current_volume_integrator = current_volume_integrator + 1
         end if
@@ -1291,31 +1351,37 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
 
   call fe%first()
   do while ( .not. fe%has_finished())
-     max_order_reference_fe_id_within_fe = this%max_order_reference_fe_id_per_fe(fe%get_lid())
-
-     call this%fe_quadratures_and_maps_position%put(key=max_order_reference_fe_id_within_fe, &
-                                                    val=current_quadrature_and_map, &
-                                                    stat=istat)
+   
+     fe_quadrature_and_map_key = this%generate_fe_quadratures_position_key(fe%get_reference_fe_geo_id(),&
+                                                                           fe%get_quadrature_degree())
+     
+     call this%fe_quadratures_and_maps_position%put(key = fe_quadrature_and_map_key,  &
+                                                    val = current_quadrature_and_map, &
+                                                    stat= istat)
      if (istat == now_stored) then
         ! Create quadrature and fe_map associated to current max_order_within_fe
+        max_order_reference_fe_id_within_fe = this%max_order_reference_fe_id_per_fe(fe%get_lid()) 
         reference_fe => this%reference_fes(max_order_reference_fe_id_within_fe)%p
-        call reference_fe%create_quadrature(this%fe_quadratures(current_quadrature_and_map))
+        call reference_fe%create_quadrature(this%fe_quadratures(current_quadrature_and_map))!, &
+                                            !fe%get_quadrature_degree())
         call this%fe_maps(current_quadrature_and_map)%create(this%fe_quadratures(current_quadrature_and_map),&
-             fe%get_reference_fe_geo())
+                                                             fe%get_reference_fe_geo())
         current_quadrature_and_map = current_quadrature_and_map + 1
      end if
 
      do field_id=1, this%get_number_fields()
         fe_volume_integrators_position_key = &
-             this%generate_fe_volume_integrators_position_key(max_order_reference_fe_id_within_fe, &
-             this%reference_fe_id_per_fe(field_id, fe%get_lid()))
+             this%generate_fe_volume_integrators_position_key(fe%get_reference_fe_geo_id(), &
+                                                              fe%get_quadrature_degree(), &
+                                                              this%reference_fe_id_per_fe(field_id, fe%get_lid()))
+        
         call this%fe_volume_integrators_position%put(key=fe_volume_integrators_position_key, &
-             val=current_volume_integrator, &
-             stat=istat)
+                                                     val=current_volume_integrator, &
+                                                     stat=istat)
         if (istat == now_stored) then 
            quadrature => fe%get_quadrature()
            call this%fe_volume_integrators(current_volume_integrator)%create(quadrature,&
-                fe%get_reference_fe(field_id))
+                                                                             fe%get_reference_fe(field_id))
            current_volume_integrator = current_volume_integrator + 1
         end if
      end do
@@ -1331,7 +1397,6 @@ subroutine serial_fe_space_free_fe_integration ( this )
 
   class(reference_fe_t), pointer :: reference_fe
 
-  if (allocated(this%max_order_reference_fe_id_per_fe)) call memfree ( this%max_order_reference_fe_id_per_fe, __FILE__, __LINE__ )
   call this%fe_quadratures_and_maps_position%free()
   call this%fe_volume_integrators_position%free()
 
@@ -1360,17 +1425,34 @@ subroutine serial_fe_space_free_fe_integration ( this )
   end if
 end subroutine serial_fe_space_free_fe_integration
 
+
 ! Some comments:
-!   * max_order_reference_fe_id_within_fe can range from 1 to this%reference_fes_size
-!   * reference_fe_id can range from 1 to this%reference_fes_size
-function serial_fe_space_generate_fe_volume_integrators_position_key ( this, max_order_reference_fe_id_within_fe, reference_fe_id )
+!   * geo_reference_fe_id can range from 1 to this%triangulation%get_number_reference_fes_geo()
+!   * quadrature_degree can range from -1 to fe_space_max_quadrature_degree
+function serial_fe_space_generate_fe_quadratures_position_key ( this, geo_reference_fe_id, quadrature_degree)
   implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  integer(ip)                 , intent(in) :: max_order_reference_fe_id_within_fe
+  class(serial_fe_space_t)    , intent(in) :: this
+  integer(ip)                 , intent(in) :: geo_reference_fe_id
+  integer(ip)                 , intent(in) :: quadrature_degree
+  integer(ip) :: serial_fe_space_generate_fe_quadratures_position_key
+  massert ( quadrature_degree >= -1 .and. quadrature_degree <= fe_space_max_quadrature_degree,  "serial_fe_space_generate_fe_quadratures_position_key::Invalid quadrature degree")
+  massert ( geo_reference_fe_id >= 1 .and. geo_reference_fe_id <= this%triangulation%get_number_reference_fes_geo(), "serial_fe_space_generate_fe_quadratures_position_key::Invalid geo_reference_fe_id" )
+  serial_fe_space_generate_fe_quadratures_position_key = 2 + quadrature_degree + (fe_space_max_quadrature_degree+2)*(geo_reference_fe_id-1)
+end function serial_fe_space_generate_fe_quadratures_position_key
+
+! Some comments:
+!   * geo_reference_fe_id can range from 1 to this%triangulation%get_number_reference_fes_geo()
+!   * quadrature_degree can range from -1 to fe_space_max_quadrature_degree
+!   * reference_fe_id can range from 1 to this%reference_fes_size
+function serial_fe_space_generate_fe_volume_integrators_position_key ( this, geo_reference_fe_id, quadrature_degree, reference_fe_id )
+  implicit none
+  class(serial_fe_space_t)    , intent(in) :: this
+  integer(ip)                 , intent(in) :: geo_reference_fe_id
+  integer(ip)                 , intent(in) :: quadrature_degree
   integer(ip)                 , intent(in) :: reference_fe_id
   integer(ip) :: serial_fe_space_generate_fe_volume_integrators_position_key
   serial_fe_space_generate_fe_volume_integrators_position_key =  &
-       reference_fe_id + (max_order_reference_fe_id_within_fe)*this%reference_fes_size
+       (reference_fe_id-1)*(fe_space_max_quadrature_degree+2)*this%triangulation%get_number_reference_fes_geo() + this%generate_fe_quadratures_position_key(geo_reference_fe_id,quadrature_degree)
 end function serial_fe_space_generate_fe_volume_integrators_position_key
 
 subroutine serial_fe_space_initialize_fe_face_integration ( this )

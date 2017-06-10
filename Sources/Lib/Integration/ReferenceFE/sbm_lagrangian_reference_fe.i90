@@ -63,15 +63,11 @@ subroutine lagrangian_reference_fe_create_quadrature ( this, quadrature, degree 
   if ( present(degree) ) then
      degree_ = degree
   else
-     degree_ = 0
-     do idime = 1,this%number_dimensions
-        degree_ = max(degree_,2*this%order_vector(idime))
-     end do
+     degree_ = this%get_default_quadrature_degree()
   end if
   ngaus = this%compute_number_quadrature_points( degree_,this%number_dimensions)
   call quadrature%create( this%number_dimensions, ngaus )
   call this%fill_quadrature( quadrature )
-
 end subroutine lagrangian_reference_fe_create_quadrature
 
 !==================================================================================================
@@ -86,10 +82,7 @@ subroutine lagrangian_reference_fe_create_face_quadrature ( this, quadrature, de
   if ( present(degree) ) then
      degree_ = degree
   else
-     degree_ = 0
-     do idime = 1,this%number_dimensions
-        degree_ = max(degree_,2*this%order_vector(idime))
-     end do
+     degree_ = this%get_default_quadrature_degree()
   end if
   face_dimensions = this%number_dimensions - 1
   ngaus = this%compute_number_quadrature_points(degree_,face_dimensions)
@@ -1052,6 +1045,19 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
      call memfree(wmat2,__FILE__,__LINE__)
   end if
 end subroutine lagrangian_reference_fe_apply_femap_to_interpolation
+
+!==================================================================================================
+function lagrangian_reference_fe_get_default_quadrature_degree(this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in) :: this
+  integer(ip) :: lagrangian_reference_fe_get_default_quadrature_degree
+  integer(ip) :: idime
+  lagrangian_reference_fe_get_default_quadrature_degree = 0
+  do idime = 1,this%number_dimensions
+     lagrangian_reference_fe_get_default_quadrature_degree = max(lagrangian_reference_fe_get_default_quadrature_degree,2*this%order_vector(idime))
+  end do
+end function lagrangian_reference_fe_get_default_quadrature_degree
+
 
 !**************************************************************************************************
 ! Auxiliary procedures called by the child-classes that are not bound to the attributes

@@ -429,6 +429,11 @@ module reference_fe_names
      procedure (check_compatibility_of_n_faces_interface), deferred :: &
           &     check_compatibility_of_n_faces
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
+     
+     procedure(fill_own_dof_permutations_interface), deferred :: fill_own_dof_permutations
+     procedure(fill_qpoints_permutations_interface), deferred :: fill_qpoints_permutations
+     
+     procedure(get_default_quadrature_degree_interface), deferred :: get_default_quadrature_degree
 
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
@@ -477,8 +482,7 @@ module reference_fe_names
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_permutation_index => reference_fe_compute_permutation_index
      procedure :: get_permuted_own_dof_n_face  => reference_fe_get_permuted_own_dof_n_face
-     procedure(fill_own_dof_permutations_interface), deferred :: fill_own_dof_permutations
-     procedure(fill_qpoints_permutations_interface), deferred :: fill_qpoints_permutations
+
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -791,6 +795,17 @@ module reference_fe_names
         type(quadrature_t)           , intent(in)    :: quadrature
         type(allocatable_array_ip2_t), intent(inout) :: qpoints_perm
      end subroutine
+     
+     ! Assuming that no hint comes from the user with respect to the degree of the quadrature to be used,
+     ! this deferred binding lets the reference_fe_t implementor to automatically decide
+     ! the polynomial degree for which the integral numerically evaluated using the quadrature created by default 
+     ! is to be exact (i.e., the quadrature degree)
+     function get_default_quadrature_degree_interface(this)
+        import :: reference_fe_t, ip
+        implicit none
+        class(reference_fe_t)        , intent(in)    :: this 
+        integer(ip) :: get_default_quadrature_degree_interface
+     end function get_default_quadrature_degree_interface
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -880,6 +895,8 @@ contains
        & => lagrangian_reference_fe_extend_list_components
   procedure, private :: apply_femap_to_interpolation & 
        & => lagrangian_reference_fe_apply_femap_to_interpolation
+  procedure  :: get_default_quadrature_degree &
+       & => lagrangian_reference_fe_get_default_quadrature_degree
 end type lagrangian_reference_fe_t
 
 abstract interface
@@ -1355,9 +1372,10 @@ contains
   procedure :: evaluate_gradient_fe_function_vector => void_reference_fe_evaluate_gradient_fe_function_vector
   procedure :: check_compatibility_of_n_faces       => void_reference_fe_check_compatibility_of_n_faces
   procedure :: get_characteristic_length            => void_reference_fe_get_characteristic_length  
-  procedure :: fill_own_dof_permutations           => void_reference_fe_fill_own_dof_permutations
+  procedure :: fill_own_dof_permutations            => void_reference_fe_fill_own_dof_permutations
   procedure :: fill_qpoints_permutations            => void_reference_fe_fill_qpoints_permutations     
   procedure :: free                                 => void_reference_fe_free
+  procedure :: get_default_quadrature_degree        => void_reference_fe_get_default_quadrature_degree
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                        => void_reference_fe_fill
 end type void_reference_fe_t
