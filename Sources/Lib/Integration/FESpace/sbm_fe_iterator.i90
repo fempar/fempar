@@ -302,7 +302,7 @@ subroutine fe_iterator_update_integration( this )
   type(point_t)            , pointer :: coordinates(:)
   type(fe_map_t)           , pointer :: fe_map
   type(quadrature_t)       , pointer :: quadrature
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
 
   fe_map      => this%get_fe_map()
   coordinates => fe_map%get_coordinates()
@@ -311,8 +311,8 @@ subroutine fe_iterator_update_integration( this )
   quadrature => this%get_quadrature()
   call fe_map%update(quadrature)
   do field_id = 1, this%get_number_fields()
-     volume_integrator => this%get_volume_integrator(field_id) 
-     call volume_integrator%update(fe_map)
+     cell_integrator => this%get_cell_integrator(field_id) 
+     call cell_integrator%update(fe_map)
   end do
   
 end subroutine fe_iterator_update_integration
@@ -567,26 +567,26 @@ function fe_iterator_get_fe_map ( this )
   fe_iterator_get_fe_map => this%fe_space%fe_maps(fe_maps_position)
 end function fe_iterator_get_fe_map
 
-function fe_iterator_get_volume_integrator ( this, field_id )
+function fe_iterator_get_cell_integrator ( this, field_id )
   implicit none
   class(fe_iterator_t), intent(in)   :: this
   integer(ip)         , intent(in)   :: field_id
-  type(volume_integrator_t), pointer :: fe_iterator_get_volume_integrator
-  integer(ip) :: fe_volume_integrators_position_key
-  integer(ip) :: fe_volume_integrators_position
+  type(cell_integrator_t), pointer :: fe_iterator_get_cell_integrator
+  integer(ip) :: fe_cell_integrators_position_key
+  integer(ip) :: fe_cell_integrators_position
   integer(ip) :: istat
   
-  fe_volume_integrators_position_key = &
-        this%fe_space%generate_fe_volume_integrators_position_key(this%get_reference_fe_geo_id(), &
+  fe_cell_integrators_position_key = &
+        this%fe_space%generate_fe_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
                                                                   this%get_quadrature_degree(), &
                                                                   this%fe_space%reference_fe_id_per_fe(field_id, this%get_lid()))
   
-  call this%fe_space%fe_volume_integrators_position%get(key=fe_volume_integrators_position_key, &
-                                                        val=fe_volume_integrators_position, &
+  call this%fe_space%fe_cell_integrators_position%get(key=fe_cell_integrators_position_key, &
+                                                        val=fe_cell_integrators_position, &
                                                         stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_iterator_get_volume_integrator => this%fe_space%fe_volume_integrators(fe_volume_integrators_position)
-end function fe_iterator_get_volume_integrator
+  fe_iterator_get_cell_integrator => this%fe_space%fe_cell_integrators(fe_cell_integrators_position)
+end function fe_iterator_get_cell_integrator
 
 subroutine fe_iterator_get_fe_vef(this, ivef, fe_vef)
   implicit none

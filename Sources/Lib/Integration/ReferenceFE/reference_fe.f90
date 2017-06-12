@@ -66,7 +66,7 @@ module reference_fe_names
   !   reference_fe_t and a quadrature_t. It is computed in the concrete reference_fe_t
   ! * fe_map_t: It provides the mapping from a physical FE to the reference FE
   !   (jacobian, etc.)
-  ! * volume_integrator_t: It aggregates all the aforementioned structures to be
+  ! * cell_integrator_t: It aggregates all the aforementioned structures to be
   !   used in the FE element integration subroutine. In particular, one 
   !   reference_fe_t for the unknowns and one for the geometry (for non-isoparametric
   !   cases), one quadrature, and the corresponding interpolation. Further, it 
@@ -1383,7 +1383,7 @@ end type void_reference_fe_t
 public :: void_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-type volume_integrator_t 
+type cell_integrator_t 
 private
 integer(ip)                    :: number_shape_functions
 integer(ip)                    :: number_quadrature_points
@@ -1392,61 +1392,61 @@ type(interpolation_t)          :: interpolation      ! Unknown interpolation_t i
 type(interpolation_t)          :: interpolation_o_map! Unknown interpolation_t in the physical element domain
 contains
 
-procedure, non_overridable :: create         => volume_integrator_create
-procedure, non_overridable :: create_on_face => volume_integrator_create_on_face
-procedure, non_overridable :: free           => volume_integrator_free
-procedure, non_overridable :: update         => volume_integrator_update
-procedure, non_overridable :: print          => volume_integrator_print
+procedure, non_overridable :: create         => cell_integrator_create
+procedure, non_overridable :: create_on_face => cell_integrator_create_on_face
+procedure, non_overridable :: free           => cell_integrator_free
+procedure, non_overridable :: update         => cell_integrator_update
+procedure, non_overridable :: print          => cell_integrator_print
 
 procedure, non_overridable :: get_interpolation_reference_cell =>                               &
-&                                   volume_integrator_get_interpolation_reference_cell
+&                                   cell_integrator_get_interpolation_reference_cell
 procedure, non_overridable :: get_interpolation_real_cell =>                                    &
-&                                   volume_integrator_get_interpolation_real_cell
+&                                   cell_integrator_get_interpolation_real_cell
 
 
-procedure, non_overridable, private :: get_value_scalar           => volume_integrator_get_value_scalar
-procedure, non_overridable, private :: get_value_vector           => volume_integrator_get_value_vector
-procedure, non_overridable, private :: get_value_tensor           => volume_integrator_get_value_tensor
-procedure, non_overridable, private :: get_value_symmetric_tensor => volume_integrator_get_value_symmetric_tensor
+procedure, non_overridable, private :: get_value_scalar           => cell_integrator_get_value_scalar
+procedure, non_overridable, private :: get_value_vector           => cell_integrator_get_value_vector
+procedure, non_overridable, private :: get_value_tensor           => cell_integrator_get_value_tensor
+procedure, non_overridable, private :: get_value_symmetric_tensor => cell_integrator_get_value_symmetric_tensor
 generic            :: get_value => get_value_scalar, &
                                    get_value_vector, &
                                    get_value_tensor, &
                                    get_value_symmetric_tensor
                                    
-procedure, non_overridable, private :: get_values_scalar           => volume_integrator_get_values_scalar
-procedure, non_overridable, private :: get_values_vector           => volume_integrator_get_values_vector
-!procedure, non_overridable, private :: get_value_tensor           => volume_integrator_get_value_tensor
-!procedure, non_overridable, private :: get_value_symmetric_tensor => volume_integrator_get_value_symmetric_tensor
+procedure, non_overridable, private :: get_values_scalar           => cell_integrator_get_values_scalar
+procedure, non_overridable, private :: get_values_vector           => cell_integrator_get_values_vector
+!procedure, non_overridable, private :: get_value_tensor           => cell_integrator_get_value_tensor
+!procedure, non_overridable, private :: get_value_symmetric_tensor => cell_integrator_get_value_symmetric_tensor
 generic            :: get_values => get_values_scalar, &
                                     get_values_vector !, &
                                    !get_value_tensor, &
                                    !get_value_symmetric_tensor
-procedure, non_overridable, private :: get_gradient_scalar => volume_integrator_get_gradient_scalar
-procedure, non_overridable, private :: get_gradient_vector => volume_integrator_get_gradient_vector
+procedure, non_overridable, private :: get_gradient_scalar => cell_integrator_get_gradient_scalar
+procedure, non_overridable, private :: get_gradient_vector => cell_integrator_get_gradient_vector
 generic                             :: get_gradient => get_gradient_scalar, &
                                                        get_gradient_vector 
 
-procedure, non_overridable, private :: get_gradients_scalar => volume_integrator_get_gradients_scalar
-procedure, non_overridable, private :: get_gradients_vector => volume_integrator_get_gradients_vector
+procedure, non_overridable, private :: get_gradients_scalar => cell_integrator_get_gradients_scalar
+procedure, non_overridable, private :: get_gradients_vector => cell_integrator_get_gradients_vector
 generic                             :: get_gradients => get_gradients_scalar, &
                                                         get_gradients_vector 
 
-procedure, non_overridable, private :: get_symmetric_gradient_vector => volume_integrator_get_symmetric_gradient_vector
+procedure, non_overridable, private :: get_symmetric_gradient_vector => cell_integrator_get_symmetric_gradient_vector
 generic                             :: get_symmetric_gradient => get_symmetric_gradient_vector
 
-procedure, non_overridable, private :: get_divergence_vector => volume_integrator_get_divergence_vector
-procedure, non_overridable, private :: get_divergence_tensor => volume_integrator_get_divergence_tensor
+procedure, non_overridable, private :: get_divergence_vector => cell_integrator_get_divergence_vector
+procedure, non_overridable, private :: get_divergence_tensor => cell_integrator_get_divergence_tensor
 generic                             :: get_divergence => get_divergence_vector, &
                                                          get_divergence_tensor
-procedure, non_overridable, private :: get_divergences_vector => volume_integrator_get_divergences_vector
-!procedure, non_overridable, private :: get_divergences_tensor => volume_integrator_get_divergences_tensor
+procedure, non_overridable, private :: get_divergences_vector => cell_integrator_get_divergences_vector
+!procedure, non_overridable, private :: get_divergences_tensor => cell_integrator_get_divergences_tensor
 generic                             :: get_divergences => get_divergences_vector!, &
                                                          !get_divergence_tensor
 
-procedure, non_overridable, private :: get_curl_vector => volume_integrator_get_curl_vector
+procedure, non_overridable, private :: get_curl_vector => cell_integrator_get_curl_vector
 generic                             :: get_curl => get_curl_vector
 
-procedure, non_overridable, private :: get_curls_vector => volume_integrator_get_curls_vector
+procedure, non_overridable, private :: get_curls_vector => cell_integrator_get_curls_vector
 generic                             :: get_curls => get_curls_vector
 
 ! We might want to have the following in the future:
@@ -1455,43 +1455,43 @@ generic                             :: get_curls => get_curls_vector
 ! But note that in such a case we would require higher-to-2 rank tensors
 ! (i.e., type(tensor_field_t) is a rank-2 tensor)
 
-procedure, non_overridable, private :: volume_integrator_evaluate_fe_function_scalar
-procedure, non_overridable, private :: volume_integrator_evaluate_fe_function_vector
-procedure, non_overridable, private :: volume_integrator_evaluate_fe_function_tensor
-generic :: evaluate_fe_function => volume_integrator_evaluate_fe_function_scalar, &
-& volume_integrator_evaluate_fe_function_vector, &
-& volume_integrator_evaluate_fe_function_tensor
+procedure, non_overridable, private :: cell_integrator_evaluate_fe_function_scalar
+procedure, non_overridable, private :: cell_integrator_evaluate_fe_function_vector
+procedure, non_overridable, private :: cell_integrator_evaluate_fe_function_tensor
+generic :: evaluate_fe_function => cell_integrator_evaluate_fe_function_scalar, &
+& cell_integrator_evaluate_fe_function_vector, &
+& cell_integrator_evaluate_fe_function_tensor
 
-procedure, non_overridable, private :: volume_integrator_evaluate_gradient_fe_function_scalar
-procedure, non_overridable, private :: volume_integrator_evaluate_gradient_fe_function_vector
-generic :: evaluate_gradient_fe_function => volume_integrator_evaluate_gradient_fe_function_scalar, &
-& volume_integrator_evaluate_gradient_fe_function_vector
+procedure, non_overridable, private :: cell_integrator_evaluate_gradient_fe_function_scalar
+procedure, non_overridable, private :: cell_integrator_evaluate_gradient_fe_function_vector
+generic :: evaluate_gradient_fe_function => cell_integrator_evaluate_gradient_fe_function_scalar, &
+& cell_integrator_evaluate_gradient_fe_function_vector
 
-end type volume_integrator_t
+end type cell_integrator_t
 
-type p_volume_integrator_t
-type(volume_integrator_t), pointer :: p => NULL() 
+type p_cell_integrator_t
+type(cell_integrator_t), pointer :: p => NULL() 
 contains
-procedure :: allocate => p_volume_integrator_allocate 
-procedure :: free     => p_volume_integrator_free
-end type p_volume_integrator_t
+procedure :: allocate => p_cell_integrator_allocate 
+procedure :: free     => p_cell_integrator_free
+end type p_cell_integrator_t
 
-public :: volume_integrator_t, p_volume_integrator_t
+public :: cell_integrator_t, p_cell_integrator_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type volume_integrator_face_restriction_t
+  type cell_integrator_face_restriction_t
      private
      integer(ip)                            :: number_faces
      integer(ip)                            :: active_face_lid
-     type(volume_integrator_t), allocatable :: volume_integrator(:) 
+     type(cell_integrator_t), allocatable :: cell_integrator(:) 
    contains
-     procedure, non_overridable :: create  => volume_integrator_face_restriction_create
-     procedure, non_overridable :: update  => volume_integrator_face_restriction_update
-     procedure, non_overridable :: free    => volume_integrator_face_restriction_free
-     procedure, non_overridable :: get_active_volume_integrator => volume_integrator_face_restriction_get_active_volume_integrator
-  end type volume_integrator_face_restriction_t
+     procedure, non_overridable :: create  => cell_integrator_face_restriction_create
+     procedure, non_overridable :: update  => cell_integrator_face_restriction_update
+     procedure, non_overridable :: free    => cell_integrator_face_restriction_free
+     procedure, non_overridable :: get_active_cell_integrator => cell_integrator_face_restriction_get_active_cell_integrator
+  end type cell_integrator_face_restriction_t
 
-  public :: volume_integrator_face_restriction_t
+  public :: cell_integrator_face_restriction_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type face_map_t
@@ -1523,7 +1523,7 @@ public :: face_map_t
 type face_integrator_t
   private
   logical                                    :: is_boundary
-  type(volume_integrator_face_restriction_t) :: volume_integrator_face_restriction(2)
+  type(cell_integrator_face_restriction_t) :: cell_integrator_face_restriction(2)
   type(p_reference_fe_t)                     :: reference_fe(2)
   integer(ip)                                :: current_qpoints_perm_cols(2)
   type(allocatable_array_ip2_t)              :: qpoints_perm
@@ -1599,7 +1599,7 @@ contains
 
 #include "sbm_polytope_topology.i90"
 
-#include "sbm_volume_integrator.i90"
+#include "sbm_cell_integrator.i90"
 
 #include "sbm_face_integrator.i90"
 

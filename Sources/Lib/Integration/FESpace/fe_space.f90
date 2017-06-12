@@ -205,7 +205,7 @@ module fe_space_names
     procedure, non_overridable          :: set_quadrature_degree                      => fe_iterator_set_quadrature_degree
     procedure, non_overridable          :: get_quadrature                             => fe_iterator_get_quadrature
     procedure, non_overridable          :: get_fe_map                                 => fe_iterator_get_fe_map
-    procedure, non_overridable          :: get_volume_integrator                      => fe_iterator_get_volume_integrator    
+    procedure, non_overridable          :: get_cell_integrator                      => fe_iterator_get_cell_integrator    
     
     procedure, non_overridable, private :: fe_iterator_get_fe_vef
     generic                             :: get_vef                                    => fe_iterator_get_fe_vef
@@ -292,14 +292,14 @@ module fe_space_names
      ! Finite Element-related integration containers
      type(quadrature_t)            , allocatable :: fe_quadratures(:)
      type(fe_map_t)                , allocatable :: fe_maps(:)
-     type(volume_integrator_t)     , allocatable :: fe_volume_integrators(:)
+     type(cell_integrator_t)     , allocatable :: fe_cell_integrators(:)
      integer(ip)                   , allocatable :: fe_quadratures_degree(:)
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
      integer(ip)                   , allocatable :: reference_fe_id_per_fe(:,:)         ! (number_fields, number_fes)
      integer(ip)                   , allocatable :: max_order_reference_fe_id_per_fe(:) ! Stores Key=max_order_reference_fe_id for all FEs
      type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
-     type(hash_table_ip_ip_t)                    :: fe_volume_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
+     type(hash_table_ip_ip_t)                    :: fe_cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
      ! Finite Face-related integration containers
      type(quadrature_t)            , allocatable :: fe_face_quadratures(:)
@@ -379,7 +379,7 @@ module fe_space_names
      procedure, non_overridable          :: initialize_fe_integration                    => serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
      procedure, non_overridable, private :: generate_fe_quadratures_position_key         => serial_fe_space_generate_fe_quadratures_position_key
-     procedure, non_overridable, private :: generate_fe_volume_integrators_position_key  => serial_fe_space_generate_fe_volume_integrators_position_key
+     procedure, non_overridable, private :: generate_fe_cell_integrators_position_key  => serial_fe_space_generate_fe_cell_integrators_position_key
     
      procedure, non_overridable, private :: allocate_fe_face_quadratures_degree          => serial_fe_space_allocate_fe_face_quadratures_degree
      procedure, non_overridable, private :: free_fe_face_quadratures_degree              => serial_fe_space_free_fe_face_quadratures_degree
