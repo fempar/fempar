@@ -168,7 +168,7 @@ subroutine nedelec_create ( this, topology, number_dimensions, order, field_type
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_nedelec )
   call this%fill()
-  if ( this%conformity ) then
+  if ( this%conformity .and. this%continuity ) then
     call this%change_basis()
   end if  
 end subroutine nedelec_create
@@ -372,7 +372,7 @@ subroutine nedelec_fill_vector (this)
      end if
   end do
   ! own_nodes_n-face and face_integration_coupling_nodes_n-face
-  if ( this%conformity ) then
+  if ( this%conformity .and. this%continuity ) then
      this%own_dofs_n_face = this%own_dofs_n_face
   else
      call this%own_dofs_n_face%create(n=num_n_faces )

@@ -820,14 +820,14 @@ subroutine lagrangian_reference_fe_fill (this)
           this%number_orientations_per_dimension(idime))
   end do
 
-  if ( this%conformity ) then
+  if ( this%conformity .and. this%continuity ) then
      allocate(this%own_dof_permutations(this%number_dimensions-1))
      call this%fill_own_dof_permutations()
   end if
 
   if ( this%number_field_components /= 1 ) then
      call this%fill_field_components( )
-     if ( this%conformity ) then
+     if ( this%conformity .and. this%continuity ) then
         do dimension = 1, this%number_dimensions-1
            if ( this%own_dof_permutations(dimension)%nd1 > 0 .and. this%own_dof_permutations(dimension)%nd2 > 0 ) then
               ! Compute the number of interior nodes x edge or face
