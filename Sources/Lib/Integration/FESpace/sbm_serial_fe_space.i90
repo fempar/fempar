@@ -1575,6 +1575,10 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
           this%generate_fe_face_quadratures_position_key(fe_face%get_quadrature_degree(), &
                                                          reference_fes_geo_id(1), &
                                                          reference_fes_geo_id(2) )
+          
+     call this%fe_face_quadratures_position%put(key  = fe_face_quadratures_position_key, &
+                                                val  = current_fe_face_quadrature, &
+                                                stat = istat)  
      
      if (istat == now_stored) then
         current_fe_face_quadrature = current_fe_face_quadrature + 1
