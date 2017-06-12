@@ -527,7 +527,7 @@ subroutine fe_iterator_set_quadrature_degree ( this, quadrature_degree )
   implicit none
   class(fe_iterator_t), intent(inout) :: this
   integer(ip)         , intent(in)    :: quadrature_degree
-  assert ( quadrature_degree >= 0 .and. quadrature_degree <= fe_space_max_quadrature_degree )
+  assert ( quadrature_degree >= 0 )
   assert ( allocated ( this%fe_space%fe_quadratures_degree) )
   this%fe_space%fe_quadratures_degree(this%get_lid()) = quadrature_degree
 end subroutine fe_iterator_set_quadrature_degree
