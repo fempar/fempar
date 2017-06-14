@@ -95,11 +95,9 @@ subroutine fe_face_iterator_update_integration( this )
      face_integrator => this%get_face_integrator(field_id)
      call face_integrator%update(face_lpos_within_cells_around, &
                                  this%get_face_map(), &             
-                                 this%get_face_orientation(), &
-                                 this%get_face_rotation())
+                                 this%get_face_permutation_index())
   end do
 end subroutine fe_face_iterator_update_integration
-
 
 function fe_face_iterator_get_fe_space(this)
   implicit none
@@ -119,13 +117,61 @@ subroutine fe_face_iterator_get_elem2dof(this, icell_around, elem2dof)
 end subroutine fe_face_iterator_get_elem2dof
 
 !==================================================================================================
-function fe_face_iterator_get_quadrature ( this )
+function fe_face_iterator_get_quadrature_degree ( this )
   implicit none
   class(fe_face_iterator_t), intent(in) :: this
+  integer(ip) :: fe_face_iterator_get_quadrature_degree
+  fe_face_iterator_get_quadrature_degree = this%fe_space%fe_quadratures_degree(this%get_face_lid())
+  if ( fe_face_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
+     fe_face_iterator_get_quadrature_degree = this%get_default_quadrature_degree()
+  end if
+end function fe_face_iterator_get_quadrature_degree
+
+!==================================================================================================
+function fe_face_iterator_get_default_quadrature_degree ( this )
+  implicit none
+  class(fe_face_iterator_t), intent(in) :: this
+  integer(ip) :: fe_face_iterator_get_default_quadrature_degree
+  integer(ip) :: reference_fe_id
+ 
+  reference_fe_id = this%fe_space%max_order_reference_fe_id_per_fe_face(this%get_face_lid())
+  fe_face_iterator_get_default_quadrature_degree = & 
+    this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
+end function fe_face_iterator_get_default_quadrature_degree
+
+!==================================================================================================
+subroutine fe_face_iterator_set_quadrature_degree ( this, quadrature_degree )
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this
+  integer(ip)         , intent(in)    :: quadrature_degree
+  assert ( quadrature_degree >= 0 )
+  assert ( allocated ( this%fe_space%fe_face_quadratures_degree) )
+  this%fe_space%fe_face_quadratures_degree(this%get_lid()) = quadrature_degree
+end subroutine fe_face_iterator_set_quadrature_degree
+
+!=================================================================================================
+function fe_face_iterator_get_quadrature ( this )
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this
   type(quadrature_t), pointer :: fe_face_iterator_get_quadrature
+  
+  integer(ip) :: icell_around, istat
+  integer(ip) :: fe_face_quadratures_position_key
   integer(ip) :: fe_face_quadratures_position
-  integer(ip) :: istat
-  call this%fe_space%fe_face_quadratures_position%get(key=this%fe_space%max_order_per_fe_face(this%get_face_lid()), &
+  integer(ip) :: reference_fes_geo_id(2)
+   
+  reference_fes_geo_id(2) = 0 
+  do icell_around = 1, this%get_num_cells_around()
+     call this%get_cell_around(icell_around, this%fe)
+     reference_fes_geo_id(icell_around) = this%fe%get_reference_fe_geo_id()
+  end do
+  
+  fe_face_quadratures_position_key = &
+       this%fe_space%generate_fe_face_quadratures_position_key(this%get_quadrature_degree(), &
+                                                               reference_fes_geo_id(1), &
+                                                               reference_fes_geo_id(2) )
+       
+  call this%fe_space%fe_face_quadratures_position%get(key=fe_face_quadratures_position_key, &
                                                       val=fe_face_quadratures_position, &
                                                       stat=istat)
   assert ( .not. istat == key_not_found )
@@ -149,17 +195,15 @@ function fe_face_iterator_get_face_map(this)
   end do
   
   fe_face_maps_position_key = &
-       this%fe_space%generate_fe_face_maps_position_key(this%fe_space%max_order_per_fe_face(this%get_face_lid()), &
-                                                        reference_fes_geo_id(1), &
-                                                        reference_fes_geo_id(2) )
+       this%fe_space%generate_fe_face_quadratures_position_key(this%get_quadrature_degree(), &
+                                                               reference_fes_geo_id(1), &
+                                                               reference_fes_geo_id(2) )
        
-  call this%fe_space%fe_face_maps_position%get(key=fe_face_maps_position_key, &
-                                               val=fe_face_maps_position, &
-                                               stat=istat)
+  call this%fe_space%fe_face_quadratures_position%get(key=fe_face_maps_position_key, &
+                                                      val=fe_face_maps_position, &
+                                                      stat=istat)
   assert ( .not. istat == key_not_found )
-  
   fe_face_iterator_get_face_map => this%fe_space%fe_face_maps(fe_face_maps_position)
-  
 end function fe_face_iterator_get_face_map
 
 !==================================================================================================
@@ -182,7 +226,7 @@ function fe_face_iterator_get_face_integrator(this, field_id)
   end do
   
   fe_face_integrators_position_key = &
-       this%fe_space%generate_fe_face_integrators_position_key(this%fe_space%max_order_per_fe_face(this%get_face_lid()), &
+       this%fe_space%generate_fe_face_integrators_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_id(1), &
                                                                reference_fes_id(2) )
        
@@ -270,16 +314,10 @@ function fe_face_iterator_get_face_lpos_within_cell_around(this, icell_around) r
   face_lpos_within_cell_around = this%face%get_face_lpos_within_cell_around(icell_around)
 end function fe_face_iterator_get_face_lpos_within_cell_around
 
-function fe_face_iterator_get_face_orientation ( this ) result(face_orientation)
+function fe_face_iterator_get_face_permutation_index ( this ) result(face_permutation_index)
   implicit none
   class(fe_face_iterator_t), intent(in) :: this
-  integer(ip)                           :: face_orientation
-  face_orientation = this%face%get_face_orientation ( )
-end function fe_face_iterator_get_face_orientation 
+  integer(ip)                           :: face_permutation_index
+  face_permutation_index = this%face%get_face_permutation_index ( )
+end function fe_face_iterator_get_face_permutation_index 
 
-function fe_face_iterator_get_face_rotation ( this ) result(face_rotation)
-  implicit none
-  class(fe_face_iterator_t), intent(in) :: this
-  integer(ip)                           :: face_rotation
-  face_rotation = this%face%get_face_rotation( )
-end function fe_face_iterator_get_face_rotation

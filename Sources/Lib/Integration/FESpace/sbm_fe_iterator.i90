@@ -182,7 +182,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   
   integer(ip)                    :: idof_source, idof_target
   integer(ip)                    :: own_dof_within_vef_target_fe
-  integer(ip)                    :: relative_orientation, relative_rotation
+  integer(ip)                    :: permutation_index
 
   assert ( target_ivef <= this%get_num_vefs() )
   assert ( source_ivef <= source_fe%get_num_vefs() )
@@ -198,22 +198,17 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   own_dofs_on_vef_iterator_target = reference_fe_target%create_own_dofs_on_n_face_iterator(target_ivef)
   if ( own_dofs_on_vef_iterator_target%get_size() > 0 ) then
        assert (reference_fe_source%check_compatibility_of_n_faces(reference_fe_target,target_ivef,source_ivef))
-       relative_rotation = reference_fe_source%compute_relative_rotation( reference_fe_target, &
+       permutation_index = reference_fe_target%compute_permutation_index( reference_fe_source, &
                                                                           target_ivef, &
                                                                           source_ivef, &
                                                                           this%get_vef_lids(), &
                                                                           source_fe%get_vef_lids())
-       relative_orientation = reference_fe_source%compute_relative_orientation( reference_fe_target, &
-                                                                                target_ivef, &
-                                                                                source_ivef)
-       
       own_dof_within_vef_target_fe = 1
       do while (.not. own_dofs_on_vef_iterator_target%is_upper_bound())
         idof_target = own_dofs_on_vef_iterator_target%get_current()
         idof_source = reference_fe_source%get_permuted_own_dof_n_face(own_dof_within_vef_target_fe, &
                                                                     source_ivef, & 
-                                                                    relative_orientation, &
-                                                                    relative_rotation)
+                                                                    permutation_index)
         
         this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target+idof_target) = &                                                      
             this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_source+idof_source)
@@ -250,8 +245,6 @@ subroutine fe_iterator_fill_dofs_face_integration_coupling ( this, ivef, field_i
     end do
   end if
 end subroutine fe_iterator_fill_dofs_face_integration_coupling
-
-
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
 subroutine fe_iterator_renumber_dofs_block ( this, block_id, perm_old2new )
@@ -309,7 +302,7 @@ subroutine fe_iterator_update_integration( this )
   type(point_t)            , pointer :: coordinates(:)
   type(fe_map_t)           , pointer :: fe_map
   type(quadrature_t)       , pointer :: quadrature
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
 
   fe_map      => this%get_fe_map()
   coordinates => fe_map%get_coordinates()
@@ -318,8 +311,8 @@ subroutine fe_iterator_update_integration( this )
   quadrature => this%get_quadrature()
   call fe_map%update(quadrature)
   do field_id = 1, this%get_number_fields()
-     volume_integrator => this%get_volume_integrator(field_id) 
-     call volume_integrator%update(fe_map)
+     cell_integrator => this%get_cell_integrator(field_id) 
+     call cell_integrator%update(fe_map)
   end do
   
 end subroutine fe_iterator_update_integration
@@ -509,14 +502,47 @@ function fe_iterator_compute_volume ( this )
   end do
 end function fe_iterator_compute_volume
 
+function fe_iterator_get_quadrature_degree ( this )
+  implicit none
+  class(fe_iterator_t), intent(in) :: this
+  integer(ip) :: fe_iterator_get_quadrature_degree
+  fe_iterator_get_quadrature_degree = this%fe_space%fe_quadratures_degree(this%get_lid())
+  if ( fe_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
+     fe_iterator_get_quadrature_degree = this%get_default_quadrature_degree()
+  end if
+end function fe_iterator_get_quadrature_degree
+
+function fe_iterator_get_default_quadrature_degree ( this )
+  implicit none
+  class(fe_iterator_t), intent(in) :: this
+  integer(ip) :: fe_iterator_get_default_quadrature_degree
+  integer(ip) :: reference_fe_id
+ 
+  reference_fe_id = this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid())
+  fe_iterator_get_default_quadrature_degree = & 
+    this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
+end function fe_iterator_get_default_quadrature_degree
+
+subroutine fe_iterator_set_quadrature_degree ( this, quadrature_degree )
+  implicit none
+  class(fe_iterator_t), intent(inout) :: this
+  integer(ip)         , intent(in)    :: quadrature_degree
+  assert ( quadrature_degree >= 0 )
+  assert ( allocated ( this%fe_space%fe_quadratures_degree) )
+  this%fe_space%fe_quadratures_degree(this%get_lid()) = quadrature_degree
+end subroutine fe_iterator_set_quadrature_degree
 
 function fe_iterator_get_quadrature ( this )
   implicit none
   class(fe_iterator_t), intent(in) :: this
   type(quadrature_t), pointer      :: fe_iterator_get_quadrature
-  integer(ip) :: fe_quadratures_position
+  integer(ip) :: fe_quadratures_key, fe_quadratures_position
   integer(ip) :: istat
-  call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid()), &
+  
+  fe_quadratures_key = this%fe_space%generate_fe_quadratures_position_key(this%get_reference_fe_geo_id(),&
+                                                                          this%get_quadrature_degree())
+  
+  call this%fe_space%fe_quadratures_and_maps_position%get(key=fe_quadratures_key, &
                                                           val=fe_quadratures_position, &
                                                           stat=istat)
   assert ( .not. istat == key_not_found )
@@ -527,34 +553,40 @@ function fe_iterator_get_fe_map ( this )
   implicit none
   class(fe_iterator_t), intent(in) :: this
   type(fe_map_t), pointer :: fe_iterator_get_fe_map
-  integer(ip) :: fe_maps_position
+  integer(ip) :: fe_maps_position, fe_maps_key
   integer(ip) :: istat
-  call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid()), &
+  
+  fe_maps_key = this%fe_space%generate_fe_quadratures_position_key(this%get_reference_fe_geo_id(),&
+                                                                   this%get_quadrature_degree())
+  
+  call this%fe_space%fe_quadratures_and_maps_position%get(key=fe_maps_key, &
                                                           val=fe_maps_position, &
                                                           stat=istat)
+  
   assert ( .not. istat == key_not_found )
   fe_iterator_get_fe_map => this%fe_space%fe_maps(fe_maps_position)
 end function fe_iterator_get_fe_map
 
-function fe_iterator_get_volume_integrator ( this, field_id )
+function fe_iterator_get_cell_integrator ( this, field_id )
   implicit none
   class(fe_iterator_t), intent(in)   :: this
   integer(ip)         , intent(in)   :: field_id
-  type(volume_integrator_t), pointer :: fe_iterator_get_volume_integrator
-  integer(ip) :: fe_volume_integrators_position_key
-  integer(ip) :: fe_volume_integrators_position
+  type(cell_integrator_t), pointer :: fe_iterator_get_cell_integrator
+  integer(ip) :: fe_cell_integrators_position_key
+  integer(ip) :: fe_cell_integrators_position
   integer(ip) :: istat
   
-  fe_volume_integrators_position_key = &
-        this%fe_space%generate_fe_volume_integrators_position_key(this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid()), &
+  fe_cell_integrators_position_key = &
+        this%fe_space%generate_fe_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
+                                                                  this%get_quadrature_degree(), &
                                                                   this%fe_space%reference_fe_id_per_fe(field_id, this%get_lid()))
   
-  call this%fe_space%fe_volume_integrators_position%get(key=fe_volume_integrators_position_key, &
-                                                        val=fe_volume_integrators_position, &
+  call this%fe_space%fe_cell_integrators_position%get(key=fe_cell_integrators_position_key, &
+                                                        val=fe_cell_integrators_position, &
                                                         stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_iterator_get_volume_integrator => this%fe_space%fe_volume_integrators(fe_volume_integrators_position)
-end function fe_iterator_get_volume_integrator
+  fe_iterator_get_cell_integrator => this%fe_space%fe_cell_integrators(fe_cell_integrators_position)
+end function fe_iterator_get_cell_integrator
 
 subroutine fe_iterator_get_fe_vef(this, ivef, fe_vef)
   implicit none

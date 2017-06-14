@@ -830,7 +830,7 @@ subroutine bst_free_lst_itfc_vefs( this )
   if (allocated(this%lst_itfc_vefs)) call memfree(this%lst_itfc_vefs,__FILE__,__LINE__)
 end subroutine bst_free_lst_itfc_vefs
  
-subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
+subroutine bst_allocate_and_fill_face_permutation_index ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   
@@ -840,15 +840,12 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
   class(cell_iterator_t), allocatable :: second_cell
   class(lagrangian_reference_fe_t), pointer :: first_reference_fe_geo
   class(lagrangian_reference_fe_t), pointer :: second_reference_fe_geo
-  integer(ip)                    :: face_orientation
-  integer(ip)                    :: face_rotation
+  integer(ip)                    :: face_permutation_index
   
   
-  call memalloc(this%num_faces, this%face_orientation, __FILE__, __LINE__)
-  this%face_orientation = -1 
-  call memalloc(this%num_faces, this%face_rotation, __FILE__, __LINE__)
-  this%face_rotation = -1
-  
+  call memalloc(this%num_faces, this%face_permutation_index, __FILE__, __LINE__)
+  this%face_permutation_index = -1 
+
   call this%create_cell_iterator(first_cell)
   call this%create_cell_iterator(second_cell)
   call this%create_face_iterator(face)
@@ -860,33 +857,27 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
       call face%get_cell_around(2, second_cell)
       second_reference_fe_geo => second_cell%get_reference_fe_geo()
     
-      face_orientation = &
-        second_reference_fe_geo%compute_relative_orientation (first_reference_fe_geo, &
-                                                              first_cell%find_lpos_vef_lid(face%lid), &
-                                                              second_cell%find_lpos_vef_lid(face%lid))
-      face_rotation = &
-        second_reference_fe_geo%compute_relative_rotation( first_reference_fe_geo, &
+      face_permutation_index = &
+        first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo, &
                                                           first_cell%find_lpos_vef_lid(face%lid), &
                                                           second_cell%find_lpos_vef_lid(face%lid),  &
                                                           first_cell%get_vef_lids(), &
                                                           second_cell%get_vef_lids() )
         
-      call face%set_face_orientation(face_orientation)
-      call face%set_face_rotation(face_rotation)
+      call face%set_face_permutation_index(face_permutation_index)
     end if
     call face%next()
   end do
   call this%free_vef_iterator(face)
   call this%free_cell_iterator(first_cell)
   call this%free_cell_iterator(second_cell)
-end subroutine bst_allocate_and_fill_face_orientation_rotation
+end subroutine bst_allocate_and_fill_face_permutation_index
 
-subroutine bst_free_face_orientation_rotation ( this )
+subroutine bst_free_face_permutation_index ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
-  if ( allocated(this%face_orientation) ) call memfree(this%face_orientation,__FILE__,__LINE__)
-  if ( allocated(this%face_rotation) ) call memfree(this%face_rotation,__FILE__,__LINE__)
-end subroutine bst_free_face_orientation_rotation
+  if ( allocated(this%face_permutation_index) ) call memfree(this%face_permutation_index,__FILE__,__LINE__)
+end subroutine bst_free_face_permutation_index
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -2178,7 +2169,7 @@ subroutine bst_print ( this )
         this%num_itfc_vefs = -1
         
         ! Free face integration-related data
-        call this%free_face_orientation_rotation()
+        call this%free_face_permutation_index()
         
         ! Free coarse objects-related data
         call this%free_objects_gids_and_dim()

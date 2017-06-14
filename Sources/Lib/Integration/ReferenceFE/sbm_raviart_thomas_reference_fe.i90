@@ -123,7 +123,7 @@ subroutine raviart_thomas_create ( this, topology, number_dimensions, order, fie
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_raviart_thomas )
   call this%fill()
-  if ( this%conformity ) then
+  if ( this%conformity .and. this%continuity ) then
     call this%change_basis()
   end if  
 

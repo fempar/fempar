@@ -119,25 +119,25 @@ end subroutine nedelec_create_edge_interpolation
 
 
 !==================================================================================================
-subroutine nedelec_create_edge_quadrature ( this, quadrature, max_order )
+subroutine nedelec_create_edge_quadrature ( this, quadrature, degree )
   implicit none
   class(nedelec_reference_fe_t)   , intent(in)    :: this
   type(quadrature_t)              , intent(inout) :: quadrature
-  integer(ip)           , optional, intent(in)    :: max_order
+  integer(ip)           , optional, intent(in)    :: degree
 
-  integer(ip) :: ngaus, order, edge_dimensions, idime
+  integer(ip) :: ngaus, degree_, edge_dimensions, idime
   
   ! @sbadia: to be improved to anisotropic quadratures
-  if ( present(max_order) ) then
-     order = max_order
+  if ( present(degree) ) then
+     degree_ = degree
   else
-     order = 0
+     degree_ = 0
      do idime = 1,this%number_dimensions
-        order = max(order,this%order_vector(idime))
+        degree_ = max(degree_,2*this%order_vector(idime))
      end do
   end if
   edge_dimensions = 1
-  ngaus = this%set_number_quadrature_points(order, edge_dimensions)
+  ngaus = this%compute_number_quadrature_points(degree_, edge_dimensions)
   call quadrature%create( edge_dimensions, ngaus )
   call this%fill_quadrature( quadrature )
 end subroutine nedelec_create_edge_quadrature
@@ -168,7 +168,7 @@ subroutine nedelec_create ( this, topology, number_dimensions, order, field_type
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_nedelec )
   call this%fill()
-  if ( this%conformity ) then
+  if ( this%conformity .and. this%continuity ) then
     call this%change_basis()
   end if  
 end subroutine nedelec_create
@@ -372,7 +372,7 @@ subroutine nedelec_fill_vector (this)
      end if
   end do
   ! own_nodes_n-face and face_integration_coupling_nodes_n-face
-  if ( this%conformity ) then
+  if ( this%conformity .and. this%continuity ) then
      this%own_dofs_n_face = this%own_dofs_n_face
   else
      call this%own_dofs_n_face%create(n=num_n_faces )

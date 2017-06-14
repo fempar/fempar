@@ -105,9 +105,9 @@ private
         class(fe_iterator_t), pointer                  :: current_fe            => NULL()
         type(quadrature_t),        allocatable         :: quadratures(:)
         type(fe_map_t),            allocatable         :: fe_maps(:)
-        type(volume_integrator_t), allocatable         :: volume_integrators(:)
+        type(cell_integrator_t), allocatable         :: cell_integrators(:)
         type(hash_table_ip_ip_t)                       :: quadratures_and_maps_position ! Key = max_order_within_fe
-        type(hash_table_ip_ip_t)                       :: volume_integrators_position   ! Key = [max_order_within_fe,
+        type(hash_table_ip_ip_t)                       :: cell_integrators_position   ! Key = [max_order_within_fe,
                                                                                         !       reference_fe_id]
         type(fill_patch_field_procedure_t), allocatable:: fill_patch_field(:)
 
@@ -140,11 +140,11 @@ private
                                                             output_handler_cell_fe_function_fill_patch_tensor_field_val
             procedure, non_overridable :: fill_patch_cell_vector => output_handler_cell_fe_function_fill_patch_cell_vector
 
-            procedure, non_overridable :: generate_vol_integ_pos_key => output_handler_cell_fe_function_generate_vol_integ_pos_key
+            procedure, non_overridable :: generate_cell_integ_pos_key => output_handler_cell_fe_function_generate_cell_integ_pos_key
             procedure, non_overridable :: get_number_reference_fes   => output_handler_cell_fe_function_get_number_reference_fes
             procedure, non_overridable :: get_quadrature             => output_handler_cell_fe_function_get_quadrature
             procedure, non_overridable :: get_fe_map                 => output_handler_cell_fe_function_get_fe_map
-            procedure, non_overridable :: get_volume_integrator      => output_handler_cell_fe_function_get_volume_integrator      
+            procedure, non_overridable :: get_cell_integrator      => output_handler_cell_fe_function_get_cell_integrator      
     end type output_handler_cell_fe_function_t
 
 
@@ -187,9 +187,9 @@ contains
         class(lagrangian_reference_fe_t), pointer               :: previous_reference_fe_geo
         class(environment_t),             pointer               :: environment
         integer(ip)                                             :: current_quadrature_and_map
-        integer(ip)                                             :: current_volume_integrator
+        integer(ip)                                             :: current_cell_integrator
         integer(ip)                                             :: max_order, max_order_reference_fe_id, max_order_field_id
-        integer(ip)                                             :: vol_integ_pos_key
+        integer(ip)                                             :: cell_integ_pos_key
         integer(ip)                                             :: istat, field_id, quadrature_and_map_pos
         integer(ip)                                             :: reference_fe_id
         integer(ip)                                             :: number_field
@@ -209,13 +209,13 @@ contains
 
             allocate ( this%quadratures(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
             allocate ( this%fe_maps(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
-            allocate ( this%volume_integrators(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
+            allocate ( this%cell_integrators(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
 
-            ! Create quadratures, fe_maps, and volume_integrators
+            ! Create quadratures, fe_maps, and cell_integrators
             call this%quadratures_and_maps_position%init()
-            call this%volume_integrators_position%init()
+            call this%cell_integrators_position%init()
             current_quadrature_and_map = 1
-            current_volume_integrator  = 1
+            current_cell_integrator  = 1
             
             nullify(previous_reference_fe_geo)
             call fe%first()
@@ -237,20 +237,20 @@ contains
                     current_quadrature_and_map = current_quadrature_and_map + 1
                 end if
                 do field_id=1, fe_space%get_number_fields()
-                    vol_integ_pos_key = this%generate_vol_integ_pos_key(fe_space%get_number_reference_fes(), &
+                    cell_integ_pos_key = this%generate_cell_integ_pos_key(fe_space%get_number_reference_fes(), &
                                                                         max_order_reference_fe_id, &
                                                                         fe%get_reference_fe_id(field_id))
-                    call this%volume_integrators_position%put(key=vol_integ_pos_key, &
-                                                              val=current_volume_integrator, &
+                    call this%cell_integrators_position%put(key=cell_integ_pos_key, &
+                                                              val=current_cell_integrator, &
                                                               stat=istat)
                     if (istat == now_stored) then
                         call this%quadratures_and_maps_position%get(key = max_order_reference_fe_id, &
                                                                     val = quadrature_and_map_pos, &
                                                                     stat = istat)
                         assert ( istat == key_found )
-                        call this%volume_integrators(current_volume_integrator)%create(this%quadratures(quadrature_and_map_pos),&
+                        call this%cell_integrators(current_cell_integrator)%create(this%quadratures(quadrature_and_map_pos),&
                                                                                        fe%get_reference_fe(field_id))
-                        current_volume_integrator = current_volume_integrator + 1
+                        current_cell_integrator = current_cell_integrator + 1
                     end if
                 end do
                 if ( fe%is_local() ) then
@@ -467,7 +467,7 @@ contains
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
-        type(volume_integrator_t),                pointer       :: volume_integrator
+        type(cell_integrator_t),                pointer       :: cell_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
         real(rp),              allocatable                      :: scalar_function_values(:)
         type(allocatable_array_rp1_t),            pointer       :: patch_field_scalar_function_values
@@ -478,8 +478,8 @@ contains
 
         ! Get and Update volume integrator
         fe_map            => this%get_fe_map()
-        volume_integrator => this%get_volume_integrator(field_id) 
-        call volume_integrator%update(fe_map)
+        cell_integrator => this%get_cell_integrator(field_id) 
+        call cell_integrator%update(fe_map)
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
@@ -490,7 +490,7 @@ contains
         call patch_field%set_field_type(field_type_scalar)
         patch_field_scalar_function_values => patch_field%get_scalar_function_values()
         call patch_field_scalar_function_values%move_alloc_out(scalar_function_values) 
-        call volume_integrator%evaluate_fe_function(patch_field_nodal_values%a, scalar_function_values)
+        call cell_integrator%evaluate_fe_function(patch_field_nodal_values%a, scalar_function_values)
         call patch_field_scalar_function_values%move_alloc_in(scalar_function_values) 
 
     end subroutine output_handler_cell_fe_function_fill_patch_scalar_field_val
@@ -506,7 +506,7 @@ contains
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
-        type(volume_integrator_t),                pointer       :: volume_integrator
+        type(cell_integrator_t),                pointer       :: cell_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
         type(vector_field_t),  allocatable                      :: vector_function_values(:)
         type(allocatable_array_vector_field_t),   pointer       :: patch_field_vector_function_values
@@ -517,8 +517,8 @@ contains
 
         ! Get and Update volume integrator
         fe_map            => this%get_fe_map()
-        volume_integrator => this%get_volume_integrator(field_id) 
-        call volume_integrator%update(fe_map)
+        cell_integrator => this%get_cell_integrator(field_id) 
+        call cell_integrator%update(fe_map)
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
@@ -529,7 +529,7 @@ contains
         call patch_field%set_field_type(field_type_vector)
         patch_field_vector_function_values => patch_field%get_vector_function_values()
         call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
-        call volume_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, vector_function_values)
+        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, vector_function_values)
         call patch_field_vector_function_values%move_alloc_in(vector_function_values) 
 
     end subroutine output_handler_cell_fe_function_fill_patch_scalar_field_grad
@@ -545,7 +545,7 @@ contains
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
-        type(volume_integrator_t),                pointer       :: volume_integrator
+        type(cell_integrator_t),                pointer       :: cell_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
         type(vector_field_t),  allocatable                      :: vector_function_values(:)
         type(allocatable_array_vector_field_t),   pointer       :: patch_field_vector_function_values
@@ -556,8 +556,8 @@ contains
 
         ! Get and Update volume integrator
         fe_map            => this%get_fe_map()
-        volume_integrator => this%get_volume_integrator(field_id) 
-        call volume_integrator%update(fe_map)
+        cell_integrator => this%get_cell_integrator(field_id) 
+        call cell_integrator%update(fe_map)
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
@@ -568,7 +568,7 @@ contains
         call patch_field%set_field_type(field_type_vector)
         patch_field_vector_function_values => patch_field%get_vector_function_values()
         call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
-        call volume_integrator%evaluate_fe_function(patch_field_nodal_values%a, vector_function_values)
+        call cell_integrator%evaluate_fe_function(patch_field_nodal_values%a, vector_function_values)
         call patch_field_vector_function_values%move_alloc_in(vector_function_values) 
 
     end subroutine output_handler_cell_fe_function_fill_patch_vector_field_val
@@ -584,7 +584,7 @@ contains
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
-        type(volume_integrator_t),                pointer       :: volume_integrator
+        type(cell_integrator_t),                pointer       :: cell_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
         type(tensor_field_t),  allocatable                      :: tensor_function_values(:)
         type(allocatable_array_tensor_field_t),   pointer       :: patch_field_tensor_function_values
@@ -595,8 +595,8 @@ contains
 
         ! Get and Update volume integrator
         fe_map            => this%get_fe_map()
-        volume_integrator => this%get_volume_integrator(field_id) 
-        call volume_integrator%update(fe_map)
+        cell_integrator => this%get_cell_integrator(field_id) 
+        call cell_integrator%update(fe_map)
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
@@ -607,7 +607,7 @@ contains
         call patch_field%set_field_type(field_type_tensor)
         patch_field_tensor_function_values => patch_field%get_tensor_function_values()
         call patch_field_tensor_function_values%move_alloc_out(tensor_function_values) 
-        call volume_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
+        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
         call patch_field_tensor_function_values%move_alloc_in(tensor_function_values) 
 
     end subroutine output_handler_cell_fe_function_fill_patch_vector_field_grad
@@ -624,7 +624,7 @@ contains
         class(reference_fe_t),                    pointer       :: reference_fe
         type(quadrature_t),                       pointer       :: quadrature
         type(fe_map_t),                           pointer       :: fe_map
-        type(volume_integrator_t),                pointer       :: volume_integrator
+        type(cell_integrator_t),                pointer       :: cell_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
         real(rp),              allocatable                      :: scalar_function_values(:)
         type(tensor_field_t),  allocatable                      :: tensor_function_values(:)
@@ -640,8 +640,8 @@ contains
 
         ! Get and Update volume integrator
         fe_map            => this%get_fe_map()
-        volume_integrator => this%get_volume_integrator(field_id) 
-        call volume_integrator%update(fe_map)
+        cell_integrator => this%get_cell_integrator(field_id) 
+        call cell_integrator%update(fe_map)
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
@@ -657,7 +657,7 @@ contains
         call patch_field_tensor_function_values%move_alloc_out(tensor_function_values) 
 
         ! Calculate gradients
-        call volume_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
+        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
 
         ! Allocate scalar function values
         if ( allocated(scalar_function_values) ) then
@@ -692,7 +692,7 @@ contains
         class(reference_fe_t),                    pointer       :: reference_fe
         type(quadrature_t),                       pointer       :: quadrature
         type(fe_map_t),                           pointer       :: fe_map
-        type(volume_integrator_t),                pointer       :: volume_integrator
+        type(cell_integrator_t),                pointer       :: cell_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
         real(rp),              allocatable                      :: scalar_function_values(:)
         type(vector_field_t),  allocatable                      :: vector_function_values(:)
@@ -710,8 +710,8 @@ contains
 
         ! Get and Update volume integrator
         fe_map            => this%get_fe_map()
-        volume_integrator => this%get_volume_integrator(field_id) 
-        call volume_integrator%update(fe_map)
+        cell_integrator => this%get_cell_integrator(field_id) 
+        call cell_integrator%update(fe_map)
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
@@ -723,7 +723,7 @@ contains
         call patch_field_tensor_function_values%move_alloc_out(tensor_function_values) 
 
         ! Calculate gradients
-        call volume_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
+        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
 
         if(this%number_dimensions == 2) then
             call patch_field%set_field_type(field_type_scalar)
@@ -782,7 +782,7 @@ contains
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
         class(reference_fe_t),                    pointer       :: reference_fe
         type(fe_map_t),                           pointer       :: fe_map
-        type(volume_integrator_t),                pointer       :: volume_integrator
+        type(cell_integrator_t),                pointer       :: cell_integrator
         type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
         type(tensor_field_t),  allocatable                      :: tensor_function_values(:)
         type(allocatable_array_tensor_field_t),   pointer       :: patch_field_tensor_function_values
@@ -793,8 +793,8 @@ contains
 
         ! Get and Update volume integrator
         fe_map            => this%get_fe_map()
-        volume_integrator => this%get_volume_integrator(field_id) 
-        call volume_integrator%update(fe_map)
+        cell_integrator => this%get_cell_integrator(field_id) 
+        call cell_integrator%update(fe_map)
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
@@ -805,7 +805,7 @@ contains
         call patch_field%set_field_type(field_type_tensor)
         patch_field_tensor_function_values => patch_field%get_tensor_function_values()
         call patch_field_tensor_function_values%move_alloc_out(tensor_function_values) 
-        call volume_integrator%evaluate_fe_function(patch_field_nodal_values%a, tensor_function_values )
+        call cell_integrator%evaluate_fe_function(patch_field_nodal_values%a, tensor_function_values )
         call patch_field_tensor_function_values%move_alloc_in(tensor_function_values)
 
     end subroutine output_handler_cell_fe_function_fill_patch_tensor_field_val
@@ -853,11 +853,11 @@ contains
             check(istat==0)
         end if
 
-        if(allocated(this%volume_integrators)) then
-            do i=1, size(this%volume_integrators)
-                call this%volume_integrators(i)%free()
+        if(allocated(this%cell_integrators)) then
+            do i=1, size(this%cell_integrators)
+                call this%cell_integrators(i)%free()
             end do
-            deallocate(this%volume_integrators, stat=istat)
+            deallocate(this%cell_integrators, stat=istat)
             check(istat==0)
         end if
 
@@ -868,18 +868,18 @@ contains
     end subroutine output_handler_cell_fe_function_free
 
 
-    function output_handler_cell_fe_function_generate_vol_integ_pos_key (this, num_reference_fes, max_order_reference_fe_id, reference_fe_id ) result(vol_integ_pos_key)
+    function output_handler_cell_fe_function_generate_cell_integ_pos_key (this, num_reference_fes, max_order_reference_fe_id, reference_fe_id ) result(cell_integ_pos_key)
     !-----------------------------------------------------------------
-    !< Generate vol_integ_pos_key
+    !< Generate cell_integ_pos_key
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(in) :: this
         integer(ip),                              intent(in) :: num_reference_fes
         integer(ip),                              intent(in) :: max_order_reference_fe_id
         integer(ip),                              intent(in) :: reference_fe_id
-        integer(ip)                                          :: vol_integ_pos_key
+        integer(ip)                                          :: cell_integ_pos_key
     !-----------------------------------------------------------------
-        vol_integ_pos_key = reference_fe_id + (max_order_reference_fe_id)*num_reference_fes
-      end function output_handler_cell_fe_function_generate_vol_integ_pos_key
+        cell_integ_pos_key = reference_fe_id + (max_order_reference_fe_id)*num_reference_fes
+      end function output_handler_cell_fe_function_generate_cell_integ_pos_key
 
 
     function output_handler_cell_fe_function_get_quadrature ( this ) result(quadrature)
@@ -918,30 +918,30 @@ contains
     end function output_handler_cell_fe_function_get_fe_map
 
 
-    function output_handler_cell_fe_function_get_volume_integrator ( this, field_id ) result(volume_integrator)
+    function output_handler_cell_fe_function_get_cell_integrator ( this, field_id ) result(cell_integrator)
     !-----------------------------------------------------------------
-    !< Return the [[volume_integrator_t(type)]] corresponding with the **field_id**
+    !< Return the [[cell_integrator_t(type)]] corresponding with the **field_id**
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), target, intent(in) :: this
         integer(ip),                                      intent(in) :: field_id
-        type(volume_integrator_t),                pointer            :: volume_integrator
-        integer(ip)                                                  :: vol_integ_pos_key
-        integer(ip)                                                  :: vol_integ_pos
+        type(cell_integrator_t),                pointer            :: cell_integrator
+        integer(ip)                                                  :: cell_integ_pos_key
+        integer(ip)                                                  :: cell_integ_pos
         integer(ip)                                                  :: istat
     !-----------------------------------------------------------------
         assert ( associated(this%current_fe) )
 
-        vol_integ_pos_key = &
-             this%generate_vol_integ_pos_key(this%get_number_reference_fes(), &
+        cell_integ_pos_key = &
+             this%generate_cell_integ_pos_key(this%get_number_reference_fes(), &
              this%current_fe%get_max_order_reference_fe_id(), &
              this%current_fe%get_reference_fe_id(field_id))
 
-        call this%volume_integrators_position%get(key=vol_integ_pos_key, &
-             val=vol_integ_pos, &
+        call this%cell_integrators_position%get(key=cell_integ_pos_key, &
+             val=cell_integ_pos, &
              stat=istat)
         assert ( .not. istat == key_not_found )
-        volume_integrator => this%volume_integrators(vol_integ_pos)
-    end function output_handler_cell_fe_function_get_volume_integrator
+        cell_integrator => this%cell_integrators(cell_integ_pos)
+    end function output_handler_cell_fe_function_get_cell_integrator
 
 
     function output_handler_cell_fe_function_get_number_reference_fes ( this ) result(number_reference_fes)

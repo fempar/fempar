@@ -103,7 +103,7 @@ contains
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int_H, vol_int_p
+    type(cell_integrator_t), pointer :: cell_int_H, cell_int_p
     type(vector_field_t)               :: H_shape_trial, H_shape_test
     type(vector_field_t)               :: curl_H_shape_trial, curl_H_shape_test
     type(vector_field_t)               :: grad_p_shape_trial, grad_p_shape_test
@@ -156,8 +156,8 @@ contains
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
-    vol_int_H        => fe%get_volume_integrator(1)
-    vol_int_p        => fe%get_volume_integrator(2) 
+    cell_int_H        => fe%get_cell_integrator(1)
+    cell_int_p        => fe%get_cell_integrator(2) 
     
     time_factor = this%theta_method%get_theta() * this%theta_method%get_time_step() 
     allocate (source_term_values(num_quad_points,1), stat=istat); check(istat==0)
@@ -199,11 +199,11 @@ contains
           
           ! BLOCK [1,1] : mu_0 ( H,v ) + rho( curl(H), curl(v) )  
           do idof=1, num_dofs_per_field(1)
-            call vol_int_H%get_value(idof, qpoint, H_shape_test)
-            call vol_int_H%get_curl(idof, qpoint, curl_H_shape_test)
+            call cell_int_H%get_value(idof, qpoint, H_shape_test)
+            call cell_int_H%get_curl(idof, qpoint, curl_H_shape_test)
             do jdof=1, num_dofs_per_field(1)
-              call vol_int_H%get_value(jdof, qpoint, H_shape_trial)
-              call vol_int_H%get_curl(jdof, qpoint, curl_H_shape_trial)     
+              call cell_int_H%get_value(jdof, qpoint, H_shape_trial)
+              call cell_int_H%get_curl(jdof, qpoint, curl_H_shape_trial)     
               elmat(idof,jdof) = elmat(idof,jdof) + &
               (permeability/time_factor*H_shape_trial*H_shape_test + resistivity*curl_H_shape_trial*curl_H_shape_test)*factor
                   
@@ -218,9 +218,9 @@ contains
        
            ! BLOCK [1,2] : - ( v, grad(p) )
           do idof=1, num_dofs_per_field(1)
-            call vol_int_H%get_value(idof, qpoint, H_shape_test)
+            call cell_int_H%get_value(idof, qpoint, H_shape_test)
             do jdof=1, num_dofs_per_field(2)
-              call vol_int_p%get_gradient(jdof, qpoint, grad_p_shape_trial)   
+              call cell_int_p%get_gradient(jdof, qpoint, grad_p_shape_trial)   
               elmat(idof,num_dofs_per_field(1)+jdof) = elmat(idof,num_dofs_per_field(1)+jdof)  &
                                                        - (H_shape_test*grad_p_shape_trial)*factor                  
             end do            
@@ -228,9 +228,9 @@ contains
 
        ! BLOCK [2,1] :  ( H, grad(q) )
           do idof=1, num_dofs_per_field(2)
-            call vol_int_p%get_gradient(idof, qpoint, grad_p_shape_test) 
+            call cell_int_p%get_gradient(idof, qpoint, grad_p_shape_test) 
             do jdof=1, num_dofs_per_field(1)
-              call vol_int_H%get_value(jdof, qpoint, H_shape_trial)
+              call cell_int_H%get_value(jdof, qpoint, H_shape_trial)
               elmat(num_dofs_per_field(1)+idof,jdof) = elmat(num_dofs_per_field(1)+idof,jdof)  &
                                                        + (H_shape_trial*grad_p_shape_test)*factor                  
             end do            
@@ -238,9 +238,9 @@ contains
           
            ! BLOCK [2,2] :  ( p,q )
           do idof=1, num_dofs_per_field(2)
-            call vol_int_p%get_value(idof, qpoint, p_shape_test) 
+            call cell_int_p%get_value(idof, qpoint, p_shape_test) 
             do jdof=1, num_dofs_per_field(2)
-              call vol_int_p%get_value(jdof, qpoint, p_shape_trial)
+              call cell_int_p%get_value(jdof, qpoint, p_shape_trial)
               elmat(num_dofs_per_field(1)+idof,num_dofs_per_field(1)+jdof) = elmat(num_dofs_per_field(1)+idof,num_dofs_per_field(1)+jdof)  &
                                                        + 1.0_rp/permeability*p_shape_trial*p_shape_test*factor                  
             end do            
