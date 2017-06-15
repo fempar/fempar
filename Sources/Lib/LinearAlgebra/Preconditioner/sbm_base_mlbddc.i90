@@ -194,9 +194,9 @@ subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
      L2_environment  => L1_environment%get_next_level()
      call this%coarse_grid_matrix%create( p_env             = L2_environment, &
           dof_import        = coarse_fe_space%get_block_dof_import(1), &
-          symmetric_storage = .false., &
-          is_symmetric      = .false., &
-          sign              = SPARSE_MATRIX_SIGN_UNKNOWN) !SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
+          symmetric_storage = .true., &
+          is_symmetric      = .true., &
+          sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
 
      if ( L2_environment%am_i_l1_task() ) then
         call this%coarse_grid_matrix_symbolic_assembly()
@@ -515,6 +515,7 @@ subroutine base_mlbddc_compute_subdomain_elmat ( this, subdomain_elmat )
   check(.false.)    
 #endif
   call memfree ( work, __FILE__, __LINE__)
+  
 end subroutine base_mlbddc_compute_subdomain_elmat
 
 subroutine base_mlbddc_compute_subdomain_elmat_counts_and_displs ( this, counts, displs )
@@ -822,7 +823,7 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
      call delta_G%axpby(1.0_rp, constrained_neumann_correction_G,1.0_rp)
      call this%apply_weight_operator(delta,delta) 
 
-     call delta%comm()
+     ! call delta%comm()
 
      ! y_G = delta_G
      call y_G%copy(delta_G)

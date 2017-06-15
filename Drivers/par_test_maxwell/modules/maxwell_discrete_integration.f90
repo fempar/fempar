@@ -140,7 +140,7 @@ contains
              
              do idof = 1, num_dofs
 			       ! F_K(i) = (f(i),phi_i)
-                elvec(idof) = elvec(idof) + factor * source_term_values(qpoint)*shape_values(idof,qpoint) 
+                elvec(idof) = elvec(idof) + factor * source_term_values(qpoint)*shape_values(idof,qpoint)
              end do
           end do
           

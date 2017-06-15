@@ -304,7 +304,7 @@ end subroutine free_timers
     end do
     ! Set coarsest-grid solver parameters
     FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 

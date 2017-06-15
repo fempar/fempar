@@ -536,6 +536,8 @@ module fe_space_names
    ! Objects-related traversals
    procedure, non_overridable                   :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                   :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
+   procedure, non_overridable, nopass           :: define_coarse_edge_orientation                  => par_fe_space_define_coarse_edge_orientation
+   procedure, non_overridable, nopass           :: sort_fine_edges_within_coarse_edge              => par_fe_space_sort_fine_edges_within_coarse_edge 
    end type par_fe_space_t
  
  public :: par_fe_space_t
@@ -669,8 +671,8 @@ module fe_space_names
 	   procedure                           :: apply_transpose_weighting_operator    => Hcurl_l1_apply_transpose_weighting_operator
 	   ! Local procedures 
 	   procedure                           :: setup_change_basis_tools                                 => Hcurl_l1_setup_change_basis_tools 
-	   procedure                           :: apply_local_change_basis                                 => Hcurl_l1_apply_local_change_basis
-	   procedure                           :: apply_local_change_basis_transpose                       => Hcurl_l1_apply_local_change_basis_transpose
+	   procedure                           :: apply_global_change_basis                                => Hcurl_l1_apply_global_change_basis
+	   procedure                           :: apply_global_change_basis_transpose                      => Hcurl_l1_apply_global_change_basis_transpose
 	   procedure                           :: apply_inverse_local_change_basis                         => Hcurl_l1_apply_inverse_local_change_basis 
 	   procedure                           :: apply_inverse_local_change_basis_transpose               => Hcurl_l1_apply_inverse_local_change_basis_transpose
 	   ! Private TBPs 
@@ -686,7 +688,6 @@ module fe_space_names
 	   procedure, non_overridable, private :: define_coarse_edge_orientation   => Hcurl_l1_define_coarse_edge_orientation
 	   procedure, non_overridable, private :: build_fine_edges_oriented_path   => Hcurl_l1_build_fine_edges_oriented_path
 	   ! DoF numbering getters 
-	   procedure, non_overridable, private :: get_dof_list_in_coarse_edge      => Hcurl_l1_get_dof_list_in_coarse_edge 
 	   procedure, non_overridable, private :: get_wire_basis_dofs_from_vef     => Hcurl_l1_get_wire_basis_dofs_from_vef 
 	   procedure, non_overridable, private :: get_dof_list_new_basis           => Hcurl_l1_get_dof_list_new_basis 
 	   procedure, non_overridable, private :: get_new_basis_dof_from_node_id   => Hcurl_l1_get_new_basis_dof_from_node_id 

@@ -373,7 +373,8 @@ subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec(this, iblock, pe
 ! interface DoFs (perm_old2new) and renumbers the interface DoFs such that we get a final 
 ! numbering such that: x_G = [ x_E, x_Ec, x_F ] being E the coarse edges (objects with dim=1), 
 ! Ec the set of degrees of freedom coupled with those ones in the edges and x_F the rest of DoFs. 
-! Particularly, x_E = [x_E1, x_E2, ..., x_En], i.e. DoFs are packed with coarse edges local ascending ordering.  
+! Particularly, x_E = [x_E1, x_E2, ..., x_En], i.e. DoFs are packed with coarse edges local ascending ordering. 
+! Fine dof numbering x_Ei is sorted from START--> END within each coarse object 
 ! By composition of permutations, perm_old2wire = perm_new2wire(perm_old2new)
   implicit none
   class(par_fe_space_t)   , intent(in)     :: this
@@ -383,16 +384,34 @@ subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec(this, iblock, pe
   type(fe_object_iterator_t)             :: object
   type(fe_vef_iterator_t)                :: vef_within_object, vef_within_cell 
   class(fe_iterator_t), allocatable      :: fe
-  type(fe_face_iterator_t)               :: fe_face
   integer(ip)            , pointer       :: elem2dof(:)
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
-  integer(ip) :: field_id, ielem, istat 
-  integer(ip) :: iface_within_object, ivef_within_cell, ivef_within_object, dof_lid, coarse_dof_lid
+  integer(ip)                            :: field_id, ielem, istat 
+  integer(ip)                            :: iface_within_object, ivef_within_cell, ivef_within_object
+  integer(ip)                            :: dof_lid, coarse_dof_lid
 
-  integer(ip)  :: ivef_within_edge_adjacent_cell, iedge_coarse
+  integer(ip)                    :: ivef_within_edge_adjacent_cell, iedge_coarse
   class(reference_fe_t), pointer :: reference_fe 
+  integer(ip)                    :: idof, current_dof  
   integer(ip), allocatable       :: perm_new2wire(:)
-  integer(ip)                    :: idof, current_dof 
+  
+  ! Edge sorting related variables 
+  type(fe_vef_iterator_t)                   :: vertex 
+  class(lagrangian_reference_fe_t), pointer :: ref_fe_geo
+  type(list_t), pointer                     :: vertices_of_line
+  type(list_iterator_t)                     :: vertices_of_line_iterator
+  integer(ip)                               :: vertex_within_cell_id, vertex_within_edge_id 
+  integer(ip) , allocatable                 :: vertices_in_edge(:,:) 
+  type(hash_table_ip_ip_t)                  :: nodes_visited 
+  integer(ip)                               :: i, iedge, inode
+  integer(ip)                               :: start_node, end_node
+  type(point_t), allocatable                :: cell_coordinates(:)
+  type(point_t), allocatable, target        :: node_coordinates(:,:) 
+  type(point_t), pointer                    :: start_coords, end_coords
+  integer(ip)                               :: dummy_val, found_nodes
+  integer(ip)                               :: fine_edge, node_id
+  integer(ip)  , allocatable                :: perm_sorted_edges(:) 
+  integer(ip)                               :: starting_dof, dofs_per_edge, dofs_in_vef_counter
   
   ! Decide if the change will be applied, only applied for 3D Nedelec-like element space
   field_id = this%field_blocks(iblock)  
@@ -413,31 +432,82 @@ subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec(this, iblock, pe
   
   ! Compute local numbering for the Wire Basket interface DOFs 
   call this%create_fe_object_iterator(object)
-  call this%create_fe_face_iterator(fe_face)
   call this%create_fe_vef_iterator(vef_within_object)
   call this%create_fe_vef_iterator(vef_within_cell)
+  call this%create_fe_vef_iterator(vertex)
+  
+   allocate(cell_coordinates( fe%cell%get_num_nodes() ) , stat=istat); check(istat==0) 
 
   ! In a first loop we add all DOFs belonging to COARSE EDGES (E)
   do while ( .not. object%has_finished() )
      if ( object%get_dimension() == 1 ) then 
+	    fine_edge = 0
+		call memalloc( 20, 2, vertices_in_edge, __FILE__, __LINE__ )
+	    call nodes_visited%init( 100 )
+		allocate( node_coordinates( 20, 2 ), stat=istat)
+		
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object, vef_within_object)
            if ( vef_within_object%get_dimension() == 1 ) then  ! Only act if a fine edge has been found 
-              call vef_within_object%get_cell_around(1,fe)
-              call fe%get_field_elem2dof(field_id, elem2dof)
+		   fine_edge = fine_edge + 1
+		   call vef_within_object%get_cell_around(1,fe) 
+		   
+		    ! Build hash table to identify potential start-end node 
+		      ref_fe_geo                => fe%get_reference_fe_geo()
+			  vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
+              ivef_within_cell          = fe%find_lpos_vef_lid(vef_within_object%get_lid())     
+              vertices_of_line_iterator = vertices_of_line%create_iterator(ivef_within_cell)
+              vertex_within_edge_id     = 1
+			   do while( .not. vertices_of_line_iterator%is_upper_bound() )
+                 vertex_within_cell_id = vertices_of_line_iterator%get_current()
+                 call fe%get_vef(vertex_within_cell_id, vertex )
+                 node_id = vertex%get_lid() 
+                 call fe%cell%get_coordinates(cell_coordinates)		
+                 call nodes_visited%put(key=node_id, val=1, stat=istat)
+                 if (istat == was_stored) call nodes_visited%del(key=node_id, stat=istat) 
+                 ! Store nodes in a list 
+                 vertices_in_edge( fine_edge, vertex_within_edge_id )  = node_id 
+                 node_coordinates( fine_edge, vertex_within_edge_id)   = cell_coordinates(vertex_within_cell_id) 
+                 vertex_within_edge_id = vertex_within_edge_id + 1
+                 call vertices_of_line_iterator%next() 
+              end do
+		    end if 		  
+        end do
+		
+		! Here I can already sort the EDGE, all related info to coarse edge is found 
+		call memalloc( fine_edge, perm_sorted_edges, __FILE__, __LINE__ ) 
+		call this%define_coarse_edge_orientation( fine_edge, start_node, end_node, nodes_visited, vertices_in_edge, node_coordinates )	
+		call this%sort_fine_edges_within_coarse_edge(  fine_edge, start_node, vertices_in_edge, perm_sorted_edges )
+
+		! Assign local-edge sorted DoF numbering  
+		fine_edge     = 0
+		starting_dof  = current_dof 
+		dofs_per_edge = fe%get_order(field_id)
+		do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object, vef_within_object)
+           if ( vef_within_object%get_dimension() == 1 ) then  ! Only act if a fine edge has been found 
+		   fine_edge = fine_edge + 1		  
+		      call vef_within_object%get_cell_around(1,fe) 
+		      call fe%get_field_elem2dof(field_id, elem2dof)
               ivef_within_cell = fe%find_lpos_vef_lid(vef_within_object%get_lid())
               own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
-              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+			  dofs_in_vef_counter = 0
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )			     
                  idof    = own_dofs_on_vef_iterator%get_current()
                  if (perm_new2wire(perm_old2new(elem2dof(idof))) .eq. 0) then
-                    perm_new2wire(perm_old2new(elem2dof(idof))) = current_dof
-					current_dof = current_dof + 1
+                    perm_new2wire(perm_old2new(elem2dof(idof))) = starting_dof + dofs_per_edge*( perm_sorted_edges(fine_edge) - 1 ) + dofs_in_vef_counter  
+					dofs_in_vef_counter = dofs_in_vef_counter + 1
+					current_dof       = current_dof + 1
                  end if
                  call own_dofs_on_vef_iterator%next()
               end do
            end if
-
-        end do
+		end do 
+			
+		call nodes_visited%free()
+		deallocate( node_coordinates, stat=istat);  check(istat==0)
+		call memfree( vertices_in_edge, __FILE__, __LINE__ )
+		call memfree( perm_sorted_edges, __FILE__, __LINE__ )
      end if
      call object%next()
   end do
@@ -493,20 +563,121 @@ subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec(this, iblock, pe
   end do 
   
   call this%free_fe_object_iterator(object)
-  call this%free_fe_vef_iterator(fe_face)
   call this%free_fe_vef_iterator(vef_within_object)
   call this%free_fe_vef_iterator(vef_within_cell)
+  call this%free_fe_vef_iterator(vertex)
   
   ! Compose both permutations to end up with a old2wire unique permutation 
   do idof=1, this%get_block_number_dofs(iblock) 
   perm_old2new(idof) = perm_new2wire(perm_old2new(idof))
   end do 
-  
+ 
   call memfree(perm_new2wire, __FILE__, __LINE__)
+  deallocate( cell_coordinates, stat=istat ); check(istat==0) 
   end if 
   
-  call this%free_fe_iterator(fe)
+    call this%free_fe_iterator(fe)
+
 end subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec
+
+subroutine par_fe_space_define_coarse_edge_orientation( number_fine_edges, start_node, end_node, nodes_visited, vertices_in_edge, node_coordinates) 
+   ! Define unique orientation for the edge, from the lowest x(i)_start --> x(i)_end recursively 
+   ! A switch between the start and the end is performed if x(i)_start > x(i)_end 
+implicit none 
+  integer(ip)                           , intent(in)      :: number_fine_edges 
+  integer(ip)                           , intent(inout)   :: start_node
+  integer(ip)                           , intent(inout)   :: end_node 
+  type(hash_table_ip_ip_t)              , intent(in)      :: nodes_visited 
+  integer(ip)  , allocatable            , intent(in)      :: vertices_in_edge(:,:)
+  type(point_t), allocatable, target    , intent(in)      :: node_coordinates(:,:)
+ 
+  integer(ip)                 :: found_nodes, iedge, inode, node_id
+  integer(ip)                 :: buffer_node, dummy_val, istat 
+  type(point_t), pointer      :: start_coords
+  type(point_t), pointer      :: end_coords
+  
+        ! Return potential start-end node and assign direction (decide which one is the origin) 
+        found_nodes = 0
+        do while ( found_nodes < 2 ) 
+           do iedge = 1, number_fine_edges
+              do inode = 1,2
+                 node_id = vertices_in_edge( iedge, inode)
+                 call nodes_visited%get( key=node_id, val=dummy_val, stat=istat ) 
+                 if (istat==key_found .and. found_nodes==0) then 
+                    start_node = node_id; found_nodes = 1
+                    start_coords => node_coordinates(iedge, inode)
+                 elseif (istat==key_found .and. found_nodes==1) then 
+                    end_node   = node_id; found_nodes = 2
+                    end_coords => node_coordinates(iedge, inode) 
+                 end if
+              end do
+           end do
+        end do
+
+          if  ( end_coords%get(1) < start_coords%get(1)  ) then 
+           buffer_node=start_node; start_node = end_node; end_node=buffer_node;   
+        elseif ( end_coords%get(1) == start_coords%get(1) ) then  
+           if ( end_coords%get(2) < start_coords%get(2)  ) then 
+              buffer_node=start_node; start_node = end_node; end_node=buffer_node; 
+           elseif ( end_coords%get(2) == start_coords%get(2) ) then
+              if ( end_coords%get(3) < start_coords%get(3) ) then 
+                 buffer_node=start_node; start_node = end_node; end_node=buffer_node; 
+              elseif ( end_coords%get(3) > start_coords%get(3) ) then
+			     ! Do-nothing
+			  else 
+                 ! If {x,y,z-coords} are equal it must be the same point 
+                 assert(.false.) 
+              end if
+           end if
+        end if
+	
+end subroutine par_fe_space_define_coarse_edge_orientation
+
+subroutine par_fe_space_sort_fine_edges_within_coarse_edge( number_fine_edges, start_node, vertices_in_edge, perm_sorted_fine_edges ) 
+implicit none 
+  integer(ip)                           , intent(in)      :: number_fine_edges 
+  integer(ip)                           , intent(in)      :: start_node 
+  integer(ip)  , allocatable            , intent(in)      :: vertices_in_edge(:,:)
+  integer(ip)  , allocatable            , intent(inout)   :: perm_sorted_fine_edges(:)
+  
+  type(hash_table_ip_ip_t)                  :: edges_visited 
+  integer(ip)                               :: iedge, inode
+  integer(ip)                               :: local_edge, istat
+  integer(ip)                               :: following_node, orientation_index
+  logical                                   :: following_edge_is_found 
+  integer(ip), allocatable                  :: perm(:) 
+
+        call memalloc( 2, perm, __FILE__, __LINE__ ) 
+		perm(1) = 2; perm(2) = 1; 
+		
+        local_edge        = 0
+        following_node    = 0
+		orientation_index = 1 ! The GLOBAL EDGE orientation is fixed from START-->END  
+		following_node    = start_node 
+		call edges_visited%init( number_fine_edges )
+        do while (local_edge .ne. number_fine_edges )
+           following_edge_is_found = .false. 
+           do iedge = 1,number_fine_edges
+              do inode = 1,2
+                  if ( (vertices_in_edge( iedge, inode) == following_node) ) then
+				    call edges_visited%put( key=iedge, val=1, stat=istat) 
+				    if (.not. istat == was_stored) then ! Edge has not been assigned yet and proceed
+                    local_edge = local_edge + 1
+                    perm_sorted_fine_edges( iedge ) = local_edge
+                    ! Fine edge has changed orientation (start-end) and the sign must be adjusted 
+                    if ( inode .ne. orientation_index ) perm_sorted_fine_edges( iedge ) = -perm_sorted_fine_edges( iedge )
+                    following_edge_is_found = .true. 
+					following_node = vertices_in_edge(iedge, perm(inode)) ; exit 
+					end if 					
+                 end if
+              end do
+              if (following_edge_is_found) exit 
+           end do
+        end do
+		
+		call edges_visited%free() 
+		call memfree(perm, __FILE__, __LINE__) 
+end subroutine par_fe_space_sort_fine_edges_within_coarse_edge 
 
 subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
   implicit none
