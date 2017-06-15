@@ -816,14 +816,12 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
      call residual_G%axpby(-1.0_rp, delta_G, 1.0_rp)
  
      ! 4) Compute delta_G = A_{BDDC}^{-1} r
-     call this%apply_transpose_weight_operator(residual,residual) 
+     call this%apply_transpose_weighting_operator(residual,residual) 
      call this%compute_coarse_correction(residual, coarse_correction)
      call this%solve_constrained_neumann_problem ( residual, constrained_neumann_correction )
      call delta_G%copy (coarse_correction_G)
      call delta_G%axpby(1.0_rp, constrained_neumann_correction_G,1.0_rp)
-     call this%apply_weight_operator(delta,delta) 
-
-     ! call delta%comm()
+     call this%apply_weighting_operator_and_comm(delta,delta) 
 
      ! y_G = delta_G
      call y_G%copy(delta_G)
@@ -1369,21 +1367,21 @@ subroutine base_mlbddc_solve_constrained_neumann_problem(this, x, y)
   end if
 end subroutine base_mlbddc_solve_constrained_neumann_problem
 
-subroutine base_mlbddc_apply_weight_operator(this, x, y)
+subroutine base_mlbddc_apply_weighting_operator_and_comm(this, x, y)
   implicit none
   class(base_mlbddc_t)    , intent(in)    :: this
   type(par_scalar_array_t)  , intent(inout) :: x
   type(par_scalar_array_t)  , intent(inout) :: y
   assert(.false.)
-end subroutine base_mlbddc_apply_weight_operator
+end subroutine base_mlbddc_apply_weighting_operator_and_comm
 
-subroutine base_mlbddc_apply_transpose_weight_operator(this, x, y)
+subroutine base_mlbddc_apply_transpose_weighting_operator(this, x, y)
   implicit none
   class(base_mlbddc_t)    , intent(in)    :: this
   type(par_scalar_array_t)  , intent(inout) :: x
   type(par_scalar_array_t)  , intent(inout) :: y
   assert(.false.)
-end subroutine base_mlbddc_apply_transpose_weight_operator
+end subroutine base_mlbddc_apply_transpose_weighting_operator
 
 subroutine base_mlbddc_create_interior_interface_views ( this, x, x_I, X_G )
   implicit none

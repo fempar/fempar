@@ -255,7 +255,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
 
 end subroutine Hcurl_l1_setup_constraint_matrix
 
-subroutine Hcurl_l1_apply_weighting_operator(this, W, x, y) 
+subroutine Hcurl_l1_apply_weighting_operator_and_comm(this, W, x, y) 
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
   real(rp),            allocatable,       intent(in)    :: W(:) 
@@ -276,7 +276,7 @@ subroutine Hcurl_l1_apply_weighting_operator(this, W, x, y)
    	call y%comm()
 	call this%apply_global_change_basis( y, y )
    	
-end subroutine Hcurl_l1_apply_weighting_operator
+end subroutine Hcurl_l1_apply_weighting_operator_and_comm
 
 subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y) 
   implicit none
@@ -340,7 +340,7 @@ subroutine Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering(this, par_fe_s
   this%number_interior_dofs = par_fe_space%get_block_number_interior_dofs(1) 
   call memalloc ( par_fe_space%get_total_number_dofs(), this%local_to_wire_dof, __FILE__, __LINE__ ) 
   this%local_to_wire_dof=0
-
+  
   ! Compute local numbering for the Wire Basket interface DOFs 
   call par_fe_space%create_fe_object_iterator(object)
   call par_fe_space%create_fe_iterator(fe)

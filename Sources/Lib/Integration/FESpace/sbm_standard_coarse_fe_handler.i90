@@ -331,7 +331,7 @@ subroutine standard_l1_setup_weighting_operator(this, par_fe_space, parameter_li
   call memfree ( number_parts_around_dof, __FILE__, __LINE__ )
 end subroutine standard_l1_setup_weighting_operator
 
-subroutine standard_l1_apply_weighting_operator(this, W, x, y) 
+subroutine standard_l1_apply_weighting_operator_and_comm(this, W, x, y) 
   implicit none
   class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
   real(rp),            allocatable,       intent(in)    :: W(:) 
@@ -346,9 +346,11 @@ subroutine standard_l1_apply_weighting_operator(this, W, x, y)
      x_local_entries => x_local%get_entries()
      y_local         => y%get_serial_scalar_array()
      y_local_entries => y_local%get_entries()
+	 
      y_local_entries = x_local_entries*W
-
-end subroutine standard_l1_apply_weighting_operator
+     call y%comm() 
+	 
+end subroutine standard_l1_apply_weighting_operator_and_comm
 
 subroutine standard_l1_apply_transpose_weighting_operator(this, W, x, y) 
   implicit none
@@ -365,6 +367,7 @@ subroutine standard_l1_apply_transpose_weighting_operator(this, W, x, y)
      x_local_entries => x_local%get_entries()
      y_local         => y%get_serial_scalar_array()
      y_local_entries => y_local%get_entries()
+	 
      y_local_entries = x_local_entries*W
 
 end subroutine standard_l1_apply_transpose_weighting_operator

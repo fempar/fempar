@@ -84,7 +84,7 @@ subroutine mlbddc_setup_weighting_operator (this)
                                                  weighting_operator = this%W )
 end subroutine mlbddc_setup_weighting_operator
 
-subroutine mlbddc_apply_weight_operator(this, x, y) 
+subroutine mlbddc_apply_weighting_operator_and_comm(this, x, y) 
 implicit none 
  class(mlbddc_t), intent(in) :: this
  type(par_scalar_array_t)  , intent(inout) :: x
@@ -94,11 +94,11 @@ implicit none
  if ( this%am_i_l1_task() ) then 
  par_fe_space      => this%get_par_fe_space()
  coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
- call coarse_fe_handler%apply_weighting_operator(this%W, x, y)
+ call coarse_fe_handler%apply_weighting_operator_and_comm(this%W, x, y)
  end if 
-end subroutine mlbddc_apply_weight_operator
+end subroutine mlbddc_apply_weighting_operator_and_comm
 
-subroutine mlbddc_apply_transpose_weight_operator(this, x, y) 
+subroutine mlbddc_apply_transpose_weighting_operator(this, x, y) 
 implicit none 
  class(mlbddc_t), intent(in) :: this
  type(par_scalar_array_t)  , intent(inout) :: x
@@ -110,7 +110,7 @@ implicit none
  coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
  call coarse_fe_handler%apply_transpose_weighting_operator(this%W, x, y)
  end if 
-end subroutine mlbddc_apply_transpose_weight_operator
+end subroutine mlbddc_apply_transpose_weighting_operator
 
 ! Helper function that extracts a run-time polymorphic class(matrix_t)
 ! from the fe_affine_operator, and dynamically casts it into  

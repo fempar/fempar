@@ -547,12 +547,12 @@ module fe_space_names
   contains
     ! Deferred methods
       ! procedure (l1_renumber_interface_dofs_first_E_then_Ec_then_the_rest), deferred :: renumber_interface_dofs_first_E_then_Ec_then_the_rest
-       procedure (l1_setup_change_basis_tools)     , deferred :: setup_change_basis_tools
-       procedure (l1_get_num_coarse_dofs_interface), deferred :: get_num_coarse_dofs
-	   procedure (l1_setup_constraint_matrix)      , deferred :: setup_constraint_matrix
-	   procedure (l1_setup_weighting_operator)     , deferred :: setup_weighting_operator
-	   procedure (l1_apply_weighting_operator)     , deferred :: apply_weighting_operator 
-	   procedure (l1_apply_weighting_operator)     , deferred :: apply_transpose_weighting_operator 
+       procedure (l1_setup_change_basis_tools)              , deferred :: setup_change_basis_tools
+       procedure (l1_get_num_coarse_dofs_interface)         , deferred :: get_num_coarse_dofs
+	   procedure (l1_setup_constraint_matrix)               , deferred :: setup_constraint_matrix
+	   procedure (l1_setup_weighting_operator)              , deferred :: setup_weighting_operator
+	   procedure (l1_apply_weighting_operator_and_comm)     , deferred :: apply_weighting_operator_and_comm
+	   procedure (l1_apply_transpose_weighting_operator)    , deferred :: apply_transpose_weighting_operator 
   end type l1_coarse_fe_handler_t
  
   abstract interface	
@@ -591,13 +591,13 @@ module fe_space_names
 	     real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
 	
-	 subroutine l1_apply_weighting_operator(this, W, x, y) 
+	 subroutine l1_apply_weighting_operator_and_comm(this, W, x, y) 
 	     import :: l1_coarse_fe_handler_t, par_scalar_array_t, rp
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
 	  real(rp)         , allocatable, intent(in)    :: W(:)
 	  type(par_scalar_array_t)      , intent(inout) :: x
       type(par_scalar_array_t)      , intent(inout) :: y
-    end subroutine l1_apply_weighting_operator
+    end subroutine l1_apply_weighting_operator_and_comm
 	
 	 subroutine l1_apply_transpose_weighting_operator(this, W, x, y) 
 	     import :: l1_coarse_fe_handler_t, par_scalar_array_t, rp
@@ -616,9 +616,9 @@ module fe_space_names
        procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
 	   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
 	   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
-	   procedure             :: apply_weighting_operator                  => standard_l1_apply_weighting_operator 
+	   procedure             :: apply_weighting_operator_and_comm         => standard_l1_apply_weighting_operator_and_comm 
 	   procedure             :: apply_transpose_weighting_operator        => standard_l1_apply_transpose_weighting_operator 
-    procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
+       procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
 	   procedure             :: free                                      => standard_l1_free 
   end type standard_l1_coarse_fe_handler_t
   
@@ -667,7 +667,7 @@ module fe_space_names
        procedure                           :: free                                  => Hcurl_l1_free 
 	   procedure                           :: get_num_coarse_dofs                   => Hcurl_l1_get_num_coarse_dofs 
 	   procedure                           :: setup_constraint_matrix               => Hcurl_l1_setup_constraint_matrix
-	   procedure                           :: apply_weighting_operator              => Hcurl_l1_apply_weighting_operator   
+	   procedure                           :: apply_weighting_operator_and_comm     => Hcurl_l1_apply_weighting_operator_and_comm   
 	   procedure                           :: apply_transpose_weighting_operator    => Hcurl_l1_apply_transpose_weighting_operator
 	   ! Local procedures 
 	   procedure                           :: setup_change_basis_tools                                 => Hcurl_l1_setup_change_basis_tools 
