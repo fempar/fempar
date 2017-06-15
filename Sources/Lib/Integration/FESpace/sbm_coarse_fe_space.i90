@@ -2064,5 +2064,3 @@ end function coarse_fe_space_get_number_coarse_fe_objects
     type(coarse_fe_space_t), pointer :: coarse_fe_space_get_coarse_fe_space
     coarse_fe_space_get_coarse_fe_space => this%coarse_fe_space
   end function coarse_fe_space_get_coarse_fe_space
-  
-  

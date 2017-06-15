@@ -28,16 +28,13 @@
 subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this, &
                                                                        triangulation, &
                                                                        conditions, &
-                                                                       reference_fes, &
-                                                                       field_blocks, &
-                                                                       field_coupling )
+                                                                       reference_fes )
+                                                                      
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(base_static_triangulation_t), target, intent(in)     :: triangulation
   class(conditions_t)                       , intent(in)     :: conditions
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
-  integer(ip)                     , optional, intent(in)     :: field_blocks(:)
-  logical                         , optional, intent(in)     :: field_coupling(:,:)
   assert(.false.)
 end subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells
 
@@ -45,17 +42,13 @@ subroutine par_fe_space_serial_create_different_between_cells( this, &
      triangulation, &
      conditions, &
      reference_fes, &
-     set_ids_to_reference_fes,&
-     field_blocks, &
-     field_coupling )
+     set_ids_to_reference_fes )
   implicit none
   class(par_fe_space_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   class(conditions_t)                         , intent(in)    :: conditions
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
-  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
-  logical                           , optional, intent(in)    :: field_coupling(:,:)
   check(.false.)
 end subroutine par_fe_space_serial_create_different_between_cells
 
@@ -88,16 +81,11 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
   if ( par_environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%create( triangulation, &
                                          conditions, &
-                                         reference_fes, &
-                                         field_blocks, &
-                                         field_coupling )
+                                         reference_fes )
      do field_id=1, this%get_number_fields()
        call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
      end do  
   else
-     this%number_blocks = 1
-     if (present(field_blocks)) this%number_blocks = maxval(field_blocks)
-     
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
      ! tasks also know how many fields there are
      this%number_fields = size(reference_fes)
@@ -116,9 +104,8 @@ subroutine par_fe_space_create_different_between_cells( this, &
                                                                 conditions, &
                                                                 reference_fes, &
                                                                 set_ids_to_reference_fes, &
-                                                                coarse_fe_handlers, &
-                                                                field_blocks, &
-                                                                field_coupling )
+                                                                coarse_fe_handlers )
+                                                                
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(base_static_triangulation_t), target, intent(in)     :: triangulation
@@ -126,8 +113,6 @@ subroutine par_fe_space_create_different_between_cells( this, &
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
   integer(ip)                               , intent(in)     :: set_ids_to_reference_fes(:,:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
-  integer(ip)                     , optional, intent(in)     :: field_blocks(:)
-  logical                         , optional, intent(in)     :: field_coupling(:,:)
 
   type(environment_t), pointer :: par_environment
   integer(ip)                  :: field_id
@@ -143,16 +128,11 @@ subroutine par_fe_space_create_different_between_cells( this, &
      call this%serial_fe_space_t%create( triangulation, &
                                          conditions, &
                                          reference_fes, &
-                                         set_ids_to_reference_fes,&
-                                         field_blocks, &
-                                         field_coupling )
+                                         set_ids_to_reference_fes )
      do field_id=1, this%get_number_fields()
        call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
      end do  
   else
-     this%number_blocks = 1
-     if (present(field_blocks)) this%number_blocks = maxval(field_blocks)
-
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
      ! tasks also know how many fields there are
      this%number_fields = size(set_ids_to_reference_fes,1)
@@ -166,7 +146,6 @@ subroutine par_fe_space_create_different_between_cells( this, &
 
 end subroutine par_fe_space_create_different_between_cells
 
-
 subroutine par_fe_space_free( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
@@ -176,7 +155,7 @@ subroutine par_fe_space_free( this )
   if ( associated (this%triangulation) ) then
      par_environment => this%get_par_environment()
      if ( par_environment%am_i_l1_task() ) then
-        do i=1, this%number_blocks
+        do i=1, size(this%blocks_dof_import)
            call this%blocks_dof_import(i)%free()
         end do
         deallocate(this%blocks_dof_import) 
@@ -184,11 +163,6 @@ subroutine par_fe_space_free( this )
         call this%free_coarse_dofs()
         nullify(this%coarse_fe_space)
      else
-        ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
-        ! requires that this%blocks_dof_import is allocated 
-        this%number_blocks = 0
-        deallocate ( this%blocks_dof_import )
-        
         ! This is a little bit DIRTY. mlbddc%create() requires that the number of
         ! fields is also set on coarse-grid tasks
         this%number_fields = 0
@@ -200,8 +174,11 @@ subroutine par_fe_space_free( this )
         call this%coarse_fe_space%free()
         deallocate (this%coarse_fe_space, stat=istat)
         check (istat==0)
+        
+        deallocate(this%blocks_dof_import)
      end if
      nullify(this%triangulation)
+     nullify(this%block_layout)
      call this%free_coarse_fe_handlers()
   end if
 
@@ -268,15 +245,17 @@ subroutine par_fe_space_free_coarse_fe_handlers ( this )
   end if
 end subroutine par_fe_space_free_coarse_fe_handlers
 
-subroutine par_fe_space_fill_dof_info( this )
+subroutine par_fe_space_fill_dof_info( this, block_layout )
   implicit none
-  class(par_fe_space_t), intent(inout) :: this 
+  class(par_fe_space_t)       , intent(inout) :: this 
+  type(block_layout_t), target, intent(inout) :: block_layout
+
   integer(ip) :: field_id
   type(environment_t), pointer :: par_environment 
   
   par_environment => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
-     call this%serial_fe_space_t%fill_dof_info()
+     call this%serial_fe_space_t%fill_dof_info(block_layout)
      do field_id = 1, this%number_fields
         call this%fill_elem2dof_and_count_dofs( field_id )
      end do
@@ -284,9 +263,11 @@ subroutine par_fe_space_fill_dof_info( this )
      ! Step required by the MLBDDC preconditioner
      call this%renumber_dofs_first_interior_then_interface()
   else
+     this%block_layout => block_layout
+    
      ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
      ! requires that this%blocks_dof_import is allocated 
-     allocate ( this%blocks_dof_import(this%number_blocks) )
+     allocate ( this%blocks_dof_import(block_layout%get_num_blocks()) )
   end if
 end subroutine par_fe_space_fill_dof_info
 
@@ -313,8 +294,8 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   assert ( par_environment%am_i_l1_task() )
 #endif  
   
-  iblock            = this%field_blocks(field_id)
-  init_dof_block    = this%number_dofs_per_block(iblock)
+  iblock            = this%block_layout%get_block_id(field_id)
+  init_dof_block    = this%block_layout%get_block_num_dofs(iblock)
   current_dof_block = init_dof_block
 
   if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
@@ -373,10 +354,8 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
      call this%free_fe_vef_iterator(vef)
   end if
 
-  this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + & 
-       (current_dof_block - init_dof_block)
-  this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
-       (current_dof_block - init_dof_block) 
+  this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + (current_dof_block - init_dof_block)
+  call this%block_layout%add_to_block_num_dofs(iblock, (current_dof_block - init_dof_block)) 
 end subroutine par_fe_space_fill_elem2dof_and_count_dofs
 
 subroutine par_fe_space_renumber_dofs_first_interior_then_interface( this )
@@ -387,8 +366,8 @@ subroutine par_fe_space_renumber_dofs_first_interior_then_interface( this )
   type(environment_t), pointer :: par_environment
   par_environment => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
-    do iblock=1, this%get_number_blocks()
-      call memalloc (this%number_dofs_per_block(iblock), perm_old2new_block, __FILE__, __LINE__)
+    do iblock=1, this%block_layout%get_num_blocks()
+      call memalloc (this%block_layout%get_block_num_dofs(iblock), perm_old2new_block, __FILE__, __LINE__)
       call this%blocks_dof_import(iblock)%fill_first_I_then_G_renumbering(perm_old2new_block)
       call this%renumber_dofs_block(iblock, perm_old2new_block)
       call this%blocks_dof_import(iblock)%renumber_dofs(perm_old2new_block)
@@ -457,8 +436,8 @@ subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)                          :: iblock    
-  allocate ( this%blocks_dof_import(this%number_blocks) )
-  do iblock=1, this%number_blocks
+  allocate ( this%blocks_dof_import(this%block_layout%get_num_blocks()) )
+  do iblock=1, this%block_layout%get_num_blocks()
      call this%compute_dof_import(iblock)
   end do
 end subroutine par_fe_space_compute_blocks_dof_import
@@ -478,11 +457,11 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   integer(ip)                  :: i, field_id
   type(environment_t), pointer :: par_environment
   
-  assert ( iblock >= 1 .and. iblock <= this%number_blocks )
+  assert ( iblock >= 1 .and. iblock <= this%block_layout%get_num_blocks() )
 
   num_fe_spaces_in_iblock = 0
   do field_id = 1, this%number_fields
-     if ( this%field_blocks(field_id) == iblock ) then
+     if ( this%block_layout%get_block_id(field_id) == iblock ) then
         num_fe_spaces_in_iblock = num_fe_spaces_in_iblock + 1
      end if
   end do
@@ -492,7 +471,7 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   ubound_num_itfc_couplings = 0
   i = 1
   do field_id = 1, this%number_fields
-     if ( this%field_blocks(field_id) == iblock ) then
+     if ( this%block_layout%get_block_id(field_id) == iblock ) then
         if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
            ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
                                            this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
@@ -514,7 +493,7 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   total_num_itfc_couplings = 0
   i = 1
   do field_id = 1, this%number_fields
-     if ( this%field_blocks(field_id) == iblock ) then
+     if ( this%block_layout%get_block_id(field_id) == iblock ) then
         if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
            total_num_itfc_couplings = &
                 this%compute_raw_interface_data_by_continuity(field_id, &
@@ -538,7 +517,7 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   par_environment => this%get_par_environment()
   call this%blocks_dof_import(iblock)%create(par_environment%get_l1_rank()+1, &
                                              par_environment%get_l1_size(), &
-                                             this%number_dofs_per_block(iblock), &
+                                             this%block_layout%get_block_num_dofs(iblock), &
                                              total_num_itfc_couplings, &
                                              dofs_lid, &
                                              raw_interface_data )
@@ -1040,8 +1019,8 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   assert ( par_environment%am_i_l1_task() )
 
   ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
-  call memalloc ( this%number_dofs_per_block(this%field_blocks(field_id)), local_idof, __FILE__, __LINE__ )
-  call memalloc ( this%number_dofs_per_block(this%field_blocks(field_id)), lst_dofs_current_vef, __FILE__, __LINE__ )
+  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), local_idof, __FILE__, __LINE__ )
+  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), lst_dofs_current_vef, __FILE__, __LINE__ )
   call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, __FILE__, __LINE__ )
 
   call memalloc ( cell_import%get_number_neighbours(), &
@@ -1342,57 +1321,6 @@ function par_fe_space_compute_raw_interface_data_by_face_integ ( this, &
 end function par_fe_space_compute_raw_interface_data_by_face_integ
 
 
-function par_fe_space_create_assembler(this, &
-     diagonal_blocks_symmetric_storage,&
-     diagonal_blocks_symmetric, & 
-     diagonal_blocks_sign)
-  implicit none
-  class(par_fe_space_t)             , intent(in) :: this
-  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
-  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
-  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
-  class(matrix_array_assembler_t)   , pointer    :: par_fe_space_create_assembler
-
-  ! Locals
-  class(matrix_t), pointer :: matrix
-  class(array_t) , pointer :: array
-  type(environment_t), pointer :: par_environment
-  par_environment => this%get_par_environment()
-  if (this%number_blocks == 1) then
-     allocate ( par_sparse_matrix_array_assembler_t :: par_fe_space_create_assembler )
-     allocate ( par_sparse_matrix_t :: matrix )
-     allocate ( par_scalar_array_t  :: array )
-     select type(matrix)
-        class is(par_sparse_matrix_t)
-        call matrix%create(par_environment, &
-             this%blocks_dof_import(1), &
-             diagonal_blocks_symmetric_storage(1),&
-             diagonal_blocks_symmetric(1),&
-             diagonal_blocks_sign(1))
-        class default
-        check(.false.)
-     end select
-     select type(array)
-        class is(par_scalar_array_t)
-        call array%create(par_environment, &
-             this%blocks_dof_import(1))
-        class default
-        check(.false.)
-     end select
-  else
-     check(.false.)
-  end if
-  call par_fe_space_create_assembler%set_matrix(matrix)
-  call par_fe_space_create_assembler%set_array(array)
-end function par_fe_space_create_assembler
-
-
-subroutine par_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
-  implicit none
-  class(par_fe_space_t)        , intent(in)    :: this
-  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
-end subroutine par_fe_space_symbolic_setup_assembler
-
 subroutine par_fe_space_create_dof_values(this, dof_values)
   implicit none
   class(par_fe_space_t)       , intent(in)    :: this
@@ -1406,7 +1334,7 @@ subroutine par_fe_space_create_dof_values(this, dof_values)
   end if
   
   par_environment => this%get_par_environment()
-  if (this%number_blocks == 1) then
+  if (this%block_layout%get_num_blocks() == 1) then
        allocate ( par_scalar_array_t  :: dof_values )
        select type(dof_values)
        class is(par_scalar_array_t)
@@ -2092,7 +2020,7 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
     assert ( block_id == 1 )
     par_fe_space_get_block_number_coarse_dofs = 0
     do field_id = 1, this%get_number_fields()
-       if ( this%field_blocks(field_id) == block_id ) then
+       if ( this%block_layout%get_block_id(field_id) == block_id ) then
          par_fe_space_get_block_number_coarse_dofs = par_fe_space_get_block_number_coarse_dofs + & 
                                                      this%ptr_coarse_dofs_per_field(field_id+1)-this%ptr_coarse_dofs_per_field(field_id)
        end if                                      

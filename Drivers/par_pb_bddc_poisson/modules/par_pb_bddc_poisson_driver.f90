@@ -322,11 +322,8 @@ contains
                                reference_fes       = this%reference_fes, &
                                coarse_fe_handlers  = this%coarse_fe_handlers)
 
-    call this%fe_space%fill_dof_info() 
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration()
-
     call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
     call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)    
@@ -354,6 +351,8 @@ contains
     type(parameterlist_t) :: parameter_list
     integer(ip) :: FPLError
 
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    
     ! Set-up MLBDDC preconditioner
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()

@@ -260,7 +260,7 @@ subroutine fe_iterator_renumber_dofs_block ( this, block_id, perm_old2new )
   integer(ip)                            :: field_id
   assert ( block_id >= 1 .and. block_id <= this%fe_space%get_number_blocks() )
   do field_id=1, this%fe_space%get_number_fields()
-    if ( this%fe_space%field_blocks(field_id) == block_id ) then
+    if ( this%fe_space%block_layout%get_block_id(field_id) == block_id ) then
       call this%renumber_dofs_field( field_id, perm_old2new )
     end if
   end do 
@@ -361,7 +361,7 @@ function fe_iterator_get_field_blocks(this)
   implicit none
   class(fe_iterator_t), intent(in) :: this
   integer(ip), pointer             :: fe_iterator_get_field_blocks(:)
-  fe_iterator_get_field_blocks => this%fe_space%field_blocks
+  fe_iterator_get_field_blocks => this%fe_space%block_layout%get_field_id_to_block_id()
 end function fe_iterator_get_field_blocks
 
 
