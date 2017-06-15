@@ -463,9 +463,7 @@ subroutine Hcurl_l1_compute_edge_change_basis_matrix(this, par_fe_space)
   real(rp) , allocatable                                :: edge_elmat(:,:)
 
   call this%compute_edge_discrete_gradient_elmat(par_fe_space, edge_elmat)  
-  ! Fill own coarse edges change basis arrays (uncoupled coarse edges)
   call this%fill_edge_local_change_of_basis(par_fe_space, edge_elmat)
-  ! Fill coupled-to fine edges remaining DoFs array 
   call this%fill_coupled_to_edges_local_change_of_basis(par_fe_space, edge_elmat)
 
   call memfree(edge_elmat, __FILE__, __LINE__ ) 

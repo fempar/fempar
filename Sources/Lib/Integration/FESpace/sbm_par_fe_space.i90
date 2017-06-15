@@ -411,6 +411,7 @@ subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec(this, iblock, pe
   integer(ip)                               :: dummy_val, found_nodes
   integer(ip)                               :: fine_edge, node_id, num_fine_edges 
   integer(ip)  , allocatable                :: perm_sorted_edges(:) 
+  logical      , allocatable                :: follows_coarse_edge_orientation(:)  
   integer(ip)                               :: starting_dof, dofs_per_edge, dofs_in_vef_counter
 
   ! Decide if the change will be applied, only applied for 3D Nedelec-like element space
@@ -480,8 +481,9 @@ subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec(this, iblock, pe
 
            ! Here I can already sort the EDGE, all related info to coarse edge is found 
            call memalloc( fine_edge, perm_sorted_edges, __FILE__, __LINE__ ) 
+		   call memalloc( fine_edge, follows_coarse_edge_orientation, __FILE__, __LINE__ ) 
            call this%define_coarse_edge_orientation( fine_edge, start_node, end_node, nodes_visited, vertices_in_edge, node_coordinates )	
-           call this%sort_fine_edges_within_coarse_edge(  fine_edge, start_node, vertices_in_edge, perm_sorted_edges )
+           call this%sort_fine_edges_within_coarse_edge(  fine_edge, start_node, vertices_in_edge, perm_sorted_edges, follows_coarse_edge_orientation )
 
            ! Assign local-edge sorted DoF numbering  
            fine_edge     = 0
@@ -499,9 +501,13 @@ subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec(this, iblock, pe
                  do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )			     
                     idof    = own_dofs_on_vef_iterator%get_current()
                     if (perm_new2wire(perm_old2new(elem2dof(idof))) .eq. 0) then
-                       perm_new2wire(perm_old2new(elem2dof(idof))) = starting_dof + dofs_per_edge*( perm_sorted_edges(fine_edge) - 1 ) + dofs_in_vef_counter  
-                       dofs_in_vef_counter = dofs_in_vef_counter + 1
-                       current_dof         = current_dof + 1
+					   dofs_in_vef_counter = dofs_in_vef_counter + 1
+					   if ( follows_coarse_edge_orientation(fine_edge) ) then 
+                       perm_new2wire(perm_old2new(elem2dof(idof))) = starting_dof + dofs_per_edge*( perm_sorted_edges(fine_edge) - 1 ) + (dofs_in_vef_counter-1)  
+					   elseif ( .not. follows_coarse_edge_orientation(fine_edge) ) then 
+					   perm_new2wire(perm_old2new(elem2dof(idof))) = starting_dof + dofs_per_edge*( perm_sorted_edges(fine_edge) - 1 ) + (dofs_per_edge - dofs_in_vef_counter)
+					   end if 
+					   current_dof = current_dof + 1
                     end if
                     call own_dofs_on_vef_iterator%next()
                  end do
@@ -512,6 +518,7 @@ subroutine par_fe_space_renumber_interface_dofs_first_E_then_Ec(this, iblock, pe
            deallocate( node_coordinates, stat=istat);  check(istat==0)
            call memfree( vertices_in_edge, __FILE__, __LINE__ )
            call memfree( perm_sorted_edges, __FILE__, __LINE__ )
+		   call memfree( follows_coarse_edge_orientation, __FILE__, __LINE__ )
         end if
         call object%next()
      end do
@@ -637,12 +644,13 @@ subroutine par_fe_space_define_coarse_edge_orientation( number_fine_edges, start
 
 end subroutine par_fe_space_define_coarse_edge_orientation
 
-subroutine par_fe_space_sort_fine_edges_within_coarse_edge( number_fine_edges, start_node, vertices_in_edge, perm_sorted_fine_edges ) 
+subroutine par_fe_space_sort_fine_edges_within_coarse_edge( number_fine_edges, start_node, vertices_in_edge, perm_sorted_fine_edges, follows_coarse_edge_orientation ) 
   implicit none 
   integer(ip)                           , intent(in)      :: number_fine_edges 
   integer(ip)                           , intent(in)      :: start_node 
   integer(ip)  , allocatable            , intent(in)      :: vertices_in_edge(:,:)
   integer(ip)  , allocatable            , intent(inout)   :: perm_sorted_fine_edges(:)
+  logical      , allocatable            , intent(inout)   :: follows_coarse_edge_orientation(:) 
 
   type(hash_table_ip_ip_t)                  :: edges_visited 
   integer(ip)                               :: iedge, inode
@@ -658,6 +666,7 @@ subroutine par_fe_space_sort_fine_edges_within_coarse_edge( number_fine_edges, s
   following_node    = 0
   orientation_index = 1 ! The GLOBAL EDGE orientation is fixed from START-->END  
   following_node    = start_node 
+  follows_coarse_edge_orientation = .true. 
   call edges_visited%init( number_fine_edges )
   do while (local_edge .ne. number_fine_edges )
      following_edge_is_found = .false. 
@@ -669,7 +678,7 @@ subroutine par_fe_space_sort_fine_edges_within_coarse_edge( number_fine_edges, s
                  local_edge = local_edge + 1
                  perm_sorted_fine_edges( iedge ) = local_edge
                  ! Fine edge has changed orientation (start-end) and the sign must be adjusted 
-                 if ( inode .ne. orientation_index ) perm_sorted_fine_edges( iedge ) = -perm_sorted_fine_edges( iedge )
+                 if ( inode .ne. orientation_index ) follows_coarse_edge_orientation(iedge) = .false. 
                  following_edge_is_found = .true. 
                  following_node = vertices_in_edge(iedge, perm(inode)) ; exit 
               end if
