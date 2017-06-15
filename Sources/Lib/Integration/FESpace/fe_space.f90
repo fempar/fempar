@@ -213,9 +213,12 @@ module fe_space_names
     procedure, non_overridable          :: is_fixed_dof                               => fe_iterator_is_fixed_dof
     procedure, non_overridable          :: compute_volume                             => fe_iterator_compute_volume
     
+    procedure, non_overridable          :: get_default_quadrature_degree              => fe_iterator_get_default_quadrature_degree
+    procedure, non_overridable          :: get_quadrature_degree                      => fe_iterator_get_quadrature_degree
+    procedure, non_overridable          :: set_quadrature_degree                      => fe_iterator_set_quadrature_degree
     procedure, non_overridable          :: get_quadrature                             => fe_iterator_get_quadrature
     procedure, non_overridable          :: get_fe_map                                 => fe_iterator_get_fe_map
-    procedure, non_overridable          :: get_volume_integrator                      => fe_iterator_get_volume_integrator    
+    procedure, non_overridable          :: get_cell_integrator                      => fe_iterator_get_cell_integrator    
     
     procedure, non_overridable, private :: fe_iterator_get_fe_vef
     generic                             :: get_vef                                    => fe_iterator_get_fe_vef
@@ -283,6 +286,9 @@ module fe_space_names
     procedure         , non_overridable :: update_integration                         => fe_face_iterator_update_integration 
     procedure         , non_overridable :: get_fe_space                               => fe_face_iterator_get_fe_space
     procedure         , non_overridable :: get_elem2dof                               => fe_face_iterator_get_elem2dof
+    procedure         , non_overridable :: get_default_quadrature_degree              => fe_face_iterator_get_default_quadrature_degree
+    procedure         , non_overridable :: get_quadrature_degree                      => fe_face_iterator_get_quadrature_degree
+    procedure         , non_overridable :: set_quadrature_degree                      => fe_face_iterator_set_quadrature_degree
     procedure         , non_overridable :: get_quadrature                             => fe_face_iterator_get_quadrature
     procedure         , non_overridable :: get_face_map                               => fe_face_iterator_get_face_map
     procedure         , non_overridable :: get_face_integrator                        => fe_face_iterator_get_face_integrator
@@ -292,13 +298,14 @@ module fe_space_names
     procedure, non_overridable          :: get_coordinates                  => fe_face_iterator_get_coordinates
     procedure, non_overridable          :: get_face_lid                     => fe_face_iterator_get_face_lid
     procedure, non_overridable          :: get_face_lpos_within_cell_around => fe_face_iterator_get_face_lpos_within_cell_around
-    procedure, non_overridable          :: get_face_orientation             => fe_face_iterator_get_face_orientation
-    procedure, non_overridable          :: get_face_rotation                => fe_face_iterator_get_face_rotation
+    procedure, non_overridable          :: get_face_permutation_index       => fe_face_iterator_get_face_permutation_index
   end type fe_face_iterator_t
       
-  integer(ip), parameter :: fe_space_type_cg            = 0 ! H^1 conforming FE space
-  integer(ip), parameter :: fe_space_type_dg            = 1 ! L^2 conforming FE space + .not. H^1 conforming (weakly imposed via face integration)
-  integer(ip), parameter :: fe_space_type_dg_conforming = 2 ! DG approximation of L^2 spaces (does not involve coupling by face)
+  integer(ip), parameter :: fe_space_type_cg                        = 0 ! H^1 conforming FE space
+  integer(ip), parameter :: fe_space_type_dg                        = 1 ! L^2 conforming FE space + .not. H^1 conforming (weakly imposed via face integration)
+  integer(ip), parameter :: fe_space_type_dg_conforming             = 2 ! DG approximation of L^2 spaces (does not involve coupling by face)
+  
+  integer(ip), parameter :: fe_space_default_quadrature_degree_flag = -1000
   
   type, extends(base_fe_space_t) :: serial_fe_space_t 
      private     
@@ -309,28 +316,28 @@ module fe_space_names
      ! Finite Element-related integration containers
      type(quadrature_t)            , allocatable :: fe_quadratures(:)
      type(fe_map_t)                , allocatable :: fe_maps(:)
-     type(volume_integrator_t)     , allocatable :: fe_volume_integrators(:)
+     type(cell_integrator_t)     , allocatable :: fe_cell_integrators(:)
+     integer(ip)                   , allocatable :: fe_quadratures_degree(:)
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
      integer(ip)                   , allocatable :: reference_fe_id_per_fe(:,:)         ! (number_fields, number_fes)
      integer(ip)                   , allocatable :: max_order_reference_fe_id_per_fe(:) ! Stores Key=max_order_reference_fe_id for all FEs
-     type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position    ! Key = max_order_reference_fe_id
-     type(hash_table_ip_ip_t)                    :: fe_volume_integrators_position      ! Key = [max_order_reference_fe_id,
-                                                                                        !       reference_fe_id]
+     type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
+     type(hash_table_ip_ip_t)                    :: fe_cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
      ! Finite Face-related integration containers
      type(quadrature_t)            , allocatable :: fe_face_quadratures(:)
      type(face_map_t)              , allocatable :: fe_face_maps(:)
      type(face_integrator_t)       , allocatable :: fe_face_integrators(:)
+     integer(ip)                   , allocatable :: fe_face_quadratures_degree(:)
      
      
      ! Mapping of Finite Faces and integration containers
-     integer(ip)                   , allocatable :: max_order_per_fe_face(:)      ! Stores Key=max_order_fes_around_fe_face for all faces
-     type(hash_table_ip_ip_t)                    :: fe_face_quadratures_position  ! Key=max_order_fes_around_fe_face
-     type(hash_table_ip_ip_t)                    :: fe_face_maps_position         ! Key=[max_order_fes_around_fe_face, 
-                                                                                  !     left_geo_reference_fe_id,
-                                                                                  !     right_geo_reference_fe_id (with 0 for boundary faces)]
-     type(hash_table_ip_ip_t)                    :: fe_face_integrators_position  ! Key = [max_order_fes_around_fe_face,
+     integer(ip)                   , allocatable :: max_order_reference_fe_id_per_fe_face(:) ! Stores max_order_reference_fe_id_per_fe_face for all faces
+     type(hash_table_ip_ip_t)                    :: fe_face_quadratures_position  ! Key = [quadrature_degree, 
+                                                                                  !       left_geo_reference_fe_id,
+                                                                                  !       right_geo_reference_fe_id (with 0 for boundary faces)]
+     type(hash_table_ip_ip_t)                    :: fe_face_integrators_position  ! Key = [quadrature_degree,
                                                                                   !       left_reference_fe_id,
                                                                                   !       left_reference_fe_id (with 0 for boundary faces)]
     
@@ -373,7 +380,6 @@ module fe_space_names
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs_on_vef_and_field => serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
      procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
      procedure                           :: update_fixed_dof_values                      => serial_fe_space_update_fixed_dof_values
-     
      procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
      procedure, non_overridable, private :: allocate_and_fill_fields_to_project_         => serial_fe_space_allocate_and_fill_fields_to_project_
      procedure, non_overridable, private :: allocate_and_fill_offset_component           => serial_fe_space_allocate_and_fill_offset_component
@@ -382,13 +388,31 @@ module fe_space_names
      procedure, non_overridable, private :: evaluate_vector_function_scalar_components   => serial_fe_space_evaluate_vector_function_scalar_components
      procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec
      
+     
+     procedure, non_overridable          :: allocate_fe_quadratures_degree               => serial_fe_space_allocate_fe_quadratures_degree
+     procedure, non_overridable          :: free_fe_quadratures_degree                   => serial_fe_space_free_fe_quadratures_degree
+     procedure, non_overridable          :: clear_fe_quadratures_degree                  => serial_fe_space_clear_fe_quadratures_degree
+     
+     procedure, non_overridable          :: allocate_max_order_reference_fe_id_per_fe    => serial_fe_space_allocate_max_order_reference_fe_id_per_fe
+     procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe        => serial_fe_space_free_max_order_reference_fe_id_per_fe
+     procedure, non_overridable          :: compute_max_order_reference_fe_id_per_fe     => serial_fe_space_compute_max_order_reference_fe_id_per_fe         
+     
      procedure, non_overridable          :: initialize_fe_integration                    => serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
-     procedure, non_overridable, private :: generate_fe_volume_integrators_position_key  => serial_fe_space_generate_fe_volume_integrators_position_key
+     procedure, non_overridable, private :: generate_fe_quadratures_position_key         => serial_fe_space_generate_fe_quadratures_position_key
+     procedure, non_overridable, private :: generate_fe_cell_integrators_position_key  => serial_fe_space_generate_fe_cell_integrators_position_key
+    
+     procedure, non_overridable          :: allocate_fe_face_quadratures_degree          => serial_fe_space_allocate_fe_face_quadratures_degree
+     procedure, non_overridable          :: free_fe_face_quadratures_degree              => serial_fe_space_free_fe_face_quadratures_degree
+     procedure, non_overridable          :: clear_fe_face_quadratures_degree             => serial_fe_space_clear_fe_face_quadratures_degree
+     
+     procedure, non_overridable          :: allocate_max_order_reference_fe_id_per_fe_face => serial_fe_space_allocate_max_order_reference_fe_id_per_fe_face
+     procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe_face     => serial_fe_space_free_max_order_reference_fe_id_per_fe_face
+     procedure, non_overridable          :: compute_max_order_reference_fe_id_per_fe_face  => serial_fe_space_compute_max_order_reference_fe_id_per_fe_face   
      
      procedure, non_overridable          :: initialize_fe_face_integration               => serial_fe_space_initialize_fe_face_integration
      procedure, non_overridable, private :: free_fe_face_integration                     => serial_fe_space_free_fe_face_integration
-     procedure, non_overridable, private :: generate_fe_face_maps_position_key           => serial_fe_space_fe_face_maps_position_key
+     procedure, non_overridable, private :: generate_fe_face_quadratures_position_key    => serial_fe_space_fe_face_quadratures_position_key
      procedure, non_overridable, private :: generate_fe_face_integrators_position_key    => serial_fe_space_fe_face_integrators_position_key
 
      procedure                           :: create_assembler                             => serial_fe_space_create_assembler

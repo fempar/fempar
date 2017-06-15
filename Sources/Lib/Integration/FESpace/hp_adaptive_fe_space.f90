@@ -371,6 +371,18 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this, &
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
   call this%allocate_and_init_at_strong_dirichlet_bound()
+
+  call this%allocate_fe_quadratures_degree()
+  call this%clear_fe_quadratures_degree()
+  call this%allocate_max_order_reference_fe_id_per_fe()
+  call this%compute_max_order_reference_fe_id_per_fe()
+
+  ! TO-DO: face integration not yet supported with non-conforming meshes and FEs
+  !call this%allocate_fe_face_quadratures_degree()
+  !call this%clear_fe_face_quadratures_degree()
+  !call this%allocate_max_order_reference_fe_id_per_fe_face()
+  !call this%compute_max_order_reference_fe_id_per_fe_face()
+
   call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine shpafs_create_same_reference_fes_on_all_cells 

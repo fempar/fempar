@@ -413,12 +413,12 @@ function face_iterator_get_face_lpos_within_cell_around(this, icell_around) resu
   face_lpos_within_cell_around = this%cell%find_lpos_vef_lid(this%lid) - reference_fe_geo%get_first_face_id() + 1
 end function face_iterator_get_face_lpos_within_cell_around
 
-function face_iterator_get_face_orientation ( this ) result(face_orientation)
+function face_iterator_get_face_permutation_index ( this ) result(face_orientation)
   implicit none
   class(face_iterator_t), intent(in)    :: this
   integer(ip)                           :: face_orientation
-  face_orientation = this%base_static_triangulation%face_orientation(this%get_face_lid())
-end function face_iterator_get_face_orientation 
+  face_orientation = this%base_static_triangulation%face_permutation_index(this%get_face_lid())
+end function face_iterator_get_face_permutation_index 
 
 function face_iterator_get_face_rotation ( this ) result(face_rotation)
   implicit none
@@ -427,20 +427,13 @@ function face_iterator_get_face_rotation ( this ) result(face_rotation)
   face_rotation = this%base_static_triangulation%face_rotation(this%get_face_lid())
 end function face_iterator_get_face_rotation
 
-subroutine face_iterator_set_face_orientation (this, face_orientation)
+
+subroutine face_iterator_set_face_permutation_index (this, face_permutation_index)
   implicit none
   class(face_iterator_t), intent(inout)    :: this
-  integer(ip)           , intent(in)       :: face_orientation
-  this%base_static_triangulation%face_orientation(this%get_face_lid()) = face_orientation
-end subroutine face_iterator_set_face_orientation 
-
-subroutine face_iterator_set_face_rotation ( this, face_rotation)
-  implicit none
-  class(face_iterator_t), intent(inout) :: this
-  integer(ip)           , intent(in)    :: face_rotation
-  this%base_static_triangulation%face_rotation(this%get_face_lid()) = face_rotation 
-end subroutine face_iterator_set_face_rotation
-
+  integer(ip)           , intent(in)       :: face_permutation_index
+  this%base_static_triangulation%face_permutation_index(this%get_face_lid()) = face_permutation_index
+end subroutine face_iterator_set_face_permutation_index
 
 ! We need cells around to evaluate it. Storing faces of elements, 
 ! edges of faces and vertices of edges, this would not be necessary.

@@ -280,7 +280,7 @@ contains
     type(vector_field_t)                   :: rot_test_vector
     integer(ip)                            :: qpoin, number_qpoints, idof 
     type(i1p_t)              , pointer     :: elem2dof(:)
-    type(volume_integrator_t), pointer     :: vol_int_H
+    type(cell_integrator_t), pointer     :: cell_int_H
     type(face_integrator_t), pointer       :: face_int_H
     integer(ip)                            :: i, inode, vector_size
     integer(ip)                            :: num_dofs, number_fields 
@@ -323,7 +323,7 @@ contains
     
     quad           => fe%get_quadrature()
     fe_map         => fe%get_fe_map() 
-    vol_int_H      => fe%get_volume_integrator(1)
+    cell_int_H      => fe%get_cell_integrator(1)
     number_qpoints =  quad%get_number_quadrature_points()
     
     ! Loop over elements
@@ -339,7 +339,7 @@ contains
           do qpoin=1, number_qpoints
              factor = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						
              do inode = 1, number_dofs_per_field(1)  
-                call vol_int_H%get_curl(inode, qpoin, rot_test_vector)
+                call cell_int_H%get_curl(inode, qpoin, rot_test_vector)
                 elvec(inode) = elvec(inode) + factor * rot_test_vector%get(3) 
              end do
           end do
