@@ -52,14 +52,17 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
+  
   call this%allocate_fe_quadratures_degree()
   call this%clear_fe_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe()
   call this%compute_max_order_reference_fe_id_per_fe()
-  call this%allocate_fe_quadratures_degree()
-  call this%clear_fe_quadratures_degree()
+  
+  call this%allocate_fe_face_quadratures_degree()
+  call this%clear_fe_face_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe_face()
   call this%compute_max_order_reference_fe_id_per_fe_face()
+  
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine serial_fe_space_create_same_reference_fes_on_all_cells
@@ -92,14 +95,17 @@ subroutine serial_fe_space_create_different_between_cells( this, &
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
   call this%allocate_and_init_at_strong_dirichlet_bound()
+  
   call this%allocate_fe_quadratures_degree()
   call this%clear_fe_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe()
   call this%compute_max_order_reference_fe_id_per_fe()
-  call this%allocate_fe_quadratures_degree()
-  call this%clear_fe_quadratures_degree()
+  
+  call this%allocate_fe_face_quadratures_degree()
+  call this%clear_fe_face_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe_face()
   call this%compute_max_order_reference_fe_id_per_fe_face()
+  
   call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine serial_fe_space_create_different_between_cells
 
@@ -1237,7 +1243,7 @@ subroutine serial_fe_space_allocate_fe_quadratures_degree ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   call this%free_fe_quadratures_degree()
-  call memalloc ( this%triangulation%get_num_faces(), this%fe_quadratures_degree, __FILE__, __LINE__ )
+  call memalloc ( this%triangulation%get_num_cells(), this%fe_quadratures_degree, __FILE__, __LINE__ )
 end subroutine serial_fe_space_allocate_fe_quadratures_degree 
 
 subroutine serial_fe_space_clear_fe_quadratures_degree ( this ) 

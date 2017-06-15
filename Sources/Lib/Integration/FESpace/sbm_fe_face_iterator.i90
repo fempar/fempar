@@ -121,7 +121,7 @@ function fe_face_iterator_get_quadrature_degree ( this )
   implicit none
   class(fe_face_iterator_t), intent(in) :: this
   integer(ip) :: fe_face_iterator_get_quadrature_degree
-  fe_face_iterator_get_quadrature_degree = this%fe_space%fe_quadratures_degree(this%get_face_lid())
+  fe_face_iterator_get_quadrature_degree = this%fe_space%fe_face_quadratures_degree(this%get_face_lid())
   if ( fe_face_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
      fe_face_iterator_get_quadrature_degree = this%get_default_quadrature_degree()
   end if
