@@ -55,7 +55,10 @@ module block_layout_names
      procedure, non_overridable :: fields_coupled           => block_layout_fields_coupled
      procedure, non_overridable :: blocks_coupled           => block_layout_blocks_coupled
      procedure, non_overridable :: set_block_num_dofs       => block_layout_set_block_num_dofs
-     procedure, non_overridable :: add_to_block_num_dofs    => block_layout_add_to_block_num_dofs   
+     procedure, non_overridable :: add_to_block_num_dofs    => block_layout_add_to_block_num_dofs 
+     procedure, non_overridable :: equal                    => block_layout_equal
+     generic :: operator(==)                                => equal
+     
   end type block_layout_t
   
   public :: block_layout_t 
@@ -219,4 +222,30 @@ contains
     this%num_dofs_x_block(block_id) = this%num_dofs_x_block(block_id) + num_dofs
   end subroutine block_layout_add_to_block_num_dofs
   
+  function block_layout_equal ( block_layout_op1, block_layout_op2 )
+    implicit none
+    class(block_layout_t), intent(in) :: block_layout_op1
+    class(block_layout_t), intent(in) :: block_layout_op2
+    logical :: block_layout_equal
+    
+    block_layout_equal = (block_layout_op1%num_blocks == block_layout_op2%num_blocks)
+    if (.not. block_layout_equal) return
+    
+    block_layout_equal = (block_layout_op1%num_fields == block_layout_op2%num_fields)  
+    if (.not. block_layout_equal) return
+    
+    block_layout_equal = (allocated(block_layout_op1%field_id_to_block_id) .and. allocated(block_layout_op2%field_id_to_block_id))  
+    if (.not. block_layout_equal) return
+    
+    block_layout_equal = (size(block_layout_op1%field_id_to_block_id) == size(block_layout_op2%field_id_to_block_id))  
+    if (.not. block_layout_equal) return
+    
+    block_layout_equal = (allocated(block_layout_op1%num_dofs_x_block) .and. allocated(block_layout_op2%num_dofs_x_block))  
+    if (.not. block_layout_equal) return
+    
+    block_layout_equal = (size(block_layout_op1%num_dofs_x_block) == size(block_layout_op2%num_dofs_x_block))  
+    if (.not. block_layout_equal) return
+    
+  end function block_layout_equal 
+    
 end module block_layout_names

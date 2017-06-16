@@ -1748,20 +1748,148 @@ subroutine serial_fe_space_fill_dof_info( this, block_layout )
   implicit none
   class(serial_fe_space_t)    , intent(inout) :: this
   type(block_layout_t), target, intent(inout) :: block_layout
-  integer(ip) :: field_id
+  logical :: perform_numbering
   
-  assert ( this%number_fields == block_layout%get_num_fields() )
+  perform_numbering = .not. associated(this%block_layout) 
+  if (.not. perform_numbering) perform_numbering = .not. (this%block_layout == block_layout)
+  if ( perform_numbering ) then
+    this%block_layout => block_layout
+    call memalloc( this%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )   
+    if ( this%number_fields >= 1 ) then 
+      call this%count_dofs()
+    end if  
+    call this%list_dofs()
+  end if
+end subroutine serial_fe_space_fill_dof_info
 
-  call memalloc( this%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
+subroutine serial_fe_space_count_dofs ( this ) 
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this   
+  logical, allocatable :: per_field_vefs_visited(:,:)
+  integer(ip) :: field_id, vef_lid, ivef, num_own_dofs_on_vef, iblock
+  class(fe_iterator_t), allocatable :: fe
+  
+  ! Count #DoFs per field
   this%number_dofs_per_field = 0
   
-  this%block_layout => block_layout
-  call this%block_layout%clear_num_dofs_x_block()
-  
-  do field_id = 1, this%number_fields
-     call this%fill_elem2dof_and_count_dofs( field_id )
+  call memalloc ( this%number_fields, this%triangulation%get_num_vefs(), per_field_vefs_visited,  __FILE__, __LINE__ )
+  per_field_vefs_visited = .false.
+
+  call this%create_fe_iterator(fe)
+  do while ( .not. fe%has_finished())
+     if ( fe%is_local() ) then
+        do field_id=1, this%number_fields
+           this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
+                                                     fe%count_own_dofs(field_id)
+           if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+              do ivef = 1, fe%get_num_vefs()
+                vef_lid = fe%get_vef_lid(ivef)
+                if ( .not. per_field_vefs_visited (field_id,vef_lid) ) then
+                   num_own_dofs_on_vef = fe%count_own_dofs_on_vef(ivef,field_id)
+                   if (num_own_dofs_on_vef>0) then
+                     per_field_vefs_visited (field_id,vef_lid) = .true.
+                     this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
+                                                                 num_own_dofs_on_vef 
+                   end if
+                end if
+              end do           
+           end if                                       
+        end do
+     end if
+     call fe%next()
   end do
-end subroutine serial_fe_space_fill_dof_info
+  
+  ! Count #DoFs per block
+  call this%block_layout%clear_num_dofs_x_block()
+  do field_id=1, this%get_number_fields()
+    iblock = this%block_layout%get_block_id(field_id) 
+    call this%block_layout%add_to_block_num_dofs(iblock,this%number_dofs_per_field(field_id))     
+  end do
+  
+  call this%free_fe_iterator(fe)
+  call memfree ( per_field_vefs_visited,  __FILE__, __LINE__ )
+end subroutine serial_fe_space_count_dofs 
+
+subroutine serial_fe_space_list_dofs ( this ) 
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this   
+  
+  integer(ip), allocatable :: owner_cell_gid_per_field_and_vef(:,:)
+  integer(ip), allocatable :: per_field_vef_lid_in_owner_cell (:,:)
+  integer(ip), allocatable :: blocks_current_num_dofs(:)
+  integer(ip), allocatable :: fields_current_dof(:)
+  class(fe_iterator_t), allocatable :: fe, source_fe
+  integer(ip) :: block_id, field_id
+  integer(ip) :: ivef, vef_lid
+  integer(ip) :: previous_dof_block
+  
+  call memalloc ( this%get_number_fields(), this%triangulation%get_num_vefs(), owner_cell_gid_per_field_and_vef,  __FILE__, __LINE__ )
+  owner_cell_gid_per_field_and_vef = -1
+  
+  call memalloc ( this%get_number_fields(), this%triangulation%get_num_vefs(), per_field_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+  per_field_vef_lid_in_owner_cell = -1
+  
+  call memalloc( this%block_layout%get_num_blocks(), blocks_current_num_dofs, __FILE__, __LINE__ )
+  blocks_current_num_dofs = 0
+  
+  call memalloc( this%number_fields, fields_current_dof, __FILE__, __LINE__ )
+  fields_current_dof = 0
+  
+  if (this%number_fields > 1) then
+    do field_id=1, this%number_fields
+       block_id = this%block_layout%get_block_id(field_id)
+       fields_current_dof(field_id) = fields_current_dof(field_id) + blocks_current_num_dofs(block_id)
+       blocks_current_num_dofs(block_id) = blocks_current_num_dofs(block_id) + this%number_dofs_per_field(field_id)
+    end do
+  end if
+  
+  call this%create_fe_iterator(source_fe)
+  call this%create_fe_iterator(fe)
+  do while ( .not. fe%has_finished())
+     if ( fe%is_local() ) then
+       do field_id=1, this%get_number_fields()
+          call fe%fill_own_dofs ( field_id, fields_current_dof(field_id) )
+          do ivef = 1, fe%get_num_vefs()
+              vef_lid = fe%get_vef_lid(ivef)
+              if ( owner_cell_gid_per_field_and_vef( field_id, vef_lid ) == -1 ) then
+                 previous_dof_block = fields_current_dof(field_id)
+                 call fe%fill_own_dofs_on_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
+                 if (previous_dof_block < fields_current_dof(field_id)) then
+                   owner_cell_gid_per_field_and_vef( field_id, vef_lid ) = fe%get_lid() 
+                   per_field_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                 end if
+              else 
+                 call source_fe%set_lid(owner_cell_gid_per_field_and_vef(field_id, vef_lid))
+                 call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                                                               source_fe, &
+                                                               per_field_vef_lid_in_owner_cell(field_id,vef_lid), &
+                                                               field_id) 
+              end if
+          end do
+       end do
+     end if
+     call fe%next()
+  end do  
+  
+  ! Set #DoFs per field and block in case of single-field, single-block problem
+  ! (as we did not call fe_space%count_dofs() in this case)
+  if ( this%number_fields == 1 ) then
+    field_id = 1
+    block_id = 1
+    this%number_dofs_per_field(field_id) = fields_current_dof(field_id)
+    call this%block_layout%set_block_num_dofs(block_id,this%number_dofs_per_field(field_id))
+  end if
+  
+  call this%free_fe_iterator(source_fe)
+  call this%free_fe_iterator(fe)
+  call memfree( blocks_current_num_dofs, __FILE__, __LINE__ )
+  call memfree( fields_current_dof     , __FILE__, __LINE__ )
+  call memfree ( owner_cell_gid_per_field_and_vef,  __FILE__, __LINE__ )
+  call memfree ( per_field_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+end subroutine serial_fe_space_list_dofs 
+
+
+
 
 subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
   implicit none

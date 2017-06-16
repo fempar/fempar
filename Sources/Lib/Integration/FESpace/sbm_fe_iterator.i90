@@ -53,6 +53,26 @@ subroutine fe_iterator_free_final(this)
   assert ( .not. associated(this%fe_space))
 end subroutine fe_iterator_free_final
 
+function fe_iterator_count_own_dofs ( this, field_id )
+  implicit none
+  ! Parameters
+  class(fe_iterator_t), intent(in)   :: this
+  integer(ip)         , intent(in)   :: field_id
+  integer(ip) :: fe_iterator_count_own_dofs 
+  
+  ! Local variables
+  integer(ip) :: ivef
+  class(reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t) :: own_dofs_on_vef_iterator
+  
+  assert ( field_id>= 1 .and. field_id <= this%fe_space%number_fields )
+  
+  reference_fe => this%get_reference_fe(field_id)
+  ivef = this%get_num_vefs()+1
+  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+  fe_iterator_count_own_dofs = own_dofs_on_vef_iterator%get_size() 
+end function fe_iterator_count_own_dofs
+
 subroutine fe_iterator_fill_own_dofs ( this, field_id, current_dof )
   implicit none
   ! Parameters
@@ -66,7 +86,7 @@ subroutine fe_iterator_fill_own_dofs ( this, field_id, current_dof )
   class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   
-  assert ( field_id <= this%get_number_fields() )
+  assert ( field_id>= 1 .and. field_id <= this%fe_space%number_fields )
   ivef = this%get_num_vefs()+1
   
   reference_fe => this%get_reference_fe(field_id)
@@ -98,7 +118,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof,
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   
   assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
-  assert ( field_id >= 1 .and. field_id <= this%get_number_fields() )
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%number_fields )
   
   ! Determine position in lst_dofs_lids of the first dof associated to the
   ! field "field_id" within the current fe
@@ -121,6 +141,36 @@ subroutine fe_iterator_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof,
     call own_dofs_on_vef_iterator%next()
   end do
 end subroutine fe_iterator_fill_own_dofs_on_vef
+
+function fe_iterator_count_own_dofs_on_vef ( this, ivef, field_id )
+  implicit none
+  class(fe_iterator_t) , intent(in) :: this
+  integer(ip)          , intent(in) :: ivef
+  integer(ip)          , intent(in) :: field_id
+  integer(ip) :: fe_iterator_count_own_dofs_on_vef
+
+  integer(ip) :: base_pos_lst_dofs_lids
+  class(reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t) :: own_dofs_on_vef_iterator
+  
+  assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%number_fields )
+  
+  ! Determine position in lst_dofs_lids of the first dof associated to the
+  ! field "field_id" within the current fe
+  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())-1
+  
+  reference_fe => this%get_reference_fe(field_id)
+  
+  fe_iterator_count_own_dofs_on_vef = 0
+  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+  do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
+    if ( this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) == 0 ) then
+      fe_iterator_count_own_dofs_on_vef = fe_iterator_count_own_dofs_on_vef + 1
+    end if
+    call own_dofs_on_vef_iterator%next()
+  end do
+end function fe_iterator_count_own_dofs_on_vef
 
 subroutine fe_iterator_fill_own_dofs_on_vef_component_wise ( this, ivef, field_id, current_dof, components_code, free_dofs_loop )
   implicit none

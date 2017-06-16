@@ -161,7 +161,9 @@ module fe_space_names
     procedure                 , private :: create                                     => fe_iterator_create
     procedure                 , private :: free                                       => fe_iterator_free
     final                               :: fe_iterator_free_final
+    procedure, non_overridable, private :: count_own_dofs                             => fe_iterator_count_own_dofs
     procedure, non_overridable, private :: fill_own_dofs                              => fe_iterator_fill_own_dofs
+    procedure, non_overridable, private :: count_own_dofs_on_vef                      => fe_iterator_count_own_dofs_on_vef
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => fe_iterator_fill_own_dofs_on_vef
     procedure, non_overridable, private :: fill_own_dofs_on_vef_component_wise        => fe_iterator_fill_own_dofs_on_vef_component_wise
     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_fe        => fe_iterator_fill_own_dofs_on_vef_from_source_fe
@@ -391,6 +393,8 @@ module fe_space_names
 
      procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
      procedure                           :: fill_dof_info                                => serial_fe_space_fill_dof_info
+     procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
+     procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
      procedure                 , private :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
      procedure                 , private :: renumber_dofs_block                          => serial_fe_space_renumber_dofs_block
  
@@ -522,7 +526,7 @@ module fe_space_names
    procedure                         , private :: allocate_and_fill_coarse_fe_handlers            => par_fe_space_allocate_and_fill_coarse_fe_handlers
    procedure                         , private :: free_coarse_fe_handlers                         => par_fe_space_free_coarse_fe_handlers
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
-   procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
+   procedure                         , private :: count_and_list_dofs_on_ghosts                   => par_fe_space_count_and_list_dofs_on_ghosts
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
    procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
 
