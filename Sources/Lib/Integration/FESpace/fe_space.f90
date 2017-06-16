@@ -536,8 +536,6 @@ module fe_space_names
    ! Objects-related traversals
    procedure, non_overridable                   :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                   :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
-   procedure, non_overridable, nopass           :: define_coarse_edge_orientation                  => par_fe_space_define_coarse_edge_orientation
-   procedure, non_overridable, nopass           :: sort_fine_edges_within_coarse_edge              => par_fe_space_sort_fine_edges_within_coarse_edge 
    end type par_fe_space_t
  
  public :: par_fe_space_t
@@ -546,9 +544,9 @@ module fe_space_names
   type, abstract :: l1_coarse_fe_handler_t
   contains
     ! Deferred methods
-      ! procedure (l1_renumber_interface_dofs_first_E_then_Ec_then_the_rest), deferred :: renumber_interface_dofs_first_E_then_Ec_then_the_rest
        procedure (l1_setup_change_basis_tools)              , deferred :: setup_change_basis_tools
        procedure (l1_get_num_coarse_dofs_interface)         , deferred :: get_num_coarse_dofs
+	   procedure (l1_renumber_interface_dofs_first_E_then_Ec),deferred :: renumber_interface_dofs_first_E_then_Ec
 	   procedure (l1_setup_constraint_matrix)               , deferred :: setup_constraint_matrix
 	   procedure (l1_setup_weighting_operator)              , deferred :: setup_weighting_operator
 	   procedure (l1_apply_weighting_operator_and_comm)     , deferred :: apply_weighting_operator_and_comm
@@ -561,7 +559,7 @@ module fe_space_names
     subroutine l1_setup_change_basis_tools( this, par_fe_space ) 
 	import :: l1_coarse_fe_handler_t, par_fe_space_t
 	class(l1_coarse_fe_handler_t), intent(inout) :: this
-    type(par_fe_space_t)         , intent(in)    :: par_fe_space 
+    type(par_fe_space_t)         , intent(inout) :: par_fe_space 
 	end subroutine l1_setup_change_basis_tools 
 	
     ! Returns the number of coarse DoFs that the object customizing
@@ -574,6 +572,14 @@ module fe_space_names
       type(parameterlist_t)        , intent(in)    :: parameter_list
       integer(ip)                  , intent(inout) :: num_coarse_dofs(:)
     end subroutine l1_get_num_coarse_dofs_interface
+	
+	subroutine l1_renumber_interface_dofs_first_E_then_Ec(this, par_fe_space, iblock, perm_old2new ) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, ip
+      class(l1_coarse_fe_handler_t), intent(inout) :: this
+      type(par_fe_space_t)         , intent(in)    :: par_fe_space 
+	  integer(ip)                  , intent(in)    :: iblock 
+	  integer(ip)  , allocatable   , intent(inout) :: perm_old2new(:)
+    end subroutine l1_renumber_interface_dofs_first_E_then_Ec
    
     subroutine l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, coo_sparse_matrix_t
@@ -614,6 +620,7 @@ module fe_space_names
   contains
        procedure             :: setup_change_basis_tools                  => standard_l1_setup_change_basis_tools    
        procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
+	   procedure             :: renumber_interface_dofs_first_E_then_Ec   => standard_l1_renumber_interface_dofs_first_E_then_Ec 
 	   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
 	   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
 	   procedure             :: apply_weighting_operator_and_comm         => standard_l1_apply_weighting_operator_and_comm 
@@ -632,30 +639,23 @@ module fe_space_names
   
      type :: edge_change_basis_matrix_t 
    private 
-   	   ! Change Basis Matrix will be stored as 
+   	   ! Change Basis Matrix is stored as 
 	   ! [ G 0      G = diag(G_Ei) block diagonal for every coarse edge  
 	   !   B I ];   B = coupling interface dofs with coarse edge dofs 
 	   type(sparse_matrix_t), allocatable  :: G(:) 
 	   type(sparse_matrix_t)               :: B  
-   
-   contains 
-       ! Get local_edge_change_basis_matrix(Ei) = G_Ei 
-       ! Apply change basis
-       ! Apply change basis inverse  
    end type edge_change_basis_matrix_t
    
     type, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
     private 
 	   integer(ip)                             :: order
 	   integer(ip)                             :: number_interior_dofs 
-	   integer(ip)                             :: number_total_wire_dofs 
 	   integer(ip)                             :: number_edge_wire_dofs
+	   integer(ip)                             :: number_total_wire_dofs 	   
 	   integer(ip)                             :: number_coarse_edges
 	   integer(ip) , allocatable               :: number_fine_edges_per_coarse_edge(:) 
 	   integer(ip) , allocatable               :: perm_sorted_edges(:,:) 
 	   real(rp)    , allocatable               :: tangent_size(:,:)
-	   integer(ip) , allocatable               :: local_to_wire_dof(:)
-       integer(ip) , allocatable               :: wire_to_local_dof(:) 
 	   integer(ip) , allocatable               :: dofs_new_basis(:) 
 	   integer(ip) , allocatable               :: vertices_in_edge(:,:,:) 
 	   type(hash_table_ip_ip_t)                :: coupled_vefs_added 
@@ -664,11 +664,16 @@ module fe_space_names
 	   
   contains
        ! Overriding procedures 
-       procedure                           :: free                                  => Hcurl_l1_free 
-	   procedure                           :: get_num_coarse_dofs                   => Hcurl_l1_get_num_coarse_dofs 
-	   procedure                           :: setup_constraint_matrix               => Hcurl_l1_setup_constraint_matrix
-	   procedure                           :: apply_weighting_operator_and_comm     => Hcurl_l1_apply_weighting_operator_and_comm   
-	   procedure                           :: apply_transpose_weighting_operator    => Hcurl_l1_apply_transpose_weighting_operator
+       procedure                           :: free                                    => Hcurl_l1_free 
+	   procedure                           :: get_num_coarse_dofs                     => Hcurl_l1_get_num_coarse_dofs 
+	   procedure                           :: setup_constraint_matrix                 => Hcurl_l1_setup_constraint_matrix
+	   procedure                           :: apply_weighting_operator_and_comm       => Hcurl_l1_apply_weighting_operator_and_comm   
+	   procedure                           :: apply_transpose_weighting_operator      => Hcurl_l1_apply_transpose_weighting_operator
+	   procedure                           :: renumber_interface_dofs_first_E_then_Ec => Hcurl_l1_renumber_interface_dofs_first_E_then_Ec
+	   procedure, non_overridable, private :: fill_dofs_in_coarse_edges_renumbering   => Hcurl_l1_fill_dofs_in_coarse_edges_renumbering 
+	   procedure, non_overridable, private :: fill_dofs_coupled_to_coarse_edges_renumbering => Hcurl_l1_fill_dofs_coupled_to_coarse_edges_renumbering
+	   procedure, non_overridable, private, nopass :: set_coarse_edge_orientation         => Hcurl_l1_set_coarse_edge_orientation
+	   procedure, non_overridable, private, nopass :: sort_fine_edges_within_coarse_edge  => Hcurl_l1_sort_fine_edges_within_coarse_edge
 	   ! Local procedures 
 	   procedure                           :: setup_change_basis_tools                                 => Hcurl_l1_setup_change_basis_tools 
 	   procedure                           :: apply_global_change_basis                                => Hcurl_l1_apply_global_change_basis
@@ -677,12 +682,14 @@ module fe_space_names
 	   procedure                           :: apply_inverse_local_change_basis_transpose               => Hcurl_l1_apply_inverse_local_change_basis_transpose
 	   ! Private TBPs 
 	   procedure, non_overridable, private :: compute_wire_dof_renumbering                => Hcurl_l1_allocate_and_fill_local_to_wire_dof_numbering 
-	   procedure, non_overridable, private :: compute_edge_change_basis_matrix            => Hcurl_l1_compute_edge_change_basis_matrix
+	   procedure, non_overridable, private :: compute_change_basis_matrix                 => Hcurl_l1_compute_change_basis_matrix
 	   procedure, non_overridable, private :: compute_edge_discrete_gradient_elmat        => Hcurl_l1_compute_edge_discrete_gradient_elmat
+	   procedure, non_overridable, private :: compute_face_discrete_gradient_elmat        => Hcurl_l1_compute_face_discrete_gradient_elmat
 	   procedure, non_overridable, private :: compute_first_order_moment_in_edges         => Hcurl_l1_compute_first_order_moment_in_edges 
 	   procedure, non_overridable, private :: compute_edge_elvec                          => Hcurl_l1_compute_edge_elvec
-	   procedure, non_overridable, private :: fill_edge_local_change_of_basis             => Hcurl_l1_fill_edge_local_change_of_basis 
+	   procedure, non_overridable, private :: fill_edge_local_change_of_basis             => Hcurl_l1_fill_edge_local_change_of_basis  
 	   procedure, non_overridable, private :: fill_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_coupled_to_edges_local_change_of_basis
+	   procedure, non_overridable, private :: fill_face_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
 	   procedure, non_overridable, private :: set_orientation_and_sort_fine_edges         => Hcurl_l1_set_orientation_and_sort_fine_edges
 	   ! Auxiliar procedures 
 	   procedure, non_overridable, private :: define_coarse_edge_orientation   => Hcurl_l1_define_coarse_edge_orientation

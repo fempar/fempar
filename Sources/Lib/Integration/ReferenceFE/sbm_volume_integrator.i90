@@ -340,7 +340,7 @@ subroutine fe_map_update_face_map(this,number_cell_dimensions,reorientation_fact
         end do
 
      end do
-
+     	 
      ! Compute outside normals (using the Jacobian Matrix)
      if ( number_cell_dimensions == 1) then
         ! -1 and 1 is given by the reorientation_factor

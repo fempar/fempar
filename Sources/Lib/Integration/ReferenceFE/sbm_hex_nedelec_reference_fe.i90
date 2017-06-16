@@ -1004,7 +1004,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
    reduced_order_vector(2:3) = this%order_vector(2:3)-2
  end if
   
-  
+
  ! compute number shape functions for reduced order element
  num_interior_moments = 1
  do idime = 1, this%number_dimensions
