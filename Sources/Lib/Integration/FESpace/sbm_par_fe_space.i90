@@ -158,7 +158,8 @@ subroutine par_fe_space_free( this )
         do i=1, size(this%blocks_dof_import)
            call this%blocks_dof_import(i)%free()
         end do
-        deallocate(this%blocks_dof_import) 
+        deallocate(this%blocks_dof_import,stat=istat)
+        check (istat==0)
         call this%serial_fe_space_t%free()
         call this%free_coarse_dofs()
         nullify(this%coarse_fe_space)
@@ -171,11 +172,15 @@ subroutine par_fe_space_free( this )
         ! requires that strong_dirichlet_values is created and allocated
         call this%serial_fe_space_t%strong_dirichlet_values%free()
         
-        call this%coarse_fe_space%free()
-        deallocate (this%coarse_fe_space, stat=istat)
-        check (istat==0)
+        if ( associated(this%coarse_fe_space) ) then
+          call this%coarse_fe_space%free()
+          deallocate (this%coarse_fe_space, stat=istat)
+          check (istat==0)
+        end if
+        nullify(this%coarse_fe_space)
         
-        deallocate(this%blocks_dof_import)
+        deallocate(this%blocks_dof_import, stat=istat)
+        check (istat==0)
      end if
      nullify(this%triangulation)
      nullify(this%block_layout)
