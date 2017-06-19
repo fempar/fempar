@@ -643,7 +643,7 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: fields_to_project(:)
   integer(ip)          , intent(in)    :: number_subset_strong_dirichlet_dofs
-  integer(ip)          , intent(in)    :: global2subset_strong_dirichlet_dofs(this%number_strong_dirichlet_dofs)
+  integer(ip)          , intent(in)    :: global2subset_strong_dirichlet_dofs(:)
   type(dof_import_t)   , intent(inout) :: dof_import
 
   ! Local raw data
@@ -657,6 +657,7 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
   type(environment_t), pointer :: par_environment
   
   assert ( size(fields_to_project) >= 1 .and. size(fields_to_project) <= this%get_number_fields() )
+  assert ( size(global2subset_strong_dirichlet_dofs) == this%strong_dirichlet_values%get_size() )
   
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_task() )
@@ -794,7 +795,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
   integer(ip)          , intent(in)    :: offset
   integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
   integer(ip)          , intent(in)    :: number_subset_strong_dirichlet_dofs
-  integer(ip)          , intent(in)    :: global2subset_strong_dirichlet_dofs(this%number_strong_dirichlet_dofs)
+  integer(ip)          , intent(in)    :: global2subset_strong_dirichlet_dofs(:)
   integer(ip)          , intent(inout) :: dofs_lid(:)
   integer(igp)         , intent(inout) :: raw_interface_data(:, :)
   integer(ip)                          :: num_itfc_couplings
@@ -832,6 +833,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
   triangulation     => this%get_triangulation()
   cell_import       => triangulation%get_cell_import()
   assert ( par_environment%am_i_l1_task() )
+  assert ( size(global2subset_strong_dirichlet_dofs) == this%strong_dirichlet_values%get_size() ) 
 
   ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
   call memalloc ( number_subset_strong_dirichlet_dofs, local_idof, __FILE__, __LINE__ )
