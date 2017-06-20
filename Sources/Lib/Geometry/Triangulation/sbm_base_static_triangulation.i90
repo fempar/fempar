@@ -999,17 +999,13 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call this%g2l_subparts%init()
 
     call this%create_cell_iterator(cell)
-    call this%create_itfc_vef_iterator(itfc_vef)
-    do while(.not. itfc_vef%has_finished() )
-       do icell=1, itfc_vef%get_num_cells_around()
-         call itfc_vef%get_cell_around(icell,cell)
-         subpart_gid = cell%get_my_subpart()
-         call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
-         if (istat == now_stored) then
-           cur_subpart_lid = cur_subpart_lid + 1
-         end if
-       end do
-       call itfc_vef%next()
+    do while(.not. cell%has_finished() )
+       subpart_gid = cell%get_my_subpart()
+       call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
+       if (istat == now_stored) then
+         cur_subpart_lid = cur_subpart_lid + 1
+       end if
+       call cell%next()
     end do
     
     num_subparts = cur_subpart_lid-1
@@ -1021,7 +1017,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memalloc ( num_rows_subparts_itfc_vefs, this%num_itfc_vefs, subparts_itfc_vefs, __FILE__, __LINE__ )
     subparts_itfc_vefs = 0
     
-
+    call this%create_itfc_vef_iterator(itfc_vef)
     ivef_itfc = 1
     call itfc_vef%first()
     do while(.not. itfc_vef%has_finished() )

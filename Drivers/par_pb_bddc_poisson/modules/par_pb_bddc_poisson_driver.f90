@@ -301,8 +301,9 @@ contains
 
   subroutine setup_coarse_fe_handlers(this)
     implicit none
-    class(par_pb_bddc_poisson_driver_t), intent(inout) :: this
+    class(par_pb_bddc_poisson_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat
+    
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
 
@@ -349,9 +350,43 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     type(parameterlist_t) :: parameter_list
+    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     integer(ip) :: FPLError
+    integer(ip) :: ilev
 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    
+    plist => this%parameter_list 
+    if ( this%environment%get_l1_size() == 1 ) then
+       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       !FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       !FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       !FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    end if
+    do ilev=1, this%environment%get_num_levels()-1
+       ! Set current level Dirichlet solver parameters
+       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
+       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       !FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       !FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       !FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+       
+       ! Set current level Neumann solver parameters
+       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
+       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       !FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       !FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       !FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+     
+       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
+       plist  => coarse 
+    end do
+    ! Set coarsest-grid solver parameters
+    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    !FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+    !FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+    !FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    
     
     ! Set-up MLBDDC preconditioner
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
@@ -516,6 +551,7 @@ contains
     !call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
+    call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
     call this%setup_system()
     call this%assemble_system()
@@ -550,6 +586,11 @@ contains
        deallocate(this%reference_fes, stat=istat)
        check(istat==0)
     end if
+    if ( allocated(this%coarse_fe_handlers) ) then
+       deallocate(this%coarse_fe_handlers, stat=istat)
+       check(istat==0)
+    end if
+    
     call this%triangulation%free()
     !call this%test_params%free()
   end subroutine free
