@@ -382,8 +382,6 @@ end subroutine free_timers
                                  coarse_fe_handlers  = this%coarse_fe_handlers)
     end if
     
-    call this%fe_space%fill_dof_info() 
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
     
     call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
@@ -460,6 +458,7 @@ end subroutine free_timers
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
     ! Set-up MLBDDC preconditioner
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()

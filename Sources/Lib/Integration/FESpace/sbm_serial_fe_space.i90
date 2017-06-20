@@ -26,18 +26,14 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
-     triangulation, &
-     conditions, &
-     reference_fes, &
-     field_blocks, &
-     field_coupling )
+                                                                   triangulation, &
+                                                                   conditions, &
+                                                                   reference_fes)
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   class(conditions_t)                         , intent(in)    :: conditions
-  type(p_reference_fe_t)                      ,  intent(in)   :: reference_fes(:)
-  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
-  logical                           , optional, intent(in)    :: field_coupling(:,:)
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
 
   integer(ip) :: i, istat, jfield, ifield
 
@@ -46,18 +42,17 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   call this%set_triangulation(triangulation)  
   call this%set_number_fields(size(reference_fes))
   call this%allocate_and_fill_reference_fes(reference_fes)
-  call this%allocate_and_fill_field_blocks_and_coupling(field_blocks, field_coupling)
   call this%allocate_ref_fe_id_per_fe()
   call this%fill_ref_fe_id_per_fe_same_on_all_cells()
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
-
+  
   call this%allocate_fe_quadratures_degree()
   call this%clear_fe_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe()
   call this%compute_max_order_reference_fe_id_per_fe()
-
+  
   call this%allocate_fe_face_quadratures_degree()
   call this%clear_fe_face_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe_face()
@@ -72,40 +67,32 @@ subroutine serial_fe_space_create_different_between_cells( this, &
      triangulation, &
      conditions, &
      reference_fes, &
-     set_ids_to_reference_fes,&
-     field_blocks, &
-     field_coupling )
+     set_ids_to_reference_fes )
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   class(conditions_t)                         , intent(in)    :: conditions
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
-  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
-  logical                           , optional, intent(in)    :: field_coupling(:,:)
-
+  
   call this%free()
   
   call this%set_triangulation(triangulation)  
   call this%set_number_fields(size(set_ids_to_reference_fes,1))
   call this%allocate_and_fill_reference_fes(reference_fes)
-  call this%allocate_and_fill_field_blocks_and_coupling(field_blocks, field_coupling)
   call this%allocate_ref_fe_id_per_fe()
   call this%fill_ref_fe_id_per_fe_different_between_cells(set_ids_to_reference_fes)
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
-
   call this%allocate_fe_quadratures_degree()
   call this%clear_fe_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe()
   call this%compute_max_order_reference_fe_id_per_fe()
-
   call this%allocate_fe_face_quadratures_degree()
   call this%clear_fe_face_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe_face()
   call this%compute_max_order_reference_fe_id_per_fe_face()
-
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs( conditions )
@@ -115,14 +102,12 @@ subroutine serial_fe_space_free (this)
   implicit none
   class(serial_fe_space_t)    , intent(inout) :: this
   call this%free_reference_fes()
-  call this%free_field_blocks_and_coupling()
   call this%free_ref_fe_id_per_fe()
   call this%free_fe_space_type_per_field()
   call this%free_ptr_lst_dofs()
   call this%free_at_strong_dirichlet_bound()
   call this%free_has_fixed_dofs()
   call this%strong_dirichlet_values%free()
-  if (allocated(this%number_dofs_per_block)) call memfree( this%number_dofs_per_block, __FILE__, __LINE__ )
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
   call this%free_fe_quadratures_degree()
@@ -130,6 +115,7 @@ subroutine serial_fe_space_free (this)
   call this%free_fe_face_quadratures_degree()
   call this%free_max_order_reference_fe_id_per_fe()
   call this%free_max_order_reference_fe_id_per_fe_face()
+  nullify(this%block_layout)
 end subroutine serial_fe_space_free
 
 subroutine serial_fe_space_print ( this )
@@ -139,8 +125,7 @@ subroutine serial_fe_space_print ( this )
   integer(ip)                      :: field_id, istat
 
   if (allocated(this%number_dofs_per_field)) write(*,'(a,i10,a)') '********* number_dofs_per_field ',this%number_dofs_per_field,'********'
-  if (allocated(this%number_dofs_per_block)) write(*,'(a,i10,a)') '********* number_dofs_per_block ',this%number_dofs_per_block,'********'
-  write(*,'(a,i10,a)') '********* number_strong_dirichlet_dofs',this%number_strong_dirichlet_dofs,'********'
+  write(*,'(a,i10,a)') '********* number_strong_dirichlet_dofs',this%strong_dirichlet_values%get_size(),'********'
 
   allocate ( elem2dof(this%get_number_fields()), stat=istat)
   check(istat==0)
@@ -289,6 +274,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   logical              , allocatable :: components_code(:)
   integer(ip), allocatable           :: visited_vef_to_fe_map(:,:)
   integer(ip)                        :: previous_number_dirichlet_dofs
+  integer(ip)                        :: number_strong_dirichlet_dofs
 
   ! For every component of every field, we go through all FEs and look for DoFs 
   ! subject to strong Dirichlet BCs. It would be desirable (for efficiency) to 
@@ -301,7 +287,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
 
   ! Count number_strong_dirichlet_dofs
-  this%number_strong_dirichlet_dofs = 0
+  number_strong_dirichlet_dofs = 0
 
   call this%create_fe_iterator(fe)
   call this%create_fe_iterator(source_fe)
@@ -335,36 +321,47 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
                call conditions%get_components_code( vef%get_set_id(), components_code )
 
                ! Auxiliary function containing the work done at each innermost iteration
-               previous_number_dirichlet_dofs = this%number_strong_dirichlet_dofs
+               previous_number_dirichlet_dofs = number_strong_dirichlet_dofs
                call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
                                                                       vef,&
                                                                       ivef,&
                                                                       field_id,&
                                                                       components_code(offset_component_per_field(field_id):&
                                                                                       offset_component_per_field(field_id+1)-1),&
-                                                                      this%number_strong_dirichlet_dofs,&
+                                                                      number_strong_dirichlet_dofs,&
                                                                       visited_vef_to_fe_map,&
                                                                       source_fe)
 
                if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 .and. &
-                    previous_number_dirichlet_dofs < this%number_strong_dirichlet_dofs ) then
+                    previous_number_dirichlet_dofs < number_strong_dirichlet_dofs ) then
                   visited_vef_to_fe_map ( 1, vef%get_lid() ) = fe%get_lid()
                   visited_vef_to_fe_map ( 2, vef%get_lid() ) = ivef
                end if
             end if
          end do
-         call fe%determine_at_strong_dirichlet_boundary(field_id)
-         call fe%determine_has_fixed_dofs(field_id)
       end if
 
       call fe%next()
-    end do ! Loop if FEs
-
+    end do ! Loop in FEs
   end do ! Loop in fields
 
 
-  call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
+  call this%strong_dirichlet_values%create_and_allocate(number_strong_dirichlet_dofs)
   call this%strong_dirichlet_values%init(0.0_rp)
+  
+  ! This second sweep over all cells cannot be integrated as part of the first one
+  ! as the fe%determine_* TBPs have as a pre-condition that this%strong_dirichlet_values
+  ! has at least been created (i.e., that it has at least size already set)
+  call fe%first()
+  do while (.not. fe%has_finished() )
+    if ( fe%is_local() ) then
+      do field_id = 1, this%get_number_fields()
+         call fe%determine_at_strong_dirichlet_boundary(field_id)
+         call fe%determine_has_fixed_dofs(field_id)
+      end do
+    end if
+    call fe%next()
+  end do
 
   call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
@@ -939,7 +936,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   if (allocated(subset2global)) call memfree(subset2global,__FILE__,__LINE__)
   
   allocate( elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
-  call memalloc ( this%number_strong_dirichlet_dofs, global2subset, __FILE__, __LINE__ ) 
+  call memalloc ( this%strong_dirichlet_values%get_size(), global2subset, __FILE__, __LINE__ ) 
   global2subset=0
 
   ! Count number of Dirichlet DOFs to be projected
@@ -968,7 +965,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   ! Allocate + compute subset2global_dirichlet_dofs from subset2global_dirichlet_dofs
   call memalloc ( num_subset_strong_dirichlet_dofs, subset2global, __FILE__, __LINE__ ) 
   idof_subset=1
-  do idof_global=1, this%number_strong_dirichlet_dofs
+  do idof_global=1, this%strong_dirichlet_values%get_size()
      if (global2subset(idof_global) /= 0) then
         subset2global(idof_subset) = global2subset(idof_global) 
         idof_subset=idof_subset+1
@@ -1133,47 +1130,6 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
      assert(.false.)
   end select
 end subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec
-
-
-subroutine serial_fe_space_allocate_and_fill_field_blocks_and_coupling ( this, field_blocks, field_coupling )
-  implicit none
-  class(serial_fe_space_t)    , intent(inout) :: this
-  integer(ip)           , optional, intent(in)    :: field_blocks(:)
-  logical               , optional, intent(in)    :: field_coupling(:,:)
-
-  integer(ip) :: ifield, jfield
-
-  call memalloc( this%number_fields, this%field_blocks, __FILE__, __LINE__)
-  call memalloc( this%number_fields, this%number_fields, this%field_coupling, __FILE__, __LINE__)
-  if ( present(field_blocks) ) then
-     assert( size(field_blocks) == this%number_fields )
-     assert( present(field_coupling) )
-     assert( size(field_coupling,1) == this%number_fields )
-     assert( size(field_coupling,2) == this%number_fields )
-     this%field_blocks   = field_blocks
-     this%field_coupling = field_coupling
-  else
-     this%field_blocks = 1
-     this%field_coupling = .true.
-  end if
-  this%number_blocks = maxval(this%field_blocks)
-  call memalloc ( this%number_blocks, this%number_blocks, this%blocks_coupling, __FILE__, __LINE__)
-  this%blocks_coupling = .false.
-  do jfield=1,this%number_fields
-     do ifield=1,this%number_fields
-        this%blocks_coupling(this%field_blocks(ifield), this%field_blocks(jfield)) = & 
-          this%blocks_coupling(this%field_blocks(ifield), this%field_blocks(jfield)) .or. this%field_coupling(ifield,jfield)
-     end do
-  end do
-end subroutine serial_fe_space_allocate_and_fill_field_blocks_and_coupling
-
-subroutine serial_fe_space_free_field_blocks_and_coupling ( this )
-  implicit none
-  class(serial_fe_space_t)    , intent(inout) :: this
-  if (allocated(this%field_blocks))    call memfree( this%field_blocks, __FILE__, __LINE__)
-  if (allocated(this%field_coupling))  call memfree( this%field_coupling, __FILE__, __LINE__)
-  if (allocated(this%blocks_coupling)) call memfree ( this%blocks_coupling, __FILE__, __LINE__)
-end subroutine serial_fe_space_free_field_blocks_and_coupling
 
 
 subroutine serial_fe_space_allocate_and_fill_reference_fes ( this, reference_fes )
@@ -1802,109 +1758,24 @@ function serial_fe_space_fe_face_integrators_position_key(this, quadrature_degre
        (this%reference_fes_size)*(this%reference_fes_size+1)*(quadrature_degree+1)
 end function serial_fe_space_fe_face_integrators_position_key
 
-function serial_fe_space_create_assembler(this, &
-     diagonal_blocks_symmetric_storage,&
-     diagonal_blocks_symmetric, & 
-     diagonal_blocks_sign)
-  implicit none
-  class(serial_fe_space_t)      , intent(in) :: this
-  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
-  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
-  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
-  class(matrix_array_assembler_t)   , pointer    :: serial_fe_space_create_assembler
-
-  ! Locals
-  class(matrix_t), pointer :: matrix
-  class(array_t) , pointer :: array
-  integer(ip)          :: ife_space, jfe_space
-  integer(ip)          :: iblock, jblock
-
-  if (this%number_blocks == 1) then
-     allocate ( sparse_matrix_array_assembler_t :: serial_fe_space_create_assembler )
-     allocate ( sparse_matrix_t :: matrix )
-     allocate ( serial_scalar_array_t  :: array )
-     select type(matrix)
-        class is(sparse_matrix_t)
-        call matrix%create(this%number_dofs_per_block(1), &
-             diagonal_blocks_symmetric_storage(1),&
-             diagonal_blocks_symmetric(1),&
-             diagonal_blocks_sign(1))
-        class default
-        check(.false.)
-     end select
-     select type(array)
-        class is(serial_scalar_array_t)
-        call array%create(this%number_dofs_per_block(1))
-        class default
-        check(.false.)
-     end select
-  else
-     allocate ( block_sparse_matrix_array_assembler_t :: serial_fe_space_create_assembler )
-     allocate ( block_sparse_matrix_t :: matrix )
-     allocate ( serial_block_array_t  :: array )
-     select type(matrix)
-        class is (block_sparse_matrix_t)
-        call matrix%create(this%number_blocks, &
-             this%number_dofs_per_block,&
-             this%number_dofs_per_block,&
-             diagonal_blocks_symmetric_storage,&
-             diagonal_blocks_symmetric,&
-             diagonal_blocks_sign)
-
-        do jblock=1,this%number_blocks
-           do iblock=1,this%number_blocks
-              if (.not. this%blocks_coupling(iblock,jblock) ) then
-                 call matrix%set_block_to_zero(iblock,jblock)
-              end if
-           end do
-        end do
-        class default
-        check(.false.)
-     end select
-     select type(array)
-        class is(serial_block_array_t)
-        call array%create(this%number_blocks,this%number_dofs_per_block)
-        class default
-        check(.false.)
-     end select
-  end if
-  call serial_fe_space_create_assembler%set_matrix(matrix)
-  call serial_fe_space_create_assembler%set_array(array)
-end function serial_fe_space_create_assembler
-
-
-subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
-  implicit none
-  class(serial_fe_space_t)    , intent(in)    :: this
-  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
-  ! Polymorphic matrix 
-  class(matrix_t), pointer :: matrix
-
-  matrix => matrix_array_assembler%get_matrix()
-  select type(matrix)
-     class is(sparse_matrix_t)
-     class is(block_sparse_matrix_t)
-     class default
-     check(.false.)
-  end select
-end subroutine serial_fe_space_symbolic_setup_assembler
-
 subroutine serial_fe_space_create_dof_values(this, dof_values)
   implicit none
   class(serial_fe_space_t)    , intent(in)    :: this
   class(vector_t), allocatable, intent(inout) :: dof_values
   integer(ip) :: istat
 
+  assert ( associated(this%block_layout) ) 
+  
   if (allocated(dof_values)) then
      call dof_values%free()
      deallocate(dof_values, stat=istat); check(istat==0);
   end if
 
-  if (this%number_blocks == 1) then
+  if (this%block_layout%get_num_blocks() == 1) then
      allocate ( serial_scalar_array_t  :: dof_values )
      select type(dof_values)
         class is(serial_scalar_array_t)
-        call dof_values%create_and_allocate(this%number_dofs_per_block(1))
+        call dof_values%create_and_allocate(this%block_layout%get_block_num_dofs(1))
         class default
         check(.false.)
      end select
@@ -1912,41 +1783,156 @@ subroutine serial_fe_space_create_dof_values(this, dof_values)
      allocate ( serial_block_array_t  :: dof_values )
      select type(dof_values)
         class is(serial_block_array_t)
-        call dof_values%create_and_allocate(this%number_blocks,this%number_dofs_per_block)
+        call dof_values%create_and_allocate(this%block_layout%get_num_blocks(),this%block_layout%get_num_dofs_x_block())
         class default
         check(.false.)
      end select
   end if
-
 end subroutine serial_fe_space_create_dof_values
 
-subroutine serial_fe_space_fill_dof_info( this )
+subroutine serial_fe_space_fill_dof_info( this, block_layout )
   implicit none
-  class(serial_fe_space_t), intent(inout) :: this 
-  integer(ip) :: block_id, field_id
-
-  call this%allocate_number_dofs_per_block()
-  do block_id=1, this%get_number_blocks()
-    call this%set_block_number_dofs(block_id, 0)
-  end do
+  class(serial_fe_space_t)    , intent(inout) :: this
+  type(block_layout_t), target, intent(inout) :: block_layout
+  logical :: perform_numbering
   
-  call this%allocate_number_dofs_per_field()
-  do field_id=1, this%get_number_fields()
-    call this%set_field_number_dofs(field_id, 0)
-  end do
-  
-  do field_id = 1, this%get_number_fields()
-     call this%fill_elem2dof_and_count_dofs( field_id )
-  end do
+  perform_numbering = .not. associated(this%block_layout) 
+  if (.not. perform_numbering) perform_numbering = .not. (this%block_layout == block_layout)
+  if ( perform_numbering ) then
+    this%block_layout => block_layout
+    call memalloc( this%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )   
+    if ( this%number_fields >= 1 ) then 
+      call this%count_dofs()
+    end if  
+    call this%list_dofs()
+  end if
 end subroutine serial_fe_space_fill_dof_info
 
-subroutine serial_fe_space_allocate_number_dofs_per_block( this )
+subroutine serial_fe_space_count_dofs ( this ) 
   implicit none
-  class(serial_fe_space_t), intent(inout) :: this 
-  if ( .not. allocated(this%number_dofs_per_block) ) & 
-     call memalloc( this%get_number_blocks(), this%number_dofs_per_block, __FILE__, __LINE__ )
-  assert ( size(this%number_dofs_per_block) == this%get_number_blocks() ) 
-end subroutine serial_fe_space_allocate_number_dofs_per_block
+  class(serial_fe_space_t), intent(inout) :: this   
+  logical, allocatable :: per_field_vefs_visited(:,:)
+  integer(ip) :: field_id, vef_lid, ivef, num_own_dofs_on_vef, iblock
+  class(fe_iterator_t), allocatable :: fe
+  
+  ! Count #DoFs per field
+  this%number_dofs_per_field = 0
+  
+  call memalloc ( this%number_fields, this%triangulation%get_num_vefs(), per_field_vefs_visited,  __FILE__, __LINE__ )
+  per_field_vefs_visited = .false.
+
+  call this%create_fe_iterator(fe)
+  do while ( .not. fe%has_finished())
+     if ( fe%is_local() ) then
+        do field_id=1, this%number_fields
+           this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
+                                                     fe%count_own_dofs(field_id)
+           if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+              do ivef = 1, fe%get_num_vefs()
+                vef_lid = fe%get_vef_lid(ivef)
+                if ( .not. per_field_vefs_visited (field_id,vef_lid) ) then
+                   num_own_dofs_on_vef = fe%count_own_dofs_on_vef(ivef,field_id)
+                   if (num_own_dofs_on_vef>0) then
+                     per_field_vefs_visited (field_id,vef_lid) = .true.
+                     this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
+                                                                 num_own_dofs_on_vef 
+                   end if
+                end if
+              end do           
+           end if                                       
+        end do
+     end if
+     call fe%next()
+  end do
+  
+  ! Count #DoFs per block
+  call this%block_layout%clear_num_dofs_x_block()
+  do field_id=1, this%get_number_fields()
+    iblock = this%block_layout%get_block_id(field_id) 
+    call this%block_layout%add_to_block_num_dofs(iblock,this%number_dofs_per_field(field_id))     
+  end do
+  
+  call this%free_fe_iterator(fe)
+  call memfree ( per_field_vefs_visited,  __FILE__, __LINE__ )
+end subroutine serial_fe_space_count_dofs 
+
+subroutine serial_fe_space_list_dofs ( this ) 
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this   
+  
+  integer(ip), allocatable :: owner_cell_gid_per_field_and_vef(:,:)
+  integer(ip), allocatable :: per_field_vef_lid_in_owner_cell (:,:)
+  integer(ip), allocatable :: blocks_current_num_dofs(:)
+  integer(ip), allocatable :: fields_current_dof(:)
+  class(fe_iterator_t), allocatable :: fe, source_fe
+  integer(ip) :: block_id, field_id
+  integer(ip) :: ivef, vef_lid
+  integer(ip) :: previous_dof_block
+  
+  call memalloc ( this%get_number_fields(), this%triangulation%get_num_vefs(), owner_cell_gid_per_field_and_vef,  __FILE__, __LINE__ )
+  owner_cell_gid_per_field_and_vef = -1
+  
+  call memalloc ( this%get_number_fields(), this%triangulation%get_num_vefs(), per_field_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+  per_field_vef_lid_in_owner_cell = -1
+  
+  call memalloc( this%block_layout%get_num_blocks(), blocks_current_num_dofs, __FILE__, __LINE__ )
+  blocks_current_num_dofs = 0
+  
+  call memalloc( this%number_fields, fields_current_dof, __FILE__, __LINE__ )
+  fields_current_dof = 0
+  
+  if (this%number_fields > 1) then
+    do field_id=1, this%number_fields
+       block_id = this%block_layout%get_block_id(field_id)
+       fields_current_dof(field_id) = fields_current_dof(field_id) + blocks_current_num_dofs(block_id)
+       blocks_current_num_dofs(block_id) = blocks_current_num_dofs(block_id) + this%number_dofs_per_field(field_id)
+    end do
+  end if
+  
+  call this%create_fe_iterator(source_fe)
+  call this%create_fe_iterator(fe)
+  do while ( .not. fe%has_finished())
+     if ( fe%is_local() ) then
+       do field_id=1, this%get_number_fields()
+          call fe%fill_own_dofs ( field_id, fields_current_dof(field_id) )
+          do ivef = 1, fe%get_num_vefs()
+              vef_lid = fe%get_vef_lid(ivef)
+              if ( owner_cell_gid_per_field_and_vef( field_id, vef_lid ) == -1 ) then
+                 previous_dof_block = fields_current_dof(field_id)
+                 call fe%fill_own_dofs_on_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
+                 if (previous_dof_block < fields_current_dof(field_id)) then
+                   owner_cell_gid_per_field_and_vef( field_id, vef_lid ) = fe%get_lid() 
+                   per_field_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                 end if
+              else 
+                 call source_fe%set_lid(owner_cell_gid_per_field_and_vef(field_id, vef_lid))
+                 call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                                                               source_fe, &
+                                                               per_field_vef_lid_in_owner_cell(field_id,vef_lid), &
+                                                               field_id) 
+              end if
+          end do
+       end do
+     end if
+     call fe%next()
+  end do  
+  
+  ! Set #DoFs per field and block in case of single-field, single-block problem
+  ! (as we did not call fe_space%count_dofs() in this case)
+  if ( this%number_fields == 1 ) then
+    field_id = 1
+    block_id = 1
+    this%number_dofs_per_field(field_id) = fields_current_dof(field_id)
+    call this%block_layout%set_block_num_dofs(block_id,this%number_dofs_per_field(field_id))
+  end if
+  
+  call this%free_fe_iterator(source_fe)
+  call this%free_fe_iterator(fe)
+  call memfree( blocks_current_num_dofs, __FILE__, __LINE__ )
+  call memfree( fields_current_dof     , __FILE__, __LINE__ )
+  call memfree ( owner_cell_gid_per_field_and_vef,  __FILE__, __LINE__ )
+  call memfree ( per_field_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+end subroutine serial_fe_space_list_dofs 
 
 subroutine serial_fe_space_allocate_number_dofs_per_field( this )
   implicit none
@@ -1955,8 +1941,6 @@ subroutine serial_fe_space_allocate_number_dofs_per_field( this )
      call memalloc( this%get_number_fields(), this%number_dofs_per_field, __FILE__, __LINE__ )
   assert ( size(this%number_dofs_per_field) == this%get_number_fields() )
 end subroutine serial_fe_space_allocate_number_dofs_per_field
-
-
 
 subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
   implicit none
@@ -1971,8 +1955,8 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   class(fe_iterator_t), allocatable :: fe, source_fe
   
 
-  iblock            = this%field_blocks(field_id)
-  init_dof_block    = this%number_dofs_per_block(iblock)
+  iblock            = this%block_layout%get_block_id(field_id)
+  init_dof_block    = this%block_layout%get_block_num_dofs(iblock)
   current_dof_block = init_dof_block
 
   call this%create_fe_iterator(fe)
@@ -2015,15 +1999,14 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   end if
   call this%free_fe_iterator(fe)
   this%number_dofs_per_field(field_id) = current_dof_block - init_dof_block
-  this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
-       this%number_dofs_per_field(field_id)     
+  call this%block_layout%add_to_block_num_dofs(iblock,this%number_dofs_per_field(field_id))     
 end subroutine serial_fe_space_fill_elem2dof_and_count_dofs
 
 subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: block_id
-  integer(ip)             , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
+  integer(ip)             , intent(in)    :: perm_old2new(this%block_layout%get_block_num_dofs(block_id))
   class(fe_iterator_t), allocatable :: fe
 
   call this%create_fe_iterator(fe)
@@ -2188,7 +2171,7 @@ function serial_fe_space_get_number_strong_dirichlet_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
   integer(ip) :: serial_fe_space_get_number_strong_dirichlet_dofs
-  serial_fe_space_get_number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs
+  serial_fe_space_get_number_strong_dirichlet_dofs = this%strong_dirichlet_values%get_size()
 end function serial_fe_space_get_number_strong_dirichlet_dofs
 
 function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichlet_values)
@@ -2202,7 +2185,7 @@ function serial_fe_space_get_number_fixed_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
   integer(ip) :: serial_fe_space_get_number_fixed_dofs
-  serial_fe_space_get_number_fixed_dofs = this%number_strong_dirichlet_dofs
+  serial_fe_space_get_number_fixed_dofs = this%strong_dirichlet_values%get_size()
 end function serial_fe_space_get_number_fixed_dofs
 
 subroutine serial_fe_space_copy_ptr_dofs_per_fe ( this, ptr_dofs_per_fe )
@@ -2220,6 +2203,89 @@ subroutine serial_fe_space_copy_lst_dofs_lids ( this, lst_dofs_lids )
   assert ( size(lst_dofs_lids) == size(this%lst_dofs_lids) )
   lst_dofs_lids = this%lst_dofs_lids
 end subroutine serial_fe_space_copy_lst_dofs_lids
+
+function serial_fe_space_get_number_blocks( this)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: serial_fe_space_get_number_blocks
+  assert ( associated (this%block_layout) ) 
+  serial_fe_space_get_number_blocks = this%block_layout%get_num_blocks()
+end function serial_fe_space_get_number_blocks
+
+function serial_fe_space_get_field_blocks( this )
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  integer(ip), pointer :: serial_fe_space_get_field_blocks(:)
+  class(environment_t), pointer :: environment
+  environment => this%get_environment()
+  nullify(serial_fe_space_get_field_blocks)
+  if ( environment%am_i_l1_task() ) then
+     serial_fe_space_get_field_blocks => this%block_layout%get_field_id_to_block_id()
+  end if
+end function serial_fe_space_get_field_blocks
+
+function serial_fe_space_get_field_coupling( this )
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  logical, pointer :: serial_fe_space_get_field_coupling(:,:)
+  class(environment_t), pointer :: environment
+  environment => this%get_environment()
+  nullify(serial_fe_space_get_field_coupling)
+  if ( environment%am_i_l1_task() ) then
+     serial_fe_space_get_field_coupling => this%block_layout%get_field_coupling()
+  end if
+end function serial_fe_space_get_field_coupling
+
+! Returns the number of DoFs associated to block with identifier block_id
+function serial_fe_space_get_block_number_dofs ( this, block_id )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip)          , intent(in) :: block_id
+  integer(ip)                       :: serial_fe_space_get_block_number_dofs
+  class(environment_t), pointer  :: environment
+  environment => this%get_environment()
+  serial_fe_space_get_block_number_dofs = 0
+  if ( environment%am_i_l1_task() ) then 
+     serial_fe_space_get_block_number_dofs  = this%block_layout%get_block_num_dofs(block_id)
+  end if
+end function serial_fe_space_get_block_number_dofs
+
+! Sets the number of DoFs associated to block with identifier block_id to num_dofs
+subroutine serial_fe_space_set_block_number_dofs ( this, block_id, num_dofs )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip)             , intent(in) :: block_id
+  integer(ip)             , intent(in) :: num_dofs
+  class(environment_t), pointer  :: environment
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then 
+     call this%block_layout%set_block_num_dofs(block_id,num_dofs)
+  end if
+end subroutine serial_fe_space_set_block_number_dofs
+
+! Returns a pointer to the block_layout member variable
+function serial_fe_space_get_block_layout ( this )
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(block_layout_t), pointer :: serial_fe_space_get_block_layout
+  serial_fe_space_get_block_layout => this%block_layout
+end function serial_fe_space_get_block_layout
+
+! Sets the pointer block_layout member variable
+subroutine serial_fe_space_set_block_layout ( this, block_layout )
+  implicit none
+  class(serial_fe_space_t)    , intent(inout) :: this
+  type(block_layout_t), target, intent(in)    :: block_layout
+  this%block_layout => block_layout
+end subroutine serial_fe_space_set_block_layout
+
+! Nullifies the pointer block_layout member variable
+subroutine serial_fe_space_nullify_block_layout ( this )
+  implicit none
+  class(serial_fe_space_t)    , intent(inout) :: this
+  nullify(this%block_layout)
+end subroutine serial_fe_space_nullify_block_layout
+
 
 subroutine serial_fe_space_create_fe_iterator ( this, fe )
   implicit none

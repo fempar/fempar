@@ -45,7 +45,7 @@ module hp_adaptive_fe_space_names
   use array_names
   use matrix_names
   use sparse_matrix_names
-  
+  use block_layout_names
   
   
   implicit none
@@ -339,16 +339,12 @@ end subroutine serial_hp_adaptive_fe_space_create_fe_iterator
 subroutine shpafs_create_same_reference_fes_on_all_cells ( this, &
                                                            triangulation, &
                                                            conditions, &
-                                                           reference_fes, &
-                                                           field_blocks, &
-                                                           field_coupling )
+                                                           reference_fes )
   implicit none
   class(serial_hp_adaptive_fe_space_t)        , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   class(conditions_t)                         , intent(in)    :: conditions
-  type(p_reference_fe_t)                      ,  intent(in)   :: reference_fes(:)
-  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
-  logical                           , optional, intent(in)    :: field_coupling(:,:)
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
 
   integer(ip) :: i, istat, jfield, ifield
 
@@ -364,7 +360,6 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this, &
  
   call this%set_number_fields(size(reference_fes))
   call this%allocate_and_fill_reference_fes(reference_fes)
-  call this%allocate_and_fill_field_blocks_and_coupling(field_blocks, field_coupling)
   call this%allocate_ref_fe_id_per_fe()
   call this%fill_ref_fe_id_per_fe_same_on_all_cells()
   call this%check_cell_vs_fe_topology_consistency()
@@ -497,30 +492,42 @@ subroutine shpafs_interpolate_dirichlet_values (this, conditions, time, fields_t
   call this%transfer_dirichlet_to_constraint_dof_coefficients()
 end subroutine shpafs_interpolate_dirichlet_values 
 
-subroutine serial_hp_adaptive_fe_space_fill_dof_info( this )
+subroutine serial_hp_adaptive_fe_space_fill_dof_info( this, block_layout )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  type(block_layout_t), target        , intent(inout) :: block_layout
+  logical :: perform_numbering
   integer(ip) :: block_id, field_id
-
-  this%number_fixed_dofs = this%get_number_strong_dirichlet_dofs()
+  type(block_layout_t), pointer :: p_block_layout
   
-  call this%allocate_number_dofs_per_field()
-  do field_id=1, this%get_number_fields()
-    call this%set_field_number_dofs(field_id, 0)
-  end do
+  p_block_layout => this%get_block_layout()
+  perform_numbering = .not. associated(p_block_layout) 
+  if (.not. perform_numbering) perform_numbering = .not. (p_block_layout == block_layout)
   
-  call this%allocate_number_dofs_per_block()
-  do block_id=1, this%get_number_blocks()
-    call this%set_block_number_dofs(block_id, 0)
-  end do
+  if ( perform_numbering ) then
+    call this%set_block_layout(block_layout)
   
-  do field_id = 1, this%get_number_fields()
-     call this%fill_elem2dof_and_count_dofs( field_id )
-  end do
+    this%number_fixed_dofs = this%get_number_strong_dirichlet_dofs()
   
-  call this%setup_hanging_node_constraints()
+    ! Initialize number DoFs per field
+    call this%allocate_number_dofs_per_field()
+    do field_id=1, this%get_number_fields()
+      call this%set_field_number_dofs(field_id, 0)
+    end do
+  
+    ! Initialize number DoFs per block
+    do block_id=1, this%get_number_blocks()
+      call this%set_block_number_dofs(block_id, 0)
+    end do
+  
+    ! Generate field-wise/block-wise global DoF identifiers
+    do field_id = 1, this%get_number_fields()
+      call this%fill_elem2dof_and_count_dofs( field_id )
+    end do
+  
+    call this%setup_hanging_node_constraints()
+  end if  
 end subroutine serial_hp_adaptive_fe_space_fill_dof_info
-
 
 subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
   implicit none
@@ -857,17 +864,13 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
                                                            triangulation, &
                                                            conditions,    &
                                                            reference_fes, &
-                                                           fe_function,   &
-                                                           field_blocks,  &
-                                                           field_coupling )
+                                                           fe_function )
   implicit none
   class(serial_hp_adaptive_fe_space_t),           intent(inout) :: this
   class(base_static_triangulation_t)  , target  , intent(in)    :: triangulation
   class(conditions_t)                           , intent(in)    :: conditions
   type(p_reference_fe_t)                        , intent(in)    :: reference_fes(:)
   type(fe_function_t)                           , intent(inout) :: fe_function
-  integer(ip)                         , optional, intent(in)    :: field_blocks(:)
-  logical                             , optional, intent(in)    :: field_coupling(:,:)
   type(fe_function_t)                                :: transformed_fe_function
   type(std_vector_integer_ip_t)        , pointer     :: p4est_refinement_and_coarsening_flags
   integer(ip)                          , allocatable :: old_ptr_dofs_per_fe(:,:)
@@ -883,6 +886,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
   real(rp)                             , allocatable :: new_nodal_values(:)
   class(reference_fe_t)                , pointer     :: reference_fe
   integer(ip)                                        :: number_nodes_field
+  type(block_layout_t), pointer :: block_layout
   
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
@@ -901,8 +905,14 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
                 old_lst_dofs_lids,__FILE__,__LINE__)
   call this%copy_lst_dofs_lids(old_lst_dofs_lids)
   
-  call this%create(triangulation,conditions,reference_fes,field_blocks,field_coupling)
-  call this%fill_dof_info()
+  ! ** This is dirty. Again, I think that this%create() MUST not be called inside refine_and_coarsen()
+  block_layout => this%get_block_layout()
+  call this%create(triangulation,conditions,reference_fes)
+  
+  ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
+  call this%nullify_block_layout()       ! Not actually required (by now) as this%create() already nullifies the pointer
+                                         ! It will be actually required whenever we re-consider this%refine_and_coarsen()
+  call this%fill_dof_info(block_layout)
   
   assert( reference_fes(1)%p%get_topology() == topology_hex )
   num_children_per_cell = reference_fes(1)%p%get_number_n_faces_of_dimension(0)

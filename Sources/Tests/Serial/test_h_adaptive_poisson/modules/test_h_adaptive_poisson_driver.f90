@@ -267,7 +267,6 @@ contains
                                  reference_fes       = this%reference_fes)
     end if
     
-    call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()    
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)

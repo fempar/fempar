@@ -66,31 +66,21 @@ function base_fe_space_get_number_blocks( this)
   implicit none
   class(base_fe_space_t), intent(in) :: this 
   integer(ip) :: base_fe_space_get_number_blocks
-  base_fe_space_get_number_blocks = this%number_blocks
+  assert(.false.)
 end function base_fe_space_get_number_blocks
 
 function base_fe_space_get_field_blocks( this )
   implicit none
   class(base_fe_space_t), target, intent(in) :: this
   integer(ip), pointer :: base_fe_space_get_field_blocks(:)
-  class(environment_t), pointer :: environment
-  environment => this%get_environment()
-  nullify(base_fe_space_get_field_blocks)
-  if ( environment%am_i_l1_task() ) then
-     base_fe_space_get_field_blocks => this%field_blocks
-  end if
+  assert(.false.)
 end function base_fe_space_get_field_blocks
 
 function base_fe_space_get_field_coupling( this )
   implicit none
   class(base_fe_space_t), target, intent(in) :: this
   logical, pointer :: base_fe_space_get_field_coupling(:,:)
-  class(environment_t), pointer :: environment
-  environment => this%get_environment()
-  nullify(base_fe_space_get_field_coupling)
-  if ( environment%am_i_l1_task() ) then
-     base_fe_space_get_field_coupling => this%field_coupling
-  end if
+  assert(.false.)
 end function base_fe_space_get_field_coupling
 
 function base_fe_space_get_total_number_dofs ( this )
@@ -103,8 +93,8 @@ function base_fe_space_get_total_number_dofs ( this )
   base_fe_space_get_total_number_dofs = 0
   if ( environment%am_i_l1_task() ) then
     do field_id = 1, this%number_fields
-     base_fe_space_get_total_number_dofs = base_fe_space_get_total_number_dofs  + &
-          this%number_dofs_per_field(field_id)
+       base_fe_space_get_total_number_dofs = base_fe_space_get_total_number_dofs  + &
+           this%number_dofs_per_field(field_id)
     end do      
   end if
 end function base_fe_space_get_total_number_dofs
@@ -113,14 +103,14 @@ end function base_fe_space_get_total_number_dofs
 function base_fe_space_get_field_number_dofs( this, field_id )
   implicit none
   class(base_fe_space_t), intent(in) :: this
-  integer(ip)          , intent(in) :: field_id
-  integer(ip)                       :: base_fe_space_get_field_number_dofs
+  integer(ip)           , intent(in) :: field_id
+  integer(ip) :: base_fe_space_get_field_number_dofs
   class(environment_t), pointer  :: environment
   environment => this%get_environment()
   base_fe_space_get_field_number_dofs = 0
   if ( environment%am_i_l1_task() ) then
-     assert ( field_id >=1 .and. field_id <= this%number_fields ) 
-     base_fe_space_get_field_number_dofs = this%number_dofs_per_field(field_id)
+    assert ( field_id >=1 .and. field_id <= this%number_fields ) 
+    base_fe_space_get_field_number_dofs = this%number_dofs_per_field(field_id)
   end if
 end function base_fe_space_get_field_number_dofs
 
@@ -143,27 +133,8 @@ function base_fe_space_get_block_number_dofs ( this, block_id )
   class(base_fe_space_t), intent(in) :: this
   integer(ip)          , intent(in) :: block_id
   integer(ip)                       :: base_fe_space_get_block_number_dofs
-  class(environment_t), pointer  :: environment
-  environment => this%get_environment()
-  base_fe_space_get_block_number_dofs = 0
-  if ( environment%am_i_l1_task() ) then
-     assert ( block_id >=1 .and. block_id <= this%number_blocks ) 
-     base_fe_space_get_block_number_dofs  = this%number_dofs_per_block(block_id)
-  end if
+  assert(.false.)
 end function base_fe_space_get_block_number_dofs
-
-subroutine base_fe_space_set_block_number_dofs ( this, block_id, block_number_dofs )
-  implicit none
-  class(base_fe_space_t), intent(inout) :: this
-  integer(ip)           , intent(in)    :: block_id
-  integer(ip)                           :: block_number_dofs
-  class(environment_t), pointer         :: environment
-  environment => this%get_environment()
-  if ( environment%am_i_l1_task() ) then
-     assert ( block_id >=1 .and. block_id <= this%number_blocks )
-     this%number_dofs_per_block(block_id) = block_number_dofs
-  end if
-end subroutine base_fe_space_set_block_number_dofs
 
 function base_fe_space_get_total_number_interior_dofs ( this )
   implicit none
