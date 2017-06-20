@@ -29,7 +29,7 @@ subroutine standard_l1_setup_change_basis_tools(this, par_fe_space)
 implicit none 
   class(standard_l1_coarse_fe_handler_t), intent(inout) :: this
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
-  assert(.false.) 
+   assert(.false.) 
 end subroutine standard_l1_setup_change_basis_tools
 
 subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_coarse_dofs)
@@ -135,8 +135,7 @@ implicit none
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   integer(ip)                           , intent(in)    :: iblock 
   integer(ip), allocatable              , intent(inout) :: perm_old2new(:)
-  ! The renumbering is not needed in the general case 
-  assert(.false.) 
+  ! The renumbering is not needed in the general case: do-nothing   
 end subroutine standard_l1_renumber_interface_dofs_first_E_then_Ec
 
 subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 

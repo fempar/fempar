@@ -233,7 +233,6 @@ end subroutine free_timers
 	end if 
 	
 	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) ! Nedelec element 
-    !call this%fe_space%interpolate_dirichlet_values(this%maxwell_conditions)    ! Lagrangian element
 
 			! Setup alternative fe space in 3D Hcurl problems 
 	if ( this%par_environment%am_I_l1_task() ) then 
@@ -400,17 +399,17 @@ end subroutine free_timers
     w1infty_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-03 )
     end if  
     call error_norm%free()
   end subroutine check_solution
