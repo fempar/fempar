@@ -655,7 +655,7 @@ module fe_space_names
 	   integer(ip)                             :: number_coarse_edges
 	   integer(ip) , allocatable               :: number_fine_edges_per_coarse_edge(:) 
 	   integer(ip) , allocatable               :: perm_sorted_edges(:,:) 
-	   real(rp)    , allocatable               :: tangent_size(:,:)
+	   logical     , allocatable               :: follows_coarse_edge_orientation(:,:)
 	   type(hash_table_ip_ip_t)                :: coupled_vefs_added 
 	   type(hash_table_ip_ip_t), allocatable   :: coarse_edge_nodes_order(:)
        type(edge_change_basis_matrix_t)        :: change_basis_matrix 
@@ -667,33 +667,30 @@ module fe_space_names
 	   procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
 	   procedure                           :: apply_weighting_operator_and_comm             => Hcurl_l1_apply_weighting_operator_and_comm   
 	   procedure                           :: apply_transpose_weighting_operator            => Hcurl_l1_apply_transpose_weighting_operator
-	   procedure                           :: renumber_interface_dofs_first_E_then_Ec       => Hcurl_l1_renumber_interface_dofs_first_E_then_Ec
-	   
-	   ! Auxiliar procedures 
+	   procedure                           :: renumber_interface_dofs_first_E_then_Ec       => Hcurl_l1_renumber_interface_dofs_first_E_then_Ec	   
+	   procedure                           :: setup_change_basis_tools                      => Hcurl_l1_setup_change_basis_tools 
+	   ! Auxiliar procedures for renumbering 
 	   procedure, non_overridable, private :: fill_dofs_in_coarse_edges_renumbering         => Hcurl_l1_fill_dofs_in_coarse_edges_renumbering 
 	   procedure, non_overridable, private :: fill_dofs_coupled_to_coarse_edges_renumbering => Hcurl_l1_fill_dofs_coupled_to_coarse_edges_renumbering
 	   procedure, non_overridable, private, nopass :: set_coarse_edge_orientation           => Hcurl_l1_set_coarse_edge_orientation
-	   procedure, non_overridable, private, nopass :: sort_fine_edges_within_coarse_edge    => Hcurl_l1_sort_fine_edges_within_coarse_edge
-	   ! Change of basis related TBPs 
-	   procedure                           :: setup_change_basis_tools                      => Hcurl_l1_setup_change_basis_tools 
-	   procedure                           :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
-	   procedure                           :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
-	   procedure                           :: apply_inverse_local_change_basis              => Hcurl_l1_apply_inverse_local_change_basis 
-	   procedure                           :: apply_inverse_local_change_basis_transpose    => Hcurl_l1_apply_inverse_local_change_basis_transpose
-	   ! Private TBPs 
-	   procedure, non_overridable, private :: compute_change_basis_matrix                 => Hcurl_l1_compute_change_basis_matrix
-	   procedure, non_overridable, private :: compute_edge_discrete_gradient_elmat        => Hcurl_l1_compute_edge_discrete_gradient_elmat
-	   procedure, non_overridable, private :: compute_face_discrete_gradient_elmat        => Hcurl_l1_compute_face_discrete_gradient_elmat
-	   procedure, non_overridable, private :: compute_first_order_moment_in_edges         => Hcurl_l1_compute_first_order_moment_in_edges 
-	   procedure, non_overridable, private :: compute_edge_elvec                          => Hcurl_l1_compute_edge_elvec
-	   procedure, non_overridable, private :: fill_edge_local_change_of_basis             => Hcurl_l1_fill_edge_local_change_of_basis  
+	   procedure, non_overridable, private :: sort_fine_edges_within_coarse_edge            => Hcurl_l1_sort_fine_edges_within_coarse_edge
+	   ! Change of basis construction  
+	   procedure, non_overridable, private :: compute_change_basis_matrix                   => Hcurl_l1_compute_change_basis_matrix	     
+	   procedure, non_overridable, private :: compute_edge_discrete_gradient_elmat          => Hcurl_l1_compute_edge_discrete_gradient_elmat
+	   procedure, non_overridable, private :: compute_face_discrete_gradient_elmat          => Hcurl_l1_compute_face_discrete_gradient_elmat
+	   ! Change of basis application 
+	   procedure, non_overridable, private :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
+	   procedure, non_overridable, private :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
+	   procedure, non_overridable, private :: apply_inverse_local_change_basis              => Hcurl_l1_apply_inverse_local_change_basis 
+	   procedure, non_overridable, private :: apply_inverse_local_change_basis_transpose    => Hcurl_l1_apply_inverse_local_change_basis_transpose
+	   ! Private TBPs 	 
+	   procedure, non_overridable, private :: compute_first_order_moment_in_edges           => Hcurl_l1_compute_first_order_moment_in_edges
+	   procedure, non_overridable, private :: compute_edge_elvec                            => Hcurl_l1_compute_edge_elvec
+	   procedure, non_overridable, private :: fill_edge_local_change_of_basis               => Hcurl_l1_fill_edge_local_change_of_basis  
 	   procedure, non_overridable, private :: fill_edge_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis
 	   procedure, non_overridable, private :: fill_face_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
-	   procedure, non_overridable, private :: find_interface_fe_face_around_edge          => Hcurl_l1_find_interface_fe_face_around_edge 
-	   procedure, non_overridable, private :: assemble_face_coupled_to_edges_B_elmat      => Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
-	   procedure, non_overridable, private :: set_orientation_and_sort_fine_edges         => Hcurl_l1_set_orientation_and_sort_fine_edges
-	   procedure, non_overridable, private :: define_coarse_edge_orientation              => Hcurl_l1_define_coarse_edge_orientation
-	   procedure, non_overridable, private :: build_fine_edges_oriented_path              => Hcurl_l1_build_fine_edges_oriented_path
+	   procedure, non_overridable, private :: find_interface_fe_face_around_edge            => Hcurl_l1_find_interface_fe_face_around_edge 
+	   procedure, non_overridable, private :: assemble_face_coupled_to_edges_B_elmat        => Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
 	   ! DoF numbering getters 
 	   procedure, non_overridable, private :: get_wire_basis_dofs_from_vef     => Hcurl_l1_get_wire_basis_dofs_from_vef 
 	   procedure, non_overridable, private :: get_new_basis_dof_from_node_id   => Hcurl_l1_get_new_basis_dof_from_node_id 
@@ -701,6 +698,8 @@ module fe_space_names
 	   ! Logical getters 
 	   procedure, non_overridable, private :: is_first_edge                    => Hcurl_l1_is_first_edge
 	   procedure, non_overridable, private :: is_last_edge                     => Hcurl_l1_is_last_edge 
+	   ! Auxiliar basic procedures 
+	   procedure, non_overridable, private :: compute_edge_length              => Hcurl_l1_compute_edge_length 
   end type  Hcurl_l1_coarse_fe_handler_t
      
   public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, Hcurl_l1_coarse_fe_handler_t 
