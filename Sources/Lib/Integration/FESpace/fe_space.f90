@@ -656,7 +656,6 @@ module fe_space_names
 	   integer(ip) , allocatable               :: number_fine_edges_per_coarse_edge(:) 
 	   integer(ip) , allocatable               :: perm_sorted_edges(:,:) 
 	   real(rp)    , allocatable               :: tangent_size(:,:)
-	   integer(ip) , allocatable               :: dofs_new_basis(:) 
 	   type(hash_table_ip_ip_t)                :: coupled_vefs_added 
 	   type(hash_table_ip_ip_t), allocatable   :: coarse_edge_nodes_order(:)
        type(edge_change_basis_matrix_t)        :: change_basis_matrix 
@@ -688,7 +687,7 @@ module fe_space_names
 	   procedure, non_overridable, private :: compute_first_order_moment_in_edges         => Hcurl_l1_compute_first_order_moment_in_edges 
 	   procedure, non_overridable, private :: compute_edge_elvec                          => Hcurl_l1_compute_edge_elvec
 	   procedure, non_overridable, private :: fill_edge_local_change_of_basis             => Hcurl_l1_fill_edge_local_change_of_basis  
-	   procedure, non_overridable, private :: fill_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_coupled_to_edges_local_change_of_basis
+	   procedure, non_overridable, private :: fill_edge_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis
 	   procedure, non_overridable, private :: fill_face_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
 	   procedure, non_overridable, private :: find_interface_fe_face_around_edge          => Hcurl_l1_find_interface_fe_face_around_edge 
 	   procedure, non_overridable, private :: assemble_face_coupled_to_edges_B_elmat      => Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
@@ -697,8 +696,8 @@ module fe_space_names
 	   procedure, non_overridable, private :: build_fine_edges_oriented_path              => Hcurl_l1_build_fine_edges_oriented_path
 	   ! DoF numbering getters 
 	   procedure, non_overridable, private :: get_wire_basis_dofs_from_vef     => Hcurl_l1_get_wire_basis_dofs_from_vef 
-	   procedure, non_overridable, private :: get_dof_list_new_basis           => Hcurl_l1_get_dof_list_new_basis 
 	   procedure, non_overridable, private :: get_new_basis_dof_from_node_id   => Hcurl_l1_get_new_basis_dof_from_node_id 
+	   procedure, non_overridable, private :: get_new_basis_dofs_from_edge     => Hcurl_l1_get_new_basis_dofs_from_edge
 	   ! Logical getters 
 	   procedure, non_overridable, private :: is_first_edge                    => Hcurl_l1_is_first_edge
 	   procedure, non_overridable, private :: is_last_edge                     => Hcurl_l1_is_last_edge 
