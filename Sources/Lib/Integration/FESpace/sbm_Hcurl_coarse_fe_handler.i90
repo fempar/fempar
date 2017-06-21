@@ -179,7 +179,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   integer(ip)                 :: fine_edge, coarse_edge, icdof 
   type(serial_scalar_array_t) :: first_moment_constraint_in_edges 
   real(rp), pointer           :: first_moment_constraint_in_edges_entries(:)
-  
+ 
   par_environment => par_fe_space%get_par_environment()
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
@@ -233,7 +233,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
                     ! Average of the tangent component over the Coarse Edge
                     call constraint_matrix%insert(dof_lid, coarse_dof_lid, this%tangent_size(coarse_edge,fine_edge)/coarse_edge_size )	
                     ! First order moment of the tangent component over the Coarse Edge
-                    call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid)/coarse_edge_size )
+                    call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid)/coarse_edge_size )					
                  end if
                  call own_dofs_on_vef_iterator%next()
               end do
@@ -267,12 +267,12 @@ subroutine Hcurl_l1_apply_weighting_operator_and_comm(this, W, x, y)
      x_local_entries => x_local%get_entries()
      y_local         => y%get_serial_scalar_array()
      y_local_entries => y_local%get_entries()
-     
+      
      call this%apply_inverse_local_change_basis( x_local, x_local )
      y_local_entries = x_local_entries*W 
      call y%comm()
      call this%apply_global_change_basis( y, y )
-   	
+
 end subroutine Hcurl_l1_apply_weighting_operator_and_comm
 
 subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y) 
@@ -326,7 +326,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
   if ( this%order > 1 ) call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
   
   call this%change_basis_matrix%B%convert(csr_format) 
-  ! call this%change_basis_matrix%B%print_matrix_market(6) 
+  !call this%change_basis_matrix%B%print_matrix_market(6) 
   
   call memfree(edge_elmat, __FILE__, __LINE__ ) 
 
@@ -518,7 +518,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
         end do
 		
         call this%change_basis_matrix%G(coarse_edge)%convert(csr_format)
-	   ! call this%change_basis_matrix%G(coarse_edge)%print_matrix_market(6)
+	   !call this%change_basis_matrix%G(coarse_edge)%print_matrix_market(6)
      end if
      call object%next()
   end do
@@ -825,8 +825,8 @@ real(rp), allocatable                 , intent(inout)    :: elmat(:,:)
     real(rp)                               :: factor
     type(vector_field_t)                   :: normal, v_shape_test, gradv_shape_trial
     integer(ip)                            :: ishape, jshape, qpoint, iface
-    
-	call fe%update_integration() 
+	
+	call fe%update_integration() 	
     call fe_face%update_integration()
 	
     quad              => fe_face%get_quadrature()
@@ -841,7 +841,7 @@ real(rp), allocatable                 , intent(inout)    :: elmat(:,:)
 	call Lagrangian_fe_3D%update_interpolation( fe%get_fe_map(),              &
                                                 Lagrangian_interpolation_ref, &
                                                 Lagrangian_interpolation_phy )
-	
+		
     do qpoint = 1, number_qpoints
        factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
        call face_map_face_map%get_normal(qpoint, normal)
@@ -852,10 +852,15 @@ real(rp), allocatable                 , intent(inout)    :: elmat(:,:)
 
        do ishape = 1, 2*this%order*(this%order-1)
           call Nedelec_fe_2D%get_value(Nedelec_interpolation, ishape, qpoint, v_shape_test)
+		  ! Update 2D interpolation for the Nedelec v_shape_test ( will only work in HEX structured meshes! )
+			  do i=1, Lagrangian_fe_3D%get_number_dimensions()-1
+			       call face_map_face_map%get_jacobian_column(i,qpoint,col_jacobian)
+				   call v_shape_test%set(i, v_shape_test%get(i)/col_jacobian%nrm2() )
+			  end do 
+			  
           call nodes_in_edge_iterator%begin() 
-          do jshape = 1, nodes_in_edge_iterator%get_size() 
-             call Lagrangian_fe_3D%get_gradient(Lagrangian_interpolation_phy, nodes_in_edge_iterator%get_current(), qpoint, gradv_shape_trial)
-			 
+         do jshape = 1, nodes_in_edge_iterator%get_size() 
+		  call Lagrangian_fe_3D%get_gradient(Lagrangian_interpolation_phy, nodes_in_edge_iterator%get_current(), qpoint, gradv_shape_trial)
 			  ! Compute u^n
               cross_product_v_shape_trial_normal = cross_product(gradv_shape_trial,normal)			         
               ! Multiply the transpose of the jacobian with normalized columns by u^n
@@ -864,15 +869,14 @@ real(rp), allocatable                 , intent(inout)    :: elmat(:,:)
                 call face_map_face_map%get_jacobian_normalized_column(i,qpoint,col_jacobian)
                 call cross_product_v_shape_trial_normal_proj%set(i, col_jacobian*cross_product_v_shape_trial_normal)
               end do
-			  
-              elmat(ishape,jshape) = elmat(ishape, jshape) + factor*cross_product_v_shape_trial_normal_proj*v_shape_test
+             elmat(ishape,jshape) = elmat(ishape, jshape) + factor*cross_product_v_shape_trial_normal_proj*v_shape_test
              call nodes_in_edge_iterator%next() 
           end do
        end do
     end do
 
 	call Lagrangian_interpolation_phy%free() 
-	
+
 end subroutine Hcurl_l1_compute_face_discrete_gradient_elmat
 
 subroutine Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_space, elmat, fe_face, fine_edge, coarse_edge)
@@ -897,7 +901,7 @@ integer(ip), allocatable               :: dofs_wire_face_old_basis(:)
  do iedge = 1, coarse_edge - 1
  offset_local_edge_dofs = offset_local_edge_dofs + this%order*this%number_fine_edges_per_coarse_edge(iedge)
  end do 
- 
+
        if ( this%perm_sorted_edges(coarse_edge, fine_edge) == 1) then 
  
             if ( this%tangent_size(coarse_edge, fine_edge) > 0 ) then 
@@ -1915,7 +1919,7 @@ subroutine Hcurl_l1_fill_dofs_in_coarse_edges_renumbering( this, current_dof, ib
   do while ( .not. object%has_finished() )
      if ( object%get_dimension() == 1 ) then 
         this%number_coarse_edges = this%number_coarse_edges + 1
-        num_fine_edges = 10
+        num_fine_edges = object%get_num_vefs()
         ! To assign number of fine edges within coarse edge 
         call memalloc( num_fine_edges, 2, vertices_in_edge, __FILE__, __LINE__ )
         call nodes_visited%init( num_fine_edges )
