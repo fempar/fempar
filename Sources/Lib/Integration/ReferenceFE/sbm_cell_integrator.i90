@@ -309,12 +309,11 @@ subroutine fe_map_update( this, quadrature)
 end subroutine fe_map_update
 
 !==================================================================================================
-subroutine fe_map_update_face_map(this,number_cell_dimensions,reorientation_factor,quadrature)
+subroutine fe_map_update_face_map(this,reorientation_factor,quadrature)
   implicit none    
   class(fe_map_t)      , intent(inout) :: this
-  integer(ip)          , intent(in)    :: number_cell_dimensions
   real(rp)             , intent(in)    :: reorientation_factor
-  type(quadrature_t), intent(in)    :: quadrature
+  type(quadrature_t)   , intent(in)    :: quadrature
 
   integer(ip) :: evaluation_point_id, node_id, idime, jdime
   integer(ip) :: number_face_dimensions
@@ -335,22 +334,22 @@ subroutine fe_map_update_face_map(this,number_cell_dimensions,reorientation_fact
            aux_vector = aux_vector + this%coordinates_nodes(node_id) * &
                 & this%interpolation_geometry%shape_derivatives(1,jdime,node_id,evaluation_point_id)
         end do
-        do idime=1,number_cell_dimensions
+        do idime=1,this%number_dimensions
            this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)
         end do
 
      end do
 
      ! Compute outside normals (using the Jacobian Matrix)
-     if ( number_cell_dimensions == 1) then
+     if ( this%number_dimensions == 1) then
         ! -1 and 1 is given by the reorientation_factor
         this%normals(1,evaluation_point_id) = 1.0_rp
-     elseif ( number_cell_dimensions == 2) then
+     elseif ( this%number_dimensions == 2) then
         ! dx x e_z = ( dx/dX, dx/dY, 0) x (0,0,1) = ( dx/dY, -dx/dX, 0)
         ! (normal component up to correction by orientation)
         this%normals (1,evaluation_point_id) = this%jacobian(2,1,evaluation_point_id)
         this%normals (2,evaluation_point_id) = -this%jacobian(1,1,evaluation_point_id)
-     elseif ( number_cell_dimensions == 3) then
+     elseif ( this%number_dimensions == 3) then
         ! dx x dy = (normal component up to correction by orientation)
         ! = (dx/dX, dx/dY, dx/dZ) x ( dy/dX, dy/dY, dy/dZ)
         call vecpro(this%jacobian(:,1,evaluation_point_id),this%jacobian(:,2,evaluation_point_id),&
