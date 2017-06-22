@@ -544,7 +544,7 @@ module fe_space_names
   type, abstract :: l1_coarse_fe_handler_t
   contains
     ! Deferred methods
-       procedure (l1_setup_change_basis_tools)              , deferred :: setup_change_basis_tools
+       procedure (l1_compute_change_basis_matrix)           , deferred :: compute_change_basis_matrix 
        procedure (l1_get_num_coarse_dofs_interface)         , deferred :: get_num_coarse_dofs
 	   procedure (l1_renumber_interface_dofs_first_E_then_Ec),deferred :: renumber_interface_dofs_first_E_then_Ec
 	   procedure (l1_setup_constraint_matrix)               , deferred :: setup_constraint_matrix
@@ -556,11 +556,11 @@ module fe_space_names
   abstract interface	
     ! In H(curl) conforming spaces a specific change of basis is needed in the 3D case. 
     ! In all other cases this subroutine will have no impact 
-    subroutine l1_setup_change_basis_tools( this, par_fe_space ) 
+    subroutine l1_compute_change_basis_matrix( this, par_fe_space ) 
 	import :: l1_coarse_fe_handler_t, par_fe_space_t
 	class(l1_coarse_fe_handler_t), intent(inout) :: this
     type(par_fe_space_t)         , intent(inout) :: par_fe_space 
-	end subroutine l1_setup_change_basis_tools 
+	end subroutine l1_compute_change_basis_matrix 
 	
     ! Returns the number of coarse DoFs that the object customizing
     ! l1_coarse_fe_handler_t requires to introduce on the subdomain 
@@ -618,7 +618,7 @@ module fe_space_names
   type, extends(l1_coarse_fe_handler_t) :: standard_l1_coarse_fe_handler_t
     private
   contains
-       procedure             :: setup_change_basis_tools                  => standard_l1_setup_change_basis_tools    
+       procedure             :: compute_change_basis_matrix               => standard_l1_compute_change_basis_matrix    
        procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
 	   procedure             :: renumber_interface_dofs_first_E_then_Ec   => standard_l1_renumber_interface_dofs_first_E_then_Ec 
 	   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
@@ -668,14 +668,13 @@ module fe_space_names
 	   procedure                           :: apply_weighting_operator_and_comm             => Hcurl_l1_apply_weighting_operator_and_comm   
 	   procedure                           :: apply_transpose_weighting_operator            => Hcurl_l1_apply_transpose_weighting_operator
 	   procedure                           :: renumber_interface_dofs_first_E_then_Ec       => Hcurl_l1_renumber_interface_dofs_first_E_then_Ec	   
-	   procedure                           :: setup_change_basis_tools                      => Hcurl_l1_setup_change_basis_tools 
+	   procedure                           :: compute_change_basis_matrix                   => Hcurl_l1_compute_change_basis_matrix 
 	   ! Auxiliar procedures for renumbering 
 	   procedure, non_overridable, private :: fill_dofs_in_coarse_edges_renumbering         => Hcurl_l1_fill_dofs_in_coarse_edges_renumbering 
 	   procedure, non_overridable, private :: fill_dofs_coupled_to_coarse_edges_renumbering => Hcurl_l1_fill_dofs_coupled_to_coarse_edges_renumbering
 	   procedure, non_overridable, private, nopass :: set_coarse_edge_orientation           => Hcurl_l1_set_coarse_edge_orientation
 	   procedure, non_overridable, private :: sort_fine_edges_within_coarse_edge            => Hcurl_l1_sort_fine_edges_within_coarse_edge
-	   ! Change of basis construction  
-	   procedure, non_overridable, private :: compute_change_basis_matrix                   => Hcurl_l1_compute_change_basis_matrix	     
+	   ! Change of basis construction     
 	   procedure, non_overridable, private :: compute_edge_discrete_gradient_elmat          => Hcurl_l1_compute_edge_discrete_gradient_elmat
 	   procedure, non_overridable, private :: compute_face_discrete_gradient_elmat          => Hcurl_l1_compute_face_discrete_gradient_elmat
 	   ! Change of basis application 

@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine standard_l1_setup_change_basis_tools(this, par_fe_space)
+subroutine standard_l1_compute_change_basis_matrix(this, par_fe_space)
 implicit none 
   class(standard_l1_coarse_fe_handler_t), intent(inout) :: this
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
    assert(.false.) 
-end subroutine standard_l1_setup_change_basis_tools
+end subroutine standard_l1_compute_change_basis_matrix
 
 subroutine standard_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_coarse_dofs)
   implicit none

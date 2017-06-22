@@ -47,12 +47,12 @@ module par_test_maxwell_driver_names
      type(par_triangulation_t)             :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
-     type(par_fe_space_t)                      :: fe_space 
-     type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(Hcurl_l1_coarse_fe_handler_t)        :: Hcurl_l1_coarse_fe_handler
-     type(maxwell_CG_discrete_integration_t)   :: maxwell_integration
-     type(maxwell_conditions_t)                :: maxwell_conditions
-     type(maxwell_analytical_functions_t)      :: maxwell_analytical_functions
+     type(par_fe_space_t)                        :: fe_space 
+     type(p_reference_fe_t), allocatable         :: reference_fes(:) 
+     class(standard_l1_coarse_fe_handler_t), allocatable  :: coarse_fe_handler
+     type(maxwell_CG_discrete_integration_t)     :: maxwell_integration
+     type(maxwell_conditions_t)                  :: maxwell_conditions
+     type(maxwell_analytical_functions_t)        :: maxwell_analytical_functions
 
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
@@ -212,12 +212,19 @@ end subroutine free_timers
   subroutine setup_fe_space(this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
+	
+	! Set-up coarse fe_handler depending on the number of dimensions
+	 if (this%triangulation%get_num_dimensions() == 3 ) then 
+	   allocate ( Hcurl_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
+	 !else 
+	 !  allocate ( standard_l1_coarse_fe_handler_t :: this%coarse_fe_handler ) 
+	 end if 
     
 	call this%maxwell_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%maxwell_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handler   = this%Hcurl_l1_coarse_fe_handler)
+                               coarse_fe_handler   = this%coarse_fe_handler)
     
     call this%fe_space%fill_dof_info()  
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
@@ -234,10 +241,11 @@ end subroutine free_timers
 	
 	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) ! Nedelec element 
 
-			! Setup alternative fe space in 3D Hcurl problems 
-	if ( this%par_environment%am_I_l1_task() ) then 
-	call this%Hcurl_l1_coarse_fe_handler%setup_change_basis_tools( this%fe_space ) 
-	end if
+	! Setup alternative fe space in 3D Hcurl problems 	
+	select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
+	class is ( Hcurl_l1_coarse_fe_handler_t ) 
+	call this%coarse_fe_handler%compute_change_basis_matrix( this%fe_space ) 
+	end select 
 
   end subroutine setup_fe_space
   
@@ -473,6 +481,12 @@ end subroutine free_timers
 !#endif    
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
+	
+	select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
+	class is ( Hcurl_l1_coarse_fe_handler_t )
+	call this%coarse_fe_handler%free()
+	end select 
+	
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
@@ -482,7 +496,7 @@ end subroutine free_timers
       check(istat==0)
     end if
     call this%triangulation%free()
-	call this%Hcurl_l1_coarse_fe_handler%free()
+		
   end subroutine free  
 
   !========================================================================================

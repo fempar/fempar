@@ -274,33 +274,28 @@ end subroutine Hcurl_l1_apply_transpose_weighting_operator
 !                                 Non overriding procedures 
 !
 ! -------------------------------------------------------------------------------------------------
-subroutine Hcurl_l1_setup_change_basis_tools( this, par_fe_space ) 
-implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
-  type(par_fe_space_t)                  , intent(inout)    :: par_fe_space
-  
-  ! Compute the change basis arrays 
-  call this%compute_change_basis_matrix( par_fe_space )
-  
-end subroutine Hcurl_l1_setup_change_basis_tools
-  
 subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
   
-  real(rp) , allocatable                                :: edge_elmat(:,:)
+  type(environment_t), pointer   :: p_env
+  real(rp) , allocatable         :: edge_elmat(:,:)
 
+  p_env => par_fe_space%get_par_environment() 
+  
+  if ( p_env%am_I_l1_task() ) then 
   call this%compute_edge_discrete_gradient_elmat(par_fe_space, edge_elmat)  
   call this%fill_edge_local_change_of_basis(par_fe_space, edge_elmat)
   call this%fill_edge_coupled_to_edges_local_change_of_basis(par_fe_space, edge_elmat)
   if ( this%order > 1 ) call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
-  
-  call this%change_basis_matrix%B%convert(csr_format) 
-  !call this%change_basis_matrix%B%print_matrix_market(6) 
-  
-  call memfree(edge_elmat, __FILE__, __LINE__ ) 
 
+  call this%change_basis_matrix%B%convert(csr_format) 
+  !call this%change_basis_matrix%B%print_matrix_market(6)
+   call memfree(edge_elmat, __FILE__, __LINE__ ) 
+  end if 
+  
+ 
 end subroutine Hcurl_l1_compute_change_basis_matrix
 
 subroutine Hcurl_l1_compute_edge_discrete_gradient_elmat(this, par_fe_space, elmat)
