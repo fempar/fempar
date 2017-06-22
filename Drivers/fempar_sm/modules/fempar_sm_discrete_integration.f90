@@ -68,9 +68,11 @@ module fempar_sm_discrete_integration_names
      procedure :: set_field_coupling
      procedure :: set_analytical_functions
      procedure :: set_solution
-     procedure(create_interface), deferred :: create
-     procedure(is_symmetric_interface), deferred :: is_symmetric
-     procedure(is_coercive_interface) , deferred :: is_coercive
+     
+     procedure(create_interface)       , deferred :: create
+     procedure(is_symmetric_interface) , deferred :: is_symmetric
+     procedure(is_coercive_interface)  , deferred :: is_coercive
+     procedure(init_solution_interface), deferred :: init_solution
      procedure :: free => fempar_sm_discrete_integration_free
   end type fempar_sm_discrete_integration_t
 
@@ -94,24 +96,32 @@ module fempar_sm_discrete_integration_names
        class(fempar_sm_discrete_integration_t)       , intent(inout) :: this
        logical :: is_coercive_interface
      end function is_coercive_interface
+     subroutine init_solution_interface(this,fe_space,solution)
+       import :: fempar_sm_discrete_integration_t, serial_fe_space_t, fe_function_t
+       class(fempar_sm_discrete_integration_t)       , intent(inout) :: this
+       class(serial_fe_space_t)                      , intent(in)    :: fe_space
+       type(fe_function_t), target                   , intent(inout) :: solution
+     end subroutine init_solution_interface
   end interface
 
   type, extends(fempar_sm_discrete_integration_t) :: irreducible_discrete_integration_t
      private
    contains
-     procedure :: create       => irreducible_discrete_integration_create
-     procedure :: integrate    => irreducible_discrete_integration_integrate
-     procedure :: is_symmetric => irreducible_discrete_integration_is_symmetric
-     procedure :: is_coercive  => irreducible_discrete_integration_is_coercive
+     procedure :: create        => irreducible_discrete_integration_create
+     procedure :: integrate     => irreducible_discrete_integration_integrate
+     procedure :: is_symmetric  => irreducible_discrete_integration_is_symmetric
+     procedure :: is_coercive   => irreducible_discrete_integration_is_coercive
+     procedure :: init_solution => irreducible_discrete_integration_init_solution
   end type irreducible_discrete_integration_t
 
   type, extends(fempar_sm_discrete_integration_t) :: mixed_u_p_discrete_integration_t
      private
    contains
-     procedure :: create       => mixed_u_p_discrete_integration_create
-     procedure :: integrate    => mixed_u_p_discrete_integration_integrate
-     procedure :: is_symmetric => mixed_u_p_discrete_integration_is_symmetric
-     procedure :: is_coercive  => mixed_u_p_discrete_integration_is_coercive     
+     procedure :: create        => mixed_u_p_discrete_integration_create
+     procedure :: integrate     => mixed_u_p_discrete_integration_integrate
+     procedure :: is_symmetric  => mixed_u_p_discrete_integration_is_symmetric
+     procedure :: is_coercive   => mixed_u_p_discrete_integration_is_coercive     
+     procedure :: init_solution => mixed_u_p_discrete_integration_init_solution
   end type mixed_u_p_discrete_integration_t
 
   character(*), parameter :: discrete_integration_type_irreducible = 'irreducible'

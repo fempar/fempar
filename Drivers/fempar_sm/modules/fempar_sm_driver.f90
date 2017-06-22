@@ -301,8 +301,12 @@ end subroutine free_timers
     class(fempar_sm_fe_driver_t), target, intent(inout) :: this
     class(reference_fe_t)       , pointer       :: reference_fe
     
-    call this%fempar_sm_conditions%set_number_components(this%fempar_sm_integration%get_number_components())    
+    call this%fempar_sm_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%fempar_sm_conditions%set_number_components(this%fempar_sm_integration%get_number_components())
     call this%fempar_sm_conditions%set_number_dimensions(this%triangulation%get_num_dimensions())    
+    ! B.C. taken from the exact solution
+    call this%fempar_sm_conditions%set_boundary_function(this%fempar_sm_analytical_functions%get_solution_function_u())
+
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%fempar_sm_conditions, &
                                reference_fes       = this%reference_fes, &
@@ -313,11 +317,7 @@ end subroutine free_timers
     call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
-    
-    call this%fempar_sm_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%fempar_sm_conditions%set_analytical_functions(this%fempar_sm_analytical_functions)
     call this%fe_space%interpolate_dirichlet_values(this%fempar_sm_conditions)    
-    !call this%fe_space%print()
 
   end subroutine setup_fe_space
 
@@ -333,14 +333,10 @@ end subroutine free_timers
     real(rp)    :: res_norm
     class(vector_t), pointer  :: dof_values
 
-    
     ! Solution and initial guess
     call this%solution%create(this%fe_space) 
-    !call this%solution%interpolate_function(this%fe_space, 1 ,this%fempar_sm_analytical_functions%get_solution_function_u())
-    call this%solution%interpolate_function(this%fe_space, 1 ,this%fempar_sm_analytical_functions%get_zero_function_u())
-    call this%solution%interpolate_function(this%fe_space, 2 ,this%fempar_sm_analytical_functions%get_zero_function_p())
+    call this%fempar_sm_integration%init_solution(this%fe_space, this%solution)
     call this%solution%update_strong_dirichlet_values(this%fe_space)
-    call this%fempar_sm_integration%set_solution(this%solution)
     
     ! FE operator
     if(this%fempar_sm_integration%is_symmetric().and.this%fempar_sm_integration%is_coercive()) then

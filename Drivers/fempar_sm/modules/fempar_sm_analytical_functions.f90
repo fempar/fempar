@@ -89,8 +89,8 @@ module fempar_sm_analytical_functions_names
      type(source_term_u_t)        :: source_term_u
      type(solution_function_p_t)  :: solution_function_p
      type(solution_function_u_t)  :: solution_function_u
-     type (zero_vector_function_t) :: zero_u
-     type (zero_scalar_function_t) :: zero_p
+     type(zero_vector_function_t) :: zero_u
+     type(zero_scalar_function_t) :: zero_p
    contains
      procedure :: set_num_dimensions        => fempar_sm_analytical_functions_set_num_dimensions
      procedure :: get_source_term_p         => fempar_sm_analytical_functions_get_source_term_p

@@ -26,22 +26,31 @@ subroutine  mixed_u_p_discrete_integration_create(this,number_dimensions,analyti
   ! Could be done in the mother class
   this%analytical_functions => analytical_functions
   this%source_term => this%analytical_functions%get_source_term_u()
-  
+
 end subroutine mixed_u_p_discrete_integration_create
 
-     function mixed_u_p_discrete_integration_is_symmetric(this)
-       implicit none
-       class(mixed_u_p_discrete_integration_t), intent(inout) :: this
-       logical :: mixed_u_p_discrete_integration_is_symmetric
-       mixed_u_p_discrete_integration_is_symmetric = .true.
-     end function mixed_u_p_discrete_integration_is_symmetric
-     
-     function mixed_u_p_discrete_integration_is_coercive(this)
-       implicit none
-       class(mixed_u_p_discrete_integration_t), intent(inout) :: this
-       logical :: mixed_u_p_discrete_integration_is_coercive
-       mixed_u_p_discrete_integration_is_coercive = .false.
-     end function mixed_u_p_discrete_integration_is_coercive
+function mixed_u_p_discrete_integration_is_symmetric(this)
+  implicit none
+  class(mixed_u_p_discrete_integration_t), intent(inout) :: this
+  logical :: mixed_u_p_discrete_integration_is_symmetric
+  mixed_u_p_discrete_integration_is_symmetric = .true.
+end function mixed_u_p_discrete_integration_is_symmetric
+
+function mixed_u_p_discrete_integration_is_coercive(this)
+  implicit none
+  class(mixed_u_p_discrete_integration_t), intent(inout) :: this
+  logical :: mixed_u_p_discrete_integration_is_coercive
+  mixed_u_p_discrete_integration_is_coercive = .false.
+end function mixed_u_p_discrete_integration_is_coercive
+
+subroutine mixed_u_p_discrete_integration_init_solution(this,fe_space,solution)
+  class(mixed_u_p_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)               , intent(in)    :: fe_space
+  type(fe_function_t), target            , intent(inout) :: solution
+  this%solution => solution
+  call solution%interpolate_function(fe_space, 1, this%analytical_functions%get_zero_function_u())
+  call solution%interpolate_function(fe_space, 2, this%analytical_functions%get_zero_function_p())
+end subroutine mixed_u_p_discrete_integration_init_solution
 
 subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_array_assembler )
   implicit none
@@ -71,12 +80,12 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_arr
   integer(ip)  :: istat
   integer(ip)  :: qpoint, num_quad_points
   integer(ip)  :: idof, jdof, idof_u, jdof_u, idof_p, jdof_p , num_dofs
-  
+
   type(cell_fe_function_vector_t) :: cell_solution_u
   type(cell_fe_function_scalar_t) :: cell_solution_p
   type(tensor_field_t), pointer   :: solution_gradu(:) => null()
   real(rp)            , pointer   :: solution_p(:) => null()
-  
+
   ! Problem variables
   type(vector_field_t) :: source_term_value
   type(tensor_field_t) :: s_u, epsd_v, epsd_u, Id
@@ -89,7 +98,7 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_arr
   call Id%set(1,1,1.0)
   call Id%set(2,2,1.0)
   call Id%set(3,3,1.0)  
-  
+
   call fe_space%initialize_fe_integration()
   call fe_space%create_fe_iterator(fe)
   call cell_solution_u%create(fe_space,1)
@@ -107,7 +116,7 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_arr
   fe_map          => fe%get_fe_map()
   vol_int_u => fe%get_volume_integrator(1)
   vol_int_p => fe%get_volume_integrator(2)
-  
+
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
         ! Update FE-integration related data structures
@@ -116,7 +125,7 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_arr
         call cell_solution_p%update(fe,this%solution)
         solution_gradu => cell_solution_u%get_quadrature_points_gradients()
         solution_p     => cell_solution_p%get_quadrature_points_values()
-        
+
         ! Get DoF numbering within current FE
         call fe%get_elem2dof(elem2dof)
 

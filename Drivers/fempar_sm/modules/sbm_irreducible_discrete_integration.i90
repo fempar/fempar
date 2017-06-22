@@ -4,7 +4,7 @@ subroutine  irreducible_discrete_integration_create(this,number_dimensions,analy
   integer(ip)                                   , intent(in)    :: number_dimensions
   type(fempar_sm_analytical_functions_t), target, intent(in)    :: analytical_functions
   integer(ip) :: istat
-  
+
   this%number_dimensions = number_dimensions
   this%number_fields     = 1
   this%number_components = number_dimensions
@@ -22,24 +22,31 @@ subroutine  irreducible_discrete_integration_create(this,number_dimensions,analy
   ! Could be done in the mother class
   this%analytical_functions => analytical_functions
   this%source_term => this%analytical_functions%get_source_term_u()
-  
-end subroutine irreducible_discrete_integration_create
-     
-     function irreducible_discrete_integration_is_symmetric(this)
-       implicit none
-       class(irreducible_discrete_integration_t), intent(inout) :: this
-       logical :: irreducible_discrete_integration_is_symmetric
-       irreducible_discrete_integration_is_symmetric = .true.
-     end function irreducible_discrete_integration_is_symmetric
-     
-     function irreducible_discrete_integration_is_coercive(this)
-       implicit none
-       class(irreducible_discrete_integration_t), intent(inout) :: this
-       logical :: irreducible_discrete_integration_is_coercive
-       irreducible_discrete_integration_is_coercive = .true.
-     end function irreducible_discrete_integration_is_coercive
 
-     
+end subroutine irreducible_discrete_integration_create
+
+function irreducible_discrete_integration_is_symmetric(this)
+  implicit none
+  class(irreducible_discrete_integration_t), intent(inout) :: this
+  logical :: irreducible_discrete_integration_is_symmetric
+  irreducible_discrete_integration_is_symmetric = .true.
+end function irreducible_discrete_integration_is_symmetric
+
+function irreducible_discrete_integration_is_coercive(this)
+  implicit none
+  class(irreducible_discrete_integration_t), intent(inout) :: this
+  logical :: irreducible_discrete_integration_is_coercive
+  irreducible_discrete_integration_is_coercive = .true.
+end function irreducible_discrete_integration_is_coercive
+
+subroutine irreducible_discrete_integration_init_solution(this,fe_space,solution)
+  class(irreducible_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)                 , intent(in)    :: fe_space
+  type(fe_function_t), target              , intent(inout) :: solution
+  this%solution => solution
+  call solution%interpolate_function(fe_space, 1, this%analytical_functions%get_zero_function_u())
+end subroutine irreducible_discrete_integration_init_solution
+
 subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_array_assembler )
   implicit none
   class(irreducible_discrete_integration_t), intent(in)    :: this
@@ -68,7 +75,7 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
 
   type(cell_fe_function_vector_t) :: cell_solution_u
   type(tensor_field_t), pointer   :: gp_solution_gradu(:) => null()
-  
+
   ! Problem variables
   type(vector_field_t) :: source_term_value
   type(tensor_field_t) :: sigma, epsi, Id
@@ -91,7 +98,7 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
   call memalloc ( this%number_fields, num_dofs_per_field, __FILE__, __LINE__ )
   call fe%get_number_dofs_per_field(num_dofs_per_field)
   allocate( elem2dof(this%number_fields), stat=istat); check(istat==0);
-  
+
   quad            => fe%get_quadrature()
   num_quad_points = quad%get_number_quadrature_points()
   fe_map          => fe%get_fe_map()
@@ -141,7 +148,7 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
      end if
      call fe%next()
   end do
-  
+
   call cell_solution_u%free()
   call fe_space%free_fe_iterator(fe)
   deallocate (shape_values, stat=istat); check(istat==0);
@@ -150,5 +157,5 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
   call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
   call memfree ( elmat, __FILE__, __LINE__ )
   call memfree ( elvec, __FILE__, __LINE__ )
-  
+
 end subroutine irreducible_discrete_integration_integrate
