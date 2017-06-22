@@ -1,17 +1,15 @@
 module fempar_sm_params_names
   use fempar_names
-
+  use fempar_sm_discrete_integration_names
   implicit none
 #include "debug.i90" 
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
-  character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
-  character(len=*), parameter :: write_solution_key         = 'write_solution'        
-  character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
-
-  character(len=*), parameter :: poisson_name     = 'triangulation_type'    
-
+  character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
+  character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order'    
+  character(len=*), parameter :: write_solution_key            = 'write_solution'        
+  character(len=*), parameter :: triangulation_type_key        = 'triangulation_type'    
+  character(len=*), parameter :: discrete_integration_type_key = 'discrete_integration_type' 
 
   type, extends(parameter_handler_t) :: fempar_sm_params_t
      private
@@ -23,7 +21,8 @@ module fempar_sm_params_names
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
-       !procedure, non_overridable             :: get_num_dimensions
+       procedure, non_overridable             :: get_discrete_integration_type
+      !procedure, non_overridable             :: get_num_dimensions
   end type fempar_sm_params_t
 
   ! Types
@@ -61,6 +60,7 @@ contains
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
+    error = list%set(key = discrete_integration_type_key     , value =  discrete_integration_type_irreducible) ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -78,7 +78,8 @@ contains
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
-                                                             
+    error = switches%set(key = discrete_integration_type_key , value = '--discrete-integration-type' )  ; check(error==0)
+
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
     error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
@@ -94,6 +95,7 @@ contains
     error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
     error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
+    error = switches_ab%set(key = discrete_integration_type_key , value = '-di' )  ; check(error==0)
 
     error = helpers%set(key = dir_path_key                  , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                    , value = 'Name of the GiD files')                    ; check(error==0)
@@ -108,7 +110,8 @@ contains
     error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
     error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
-    
+    error = helpers%set(key = discrete_integration_type_key , value  = 'Discrete formlation (irreducible or mixed_u_p)' )  ; check(error==0)
+
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
@@ -135,6 +138,7 @@ contains
     error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
+    error = required%set(key = discrete_integration_type_key , value = .false.) ; check(error==0)
 
   end subroutine fempar_sm_params_define_parameters
 
@@ -218,5 +222,18 @@ contains
     error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
     assert(error==0)
   end function get_triangulation_type 
+
+  !==================================================================================================
+  function get_discrete_integration_type(this)
+    implicit none
+    class(fempar_sm_params_t) , intent(in) :: this
+    character(len=:),      allocatable            :: get_discrete_integration_type
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(discrete_integration_type_key, 'string'))
+    error = list%GetAsString(key = discrete_integration_type_key, string = get_discrete_integration_type)
+    assert(error==0)
+  end function get_discrete_integration_type
 
 end module fempar_sm_params_names

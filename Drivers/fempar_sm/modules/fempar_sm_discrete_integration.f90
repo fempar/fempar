@@ -28,166 +28,237 @@
 module fempar_sm_discrete_integration_names
   use fempar_names
   use fempar_sm_analytical_functions_names
-  
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: fempar_sm_cG_discrete_integration_t
-     type(fempar_sm_analytical_functions_t), pointer :: analytical_functions => NULL()
+
+  real(rp), parameter :: E  = 1.0_rp
+  real(rp), parameter :: nu = 0.2_rp
+  real(rp), parameter :: lambda = (nu*E)/((1+nu)*(1-2*nu))
+  real(rp), parameter :: mu     = E/(2*(1+nu))
+  real(rp), parameter :: inv_K = 1.0_rp/(lambda + 2*mu/3)
+     
+  type, extends(discrete_integration_t), abstract :: fempar_sm_discrete_integration_t
+     private
+     integer(ip) :: number_dimensions
+     integer(ip) :: number_fields
+     integer(ip) :: number_components
+     character(len=256), allocatable :: fe_type(:)
+     character(len=256), allocatable :: field_type(:)
+     character(len=256), allocatable :: field_name(:)
+     integer(ip), allocatable :: field_blocks(:)
+     logical    , allocatable :: field_coupling(:,:)
+     class(vector_function_t), pointer :: source_term => null()
+     class(fe_function_t)    , pointer :: solution => null()
+     type(fempar_sm_analytical_functions_t), pointer :: analytical_functions => null()
    contains
+     procedure :: get_number_fields
+     procedure :: get_number_components
+     procedure :: get_field_blocks
+     procedure :: get_field_coupling
+     procedure :: get_field_type
+     procedure :: get_fe_type
+     procedure :: get_field_name
+     !procedure :: get_fe_order
+     !procedure :: get_conformity
+     !procedure :: get_continuity
+     procedure :: set_number_fields
+     procedure :: set_number_components
+     procedure :: set_field_blocks
+     procedure :: set_field_coupling
      procedure :: set_analytical_functions
-     procedure :: integrate
-  end type fempar_sm_cG_discrete_integration_t
-  
-  public :: fempar_sm_cG_discrete_integration_t
+     procedure :: set_solution
+     procedure(create_interface), deferred :: create
+     procedure(is_symmetric_interface), deferred :: is_symmetric
+     procedure(is_coercive_interface) , deferred :: is_coercive
+     procedure :: free => fempar_sm_discrete_integration_free
+  end type fempar_sm_discrete_integration_t
+
+  abstract interface
+     subroutine  create_interface(this,number_dimensions,analytical_functions)
+       import :: fempar_sm_discrete_integration_t, fempar_sm_analytical_functions_t, ip
+       implicit none
+       class(fempar_sm_discrete_integration_t)       , intent(inout) :: this
+       integer(ip)                                   , intent(in)    :: number_dimensions
+       type(fempar_sm_analytical_functions_t), target, intent(in)    :: analytical_functions
+     end subroutine create_interface
+     function is_symmetric_interface(this)
+       import :: fempar_sm_discrete_integration_t
+       implicit none
+       class(fempar_sm_discrete_integration_t)       , intent(inout) :: this
+       logical :: is_symmetric_interface
+     end function is_symmetric_interface
+     function is_coercive_interface(this)
+       import :: fempar_sm_discrete_integration_t
+       implicit none
+       class(fempar_sm_discrete_integration_t)       , intent(inout) :: this
+       logical :: is_coercive_interface
+     end function is_coercive_interface
+  end interface
+
+  type, extends(fempar_sm_discrete_integration_t) :: irreducible_discrete_integration_t
+     private
+   contains
+     procedure :: create       => irreducible_discrete_integration_create
+     procedure :: integrate    => irreducible_discrete_integration_integrate
+     procedure :: is_symmetric => irreducible_discrete_integration_is_symmetric
+     procedure :: is_coercive  => irreducible_discrete_integration_is_coercive
+  end type irreducible_discrete_integration_t
+
+  type, extends(fempar_sm_discrete_integration_t) :: mixed_u_p_discrete_integration_t
+     private
+   contains
+     procedure :: create       => mixed_u_p_discrete_integration_create
+     procedure :: integrate    => mixed_u_p_discrete_integration_integrate
+     procedure :: is_symmetric => mixed_u_p_discrete_integration_is_symmetric
+     procedure :: is_coercive  => mixed_u_p_discrete_integration_is_coercive     
+  end type mixed_u_p_discrete_integration_t
+
+  character(*), parameter :: discrete_integration_type_irreducible = 'irreducible'
+  character(*), parameter :: discrete_integration_type_mixed_u_p   = 'mixed_u_p'
+
+  public :: fempar_sm_discrete_integration_t, irreducible_discrete_integration_t, mixed_u_p_discrete_integration_t
+  public :: discrete_integration_type_irreducible, discrete_integration_type_mixed_u_p
   
 contains
-   
+
+  subroutine fempar_sm_discrete_integration_free ( this )
+     implicit none
+     class(fempar_sm_discrete_integration_t)   ,intent(inout)  :: this
+     integer(ip) :: istat
+     deallocate(this%fe_type,stat=istat)  ; check(istat==0)
+     deallocate(this%field_type,stat=istat); check(istat==0)
+     deallocate(this%field_name,stat=istat); check(istat==0)
+     call memfree(this%field_blocks,__FILE__,__LINE__)
+     call memfree(this%field_coupling,__FILE__,__LINE__)     
+  end subroutine fempar_sm_discrete_integration_free
+
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
-     class(fempar_sm_cG_discrete_integration_t)    ,intent(inout)  :: this
+     class(fempar_sm_discrete_integration_t)   ,intent(inout)  :: this
      type(fempar_sm_analytical_functions_t), target, intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
-
-
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  
+  subroutine set_solution (this, solution)
     implicit none
-    class(fempar_sm_cG_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    class(fe_function_t),      target, intent(in)    :: solution
+    this%solution => solution
+  end subroutine set_solution
 
-    ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
+!==============================================================================
+  
+  function get_number_fields(this)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(in)   :: this
+    integer(ip) :: get_number_fields
+    get_number_fields = this%number_fields
+  end function get_number_fields
 
-    ! FE integration-related data types
-    type(fe_map_t)           , pointer :: fe_map
-    type(quadrature_t)       , pointer :: quad
-    type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int
-    type(vector_field_t), allocatable  :: scalar_shape_gradients(:,:)
-    real(rp)            , allocatable  :: scalar_shape_values(:,:)
-    type(tensor_field_t), allocatable  :: vector_shape_gradients(:,:)
-    type(vector_field_t), allocatable  :: vector_shape_values(:,:)
+  subroutine set_number_fields(this,number_fields)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    integer(ip)                        , intent(in)    :: number_fields
+    this%number_fields = number_fields
+  end subroutine  set_number_fields
 
-    ! FE matrix and vector i.e., A_K + f_K
-    real(rp), allocatable              :: elmat(:,:), elvec(:)
+  function get_number_components(this)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(in)    :: this
+    integer(ip) :: get_number_components
+    get_number_components = this%number_components
+  end function get_number_components
 
-    integer(ip)  :: istat
-    integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: i, j, idof, jdof, num_dofs
-    real(rp)     :: factor
-    real(rp)             :: scalar_source_term_value
-    type(vector_field_t) :: vector_source_term_value
+  subroutine set_number_components(this, number_components)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    integer(ip)                        , intent(in)    :: number_components
+    this%number_components = number_components
+  end subroutine set_number_components
 
-    integer(ip)  :: field_id, number_fields, number_dimensions
+  function get_field_blocks(this)
+    implicit none
+    class(fempar_sm_discrete_integration_t), target, intent(in) :: this
+    integer(ip), pointer :: get_field_blocks(:)
+    get_field_blocks => this%field_blocks
+  end function get_field_blocks
 
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
+  subroutine set_field_blocks(this,field_blocks)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    integer(ip)                            , intent(in)    :: field_blocks(:)
+    if(allocated(this%field_blocks)) call memfree(this%field_blocks, __FILE__,__LINE__)
+    call memalloc(this%number_fields,this%field_blocks, __FILE__,__LINE__)
+    this%field_blocks = field_blocks
+  end subroutine set_field_blocks
 
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:)  
-    class(scalar_function_t), pointer :: scalar_source_term
-    class(vector_function_t), pointer :: vector_source_term
+  function get_field_coupling(this)
+    implicit none
+    class(fempar_sm_discrete_integration_t), target, intent(in) :: this
+    logical , pointer :: get_field_coupling(:,:)
+    get_field_coupling => this%field_coupling
+  end function get_field_coupling
 
-    assert (associated(this%analytical_functions)) 
+  subroutine  set_field_coupling(this,field_coupling)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    logical                                , intent(in)    :: field_coupling(:,:)
+    if(allocated(this%field_coupling)) call memfree(this%field_coupling, __FILE__,__LINE__)
+    call memalloc(this%number_fields,this%number_fields,this%field_coupling, __FILE__,__LINE__)
+    this%field_coupling = field_coupling
+  end subroutine set_field_coupling
+  
+  function get_field_type(this,field_id)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    integer(ip)                            , intent(in)    :: field_id
+    character(len=:), allocatable :: get_field_type
+    get_field_type = trim(this%field_type(field_id))
+  end function get_field_type
+  
+  function get_fe_type(this,field_id)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    integer(ip)                            , intent(in)    :: field_id
+    character(len=:), allocatable :: get_fe_type
+    get_fe_type = trim(this%fe_type(field_id))
+  end function get_fe_type
+  
+  function get_field_name(this,field_id)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    integer(ip)                            , intent(in)    :: field_id
+    character(len=:), allocatable :: get_field_name
+    get_field_name = trim(this%field_name(field_id))
+  end function get_field_name
 
-    scalar_source_term => this%analytical_functions%get_scalar_source_term()
-    vector_source_term => this%analytical_functions%get_vector_source_term()
+  
+  !function get_fe_order(this,field_id)
+  !  implicit none
+  !  class(fempar_sm_discrete_integration_t), intent(inout) :: this
+  !  integer(ip)                            , intent(in)    :: field_id
+  !  character(len=:), allocatable :: get_fe_order
+  !  get_fe_order = trim(this%fe_order(field_id))
+  !end function get_fe_order
+  
+  !function get_conformity(this,field_id)
+  !  implicit none
+  !  class(fempar_sm_discrete_integration_t), target, intent(in) :: this
+  !  integer(ip)                                    , intent(in) :: field_id
+  !  logical :: get_conformity
+  !  get_conformity => this%conformity(field_id)
+  !end function get_conformity
 
-    number_fields     = fe_space%get_number_fields()
-    number_dimensions = fe_space%get_num_dimensions()
-    assert(number_fields==2)
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
+  !function get_continuity(this,field_id)
+  !  implicit none
+  !  class(fempar_sm_discrete_integration_t), target, intent(in) :: this
+  !  integer(ip)                                    , intent(in) :: field_id
+  !  logical :: get_continuity
+  !  get_continuity => this%conformity(field_id)
+  !end function get_continuity
 
-    call fe_space%initialize_fe_integration()
-    call fe_space%create_fe_iterator(fe)
-    
-    num_dofs = fe%get_number_dofs()
-    call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
-    call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
-    fe_map          => fe%get_fe_map()
-    do while ( .not. fe%has_finished())
-       if ( fe%is_local() ) then
-          ! Update FE-integration related data structures
-          call fe%update_integration()
-       
-          ! Get DoF numbering within current FE
-          call fe%get_elem2dof(elem2dof)
-          
-          ! Get quadrature coordinates to evaluate source_term
-          quad_coords => fe_map%get_quadrature_coordinates()
-                    
-          ! Compute element matrix and vector
-          elmat = 0.0_rp
-          elvec = 0.0_rp
-          ! First field
-          !assert(num_dofs_per_field(1)==number_dimensions)
-          vol_int => fe%get_volume_integrator(1)
-          call vol_int%get_gradients(vector_shape_gradients)
-          call vol_int%get_values(vector_shape_values)
-          do qpoint = 1, num_quad_points
-             factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-             do idof = 1, num_dofs_per_field(1)
-                do jdof = 1, num_dofs_per_field(1)
-                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                   i = idof
-                   j = jdof
-                   elmat(i,j) = elmat(i,j) + factor * double_contract(vector_shape_gradients(jdof,qpoint),vector_shape_gradients(idof,qpoint))
-                end do
-             end do
-             
-             ! Source term
-             call vector_source_term%get_value(quad_coords(qpoint),vector_source_term_value)
-             do idof = 1, num_dofs_per_field(1)
-                i = idof
-                elvec(i) = elvec(i) + factor * vector_source_term_value * vector_shape_values(idof,qpoint) 
-             end do
-          end do
-         
-          ! Second field
-          !assert(num_dofs_per_field(1)==1)
-          vol_int => fe%get_volume_integrator(2)
-          call vol_int%get_gradients(scalar_shape_gradients)
-          call vol_int%get_values(scalar_shape_values)
-          do qpoint = 1, num_quad_points
-             factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-             do idof = 1, num_dofs_per_field(2)
-                do jdof = 1, num_dofs_per_field(2)
-                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                   i = num_dofs_per_field(1) + idof
-                   j = num_dofs_per_field(1) + jdof
-                   elmat(i,j) = elmat(i,j) + factor * scalar_shape_gradients(jdof,qpoint) * scalar_shape_gradients(idof,qpoint)
-                end do
-             end do
-             
-             ! Source term
-             call scalar_source_term%get_value(quad_coords(qpoint),scalar_source_term_value)
-             do idof = 1, num_dofs_per_field(2)
-                i = num_dofs_per_field(1) + idof
-                elvec(i) = elvec(i) + factor * scalar_source_term_value * scalar_shape_values(idof,qpoint) 
-             end do
-          end do
-          
-          ! Apply boundary conditions
-          call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-          call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
-       end if
-       call fe%next()
-    end do
-    call fe_space%free_fe_iterator(fe)
-    call memfree(scalar_shape_values, __FILE__, __LINE__)
-    deallocate (scalar_shape_gradients, stat=istat); check(istat==0);
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
-    call memfree ( elmat, __FILE__, __LINE__ )
-    call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+#include "sbm_irreducible_discrete_integration.i90"
+#include "sbm_mixed_u_p_discrete_integration.i90"
   
 end module fempar_sm_discrete_integration_names
