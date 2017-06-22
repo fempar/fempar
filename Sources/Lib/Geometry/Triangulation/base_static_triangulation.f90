@@ -312,7 +312,6 @@ module base_static_triangulation_names
      
      ! Data structures related to face integration
      integer(ip), allocatable              :: face_permutation_index(:)
-     integer(ip), allocatable              :: face_rotation(:)
 
      ! Data structures to create objects (coarse cell info)
      integer(ip)                             :: number_global_objects = 0

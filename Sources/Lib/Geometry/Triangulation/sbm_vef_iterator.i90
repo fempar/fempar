@@ -370,14 +370,6 @@ function face_iterator_get_face_permutation_index ( this ) result(face_orientati
   face_orientation = this%base_static_triangulation%face_permutation_index(this%get_face_lid())
 end function face_iterator_get_face_permutation_index 
 
-function face_iterator_get_face_rotation ( this ) result(face_rotation)
-  implicit none
-  class(face_iterator_t), intent(in)    :: this
-  integer(ip)                           :: face_rotation
-  face_rotation = this%base_static_triangulation%face_rotation(this%get_face_lid())
-end function face_iterator_get_face_rotation
-
-
 subroutine face_iterator_set_face_permutation_index (this, face_permutation_index)
   implicit none
   class(face_iterator_t), intent(inout)    :: this
