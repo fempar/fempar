@@ -53,13 +53,13 @@ module unfitted_fe_spaces_names
     ! Getters that override
     procedure          :: get_quadrature        => unfitted_fe_iterator_get_quadrature
     procedure          :: get_fe_map            => unfitted_fe_iterator_get_fe_map
-    procedure          :: get_volume_integrator => unfitted_fe_iterator_get_volume_integrator
+    procedure          :: get_cell_integrator   => unfitted_fe_iterator_get_cell_integrator
 
     ! Getters that extend
     procedure          :: get_boundary_quadrature          => unfitted_fe_iterator_get_boundary_quadrature
     procedure          :: get_boundary_piecewise_fe_map    => unfitted_fe_iterator_get_boundary_piecewise_fe_map
     procedure          :: get_boundary_fe_map              => unfitted_fe_iterator_get_boundary_fe_map
-    procedure          :: get_boundary_volume_integrator   => unfitted_fe_iterator_get_boundary_volume_integrator
+    procedure          :: get_boundary_cell_integrator     => unfitted_fe_iterator_get_boundary_cell_integrator
 
     ! Updater that overrides
     procedure :: update_integration     => unfitted_fe_iterator_update_integration
@@ -70,11 +70,11 @@ module unfitted_fe_spaces_names
     ! Private TBPs
     procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_iterator_update_cut_quadratures
     procedure, non_overridable, private :: update_cut_fe_maps     => unfitted_fe_iterator_update_cut_fe_maps
-    procedure, non_overridable, private :: update_cut_vol_integrators  => unfitted_fe_iterator_update_cut_vol_integrators
+    procedure, non_overridable, private :: update_cut_cell_integrators  => unfitted_fe_iterator_update_cut_cell_integrators
     procedure, non_overridable, private :: update_cut_boundary_quadratures => unfitted_fe_iterator_update_cut_boundary_quadratures
     procedure, non_overridable, private :: update_cut_boundary_fe_maps     => unfitted_fe_iterator_update_cut_boundary_fe_maps
-    procedure, non_overridable, private :: update_cut_boundary_vol_integrators  => &
-    unfitted_fe_iterator_update_cut_boundary_vol_integrators
+    procedure, non_overridable, private :: update_cut_boundary_cell_integrators  => &
+    unfitted_fe_iterator_update_cut_boundary_cell_integrators
 
   end type unfitted_fe_iterator_t
 
@@ -91,20 +91,20 @@ module unfitted_fe_spaces_names
     type(fe_map_t)                         :: fe_map_subelem
     type(quadrature_t),        allocatable :: cut_quadratures(:)
     type(fe_map_t),            allocatable :: cut_fe_maps(:)
-    type(volume_integrator_t), allocatable :: cut_vol_integrators(:,:)
+    type(cell_integrator_t),   allocatable :: cut_cell_integrators(:,:)
 
     ! All the machinery for integrating in subfaces
     type(quadrature_t)                     :: quadrature_subface
     type(quadrature_t),        allocatable :: cut_boundary_quadratures_cell_dim(:)
     type(piecewise_fe_map_t),  allocatable :: cut_boundary_piecewise_fe_maps(:)
     type(fe_map_t),            allocatable :: cut_boundary_fe_maps(:)
-    type(volume_integrator_t), allocatable :: cut_boundary_vol_integrators(:,:)    
+    type(cell_integrator_t),   allocatable :: cut_boundary_cell_integrators(:,:)    
 
     ! Auxiliary dummy empty quadratures
     type(quadrature_t)             :: empty_quadrature
     type(fe_map_t)                 :: empty_fe_map
     type(piecewise_fe_map_t)       :: empty_piecewise_fe_map
-    type(volume_integrator_t), allocatable  :: empty_vol_integrator(:)
+    type(cell_integrator_t), allocatable  :: empty_cell_integrator(:)
     
     contains
 

@@ -75,7 +75,7 @@ contains
     type(fe_map_t)           , pointer     :: fe_map
     type(quadrature_t)       , pointer     :: quad
     type(point_t)            , pointer     :: quad_coords(:)
-    type(volume_integrator_t), pointer     :: vol_int
+    type(cell_integrator_t), pointer     :: cell_int
     type(vector_field_t)     , allocatable, target :: shape_gradients_first(:,:), shape_gradients_second(:,:)
     type(vector_field_t)     , pointer     :: shape_gradients_ineigh(:,:),shape_gradients_jneigh(:,:)
     real(rp)                 , allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
@@ -144,7 +144,7 @@ contains
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
     fe_map          => fe%get_fe_map()
-    vol_int         => fe%get_volume_integrator(1)
+    cell_int         => fe%get_cell_integrator(1)
     
     viscosity = 1.0_rp
     C_IP      = 10.0_rp * fe%get_order(1)**2
@@ -165,8 +165,8 @@ contains
          ! Compute element matrix and vector
          elmat = 0.0_rp
          elvec = 0.0_rp
-         call vol_int%get_gradients(shape_gradients_first)
-         call vol_int%get_values(shape_values_first)
+         call cell_int%get_gradients(shape_gradients_first)
+         call cell_int%get_values(shape_values_first)
          do qpoint = 1, num_quad_points
             factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do idof = 1, num_dofs

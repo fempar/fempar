@@ -208,10 +208,8 @@ module base_static_triangulation_names
     procedure                           :: get_coordinates                  => face_iterator_get_coordinates
     procedure                           :: get_face_lid                     => face_iterator_get_face_lid
     procedure                           :: get_face_lpos_within_cell_around => face_iterator_get_face_lpos_within_cell_around
-    procedure                           :: get_face_orientation             => face_iterator_get_face_orientation
-    procedure                           :: get_face_rotation                => face_iterator_get_face_rotation
-    procedure, non_overridable, private :: set_face_orientation             => face_iterator_set_face_orientation
-    procedure, non_overridable, private :: set_face_rotation                => face_iterator_set_face_rotation
+    procedure                           :: get_face_permutation_index       => face_iterator_get_face_permutation_index
+    procedure, non_overridable, private :: set_face_permutation_index       => face_iterator_set_face_permutation_index
   end type face_iterator_t
 
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
@@ -319,7 +317,7 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
      
      ! Data structures related to face integration
-     integer(ip), allocatable              :: face_orientation(:)
+     integer(ip), allocatable              :: face_permutation_index(:)
      integer(ip), allocatable              :: face_rotation(:)
 
      ! Data structures to create objects (coarse cell info)
@@ -383,6 +381,9 @@ module base_static_triangulation_names
      ! Getters
      procedure                           :: get_number_reference_fes_geo        => bst_get_number_reference_fes_geo
      procedure                           :: get_max_number_shape_functions      => bst_get_max_number_shape_functions
+     procedure                           :: is_tet_mesh                         => bst_is_tet_mesh
+     procedure                           :: is_hex_mesh                         => bst_is_hex_mesh
+     procedure                           :: is_mix_mesh                         => bst_is_mix_mesh
    
 
      ! Private methods for creating cell-related data
@@ -398,6 +399,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
      procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set
+     procedure, non_overridable, private :: orient_tet_mesh                     => bst_orient_tet_mesh
 
      ! Private methods to perform nearest neighbor exchange
      procedure, non_overridable, nopass, private :: bst_cell_pack_vef_gids
@@ -426,8 +428,8 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_lst_itfc_vefs                  => bst_free_lst_itfc_vefs
      
      ! Private methods for creating face-related data (for face integration)
-     procedure, non_overridable, private :: allocate_and_fill_face_orientation_rotation => bst_allocate_and_fill_face_orientation_rotation
-     procedure, non_overridable, private :: free_face_orientation_rotation              => bst_free_face_orientation_rotation
+     procedure, non_overridable, private :: allocate_and_fill_face_permutation_index => bst_allocate_and_fill_face_permutation_index
+     procedure, non_overridable, private :: free_face_permutation_index              => bst_free_face_permutation_index
 
      ! Private methods to compute objects
      procedure, non_overridable          :: get_number_subparts                            => bst_get_number_subparts
@@ -462,6 +464,7 @@ module base_static_triangulation_names
   contains
      ! Private methods to create vefs (these functions make use of the reference fe and therefore are not bounded
      ! to the mother class)
+     procedure, non_overridable, private :: fill_reference_fe_geo_list          => fine_triangulation_fill_reference_fe_geo_list
      procedure, non_overridable, private :: generate_vefs                       => fine_triangulation_generate_vefs
      procedure, non_overridable, private :: allocate_and_fill_geometry_and_set  => fine_triangulation_allocate_and_fill_geometry_and_set
      procedure, non_overridable, private :: free_geometry_and_set               => fine_triangulation_free_geometry_and_set

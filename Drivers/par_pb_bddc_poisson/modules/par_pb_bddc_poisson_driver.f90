@@ -49,8 +49,9 @@ module par_pb_bddc_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(H1_l1_coarse_fe_handler_t)           :: H1_coarse_fe_handler
-     type(standard_l1_coarse_fe_handler_t)     :: standard_coarse_fe_handler
+     type(H1_l1_coarse_fe_handler_t)             :: H1_coarse_fe_handler
+     type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
+     type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -78,6 +79,7 @@ module par_pb_bddc_poisson_driver_names
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_cell_set_ids
      procedure        , private :: setup_reference_fes
+     procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
@@ -292,34 +294,37 @@ contains
             number_dimensions = this%triangulation%get_num_dimensions(), &
             order = this%test_params%get_reference_fe_order(), &
             field_type = field_type_scalar, &
-            continuity = .true. )
+            conformity = .true. )
        call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine setup_reference_fes
 
+  subroutine setup_coarse_fe_handlers(this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), target, intent(inout) :: this
+    integer(ip) :: istat
+    
+    allocate(this%coarse_fe_handlers(1), stat=istat)
+    check(istat==0)
+
+    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+       this%coarse_fe_handlers(1)%p => this%H1_coarse_fe_handler
+    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
+       this%coarse_fe_handlers(1)%p => this%standard_coarse_fe_handler
+    end if
+  end subroutine setup_coarse_fe_handlers
+  
   subroutine setup_fe_space(this)
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
-    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
-       call this%fe_space%create( triangulation       = this%triangulation, &
-                                  conditions          = this%poisson_conditions, &
-                                  reference_fes       = this%reference_fes, &
-                                  coarse_fe_handler   = this%H1_coarse_fe_handler)
-    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
-       call this%fe_space%create( triangulation       = this%triangulation, &
-                                  conditions          = this%poisson_conditions, &
-                                  reference_fes       = this%reference_fes, &
-                                  coarse_fe_handler   = this%standard_coarse_fe_handler)
-    else
-      check(.false.)
-    end if
+    call this%fe_space%create( triangulation       = this%triangulation, &
+                               conditions          = this%poisson_conditions, &
+                               reference_fes       = this%reference_fes, &
+                               coarse_fe_handlers  = this%coarse_fe_handlers)
 
-    call this%fe_space%fill_dof_info() 
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration()
-
     call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
     call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)    
@@ -345,8 +350,44 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     type(parameterlist_t) :: parameter_list
+    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     integer(ip) :: FPLError
+    integer(ip) :: ilev
 
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    
+    plist => this%parameter_list 
+    if ( this%environment%get_l1_size() == 1 ) then
+       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       !FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       !FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       !FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    end if
+    do ilev=1, this%environment%get_num_levels()-1
+       ! Set current level Dirichlet solver parameters
+       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
+       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       !FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       !FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       !FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+       
+       ! Set current level Neumann solver parameters
+       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
+       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       !FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       !FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       !FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+     
+       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
+       plist  => coarse 
+    end do
+    ! Set coarsest-grid solver parameters
+    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    !FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+    !FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+    !FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    
+    
     ! Set-up MLBDDC preconditioner
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
@@ -510,6 +551,7 @@ contains
     !call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
+    call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
     call this%setup_system()
     call this%assemble_system()
@@ -544,6 +586,11 @@ contains
        deallocate(this%reference_fes, stat=istat)
        check(istat==0)
     end if
+    if ( allocated(this%coarse_fe_handlers) ) then
+       deallocate(this%coarse_fe_handlers, stat=istat)
+       check(istat==0)
+    end if
+    
     call this%triangulation%free()
     !call this%test_params%free()
   end subroutine free

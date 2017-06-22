@@ -126,20 +126,21 @@ contains
   end subroutine piecewise_fe_map_free
 
 !========================================================================================
-  subroutine piecewise_fe_map_update_face_map( this, quadrature, reference_fe_geometry )
+  subroutine piecewise_fe_map_update_face_map( this, number_cell_dimensions, quadrature )
 
     implicit none
     class  (piecewise_fe_map_t),        intent(inout) :: this
+    integer(ip),                        intent(in)    :: number_cell_dimensions
     type   (quadrature_t),              intent(in)    :: quadrature
-    class  (lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
 
-    ! The arguments quadrature and reference_fe_geometry are needed only
+    ! The arguments quadrature is needed only
     ! because the fe_map_update_face_map requires them, ...
 
     integer(ip) :: imap, nini, nend, pini, pend
     type(point_t), pointer :: nod_coords(:), quad_coords(:)
     real(rp), pointer :: det_jacobs(:)
     real(rp), pointer :: normal_vecs(:,:)
+    real(rp), parameter :: reorientation_factor = 1.0
 
     do imap = 1, this%number_sub_maps
 
@@ -150,7 +151,7 @@ contains
       nod_coords(:) = this%coordinates_nodes(nini:nend)
 
       ! Compute the info of the sub map
-      call this%fe_sub_map%update_face_map(1,reference_fe_geometry,quadrature)
+      call this%fe_sub_map%update_face_map(number_cell_dimensions,reorientation_factor,quadrature)
 
       ! Recover the computed quantities in the sub map, and put them in the arrays
       quad_coords => this%fe_sub_map%get_quadrature_points_coordinates()

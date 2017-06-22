@@ -27,9 +27,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !========================================================================================
-subroutine mc_dummy_coarse_fe_handler_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_coarse_dofs)
+subroutine mc_dummy_coarse_fe_handler_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
   implicit none
   class(mc_dummy_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                        , intent(in)    :: field_id
   type(par_fe_space_t)               , intent(in)    :: par_fe_space
   type(parameterlist_t)              , intent(in)    :: parameter_list
   integer(ip)                        , intent(inout) :: num_coarse_dofs(:)
@@ -37,9 +38,10 @@ subroutine mc_dummy_coarse_fe_handler_get_num_coarse_dofs(this, par_fe_space, pa
 end subroutine mc_dummy_coarse_fe_handler_get_num_coarse_dofs
 
 !========================================================================================
-subroutine mc_dummy_coarse_fe_handler_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
+subroutine mc_dummy_coarse_fe_handler_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
   class(mc_dummy_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                        , intent(in)    :: field_id
   type(par_fe_space_t)               , intent(in)    :: par_fe_space
   type(parameterlist_t)              , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)          , intent(inout) :: constraint_matrix
@@ -47,9 +49,10 @@ subroutine mc_dummy_coarse_fe_handler_setup_constraint_matrix(this, par_fe_space
 end subroutine mc_dummy_coarse_fe_handler_setup_constraint_matrix
 
 !========================================================================================
-subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator(this, par_fe_space, parameter_list, weighting_operator) 
+subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
   implicit none
   class(mc_dummy_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                        , intent(in)    :: field_id
   type(par_fe_space_t)               , intent(in)    :: par_fe_space
   type(parameterlist_t)              , intent(in)    :: parameter_list
   real(rp), allocatable              , intent(inout) :: weighting_operator(:)
@@ -585,6 +588,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
                                                number_dimensions = this%triangulation%get_num_dimensions(), &
                                                order = ref_fe_geo%get_max_order(), &
                                                field_type = field_type_scalar, &
+                                               conformity = .true., &
                                                continuity = .true. )
   call this%triangulation%free_cell_iterator(cell)
 
@@ -600,14 +604,17 @@ subroutine marching_cubes_discrete_levelset_create(this)
 
   class is(par_triangulation_t)
 
+     allocate(this%dummy_coarse_handlers(1),stat=istat); check(istat==0)
+     this%dummy_coarse_handlers(1)%p => this%dummy_coarse_handler
+
      allocate(par_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
      fe_space => this%fe_space
      select type (fe_space)
      class is (par_fe_space_t)
-       call fe_space%create(triangulation     = this%triangulation, &
-                            conditions        = this%dummy_conditions, &
-                            reference_fes     = this%reference_fes , &
-                            coarse_fe_handler = this%dummy_coarse_handler)
+       call fe_space%create(triangulation      = this%triangulation, &
+                            conditions         = this%dummy_conditions, &
+                            reference_fes      = this%reference_fes , &
+                            coarse_fe_handlers = this%dummy_coarse_handlers)
      class default
        check(.false.)
      end select
@@ -615,7 +622,10 @@ subroutine marching_cubes_discrete_levelset_create(this)
   class default
     mcheck(.false.,'Wrong triangulation type')
   end select
-  call this%fe_space%fill_dof_info()
+
+  ! Fill the dof info
+  call this%block_layout%create(1)
+  call this%fe_space%fill_dof_info(this%block_layout)
 
   ! Create the discrete levelset function
   call this%fe_levelset%create(this%fe_space)
@@ -647,6 +657,10 @@ subroutine marching_cubes_discrete_levelset_free(this)
     end do
     deallocate(this%reference_fes, stat=istat); check(istat==0)
   end if
+  if (allocated(this%dummy_coarse_handlers)) then
+    deallocate(this%dummy_coarse_handlers,stat=istat); check(istat==0)
+  end if
+  call this%block_layout%free()
 end subroutine marching_cubes_discrete_levelset_free
 
 !========================================================================================
@@ -713,7 +727,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
       do iedge = first_edge, last_edge
 
         ! Loop in edge nodes
-        nodes_in_edge_iterator = reference_fe_geo%create_nodes_n_face_iterator(iedge)
+        nodes_in_edge_iterator = reference_fe_geo%create_dofs_n_face_iterator(iedge)
         do while (.not. nodes_in_edge_iterator%is_upper_bound())
           edge_node = nodes_in_edge_iterator%get_distance_to_lower_bound()
           cell_node = nodes_in_edge_iterator%get_current()
@@ -925,7 +939,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
       do iedge = first_edge, last_edge
 
         ! Loop in edge nodes
-        nodes_in_edge_iterator = reference_fe_geo%create_nodes_n_face_iterator(iedge)
+        nodes_in_edge_iterator = reference_fe_geo%create_dofs_n_face_iterator(iedge)
         do while (.not. nodes_in_edge_iterator%is_upper_bound())
           edge_node = nodes_in_edge_iterator%get_distance_to_lower_bound()
           cell_node = nodes_in_edge_iterator%get_current()

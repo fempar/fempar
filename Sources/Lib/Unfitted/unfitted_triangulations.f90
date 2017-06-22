@@ -116,11 +116,13 @@ module unfitted_triangulations_names
 
     ! The fe space associated with the discrete version of the levelset function
     class(serial_fe_space_t), allocatable :: fe_space
+    type(block_layout_t)                  :: block_layout
 
     ! Auxiliary dummy things to create the fe space for the levelset
     type(p_reference_fe_t), allocatable :: reference_fes(:) 
     type(mc_dummy_conditions_t)         :: dummy_conditions
     type(mc_dummy_coarse_fe_handler_t)  :: dummy_coarse_handler
+    type(p_l1_coarse_fe_handler_t), allocatable  :: dummy_coarse_handlers(:)
 
     ! Look up-tables (precomputed off-line, for each cell type)
     integer(ip)                :: mc_table_num_cases

@@ -45,6 +45,9 @@ module fempar_names
   use output_handler_parameters_names
   use vtk_parameters_names
   use xh5_parameters_names
+  use std_vector_integer_ip_names
+  use std_vector_real_rp_names
+  
 
   ! Geometry
   use metis_interface_names
@@ -99,7 +102,8 @@ module fempar_names
   use function_names
   use function_library_names
   use error_norms_names
-
+  use block_layout_names
+  
 contains
 
   subroutine FEMPAR_INIT()

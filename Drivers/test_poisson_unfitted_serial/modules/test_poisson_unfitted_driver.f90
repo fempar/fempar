@@ -260,6 +260,7 @@ contains
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
+                                                 conformity = .true., &
                                                  continuity = continuity )
 
     this%reference_fes(SERIAL_UNF_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
@@ -267,6 +268,7 @@ contains
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = -1, & ! this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
+                                                 conformity = .true., &
                                                  continuity = continuity ) 
     call this%triangulation%free_cell_iterator(cell)
   end subroutine setup_reference_fes
@@ -306,7 +308,7 @@ contains
                                  conditions          = this%vector_poisson_unfitted_conditions, &
                                  reference_fes       = this%reference_fes)
     end if
-    call this%fe_space%fill_dof_info()
+    !call this%fe_space%fill_dof_info()
     call this%fe_space%initialize_fe_integration()
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
       call this%fe_space%interpolate_dirichlet_values(this%poisson_unfitted_conditions)

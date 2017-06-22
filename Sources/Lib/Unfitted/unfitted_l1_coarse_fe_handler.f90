@@ -140,9 +140,10 @@ subroutine unfitted_l1_free(this)
 end subroutine unfitted_l1_free
 
 !========================================================================================
-subroutine unfitted_l1_get_num_coarse_dofs(this,par_fe_space,parameter_list,num_coarse_dofs)
+subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_list,num_coarse_dofs)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
@@ -153,6 +154,8 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,par_fe_space,parameter_list,num_
   type(list_iterator_t)         :: dofs_in_object_iterator
   integer(ip)                   :: dof_lid
   type(fe_object_iterator_t)    :: object
+
+  assert(field_id == 1)
 
   par_environment => this%par_fe_space%get_par_environment()
   assert ( associated ( par_environment ) )
@@ -187,15 +190,16 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,par_fe_space,parameter_list,num_
 end subroutine unfitted_l1_get_num_coarse_dofs
 
 !========================================================================================
-subroutine unfitted_l1_setup_constraint_matrix(this,par_fe_space,parameter_list,constraint_matrix)
+subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parameter_list,constraint_matrix)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
 
   type(environment_t), pointer :: par_environment
-  integer(ip)                  :: field_id, block_id
+  integer(ip)                  :: block_id
   integer(ip),         pointer :: field_to_block(:)
   integer(ip)                  :: num_cols, num_rows
   integer(ip)                  :: max_cdof_lid_in_object
@@ -210,7 +214,7 @@ subroutine unfitted_l1_setup_constraint_matrix(this,par_fe_space,parameter_list,
   assert (par_environment%am_i_l1_task())
 
   ! We assume a single field for the moment
-  field_id = 1
+  assert(field_id == 1)
   assert(this%par_fe_space%get_number_fields() == 1)
 
   ! Free any dynamic memory that constraint_matrix may have inside

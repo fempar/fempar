@@ -75,7 +75,7 @@ contains
     type(piecewise_fe_map_t) , pointer :: pw_fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int
+    type(cell_integrator_t), pointer :: cell_int
     type(vector_field_t), allocatable  :: shape_gradients(:,:)
     real(rp)            , allocatable  :: shape_values(:,:)
     real(rp)            , allocatable  :: boundary_shape_values(:,:)
@@ -176,7 +176,7 @@ contains
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_number_quadrature_points()
        fe_map          => fe%get_fe_map()
-       vol_int         => fe%get_volume_integrator(1)
+       cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_number_dofs()
        call fe%get_number_dofs_per_field(num_dofs_per_field)
 
@@ -189,8 +189,8 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call vol_int%get_gradients(shape_gradients)
-       call vol_int%get_values(shape_values)
+       call cell_int%get_gradients(shape_gradients)
+       call cell_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
           dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           do idof = 1, num_dofs
@@ -221,9 +221,9 @@ contains
          num_quad_points = quad%get_number_quadrature_points()
          pw_fe_map       => fe%get_boundary_piecewise_fe_map()
          quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
-         vol_int         => fe%get_boundary_volume_integrator(1)
-         call vol_int%get_values(boundary_shape_values)
-         call vol_int%get_gradients(boundary_shape_gradients)
+         cell_int         => fe%get_boundary_cell_integrator(1)
+         call cell_int%get_values(boundary_shape_values)
+         call cell_int%get_gradients(boundary_shape_gradients)
 
          ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
          ! We assume that the unfitted boundary is Nitsche

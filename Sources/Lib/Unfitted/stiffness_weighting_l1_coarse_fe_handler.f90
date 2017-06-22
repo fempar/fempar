@@ -96,14 +96,15 @@ subroutine stiffness_l1_free(this)
 end subroutine stiffness_l1_free
 
 !========================================================================================
-subroutine stiffness_l1_setup_weighting_operator(this,par_fe_space,parameter_list,weighting_operator)
+subroutine stiffness_l1_setup_weighting_operator(this,field_id,par_fe_space,parameter_list,weighting_operator)
   implicit none
   class(stiffness_weighting_l1_coarse_fe_handler_t), intent(in)    :: this
+    integer(ip)                         , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
 
-  integer(ip)                          :: field_id, block_id
+  integer(ip)                          :: block_id
   integer(ip), pointer                 :: field_to_block(:)
   integer(ip)                          :: num_dofs
   type(par_scalar_array_t)             :: par_array
@@ -116,7 +117,7 @@ subroutine stiffness_l1_setup_weighting_operator(this,par_fe_space,parameter_lis
 
 
   ! We assume a single field for the moment
-  field_id = 1
+  assert(field_id == 1)
   assert(par_fe_space%get_number_fields() == 1)
 
   ! Clean up

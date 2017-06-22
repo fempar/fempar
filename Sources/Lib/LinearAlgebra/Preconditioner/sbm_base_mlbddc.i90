@@ -414,8 +414,8 @@ end subroutine base_mlbddc_allocate_coarse_grid_basis
 
 subroutine base_mlbddc_setup_coarse_grid_basis ( this )
   implicit none
-  class(base_mlbddc_t)           , intent(inout) :: this
-  class(base_fe_space_t)      , pointer       :: fe_space
+  class(base_mlbddc_t)  , intent(inout) :: this
+  class(base_fe_space_t), pointer       :: fe_space
   real(rp), allocatable                     :: work1(:,:)
   real(rp), allocatable                     :: work2(:,:)
   integer(ip)                               :: i, j
@@ -635,7 +635,7 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
   type(coarse_fe_iterator_t) :: coarse_fe
   type(i1p_t), allocatable :: elem2dof(:)
   logical, pointer :: field_coupling(:,:)
-  integer(ip) :: ifield, jfield, i, j, istat, current
+  integer(ip) :: ifield, jfield, i, j, istat, offset, offset_i, offset_j, LDA
   class(base_fe_space_t)   , pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
 
@@ -650,33 +650,38 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
   allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
   check(istat==0)     
   field_coupling => coarse_fe_space%get_field_coupling()
-  current = 1
+  offset  = 0 
   call coarse_fe_space%create_coarse_fe_iterator(coarse_fe)
   do while ( .not. coarse_fe%has_finished() )
      call coarse_fe%get_elem2dof(elem2dof)
+     LDA = coarse_fe%get_number_dofs()
      if ( coarse_fe%is_local() ) then
+        offset_i = 0
         do ifield=1, coarse_fe_space%get_number_fields()
-           do jfield=1, coarse_fe_space%get_number_fields()
+          offset_j = 0
+          do jfield=1, coarse_fe_space%get_number_fields()
               if ((field_coupling(ifield,jfield))) then
                  do j=1, size(elem2dof(jfield)%p)
                     do i=1, size(elem2dof(ifield)%p)
-                       call this%coarse_grid_matrix%insert(ia =  elem2dof(ifield)%p(i), &
+                       call this%coarse_grid_matrix%insert(ia = elem2dof(ifield)%p(i) , &
                             ja  = elem2dof(jfield)%p(j), &
-                            val = subdomain_elmat_gathered(current) )
-                       current = current + 1
+                            val = subdomain_elmat_gathered(offset+(offset_j+j-1)*LDA+(offset_i+i)) )
                     end do
                  end do
               end if
+              offset_j = offset_j +  size(elem2dof(jfield)%p)
            end do
+           offset_i = offset_i +  size(elem2dof(ifield)%p)
         end do
      end if
+     offset = offset + LDA**2
      call coarse_fe%next()
   end do
   call coarse_fe_space%free_coarse_fe_iterator(coarse_fe)
   deallocate ( elem2dof, stat=istat )
   check(istat==0)     
   call this%coarse_grid_matrix%convert(csr_format)
-  !call this%coarse_grid_matrix%print(6)
+  !call this%coarse_grid_matrix%print_matrix_market(6)
 end subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly
 
 subroutine base_mlbddc_numerical_setup_mlbddc_coarse ( this )

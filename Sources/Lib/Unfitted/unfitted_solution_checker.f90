@@ -87,7 +87,7 @@ contains
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int
+    type(cell_integrator_t), pointer :: cell_int
     integer(ip) :: num_elem_nodes
     integer(ip) :: num_quad_points
     integer(ip) :: num_dime
@@ -130,7 +130,7 @@ contains
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_number_quadrature_points()
        fe_map          => fe%get_fe_map()
-       vol_int         => fe%get_volume_integrator(1)
+       cell_int         => fe%get_cell_integrator(1)
 
        ! Recover nodal values
        !TODO we assume a single field
@@ -141,8 +141,8 @@ contains
        allocate(grad_element_vals(1:num_quad_points), stat=istat); check(istat==0)
 
        ! Recover values of the FE solution at integration points
-       call vol_int%evaluate_fe_function(nodal_vals,element_vals)
-       call vol_int%evaluate_gradient_fe_function(nodal_vals,grad_element_vals)
+       call cell_int%evaluate_fe_function(nodal_vals,element_vals)
+       call cell_int%evaluate_gradient_fe_function(nodal_vals,grad_element_vals)
 
        ! Physical coordinates of the quadrature points
        quad_coords => fe_map%get_quadrature_points_coordinates()

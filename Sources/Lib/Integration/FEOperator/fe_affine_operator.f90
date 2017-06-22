@@ -28,18 +28,32 @@
 module fe_affine_operator_names
   use types_names
   use memor_names
+  
   use vector_space_names
   use reference_fe_names
   use fe_space_names
   use operator_names
   use vector_names
+  
   use matrix_array_assembler_names
+  use sparse_matrix_array_assembler_names
+  use block_sparse_matrix_array_assembler_names  
+  use par_sparse_matrix_array_assembler_names
+
+  use sparse_matrix_names, only: sparse_matrix_t
+  use block_sparse_matrix_names
+  use par_sparse_matrix_names
+  
+  use serial_scalar_array_names
+  use serial_block_array_names
+  use par_scalar_array_names
+  
   use array_names
   use matrix_names
-  use sparse_matrix_names, only: sparse_matrix_t
   use discrete_integration_names
   use environment_names
   use direct_solver_names
+  use block_layout_names
 
   implicit none
 # include "debug.i90"
@@ -105,6 +119,7 @@ module fe_affine_operator_names
   private
   integer(ip)                                     :: state  = start
   character(:)                      , allocatable :: sparse_matrix_storage_format
+  type(block_layout_t)                            :: block_layout
   class(serial_fe_space_t)          , pointer     :: fe_space               => NULL() ! trial_fe_space
   class(serial_fe_space_t)          , pointer     :: test_fe_space          => NULL() ! To be used in the future
   class(discrete_integration_t)     , pointer     :: discrete_integration   => NULL()
@@ -129,6 +144,8 @@ contains
   procedure          :: abort_if_not_in_domain      => fe_affine_operator_abort_if_not_in_domain
   procedure          :: create_direct_solver        => fe_affine_operator_create_direct_solver
   procedure          :: update_direct_solver_matrix => fe_affine_operator_update_direct_solver_matrix
+  procedure, private :: create_serial_assembler     => fe_affine_operator_create_serial_assembler
+  procedure, private :: create_par_assembler        => fe_affine_operator_create_par_assembler
   procedure, private :: fe_affine_operator_free_numerical_setup
   procedure, private :: fe_affine_operator_free_symbolic_setup
   procedure, private :: fe_affine_operator_free_clean
@@ -147,24 +164,54 @@ subroutine fe_affine_operator_create (this, &
                                       diagonal_blocks_symmetric,&
                                       diagonal_blocks_sign,&
                                       fe_space,&
-                                      discrete_integration )
+                                      discrete_integration, &
+                                      field_blocks, &
+                                      field_coupling)
  implicit none
- class(fe_affine_operator_t)              , intent(out) :: this
- character(*)                                , intent(in)  :: sparse_matrix_storage_format
- logical                                     , intent(in)  :: diagonal_blocks_symmetric_storage(:)
- logical                                     , intent(in)  :: diagonal_blocks_symmetric(:)
- integer(ip)                                 , intent(in)  :: diagonal_blocks_sign(:)
- class(serial_fe_space_t)     , target, intent(in)  :: fe_space
- class(discrete_integration_t)    , target, intent(in)  :: discrete_integration
+ class(fe_affine_operator_t)              , intent(inout) :: this
+ character(*)                             , intent(in)    :: sparse_matrix_storage_format
+ logical                                  , intent(in)    :: diagonal_blocks_symmetric_storage(:)
+ logical                                  , intent(in)    :: diagonal_blocks_symmetric(:)
+ integer(ip)                              , intent(in)    :: diagonal_blocks_sign(:)
+ class(serial_fe_space_t)         , target, intent(inout) :: fe_space
+ class(discrete_integration_t)    , target, intent(in)    :: discrete_integration
+ integer(ip)                    , optional, intent(in)    :: field_blocks(:)
+ logical                        , optional, intent(in)    :: field_coupling(:,:)
+ 
+ call this%free()
 
  assert(this%state == start)
 
+#ifdef DEBUG
+ if ( present(field_blocks) ) then
+   assert ( size(field_blocks) == fe_space%get_number_fields() )
+ end if
+ if ( present(field_coupling) ) then
+   assert ( size(field_coupling,1) == fe_space%get_number_fields() )
+   assert ( size(field_coupling,2) == fe_space%get_number_fields() )
+ end if
+#endif
+ 
  this%sparse_matrix_storage_format = sparse_matrix_storage_format
  this%fe_space                     => fe_space
  this%discrete_integration         => discrete_integration
- this%matrix_array_assembler       => fe_space%create_assembler(diagonal_blocks_symmetric_storage, &
-                                                                diagonal_blocks_symmetric, &
-                                                                diagonal_blocks_sign)
+ 
+ call this%block_layout%create(fe_space%get_number_fields(), field_blocks, field_coupling )
+ call this%fe_space%fill_dof_info(this%block_layout)
+ 
+  select type(fe_space => this%fe_space)
+  class is(serial_fe_space_t) 
+    this%matrix_array_assembler  => this%create_serial_assembler(diagonal_blocks_symmetric_storage, &
+                                                                 diagonal_blocks_symmetric, &
+                                                                 diagonal_blocks_sign)
+  class is(par_fe_space_t) 
+    this%matrix_array_assembler  => this%create_par_assembler(diagonal_blocks_symmetric_storage, &
+                                                              diagonal_blocks_symmetric, &
+                                                              diagonal_blocks_sign)
+  class default
+    check(.false.)
+  end select
+    
  call this%create_vector_spaces()
  this%state = created
 end subroutine fe_affine_operator_create
@@ -190,14 +237,10 @@ end subroutine fe_affine_operator_create
 subroutine fe_affine_operator_symbolic_setup (this)
  implicit none
  class(fe_affine_operator_t), intent(inout) :: this
-
  assert ( .not. this%state == start )
-
  if ( this%state == created ) then 
-    call this%fe_space%symbolic_setup_assembler(this%matrix_array_assembler)
     this%state = symbolically_setup
  end if
-
 end subroutine fe_affine_operator_symbolic_setup
 
 subroutine fe_affine_operator_numerical_setup (this)
@@ -221,6 +264,127 @@ subroutine fe_affine_operator_numerical_setup (this)
  call this%fe_affine_operator_fill_values()
  call this%matrix_array_assembler%compress_storage(this%sparse_matrix_storage_format)
 end subroutine fe_affine_operator_numerical_setup
+
+function fe_affine_operator_create_serial_assembler (this, &
+                                                     diagonal_blocks_symmetric_storage,&
+                                                     diagonal_blocks_symmetric, & 
+                                                     diagonal_blocks_sign)
+  implicit none
+  class(fe_affine_operator_t)     , intent(in) :: this
+  logical                         , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                         , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                     , intent(in) :: diagonal_blocks_sign(:)
+  class(matrix_array_assembler_t) , pointer    :: fe_affine_operator_create_serial_assembler
+
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  integer(ip)          :: ife_space, jfe_space
+  integer(ip)          :: iblock, jblock
+
+  if (this%block_layout%get_num_blocks() == 1) then
+     allocate ( sparse_matrix_array_assembler_t :: fe_affine_operator_create_serial_assembler )
+     allocate ( sparse_matrix_t :: matrix )
+     allocate ( serial_scalar_array_t  :: array )
+     select type(matrix)
+        class is(sparse_matrix_t)
+        call matrix%create(this%block_layout%get_block_num_dofs(1), &
+                           diagonal_blocks_symmetric_storage(1),&
+                           diagonal_blocks_symmetric(1),&
+                           diagonal_blocks_sign(1))
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_scalar_array_t)
+        call array%create(this%block_layout%get_block_num_dofs(1))
+        class default
+        check(.false.)
+     end select
+  else
+     allocate ( block_sparse_matrix_array_assembler_t :: fe_affine_operator_create_serial_assembler )
+     allocate ( block_sparse_matrix_t :: matrix )
+     allocate ( serial_block_array_t  :: array )
+     select type(matrix)
+        class is (block_sparse_matrix_t)
+        call matrix%create(this%block_layout%get_num_blocks(), &
+             this%block_layout%get_num_dofs_x_block(),&
+             this%block_layout%get_num_dofs_x_block(),&
+             diagonal_blocks_symmetric_storage,&
+             diagonal_blocks_symmetric,&
+             diagonal_blocks_sign)
+
+        do jblock=1,this%block_layout%get_num_blocks()
+           do iblock=1,this%block_layout%get_num_blocks()
+              if (.not. this%block_layout%blocks_coupled(iblock,jblock) ) then
+                 call matrix%set_block_to_zero(iblock,jblock)
+              end if
+           end do
+        end do
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_block_array_t)
+        call array%create(this%block_layout%get_num_blocks(),this%block_layout%get_num_dofs_x_block())
+        class default
+        check(.false.)
+     end select
+  end if
+  call fe_affine_operator_create_serial_assembler%set_matrix(matrix)
+  call fe_affine_operator_create_serial_assembler%set_array(array)
+end function fe_affine_operator_create_serial_assembler
+
+function fe_affine_operator_create_par_assembler(this, &
+                                                 diagonal_blocks_symmetric_storage,&
+                                                 diagonal_blocks_symmetric, & 
+                                                 diagonal_blocks_sign)
+  implicit none
+  class(fe_affine_operator_t)       , intent(in) :: this
+  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
+  class(matrix_array_assembler_t)   , pointer    :: fe_affine_operator_create_par_assembler
+
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  type(environment_t), pointer :: par_environment
+  
+  
+  select type(fe_space => this%fe_space)
+  class is(par_fe_space_t)
+   par_environment => fe_space%get_par_environment()
+   if (this%block_layout%get_num_blocks() == 1) then
+     allocate ( par_sparse_matrix_array_assembler_t :: fe_affine_operator_create_par_assembler )
+     allocate ( par_sparse_matrix_t :: matrix )
+     allocate ( par_scalar_array_t  :: array )
+     select type(matrix)
+        class is(par_sparse_matrix_t)
+        call matrix%create(par_environment, &
+                           fe_space%get_block_dof_import(1), &
+                           diagonal_blocks_symmetric_storage(1),&
+                           diagonal_blocks_symmetric(1),&
+                           diagonal_blocks_sign(1))
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(par_scalar_array_t)
+        call array%create(par_environment, &
+                          fe_space%get_block_dof_import(1))
+        class default
+        check(.false.)
+     end select
+   else
+     check(.false.)
+   end if
+   call fe_affine_operator_create_par_assembler%set_matrix(matrix)
+   call fe_affine_operator_create_par_assembler%set_array(array)
+  class default
+   check(.false.)
+  end select
+end function fe_affine_operator_create_par_assembler
 
 subroutine fe_affine_operator_free_numerical_setup(this)
  implicit none
@@ -247,6 +411,7 @@ subroutine fe_affine_operator_free_clean(this)
  check(istat==0)
  nullify(this%matrix_array_assembler)
  call this%free_vector_spaces()
+ call this%block_layout%free()
 end subroutine fe_affine_operator_free_clean
 
 subroutine fe_affine_operator_free_in_stages(this,action)
