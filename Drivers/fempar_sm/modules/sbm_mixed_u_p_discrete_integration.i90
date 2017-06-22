@@ -17,8 +17,8 @@ subroutine  mixed_u_p_discrete_integration_create(this,number_dimensions,analyti
   this%fe_type(2)          = fe_type_lagrangian
   this%field_type(1)       = field_type_vector
   this%field_type(2)       = field_type_scalar
-  this%field_name(1)       = 'displacement'
-  this%field_name(2)       = 'pressure'
+  this%field_name(1)       = 'Displacement'
+  this%field_name(2)       = 'Pressure'
   this%field_blocks        = (/1,1/)
   this%field_coupling = reshape((/.true.,  .true.,  &
        &                     .true.,  .true.   /),(/2,2/)) 
@@ -90,7 +90,6 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_arr
   type(vector_field_t) :: source_term_value
   type(tensor_field_t) :: s_u, epsd_v, epsd_u, Id
   real(rp)     :: dV, div_v, div_u
-  real(rp), parameter :: one_third = 1.0_rp/3.0_rp
 
   assert (associated(this%source_term)) 
 

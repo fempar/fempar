@@ -27,17 +27,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fempar_sm_discrete_integration_names
   use fempar_names
+  use fempar_sm_constitutive_models_names
   use fempar_sm_analytical_functions_names
   implicit none
 # include "debug.i90"
   private
 
-  real(rp), parameter :: E  = 1.0_rp
-  real(rp), parameter :: nu = 0.2_rp
-  real(rp), parameter :: lambda = (nu*E)/((1+nu)*(1-2*nu))
-  real(rp), parameter :: mu     = E/(2*(1+nu))
-  real(rp), parameter :: inv_K = 1.0_rp/(lambda + 2*mu/3)
-     
   type, extends(discrete_integration_t), abstract :: fempar_sm_discrete_integration_t
      private
      integer(ip) :: number_dimensions
@@ -102,6 +97,11 @@ module fempar_sm_discrete_integration_names
        class(serial_fe_space_t)                      , intent(in)    :: fe_space
        type(fe_function_t), target                   , intent(inout) :: solution
      end subroutine init_solution_interface
+     !subroutine check_solution_interface(this,fe_space)
+     !  import :: fempar_sm_discrete_integration_t, serial_fe_space_t
+     !  class(fempar_sm_discrete_integration_t)       , intent(inout) :: this
+     !  class(serial_fe_space_t)                      , intent(in)    :: fe_space
+     !end subroutine check_solution_interface
   end interface
 
   type, extends(fempar_sm_discrete_integration_t) :: irreducible_discrete_integration_t

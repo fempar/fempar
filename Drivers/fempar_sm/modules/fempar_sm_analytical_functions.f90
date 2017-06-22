@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 module fempar_sm_analytical_functions_names
   use fempar_names
+  use fempar_sm_constitutive_models_names
   implicit none
 # include "debug.i90"
   private
@@ -168,15 +168,10 @@ contains
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
-      result = point%get(1) + point%get(2) ! x+y 
-    else if ( this%num_dimensions == 3 ) then
-      result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
-    end if  
-      
+    result = (lambda+2*one_third*mu)*2.0_rp ! div u
   end subroutine solution_function_p_get_value_space
 
-    subroutine solution_function_u_get_value_space ( this, point, result )
+  subroutine solution_function_u_get_value_space ( this, point, result )
     implicit none
     class(solution_function_u_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
@@ -198,14 +193,7 @@ contains
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-    else if ( this%num_dimensions == 3 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-      call result%set( 3, 1.0_rp ) 
-    end if
+    result = 0.0_rp
   end subroutine solution_function_p_get_gradient_space
 
   subroutine solution_function_u_get_gradient_space ( this, point, result )

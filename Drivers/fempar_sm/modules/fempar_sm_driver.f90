@@ -90,11 +90,7 @@ module fempar_sm_driver_names
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
-     !procedure        , private :: setup_system
      procedure        , private :: setup_operators
-     procedure        , private :: setup_solver
-     procedure        , private :: assemble_system
-     procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure                  :: run_simulation
@@ -125,26 +121,22 @@ contains
     call this%setup_fe_space()
     call this%timer_fe_space%stop()
 
-    ! Algebraic operators
-    !call this%timer_assemply%start()
-    !call this%setup_system()
-    !call this%assemble_system()
-    !call this%timer_assemply%stop()
-
+    ! Construct Linear and nonlinear operators
     call this%timer_solver_setup%start()
     call this%setup_operators()
-    !call this%setup_solver()
     call this%timer_solver_setup%stop()
    
+    ! Solve the problem
     call this%timer_solver_run%start()
     call this%nonlinear_solver%solve()
-    !mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged.' )
-    !call this%solve_system()
+    mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged.' )
     call this%timer_solver_run%stop()
 
+    ! Postprocess
     call this%write_solution()
     call this%check_solution()
     call this%free()
+
   end subroutine run_simulation
  
 !========================================================================================
@@ -380,12 +372,7 @@ end subroutine free_timers
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     !call this%mlbddc%numerical_setup()
-
-    ! To debug
-    !dof_values => this%fe_affine_operator%get_translation()
-    !res_norm = dof_values%nrm2()
-    !write(*,*) res_norm
-    
+   
     ! Linear solver
     call this%linear_solver%create(this%fe_space%get_environment())
     if(this%fempar_sm_integration%is_coercive()) then
@@ -411,231 +398,76 @@ end subroutine free_timers
 
   end subroutine setup_operators
 
-  !========================================================================================
-
-  subroutine setup_solver (this)
-    implicit none
-    class(fempar_sm_fe_driver_t), target, intent(inout) :: this
-    type(parameterlist_t) :: parameter_list
-    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
-
-    integer(ip) :: ilev
-    integer(ip) :: FPLError
-    integer(ip) :: iparm(64)
-    logical, parameter :: enable_mkl=.true. ! While the compilations system does not manage macros for drivers
-
-    !#ifdef ENABLE_MKL  
-    if(enable_mkl) then
-       ! See https://software.intel.com/en-us/node/470298 for details
-       iparm      = 0 ! Init all entries to zero
-       !iparm(1)   = 1 ! no solver default
-       !iparm(2)   = 2 ! fill-in reordering from METIS
-       !iparm(8)   = 2 ! numbers of iterative refinement steps
-       !iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-       !iparm(11)  = 1 ! use scaling 
-       !iparm(13)  = 1 ! use maximum weighted matching algorithm 
-       !iparm(21)  = 1 ! 1x1 + 2x2 pivots
-
-       plist => this%parameter_list 
-       if ( this%par_environment%get_l1_size() == 1 ) then
-          FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-          !FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-          !FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-          !FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-       end if
-       do ilev=1, this%par_environment%get_num_levels()-1
-          ! Set current level Dirichlet solver parameters
-          dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-          FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-          !FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
-          !FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-          !FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-
-          ! Set current level Neumann solver parameters
-          neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-          FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-          !FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
-          !FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-          !FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-
-          coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
-          plist  => coarse 
-       end do
-       ! Set coarsest-grid solver parameters
-       FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-       !FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-       !FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-
-       ! Set-up MLBDDC preconditioner
-       call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
-       call this%mlbddc%symbolic_setup()
-       call this%mlbddc%numerical_setup()
-    end if
-    !#endif    
-
-    call this%linear_solver%create(this%fe_space%get_environment())
-    call this%linear_solver%set_type_from_string(lgmres_name)
-
-    !#ifdef ENABLE_MKL
-    if(enable_mkl) then
-       call this%linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
-       !#else
-    else
-       call parameter_list%init()
-       FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-       assert(FPLError == 0)
-       FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-       assert(FPLError == 0)
-       call this%linear_solver%set_parameters_from_pl(parameter_list)
-       call this%linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-       call parameter_list%free()
-    end if
-    !#endif   
-
-  end subroutine setup_solver
-  
-!========================================================================================
-
-  subroutine assemble_system (this)
-    implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
-!    class(matrix_t)                  , pointer       :: matrix
-!    class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
-    !rhs                => this%fe_affine_operator%get_translation()
-    !matrix             => this%fe_affine_operator%get_matrix()
-    !select type(matrix)
-    !class is (sparse_matrix_t)  
-    !   call matrix%print_matrix_market(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    
-    !select type(rhs)
-    !class is (serial_scalar_array_t)  
-    !   call rhs%print(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-  end subroutine assemble_system
-  
-!========================================================================================
-
-  subroutine solve_system(this)
-    implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
-    !class(matrix_t)                         , pointer       :: matrix
-    !class(vector_t)                         , pointer       :: rhs
-    class(vector_t)                         , pointer       :: dof_values
-
-    !matrix     => this%fe_affine_operator%get_matrix()
-    !rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
-    call this%linear_solver%solve(this%fe_affine_operator%get_translation(), &
-                                            dof_values)
-    
-    !select type (dof_values)
-    !class is (serial_scalar_array_t)  
-    !   call dof_values%print(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    
-    !select type (matrix)
-    !class is (sparse_matrix_t)  
-    !   call this%direct_solver%update_matrix(matrix, same_nonzero_pattern=.true.)
-    !   call this%direct_solver%solve(rhs , dof_values )
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-  end subroutine solve_system
    
   subroutine check_solution(this)
     implicit none
     class(fempar_sm_fe_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: scalar_error_norm 
     type(error_norms_vector_t) :: vector_error_norm 
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
-    
-    call vector_error_norm%create(this%fe_space,1)    
-    mean      = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, mean_norm)   
-    l1        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, l1_norm)   
-    l2        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, l2_norm)   
-    lp        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, lp_norm)   
-    linfty    = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, linfty_norm)   
-    h1_s      = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, h1_seminorm) 
-    h1        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, h1_norm) 
-    w1p_s     = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1p_seminorm)   
-    w1p       = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1p_norm)   
-    w1infty_s = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1infty_seminorm) 
-    w1infty   = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1infty_norm)  
-    if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'First field (vector):'
-      write(*,'(a20,e32.25)') 'mean_norm:', mean
-      write(*,'(a20,e32.25)') 'l1_norm:', l1
-      write(*,'(a20,e32.25)') 'l2_norm:', l2
-      write(*,'(a20,e32.25)') 'lp_norm:', lp
-      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty
-      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s
-      write(*,'(a20,e32.25)') 'h1_norm:', h1
-      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s
-      write(*,'(a20,e32.25)') 'w1p_norm:', w1p
-      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s
-      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty
-      !write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-04 )
-    end if  
-    call vector_error_norm%free()
+    real(rp)    :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    integer(ip) :: field_id
 
-    !call scalar_error_norm%create(this%fe_space,2)    
-    !mean      = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, mean_norm)   
-    !l1        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, l1_norm)   
-    !l2        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, l2_norm)   
-    !lp        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, lp_norm)   
-    !linfty    = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, linfty_norm)   
-    !h1_s      = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, h1_seminorm) 
-    !h1        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, h1_norm) 
-    !w1p_s     = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1p_seminorm)   
-    !w1p       = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1p_norm)   
-    !w1infty_s = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1infty_seminorm) 
-    !w1infty   = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1infty_norm)  
-    !if ( this%par_environment%am_i_l1_root() ) then
-    !  write(*,'(a20,e32.25)') 'Second field (scalar):'
-    !  write(*,'(a20,e32.25)') 'mean_norm:', mean
-    !  write(*,'(a20,e32.25)') 'l1_norm:', l1
-    !  write(*,'(a20,e32.25)') 'l2_norm:', l2
-    !  write(*,'(a20,e32.25)') 'lp_norm:', lp
-    !  write(*,'(a20,e32.25)') 'linfnty_norm:', linfty
-    !  write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s
-    !  write(*,'(a20,e32.25)') 'h1_norm:', h1
-    !  write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s
-    !  write(*,'(a20,e32.25)') 'w1p_norm:', w1p
-    !  write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s
-    !  write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty
-    !  !write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-04 )
-    !  !write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-04 )
-    !end if  
-    !call scalar_error_norm%free()
+    do field_id = 1, this%fempar_sm_integration%get_number_fields()
 
+       if(this%fempar_sm_integration%get_field_type(field_id) == field_type_vector) then
+          call vector_error_norm%create(this%fe_space,field_id)    
+          mean      = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, mean_norm)   
+          l1        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, l1_norm)   
+          l2        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, l2_norm)   
+          lp        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, lp_norm)   
+          linfty    = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, linfty_norm)   
+          h1_s      = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, h1_seminorm) 
+          h1        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, h1_norm) 
+          w1p_s     = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1p_seminorm)   
+          w1p       = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1p_norm)   
+          w1infty_s = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1infty_seminorm) 
+          w1infty   = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1infty_norm)  
+          if ( this%par_environment%am_i_l1_root() ) then
+             write(*,'(a12,a8)')      this%fempar_sm_integration%get_field_name(field_id), ' field: '
+             write(*,'(a20,e32.25)') 'mean_norm:', mean
+             write(*,'(a20,e32.25)') 'l1_norm:', l1
+             write(*,'(a20,e32.25)') 'l2_norm:', l2
+             write(*,'(a20,e32.25)') 'lp_norm:', lp
+             write(*,'(a20,e32.25)') 'linfnty_norm:', linfty
+             write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s
+             write(*,'(a20,e32.25)') 'h1_norm:', h1
+             write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s
+             write(*,'(a20,e32.25)') 'w1p_norm:', w1p
+             write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s
+             write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty
+          end if
+          call vector_error_norm%free()
+       else if( this%fempar_sm_integration%get_field_type(field_id) == field_type_scalar) then
+          call scalar_error_norm%create(this%fe_space,field_id)    
+          mean      = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, mean_norm)   
+          l1        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, l1_norm)   
+          l2        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, l2_norm)   
+          lp        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, lp_norm)   
+          linfty    = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, linfty_norm)   
+          h1_s      = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, h1_seminorm) 
+          h1        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, h1_norm) 
+          w1p_s     = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1p_seminorm)   
+          w1p       = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1p_norm)   
+          w1infty_s = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1infty_seminorm) 
+          w1infty   = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1infty_norm)  
+          if ( this%par_environment%am_i_l1_root() ) then
+             write(*,'(a12,a8)')      this%fempar_sm_integration%get_field_name(field_id), ' field: '
+             write(*,'(a20,e32.25)') 'mean_norm:', mean
+             write(*,'(a20,e32.25)') 'l1_norm:', l1
+             write(*,'(a20,e32.25)') 'l2_norm:', l2
+             write(*,'(a20,e32.25)') 'lp_norm:', lp
+             write(*,'(a20,e32.25)') 'linfnty_norm:', linfty
+             write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s
+             write(*,'(a20,e32.25)') 'h1_norm:', h1
+             write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s
+             write(*,'(a20,e32.25)') 'w1p_norm:', w1p
+             write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s
+             write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty
+          end if
+          call scalar_error_norm%free()
+
+       end if
+     end do
   end subroutine check_solution
   
   !========================================================================================
