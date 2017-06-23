@@ -133,7 +133,7 @@ subroutine base_mlbddc_symbolic_setup_dirichlet_solver (this)
   call this%dirichlet_solver%set_type_from_pl(dirichlet_solver_params)
   call this%dirichlet_solver%set_parameters_from_pl(dirichlet_solver_params)
   call this%dirichlet_solver%set_matrix(matrix = this%A_II)
-  call this%dirichlet_solver%symbolic_setup() 
+  !call this%dirichlet_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_dirichlet_solver
 
 subroutine base_mlbddc_symbolic_setup_constrained_neumann_problem(this)
@@ -171,7 +171,7 @@ subroutine base_mlbddc_symbolic_setup_constrained_neumann_solver(this)
   call this%constrained_neumann_solver%set_type_from_pl(neumann_solver_params)
   call this%constrained_neumann_solver%set_parameters_from_pl(neumann_solver_params)
   call this%constrained_neumann_solver%set_matrix(matrix = this%constrained_neumann_matrix)
-  call this%constrained_neumann_solver%symbolic_setup() 
+  !call this%constrained_neumann_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_constrained_neumann_solver
 
 subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
@@ -304,7 +304,7 @@ subroutine base_mlbddc_symbolic_setup_coarse_solver(this)
   call this%coarse_solver%set_type_from_pl(this%mlbddc_params)
   call this%coarse_solver%set_parameters_from_pl(this%mlbddc_params)
   call this%coarse_solver%set_matrix(matrix = par_sparse_matrix%get_sparse_matrix())
-  call this%coarse_solver%symbolic_setup() 
+  !call this%coarse_solver%symbolic_setup() 
 end subroutine base_mlbddc_symbolic_setup_coarse_solver
 
 recursive subroutine base_mlbddc_numerical_setup ( this )

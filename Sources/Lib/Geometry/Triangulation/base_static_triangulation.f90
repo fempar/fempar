@@ -112,6 +112,7 @@ module base_static_triangulation_names
     procedure                            :: get_reference_fe_geo_id => cell_iterator_get_reference_fe_geo_id
     procedure                            :: get_coordinates         => cell_iterator_get_coordinates
     procedure, non_overridable           :: set_coordinates         => cell_iterator_set_coordinates
+    procedure, non_overridable           :: get_coordinates_ref_space => cell_iterator_get_coordinates_ref_space
     procedure, non_overridable           :: get_lid                 => cell_iterator_get_lid
     procedure, non_overridable           :: get_gid                 => cell_iterator_get_gid
     procedure, non_overridable           :: get_my_part             => cell_iterator_get_mypart
@@ -139,6 +140,11 @@ module base_static_triangulation_names
     
     
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_iterator_get_scan_sum_number_vefs
+
+    ! Declare dummy procedures to be implemented in the corresponding derived classes 
+    procedure :: is_cut      => cell_iterator_is_cut
+    procedure :: is_interior => cell_iterator_is_interior
+    procedure :: is_exterior => cell_iterator_is_exterior
 
     procedure, non_overridable, private  :: fill_nodes_on_vertices        => cell_iterator_fill_nodes_on_vertices
     procedure, non_overridable, private  :: fill_nodes_on_vef_new         => cell_iterator_fill_nodes_on_vef_new
@@ -499,12 +505,14 @@ module base_static_triangulation_names
 
   type, extends(fine_triangulation_t) :: serial_triangulation_t
   contains
-     procedure                           :: create                              => serial_triangulation_create
+     procedure                 , private :: serial_triangulation_create
+     generic                             :: create                              => serial_triangulation_create
   end type serial_triangulation_t
   
   type, extends(fine_triangulation_t) :: par_triangulation_t
   contains
-     procedure, non_overridable          :: create                              => par_triangulation_create
+     generic                             :: create                              => par_triangulation_create
+     procedure, private                  :: par_triangulation_create
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => par_triangulation_allocate_and_fill_lst_vefs_lids 
   end type par_triangulation_t
 

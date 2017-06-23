@@ -40,8 +40,15 @@ subroutine interpolation_create( this, &
   integer(ip)              , intent(in)    :: number_entries_symmetric_tensor
   logical, optional        , intent(in)    :: compute_hessian
 
+  if (.not. this%is_needed_to_allocate( number_dimensions,        &
+                                        number_shape_functions,   &
+                                        number_quadrature_points, &
+                                        number_entries_symmetric_tensor,&
+                                        compute_hessian&
+                                      ) ) return
+
   call this%free()
-  
+
   this%number_dimensions = number_dimensions
   this%number_shape_functions = number_shape_functions
   this%number_quadrature_points = number_quadrature_points
@@ -61,6 +68,7 @@ subroutine interpolation_create( this, &
                       this%hessian,__FILE__,__LINE__) 
      end if
   end if
+  
 end subroutine interpolation_create
 
 subroutine interpolation_free( this)
@@ -78,7 +86,7 @@ end subroutine interpolation_free
 subroutine interpolation_copy(this, source_interpolation)
   implicit none
   class(interpolation_t), intent(inout) :: this
-		type(interpolation_t), intent(in)     :: source_interpolation
+  type(interpolation_t), intent(in)     :: source_interpolation
 
   call this%clone(source_interpolation)
 
@@ -95,7 +103,14 @@ subroutine interpolation_clone(this, source_interpolation)
   class(interpolation_t), intent(inout) :: this
 		type(interpolation_t), intent(in)     :: source_interpolation
 
-		call this%free()
+  if (.not. this%is_needed_to_allocate( source_interpolation%number_dimensions,        & 
+                                        source_interpolation%number_shape_functions,   &
+                                        source_interpolation%number_quadrature_points, & 
+                                        source_interpolation%number_entries_symmetric_tensor,&
+                                        allocated(source_interpolation%hessian)&
+                                        ) ) return
+	
+  call this%free()
   this%number_dimensions = source_interpolation%number_dimensions
   this%number_shape_functions = source_interpolation%number_shape_functions
   this%number_quadrature_points = source_interpolation%number_quadrature_points
@@ -147,3 +162,33 @@ subroutine interpolation_print ( this )
      write(*,*) 'hessian not computed '
   end if
 end subroutine interpolation_print
+
+function interpolation_is_needed_to_allocate(              &
+                                 this,                     &
+                                 number_dimensions,        &
+                                 number_shape_functions,   &
+                                 number_quadrature_points, &
+                                 number_entries_symmetric_tensor,&
+                                 compute_hessian ) result ( is_needed )
+  implicit none
+  class(interpolation_t), intent(inout) :: this
+  integer(ip),            intent(in)    :: number_dimensions
+  integer(ip),            intent(in)    :: number_shape_functions
+  integer(ip),            intent(in)    :: number_quadrature_points
+  integer(ip),            intent(in)    :: number_entries_symmetric_tensor
+  logical, optional,      intent(in)    :: compute_hessian
+  logical :: is_needed
+
+  ! We rely on the stored integers.
+  ! Its is important that calling free() will set them to 0.
+  ! And that they always have a valid numerical value
+  is_needed = .false.
+  if (this%number_dimensions .ne. number_dimensions)               is_needed = .true.
+  if (this%number_shape_functions .ne. number_shape_functions)     is_needed = .true.
+  if (this%number_quadrature_points .ne. number_quadrature_points) is_needed = .true.
+  if (present(compute_hessian)) then
+    if (compute_hessian .and. (this%number_entries_symmetric_tensor .ne. number_entries_symmetric_tensor))&
+    is_needed = .true.
+  end if
+
+end function interpolation_is_needed_to_allocate

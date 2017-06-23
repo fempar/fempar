@@ -60,7 +60,7 @@ module fe_space_names
   use direct_solver_parameters_names
   use iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
-  
+
   
   
  ! Parallel modules
@@ -153,6 +153,9 @@ module fe_space_names
     procedure, non_overridable           :: scan_sum_number_vefs    => base_fe_iterator_get_scan_sum_number_vefs
     procedure, non_overridable, private  :: base_fe_iterator_get_vef
     generic                              :: get_vef                 => base_fe_iterator_get_vef
+    procedure                            :: is_cut                  => base_fe_iterator_is_cut
+    procedure                            :: is_interior             => base_fe_iterator_is_interior
+    procedure                            :: is_exterior             => base_fe_iterator_is_exterior
   end type base_fe_iterator_t
   
   
@@ -176,9 +179,8 @@ module fe_space_names
     procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_iterator_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_iterator_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_iterator_renumber_dofs_field
-    procedure, non_overridable          :: update_integration                         => fe_iterator_update_integration
+    procedure                           :: update_integration                         => fe_iterator_update_integration
     procedure                           :: assemble                                   => fe_iterator_assemble
-
 
     procedure, non_overridable          :: get_fe_space                               => fe_iterator_get_fe_space
     procedure, non_overridable          :: get_number_fields                          => fe_iterator_get_number_fields
@@ -211,9 +213,9 @@ module fe_space_names
     procedure, non_overridable          :: get_default_quadrature_degree              => fe_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree                      => fe_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree                      => fe_iterator_set_quadrature_degree
-    procedure, non_overridable          :: get_quadrature                             => fe_iterator_get_quadrature
-    procedure, non_overridable          :: get_fe_map                                 => fe_iterator_get_fe_map
-    procedure, non_overridable          :: get_cell_integrator                      => fe_iterator_get_cell_integrator    
+    procedure                           :: get_quadrature                             => fe_iterator_get_quadrature
+    procedure                           :: get_fe_map                                 => fe_iterator_get_fe_map
+    procedure                           :: get_cell_integrator                        => fe_iterator_get_cell_integrator
     
     procedure, non_overridable, private :: fe_iterator_get_fe_vef
     generic                             :: get_vef                                    => fe_iterator_get_fe_vef
@@ -223,6 +225,7 @@ module fe_space_names
     procedure, non_overridable          :: get_reference_fe_id                        => fe_iterator_get_reference_fe_id
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
+    procedure, non_overridable          :: first_local_non_void                       => fe_iterator_first_local_non_void
   end type fe_iterator_t
    
   type :: base_fe_vef_iterator_t
