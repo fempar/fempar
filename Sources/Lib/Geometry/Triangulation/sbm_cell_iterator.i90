@@ -172,7 +172,6 @@ subroutine cell_iterator_get_coordinates_ref_space (this, cell_coordinates)
   type(quadrature_t),               pointer :: nodal_quadrature
 
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  assert ( allocated ( this%base_static_triangulation%coordinates ) )
   reference_fe_geo => this%get_reference_fe_geo()
   nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
   assert( size(cell_coordinates) == nodal_quadrature%get_number_quadrature_points() )
@@ -258,7 +257,7 @@ pure function cell_iterator_get_num_vefs (this)
        this%base_static_triangulation%ptr_vefs_per_cell(this%lid)
 end function cell_iterator_get_num_vefs
 
-pure function cell_iterator_get_num_nodes (this)
+function cell_iterator_get_num_nodes (this)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: cell_iterator_get_num_nodes

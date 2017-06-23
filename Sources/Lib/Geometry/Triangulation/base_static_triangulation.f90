@@ -99,10 +99,10 @@ module base_static_triangulation_names
     procedure                            :: create                  => cell_iterator_create
     procedure                            :: free                    => cell_iterator_free
     final                                ::                            cell_iterator_free_final
-    procedure, non_overridable           :: next                    => cell_iterator_next
-    procedure, non_overridable           :: first                   => cell_iterator_first
+    procedure                            :: next                    => cell_iterator_next
+    procedure                            :: first                   => cell_iterator_first
     procedure                            :: last                    => cell_iterator_last
-    procedure, non_overridable           :: set_lid                 => cell_iterator_set_lid
+    procedure                            :: set_lid                 => cell_iterator_set_lid
     procedure, non_overridable, private  :: set_gid                 => cell_iterator_set_gid
     procedure, non_overridable, private  :: set_mypart              => cell_iterator_set_mypart
     procedure, non_overridable, private  :: get_triangulation       => cell_iterator_get_triangulation
@@ -121,7 +121,7 @@ module base_static_triangulation_names
     procedure                            :: get_set_id              => cell_iterator_get_set_id
     procedure                            :: get_level               => cell_iterator_get_level
     procedure                            :: get_num_vefs            => cell_iterator_get_num_vefs
-    procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
+    procedure                            :: get_num_nodes           => cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid
     procedure                            :: get_vef_lid             => cell_iterator_get_vef_lid
     procedure                            :: get_vef_lids            => cell_iterator_get_vef_lids
@@ -369,7 +369,7 @@ module base_static_triangulation_names
      procedure                           :: get_num_vefs                        => bst_get_num_vefs 
      procedure, non_overridable          :: get_num_faces                       => bst_get_num_faces
      procedure                           :: get_num_cells                       => bst_get_num_cells
-     procedure, non_overridable          :: get_num_local_cells                 => bst_get_num_local_cells
+     procedure                           :: get_num_local_cells                 => bst_get_num_local_cells
      procedure, non_overridable          :: get_num_ghost_cells                 => bst_get_num_ghost_cells
      procedure, non_overridable          :: get_number_objects                  => bst_get_number_objects
 
