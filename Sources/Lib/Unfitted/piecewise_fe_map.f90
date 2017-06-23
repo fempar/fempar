@@ -46,6 +46,7 @@ module piecewise_fe_map_names
     integer(ip)        :: number_quadrature_points_sub_map
     integer(ip)        :: number_nodes_sub_map
     integer(ip)        :: number_nodes
+    class  (lagrangian_reference_fe_t), pointer:: reference_fe_geometry => null()
 
     ! The same as in fe_map_t (this can be inherited form fe_map_t)
     real(rp),      allocatable    :: det_jacobian(:)
@@ -81,7 +82,7 @@ contains
     implicit none
     class  (piecewise_fe_map_t),        intent(inout) :: this
     type   (quadrature_t),              intent(in)    :: quadrature
-    class  (lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
+    class  (lagrangian_reference_fe_t), target, intent(in)    :: reference_fe_geometry
     integer(ip),                        intent(in)    :: num_sub_maps
 
     integer(ip) :: istat
@@ -105,6 +106,8 @@ contains
 
     call memalloc( this%number_quadrature_points, this%det_jacobian, __FILE__,__LINE__ )
     call memalloc( this%number_dimensions, this%number_quadrature_points, this%normals, __FILE__,__LINE__  )
+    
+    this%reference_fe_geometry => reference_fe_geometry
 
   end subroutine piecewise_fe_map_create_face_map
 
@@ -123,6 +126,7 @@ contains
     if (allocated(this%det_jacobian))           call memfree( this%det_jacobian, __FILE__,__LINE__  )
     if (allocated(this%normals     ))           call memfree( this%normals,      __FILE__,__LINE__  )
     call this%fe_sub_map%free()
+    this%reference_fe_geometry => null()
   end subroutine piecewise_fe_map_free
 
 !========================================================================================
@@ -140,7 +144,9 @@ contains
     type(point_t), pointer :: nod_coords(:), quad_coords(:)
     real(rp), pointer :: det_jacobs(:)
     real(rp), pointer :: normal_vecs(:,:)
-    real(rp), parameter :: reorientation_factor = 1.0
+    real(rp) :: reorientation_factor
+    
+    reorientation_factor = this%reference_fe_geometry%get_normal_orientation_factor(face_lid = 1)
 
     do imap = 1, this%number_sub_maps
 

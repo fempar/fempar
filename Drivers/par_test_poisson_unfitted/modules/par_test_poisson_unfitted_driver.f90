@@ -67,6 +67,7 @@ module par_test_poisson_unfitted_driver_names
      type(par_unfitted_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
      class(l1_coarse_fe_handler_t), allocatable :: l1_coarse_fe_handler
+     type(p_l1_coarse_fe_handler_t), allocatable  :: l1_coarse_fe_handlers(:)
      type(poisson_unfitted_CG_discrete_integration_t)   :: poisson_unfitted_integration
      type(poisson_unfitted_conditions_t)                :: poisson_unfitted_conditions
      type(poisson_unfitted_analytical_functions_t)      :: poisson_unfitted_analytical_functions
@@ -358,6 +359,7 @@ end subroutine free_timers
                                                    number_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
+                                                   conformity = .true., &
                                                    continuity = .true. )
 
       this%reference_fes(PAR_POISSON_UNFITTED_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
@@ -365,6 +367,7 @@ end subroutine free_timers
                                                    number_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = -1, &
                                                    field_type = field_type_scalar, &
+                                                   conformity = .true., &
                                                    continuity = .true. )
       call this%triangulation%free_cell_iterator(cell)
     end if  
@@ -373,7 +376,7 @@ end subroutine free_timers
 !========================================================================================
   subroutine setup_fe_space(this)
     implicit none
-    class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_unfitted_fe_driver_t), target, intent(inout) :: this
 
     integer(ip) :: set_ids_to_reference_fes(1,2)
     integer(ip) :: istat
@@ -391,6 +394,9 @@ end subroutine free_timers
     end select
     check(istat == 0)
 
+    allocate(this%l1_coarse_fe_handlers(1),stat=istat); check(istat==0)
+    this%l1_coarse_fe_handlers(1)%p => this%l1_coarse_fe_handler
+
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_FULL) = PAR_POISSON_UNFITTED_SET_ID_FULL
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_VOID) = PAR_POISSON_UNFITTED_SET_ID_VOID
     
@@ -398,9 +404,9 @@ end subroutine free_timers
                                conditions               = this%poisson_unfitted_conditions, &
                                reference_fes            = this%reference_fes, &
                                set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                               coarse_fe_handler        = this%l1_coarse_fe_handler)
+                               coarse_fe_handlers       = this%l1_coarse_fe_handlers)
     
-    call this%fe_space%fill_dof_info() 
+    !call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
     
     call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
@@ -822,6 +828,9 @@ end subroutine free_timers
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
     !call this%par_environment%free() 
     !call this%w_context%free(.true.)
+    if (allocated(this%l1_coarse_fe_handlers)) then
+      deallocate(this%l1_coarse_fe_handlers,stat=istat); check(istat==0)
+    end if
   end subroutine free  
 
 !========================================================================================
