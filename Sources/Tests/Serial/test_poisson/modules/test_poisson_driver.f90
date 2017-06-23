@@ -317,14 +317,14 @@ contains
       if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
         set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
         set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
-        call this%fe_space%create( triangulation            = this%triangulation, &
-                                   conditions               = this%poisson_conditions, &
-                                   reference_fes            = this%reference_fes, &
-                                   set_ids_to_reference_fes = set_ids_to_reference_fes )
+        call this%fe_space%create( triangulation            = this%triangulation,       &
+                                   reference_fes            = this%reference_fes,       &
+                                   set_ids_to_reference_fes = set_ids_to_reference_fes, &
+                                   conditions               = this%poisson_conditions )
       else 
         call this%fe_space%create( triangulation       = this%triangulation, &
-                                   conditions          = this%poisson_conditions, &
-                                   reference_fes       = this%reference_fes)
+                                   reference_fes       = this%reference_fes, &
+                                   conditions          = this%poisson_conditions )
       end if  
     else
       call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
@@ -332,14 +332,14 @@ contains
       if (this%test_params%get_use_void_fes() .and.  this%test_params%get_fe_formulation() == 'cG') then
         set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
         set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
-        call this%fe_space%create( triangulation       = this%triangulation, &
-                                   conditions          = this%vector_poisson_conditions, &
-                                   reference_fes       = this%reference_fes, &
-                                   set_ids_to_reference_fes = set_ids_to_reference_fes)
+        call this%fe_space%create( triangulation       = this%triangulation,            &
+                                   reference_fes       = this%reference_fes,            &
+                                   set_ids_to_reference_fes = set_ids_to_reference_fes, &
+                                   conditions          = this%vector_poisson_conditions )
       else
         call this%fe_space%create( triangulation       = this%triangulation, &
-                                   conditions          = this%vector_poisson_conditions, &
-                                   reference_fes       = this%reference_fes)
+                                   reference_fes       = this%reference_fes, &
+                                   conditions          = this%vector_poisson_conditions )
       end if
     end if
     call this%fe_space%initialize_fe_integration()

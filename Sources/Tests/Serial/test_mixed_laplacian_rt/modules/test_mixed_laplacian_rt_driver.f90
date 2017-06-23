@@ -129,9 +129,9 @@ contains
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
 
     call this%mixed_laplacian_rt_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%fe_space%create( triangulation       = this%triangulation,      &
-                               conditions          = this%mixed_laplacian_rt_conditions, &
-                               reference_fes       = this%reference_fes)
+    call this%fe_space%create( triangulation       = this%triangulation, &
+                               reference_fes       = this%reference_fes, &
+                               conditions          = this%mixed_laplacian_rt_conditions )
     call this%fe_space%interpolate_dirichlet_values(this%mixed_laplacian_rt_conditions)
   end subroutine setup_fe_space
 
