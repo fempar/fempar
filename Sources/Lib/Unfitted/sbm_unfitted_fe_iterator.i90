@@ -435,13 +435,11 @@ subroutine unfitted_fe_iterator_update_cut_boundary_fe_maps( this )
   type(piecewise_fe_map_t), pointer :: pw_fe_map
   class(unfitted_cell_iterator_t), pointer :: cell
   integer(ip) :: subface, nini, nend
-  type(quadrature_t), pointer      :: cell_quad
 
   assert(this%is_local())
   cell => this%get_unfitted_cell_iterator()
   pw_fe_map => this%get_boundary_piecewise_fe_map()
   nodal_coords => pw_fe_map%get_coordinates()
-  cell_quad => this%fe_iterator_t%get_quadrature()
 
   ! Set the nodal coordinates of the piecewise map for each subface (in the phys space of the cell)
   do subface = 1, cell%get_number_of_subfaces()
@@ -451,7 +449,7 @@ subroutine unfitted_fe_iterator_update_cut_boundary_fe_maps( this )
   end do
 
   ! Update the piecewise fe map
-  call pw_fe_map%update_face_map(cell_quad%get_number_dimensions(),this%unfitted_integration_manager%quadrature_subface)
+  call pw_fe_map%update_face_map(this%unfitted_integration_manager%quadrature_subface)
 
   ! At this point the piecewise fe map contains the det_jacobian, coordinates of quad points on phys space and the normals
 
