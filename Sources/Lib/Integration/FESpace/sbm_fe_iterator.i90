@@ -570,7 +570,7 @@ function fe_iterator_get_default_quadrature_degree ( this )
   class(fe_iterator_t), intent(in) :: this
   integer(ip) :: fe_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
- 
+  assert( allocated(this%fe_space%max_order_reference_fe_id_per_fe) )
   reference_fe_id = this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid())
   fe_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
