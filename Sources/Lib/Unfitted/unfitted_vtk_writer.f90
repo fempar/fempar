@@ -107,6 +107,9 @@ contains
     class is (par_unfitted_triangulation_t)
       num_subcells = triangulation%get_total_num_of_subcells()
       num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
+    class is (unfitted_p4est_serial_triangulation_t)
+      num_subcells = triangulation%get_total_num_of_subcells()
+      num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
     class default
       check(.false.)
     end select
