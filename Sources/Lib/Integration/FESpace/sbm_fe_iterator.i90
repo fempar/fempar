@@ -556,8 +556,11 @@ function fe_iterator_get_quadrature_degree ( this )
   implicit none
   class(fe_iterator_t), intent(in) :: this
   integer(ip) :: fe_iterator_get_quadrature_degree
-  fe_iterator_get_quadrature_degree = this%fe_space%fe_quadratures_degree(this%get_lid())
-  if ( fe_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
+  if ( allocated(this%fe_space%fe_quadratures_degree) ) then
+     fe_iterator_get_quadrature_degree = this%fe_space%fe_quadratures_degree(this%get_lid())
+  end if
+  if ( .not. allocated(this%fe_space%fe_quadratures_degree) .or. &
+       fe_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
      fe_iterator_get_quadrature_degree = this%get_default_quadrature_degree()
   end if
 end function fe_iterator_get_quadrature_degree
@@ -578,7 +581,10 @@ subroutine fe_iterator_set_quadrature_degree ( this, quadrature_degree )
   class(fe_iterator_t), intent(inout) :: this
   integer(ip)         , intent(in)    :: quadrature_degree
   assert ( quadrature_degree >= 0 )
-  assert ( allocated ( this%fe_space%fe_quadratures_degree) )
+  if ( .not. allocated ( this%fe_space%fe_quadratures_degree) ) then
+     call this%fe_space%allocate_fe_quadratures_degree()
+     call this%fe_space%clear_fe_quadratures_degree()
+  end if
   this%fe_space%fe_quadratures_degree(this%get_lid()) = quadrature_degree
 end subroutine fe_iterator_set_quadrature_degree
 

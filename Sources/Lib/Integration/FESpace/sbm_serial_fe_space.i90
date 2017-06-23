@@ -48,13 +48,9 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
   
-  call this%allocate_fe_quadratures_degree()
-  call this%clear_fe_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe()
   call this%compute_max_order_reference_fe_id_per_fe()
   
-  call this%allocate_fe_face_quadratures_degree()
-  call this%clear_fe_face_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe_face()
   call this%compute_max_order_reference_fe_id_per_fe_face()
   
@@ -90,13 +86,9 @@ subroutine serial_fe_space_create_different_between_cells( this,                
   call this%allocate_and_init_ptr_lst_dofs()
   call this%allocate_and_init_at_strong_dirichlet_bound()
   
-  call this%allocate_fe_quadratures_degree()
-  call this%clear_fe_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe()
   call this%compute_max_order_reference_fe_id_per_fe()
   
-  call this%allocate_fe_face_quadratures_degree()
-  call this%clear_fe_face_quadratures_degree()
   call this%allocate_max_order_reference_fe_id_per_fe_face()
   call this%compute_max_order_reference_fe_id_per_fe_face()
   
