@@ -86,6 +86,8 @@ module test_poisson_driver_names
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
+     procedure        , private :: setup_fe_quadratures_degree
+     procedure        , private :: setup_fe_face_quadratures_degree
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
@@ -343,12 +345,41 @@ contains
       end if
     end if
     call this%fe_space%initialize_fe_integration()
+    if ( this%test_params%get_fe_formulation() == 'dG' ) then
+      call this%fe_space%initialize_fe_face_integration()
+    end if
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
     else
       call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_conditions)
     end if
   end subroutine setup_fe_space
+  
+  subroutine setup_fe_quadratures_degree (this)
+    implicit none
+    class(test_poisson_driver_t), intent(inout) :: this
+    class(fe_iterator_t), allocatable :: fe
+    call this%fe_space%create_fe_iterator(fe)
+    ! Set first FE is enough for testing. Leaving loop as snippet for user-customization
+    do while ( .not. fe%has_finished() )
+       call fe%set_quadrature_degree(fe%get_default_quadrature_degree())
+       call fe%next()
+    end do
+    call this%fe_space%free_fe_iterator(fe)
+  end subroutine setup_fe_quadratures_degree
+  
+  subroutine setup_fe_face_quadratures_degree (this)
+    implicit none
+    class(test_poisson_driver_t), intent(inout) :: this
+    type(fe_face_iterator_t) :: fe_face
+    call this%fe_space%create_fe_face_iterator(fe_face)
+    ! Set first FE face is enough for testing. Leaving loop as snippet for user-customization
+    do while ( .not. fe_face%has_finished() )
+       call fe_face%set_quadrature_degree(fe_face%get_default_quadrature_degree())
+       call fe_face%next()
+    end do
+    call this%fe_space%free_fe_vef_iterator(fe_face)
+  end subroutine setup_fe_face_quadratures_degree
   
   subroutine setup_system (this)
     implicit none
@@ -598,6 +629,10 @@ contains
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
+    call this%setup_fe_quadratures_degree()
+    if ( this%test_params%get_fe_formulation() == 'dG' ) then
+      call this%setup_fe_face_quadratures_degree()
+    end if
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
