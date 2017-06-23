@@ -847,8 +847,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
 
      ! Update face_map on current face
      local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
-     call face_map%update_face_map(number_cell_dimensions = d_fe_geo%number_dimensions, &
-                                   reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+     call face_map%update_face_map(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
                                    quadrature             = d_1_quadrature ) 
      
      call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &

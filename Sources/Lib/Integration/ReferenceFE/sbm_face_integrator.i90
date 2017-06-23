@@ -136,7 +136,6 @@ subroutine face_map_update(this,face_lid,face_quadrature,left_reference_fe_geo)
   integer(ip)          , intent(in)    :: face_lid(2)
   type(quadrature_t), intent(in)    :: face_quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
-  integer(ip)             :: number_cell_dimensions
   real   (rp)             :: reorientation_factor
 
   ! Update fe_maps
@@ -147,10 +146,9 @@ subroutine face_map_update(this,face_lid,face_quadrature,left_reference_fe_geo)
   end if
   
   ! Compute normals reorientation factors from |J|'s original sign and face orientation
-  number_cell_dimensions = left_reference_fe_geo%number_dimensions
   reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(face_lid(1),this%fe_maps(1)%fe_map(face_lid(1)))
   ! Update face_map
-  call this%face_map%update_face_map(number_cell_dimensions,reorientation_factor,face_quadrature)
+  call this%face_map%update_face_map(reorientation_factor,face_quadrature)
 end subroutine face_map_update
 
 !==================================================================================================
