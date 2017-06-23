@@ -98,11 +98,7 @@ subroutine serial_fe_space_free (this)
   call this%strong_dirichlet_values%free()
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
-  call this%free_fe_quadratures_degree()
   call this%free_fe_face_integration()
-  call this%free_fe_face_quadratures_degree()
-  call this%free_max_order_reference_fe_id_per_fe()
-  call this%free_max_order_reference_fe_id_per_fe_face()
   nullify(this%block_layout)
 end subroutine serial_fe_space_free
 
@@ -1376,6 +1372,10 @@ subroutine serial_fe_space_free_fe_integration ( this )
      deallocate(this%fe_cell_integrators, stat=istat)
      check(istat==0)
   end if
+  
+  call this%free_fe_quadratures_degree()
+  call this%free_max_order_reference_fe_id_per_fe()
+  
 end subroutine serial_fe_space_free_fe_integration
 
 
@@ -1662,6 +1662,10 @@ subroutine serial_fe_space_free_fe_face_integration ( this )
      deallocate(this%fe_face_integrators, stat=istat)
      check(istat==0)
   end if
+  
+  call this%free_fe_face_quadratures_degree()
+  call this%free_max_order_reference_fe_id_per_fe_face()
+  
 end subroutine serial_fe_space_free_fe_face_integration
 
 ! Provided the identifiers of the reference_fes_geo corresponding 
