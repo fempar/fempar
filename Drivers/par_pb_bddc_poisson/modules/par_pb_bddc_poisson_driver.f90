@@ -162,7 +162,8 @@ contains
              grav_center = (1.0_rp/cell%get_num_nodes())*grav_center
              cells_set( cell%get_lid() ) = cell_set_id( grav_center, &
                   this%triangulation%get_num_dimensions(), &
-                  this%test_params%get_jump(), this%test_params%get_inclusion() )
+                  this%test_params%get_jump(), this%test_params%get_inclusion(), &
+                  this%test_params%get_nchannel_per_direction())
           end if
           call cell%next()
        end do
@@ -173,12 +174,13 @@ contains
     
   end subroutine setup_cell_set_ids
 
-  function cell_set_id( coord, num_dimensions, jump, inclusion )
+  function cell_set_id( coord, num_dimensions, jump, inclusion, nchannel_per_direction)
     implicit none
     type(point_t), intent(in)  :: coord
     integer(ip)  , intent(in)  :: num_dimensions
     integer(ip)  , intent(in)  :: jump
     integer(ip)  , intent(in)  :: inclusion
+    integer(ip)  , intent(in)  :: nchannel_per_direction
     type(point_t) :: origin, opposite
     integer(ip) :: cell_set_id
     integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
@@ -263,14 +265,13 @@ contains
        p2_b = [6.0_rp/32.0_rp, 14.0_rp/32.0_rp, 22.0_rp/32.0_rp, 30.0_rp/32.0_rp] ! upper y value
 
        ! defining positions of the channels
-       nchannel_in_each_direction = 8 
-       !call memalloc(nchannel_in_each_direction, p1_c, __FILE__, __LINE__)
-       !call memalloc(nchannel_in_each_direction, p2_c, __FILE__, __LINE__)
-       box_width = 1.0_rp/nchannel_in_each_direction
-       half_channel_width = box_width/8
+       !call memalloc(nchannel_per_direction, p1_c, __FILE__, __LINE__)
+       !call memalloc(nchannel_per_direction, p2_c, __FILE__, __LINE__)
+       box_width = 1.0_rp/nchannel_per_direction
+       half_channel_width = box_width/16
        center = box_width/2
        eps = 1e-14_rp
-       do j=1, nchannel_in_each_direction
+       do j=1, nchannel_per_direction
           p1_c(j)=center - half_channel_width - eps
           p2_c(j)=center + half_channel_width + eps 
           center = center + box_width
@@ -278,8 +279,8 @@ contains
 
        nchannel = 1
        ! x edges
-       do j = 1, nchannel_in_each_direction
-          do k = 1,nchannel_in_each_direction
+       do j = 1, nchannel_per_direction
+          do k = 1,nchannel_per_direction
              call origin%set(1,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(3,p1_c(k));
              call opposite%set(1,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(3,p2_c(k));
              nchannel = nchannel + 1
@@ -287,8 +288,8 @@ contains
           end do
        end do
        ! y edges
-       do j = 1, nchannel_in_each_direction
-          do k = 1,nchannel_in_each_direction
+       do j = 1, nchannel_per_direction
+          do k = 1,nchannel_per_direction
              call origin%set(2,0.0_rp)  ; call origin%set(1, p1_c(j)) ; call origin%set(3,p1_c(k));
              call opposite%set(2,1.0_rp); call opposite%set(1,p2_c(j)); call opposite%set(3,p2_c(k));
              nchannel = nchannel + 1
@@ -296,8 +297,8 @@ contains
           end do
        end do
        ! z edges
-       do j = 1, nchannel_in_each_direction
-          do k = 1,nchannel_in_each_direction
+       do j = 1, nchannel_per_direction
+          do k = 1,nchannel_per_direction
              call origin%set(3,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(1,p1_c(k));
              call opposite%set(3,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(1,p2_c(k));
              nchannel = nchannel + 1
