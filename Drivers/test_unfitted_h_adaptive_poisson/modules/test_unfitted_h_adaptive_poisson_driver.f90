@@ -220,7 +220,8 @@ contains
     real(rp), parameter :: Ri = 0.15625
     real(rp) :: R
     integer(ip), parameter :: max_num_cell_nodes = 4
-    integer(ip), parameter :: max_level = 4
+    integer(ip), parameter :: max_level = 5
+    real(rp) :: val
 
     call this%triangulation%create_cell_iterator(cell)
     allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
@@ -232,17 +233,24 @@ contains
       !end if
 
       call cell%get_coordinates(coords)
-      x = 0.0
-      y = 0.0
-      do k=1,max_num_cell_nodes
-       x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
-       y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
+      do k=1,cell%get_num_nodes()
+        call this%level_set_function%get_value_space(coords(k),val)
+        if ( (val<0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0)) then
+          call cell%set_for_refinement()
+          exit
+        end if
       end do
-      R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
-     
-      if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
-        call cell%set_for_refinement()
-      end if
+
+      !x = 0.0
+      !y = 0.0
+      !do k=1,max_num_cell_nodes
+      ! x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
+      ! y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
+      !end do
+      !R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
+      !if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
+      !  call cell%set_for_refinement()
+      !end if
       
       !if ( (cell%get_level()<= max_level) .or. (cell%get_level() == 0) ) then
       !  call cell%set_for_refinement()
@@ -263,10 +271,10 @@ contains
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
     class(cell_iterator_t)      , allocatable :: cell
     call this%triangulation%create_cell_iterator(cell)
-    do while ( .not. cell%has_finished() )
-      call cell%set_for_coarsening()
-      call cell%next()
-    end do
+    !do while ( .not. cell%has_finished() )
+    !  call cell%set_for_coarsening()
+    !  call cell%next()
+    !end do
     call this%triangulation%free_cell_iterator(cell)
   end subroutine set_cells_for_coarsening
   
