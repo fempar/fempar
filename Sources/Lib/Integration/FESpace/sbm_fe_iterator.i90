@@ -740,7 +740,7 @@ subroutine fe_iterator_first_local_non_void(this,field_id)
  integer(ip),          intent(in)    :: field_id
  class(base_static_triangulation_t), pointer :: base_static_triangulation
  ! Find the first local elem non void in this field
- ! If all the elems are void, then return the last local elem
+ ! If all local elems are void, then position the iterator at the end ( this%has_finished() == .true. )
  call this%first()
  do while( .not. this%has_finished())
    if (this%is_local()) then
@@ -748,7 +748,5 @@ subroutine fe_iterator_first_local_non_void(this,field_id)
    end if
    call this%next()
  end do
- base_static_triangulation => this%fe_space%get_triangulation()
- if (this%has_finished()) call this%set_lid(base_static_triangulation%get_num_local_cells())
 end subroutine fe_iterator_first_local_non_void
 

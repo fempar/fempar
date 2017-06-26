@@ -352,6 +352,7 @@ subroutine uim_init_cut_integration( this )
 
     ! Find the fist non void ref FE in the field
     call fe%first_local_non_void(ifield)
+    if (fe%has_finished()) call fe%first()
     reference_elem => fe%get_reference_fe(field_id=ifield)
 
     do mc_case = 1, mc_num_cases
@@ -368,7 +369,7 @@ subroutine uim_init_cut_integration( this )
 
     ! Find the fist non void ref FE in the field
     call fe%first_local_non_void(ifield)
-
+    if (fe%has_finished()) call fe%first()
     reference_elem => fe%get_reference_fe(field_id=ifield)
     call this%empty_cell_integrator(ifield)%create( this%empty_quadrature, reference_elem )
   end do
@@ -502,6 +503,7 @@ subroutine uim_init_cut_boundary_integration( this )
 
     ! Find the fist non void ref FE in the field
     call fe%first_local_non_void(ifield)
+    if (fe%has_finished()) call fe%first()
     reference_elem => fe%get_reference_fe(field_id=ifield)
 
     do mc_case = 1, mc_num_cases
