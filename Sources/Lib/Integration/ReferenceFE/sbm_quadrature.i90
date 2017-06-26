@@ -77,6 +77,20 @@ function quadrature_get_coordinates ( this )
   quadrature_get_coordinates => this%coordinates
 end function quadrature_get_coordinates
 
+subroutine quadrature_get_coordinates_as_points ( this, points )
+  implicit none
+  class(quadrature_t), intent(in)    :: this
+  type(point_t), intent(inout) :: points(:)
+  integer(ip) :: ipo, idi
+  assert( size(points) == this%number_quadrature_points )
+  do ipo = 1, this%number_quadrature_points
+    call points(ipo)%init(0.0_rp)
+    do idi = 1, this%number_dimensions
+     call points(ipo)%set( idi, this%coordinates(idi,ipo) )
+    end do
+  end do  
+end subroutine quadrature_get_coordinates_as_points
+
 function quadrature_get_weight ( this, i )
   implicit none
   class(quadrature_t), intent(in) :: this
@@ -84,6 +98,13 @@ function quadrature_get_weight ( this, i )
   real(rp) :: quadrature_get_weight
   quadrature_get_weight = this%weight(i)
 end function quadrature_get_weight
+
+function quadrature_get_weights ( this )
+  implicit none
+  class(quadrature_t), target, intent(in) :: this
+  real(rp), pointer :: quadrature_get_weights(:)
+  quadrature_get_weights => this%weight
+end function quadrature_get_weights
 
 ! function quadrature_get_pointer_coordinates ( this )
 !   implicit none

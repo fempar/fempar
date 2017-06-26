@@ -1,0 +1,1065 @@
+ ! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!========================================================================================
+subroutine mc_dummy_coarse_fe_handler_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
+  implicit none
+  class(mc_dummy_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                        , intent(in)    :: field_id
+  type(par_fe_space_t)               , intent(in)    :: par_fe_space
+  type(parameterlist_t)              , intent(in)    :: parameter_list
+  integer(ip)                        , intent(inout) :: num_coarse_dofs(:)
+  mcheck(.false.,'This function should never have been called!')
+end subroutine mc_dummy_coarse_fe_handler_get_num_coarse_dofs
+
+!========================================================================================
+subroutine mc_dummy_coarse_fe_handler_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+  implicit none
+  class(mc_dummy_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                        , intent(in)    :: field_id
+  type(par_fe_space_t)               , intent(in)    :: par_fe_space
+  type(parameterlist_t)              , intent(in)    :: parameter_list
+  type(coo_sparse_matrix_t)          , intent(inout) :: constraint_matrix
+  mcheck(.false.,'This function should never have been called!')
+end subroutine mc_dummy_coarse_fe_handler_setup_constraint_matrix
+
+!========================================================================================
+subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
+  implicit none
+  class(mc_dummy_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                        , intent(in)    :: field_id
+  type(par_fe_space_t)               , intent(in)    :: par_fe_space
+  type(parameterlist_t)              , intent(in)    :: parameter_list
+  real(rp), allocatable              , intent(inout) :: weighting_operator(:)
+  mcheck(.false.,'This function should never have been called!')
+end subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator
+
+!========================================================================================
+function mc_dummy_conditions_get_number_components(this)
+  implicit none
+  class(mc_dummy_conditions_t), intent(in) :: this
+  integer(ip) :: mc_dummy_conditions_get_number_components
+  mc_dummy_conditions_get_number_components = 1
+end function mc_dummy_conditions_get_number_components
+
+!========================================================================================
+subroutine mc_dummy_conditions_get_components_code(this, boundary_id, components_code)
+  implicit none
+  class(mc_dummy_conditions_t), intent(in)  :: this
+  integer(ip)                 , intent(in)  :: boundary_id
+  logical                     , intent(out) :: components_code(:)
+  assert ( size(components_code) == 1 )
+  components_code(1) = .false.
+end subroutine mc_dummy_conditions_get_components_code
+
+!========================================================================================
+subroutine mc_dummy_conditions_get_function ( this, boundary_id, component_id, function )
+  implicit none
+  class(mc_dummy_conditions_t), target,  intent(in)  :: this
+  integer(ip),                           intent(in)  :: boundary_id
+  integer(ip),                           intent(in)  :: component_id
+  class(scalar_function_t),     pointer, intent(out) :: function
+  mcheck(.false.,'This procedure should have never been called!')
+end subroutine mc_dummy_conditions_get_function
+
+!========================================================================================
+subroutine marching_cubes_create(this, triangulation, level_set_function)
+  implicit none
+  class(marching_cubes_t),            target,  intent(inout)  :: this
+  class(base_static_triangulation_t), target,  intent(in)     :: triangulation
+  class(level_set_function_t),        target,  intent(in)     :: level_set_function
+  type(environment_t), pointer           :: par_environment
+  call this%free()
+  par_environment => triangulation%get_par_environment()
+  this%triangulation => triangulation
+  if ( par_environment%am_i_l1_task() ) then
+    assert(this%fulfills_assumptions())
+    this%level_set_function => level_set_function
+    call this%mc_tables_create()
+    call this%discrete_levelset_create()
+    call this%mc_runtime_info_create()
+    call this%subnodes_data_create()
+  end if
+end subroutine marching_cubes_create
+
+!========================================================================================
+subroutine marching_cubes_free(this)
+  implicit none
+  class(marching_cubes_t), target, intent(inout) :: this
+  call this%mc_tables_free()
+  call this%discrete_levelset_free()
+  call this%mc_runtime_info_free()
+  call this%subnodes_data_free()
+  this%triangulation => null()
+  this%level_set_function => null()
+end subroutine marching_cubes_free
+
+!========================================================================================
+subroutine marching_cubes_create_cell_iterator ( this, cell )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t), allocatable, intent(inout) :: cell
+  integer(ip) :: istat
+  allocate(unfitted_cell_iterator_t :: cell, stat=istat); check(istat==0)
+  select type(cell)
+  class is (unfitted_cell_iterator_t)
+    call this%create_unfitted_cell_iterator(cell)
+  class default
+    check(.false.)
+  end select
+end subroutine marching_cubes_create_cell_iterator
+
+!========================================================================================
+subroutine marching_cubes_create_unfitted_cell_iterator ( this, cell )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  type(unfitted_cell_iterator_t),  intent(inout) :: cell
+  call this%free_unfitted_cell_iterator(cell)
+  call cell%create(this%triangulation)
+end subroutine marching_cubes_create_unfitted_cell_iterator
+
+!========================================================================================
+subroutine marching_cubes_free_unfitted_cell_iterator ( this, cell )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  type(unfitted_cell_iterator_t),  intent(inout) :: cell
+  call cell%free()
+end subroutine marching_cubes_free_unfitted_cell_iterator
+
+!========================================================================================
+function marching_cubes_get_num_cut_cells( this ) result ( num_cut_cells )
+
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+
+  integer(ip) :: num_cut_cells
+  type(unfitted_cell_iterator_t) :: cell
+
+  num_cut_cells = 0_ip
+  call this%create_unfitted_cell_iterator(cell)
+  do while ( .not. cell%has_finished() )
+    if ( cell%is_cut() ) then
+      num_cut_cells = num_cut_cells + 1_ip
+    end if
+    call cell%next()
+  end do
+  call this%free_unfitted_cell_iterator(cell)
+
+end function marching_cubes_get_num_cut_cells
+
+!========================================================================================
+function marching_cubes_get_num_interior_cells( this ) result ( num_interior_cells )
+
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: num_interior_cells
+
+  type(unfitted_cell_iterator_t)  :: cell
+
+  num_interior_cells = 0_ip
+  call this%create_unfitted_cell_iterator(cell)
+  do while ( .not. cell%has_finished() )
+    if ( cell%is_interior() ) then
+      num_interior_cells = num_interior_cells + 1_ip
+    end if
+    call cell%next()
+  end do
+  call this%free_unfitted_cell_iterator(cell)
+
+end function marching_cubes_get_num_interior_cells
+
+!========================================================================================
+function marching_cubes_get_num_exterior_cells( this ) result ( num_exterior_cells )
+
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: num_exterior_cells
+
+  type(unfitted_cell_iterator_t)  :: cell
+
+  num_exterior_cells = 0_ip
+  call this%create_unfitted_cell_iterator(cell)
+  do while ( .not. cell%has_finished() )
+    if ( cell%is_exterior() ) then
+      num_exterior_cells = num_exterior_cells + 1_ip
+    end if
+    call cell%next()
+  end do
+  call this%free_unfitted_cell_iterator(cell)
+
+end function marching_cubes_get_num_exterior_cells
+
+!========================================================================================
+function marching_cubes_get_max_num_subcells_in_cell( this ) result ( max_subcells_in_cell )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: max_subcells_in_cell
+  max_subcells_in_cell = this%mc_table_max_num_subcells
+end function marching_cubes_get_max_num_subcells_in_cell
+
+!========================================================================================
+function marching_cubes_get_max_num_nodes_in_subcell( this ) result ( max_nodes_in_subcell )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: max_nodes_in_subcell
+  max_nodes_in_subcell = this%mc_table_num_nodes_subcell
+end function marching_cubes_get_max_num_nodes_in_subcell
+
+!========================================================================================
+function marching_cubes_get_total_num_of_subcells( this ) result ( total_num )
+
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: total_num
+
+  type(unfitted_cell_iterator_t)  :: cell
+
+  total_num = 0_ip
+  call this%create_unfitted_cell_iterator(cell)
+  do while ( .not. cell%has_finished() )
+    if (cell%is_ghost()) then
+      call cell%next(); cycle
+    end if
+    call cell%update_sub_triangulation()
+    total_num = total_num + cell%get_number_of_subcells()
+    call cell%next()
+  end do
+  call this%free_unfitted_cell_iterator(cell)
+
+end function marching_cubes_get_total_num_of_subcells
+
+!========================================================================================
+function marching_cubes_get_max_num_subfaces_in_cell( this ) result ( max_subfaces_in_cell )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: max_subfaces_in_cell
+  max_subfaces_in_cell = this%mc_table_max_num_subfaces
+end function marching_cubes_get_max_num_subfaces_in_cell
+
+!========================================================================================
+function marching_cubes_get_max_num_nodes_in_subface( this ) result ( max_nodes_in_subface)
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: max_nodes_in_subface
+  max_nodes_in_subface = this%mc_table_num_nodes_subface
+end function marching_cubes_get_max_num_nodes_in_subface
+
+!========================================================================================
+function marching_cubes_get_total_num_of_subfaces( this ) result ( total_num )
+
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: total_num
+
+  type(unfitted_cell_iterator_t)  :: cell
+
+  total_num = 0_ip
+  call this%create_unfitted_cell_iterator(cell)
+  do while ( .not. cell%has_finished() )
+    call cell%update_sub_triangulation()
+    total_num = total_num + cell%get_number_of_subfaces()
+    call cell%next()
+  end do
+  call this%free_unfitted_cell_iterator(cell)
+
+end function marching_cubes_get_total_num_of_subfaces
+
+!========================================================================================
+function marching_cubes_get_max_num_subnodes_in_cell( this ) result ( max_subnodes_in_cell )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: max_subnodes_in_cell
+  max_subnodes_in_cell = this%triangulation%get_max_number_shape_functions() + this%mc_table_max_num_cut_edges
+end function marching_cubes_get_max_num_subnodes_in_cell
+
+!========================================================================================
+function marching_cubes_get_num_dimensions(this) result (val)
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%triangulation%get_num_dimensions()
+end function marching_cubes_get_num_dimensions
+
+!========================================================================================
+function marching_cubes_get_num_mc_cases(this) result (mc_cases)
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: mc_cases
+  mc_cases = this%mc_table_num_cases
+end function marching_cubes_get_num_mc_cases
+
+!========================================================================================
+function marching_cubes_get_num_subcells_mc_case(this,mc_case) result (num_subcells)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  integer(ip), intent(in) :: mc_case
+  integer(ip) :: num_subcells
+  num_subcells = this%mc_table_num_subcells_per_case(mc_case)
+end function marching_cubes_get_num_subcells_mc_case
+
+!========================================================================================
+function marching_cubes_get_num_subfaces_mc_case(this,mc_case) result (num_subfaces)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  integer(ip), intent(in) :: mc_case
+  integer(ip) :: num_subfaces
+  num_subfaces = this%mc_table_num_subfaces_per_case(mc_case)
+end function marching_cubes_get_num_subfaces_mc_case
+
+!========================================================================================
+subroutine marching_cubes_print ( this )
+
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+
+  type(unfitted_cell_iterator_t)  :: cell
+  type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords, subface_coords
+  integer(ip) :: inode, isubcell, isubface
+
+  ! Print basic info of triangulation
+  write(*,*) " "
+  write (*,'(a)') '**** print type(marching_cubes_t) [begin] ****'
+  write(*,*) " "
+  write (*,'(a,i10)') 'num_dimensions:           ', this%triangulation%get_num_dimensions()
+  write (*,'(a,i10)') 'num_cells:                ', this%triangulation%get_num_cells()
+  write (*,'(a,i10)') 'num_local_cells:          ', this%triangulation%get_num_local_cells()
+  write (*,'(a,i10)') 'num_ghost_cells:          ', this%triangulation%get_num_ghost_cells()
+  write (*,'(a,i10)') 'num_cut_cells:            ', this%get_num_cut_cells()
+  write (*,'(a,i10)') 'num_interior_cells:       ', this%get_num_interior_cells()
+  write (*,'(a,i10)') 'num_exterior_cells:       ', this%get_num_exterior_cells()
+  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%triangulation%get_max_number_shape_functions()
+  write (*,'(a,i10)') 'max_num_subcells_in_cell: ', this%get_max_num_subcells_in_cell()
+  write (*,'(a,i10)') 'max_num_nodes_in_subcell: ', this%get_max_num_nodes_in_subcell()
+  write (*,'(a,i10)') 'max_num_subfaces_in_cell: ', this%get_max_num_subfaces_in_cell()
+  write (*,'(a,i10)') 'max_num_nodes_in_subface: ', this%get_max_num_nodes_in_subface()
+  write (*,'(a,i10)') 'max_num_subnodes_in_cell: ', this%get_max_num_subnodes_in_cell()
+  write(*,*) " "
+
+  ! Print basic info of cells
+  call this%create_unfitted_cell_iterator(cell)
+  write(*,'(7a20)') 'id', 'is_cut', 'is_interior', 'is_exterior', 'num_nodes' , 'num_subcells', 'num_nodes_subcell'
+  do while ( .not. cell%has_finished() )
+    write(*,'(i20,3L20,3i20)') cell%get_lid(), cell%is_cut(), cell%is_interior(), cell%is_exterior(), &
+                               cell%get_num_nodes(), cell%get_number_of_subcells(), cell%get_number_of_subcell_nodes()
+    call cell%next()
+  end do
+  write(*,*) " "
+
+  call memalloc( this%triangulation%get_max_number_shape_functions(), cell_coords   , __FILE__, __LINE__ )
+  call memalloc( this%get_max_num_nodes_in_subcell()  , subcell_coords, __FILE__, __LINE__ )
+  call memalloc( this%get_max_num_nodes_in_subface()  , subface_coords, __FILE__, __LINE__ )
+
+  ! Print coordinates of cells and sub-cells
+  write(*,'(3a7,7a11)') 'id', 'scid', 'sfid', 'x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'etc.'
+  call cell%first()
+  do while ( .not. cell%has_finished() )
+    ! TODO where is the safe place to put this update?
+    call cell%update_sub_triangulation()
+    call cell%get_coordinates( cell_coords )
+    write (*,'(i7,2a7,20(2x,e9.2))'  ) cell%get_lid(), ' ', ' ',(cell_coords(inode)%get_value(),inode=1,cell%get_num_nodes())
+    do isubcell = 1, cell%get_number_of_subcells()
+      call cell%get_phys_coords_of_subcell(isubcell,subcell_coords)
+      write (*,'(a7,i7,a7,20(2x,e9.2))'  ) ' ', isubcell, ' ' ,(subcell_coords(inode)%get_value(),inode=1,cell%get_number_of_subcell_nodes())
+    end do
+    do isubface = 1, cell%get_number_of_subfaces()
+      call cell%get_phys_coords_of_subface(isubface,subface_coords)
+      write (*,'(2a7,i7,20(2x,e9.2))'  ) ' ', ' ' , isubface,(subface_coords(inode)%get_value(),inode=1,cell%get_number_of_subface_nodes())
+    end do
+    call cell%next()
+  end do
+
+  write(*,*) " "
+  write (*,'(a)') '**** print type(marching_cubes_t) [end] ****'
+  write(*,*) " "
+
+ call memfree( cell_coords   , __FILE__, __LINE__ )
+ call memfree( subcell_coords, __FILE__, __LINE__ )
+ call memfree( subface_coords, __FILE__, __LINE__ )
+  call this%free_unfitted_cell_iterator(cell)
+
+end subroutine marching_cubes_print
+
+! Private TBP
+
+!========================================================================================
+function marching_cubes_fulfills_assumptions(this) result (fulfills)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  logical :: fulfills
+
+  class(cell_iterator_t), allocatable  :: cell
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  character(:),                 allocatable :: topology
+  integer(ip)                               :: num_dim, num_dim_tmp, p_order
+
+  ! Hypothesis: All cells in the mesh are either bi-linear qua or tri-linear hex
+  fulfills = .true.
+  call this%triangulation%create_cell_iterator(cell)
+  num_dim  = this%triangulation%get_num_dimensions()
+  if ( (num_dim .ne. 2) .and. (num_dim .ne. 3) ) fulfills = .false.
+  do while ( .not. cell%has_finished() )
+    if (cell%is_local()) then
+      reference_fe_geo => cell%get_reference_fe_geo()
+      num_dim_tmp  = reference_fe_geo%get_number_dimensions()
+      if (num_dim .ne. num_dim_tmp) fulfills = .false.
+      p_order  = reference_fe_geo%get_order()
+      if (p_order .ne. 1_ip) fulfills = .false.
+      topology = reference_fe_geo%get_topology()
+      if (topology .ne. topology_hex) fulfills = .false.
+      if (.not. fulfills) exit
+    end if
+    call cell%next()
+  end do
+  call this%triangulation%free_cell_iterator(cell)
+
+end function marching_cubes_fulfills_assumptions
+
+!========================================================================================
+subroutine marching_cubes_mc_tables_create(this)
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+
+  integer(ip) :: num_dim
+
+  ! To be safe
+  call this%mc_tables_free()
+
+  ! Get element type, we assume hex-like topology
+  num_dim  = this%triangulation%get_num_dimensions()
+
+  ! Fill in the sizes of the tables
+  if (num_dim == 2_ip) then
+    this%mc_table_num_cases         = MC_QUA4_NUM_CASES
+    this%mc_table_max_num_subcells  = MC_QUA4_MAX_NUM_SUBCELLS
+    this%mc_table_max_num_subfaces  = MC_QUA4_MAX_NUM_SUBFACES
+    this%mc_table_max_num_cut_edges = MC_QUA4_MAX_NUM_CUT_EDGES
+    this%mc_table_num_nodes_subcell = MC_QUA4_NUM_NODES_PER_SUBCELL
+    this%mc_table_num_nodes_subface = MC_QUA4_NUM_NODES_PER_SUBFACE
+  else
+    this%mc_table_num_cases         = MC_HEX8_NUM_CASES
+    this%mc_table_max_num_subcells  = MC_HEX8_MAX_NUM_SUBCELLS
+    this%mc_table_max_num_subfaces  = MC_HEX8_MAX_NUM_SUBFACES
+    this%mc_table_max_num_cut_edges = MC_HEX8_MAX_NUM_CUT_EDGES
+    this%mc_table_num_nodes_subcell = MC_HEX8_NUM_NODES_PER_SUBCELL
+    this%mc_table_num_nodes_subface = MC_HEX8_NUM_NODES_PER_SUBFACE
+  end if
+
+  ! Now, we know the sizes and can allocate
+  call memalloc (this%mc_table_num_cases, &
+                 this%mc_table_num_subcells_per_case    , __FILE__, __LINE__ )
+
+  call memalloc (this%mc_table_num_cases, &
+                 this%mc_table_num_subfaces_per_case    , __FILE__, __LINE__ )
+
+  call memalloc (this%mc_table_num_cases, &
+                 this%mc_table_num_cut_edges_per_case   , __FILE__, __LINE__ )
+
+  call memalloc (this%mc_table_max_num_subcells, this%mc_table_num_cases, &
+                 this%mc_table_inout_subcells_per_case  , __FILE__, __LINE__ )
+
+  call memalloc (this%mc_table_num_nodes_subcell, this%mc_table_max_num_subcells, this%mc_table_num_cases, &
+                 this%mc_table_subcell_node_ids_per_case, __FILE__, __LINE__ )
+
+  call memalloc (this%mc_table_num_nodes_subface, this%mc_table_max_num_subfaces, this%mc_table_num_cases, &
+                 this%mc_table_subface_node_ids_per_case, __FILE__, __LINE__ )
+
+  ! Fill tables for the selected element type
+  if (num_dim == 2_ip) then
+    this%mc_table_num_subcells_per_case(:)      = MC_QUA4_NUM_SUBCELLS_PER_CASE(:)
+    this%mc_table_num_subfaces_per_case(:)      = MC_QUA4_NUM_SUBFACES_PER_CASE(:)
+    this%mc_table_num_cut_edges_per_case(:)     = MC_QUA4_NUM_CUT_EDGES_PER_CASE(:)
+    this%mc_table_inout_subcells_per_case(:,:)    = MC_QUA4_INOUT_SUBCELLS_PER_CASE(:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,:)  = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_subface_node_ids_per_case(:,:,:)  = MC_QUA4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+  else
+    this%mc_table_num_subcells_per_case(:)      = MC_HEX8_NUM_SUBCELLS_PER_CASE(:)
+    this%mc_table_num_subfaces_per_case(:)      = MC_HEX8_NUM_SUBFACES_PER_CASE(:)
+    this%mc_table_num_cut_edges_per_case(:)     = MC_HEX8_NUM_CUT_EDGES_PER_CASE(:)
+    !this%mc_table_inout_subcells_per_case(:,:)    = MC_HEX8_INOUT_SUBCELLS_PER_CASE(:,:)
+    !this%mc_table_subcell_node_ids_per_case(:,:,:)  = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+    !this%mc_table_subface_node_ids_per_case(:,:,:)  = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,1:9) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL1(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,10:18) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL2(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,19:27) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL3(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,28:36) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL4(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,37:45) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL5(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,46:54) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL6(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,55:63) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL7(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,64:72) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL8(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,73:81) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL9(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,82:90) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL10(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,91:99) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL11(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,100:108) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL12(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,109:117) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL13(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,118:126) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL14(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,127:135) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL15(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,136:144) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL16(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,145:153) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL17(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,154:162) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL18(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,163:171) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL19(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,172:180) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL20(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,181:189) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL21(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,190:198) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL22(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,199:207) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL23(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,208:216) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL24(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,217:225) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL25(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,226:234) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL26(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,235:243) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL27(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,244:252) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL28(:,:,:)
+    this%mc_table_subcell_node_ids_per_case(:,:,253:256) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL29(:,:,:)
+    this%mc_table_inout_subcells_per_case(:,1:36) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL1(:,:)
+    this%mc_table_inout_subcells_per_case(:,37:72) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL2(:,:)
+    this%mc_table_inout_subcells_per_case(:,73:108) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL3(:,:)
+    this%mc_table_inout_subcells_per_case(:,109:144) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL4(:,:)
+    this%mc_table_inout_subcells_per_case(:,145:180) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL5(:,:)
+    this%mc_table_inout_subcells_per_case(:,181:216) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL6(:,:)
+    this%mc_table_inout_subcells_per_case(:,217:252) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL7(:,:)
+    this%mc_table_inout_subcells_per_case(:,253:256) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL8(:,:)
+    this%mc_table_subface_node_ids_per_case(:,:,1:45) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL1(:,:,:)
+    this%mc_table_subface_node_ids_per_case(:,:,46:90) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL2(:,:,:)
+    this%mc_table_subface_node_ids_per_case(:,:,91:135) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL3(:,:,:)
+    this%mc_table_subface_node_ids_per_case(:,:,136:180) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL4(:,:,:)
+    this%mc_table_subface_node_ids_per_case(:,:,181:225) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL5(:,:,:)
+    this%mc_table_subface_node_ids_per_case(:,:,226:256) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL6(:,:,:)
+  endif
+
+  this%mc_tables_init = .true.
+
+end subroutine marching_cubes_mc_tables_create
+
+!========================================================================================
+subroutine marching_cubes_mc_tables_free(this)
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+
+  if (allocated (this%mc_table_num_subcells_per_case    )) call memfree (this%mc_table_num_subcells_per_case    , __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_subfaces_per_case    )) call memfree (this%mc_table_num_subfaces_per_case    , __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_cut_edges_per_case   )) call memfree (this%mc_table_num_cut_edges_per_case   , __FILE__, __LINE__)
+  if (allocated (this%mc_table_inout_subcells_per_case  )) call memfree (this%mc_table_inout_subcells_per_case  , __FILE__, __LINE__)
+  if (allocated (this%mc_table_subcell_node_ids_per_case)) call memfree (this%mc_table_subcell_node_ids_per_case, __FILE__, __LINE__)
+  if (allocated (this%mc_table_subface_node_ids_per_case)) call memfree (this%mc_table_subface_node_ids_per_case, __FILE__, __LINE__)
+
+  this%mc_tables_init = .false.
+
+end subroutine marching_cubes_mc_tables_free
+
+!========================================================================================
+subroutine marching_cubes_discrete_levelset_create(this)
+  implicit none
+  class(marching_cubes_t), target, intent(inout) :: this
+
+  class(base_static_triangulation_t), pointer :: triangulation
+  class(lagrangian_reference_fe_t),   pointer :: ref_fe_geo
+  class(serial_fe_space_t),           pointer :: fe_space
+  class(cell_iterator_t), allocatable :: cell
+  integer(ip) :: istat
+
+  ! Create the reference fe
+  call this%triangulation%create_cell_iterator(cell)
+  ref_fe_geo => cell%get_reference_fe_geo()
+  allocate(this%reference_fes(1),stat=istat); check(istat==0)
+  this%reference_fes(1) =  make_reference_fe ( topology = ref_fe_geo%get_topology(), &
+                                               fe_type = fe_type_lagrangian, &
+                                               number_dimensions = this%triangulation%get_num_dimensions(), &
+                                               order = ref_fe_geo%get_max_order(), &
+                                               field_type = field_type_scalar, &
+                                               conformity = .true., &
+                                               continuity = .true. )
+  call this%triangulation%free_cell_iterator(cell)
+
+  ! Create the fe space
+  triangulation => this%triangulation
+  select type(triangulation)
+  class is(serial_triangulation_t)
+
+     allocate(serial_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
+     call this%fe_space%create(triangulation     = this%triangulation, &
+                               conditions        = this%dummy_conditions, &
+                               reference_fes     = this%reference_fes )
+
+  class is(par_triangulation_t)
+
+     allocate(this%dummy_coarse_handlers(1),stat=istat); check(istat==0)
+     this%dummy_coarse_handlers(1)%p => this%dummy_coarse_handler
+
+     allocate(par_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
+     fe_space => this%fe_space
+     select type (fe_space)
+     class is (par_fe_space_t)
+       call fe_space%create(triangulation      = this%triangulation, &
+                            conditions         = this%dummy_conditions, &
+                            reference_fes      = this%reference_fes , &
+                            coarse_fe_handlers = this%dummy_coarse_handlers)
+     class default
+       check(.false.)
+     end select
+
+  class default
+    mcheck(.false.,'Wrong triangulation type')
+  end select
+
+  ! Fill the dof info
+  call this%block_layout%create(1)
+  call this%fe_space%fill_dof_info(this%block_layout)
+
+  ! Create the discrete levelset function
+  call this%fe_levelset%create(this%fe_space)
+  call this%fe_levelset%interpolate_function(this%fe_space,1,this%level_set_function)
+
+  ! Apply the tolerance
+  call this%discrete_levelset_fix()
+  fe_space => this%fe_space
+  select type (fe_space)
+  class is (par_fe_space_t)
+    call this%discrete_levelset_comm(fe_space)
+  end select
+
+end subroutine marching_cubes_discrete_levelset_create
+
+!========================================================================================
+subroutine marching_cubes_discrete_levelset_free(this)
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+  integer(ip) :: istat, i
+  call this%fe_levelset%free()
+  if (allocated(this%fe_space)) then
+    call this%fe_space%free()
+    deallocate(this%fe_space, stat=istat);check(istat==0)
+  end if
+  if ( allocated(this%reference_fes) ) then
+    do i=1, size(this%reference_fes)
+      call this%reference_fes(i)%free()
+    end do
+    deallocate(this%reference_fes, stat=istat); check(istat==0)
+  end if
+  if (allocated(this%dummy_coarse_handlers)) then
+    deallocate(this%dummy_coarse_handlers,stat=istat); check(istat==0)
+  end if
+  call this%block_layout%free()
+end subroutine marching_cubes_discrete_levelset_free
+
+!========================================================================================
+subroutine marching_cubes_discrete_levelset_fix(this)
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+
+  class(fe_iterator_t),   allocatable  :: fe
+  class(cell_iterator_t), allocatable  :: cell
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(point_t), allocatable :: Xe_ref(:)
+  real(rp), allocatable :: nodal_vals(:)
+  integer(ip), parameter :: edge_dim = 1
+  integer(ip) :: num_nodes
+  integer(ip) :: iedge, first_edge, last_edge, cell_node, edge_node
+  type(list_iterator_t) :: nodes_in_edge_iterator
+  integer(ip) :: istat
+  integer(ip), parameter :: num_nodes_in_edge = 2
+  integer(ip) :: nodes_in_edge(num_nodes_in_edge)
+  real(rp)    :: phi_edge(num_nodes_in_edge)
+  integer(ip) :: field_id
+  type(point_t) :: X_intersection
+  real(rp), parameter :: edge_length = 2
+  type(vector_field_t) :: DX
+  real(rp) :: tol
+
+
+  ! Recover the tolerance from the levelset
+  tol = this%level_set_function%get_tolerance()
+
+  ! The level set function only has one field (for the moment)
+  field_id = 1
+
+  ! Get the nodal coordinates in the reference element
+  call this%fe_space%create_fe_iterator(fe)
+  call this%triangulation%create_cell_iterator(cell)
+  reference_fe_geo => fe%get_reference_fe_geo()
+  num_nodes = cell%get_num_nodes()
+  allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
+  call cell%get_coordinates_ref_space( Xe_ref )
+  call this%triangulation%free_cell_iterator(cell)
+
+  ! Check that the length of the edge is ok
+  DX = Xe_ref(1) - Xe_ref(2)
+  if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+  massert(abs(DX%nrm2() - edge_length)<1.0e-13,'The lenght of the edge is not 2.0!')
+
+  call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
+
+  ! Allocate and fill the intersection points
+  call fe%first()
+  do while ( .not. fe%has_finished() )
+    if (fe%is_local()) then
+
+      ! Evaluate the levelset
+      call this%fe_levelset%gather_nodal_values(fe,field_id,nodal_vals)
+
+      ! Prepare Loop in cell edges
+      reference_fe_geo => fe%get_reference_fe_geo()
+      first_edge = reference_fe_geo%get_first_n_face_id_of_dimension(edge_dim)
+      last_edge  = first_edge + reference_fe_geo%get_number_n_faces_of_dimension(edge_dim) - 1
+
+      ! Loop in cell edges
+      do iedge = first_edge, last_edge
+
+        ! Loop in edge nodes
+        nodes_in_edge_iterator = reference_fe_geo%create_dofs_n_face_iterator(iedge)
+        do while (.not. nodes_in_edge_iterator%is_upper_bound())
+          edge_node = nodes_in_edge_iterator%get_distance_to_lower_bound()
+          cell_node = nodes_in_edge_iterator%get_current()
+
+          ! Store the levelset and nodes ids of the current edge
+          phi_edge(edge_node) = nodal_vals(cell_node)
+          nodes_in_edge(edge_node) = cell_node
+
+          call nodes_in_edge_iterator%next()
+        end do
+
+        ! Check if intersection point exists
+        if ( (phi_edge(1) >= 0 .and. phi_edge(2) < 0) .or. (phi_edge(2) >= 0 .and. phi_edge(1) < 0)   ) then
+
+          ! Compute the intersection points of the edge
+          X_intersection = Xe_ref(nodes_in_edge(1)) + &
+          (abs(phi_edge(1))/(abs(phi_edge(1))+abs(phi_edge(2))))*( Xe_ref(nodes_in_edge(2)) - Xe_ref(nodes_in_edge(1)) )
+
+          ! Compute the distance from the intersection point to each of the nodes endpoints
+          ! If one of the distances is smaller that the edge size times the tol, 
+          ! fix the levelset on the corresponding node
+
+          DX = Xe_ref(nodes_in_edge(1)) - X_intersection
+          if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+          if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(1)) = 0.0_rp
+
+          DX = Xe_ref(nodes_in_edge(2)) - X_intersection
+          if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+          if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(2)) = 0.0_rp
+
+        end if
+
+      end do
+
+      ! Fix the levelset
+      call this%fe_levelset%insert_nodal_values(fe,field_id,nodal_vals)
+
+    end if
+    call fe%next()
+  end do
+
+  deallocate( Xe_ref, stat=istat );  check(istat == 0)
+  call memfree(nodal_vals,__FILE__,__LINE__)
+  call this%fe_space%free_fe_iterator(fe)
+
+end subroutine marching_cubes_discrete_levelset_fix
+
+!========================================================================================
+subroutine marching_cubes_discrete_levelset_comm(this,par_fe_space)
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+  class(par_fe_space_t),   intent(in)    :: par_fe_space
+
+  type(par_scalar_array_t)             :: par_array
+  type(environment_t), pointer         :: p_env
+  type(dof_import_t),  pointer         :: dof_import
+  type(serial_scalar_array_t), pointer :: serial_array
+  real(rp), pointer                    :: touched(:)
+  class(vector_t), pointer             :: dof_values
+  real(rp), pointer                    :: raw_dof_values(:)
+  integer(ip)                          :: i
+  integer(ip)                          :: field_id, block_id
+  integer(ip), pointer                 :: field_to_block(:)
+
+  !1) Build an array containing 1 in the entries corresponding to dofs
+  ! where the discrete levelset is exactly 0 and 0 otherwise
+
+  !2) Communicate this array
+
+  !3) Set to 0 the dofs of the discrete levelset that are 0 at least in one subdomain
+
+  field_id = 1
+  assert(par_fe_space%get_number_fields() == 1)
+  field_to_block => par_fe_space%get_field_blocks()
+  block_id = field_to_block(field_id)
+  p_env => par_fe_space%get_environment()
+  dof_import => par_fe_space%get_block_dof_import(block_id)
+  call par_array%create_and_allocate(p_env, dof_import)
+  serial_array   => par_array%get_serial_scalar_array()
+  touched => serial_array%get_entries()
+
+  dof_values => this%fe_levelset%get_dof_values()
+  select type(dof_values)
+  class is (par_scalar_array_t)
+
+    serial_array => dof_values%get_serial_scalar_array()
+    raw_dof_values => serial_array%get_entries()
+    assert( size(touched) == size(raw_dof_values))
+
+    ! Mark the dofs of the levelset that are 0.0
+    touched(:) = 0.0_rp
+    do i=1,size(touched)
+      if (raw_dof_values(i)==0.0_rp) touched(i) = 1.0_rp
+    end do
+
+    ! Communicate the mark
+    call par_array%comm()
+
+    ! Set to 0.0 the dofs of the levelset that are marked in at least another subdomain
+    do i=1,size(touched)
+      if (touched(i)>=1.0_rp) raw_dof_values(i) = 0.0_rp
+    end do
+
+  class default
+    mcheck(.false.,'Error in downcasting vector_t to par_scalar_array_t')
+  end select
+
+  call par_array%free()
+
+end subroutine marching_cubes_discrete_levelset_comm
+
+!========================================================================================
+subroutine marching_cubes_mc_runtime_info_create(this)
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+
+  class(fe_iterator_t), allocatable  :: fe
+  class(cell_iterator_t), allocatable  :: cell
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(point_t), allocatable :: Xe_ref(:)
+  real(rp), allocatable :: nodal_vals(:)
+  integer(ip), parameter :: edge_dim = 1
+  integer(ip) :: inode, num_nodes
+  integer(ip) :: iedge, first_edge, last_edge, cell_node, edge_node
+  type(list_iterator_t) :: nodes_in_edge_iterator
+  integer(ip) :: num_cells, ipoin, num_int_points
+  integer(ip) :: icase, istat, num_nodes_outside
+  integer(ip), parameter :: num_nodes_in_edge = 2
+  integer(ip) :: nodes_in_edge(num_nodes_in_edge)
+  real(rp)    :: phi_node, phi_edge(num_nodes_in_edge)
+  integer(ip) :: field_id
+
+  ! To be safe
+  call this%mc_runtime_info_free()
+
+  ! The level set function only has one field (for the moment)
+  field_id = 1
+
+  ! Get the nodal coordinates in the reference element
+  call this%fe_space%create_fe_iterator(fe)
+  call this%triangulation%create_cell_iterator(cell)
+  reference_fe_geo => fe%get_reference_fe_geo()
+  num_nodes = cell%get_num_nodes()
+  allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
+  call cell%get_coordinates_ref_space( Xe_ref )
+  call this%triangulation%free_cell_iterator(cell)
+
+  ! Allocate and fill marching cube cases
+  num_cells = this%triangulation%get_num_local_cells()
+  call memalloc (num_cells, this%mc_case_per_cell, __FILE__, __LINE__ )
+  call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
+  do while ( .not. fe%has_finished() )
+    if (fe%is_local()) then
+      call this%fe_levelset%gather_nodal_values(fe,field_id,nodal_vals)
+      icase = 0_ip
+      num_nodes_outside = 0_ip
+      do inode = 1, num_nodes
+        phi_node = nodal_vals(inode)
+        if (phi_node < 0.0_rp) icase = ior( icase, 2_ip**(inode-1_ip) )
+        if (phi_node > 0.0_rp) num_nodes_outside = num_nodes_outside + 1
+      end do
+      if ( num_nodes_outside == 0_ip ) then
+        ! This is to avoid to set as cut an element that has negative and zero nodes 
+        ! (which is in fact a full interior element)
+        this%mc_case_per_cell(fe%get_lid()) = this%mc_table_num_cases
+      else
+        this%mc_case_per_cell(fe%get_lid()) = icase + 1
+      end if
+    end if
+    call fe%next()
+  end do
+
+  ! Allocate and fill the intersection points pointers
+  call memalloc (num_cells+1, this%mc_ptr_to_intersections, __FILE__, __LINE__ )
+  this%mc_ptr_to_intersections(1) = 1
+  call fe%first()
+  do while ( .not. fe%has_finished() )
+      if (fe%is_local()) then
+      this%mc_ptr_to_intersections(fe%get_lid() + 1) = this%mc_ptr_to_intersections(fe%get_lid()) &
+      + this%mc_table_num_cut_edges_per_case(this%mc_case_per_cell(fe%get_lid()))
+    end if
+    call fe%next()
+  end do
+
+  ! Allocate and fill the intersection points
+  num_int_points = this%mc_ptr_to_intersections(num_cells + 1) - this%mc_ptr_to_intersections(1)
+  allocate ( this%mc_intersection_points( num_int_points ), stat = istat )
+  check(istat == 0)
+  call fe%first()
+  ipoin = 1
+  do while ( .not. fe%has_finished() )
+    if (fe%is_local()) then
+
+      ! Only execute this loop for cut elements
+      if ( this%mc_case_per_cell(fe%get_lid())==1 .or. this%mc_case_per_cell(fe%get_lid())==this%mc_table_num_cases ) then
+        call fe%next()
+        cycle
+      end if
+
+      ! Evaluate the levelset
+      call this%fe_levelset%gather_nodal_values(fe,field_id,nodal_vals)
+
+      ! Prepare Loop in cell edges
+      reference_fe_geo => fe%get_reference_fe_geo()
+      first_edge = reference_fe_geo%get_first_n_face_id_of_dimension(edge_dim)
+      last_edge  = first_edge + reference_fe_geo%get_number_n_faces_of_dimension(edge_dim) - 1
+
+      ! Loop in cell edges
+      do iedge = first_edge, last_edge
+
+        ! Loop in edge nodes
+        nodes_in_edge_iterator = reference_fe_geo%create_dofs_n_face_iterator(iedge)
+        do while (.not. nodes_in_edge_iterator%is_upper_bound())
+          edge_node = nodes_in_edge_iterator%get_distance_to_lower_bound()
+          cell_node = nodes_in_edge_iterator%get_current()
+
+          ! Store the levelset and nodes ids of the current edge
+          phi_edge(edge_node) = nodal_vals(cell_node)
+          nodes_in_edge(edge_node) = cell_node
+
+          call nodes_in_edge_iterator%next()
+        end do
+
+        ! Compute the intersection points of the edge
+        if ( (phi_edge(1) >= 0 .and. phi_edge(2) < 0) .or. (phi_edge(2) >= 0 .and. phi_edge(1) < 0)   ) then
+          this%mc_intersection_points(ipoin) = Xe_ref(nodes_in_edge(1)) + &
+          (abs(phi_edge(1))/(abs(phi_edge(1))+abs(phi_edge(2))))*( Xe_ref(nodes_in_edge(2)) - Xe_ref(nodes_in_edge(1)) )
+          ipoin = ipoin + 1
+        end if
+
+      end do
+
+    end if
+    call fe%next()
+  end do
+
+  deallocate( Xe_ref, stat=istat );  check(istat == 0)
+  call memfree(nodal_vals,__FILE__,__LINE__)
+  call this%fe_space%free_fe_iterator(fe)
+  this%mc_runtime_init = .true.
+
+end subroutine marching_cubes_mc_runtime_info_create
+
+!========================================================================================
+subroutine marching_cubes_mc_runtime_info_free(this)
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+  integer(ip) :: istat, i
+  if (allocated (this%mc_case_per_cell       )) call memfree ( this%mc_case_per_cell        , __FILE__, __LINE__ )
+  if (allocated (this%mc_ptr_to_intersections)) call memfree ( this%mc_ptr_to_intersections , __FILE__, __LINE__ )
+  if (allocated (this%mc_intersection_points)) then
+    deallocate(this%mc_intersection_points, stat=istat); check(istat==0)
+  end if
+  this%mc_runtime_init = .false.
+end subroutine marching_cubes_mc_runtime_info_free
+
+!========================================================================================
+subroutine marching_cubes_subnodes_data_create( this )
+
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+
+  integer(ip) :: istat, icase
+  class(cell_iterator_t), allocatable  :: cell
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  integer(ip) :: n_subcells, n_subfaces, n_subnodes, n_nodes_subcell, n_nodes_subface  
+
+  assert(this%mc_tables_init)
+  assert(this%mc_runtime_init)
+
+  call this%subnodes_data_free()
+  
+  ! TODO we don't really need to allocate for all the mc cases
+  allocate( this%subnodes_nodal_quadratures(1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
+  allocate( this%subnodes_fe_maps          (1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
+
+  ! Initialize each one of the quadratures
+  call this%triangulation%create_cell_iterator(cell)
+  do icase=1, this%get_num_mc_cases()
+    n_subnodes =  this%mc_table_num_cut_edges_per_case(icase) + cell%get_num_nodes()
+    call this%subnodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dimensions(),n_subnodes)
+  end do
+
+  ! Initialize each one of the fe_maps
+  reference_fe_geo => cell%get_reference_fe_geo()
+  do icase=1, this%get_num_mc_cases()
+    call this%subnodes_fe_maps(icase)%create( this%subnodes_nodal_quadratures(icase), reference_fe_geo)
+  end do
+
+  !Allocate place holders for the sub-mesh
+  n_subcells      = this%get_max_num_subcells_in_cell()
+  n_subfaces      = this%get_max_num_subfaces_in_cell()
+  n_subnodes      = this%get_max_num_subnodes_in_cell()
+  n_nodes_subcell = this%get_max_num_nodes_in_subcell()
+  n_nodes_subface = this%get_max_num_nodes_in_subface()
+  call memalloc(n_nodes_subcell,n_subcells,this%subcells_nodal_connectivities,__FILE__,__LINE__)
+  call memalloc(n_nodes_subface,n_subfaces,this%subfaces_nodal_connectivities,__FILE__,__LINE__)
+  call memalloc(n_subcells,this%subcell_has_been_reoriented,__FILE__,__LINE__)
+  allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
+
+  call this%triangulation%free_cell_iterator(cell)
+end subroutine marching_cubes_subnodes_data_create
+
+!========================================================================================
+subroutine marching_cubes_subnodes_data_free( this )
+
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+  integer(ip) :: istat, i
+
+  if ( allocated(this%subnodes_ref_coords) ) then
+    deallocate( this%subnodes_ref_coords, stat=istat ); check( istat==0_ip )
+  end if
+
+  if ( allocated(this%subnodes_nodal_quadratures) ) then
+    do i=1,size(this%subnodes_nodal_quadratures)
+      call this%subnodes_nodal_quadratures(i)%free()
+    end do
+    deallocate( this%subnodes_nodal_quadratures, stat=istat ); check( istat==0_ip )
+  end if
+
+  if ( allocated(this%subnodes_fe_maps) ) then
+    do i=1,size(this%subnodes_fe_maps)
+      call this%subnodes_fe_maps(i)%free()
+    end do
+    deallocate( this%subnodes_fe_maps, stat=istat ); check( istat==0_ip )
+  end if
+
+  if(allocated(this%subcells_nodal_connectivities  )) call memfree(this%subcells_nodal_connectivities  ,__FILE__,__LINE__)
+  if(allocated(this%subfaces_nodal_connectivities  )) call memfree(this%subfaces_nodal_connectivities  ,__FILE__,__LINE__)
+  if(allocated(this%subcell_has_been_reoriented)) call memfree(this%subcell_has_been_reoriented,__FILE__,__LINE__)
+
+end subroutine marching_cubes_subnodes_data_free
+
+
