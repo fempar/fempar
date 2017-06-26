@@ -1848,7 +1848,7 @@ subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field( this, number_fields, p
      coarse_triangulation => triangulation%get_coarse_triangulation()
      num_local_cells = coarse_triangulation%get_num_local_cells()
      if (allocated(ptr_dofs_per_fe_and_field)) call memfree ( ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
-     call memalloc (num_local_cells*(number_fields+1), ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
+     call memalloc ((num_local_cells+1)*number_fields+1, ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
      call par_environment%l2_from_l1_gather( input_data_size = number_fields, &
                                              input_data      = [((0), i=1,number_fields)], &
                                              output_data     = ptr_dofs_per_fe_and_field(2:))
