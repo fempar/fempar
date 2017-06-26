@@ -240,13 +240,13 @@ contains
       end do
       R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
      
-      !if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
-      !  call cell%set_for_refinement()
-      !end if
-      
-      if ( (cell%get_level()<= max_level) .or. (cell%get_level() == 0) ) then
+      if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
         call cell%set_for_refinement()
       end if
+      
+      !if ( (cell%get_level()<= max_level) .or. (cell%get_level() == 0) ) then
+      !  call cell%set_for_refinement()
+      !end if
 
       !write(*,*) 'cid= ', cell%get_lid(), ' l= ', cell%get_level()
 
