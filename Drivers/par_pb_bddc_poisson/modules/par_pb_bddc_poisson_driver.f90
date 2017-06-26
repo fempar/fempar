@@ -320,9 +320,9 @@ contains
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
     call this%fe_space%create( triangulation       = this%triangulation, &
-                               conditions          = this%poisson_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handlers  = this%coarse_fe_handlers)
+                               coarse_fe_handlers  = this%coarse_fe_handlers, &
+                               conditions          = this%poisson_conditions )
 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration()
