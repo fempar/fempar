@@ -120,7 +120,6 @@ module unfitted_triangulations_names
 
     ! Auxiliary dummy things to create the fe space for the levelset
     type(p_reference_fe_t), allocatable :: reference_fes(:) 
-    type(mc_dummy_conditions_t)         :: dummy_conditions
     type(mc_dummy_coarse_fe_handler_t)  :: dummy_coarse_handler
     type(p_l1_coarse_fe_handler_t), allocatable  :: dummy_coarse_handlers(:)
 

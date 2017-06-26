@@ -599,8 +599,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
 
      allocate(serial_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
      call this%fe_space%create(triangulation     = this%triangulation, &
-                               reference_fes     = this%reference_fes, &
-                               conditions        = this%dummy_conditions )
+                               reference_fes     = this%reference_fes )
 
   class is(par_triangulation_t)
 
@@ -613,8 +612,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
      class is (par_fe_space_t)
        call fe_space%create(triangulation      = this%triangulation, &
                             reference_fes      = this%reference_fes, &
-                            coarse_fe_handlers = this%dummy_coarse_handlers, &
-                            conditions         = this%dummy_conditions )
+                            coarse_fe_handlers = this%dummy_coarse_handlers )
      class default
        check(.false.)
      end select
