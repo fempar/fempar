@@ -109,7 +109,7 @@ contains
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-	result = -y
+	result = 1.0_rp
 
   end subroutine boundary_function_Hx_get_value_space
 
@@ -121,7 +121,7 @@ contains
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-     result = x
+     result = 1.0_rp
 
   end subroutine boundary_function_Hy_get_value_space
 
@@ -148,9 +148,13 @@ contains
 	assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3)     
 	 call result%init(0.0_rp) 
-	 call result%set(1, -y ) 
-	 call result%set(2,  x ) 
-	 call result%set(3,  0.0_rp )
+	 !call result%set(1, -y ) 
+	 !call result%set(2,  x ) 
+	 !call result%set(3,  0.0_rp )
+	 
+	 	 call result%set(1, 1.0 ) 
+	 call result%set(2,  1.0 ) 
+	 call result%set(3,  0.0 )
 
   end subroutine source_term_get_value_space
 
@@ -165,9 +169,13 @@ contains
 	assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3) 
 	 call result%init(0.0_rp) 
-	 call result%set(1, -y ) 
-	 call result%set(2,  x ) 
-	 call result%set(3,  0.0_rp )
+	 !call result%set(1, -y ) 
+	 !call result%set(2,  x ) 
+	 !call result%set(3,  0.0_rp )
+	 
+	 call result%set(1, 1.0 ) 
+	 call result%set(2, 1.0 ) 
+	 call result%set(3, 0.0 )
 
   end subroutine solution_get_value_space
 

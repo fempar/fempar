@@ -424,6 +424,7 @@ end subroutine free_timers
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(in) :: this
     type(output_handler_t)                          :: oh
+	 if ( this%par_environment%am_i_l1_task() ) then
     if(this%test_params%get_write_solution()) then
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
@@ -432,7 +433,8 @@ end subroutine free_timers
         call oh%write()
         call oh%close()
         call oh%free()
-    endif
+    end if
+	end if 
   end subroutine write_solution
   
   subroutine run_simulation(this) 
@@ -465,6 +467,7 @@ end subroutine free_timers
 
     call this%check_solution()
     call this%write_solution()
+    
     call this%free()
   end subroutine run_simulation
   

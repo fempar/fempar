@@ -656,7 +656,7 @@ module fe_space_names
 	   integer(ip) , allocatable               :: number_fine_edges_per_coarse_edge(:) 
 	   integer(ip) , allocatable               :: perm_sorted_edges(:,:) 
 	   logical     , allocatable               :: follows_coarse_edge_orientation(:,:)
-	   type(hash_table_ip_ip_t)                :: coupled_vefs_added 
+	   type(hash_table_ip_ip_t), allocatable   :: coupled_vefs_added(:)
 	   type(hash_table_ip_ip_t), allocatable   :: coarse_edge_nodes_order(:)
        type(edge_change_basis_matrix_t)        :: change_basis_matrix 
 	   
