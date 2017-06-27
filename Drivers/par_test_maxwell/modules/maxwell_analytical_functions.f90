@@ -133,7 +133,7 @@ contains
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-    result = 1.0_rp
+    result = 0.0_rp
   end subroutine boundary_function_Hz_get_value_space
 
  !===============================================================================================
@@ -150,7 +150,7 @@ contains
 	 call result%init(0.0_rp) 
 	 call result%set(1, -y ) 
 	 call result%set(2,  x ) 
-	 call result%set(3,  1.0_rp )
+	 call result%set(3,  0.0_rp )
 
   end subroutine source_term_get_value_space
 
@@ -167,7 +167,7 @@ contains
 	 call result%init(0.0_rp) 
 	 call result%set(1, -y ) 
 	 call result%set(2,  x ) 
-	 call result%set(3,  1.0_rp )
+	 call result%set(3,  0.0_rp )
 
   end subroutine solution_get_value_space
 

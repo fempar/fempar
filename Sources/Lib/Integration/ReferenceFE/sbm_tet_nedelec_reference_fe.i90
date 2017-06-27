@@ -353,6 +353,40 @@ subroutine tet_nedelec_reference_fe_fill_quadrature( this, quadrature )
 
 end subroutine tet_nedelec_reference_fe_fill_quadrature 
 
+!==================================================================================================
+subroutine tet_nedelec_reference_fe_fill_own_node_permutations (this)
+  implicit none
+  class(tet_nedelec_reference_fe_t), intent(inout) :: this
+  integer(ip) :: idime
+  ! Create emtpy permutation table, we do not want to fill own node permutations for tets since 
+  ! meshes are ordered.
+  do idime=1,this%number_dimensions-1
+     this%own_node_permutations(idime)%nd1 = 0
+     this%own_node_permutations(idime)%nd2 = 0
+  end do  
+end subroutine tet_nedelec_reference_fe_fill_own_node_permutations
+
+!==================================================================================================
+subroutine tet_nedelec_reference_fe_fill_qpoints_permutations (this, ndime, qpoints_perm, max_order)
+  implicit none
+  class(tet_nedelec_reference_fe_t), intent(in)    :: this
+  integer(ip)                             , intent(in)    :: ndime
+  type(allocatable_array_ip2_t)           , intent(inout) :: qpoints_perm
+  integer(ip)                  , optional , intent(in)    :: max_order
+  integer(ip)    :: i, order
+  
+  if (present(max_order)) then
+     order = max_order
+  else
+     order = this%get_max_order()+2
+  end if
+  
+  call qpoints_perm%create((order+1)**ndime, &  !> Number of quadrature points
+          &                ndime*2**ndime)      !> Number of possible permutations x possible rotations
+  forall (i = 1:qpoints_perm%nd1) qpoints_perm%a(i,:) = i
+  
+end subroutine tet_nedelec_reference_fe_fill_qpoints_permutations
+
 ! =================================================================================================
 subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this ) 
   class(tet_nedelec_reference_fe_t),  intent(inout) :: this 

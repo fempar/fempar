@@ -1392,6 +1392,10 @@ procedure, private :: set_number_quadrature_points                       &
 & => tet_nedelec_reference_fe_set_number_quadrature_points
 procedure, private :: fill_quadrature                                    &
 & => tet_nedelec_reference_fe_fill_quadrature
+procedure          :: fill_own_node_permutations                         &
+&  => tet_nedelec_reference_fe_fill_own_node_permutations
+procedure          :: fill_qpoints_permutations                          &
+&  => tet_nedelec_reference_fe_fill_qpoints_permutations
 procedure, private :: create_and_fill_basis_Sk_indices                   & 
 & => tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices
 procedure, private :: fill_interpolation                                 &
