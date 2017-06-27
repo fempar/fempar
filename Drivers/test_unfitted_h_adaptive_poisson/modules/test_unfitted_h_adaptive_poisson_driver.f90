@@ -61,13 +61,12 @@ module test_unfitted_h_adaptive_poisson_driver_names
      
      ! Cells and lower dimension objects container
      type(unfitted_p4est_serial_triangulation_t) :: triangulation
-     integer(ip), allocatable                  :: cell_set_ids(:)
 
      ! Level set funciton describing the gemetry
      class(level_set_function_t), allocatable :: level_set_function
 
      ! Discrete weak problem integration-related data type instances 
-     type(serial_hp_adaptive_fe_space_t)          :: fe_space 
+     type(serial_unfitted_hp_adaptive_fe_space_t) :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      
      type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration
@@ -171,25 +170,10 @@ contains
     class(vef_iterator_t),allocatable :: vef
 
     class(cell_iterator_t), allocatable :: cell
-    integer(ip) :: set_id
+
 
     ! Create the triangulation, with the levelsetfunction
     call this%triangulation%create(this%parameter_list,this%level_set_function)
-
-    !! Set the cell ids
-    !call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-    !call this%triangulation%create_cell_iterator(cell)
-    !do while( .not. cell%has_finished() )
-    !  if (cell%is_exterior()) then
-    !    set_id = SERIAL_UNF_POISSON_SET_ID_VOID
-    !  else
-    !    set_id = SERIAL_UNF_POISSON_SET_ID_FULL
-    !  end if
-    !  this%cell_set_ids(cell%get_lid()) = set_id
-    !  call cell%next()
-    !end do
-    !call this%triangulation%fill_cells_set(this%cell_set_ids)
-    !call this%triangulation%free_cell_iterator(cell)
 
     ! Impose Dirichlet in the boundary of the background mesh
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
@@ -283,18 +267,34 @@ contains
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
     integer(ip), allocatable :: cell_set_ids(:)
     class(cell_iterator_t), allocatable :: cell
+    integer(ip) :: set_id
     
     call memalloc(this%triangulation%get_num_cells(),cell_set_ids)
     call this%triangulation%create_cell_iterator(cell)
     do while( .not. cell%has_finished() )
-      if (cell%is_local()) then
-         cell_set_ids(cell%get_lid()) = cell%get_lid()
+      if (cell%is_exterior()) then
+        set_id = SERIAL_UNF_POISSON_SET_ID_VOID
+      else
+        set_id = SERIAL_UNF_POISSON_SET_ID_FULL
       end if
+      cell_set_ids(cell%get_lid()) = set_id
       call cell%next()
     end do
-    call this%triangulation%free_cell_iterator(cell)
     call this%triangulation%fill_cells_set(cell_set_ids)
+    call this%triangulation%free_cell_iterator(cell)
     call memfree(cell_set_ids)
+    
+    !call memalloc(this%triangulation%get_num_cells(),cell_set_ids)
+    !call this%triangulation%create_cell_iterator(cell)
+    !do while( .not. cell%has_finished() )
+    !  if (cell%is_local()) then
+    !     cell_set_ids(cell%get_lid()) = cell%get_lid()
+    !  end if
+    !  call cell%next()
+    !end do
+    !call this%triangulation%free_cell_iterator(cell)
+    !call this%triangulation%fill_cells_set(cell_set_ids)
+    !call memfree(cell_set_ids)
     
   end subroutine fill_cells_set
   
@@ -310,7 +310,7 @@ contains
     integer(ip), pointer :: h_refinement_subface_permutation(:,:,:)
     integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
     
-    allocate(this%reference_fes(1), stat=istat)
+    allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
     
     field_type = field_type_scalar
@@ -320,14 +320,21 @@ contains
     
     call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
-    this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+    this%reference_fes(SERIAL_UNF_POISSON_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
+                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 order = this%test_params%get_reference_fe_order(), &
+                                                 field_type = field_type, &
+                                                 conformity = .true. )
+    this%reference_fes(SERIAL_UNF_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                 fe_type = fe_type_void, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
                                                  conformity = .true. )
     call this%triangulation%free_cell_iterator(cell)
     
+    ! TODO Needed?
     select type( reference_fe => this%reference_fes(1)%p )
     type is (hex_lagrangian_reference_fe_t)
        h_refinement_interpolation       => reference_fe%get_h_refinement_interpolation()
@@ -342,19 +349,27 @@ contains
   subroutine setup_fe_space(this)
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
+
+    integer(ip) :: set_ids_to_reference_fes(1,2)
+
+    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
+    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
     
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
       call this%fe_space%create( triangulation       = this%triangulation,      &
                                  conditions          = this%poisson_conditions, &
-                                 reference_fes       = this%reference_fes) 
+                                 reference_fes            = this%reference_fes,&
+                                 set_ids_to_reference_fes = set_ids_to_reference_fes)
     else
-      call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-      call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
-      call this%fe_space%create( triangulation       = this%triangulation,             &
-                                 conditions          = this%vector_poisson_conditions, &
-                                 reference_fes       = this%reference_fes)
+      mcheck(.false., 'Not yed tested for vector problems')
+      !call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      !call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
+      !call this%fe_space%create( triangulation       = this%triangulation,             &
+      !                           conditions          = this%vector_poisson_conditions, &
+      !                           reference_fes            = this%reference_fes,&
+      !                           set_ids_to_reference_fes = set_ids_to_reference_fes)
     end if
     
     call this%fe_space%initialize_fe_integration()    
@@ -379,7 +394,7 @@ contains
        else
          call this%set_cells_for_refinement()
        end if
-       call this%fill_cells_set()
+       !call this%fill_cells_set()
        call this%triangulation%refine_and_coarsen()
        
        if ( this%test_params%get_laplacian_type() == 'scalar' ) then
@@ -744,7 +759,20 @@ contains
     call this%parse_command_line_parameters()
     call this%setup_levelset()
     call this%setup_triangulation()
+    call this%fill_cells_set()
     call this%setup_reference_fes()
+    
+    ! It is conter intuitive that this is needed for adapting the mesh
+    call this%setup_fe_space()
+    call this%setup_system()
+    call this%assemble_system()
+    call this%solution%create(this%fe_space) 
+    
+    ! Adapt mesh
+    call this%refine_and_coarsen()
+    call this%fill_cells_set()
+    
+    ! Setup fe space and co for the new mesh 
     call this%setup_fe_space()
     call this%setup_system()
     call this%assemble_system()
@@ -756,7 +784,6 @@ contains
     !else
     !  call this%check_solution_vector()
     !end if
-    call this%refine_and_coarsen()
     call this%write_solution()
     !call this%write_filling_curve()
     call this%free()
@@ -786,7 +813,6 @@ contains
     end if
     call this%triangulation%free()
     call this%test_params%free()
-    if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free  
   
 
