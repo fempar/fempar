@@ -401,10 +401,10 @@ end subroutine free_timers
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_VOID) = PAR_POISSON_UNFITTED_SET_ID_VOID
     
     call this%fe_space%create( triangulation            = this%triangulation, &
-                               conditions               = this%poisson_unfitted_conditions, &
                                reference_fes            = this%reference_fes, &
                                set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                               coarse_fe_handlers       = this%l1_coarse_fe_handlers)
+                               coarse_fe_handlers       = this%l1_coarse_fe_handlers, &
+                               conditions               = this%poisson_unfitted_conditions )
     
     !call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()

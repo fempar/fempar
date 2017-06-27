@@ -25,46 +25,46 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this, &
+subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this,          &
                                                                        triangulation, &
-                                                                       conditions, &
-                                                                       reference_fes )
+                                                                       reference_fes, &
+                                                                       conditions )
                                                                       
   implicit none
-  class(par_fe_space_t)                     , intent(inout)  :: this
-  class(base_static_triangulation_t), target, intent(in)     :: triangulation
-  class(conditions_t)                       , intent(in)     :: conditions
-  type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
+  class(par_fe_space_t)                       , intent(inout)  :: this
+  class(base_static_triangulation_t), target  , intent(in)     :: triangulation
+  type(p_reference_fe_t)                      , intent(in)     :: reference_fes(:)
+  class(conditions_t)               , optional, intent(in)     :: conditions
   assert(.false.)
 end subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells
 
-subroutine par_fe_space_serial_create_different_between_cells( this, &
-     triangulation, &
-     conditions, &
-     reference_fes, &
-     set_ids_to_reference_fes )
+subroutine par_fe_space_serial_create_different_between_cells( this,                     &
+                                                               triangulation,            &
+                                                               reference_fes,            &
+                                                               set_ids_to_reference_fes, &
+                                                               conditions )
   implicit none
-  class(par_fe_space_t)                    , intent(inout) :: this
+  class(par_fe_space_t)                       , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
-  class(conditions_t)                         , intent(in)    :: conditions
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
+  class(conditions_t)               , optional, intent(in)    :: conditions
   check(.false.)
 end subroutine par_fe_space_serial_create_different_between_cells
 
-subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
-                                                                triangulation, &
-                                                                conditions, &
-                                                                reference_fes, &
+subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,               &
+                                                                triangulation,      &
+                                                                reference_fes,      &
                                                                 coarse_fe_handlers, &
-                                                                field_blocks, &
+                                                                conditions,         &
+                                                                field_blocks,       &
                                                                 field_coupling )
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(base_static_triangulation_t), target, intent(in)     :: triangulation
-  class(conditions_t)                       , intent(in)     :: conditions
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
+  class(conditions_t)             , optional, intent(in)     :: conditions
   integer(ip)                     , optional, intent(in)     :: field_blocks(:)
   logical                         , optional, intent(in)     :: field_coupling(:,:)
 
@@ -80,8 +80,8 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
   par_environment    => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%create( triangulation, &
-                                         conditions, &
-                                         reference_fes )
+                                         reference_fes, &
+                                         conditions )
      do field_id=1, this%get_number_fields()
        call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
      end do  
@@ -99,20 +99,20 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
   
 end subroutine par_fe_space_create_same_reference_fes_on_all_cells
 
-subroutine par_fe_space_create_different_between_cells( this, &
-                                                                triangulation, &
-                                                                conditions, &
-                                                                reference_fes, &
-                                                                set_ids_to_reference_fes, &
-                                                                coarse_fe_handlers )
-                                                                
+subroutine par_fe_space_create_different_between_cells( this,                     &
+                                                        triangulation,            &
+                                                        reference_fes,            &
+                                                        set_ids_to_reference_fes, &
+                                                        coarse_fe_handlers,       &
+                                                        conditions )
+
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(base_static_triangulation_t), target, intent(in)     :: triangulation
-  class(conditions_t)                       , intent(in)     :: conditions
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
   integer(ip)                               , intent(in)     :: set_ids_to_reference_fes(:,:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
+  class(conditions_t)             , optional, intent(in)     :: conditions
 
   type(environment_t), pointer :: par_environment
   integer(ip)                  :: field_id
@@ -125,10 +125,10 @@ subroutine par_fe_space_create_different_between_cells( this, &
   this%triangulation     => triangulation
   par_environment    => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
-     call this%serial_fe_space_t%create( triangulation, &
-                                         conditions, &
-                                         reference_fes, &
-                                         set_ids_to_reference_fes )
+     call this%serial_fe_space_t%create( triangulation,            &
+                                         reference_fes,            &
+                                         set_ids_to_reference_fes, &
+                                         conditions )
      do field_id=1, this%get_number_fields()
        call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
      end do  
