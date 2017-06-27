@@ -34,20 +34,35 @@ subroutine unfitted_fe_iterator_create( this, fe_space )
   
   class(unfitted_integration_manager_t), pointer  :: unfitted_integration_manager
   class(base_static_triangulation_t),    pointer  :: triangulation
+  integer(ip) :: istat
+  
+  class(unfitted_cell_iterator_t), allocatable :: ucell
   
   triangulation => fe_space%get_triangulation()
   select type (fe_space)
-  class is (serial_unfitted_fe_space_t)
+
+  class is ( serial_unfitted_fe_space_t)
     unfitted_integration_manager => fe_space%unfitted_integration
+    allocate(unfitted_cell_iterator_t :: this%unf_cell_iter, stat = istat); check(istat==0)
+
   class is (par_unfitted_fe_space_t)
     unfitted_integration_manager => fe_space%unfitted_integration  
+    allocate(unfitted_cell_iterator_t :: this%unf_cell_iter, stat = istat); check(istat==0)
+
+  class is ( serial_unfitted_hp_adaptive_fe_space_t)
+    unfitted_integration_manager => fe_space%unfitted_integration  
+    allocate(unfitted_p4est_cell_iterator_t :: this%unf_cell_iter, stat = istat); check(istat==0)
+    allocate(unfitted_p4est_cell_iterator_t :: ucell, stat = istat); check(istat==0)
+
   class default
     check(.false.)
   end select
   
+  call ucell%create(triangulation)
+  
   call this%free()
   call this%fe_iterator_t%create(fe_space)
-  call this%unfitted_cell_iterator%create(triangulation)
+  call this%unf_cell_iter%create(triangulation)
   this%unfitted_integration_manager => unfitted_integration_manager
   
 end subroutine unfitted_fe_iterator_create
@@ -56,8 +71,12 @@ end subroutine unfitted_fe_iterator_create
 subroutine unfitted_fe_iterator_free( this )
   implicit none
   class(unfitted_fe_iterator_t)   , intent(inout) :: this
+  integer(ip) :: istat
   this%unfitted_integration_manager => null()
-  call this%unfitted_cell_iterator%free()
+  if (allocated(this%unf_cell_iter)) then
+    call this%unf_cell_iter%free()
+    deallocate(this%unf_cell_iter,stat=istat); check(istat==0)
+  end if
   call this%fe_iterator_t%free()
 end subroutine unfitted_fe_iterator_free
 
@@ -66,7 +85,7 @@ function unfitted_fe_iterator_get_unfitted_cell_iterator(this) result (cell)
   implicit none
   class(unfitted_fe_iterator_t), target, intent(in) :: this
   class(unfitted_cell_iterator_t), pointer :: cell
-  cell => this%unfitted_cell_iterator
+  cell => this%unf_cell_iter
   call cell%set_lid(this%get_lid())
 end function unfitted_fe_iterator_get_unfitted_cell_iterator
 

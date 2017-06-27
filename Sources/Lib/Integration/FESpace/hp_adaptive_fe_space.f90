@@ -73,6 +73,7 @@ module hp_adaptive_fe_space_names
      
      
      procedure                            :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
+     procedure                            :: serial_fe_space_create_different_between_cells         => shpafs_create_different_between_cells
      procedure                            :: free                                                   => serial_hp_adaptive_fe_space_free
      
      
@@ -107,6 +108,7 @@ module hp_adaptive_fe_space_names
  end type hp_adaptive_fe_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t
+ public :: hp_adaptive_fe_iterator_t
  
 contains
 
@@ -381,6 +383,54 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this, &
   call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine shpafs_create_same_reference_fes_on_all_cells 
+
+subroutine shpafs_create_different_between_cells( this, &
+     triangulation, &
+     conditions, &
+     reference_fes, &
+     set_ids_to_reference_fes )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t)        , intent(inout) :: this
+  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
+  class(conditions_t)                         , intent(in)    :: conditions
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
+  integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
+
+  integer(ip) :: i, istat, jfield, ifield
+
+  call this%free()
+
+  call this%set_triangulation(triangulation) 
+  select type(triangulation)
+  class is (p4est_serial_triangulation_t)
+    this%p4est_triangulation => triangulation
+  class default
+    assert(.false.)
+  end select
+ 
+  call this%set_number_fields(size(set_ids_to_reference_fes,1))
+  call this%allocate_and_fill_reference_fes(reference_fes)
+  call this%allocate_ref_fe_id_per_fe()
+  call this%fill_ref_fe_id_per_fe_different_between_cells(set_ids_to_reference_fes)
+  call this%check_cell_vs_fe_topology_consistency()
+  call this%allocate_and_fill_fe_space_type_per_field()
+  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_init_at_strong_dirichlet_bound()
+
+  call this%allocate_fe_quadratures_degree()
+  call this%clear_fe_quadratures_degree()
+  call this%allocate_max_order_reference_fe_id_per_fe()
+  call this%compute_max_order_reference_fe_id_per_fe()
+
+  ! TO-DO: face integration not yet supported with non-conforming meshes and FEs
+  !call this%allocate_fe_face_quadratures_degree()
+  !call this%clear_fe_face_quadratures_degree()
+  !call this%allocate_max_order_reference_fe_id_per_fe_face()
+  !call this%compute_max_order_reference_fe_id_per_fe_face()
+
+  call this%allocate_and_init_has_fixed_dofs()
+  call this%set_up_strong_dirichlet_bcs( conditions )
+end subroutine shpafs_create_different_between_cells
 
 subroutine serial_hp_adaptive_fe_space_free(this)
   implicit none

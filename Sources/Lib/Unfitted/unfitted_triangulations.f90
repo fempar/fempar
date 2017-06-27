@@ -372,6 +372,7 @@ module unfitted_triangulations_names
 
   ! Derived types
   public :: unfitted_cell_iterator_t
+  public :: unfitted_p4est_cell_iterator_t
   public :: marching_cubes_t 
   public :: serial_unfitted_triangulation_t
   public :: unfitted_p4est_serial_triangulation_t

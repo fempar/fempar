@@ -179,8 +179,8 @@ subroutine marching_cubes_free_unfitted_cell_iterator ( this, cell )
   class(marching_cubes_t), intent(in)    :: this
   class(unfitted_cell_iterator_t),allocatable,  intent(inout) :: cell
   integer(ip) :: istat
-  call cell%free()
   if (allocated(cell)) then
+    call cell%free()
     deallocate(cell,stat=istat); check(istat==0)
   end if
 end subroutine marching_cubes_free_unfitted_cell_iterator

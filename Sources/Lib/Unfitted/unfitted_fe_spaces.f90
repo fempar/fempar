@@ -30,6 +30,7 @@ module unfitted_fe_spaces_names
   use fempar_names
   use unfitted_triangulations_names
   use piecewise_fe_map_names
+  use hp_adaptive_fe_space_names
 
   implicit none
 # include "debug.i90"
@@ -39,7 +40,7 @@ module unfitted_fe_spaces_names
 
     private
     class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
-    type(unfitted_cell_iterator_t)                 :: unfitted_cell_iterator
+    class(unfitted_cell_iterator_t), allocatable   :: unf_cell_iter
 
   contains
 
@@ -78,6 +79,24 @@ module unfitted_fe_spaces_names
 
   end type unfitted_fe_iterator_t
 
+  type, extends(unfitted_fe_iterator_t) :: unfitted_hp_adaptive_fe_iterator_t
+      type (hp_adaptive_fe_iterator_t) :: adaptive_fe
+    contains
+
+      ! We need to override the functions that change the state
+      procedure :: create               => unfitted_hp_adaptive_fe_iterator_create
+      procedure :: free                 => unfitted_hp_adaptive_fe_iterator_free
+      procedure :: next                 => unfitted_hp_adaptive_fe_iterator_next
+      procedure :: first                => unfitted_hp_adaptive_fe_iterator_first
+      procedure :: last                 => unfitted_hp_adaptive_fe_iterator_last
+      procedure :: set_lid              => unfitted_hp_adaptive_fe_iterator_set_lid
+
+      ! Overridden in hp_adaptive_fe_iterator_t
+      procedure :: assemble             => unfitted_hp_adaptive_fe_iterator_assemble
+
+  end type unfitted_hp_adaptive_fe_iterator_t
+
+
   type :: unfitted_integration_manager_t
 
     private
@@ -112,10 +131,10 @@ module unfitted_fe_spaces_names
       procedure, non_overridable :: create => uim_create
       procedure, non_overridable :: free   => uim_free
     
-      ! Polymorphic creation of the iterator to be used only within this module
+      ! Creation of the iterator (interfaces with fe_iterator_t)
       procedure, non_overridable, private  :: create_fe_iterator           => uim_create_fe_iterator
       
-      ! Non polimorphic creation / deletion  of iterators to be used only within this module
+      ! Creation / deletion of the itrator (interfaces with unfitted_fe_iterator_t) to be used only within this module
       procedure, non_overridable, private  :: create_unfitted_fe_iterator  => uim_create_unfitted_fe_iterator
       procedure, non_overridable, private  :: free_unfitted_fe_iterator    => uim_free_unfitted_fe_iterator
 
@@ -150,6 +169,24 @@ module unfitted_fe_spaces_names
 
   end type serial_unfitted_fe_space_t
 
+  type, extends(serial_hp_adaptive_fe_space_t) :: serial_unfitted_hp_adaptive_fe_space_t
+    private
+
+      class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
+      type(unfitted_integration_manager_t) :: unfitted_integration
+
+    contains
+
+      ! Creation / deletion methods
+      procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
+      procedure           :: serial_fe_space_create_different_between_cells         => suhpafs_space_create_different_between_cells
+      procedure           :: free  => suhpafs_free
+
+      ! Creation of the iterator
+      procedure :: create_fe_iterator           => suhpafs_create_fe_iterator
+
+  end type serial_unfitted_hp_adaptive_fe_space_t
+
   type, extends(par_fe_space_t) :: par_unfitted_fe_space_t
     private
 
@@ -171,13 +208,16 @@ module unfitted_fe_spaces_names
 
   public :: unfitted_fe_iterator_t
   public :: serial_unfitted_fe_space_t
+  public :: serial_unfitted_hp_adaptive_fe_space_t
   public :: par_unfitted_fe_space_t
 
 contains
 
 #include "sbm_unfitted_fe_iterator.i90"
+#include "sbm_unfitted_hp_adaptive_fe_iterator.i90"
 #include "sbm_unfitted_integration_manager.i90"
 #include "sbm_serial_unfitted_fe_space.i90"
+#include "sbm_serial_unfitted_hp_adaptive_fe_space.i90"
 #include "sbm_par_unfitted_fe_space.i90"
 
 end module unfitted_fe_spaces_names

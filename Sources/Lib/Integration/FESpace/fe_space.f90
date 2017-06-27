@@ -127,10 +127,10 @@ module fe_space_names
     class(cell_iterator_t), allocatable :: cell
   contains
     ! Methods exploiting ("inherited from") cell_t common to all descendants
-    procedure, non_overridable           :: next                    => base_fe_iterator_next
-    procedure, non_overridable           :: first                   => base_fe_iterator_first
-    procedure, non_overridable           :: last                    => base_fe_iterator_last
-    procedure, non_overridable           :: set_lid                 => base_fe_iterator_set_lid
+    procedure                            :: next                    => base_fe_iterator_next
+    procedure                            :: first                   => base_fe_iterator_first
+    procedure                            :: last                    => base_fe_iterator_last
+    procedure                            :: set_lid                 => base_fe_iterator_set_lid
     procedure, non_overridable           :: has_finished            => base_fe_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_iterator_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_iterator_get_reference_fe_geo_id
@@ -365,7 +365,7 @@ module fe_space_names
      procedure, non_overridable          :: allocate_ref_fe_id_per_fe                    => serial_fe_space_allocate_ref_fe_id_per_fe
      procedure, non_overridable, private :: free_ref_fe_id_per_fe                        => serial_fe_space_free_ref_fe_id_per_fe
      procedure, non_overridable          :: fill_ref_fe_id_per_fe_same_on_all_cells      => serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
-     procedure, non_overridable, private :: fill_ref_fe_id_per_fe_different_between_cells=> serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells
+     procedure, non_overridable          :: fill_ref_fe_id_per_fe_different_between_cells=> serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells
      procedure, non_overridable          :: check_cell_vs_fe_topology_consistency        => serial_fe_space_check_cell_vs_fe_topology_consistency
      procedure, non_overridable          :: allocate_and_fill_fe_space_type_per_field    => serial_fe_space_allocate_and_fill_fe_space_type_per_field
      procedure, non_overridable, private :: free_fe_space_type_per_field                 => serial_fe_space_free_fe_space_type_per_field
