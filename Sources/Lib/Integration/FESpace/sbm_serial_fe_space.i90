@@ -50,7 +50,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   
   call this%allocate_and_init_at_strong_dirichlet_bound()
   if ( present(conditions) ) then
-     this%conditions => conditions
+     call this%set_conditions(conditions)
      call this%set_up_strong_dirichlet_bcs()
   else
      call this%strong_dirichlet_values%create_and_allocate(0)
@@ -82,7 +82,7 @@ subroutine serial_fe_space_create_different_between_cells( this,                
   call this%allocate_and_init_at_strong_dirichlet_bound()
   
   if ( present(conditions) ) then
-     this%conditions => conditions
+     call this%set_conditions(conditions)
      call this%set_up_strong_dirichlet_bcs()
   else
      call this%strong_dirichlet_values%create_and_allocate(0)
@@ -2115,6 +2115,21 @@ function serial_fe_space_get_environment(this) result(environment)
   class(environment_t), pointer:: environment 
   environment => this%triangulation%get_par_environment()
 end function serial_fe_space_get_environment
+
+function serial_fe_space_get_conditions( this) result(conditions)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this 
+  class(conditions_t), pointer :: conditions
+  assert ( associated(this%conditions) )
+  conditions => this%conditions
+end function serial_fe_space_get_conditions
+
+subroutine serial_fe_space_set_conditions( this, conditions )
+  implicit none
+  class(serial_fe_space_t)        , intent(inout) :: this 
+  class(conditions_t)     , target, intent(in)    :: conditions
+  this%conditions => conditions
+end subroutine serial_fe_space_set_conditions
 
 function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichlet_values)
   implicit none
