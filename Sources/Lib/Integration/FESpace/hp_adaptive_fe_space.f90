@@ -336,17 +336,18 @@ subroutine serial_hp_adaptive_fe_space_create_fe_iterator ( this, fe )
   call fe%create(this)
 end subroutine serial_hp_adaptive_fe_space_create_fe_iterator
 
-subroutine shpafs_create_same_reference_fes_on_all_cells ( this, &
+subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
                                                            triangulation, &
-                                                           conditions, &
-                                                           reference_fes )
+                                                           reference_fes, &
+                                                           conditions )
   implicit none
   class(serial_hp_adaptive_fe_space_t)        , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
-  class(conditions_t)                         , intent(in)    :: conditions
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
+  class(conditions_t)               , optional, intent(in)    :: conditions
 
-  integer(ip) :: i, istat, jfield, ifield
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  integer(ip)                          :: i, istat, jfield, ifield
 
   call this%free()
 
@@ -365,21 +366,16 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this, &
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
+  
   call this%allocate_and_init_at_strong_dirichlet_bound()
-
-  call this%allocate_fe_quadratures_degree()
-  call this%clear_fe_quadratures_degree()
-  call this%allocate_max_order_reference_fe_id_per_fe()
-  call this%compute_max_order_reference_fe_id_per_fe()
-
-  ! TO-DO: face integration not yet supported with non-conforming meshes and FEs
-  !call this%allocate_fe_face_quadratures_degree()
-  !call this%clear_fe_face_quadratures_degree()
-  !call this%allocate_max_order_reference_fe_id_per_fe_face()
-  !call this%compute_max_order_reference_fe_id_per_fe_face()
-
   call this%allocate_and_init_has_fixed_dofs()
-  call this%set_up_strong_dirichlet_bcs( conditions )
+  if ( present(conditions) ) then
+     call this%set_up_strong_dirichlet_bcs( conditions )
+  else
+     strong_dirichlet_values => this%get_strong_dirichlet_values()
+     call strong_dirichlet_values%create_and_allocate(0)
+  end if
+  
 end subroutine shpafs_create_same_reference_fes_on_all_cells 
 
 subroutine serial_hp_adaptive_fe_space_free(this)
@@ -907,7 +903,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
   
   ! ** This is dirty. Again, I think that this%create() MUST not be called inside refine_and_coarsen()
   block_layout => this%get_block_layout()
-  call this%create(triangulation,conditions,reference_fes)
+  call this%create(triangulation,reference_fes,conditions)
   
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
   call this%nullify_block_layout()       ! Not actually required (by now) as this%create() already nullifies the pointer
