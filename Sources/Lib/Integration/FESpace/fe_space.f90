@@ -459,6 +459,8 @@ module fe_space_names
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
      procedure                           :: get_number_strong_dirichlet_dofs             => serial_fe_space_get_number_strong_dirichlet_dofs
+     procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
+     procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      procedure                           :: get_number_fixed_dofs                        => serial_fe_space_get_number_fixed_dofs     
      procedure, non_overridable          :: copy_ptr_dofs_per_fe                         => serial_fe_space_copy_ptr_dofs_per_fe     
