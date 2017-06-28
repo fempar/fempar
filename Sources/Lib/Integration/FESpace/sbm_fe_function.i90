@@ -282,6 +282,8 @@
      call fe%next()
   end do
   call fe_space%free_fe_iterator(fe)
+  
+  call this%update_fixed_dof_values(fe_space)
 
   do i=1, size(fe_maps)
     call fe_maps(i)%free()
@@ -424,6 +426,8 @@ subroutine fe_function_interpolate_vector_function( this, &
      call fe%next()
   end do   
   call fe_space%free_fe_iterator(fe)
+  
+  call this%update_fixed_dof_values(fe_space)
 
   do i=1, size(fe_maps)
     call fe_maps(i)%free()
