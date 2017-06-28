@@ -40,8 +40,8 @@ module unfitted_fe_spaces_names
 
     private
     class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
-    class(unfitted_cell_iterator_t), allocatable   :: unf_cell_iter
-
+    !class(unfitted_cell_iterator_t), allocatable   :: unf_cell_iter
+    type(unfitted_p4est_cell_iterator_t) :: unf_cell_iter
   contains
 
     ! Creation / deletion methods

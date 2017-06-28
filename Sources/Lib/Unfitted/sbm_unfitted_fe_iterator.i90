@@ -36,29 +36,31 @@ subroutine unfitted_fe_iterator_create( this, fe_space )
   class(base_static_triangulation_t),    pointer  :: triangulation
   integer(ip) :: istat
   
-  class(unfitted_cell_iterator_t), allocatable :: ucell
+  !class(unfitted_cell_iterator_t), allocatable :: ucell
+  !type(unfitted_p4est_cell_iterator_t) :: dummy_unfitted_p4est_cell_iterator
   
   triangulation => fe_space%get_triangulation()
   select type (fe_space)
 
-  class is ( serial_unfitted_fe_space_t)
-    unfitted_integration_manager => fe_space%unfitted_integration
-    allocate(unfitted_cell_iterator_t :: this%unf_cell_iter, stat = istat); check(istat==0)
+  !class is ( serial_unfitted_fe_space_t)
+  !  unfitted_integration_manager => fe_space%unfitted_integration
+  !  allocate(unfitted_cell_iterator_t :: this%unf_cell_iter, stat = istat); check(istat==0)
 
-  class is (par_unfitted_fe_space_t)
-    unfitted_integration_manager => fe_space%unfitted_integration  
-    allocate(unfitted_cell_iterator_t :: this%unf_cell_iter, stat = istat); check(istat==0)
+  !class is (par_unfitted_fe_space_t)
+  !  unfitted_integration_manager => fe_space%unfitted_integration  
+  !  allocate(unfitted_cell_iterator_t :: this%unf_cell_iter, stat = istat); check(istat==0)
 
   class is ( serial_unfitted_hp_adaptive_fe_space_t)
     unfitted_integration_manager => fe_space%unfitted_integration  
-    allocate(unfitted_p4est_cell_iterator_t :: this%unf_cell_iter, stat = istat); check(istat==0)
-    allocate(unfitted_p4est_cell_iterator_t :: ucell, stat = istat); check(istat==0)
+    !allocate(unfitted_p4est_cell_iterator_t :: this%unf_cell_iter, stat = istat); check(istat==0)
+    !allocate(this%unf_cell_iter, mold = dummy_unfitted_p4est_cell_iterator, stat = istat); check(istat==0)
+    !allocate(unfitted_p4est_cell_iterator_t :: ucell, stat = istat); check(istat==0)
 
   class default
     check(.false.)
   end select
   
-  call ucell%create(triangulation)
+  !call ucell%create(triangulation)
   
   call this%free()
   call this%fe_iterator_t%create(fe_space)
@@ -73,10 +75,10 @@ subroutine unfitted_fe_iterator_free( this )
   class(unfitted_fe_iterator_t)   , intent(inout) :: this
   integer(ip) :: istat
   this%unfitted_integration_manager => null()
-  if (allocated(this%unf_cell_iter)) then
+  !if (allocated(this%unf_cell_iter)) then
     call this%unf_cell_iter%free()
-    deallocate(this%unf_cell_iter,stat=istat); check(istat==0)
-  end if
+    !deallocate(this%unf_cell_iter,stat=istat); check(istat==0)
+  !end if
   call this%fe_iterator_t%free()
 end subroutine unfitted_fe_iterator_free
 

@@ -71,7 +71,7 @@ end subroutine suhpafs_space_create_different_between_cells
 subroutine suhpafs_free(this)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
-  call this%serial_fe_space_t%free()
+  call this%serial_hp_adaptive_fe_space_t%free()
   this%unfitted_triangulation => null()
   call this%unfitted_integration%free()
 end subroutine suhpafs_free

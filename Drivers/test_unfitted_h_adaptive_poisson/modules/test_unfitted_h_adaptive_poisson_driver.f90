@@ -25,6 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#define ENABLE_MKL
+
 module test_unfitted_h_adaptive_poisson_driver_names
   use fempar_names
   use unfitted_triangulations_names
@@ -35,7 +38,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
   use level_set_functions_gallery_names
   use unfitted_vtk_writer_names
   use test_poisson_params_names
-  use poisson_cG_discrete_integration_names
+  use poisson_unfitted_cG_discrete_integration_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
   use vector_poisson_discrete_integration_names
@@ -69,7 +72,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
      type(serial_unfitted_hp_adaptive_fe_space_t) :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      
-     type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration
+     type(poisson_unfitted_cG_discrete_integration_t) :: poisson_cG_integration
      type(poisson_conditions_t)                   :: poisson_conditions
      type(poisson_analytical_functions_t)         :: poisson_analytical_functions
      
@@ -386,6 +389,11 @@ contains
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
     integer(ip) :: i
     
+    integer(ip) :: set_ids_to_reference_fes(1,2)
+
+    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
+    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
+    
     do i=1, 10
        
        call this%triangulation%clear_refinement_and_coarsening_flags()
@@ -401,12 +409,14 @@ contains
          call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,      &
                                                 conditions          = this%poisson_conditions, &
                                                 reference_fes       = this%reference_fes,      &
-                                                fe_function         = this%solution ) 
+                                                fe_function         = this%solution,           &
+                                                set_ids_to_reference_fes = set_ids_to_reference_fes) 
        else
-         call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
-                                                conditions          = this%vector_poisson_conditions, &
-                                                reference_fes       = this%reference_fes,      &
-                                                fe_function         = this%solution )
+         mcheck(.false.,'Only tested for scalar problems')
+         !call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
+         !                                       conditions          = this%vector_poisson_conditions, &
+         !                                       fe_function         = this%solution,           &
+         !                                       set_ids_to_reference_fes = set_ids_to_reference_fes)
        end if
        
        call this%fe_space%initialize_fe_integration()
@@ -642,34 +652,34 @@ contains
     type(unfitted_vtk_writer_t) :: vtk_writer
 
     if(this%test_params%get_write_solution()) then
-        !path = this%test_params%get_dir_path_out()
-        !prefix = this%test_params%get_prefix()
-        !call oh%create()
-        !call oh%attach_fe_space(this%fe_space)
-        !call oh%add_fe_function(this%solution, 1, 'solution')
-        !call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-        !call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
+        path = this%test_params%get_dir_path_out()
+        prefix = this%test_params%get_prefix()
+        call oh%create()
+        call oh%attach_fe_space(this%fe_space)
+        call oh%add_fe_function(this%solution, 1, 'solution')
+        call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
+        call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
         
-        !N=this%triangulation%get_num_cells()
-        !P=6
-        !call this%triangulation%create_cell_iterator(cell)
-        !do pid=0, P-1
-        !    i=0
-        !    do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
-        !      cell_vector(cell%get_lid()) = pid 
-        !      call cell%next()
-        !      i=i+1
-        !    end do
-        !end do
-        !call this%triangulation%free_cell_iterator(cell)
+        N=this%triangulation%get_num_cells()
+        P=6
+        call this%triangulation%create_cell_iterator(cell)
+        do pid=0, P-1
+            i=0
+            do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
+              cell_vector(cell%get_lid()) = pid 
+              call cell%next()
+              i=i+1
+            end do
+        end do
+        call this%triangulation%free_cell_iterator(cell)
 
-        !call oh%add_cell_vector(cell_vector,'cell_set_ids')
+        call oh%add_cell_vector(cell_vector,'cell_set_ids')
 
-        !call oh%open(path, prefix)
-        !call oh%write()
-        !call oh%close()
-        !call oh%free()
-        !call memfree(cell_vector,__FILE__,__LINE__)
+        call oh%open(path, prefix)
+        call oh%write()
+        call oh%close()
+        call oh%free()
+        call memfree(cell_vector,__FILE__,__LINE__)
 
         ! Write the unfitted mesh
         call vtk_writer%attach_triangulation(this%triangulation)
@@ -785,7 +795,7 @@ contains
     !  call this%check_solution_vector()
     !end if
     call this%write_solution()
-    !call this%write_filling_curve()
+    call this%write_filling_curve()
     call this%free()
   end subroutine run_simulation
   
