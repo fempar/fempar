@@ -39,7 +39,7 @@ module fempar_sm_linear_solver_names
    contains
      procedure :: setup_operators => linear_solver_setup_operators
      procedure :: update          => linear_solver_update
-     procedure :: get_A
+     procedure :: get_A  ! this method is implemented in base_iterative_linear_solver_t buta wrapper in iterative_linear_solver_t is missing.
   end type linear_solver_t
 
   public :: linear_solver_t
@@ -56,12 +56,16 @@ contains
     call this%iterative_linear_solver_t%set_operators(A,M)
   end subroutine linear_solver_setup_operators
 
-  subroutine linear_solver_update(this)
+  subroutine linear_solver_update(this,A)
     implicit none
     class(linear_solver_t), intent(inout) :: this
-    call this%A%numerical_setup()
+    class(operator_t), intent(in) :: A
+    ! We must check that the operator from which BDDC was created
+    ! has the same structure as A. Otherwise, symbolic setup should
+    ! be done again.
     call this%M%free_numerical_setup()
     call this%M%numerical_setup()
+    !call this%iterative_linear_solver_t%set_operators(A,this%M)
   end subroutine linear_solver_update
 
   function get_A(this)

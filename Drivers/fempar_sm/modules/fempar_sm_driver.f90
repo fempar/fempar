@@ -32,6 +32,7 @@ module fempar_sm_driver_names
   use fempar_sm_conditions_names
   use fempar_sm_analytical_functions_names
   use fempar_sm_linear_solver_names
+  use fempar_sm_nonlinear_operator_names
   use fempar_sm_nonlinear_solver_names
 # include "debug.i90"
 
@@ -63,11 +64,14 @@ module fempar_sm_driver_names
      type(fe_affine_operator_t)                  :: fe_affine_operator
      type(mlbddc_t)                              :: mlbddc
      type(linear_solver_t)                       :: linear_solver
+     type(nonlinear_operator_t)                  :: nonlinear_operator
      type(nonlinear_solver_t)                    :: nonlinear_solver 
      
      ! Problem solution FE function
      type(fe_function_t)                         :: solution
-     
+     type(constant_vector_function_t)            :: zero_vector
+     type(constant_scalar_function_t)            :: zero_scalar
+
      ! Environment required for fe_affine_operator + vtk_handler
      type(environment_t)                         :: par_environment
 
@@ -107,7 +111,8 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(fempar_sm_fe_driver_t), intent(inout) :: this
-    
+    class(vector_t) , pointer :: unknown
+
     ! Geometry
     call this%timer_triangulation%start()
     call this%setup_triangulation()
@@ -128,7 +133,9 @@ contains
    
     ! Solve the problem
     call this%timer_solver_run%start()
-    call this%nonlinear_solver%solve()
+    unknown => this%solution%get_dof_values()
+    !write(*,*) unknown%nrm2()
+    call this%nonlinear_solver%solve(this%nonlinear_operator, unknown)
     mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged.' )
     call this%timer_solver_run%stop()
 
@@ -322,13 +329,24 @@ end subroutine free_timers
     type(parameterlist_t) :: linear_pl
     integer(ip) :: ilev
     integer(ip) :: FPLError
-    real(rp)    :: res_norm
+    integer(ip) :: field_id
+    type(vector_field_t) :: zero_vector_field
     class(vector_t), pointer  :: dof_values
-
+    
     ! Solution and initial guess
     call this%solution%create(this%fe_space) 
-    call this%fempar_sm_integration%init_solution(this%fe_space, this%solution)
+    call this%zero_scalar%create(0.0_rp)
+    call zero_vector_field%init(0.0_rp)
+    call this%zero_vector%create(zero_vector_field)
+    do field_id = 1, this%fempar_sm_integration%get_number_fields()
+       if(this%fempar_sm_integration%get_field_type(field_id) == field_type_vector) then
+         call this%solution%interpolate_function(this%fe_space, field_id, this%zero_vector)
+       else if( this%fempar_sm_integration%get_field_type(field_id) == field_type_scalar) then
+         call this%solution%interpolate_function(this%fe_space, field_id, this%zero_scalar)
+       end if
+    end do
     call this%solution%update_strong_dirichlet_values(this%fe_space)
+    call this%fempar_sm_integration%set_solution(this%solution)
     
     ! FE operator
     if(this%fempar_sm_integration%is_symmetric().and.this%fempar_sm_integration%is_coercive()) then
@@ -346,7 +364,7 @@ end subroutine free_timers
             &                                fe_space                          = this%fe_space, &
             &                                discrete_integration              = this%fempar_sm_integration )
     end if
-
+    
     ! BDDC preconditioner
     plist => this%parameter_list 
     if ( this%par_environment%get_l1_size() == 1 ) then
@@ -361,7 +379,7 @@ end subroutine free_timers
        plist  => coarse 
     end do
     FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-
+    
     ! Set coarsest-grid solver type (currently NOT inherited from fine level matrices types)
     if(this%fempar_sm_integration%is_coercive()) then
        FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
@@ -387,13 +405,15 @@ end subroutine free_timers
     FPLError = linear_pl%set(key = ils_atol, value = 1.0e-9); assert(FPLError == 0)
     call this%linear_solver%set_parameters_from_pl(linear_pl) 
 
+    ! allocate this%nonlinear_operator to a specific time stepping operator (e.g. BDFk)
+    call this%nonlinear_operator%create(this%fe_affine_operator)
+
     ! Nonlinear solver ! fempar_sm_abs_res_norm_and_rel_inc_norm
     call this%nonlinear_solver%create(convergence_criteria = fempar_sm_abs_res_norm, & 
          &                                         abs_tol = 1.0e-6,  &
          &                                         rel_tol = 1.0e-9, &
          &                                       max_iters = 10   ,  &
          &                                   linear_solver = this%linear_solver, &
-         &                                         unknown = this%solution%get_dof_values(), &
          &                                     environment = this%par_environment)    
 
   end subroutine setup_operators
@@ -502,6 +522,7 @@ end subroutine free_timers
     class(fempar_sm_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
 
+    call this%nonlinear_operator%free()
     call this%nonlinear_solver%free()
     call this%linear_solver%free()
     call this%solution%free()

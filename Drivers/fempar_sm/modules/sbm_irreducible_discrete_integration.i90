@@ -39,13 +39,13 @@ function irreducible_discrete_integration_is_coercive(this)
   irreducible_discrete_integration_is_coercive = .true.
 end function irreducible_discrete_integration_is_coercive
 
-subroutine irreducible_discrete_integration_init_solution(this,fe_space,solution)
-  class(irreducible_discrete_integration_t), intent(inout) :: this
-  class(serial_fe_space_t)                 , intent(in)    :: fe_space
-  type(fe_function_t), target              , intent(inout) :: solution
-  this%solution => solution
-  call solution%interpolate_function(fe_space, 1, this%analytical_functions%get_zero_function_u())
-end subroutine irreducible_discrete_integration_init_solution
+!subroutine irreducible_discrete_integration_init_solution(this,fe_space,solution)
+!  class(irreducible_discrete_integration_t), intent(inout) :: this
+!  class(serial_fe_space_t)                 , intent(in)    :: fe_space
+!  type(fe_function_t), target              , intent(inout) :: solution
+!  this%solution => solution
+!  call solution%interpolate_function(fe_space, 1, this%analytical_functions%get_zero_function_u())
+!end subroutine irreducible_discrete_integration_init_solution
 
 subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_array_assembler )
   implicit none

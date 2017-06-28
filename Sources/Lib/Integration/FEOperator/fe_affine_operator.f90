@@ -121,6 +121,7 @@ contains
   procedure          :: get_matrix                  => fe_affine_operator_get_matrix
   procedure          :: get_array                   => fe_affine_operator_get_array
   procedure          :: get_fe_space                => fe_affine_operator_get_fe_space
+  procedure          :: get_discrete_integration    => fe_affine_operator_get_discrete_integration
   procedure          :: free_in_stages              => fe_affine_operator_free_in_stages
   procedure          :: free                        => fe_affine_operator_free
   procedure          :: get_domain_vector_space     => fe_affine_operator_get_domain_vector_space
@@ -320,6 +321,14 @@ function fe_affine_operator_get_fe_space(this)
  assert ( .not. this%state == start )
  fe_affine_operator_get_fe_space => this%fe_space
 end function fe_affine_operator_get_fe_space
+
+function fe_affine_operator_get_discrete_integration(this)
+ implicit none
+ class(fe_affine_operator_t), target, intent(in) :: this
+ class(discrete_integration_t), pointer :: fe_affine_operator_get_discrete_integration
+ assert ( .not. this%state == start )
+ fe_affine_operator_get_discrete_integration => this%discrete_integration
+end function fe_affine_operator_get_discrete_integration
 
 ! op%apply(x,y) <=> y <- op*x
 ! Implicitly assumes that y is already allocated

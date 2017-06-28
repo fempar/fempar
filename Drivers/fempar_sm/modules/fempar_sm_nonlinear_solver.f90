@@ -29,6 +29,7 @@ module fempar_sm_nonlinear_solver_names
   use fempar_names
   use base_sparse_matrix_names
   use fempar_sm_linear_solver_names
+  use fempar_sm_nonlinear_operator_names
   implicit none
 # include "debug.i90"
   private
@@ -40,14 +41,13 @@ module fempar_sm_nonlinear_solver_names
 
   type :: nonlinear_solver_t
     private
-
       integer(ip)                         :: current_iteration
       integer(ip)                         :: max_number_iterations
       real(rp)                            :: absolute_tolerance
       real(rp)                            :: relative_tolerance
       character(len=:),           allocatable  :: convergence_criteria
       class(vector_t),            pointer      :: current_dof_values => null()
-      class(vector_t),            pointer      :: current_residual   => null()
+      class(vector_t),            allocatable  :: current_residual
       class(vector_t),            allocatable  :: initial_residual
       class(vector_t),            allocatable  :: increment_dof_values
       class(linear_solver_t),     pointer      :: linear_solver
@@ -65,7 +65,7 @@ module fempar_sm_nonlinear_solver_names
       procedure :: get_current_iteration             => nonlinear_solver_get_current_iteration
 
       ! Private TBPs
-      procedure, private :: initialize                       => nonlinear_solver_initialize
+      !procedure, private :: initialize                       => nonlinear_solver_initialize
       procedure, private :: update_solution                  => nonlinear_solver_update_solution
       procedure, private :: print_iteration_output_header    => nonlinear_solver_print_iteration_output_header
       procedure, private :: print_current_iteration_output   => nonlinear_solver_print_current_iteration_output
@@ -83,7 +83,7 @@ contains
 
 !==============================================================================
 subroutine nonlinear_solver_create(this, convergence_criteria, abs_tol, rel_tol, max_iters, &
-                                   linear_solver, unknown, environment)
+                                   linear_solver, environment)
   implicit none
   class(nonlinear_solver_t), target, intent(inout) :: this
   character(len=*)                 , intent(in)    :: convergence_criteria
@@ -91,15 +91,9 @@ subroutine nonlinear_solver_create(this, convergence_criteria, abs_tol, rel_tol,
   real(rp)                         , intent(in)    :: rel_tol
   integer(ip)                      , intent(in)    :: max_iters
   type(linear_solver_t)    , target, intent(in)    :: linear_solver
-  class(vector_t)          , target, intent(in)    :: unknown
   class(environment_t)     , target, intent(in)    :: environment
 
   class(operator_t)    , pointer :: A
-
-  integer                      :: FPLError
-  type(parameterlist_t)        :: parameter_list
-  integer                      :: iparm(64)
-  class(matrix_t), pointer     :: matrix
 
   ! Initialize options
   this%current_iteration     = 1
@@ -111,29 +105,38 @@ subroutine nonlinear_solver_create(this, convergence_criteria, abs_tol, rel_tol,
   this%environment => environment
   
   ! Initialize work data
-  this%current_dof_values => unknown
   A => this%linear_solver%get_A()
   call A%create_domain_vector(this%increment_dof_values)
   call A%create_range_vector(this%initial_residual)
-  this%current_residual => A%get_translation()
+  call A%create_range_vector(this%current_residual)
 
 end subroutine nonlinear_solver_create
 
 !==============================================================================
-subroutine nonlinear_solver_solve(this)
+subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
 
   implicit none
-  class(nonlinear_solver_t), intent(inout) :: this
+  class(nonlinear_solver_t)  , intent(inout) :: this
+  class(nonlinear_operator_t), intent(inout) :: nonlinear_operator
+  class(vector_t)            , intent(inout) :: unknown
 
+  this%current_iteration = 0
+  call nonlinear_operator%apply(unknown,this%current_residual)  ! this implies a (potentially unnecessary) copy 
+  
+  ! Aassert (domain and range of this%linear_solver%get_A() is equal to domain and range of F)
+  this%initial_residual   = this%current_residual
+  call this%increment_dof_values%init(0.0)
+
+  ! Print initial residual
   call this%print_iteration_output_header()
-  call this%initialize()
   call this%print_current_iteration_output()
  
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
-    call this%linear_solver%solve( -this%current_residual , this%increment_dof_values )
-    this%current_dof_values = this%current_dof_values + this%increment_dof_values
-    call this%linear_solver%update()
+    call this%linear_solver%update(nonlinear_operator%get_tangent())
+    call this%linear_solver%solve( - this%current_residual, this%increment_dof_values )
+    unknown = unknown + this%increment_dof_values
+    call nonlinear_operator%apply(unknown,this%current_residual)  ! this implies a (potentially unnecessary) copy 
     call this%print_iteration_output_header()
     call this%print_current_iteration_output()
   end do
@@ -151,10 +154,13 @@ subroutine nonlinear_solver_free(this)
   integer(ip) :: istat
 
   this%current_dof_values => null()
-  this%current_residual   => null()
   if(allocated(this%initial_residual)) then
     call this%initial_residual%free()
     deallocate(this%initial_residual,stat=istat); check(istat==0)
+  end if
+  if(allocated(this%current_residual)) then
+    call this%current_residual%free()
+    deallocate(this%current_residual,stat=istat); check(istat==0)
   end if
   if(allocated(this%increment_dof_values)) then
     call this%increment_dof_values%free()
@@ -220,18 +226,18 @@ function nonlinear_solver_get_current_iteration(this)
 end function nonlinear_solver_get_current_iteration
 
 !==============================================================================
-subroutine nonlinear_solver_initialize(this)
+!subroutine nonlinear_solver_initialize(this)
 
-  implicit none
-  class(nonlinear_solver_t), intent(inout) :: this
+!  implicit none
+!  class(nonlinear_solver_t), intent(inout) :: this
 
-  this%current_iteration = 0
-  ! TODO: here we also update the matrix, but only re residual needed
-  call this%linear_solver%update()
-  this%initial_residual   = this%current_residual
-  call this%increment_dof_values%init(0.0)
+!  this%current_iteration = 0
+!  ! TODO: here we also update the matrix, but only re residual needed
+!  call this%linear_solver%update()
+!  this%initial_residual   = this%current_residual
+!  call this%increment_dof_values%init(0.0)
 
-end subroutine nonlinear_solver_initialize
+!end subroutine nonlinear_solver_initialize
 
 !==============================================================================
 subroutine nonlinear_solver_update_solution(this)

@@ -38,14 +38,18 @@ module fempar_sm_discrete_integration_names
      integer(ip) :: number_dimensions
      integer(ip) :: number_fields
      integer(ip) :: number_components
+     logical :: include_tangent_terms     = .false.
+     logical :: include_translation_terms = .false.
      character(len=256), allocatable :: fe_type(:)
      character(len=256), allocatable :: field_type(:)
      character(len=256), allocatable :: field_name(:)
      integer(ip), allocatable :: field_blocks(:)
      logical    , allocatable :: field_coupling(:,:)
-     class(vector_function_t), pointer :: source_term => null()
-     class(fe_function_t)    , pointer :: solution => null()
+     class(vector_function_t), pointer :: source_term  => null()
+     class(fe_function_t)    , pointer :: solution     => null()
+     class(fe_function_t)    , pointer :: solution_old => null()
      type(fempar_sm_analytical_functions_t), pointer :: analytical_functions => null()
+     real(rp) :: current_time
    contains
      procedure :: get_number_fields
      procedure :: get_number_components
@@ -63,11 +67,13 @@ module fempar_sm_discrete_integration_names
      procedure :: set_field_coupling
      procedure :: set_analytical_functions
      procedure :: set_solution
-     
-     procedure(create_interface)       , deferred :: create
-     procedure(is_symmetric_interface) , deferred :: is_symmetric
-     procedure(is_coercive_interface)  , deferred :: is_coercive
-     procedure(init_solution_interface), deferred :: init_solution
+     procedure :: set_solution_old
+     procedure :: set_terms_to_integrate
+     procedure :: integrate_tangent_terms  
+     procedure :: integrate_translation_terms
+     procedure(create_interface)          , deferred :: create
+     procedure(is_symmetric_interface)    , deferred :: is_symmetric
+     procedure(is_coercive_interface)     , deferred :: is_coercive
      procedure :: free => fempar_sm_discrete_integration_free
   end type fempar_sm_discrete_integration_t
 
@@ -103,7 +109,12 @@ module fempar_sm_discrete_integration_names
      !  class(serial_fe_space_t)                      , intent(in)    :: fe_space
      !end subroutine check_solution_interface
   end interface
-
+  
+  character(*), parameter :: tangent_terms                 = 'tangent'
+  character(*), parameter :: translation_terms             = 'translation'
+  character(*), parameter :: tangent_and_translation_terms = 'both'
+  public :: tangent_terms, translation_terms, tangent_and_translation_terms
+  
   type, extends(fempar_sm_discrete_integration_t) :: irreducible_discrete_integration_t
      private
    contains
@@ -111,7 +122,7 @@ module fempar_sm_discrete_integration_names
      procedure :: integrate     => irreducible_discrete_integration_integrate
      procedure :: is_symmetric  => irreducible_discrete_integration_is_symmetric
      procedure :: is_coercive   => irreducible_discrete_integration_is_coercive
-     procedure :: init_solution => irreducible_discrete_integration_init_solution
+     !procedure :: init_solution => irreducible_discrete_integration_init_solution
   end type irreducible_discrete_integration_t
 
   type, extends(fempar_sm_discrete_integration_t) :: mixed_u_p_discrete_integration_t
@@ -121,7 +132,7 @@ module fempar_sm_discrete_integration_names
      procedure :: integrate     => mixed_u_p_discrete_integration_integrate
      procedure :: is_symmetric  => mixed_u_p_discrete_integration_is_symmetric
      procedure :: is_coercive   => mixed_u_p_discrete_integration_is_coercive     
-     procedure :: init_solution => mixed_u_p_discrete_integration_init_solution
+     !procedure :: init_solution => mixed_u_p_discrete_integration_init_solution
   end type mixed_u_p_discrete_integration_t
 
   character(*), parameter :: discrete_integration_type_irreducible = 'irreducible'
@@ -143,6 +154,34 @@ contains
      call memfree(this%field_coupling,__FILE__,__LINE__)     
   end subroutine fempar_sm_discrete_integration_free
 
+  subroutine set_terms_to_integrate(this,terms_to_integrate)
+     implicit none
+     class(fempar_sm_discrete_integration_t), intent(inout)  :: this
+     character(*)                       , intent(in)     :: terms_to_integrate
+     if(terms_to_integrate==tangent_terms.or.terms_to_integrate==tangent_and_translation_terms) then
+        this%include_tangent_terms=.true.
+     else
+        this%include_tangent_terms=.false.
+     end if
+     if(terms_to_integrate==translation_terms.or.terms_to_integrate==tangent_and_translation_terms) then
+        this%include_translation_terms=.true.
+     else
+        this%include_translation_terms=.false.
+     end if
+  end subroutine set_terms_to_integrate  
+  
+  function integrate_tangent_terms(this)
+     class(fempar_sm_discrete_integration_t),intent(in)  :: this
+     logical :: integrate_tangent_terms
+     integrate_tangent_terms = this%include_tangent_terms
+  end function integrate_tangent_terms  
+  
+  function integrate_translation_terms(this)
+     class(fempar_sm_discrete_integration_t),intent(in)  :: this
+     logical :: integrate_translation_terms
+     integrate_translation_terms = this%include_translation_terms
+  end function integrate_translation_terms  
+
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
      class(fempar_sm_discrete_integration_t)   ,intent(inout)  :: this
@@ -156,6 +195,22 @@ contains
     class(fe_function_t),      target, intent(in)    :: solution
     this%solution => solution
   end subroutine set_solution
+
+  subroutine set_solution_old (this, solution_old)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    class(fe_function_t),            target, intent(in)    :: solution_old
+    this%solution_old => solution_old
+  end subroutine set_solution_old
+
+  !=============================================================================
+  
+  subroutine set_current_time(this,current_time)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    real(rp)                               , intent(in)    :: current_time
+    this%current_time = current_time
+  end subroutine set_current_time
 
 !==============================================================================
   

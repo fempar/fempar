@@ -43,14 +43,14 @@ function mixed_u_p_discrete_integration_is_coercive(this)
   mixed_u_p_discrete_integration_is_coercive = .false.
 end function mixed_u_p_discrete_integration_is_coercive
 
-subroutine mixed_u_p_discrete_integration_init_solution(this,fe_space,solution)
-  class(mixed_u_p_discrete_integration_t), intent(inout) :: this
-  class(serial_fe_space_t)               , intent(in)    :: fe_space
-  type(fe_function_t), target            , intent(inout) :: solution
-  this%solution => solution
-  call solution%interpolate_function(fe_space, 1, this%analytical_functions%get_zero_function_u())
-  call solution%interpolate_function(fe_space, 2, this%analytical_functions%get_zero_function_p())
-end subroutine mixed_u_p_discrete_integration_init_solution
+!subroutine mixed_u_p_discrete_integration_init_solution(this,fe_space,solution)
+!  class(mixed_u_p_discrete_integration_t), intent(inout) :: this
+!  class(serial_fe_space_t)               , intent(in)    :: fe_space
+!  type(fe_function_t), target            , intent(inout) :: solution
+!  this%solution => solution
+!  call solution%interpolate_function(fe_space, 1, this%analytical_functions%get_zero_function_u())
+!  call solution%interpolate_function(fe_space, 2, this%analytical_functions%get_zero_function_p())
+!end subroutine mixed_u_p_discrete_integration_init_solution
 
 subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_array_assembler )
   implicit none
