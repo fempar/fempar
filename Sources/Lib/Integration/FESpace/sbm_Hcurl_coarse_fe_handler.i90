@@ -70,6 +70,7 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_
   field_id = 1
   num_coarse_dofs = 0
   call par_fe_space%create_fe_object_iterator(object)
+  
   call this%get_BDDC_edge_continuity_algorithm_case( parameter_list, edge_continuity_algorithm ) 
 
   coarse_edge = 0
@@ -77,16 +78,20 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_
   do while ( .not. object%has_finished() )
      if ( object%get_dimension() .eq. 1 ) then     
         coarse_edge = coarse_edge + 1       
-
+		
         select case ( edge_continuity_algorithm ) 
         case (tangential_average) 
            num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 1
-        case(tangential_average_and_first_order_moment) 
-           num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 2 
-        case(all_dofs_in_coarse_edges) 
+        case (tangential_average_and_first_order_moment) 
+		   if ( this%number_fine_edges_per_coarse_edge(coarse_edge) == 1 ) then 
+           num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 1 
+		   else 
+		   num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 2 
+		   end if 
+        case (all_dofs_in_coarse_edges) 
            num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order  
         end select
-
+		
      end if
      call object%next()
   end do
@@ -176,10 +181,10 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
                     select case ( edge_continuity_algorithm ) 
                     case (tangential_average) 
                        call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp )	
-                    case(tangential_average_and_first_order_moment) 
-                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
+                    case (tangential_average_and_first_order_moment) 
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor*edge_length )	
                        call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid) )	
-                    case(all_dofs_in_coarse_edges) 
+                    case (all_dofs_in_coarse_edges) 
                        icdof = this%order*( this%perm_sorted_edges(coarse_edge, fine_edge) - 1 ) + vef_local_dof 
                        call constraint_matrix%insert(dof_lid, coarse_dof_lid+icdof, 1.0_rp )	
                     end select
@@ -419,7 +424,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
 			   if ( .not. this%follows_coarse_edge_orientation(coarse_edge,fine_edge) ) sign_factor = -1.0_rp 
               call this%change_basis_matrix%G(coarse_edge)%insert(ia       = dofs_wire_edge_old_basis(idof)-offset_wire_edge_dofs,           &
                                                                   ja       = this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order, &  ! Last DOF 
-                                                                  val      = sign_factor )! * edge_length ) 
+                                                                  val      = sign_factor ) !* edge_length ) 
               end do
 			  
            end if
@@ -537,9 +542,7 @@ do while ( .not. object%has_finished() )
                                     end do
                                  end if
 
-                            !     call this%coupled_vefs_added(coarse_edge)%put( key=edge%get_lid(), val=1, stat=istat) 
 						         call coupled_vefs_added_to_node%put( key=edge%get_lid(), val=1, stat=estat)
-                                 exit 
                               end if
                               vertex_within_edge_id = vertex_within_edge_id + 1
                               call vertices_of_line_iterator%next() 
@@ -1678,7 +1681,7 @@ subroutine Hcurl_l1_fill_dofs_coupled_to_coarse_edges_renumbering( this, current
         iedge_coarse = iedge_coarse + 1
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object,vef_within_object)
-           if ( vef_within_object%get_dimension() == 1 ) then ! Only check edge-container elements 
+              ! Check corners&edge -container elements 
               call this%coupled_vefs_added(iedge_coarse)%put( key=vef_within_object%get_lid(), val=1, stat=istat)
               ! Take local fes 
               do ielem = 1, vef_within_object%get_num_cells_around() 
@@ -1708,7 +1711,6 @@ subroutine Hcurl_l1_fill_dofs_coupled_to_coarse_edges_renumbering( this, current
                  end if
               end do
 
-           end if
         end do
      end if
      call object%next()

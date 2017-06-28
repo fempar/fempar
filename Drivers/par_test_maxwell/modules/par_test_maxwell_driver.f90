@@ -405,7 +405,7 @@ end subroutine free_timers
     !w1infty_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     !w1infty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; ! check ( abs(mean) < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < 1.0e-04 )
       !write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-03 )
       !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-03 )
       !write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-03 )
@@ -424,18 +424,41 @@ end subroutine free_timers
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(in) :: this
     type(output_handler_t)                          :: oh
+	
+	class(fe_iterator_t)              , allocatable    :: fe
+	class(base_static_triangulation_t), pointer        :: triangulation
+	real(rp), allocatable                              :: set_id_cell_vector(:)
+	integer(ip)                                        :: i, istat
+	
 	 if ( this%par_environment%am_i_l1_task() ) then
     if(this%test_params%get_write_solution()) then
+	    call build_set_id_cell_vector()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
+		call oh%add_cell_vector(set_id_cell_vector, 'set_id')
         call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
         call oh%write()
         call oh%close()
         call oh%free()
+		call free_set_id_cell_vector()
     end if
 	end if 
-  end subroutine write_solution
+	
+  contains 
+      subroutine build_set_id_cell_vector()
+      triangulation => this%fe_space%get_triangulation()
+      call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
+      do i=1, triangulation%get_num_local_cells()
+            set_id_cell_vector(i) = this%par_environment%get_l1_rank() + 1
+      enddo
+    end subroutine build_set_id_cell_vector
+
+    subroutine free_set_id_cell_vector()
+      call memfree(set_id_cell_vector, __FILE__, __LINE__)
+    end subroutine free_set_id_cell_vector
+	
+	end subroutine write_solution
   
   subroutine run_simulation(this) 
     implicit none
