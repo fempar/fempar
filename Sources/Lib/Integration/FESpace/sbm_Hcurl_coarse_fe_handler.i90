@@ -24,7 +24,7 @@
 ! licensors of this Program grant you additional permission to convey the 
 ! resulting work. 
 !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 subroutine Hcurl_l1_free( this ) 
 implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
@@ -53,92 +53,44 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
-  
+
   integer(ip)                            :: field_id
-  integer(ip)                            :: ivef_within_cell
-  integer(ip)                            :: ivef_within_object
-  integer(ip)                            :: icell_around
-  integer(ip)                            :: idof, dof_lid
-  logical                                :: dofs_on_vef
   type(environment_t), pointer           :: par_environment
   type(fe_object_iterator_t)             :: object
-  type(fe_vef_iterator_t)                :: vef
-  class(fe_iterator_t), allocatable      :: fe
-  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
-  integer(ip), pointer                   :: elem2dof(:)
-  logical                                :: use_vertices, use_edges, use_faces
-  
+  integer(ip)                            :: coarse_edge 
+  integer(ip)                            :: edge_continuity_algorithm 
+
   par_environment => par_fe_space%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
   assert ( size(num_coarse_dofs) == par_fe_space%get_number_fe_objects() )
-  
-  call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
-                                                      use_vertices, &
-                                                      use_edges, &
-                                                      use_faces)
-  
+
   ! To think where field_id should come from? Temporarily let us assume that we have
   ! a single-field PDE problem
   field_id = 1
-
-  ! First, count how many coarse_dofs there are on the interface of my subdomain
   num_coarse_dofs = 0
   call par_fe_space%create_fe_object_iterator(object)
-  call par_fe_space%create_fe_iterator(fe)
-  call par_fe_space%create_fe_vef_iterator(vef)
+  call this%get_BDDC_edge_continuity_algorithm_case( parameter_list, edge_continuity_algorithm ) 
+
+  coarse_edge = 0
+  ! Each coarse Edge is assigned two coarse Dofs 
   do while ( .not. object%has_finished() )
-     select case ( object%get_dimension() )
-     case (0)
-       if (.not. use_vertices) then
-         call object%next(); cycle
-       end if  
-     case (1)
-       if (.not. use_edges) then
-         call object%next(); cycle
-       end if  
-     case (2)
-       if (.not. use_faces) then
-         call object%next(); cycle
-       end if  
-     end select
-    
-     dofs_on_vef = .false.
-     do ivef_within_object=1, object%get_num_vefs()
-        call object%get_vef(ivef_within_object,vef)
+     if ( object%get_dimension() .eq. 1 ) then     
+        coarse_edge = coarse_edge + 1       
 
-        do icell_around=1, vef%get_num_cells_around()
-           call vef%get_cell_around(icell_around,fe)
-           if ( fe%is_ghost() ) then 
-           
-              call fe%get_field_elem2dof(field_id, elem2dof)
-              ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+        select case ( edge_continuity_algorithm ) 
+        case (tangential_average) 
+           num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 1
+        case(tangential_average_and_first_order_moment) 
+           num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 2 
+        case(all_dofs_in_coarse_edges) 
+           num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order  
+        end select
 
-              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
-              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-                 idof    = own_dofs_on_vef_iterator%get_current()
-                 dof_lid = elem2dof(idof)
-                 if ( dof_lid > 0 ) then
-                    dofs_on_vef = .true.
-                    exit
-                 end if
-                 call own_dofs_on_vef_iterator%next()
-              end do
-           
-           end if
-        end do
-        
-        if ( dofs_on_vef ) then
-           ! It must be thought for more general cases (vectors, tensor product...)
-           num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 2
-           exit
-        end if
-
-     end do
+     end if
      call object%next()
   end do
-  call par_fe_space%free_fe_vef_iterator(vef)
-  call par_fe_space%free_fe_iterator(fe)
+
   call par_fe_space%free_fe_object_iterator(object)
 end subroutine Hcurl_l1_get_num_coarse_dofs
 
@@ -159,11 +111,13 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   integer(ip) ::  ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
   integer(ip)            , pointer     :: elem2dof(:)
 
-  type(serial_scalar_array_t) :: first_moment_constraint_in_edges 
-  real(rp), pointer           :: first_moment_constraint_in_edges_entries(:)
-  integer(ip)                 :: coarse_edge, fine_edge 
-  real(rp)                    :: edge_length, sign_factor   
-  
+  integer(ip)                    :: edge_continuity_algorithm 
+  type(serial_scalar_array_t)    :: first_moment_constraint_in_edges 
+  real(rp), pointer              :: first_moment_constraint_in_edges_entries(:)
+  integer(ip)                    :: coarse_edge, fine_edge, icdof, vef_local_dof 
+  real(rp)                       :: edge_length, sign_factor 
+
+
   par_environment => par_fe_space%get_par_environment()
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
@@ -173,10 +127,14 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   ! a single-field PDE problem
   field_id = 1
 
-  ! Free any dynamic memory that constraint_matrix may have inside
-  call constraint_matrix%free()
+  call this%get_BDDC_edge_continuity_algorithm_case( parameter_list, edge_continuity_algorithm ) 
+  if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then 
   call this%compute_first_order_moment_in_edges(par_fe_space, first_moment_constraint_in_edges)
   first_moment_constraint_in_edges_entries => first_moment_constraint_in_edges%get_entries()
+  end if 
+  
+  ! Free any dynamic memory that constraint_matrix may have inside
+  call constraint_matrix%free()
   num_rows = par_fe_space%number_dofs_per_field(field_id)
   num_cols = par_fe_space%ptr_coarse_dofs_per_field(field_id+1)- &
        par_fe_space%ptr_coarse_dofs_per_field(field_id) 
@@ -188,35 +146,45 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   call par_fe_space%create_fe_object_iterator(object)
   call par_fe_space%create_fe_iterator(fe)
   call par_fe_space%create_fe_vef_iterator(vef)
-  
+
   coarse_edge = 0
   do while ( .not. object%has_finished() )
      if ( object%get_dimension () == 1) then
-	    coarse_edge = coarse_edge + 1
+        coarse_edge = coarse_edge + 1
         own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
         coarse_dof_lid = own_coarse_dofs_iterator%get_current()
-		
-		fine_edge = 0
+
+        fine_edge = 0
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object,vef)
            if (vef%get_dimension() == 1) then 
-		      fine_edge = fine_edge + 1
-			  edge_length = this%compute_edge_length(par_fe_space, vef)
-			  sign_factor = 1.0_rp
-			  if ( .not. this%follows_coarse_edge_orientation( coarse_edge, fine_edge) ) sign_factor = -sign_factor
-			  
+              fine_edge = fine_edge + 1
+              edge_length = this%compute_edge_length(par_fe_space, vef)
+              sign_factor = 1.0_rp
+              if ( .not. this%follows_coarse_edge_orientation( coarse_edge, fine_edge) ) sign_factor = -sign_factor
+
               call vef%get_cell_around(1,fe)
               call fe%get_field_elem2dof(field_id, elem2dof)
               ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
               own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+			  vef_local_dof = 0
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-                 idof    = own_dofs_on_vef_iterator%get_current()
-                 dof_lid = elem2dof(idof)
+                 idof          = own_dofs_on_vef_iterator%get_current()
+                 dof_lid       = elem2dof(idof)
                  if ( dof_lid > 0 ) then
-                    ! Average of the tangent component over the Coarse Edge
-                    call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor * edge_length )	
-                    ! First order moment of the tangent component over the Coarse Edge
-                    call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid) )					
+
+                    select case ( edge_continuity_algorithm ) 
+                    case (tangential_average) 
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp )	
+                    case(tangential_average_and_first_order_moment) 
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid) )	
+                    case(all_dofs_in_coarse_edges) 
+                       icdof = this%order*( this%perm_sorted_edges(coarse_edge, fine_edge) - 1 ) + vef_local_dof 
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid+icdof, 1.0_rp )	
+                    end select
+					
+                 vef_local_dof = vef_local_dof + 1
                  end if
                  call own_dofs_on_vef_iterator%next()
               end do
@@ -226,11 +194,11 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
      call object%next()
   end do
 
-  call first_moment_constraint_in_edges%free() 
   call par_fe_space%free_fe_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_vef_iterator(vef)
-  call constraint_matrix%sort_and_compress()
+  call constraint_matrix%sort_and_compress() 
+  if ( edge_continuity_algorithm == tangential_average_and_first_order_moment )  call first_moment_constraint_in_edges%free() 
 
 end subroutine Hcurl_l1_setup_constraint_matrix
 
@@ -423,7 +391,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
            if ( vef_within_object%get_dimension() == 1 ) then 
               fine_edge = fine_edge + 1  
 			  edge_length = this%compute_edge_length(par_fe_space, vef_within_object)
-			  factor = 1.0_rp/this%compute_edge_length(par_fe_space, vef_within_object)
+			  factor = 1.0_rp !/this%compute_edge_length(par_fe_space, vef_within_object)
 			  call this%get_wire_basis_dofs_from_vef(par_fe_space, vef_within_object, dofs_wire_edge_old_basis)
 			  call this%get_new_basis_dofs_from_edge( coarse_edge, fine_edge, edge2dof_new_basis ) 
  
@@ -451,7 +419,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
 			   if ( .not. this%follows_coarse_edge_orientation(coarse_edge,fine_edge) ) sign_factor = -1.0_rp 
               call this%change_basis_matrix%G(coarse_edge)%insert(ia       = dofs_wire_edge_old_basis(idof)-offset_wire_edge_dofs,           &
                                                                   ja       = this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order, &  ! Last DOF 
-                                                                  val      = sign_factor * edge_length ) 
+                                                                  val      = sign_factor )! * edge_length ) 
               end do
 			  
            end if
@@ -553,7 +521,7 @@ do while ( .not. object%has_finished() )
                                  ! Assembly its part to the Discrete Gradient for the coupled EDGE  
                                  new_basis_dof       =  this%get_new_basis_dof_from_node_id(coarse_edge, interior_node_id) 
                                  call this%get_wire_basis_dofs_from_vef(par_fe_space, edge, dofs_wire_edge_old_basis)		
-                                 factor = 1.0_rp/this%compute_edge_length(par_fe_space, edge)
+                                 factor = 1.0_rp !/this%compute_edge_length(par_fe_space, edge)
 						
 				                 if ( is_affluent ) then  ! Affluent edge 
                                     call this%change_basis_matrix%B%insert(nz       = this%order,                                            & 
@@ -1909,3 +1877,17 @@ type(point_t)                             :: tangent_vector
 		 deallocate( node_coordinates,  stat=istat); check(istat==0) 
 		 
 end function Hcurl_l1_compute_edge_length
+
+subroutine Hcurl_l1_get_BDDC_edge_continuity_algorithm_case( parameter_list, algorithm )
+  implicit none
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  integer(ip)                           , intent(out)   :: algorithm
+  
+  character(len=*), parameter :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
+  integer(ip) :: FPLError
+  
+  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, algorithm))
+  FPLError = parameter_list%Get(bddc_edge_continuity_algorithm_key, algorithm)
+  assert(FPLError == 0)
+
+end subroutine Hcurl_l1_get_BDDC_edge_continuity_algorithm_case 

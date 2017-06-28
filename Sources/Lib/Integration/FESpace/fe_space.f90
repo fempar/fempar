@@ -669,6 +669,7 @@ module fe_space_names
 	   procedure                           :: apply_transpose_weighting_operator            => Hcurl_l1_apply_transpose_weighting_operator
 	   procedure                           :: renumber_interface_dofs_first_E_then_Ec       => Hcurl_l1_renumber_interface_dofs_first_E_then_Ec	   
 	   procedure                           :: compute_change_basis_matrix                   => Hcurl_l1_compute_change_basis_matrix 
+	   procedure, private, nopass          :: get_BDDC_edge_continuity_algorithm_case       => Hcurl_l1_get_BDDC_edge_continuity_algorithm_case
 	   ! Auxiliar procedures for renumbering 
 	   procedure, non_overridable, private :: fill_dofs_in_coarse_edges_renumbering         => Hcurl_l1_fill_dofs_in_coarse_edges_renumbering 
 	   procedure, non_overridable, private :: fill_dofs_coupled_to_coarse_edges_renumbering => Hcurl_l1_fill_dofs_coupled_to_coarse_edges_renumbering
@@ -701,6 +702,11 @@ module fe_space_names
 	   procedure, non_overridable, private :: compute_edge_length              => Hcurl_l1_compute_edge_length 
   end type  Hcurl_l1_coarse_fe_handler_t
      
+  integer(ip), parameter :: tangential_average                        = 1
+  integer(ip), parameter :: tangential_average_and_first_order_moment = 2
+  integer(ip), parameter :: all_dofs_in_coarse_edges                  = 3 
+  public :: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges
+  
   public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, Hcurl_l1_coarse_fe_handler_t 
     
   type , extends(base_fe_iterator_t) :: coarse_fe_iterator_t

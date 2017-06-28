@@ -5,11 +5,12 @@ module par_test_maxwell_params_names
 #include "debug.i90" 
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
-  character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
-  character(len=*), parameter :: write_solution_key         = 'write_solution'        
-  character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
-
+  character(len=*), parameter :: reference_fe_geo_order_key      = 'reference_fe_geo_order'
+  character(len=*), parameter :: reference_fe_order_key          = 'reference_fe_order'    
+  character(len=*), parameter :: write_solution_key              = 'write_solution'        
+  character(len=*), parameter :: triangulation_type_key          = 'triangulation_type'    
+  character(len=*), parameter :: bddc_edge_continuity_algorithm_key   = 'bddc_edge_continuity_algorithm'
+  
   type, extends(parameter_handler_t) :: par_test_maxwell_params_t
      private
      contains
@@ -56,10 +57,11 @@ contains
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
     error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
     error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
-    error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
-    error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
-    error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                     ; check(error==0)
-
+    error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                                    ; check(error==0)
+    error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                                    ; check(error==0)
+    error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                                   ; check(error==0)
+	error = list%set(key = bddc_edge_continuity_algorithm_key, value =  tangential_average_and_first_order_moment) ; check(error==0)
+ 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
     error = switches%set(key = prefix_key                    , value = '--prefix')                   ; check(error==0)
@@ -77,6 +79,7 @@ contains
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
+	error = switches%set(key = bddc_edge_continuity_algorithm_key , value = '--BDDC_edge_continuity_algorithm' ) ; check(error==0)
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -94,6 +97,7 @@ contains
     error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
     error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
+	error = switches_ab%set(key = bddc_edge_continuity_algorithm_key , value = '-edge_cont' )  ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -119,8 +123,13 @@ contains
     write(msg(9:9),'(i1)') serial_context
     write(msg(20:20),'(i1)') mpi_context
     error = helpers%set(key = execution_context_key     , value = msg)  ; check(error==0)
+	
+	msg = 'Specify BDDC space continuity: Tangent component on coarse edges (*), tangent component + first order moment (*) or one-to-one over all fine edges (*) '
+    write(msg(67:67),'(i1)') tangential_average 
+    write(msg(111:111),'(i1)') tangential_average_and_first_order_moment 
+	write(msg(149:149), '(i1)') all_dofs_in_coarse_edges  
+    error = helpers%set(key = bddc_edge_continuity_algorithm_key  , value = msg)  ; check(error==0)
 
-    
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
     error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
@@ -137,6 +146,7 @@ contains
     error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
+	error = required%set(key = bddc_edge_continuity_algorithm_key , value = .false.) ; check(error==0)
 
   end subroutine par_test_maxwell_params_define_parameters
 
