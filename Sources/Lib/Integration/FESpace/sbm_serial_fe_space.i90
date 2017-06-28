@@ -33,7 +33,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   class(serial_fe_space_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
-  class(conditions_t)               , optional, intent(in)    :: conditions
+  class(conditions_t)       , target, optional, intent(in)    :: conditions
 
   integer(ip) :: i, istat, jfield, ifield
 
@@ -51,7 +51,8 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
   if ( present(conditions) ) then
-     call this%set_up_strong_dirichlet_bcs( conditions )
+     this%conditions => conditions
+     call this%set_up_strong_dirichlet_bcs()
   else
      call this%strong_dirichlet_values%create_and_allocate(0)
   end if
@@ -68,7 +69,7 @@ subroutine serial_fe_space_create_different_between_cells( this,                
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
-  class(conditions_t)               , optional, intent(in)    :: conditions
+  class(conditions_t)       , target, optional, intent(in)    :: conditions
   
   call this%free()
   
@@ -84,7 +85,8 @@ subroutine serial_fe_space_create_different_between_cells( this,                
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
   if ( present(conditions) ) then
-     call this%set_up_strong_dirichlet_bcs( conditions )
+     this%conditions => conditions
+     call this%set_up_strong_dirichlet_bcs()
   else
      call this%strong_dirichlet_values%create_and_allocate(0)
   end if
@@ -100,6 +102,7 @@ subroutine serial_fe_space_free (this)
   call this%free_ptr_lst_dofs()
   call this%free_at_strong_dirichlet_bound()
   call this%free_has_fixed_dofs()
+  nullify(this%conditions)
   call this%strong_dirichlet_values%free()
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
@@ -247,10 +250,9 @@ subroutine serial_fe_space_free_has_fixed_dofs(this)
   end if
 end subroutine serial_fe_space_free_has_fixed_dofs
 
-subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
+subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  class(conditions_t)     , intent(in)    :: conditions
 
   integer(ip)             :: field_id
   integer(ip)             :: ivef
@@ -269,8 +271,8 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   ! subject to strong Dirichlet BCs. It would be desirable (for efficiency) to 
   ! know a priori which FEs have DoFs which are subject to strong Dirichlet BCs, 
   ! but at the present moment we do not have any way to determine such a thing
-  assert ( conditions%get_number_components() == this%get_number_components() )
-  call memalloc ( conditions%get_number_components(), components_code, __FILE__, __LINE__ )
+  assert ( this%conditions%get_number_components() == this%get_number_components() )
+  call memalloc ( this%conditions%get_number_components(), components_code, __FILE__, __LINE__ )
 
   call memalloc (this%get_number_fields()+1,offset_component_per_field,__FILE__,__LINE__)
   call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
@@ -307,7 +309,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
                ! Get components code corresponding to set_id assigned to current vef
                ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
                ! a more clever strategy. Does pay off to look carefully at this?
-               call conditions%get_components_code( vef%get_set_id(), components_code )
+               call this%conditions%get_components_code( vef%get_set_id(), components_code )
 
                ! Auxiliary function containing the work done at each innermost iteration
                previous_number_dirichlet_dofs = number_strong_dirichlet_dofs
