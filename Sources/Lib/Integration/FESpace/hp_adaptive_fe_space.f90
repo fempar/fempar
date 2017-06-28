@@ -73,6 +73,7 @@ module hp_adaptive_fe_space_names
      
      
      procedure                            :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
+     procedure                            :: serial_fe_space_create_different_between_cells         => shpafs_create_different_between_cells
      procedure                            :: free                                                   => serial_hp_adaptive_fe_space_free
      
      
@@ -379,6 +380,50 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   end if
   
 end subroutine shpafs_create_same_reference_fes_on_all_cells 
+
+subroutine shpafs_create_different_between_cells( this,          &
+                                                  triangulation, &
+                                                  reference_fes, &
+                                                  set_ids_to_reference_fes, &
+                                                  conditions )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t)        , intent(inout) :: this
+  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
+  integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
+  class(conditions_t)               , optional, intent(in)    :: conditions
+
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  integer(ip) :: i, istat, jfield, ifield
+
+  call this%free()
+
+  call this%set_triangulation(triangulation) 
+  select type(triangulation)
+  class is (p4est_serial_triangulation_t)
+    this%p4est_triangulation => triangulation
+  class default
+    assert(.false.)
+  end select
+  
+  call this%set_number_fields(size(set_ids_to_reference_fes,1))
+  call this%allocate_and_fill_reference_fes(reference_fes)
+  call this%allocate_ref_fe_id_per_fe()
+  call this%fill_ref_fe_id_per_fe_different_between_cells(set_ids_to_reference_fes)
+  call this%check_cell_vs_fe_topology_consistency()
+  call this%allocate_and_fill_fe_space_type_per_field()
+  call this%allocate_and_init_ptr_lst_dofs()
+  
+  call this%allocate_and_init_at_strong_dirichlet_bound()
+  call this%allocate_and_init_has_fixed_dofs()
+  if ( present(conditions) ) then
+     call this%set_up_strong_dirichlet_bcs( conditions )
+  else
+     strong_dirichlet_values => this%get_strong_dirichlet_values()
+     call strong_dirichlet_values%create_and_allocate(0)
+  end if
+  
+end subroutine shpafs_create_different_between_cells
 
 subroutine serial_hp_adaptive_fe_space_free(this)
   implicit none
@@ -1107,7 +1152,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems( this,
   
   ! ** This is dirty. Again, I think that this%create() MUST not be called inside refine_and_coarsen()
   block_layout => this%get_block_layout()
-  call this%create(triangulation,conditions,reference_fes,set_ids_to_reference_fes)
+  call this%create(triangulation,reference_fes,set_ids_to_reference_fes,conditions)
   
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
   call this%nullify_block_layout()       ! Not actually required (by now) as this%create() already nullifies the pointer
@@ -1139,7 +1184,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems( this,
                                             this%get_field_blocks(), &
                                             old_nodal_values(1,1:number_nodes_field) )
       if ( transformation_flag == do_nothing ) then
-        call transformed_fe_function%scatter_nodal_values( new_fe,   &
+        call transformed_fe_function%insert_nodal_values( new_fe,   &
                                                            field_id, &
                                                            old_nodal_values(1,1:number_nodes_field) )
         new_cell_lid = new_cell_lid + 1
@@ -1153,7 +1198,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems( this,
           class default
             assert(.false.)
           end select
-          call transformed_fe_function%scatter_nodal_values( new_fe,   &
+          call transformed_fe_function%insert_nodal_values( new_fe,   &
                                                              field_id, &
                                                              new_nodal_values(1:number_nodes_field) )
           new_cell_lid = new_cell_lid + 1
@@ -1176,7 +1221,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems( this,
         class default
           assert(.false.)
         end select
-        call transformed_fe_function%scatter_nodal_values( new_fe,   &
+        call transformed_fe_function%insert_nodal_values( new_fe,   &
                                                            field_id, &
                                                            new_nodal_values(1:number_nodes_field) )        
         new_cell_lid = new_cell_lid + 1
