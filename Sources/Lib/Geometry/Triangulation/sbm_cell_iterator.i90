@@ -161,6 +161,25 @@ subroutine cell_iterator_set_coordinates (this, cell_coordinates)
   
 end subroutine cell_iterator_set_coordinates
 
+subroutine cell_iterator_get_coordinates_ref_space (this, cell_coordinates)
+
+  implicit none
+  class(cell_iterator_t), intent(in)    :: this
+  type(point_t),          intent(inout) :: cell_coordinates(:)
+
+  integer(ip)                               :: inode
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(quadrature_t),               pointer :: nodal_quadrature
+
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
+  reference_fe_geo => this%get_reference_fe_geo()
+  nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
+  assert( size(cell_coordinates) == nodal_quadrature%get_number_quadrature_points() )
+  
+  call nodal_quadrature%get_coordinates_as_points( cell_coordinates ) 
+
+ end subroutine cell_iterator_get_coordinates_ref_space
+
 pure function cell_iterator_get_lid (this)
   implicit none
   class(cell_iterator_t), intent(in) :: this
@@ -503,3 +522,25 @@ subroutine cell_iterator_fill_internal_nodes_new(this,node_count)
   end do
 
 end subroutine cell_iterator_fill_internal_nodes_new
+
+function cell_iterator_is_cut(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  logical :: cell_iterator_is_cut
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_cut
+ 
+function cell_iterator_is_interior(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  logical :: cell_iterator_is_interior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_interior
+
+function cell_iterator_is_exterior(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  logical :: cell_iterator_is_exterior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_exterior
+

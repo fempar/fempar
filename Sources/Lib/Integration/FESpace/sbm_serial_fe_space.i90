@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
+subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,          &
                                                                    triangulation, &
-                                                                   conditions, &
-                                                                   reference_fes)
+                                                                   reference_fes, &
+                                                                   conditions )
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
-  class(conditions_t)                         , intent(in)    :: conditions
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
+  class(conditions_t)               , optional, intent(in)    :: conditions
 
   integer(ip) :: i, istat, jfield, ifield
 
@@ -48,32 +48,27 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
   
-  call this%allocate_fe_quadratures_degree()
-  call this%clear_fe_quadratures_degree()
-  call this%allocate_max_order_reference_fe_id_per_fe()
-  call this%compute_max_order_reference_fe_id_per_fe()
-  
-  call this%allocate_fe_face_quadratures_degree()
-  call this%clear_fe_face_quadratures_degree()
-  call this%allocate_max_order_reference_fe_id_per_fe_face()
-  call this%compute_max_order_reference_fe_id_per_fe_face()
-
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
-  call this%set_up_strong_dirichlet_bcs( conditions )
+  if ( present(conditions) ) then
+     call this%set_up_strong_dirichlet_bcs( conditions )
+  else
+     call this%strong_dirichlet_values%create_and_allocate(0)
+  end if
+  
 end subroutine serial_fe_space_create_same_reference_fes_on_all_cells
 
-subroutine serial_fe_space_create_different_between_cells( this, &
-     triangulation, &
-     conditions, &
-     reference_fes, &
-     set_ids_to_reference_fes )
+subroutine serial_fe_space_create_different_between_cells( this,                     &
+                                                           triangulation,            &
+                                                           reference_fes,            &
+                                                           set_ids_to_reference_fes, &
+                                                           conditions )
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
-  class(conditions_t)                         , intent(in)    :: conditions
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
+  class(conditions_t)               , optional, intent(in)    :: conditions
   
   call this%free()
   
@@ -85,17 +80,15 @@ subroutine serial_fe_space_create_different_between_cells( this, &
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
-  call this%allocate_fe_quadratures_degree()
-  call this%clear_fe_quadratures_degree()
-  call this%allocate_max_order_reference_fe_id_per_fe()
-  call this%compute_max_order_reference_fe_id_per_fe()
-  call this%allocate_fe_face_quadratures_degree()
-  call this%clear_fe_face_quadratures_degree()
-  call this%allocate_max_order_reference_fe_id_per_fe_face()
-  call this%compute_max_order_reference_fe_id_per_fe_face()
+
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
-  call this%set_up_strong_dirichlet_bcs( conditions )
+  if ( present(conditions) ) then
+     call this%set_up_strong_dirichlet_bcs( conditions )
+  else
+     call this%strong_dirichlet_values%create_and_allocate(0)
+  end if
+  
 end subroutine serial_fe_space_create_different_between_cells
 
 subroutine serial_fe_space_free (this)
@@ -110,11 +103,7 @@ subroutine serial_fe_space_free (this)
   call this%strong_dirichlet_values%free()
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
-  call this%free_fe_quadratures_degree()
   call this%free_fe_face_integration()
-  call this%free_fe_face_quadratures_degree()
-  call this%free_max_order_reference_fe_id_per_fe()
-  call this%free_max_order_reference_fe_id_per_fe_face()
   nullify(this%block_layout)
 end subroutine serial_fe_space_free
 
@@ -1305,7 +1294,10 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
   class(reference_fe_t), pointer :: reference_fe
 
   call this%free_fe_integration()
-
+  
+  call this%allocate_max_order_reference_fe_id_per_fe()
+  call this%compute_max_order_reference_fe_id_per_fe()
+  
   ! Determine the size of fe_quadratures, fe_maps, and fe_cell_integrators 
   ! while filling the corresponding hash tables
   call this%fe_quadratures_and_maps_position%init()
@@ -1430,6 +1422,10 @@ subroutine serial_fe_space_free_fe_integration ( this )
      deallocate(this%fe_cell_integrators, stat=istat)
      check(istat==0)
   end if
+  
+  call this%free_fe_quadratures_degree()
+  call this%free_max_order_reference_fe_id_per_fe()
+  
 end subroutine serial_fe_space_free_fe_integration
 
 
@@ -1553,6 +1549,9 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
 
   call this%free_fe_face_integration()
 
+  call this%allocate_max_order_reference_fe_id_per_fe_face()
+  call this%compute_max_order_reference_fe_id_per_fe_face()
+  
   ! Determine the size of fe_face_quadratures, fe_face_maps, 
   ! and fe_face_integrators while filling the corresponding hash tables
   call this%fe_face_quadratures_position%init()
@@ -1713,6 +1712,10 @@ subroutine serial_fe_space_free_fe_face_integration ( this )
      deallocate(this%fe_face_integrators, stat=istat)
      check(istat==0)
   end if
+  
+  call this%free_fe_face_quadratures_degree()
+  call this%free_max_order_reference_fe_id_per_fe_face()
+  
 end subroutine serial_fe_space_free_fe_face_integration
 
 ! Provided the identifiers of the reference_fes_geo corresponding 
@@ -1825,21 +1828,23 @@ subroutine serial_fe_space_count_dofs ( this )
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
         do field_id=1, this%number_fields
-           this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
-                                                     fe%count_own_dofs(field_id)
-           if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
-              do ivef = 1, fe%get_num_vefs()
-                vef_lid = fe%get_vef_lid(ivef)
-                if ( .not. per_field_vefs_visited (field_id,vef_lid) ) then
-                   num_own_dofs_on_vef = fe%count_own_dofs_on_vef(ivef,field_id)
-                   if (num_own_dofs_on_vef>0) then
-                     per_field_vefs_visited (field_id,vef_lid) = .true.
-                     this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
-                                                                 num_own_dofs_on_vef 
-                   end if
-                end if
-              end do           
-           end if                                       
+          if ( .not. fe%is_void(field_id)) then
+            this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
+                                                      fe%count_own_dofs(field_id)
+            if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+               do ivef = 1, fe%get_num_vefs()
+                 vef_lid = fe%get_vef_lid(ivef)
+                 if ( .not. per_field_vefs_visited (field_id,vef_lid) ) then
+                    num_own_dofs_on_vef = fe%count_own_dofs_on_vef(ivef,field_id)
+                    if (num_own_dofs_on_vef>0) then
+                      per_field_vefs_visited (field_id,vef_lid) = .true.
+                      this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
+                                                                  num_own_dofs_on_vef 
+                    end if
+                 end if
+               end do           
+            end if                                       
+          end if
         end do
      end if
      call fe%next()
@@ -1894,24 +1899,26 @@ subroutine serial_fe_space_list_dofs ( this )
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
        do field_id=1, this%get_number_fields()
-          call fe%fill_own_dofs ( field_id, fields_current_dof(field_id) )
-          do ivef = 1, fe%get_num_vefs()
-              vef_lid = fe%get_vef_lid(ivef)
-              if ( owner_cell_gid_per_field_and_vef( field_id, vef_lid ) == -1 ) then
-                 previous_dof_block = fields_current_dof(field_id)
-                 call fe%fill_own_dofs_on_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
-                 if (previous_dof_block < fields_current_dof(field_id)) then
-                   owner_cell_gid_per_field_and_vef( field_id, vef_lid ) = fe%get_lid() 
-                   per_field_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
-                 end if
-              else 
-                 call source_fe%set_lid(owner_cell_gid_per_field_and_vef(field_id, vef_lid))
-                 call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
-                                                               source_fe, &
-                                                               per_field_vef_lid_in_owner_cell(field_id,vef_lid), &
-                                                               field_id) 
-              end if
-          end do
+         if ( .not. fe%is_void(field_id)) then
+           call fe%fill_own_dofs ( field_id, fields_current_dof(field_id) )
+           do ivef = 1, fe%get_num_vefs()
+             vef_lid = fe%get_vef_lid(ivef)
+             if ( owner_cell_gid_per_field_and_vef( field_id, vef_lid ) == -1 ) then
+                previous_dof_block = fields_current_dof(field_id)
+                call fe%fill_own_dofs_on_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
+                if (previous_dof_block < fields_current_dof(field_id)) then
+                  owner_cell_gid_per_field_and_vef( field_id, vef_lid ) = fe%get_lid() 
+                  per_field_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                end if
+             else 
+                call source_fe%set_lid(owner_cell_gid_per_field_and_vef(field_id, vef_lid))
+                call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                                                              source_fe, &
+                                                              per_field_vef_lid_in_owner_cell(field_id,vef_lid), &
+                                                              field_id) 
+             end if
+           end do
+         end if
        end do
      end if
      call fe%next()

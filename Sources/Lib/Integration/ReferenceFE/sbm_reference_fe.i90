@@ -280,12 +280,30 @@ function reference_fe_get_dofs_n_face ( this )
   reference_fe_get_dofs_n_face => this%dofs_n_face
 end function reference_fe_get_dofs_n_face
 
+function reference_fe_create_dofs_n_face_iterator ( this, n_face_id) result(list_iterator)
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip)          , intent(in) :: n_face_id
+  type(list_iterator_t) :: list_iterator
+  assert ( n_face_id >= 1 .and. n_face_id <= this%get_number_n_faces() )
+  list_iterator = this%dofs_n_face%create_iterator(n_face_id)
+end function reference_fe_create_dofs_n_face_iterator
+
 function reference_fe_get_vertices_n_face ( this )
   implicit none
   class(reference_fe_t), target, intent(in) :: this
   type(list_t), pointer :: reference_fe_get_vertices_n_face
   reference_fe_get_vertices_n_face => this%vertices_n_face
 end function reference_fe_get_vertices_n_face
+
+function reference_fe_create_vertices_n_face_iterator ( this, n_face_id) result(list_iterator)
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip)          , intent(in) :: n_face_id
+  type(list_iterator_t) :: list_iterator
+  assert ( n_face_id >= 1 .and. n_face_id <= this%get_number_n_faces() )
+  list_iterator = this%vertices_n_face%create_iterator(n_face_id)
+end function reference_fe_create_vertices_n_face_iterator
 
 function reference_fe_get_n_faces_n_face ( this )
   implicit none

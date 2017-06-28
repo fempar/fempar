@@ -234,6 +234,16 @@ contains
         class(vector_t),        intent(inout) :: y
     !-----------------------------------------------------------------
         type(sparse_matrix_t),  pointer                :: matrix
+
+#ifdef DEBUG
+        type(serial_scalar_array_t)     :: r
+        real(rp),               pointer :: r_real(:)
+        real(rp),               pointer :: x_real(:)
+        real(rp)                        :: err
+        character(len=10)               :: serr
+        real(rp),             parameter :: tol = 1.0e-10
+#endif
+
         assert(associated(op%base_direct_solver))
         assert(op%base_direct_solver%matrix_is_set())
         if(.not. op%vector_spaces_are_created()) &
@@ -245,12 +255,30 @@ contains
                 select type (y)
                     type is (serial_scalar_array_t)
                         call op%base_direct_solver%solve(x,y)
+#ifdef DEBUG
+                        ! Check solution
+                        matrix => op%base_direct_solver%get_matrix()
+                        call r%clone(x)
+                        call r%scal(-1.0,x)
+                        call matrix%apply_add(y,r)
+                        r_real => r%get_entries()
+                        x_real => x%get_entries()
+                        err = 0.0
+                        if (maxval(abs(x_real))>0) then
+                          err = maxval(abs(r_real))/maxval(abs(x_real))
+                        end if
+                        write(serr,'(e10.3)') err                              
+                        wassert( maxval(abs(r_real))<=tol*maxval(abs(x_real)), 'Direct solver (single rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+                        call r%free()
+#endif
                     class DEFAULT
                         check(.false.)
                 end select
             class DEFAULT
                 check(.false.)
         end select
+
+
     end subroutine direct_solver_solve_single_rhs
 
 
@@ -263,6 +291,21 @@ contains
         real(rp),               intent(inout) :: y(:, :)
     !-----------------------------------------------------------------
         type(sparse_matrix_t),  pointer                :: matrix
+
+#ifdef DEBUG
+        type(serial_scalar_array_t)     :: xarr
+        type(serial_scalar_array_t)     :: yarr
+        type(serial_scalar_array_t)     :: rarr
+        real(rp),               pointer :: x_real(:)
+        real(rp),               pointer :: y_real(:)
+        real(rp),               pointer :: r_real(:)
+        integer(ip)                     :: nrhs
+        integer(ip)                     :: i
+        real(rp)                        :: err
+        character(len=10)               :: serr
+        real(rp),             parameter :: tol = 1.0e-10
+#endif
+
         assert(associated(op%base_direct_solver))
         assert(op%base_direct_solver%matrix_is_set())
         if(.not. op%vector_spaces_are_created()) &
@@ -270,6 +313,33 @@ contains
         matrix => op%base_direct_solver%get_matrix()
         if(matrix%get_num_rows()==0 .or. matrix%get_num_cols()==0) return
         call op%base_direct_solver%solve(x, y)
+
+#ifdef DEBUG
+        ! Check solution
+        nrhs = size(x,2)
+        call xarr%create_and_allocate(size(x,1))
+        call yarr%clone(xarr)
+        call rarr%clone(xarr)
+        x_real =>xarr%get_entries()
+        y_real =>yarr%get_entries()
+        r_real =>rarr%get_entries()
+        do i =1,nrhs
+          x_real(:) = x(:,i)
+          y_real(:) = y(:,i)
+          call rarr%scal(-1.0,xarr)
+          call matrix%apply_add(yarr,rarr)
+          err = 0.0
+          if (maxval(abs(x_real))>0) then
+            err = maxval(abs(r_real))/maxval(abs(x_real))
+          end if
+          write(serr,'(e10.3)') err
+          wassert( maxval(abs(r_real))<=tol*maxval(abs(x_real)),'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+        end do
+        call xarr%free()
+        call yarr%free()
+        call rarr%free()
+#endif
+
     end subroutine direct_solver_solve_several_rhs
 
 

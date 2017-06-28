@@ -939,9 +939,9 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
                                             this%get_field_blocks(), &
                                             old_nodal_values(1,1:number_nodes_field) )
       if ( transformation_flag == do_nothing ) then
-        call transformed_fe_function%scatter_nodal_values( new_fe,   &
-                                                           field_id, &
-                                                           old_nodal_values(1,1:number_nodes_field) )
+        call transformed_fe_function%insert_nodal_values( new_fe,   &
+                                                          field_id, &
+                                                          old_nodal_values(1,1:number_nodes_field) )
         new_cell_lid = new_cell_lid + 1
       else if ( transformation_flag == refinement ) then
         do subcell_id = 0,num_children_per_cell-1
@@ -953,9 +953,9 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
           class default
             assert(.false.)
           end select
-          call transformed_fe_function%scatter_nodal_values( new_fe,   &
-                                                             field_id, &
-                                                             new_nodal_values(1:number_nodes_field) )
+          call transformed_fe_function%insert_nodal_values( new_fe,   &
+                                                            field_id, &
+                                                            new_nodal_values(1:number_nodes_field) )
           new_cell_lid = new_cell_lid + 1
           call new_fe%set_lid(new_cell_lid)
         end do
@@ -976,9 +976,9 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
         class default
           assert(.false.)
         end select
-        call transformed_fe_function%scatter_nodal_values( new_fe,   &
-                                                           field_id, &
-                                                           new_nodal_values(1:number_nodes_field) )        
+        call transformed_fe_function%insert_nodal_values( new_fe,   &
+                                                          field_id, &
+                                                          new_nodal_values(1:number_nodes_field) )        
         new_cell_lid = new_cell_lid + 1
       else
         assert(.false.)

@@ -121,8 +121,11 @@ function fe_face_iterator_get_quadrature_degree ( this )
   implicit none
   class(fe_face_iterator_t), intent(in) :: this
   integer(ip) :: fe_face_iterator_get_quadrature_degree
-  fe_face_iterator_get_quadrature_degree = this%fe_space%fe_face_quadratures_degree(this%get_face_lid())
-  if ( fe_face_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
+  if ( allocated(this%fe_space%fe_face_quadratures_degree) ) then
+     fe_face_iterator_get_quadrature_degree = this%fe_space%fe_face_quadratures_degree(this%get_face_lid())
+  end if
+  if ( .not. allocated(this%fe_space%fe_face_quadratures_degree) .or. &
+       fe_face_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
      fe_face_iterator_get_quadrature_degree = this%get_default_quadrature_degree()
   end if
 end function fe_face_iterator_get_quadrature_degree
@@ -133,7 +136,7 @@ function fe_face_iterator_get_default_quadrature_degree ( this )
   class(fe_face_iterator_t), intent(in) :: this
   integer(ip) :: fe_face_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
- 
+  assert( allocated(this%fe_space%max_order_reference_fe_id_per_fe_face) )
   reference_fe_id = this%fe_space%max_order_reference_fe_id_per_fe_face(this%get_face_lid())
   fe_face_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
@@ -143,10 +146,13 @@ end function fe_face_iterator_get_default_quadrature_degree
 subroutine fe_face_iterator_set_quadrature_degree ( this, quadrature_degree )
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this
-  integer(ip)         , intent(in)    :: quadrature_degree
-  assert ( quadrature_degree >= 0 )
-  assert ( allocated ( this%fe_space%fe_face_quadratures_degree) )
-  this%fe_space%fe_face_quadratures_degree(this%get_lid()) = quadrature_degree
+  integer(ip)              , intent(in)    :: quadrature_degree
+  assert ( quadrature_degree >= -1 )
+  if ( .not. allocated ( this%fe_space%fe_face_quadratures_degree) ) then
+     call this%fe_space%allocate_fe_face_quadratures_degree()
+     call this%fe_space%clear_fe_face_quadratures_degree()
+  end if
+  this%fe_space%fe_face_quadratures_degree(this%get_face_lid()) = quadrature_degree
 end subroutine fe_face_iterator_set_quadrature_degree
 
 !=================================================================================================

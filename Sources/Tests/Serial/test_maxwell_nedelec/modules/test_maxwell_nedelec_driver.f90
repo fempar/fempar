@@ -137,9 +137,9 @@ contains
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
 
     call this%maxwell_nedelec_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%fe_space%create( triangulation       = this%triangulation,      &
-                               conditions          = this%maxwell_nedelec_conditions, &
-                               reference_fes       = this%reference_fes)
+    call this%fe_space%create( triangulation       = this%triangulation, &
+                               reference_fes       = this%reference_fes, &
+                               conditions          = this%maxwell_nedelec_conditions )
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration() 
 	   call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
