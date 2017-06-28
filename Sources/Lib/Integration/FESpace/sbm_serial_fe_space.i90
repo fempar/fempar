@@ -1825,21 +1825,23 @@ subroutine serial_fe_space_count_dofs ( this )
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
         do field_id=1, this%number_fields
-           this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
-                                                     fe%count_own_dofs(field_id)
-           if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
-              do ivef = 1, fe%get_num_vefs()
-                vef_lid = fe%get_vef_lid(ivef)
-                if ( .not. per_field_vefs_visited (field_id,vef_lid) ) then
-                   num_own_dofs_on_vef = fe%count_own_dofs_on_vef(ivef,field_id)
-                   if (num_own_dofs_on_vef>0) then
-                     per_field_vefs_visited (field_id,vef_lid) = .true.
-                     this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
-                                                                 num_own_dofs_on_vef 
-                   end if
-                end if
-              end do           
-           end if                                       
+          if ( .not. fe%is_void(field_id)) then
+            this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
+                                                      fe%count_own_dofs(field_id)
+            if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+               do ivef = 1, fe%get_num_vefs()
+                 vef_lid = fe%get_vef_lid(ivef)
+                 if ( .not. per_field_vefs_visited (field_id,vef_lid) ) then
+                    num_own_dofs_on_vef = fe%count_own_dofs_on_vef(ivef,field_id)
+                    if (num_own_dofs_on_vef>0) then
+                      per_field_vefs_visited (field_id,vef_lid) = .true.
+                      this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
+                                                                  num_own_dofs_on_vef 
+                    end if
+                 end if
+               end do           
+            end if                                       
+          end if
         end do
      end if
      call fe%next()
@@ -1894,24 +1896,26 @@ subroutine serial_fe_space_list_dofs ( this )
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
        do field_id=1, this%get_number_fields()
-          call fe%fill_own_dofs ( field_id, fields_current_dof(field_id) )
-          do ivef = 1, fe%get_num_vefs()
-              vef_lid = fe%get_vef_lid(ivef)
-              if ( owner_cell_gid_per_field_and_vef( field_id, vef_lid ) == -1 ) then
-                 previous_dof_block = fields_current_dof(field_id)
-                 call fe%fill_own_dofs_on_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
-                 if (previous_dof_block < fields_current_dof(field_id)) then
-                   owner_cell_gid_per_field_and_vef( field_id, vef_lid ) = fe%get_lid() 
-                   per_field_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
-                 end if
-              else 
-                 call source_fe%set_lid(owner_cell_gid_per_field_and_vef(field_id, vef_lid))
-                 call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
-                                                               source_fe, &
-                                                               per_field_vef_lid_in_owner_cell(field_id,vef_lid), &
-                                                               field_id) 
-              end if
-          end do
+         if ( .not. fe%is_void(field_id)) then
+           call fe%fill_own_dofs ( field_id, fields_current_dof(field_id) )
+           do ivef = 1, fe%get_num_vefs()
+             vef_lid = fe%get_vef_lid(ivef)
+             if ( owner_cell_gid_per_field_and_vef( field_id, vef_lid ) == -1 ) then
+                previous_dof_block = fields_current_dof(field_id)
+                call fe%fill_own_dofs_on_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
+                if (previous_dof_block < fields_current_dof(field_id)) then
+                  owner_cell_gid_per_field_and_vef( field_id, vef_lid ) = fe%get_lid() 
+                  per_field_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                end if
+             else 
+                call source_fe%set_lid(owner_cell_gid_per_field_and_vef(field_id, vef_lid))
+                call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                                                              source_fe, &
+                                                              per_field_vef_lid_in_owner_cell(field_id,vef_lid), &
+                                                              field_id) 
+             end if
+           end do
+         end if
        end do
      end if
      call fe%next()

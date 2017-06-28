@@ -783,6 +783,20 @@ function fe_iterator_get_reference_fe_id(this, field_id)
   fe_iterator_get_reference_fe_id = this%fe_space%reference_fe_id_per_fe(field_id,this%get_lid())
 end function fe_iterator_get_reference_fe_id
 
+function fe_iterator_is_void(this, field_id)
+  implicit none
+  class(fe_iterator_t), intent(in)    :: this
+  integer(ip),          intent(in)    :: field_id
+  logical                             :: fe_iterator_is_void
+  class(reference_fe_t), pointer :: reference_fe
+  reference_fe => this%get_reference_fe(field_id)
+  fe_iterator_is_void =  .false.
+  select type (reference_fe)
+    class is (void_reference_fe_t)
+      fe_iterator_is_void =  .true.
+  end select
+end function fe_iterator_is_void
+
 function fe_iterator_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) result(list_iterator)
   implicit none
   class(fe_iterator_t), intent(in) :: this
@@ -831,7 +845,7 @@ subroutine fe_iterator_first_local_non_void(this,field_id)
  call this%first()
  do while( .not. this%has_finished())
    if (this%is_local()) then
-     if (this%get_order(field_id) > 0) exit
+     if ( .not. this%is_void(field_id) ) exit
    end if
    call this%next()
  end do

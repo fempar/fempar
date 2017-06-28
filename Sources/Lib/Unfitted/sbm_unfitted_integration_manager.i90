@@ -159,6 +159,7 @@ subroutine uim_check_assumptions(this)
       assert( geo_ref_fe_1%get_order()             ==    geo_ref_fe%get_order()             )
       assert( geo_ref_fe_1%get_field_type()        ==    geo_ref_fe%get_field_type()        )
       assert( geo_ref_fe_1%get_continuity()        .eqv. geo_ref_fe%get_continuity()        )
+      assert( geo_ref_fe_1%get_conformity()        .eqv. geo_ref_fe%get_conformity()        )
     end if
     call fe%next()
   end do
@@ -166,23 +167,20 @@ subroutine uim_check_assumptions(this)
   do ifield = 1, num_fields
 
     ! Find first non-empty fe in this field
-    call fe%first()
-    do while (.not. fe%has_finished())
-      ref_fe_1  => fe%get_reference_fe(ifield)
-      if ( ref_fe_1%get_order() > 0) exit
-      call fe%next()
-    end do
-
+    call fe%first_local_non_void(ifield)
+    ref_fe_1 => fe%get_reference_fe(ifield)
+    
     ! Check ref elems
     call fe%first()
     do while (.not. fe%has_finished())
-      if (fe%is_local()) then
+      if (fe%is_local() .and. (.not. fe%is_void(ifield) )) then
         ref_fe     => fe%get_reference_fe(ifield)
         assert( ref_fe_1%get_topology()          ==    ref_fe%get_topology()         )
         assert( ref_fe_1%get_number_dimensions() ==    ref_fe%get_number_dimensions())
-        assert( ref_fe_1%get_order()==ref_fe%get_order() .or.  ref_fe%get_order()<0  )
+        assert( ref_fe_1%get_order()             ==    ref_fe%get_order()            )
         assert( ref_fe_1%get_field_type()        ==    ref_fe%get_field_type()       )
         assert( ref_fe_1%get_continuity()        .eqv. ref_fe%get_continuity()       )
+        assert( ref_fe_1%get_conformity()        .eqv. ref_fe%get_conformity()       )
       end if
       call fe%next()
     end do
