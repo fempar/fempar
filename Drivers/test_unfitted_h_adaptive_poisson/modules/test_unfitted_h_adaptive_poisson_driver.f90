@@ -685,6 +685,12 @@ contains
         call vtk_writer%attach_triangulation(this%triangulation)
         call vtk_writer%write_to_vtk_file('out_mesh.vtu')
         call vtk_writer%free()
+        
+        ! Write the solution
+        call vtk_writer%attach_fe_function(this%solution,this%fe_space)
+        call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
+        call vtk_writer%free()
+        
 
     endif
   end subroutine write_solution

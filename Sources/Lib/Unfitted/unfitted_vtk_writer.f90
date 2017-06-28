@@ -362,6 +362,9 @@ contains
       class is (par_unfitted_triangulation_t)
         call this%attach_triangulation(triangulation)
         num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
+      class is (unfitted_p4est_serial_triangulation_t)
+        call this%attach_triangulation(triangulation)
+        num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
       class default
         check(.false.)
     end select
@@ -382,6 +385,8 @@ contains
 
     select type(fe_std)
       class is (unfitted_fe_iterator_t)
+      fe => fe_std
+      class is (unfitted_hp_adaptive_fe_iterator_t)
       fe => fe_std
       class default
         check(.false.)
