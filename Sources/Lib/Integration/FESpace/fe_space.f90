@@ -392,6 +392,8 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_fe_space_type_per_field    => serial_fe_space_allocate_and_fill_fe_space_type_per_field
      procedure, non_overridable, private :: free_fe_space_type_per_field                 => serial_fe_space_free_fe_space_type_per_field
      procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs               => serial_fe_space_allocate_and_init_ptr_lst_dofs
+     procedure, non_overridable          :: move_alloc_ptr_dofs_per_fe_out               => serial_fe_space_move_alloc_ptr_dofs_per_fe_out     
+     procedure, non_overridable          :: move_alloc_lst_dofs_lids_out                 => serial_fe_space_move_alloc_lst_dofs_lids_out
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => serial_fe_space_free_ptr_lst_dofs
      procedure, non_overridable          :: allocate_and_init_at_strong_dirichlet_bound  => serial_fe_space_allocate_and_init_at_strong_dirichlet_bound  
      procedure, non_overridable, private :: free_at_strong_dirichlet_bound               => serial_fe_space_free_at_strong_dirichlet_bound
@@ -463,8 +465,6 @@ module fe_space_names
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      procedure                           :: get_number_fixed_dofs                        => serial_fe_space_get_number_fixed_dofs     
-     procedure, non_overridable          :: copy_ptr_dofs_per_fe                         => serial_fe_space_copy_ptr_dofs_per_fe     
-     procedure, non_overridable          :: copy_lst_dofs_lids                           => serial_fe_space_copy_lst_dofs_lids
      procedure                           :: get_number_blocks                            => serial_fe_space_get_number_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling

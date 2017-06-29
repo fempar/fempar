@@ -201,6 +201,26 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
   this%lst_dofs_lids = 0
 end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs
 
+subroutine serial_fe_space_move_alloc_ptr_dofs_per_fe_out ( this, ptr_dofs_per_fe )
+  implicit none
+  class(serial_fe_space_t)             , intent(inout) :: this
+  integer(ip)             , allocatable, intent(inout) :: ptr_dofs_per_fe(:,:)
+  assert ( .not. allocated(ptr_dofs_per_fe) )
+  if ( allocated(this%ptr_dofs_per_fe) ) then
+     call move_alloc( to=ptr_dofs_per_fe, from=this%ptr_dofs_per_fe )
+  end if
+end subroutine serial_fe_space_move_alloc_ptr_dofs_per_fe_out
+
+subroutine serial_fe_space_move_alloc_lst_dofs_lids_out ( this, lst_dofs_lids )
+  implicit none
+  class(serial_fe_space_t)             , intent(inout) :: this
+  integer(ip)             , allocatable, intent(inout) :: lst_dofs_lids(:)
+  assert ( .not. allocated(lst_dofs_lids) )
+  if ( allocated(this%lst_dofs_lids) ) then
+     call move_alloc( to=lst_dofs_lids, from=this%lst_dofs_lids )
+  end if
+end subroutine serial_fe_space_move_alloc_lst_dofs_lids_out
+
 subroutine serial_fe_space_free_ptr_lst_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
@@ -2210,22 +2230,6 @@ function serial_fe_space_get_number_fixed_dofs(this)
   integer(ip) :: serial_fe_space_get_number_fixed_dofs
   serial_fe_space_get_number_fixed_dofs = this%strong_dirichlet_values%get_size()
 end function serial_fe_space_get_number_fixed_dofs
-
-subroutine serial_fe_space_copy_ptr_dofs_per_fe ( this, ptr_dofs_per_fe )
-  implicit none
-  class(serial_fe_space_t), target, intent(in)    :: this
-  integer(ip)                     , intent(inout) :: ptr_dofs_per_fe(:,:)
-  assert ( size(ptr_dofs_per_fe,2) == size(this%ptr_dofs_per_fe,2) )
-  ptr_dofs_per_fe = this%ptr_dofs_per_fe
-end subroutine serial_fe_space_copy_ptr_dofs_per_fe
-
-subroutine serial_fe_space_copy_lst_dofs_lids ( this, lst_dofs_lids )
-  implicit none
-  class(serial_fe_space_t), target, intent(in)    :: this
-  integer(ip)                     , intent(inout) :: lst_dofs_lids(:)  
-  assert ( size(lst_dofs_lids) == size(this%lst_dofs_lids) )
-  lst_dofs_lids = this%lst_dofs_lids
-end subroutine serial_fe_space_copy_lst_dofs_lids
 
 function serial_fe_space_get_number_blocks( this)
   implicit none

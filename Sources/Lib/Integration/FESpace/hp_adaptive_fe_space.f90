@@ -970,13 +970,9 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
   
   old_num_cells = p4est_refinement_and_coarsening_flags%size()
   
-  call memalloc(this%get_number_fields(), &
-                old_num_cells+1,          &
-                old_ptr_dofs_per_fe,__FILE__,__LINE__)
-  call this%copy_ptr_dofs_per_fe(old_ptr_dofs_per_fe)
-  call memalloc(old_ptr_dofs_per_fe(1,old_num_cells+1)-1, &
-                old_lst_dofs_lids,__FILE__,__LINE__)
-  call this%copy_lst_dofs_lids(old_lst_dofs_lids)
+  call this%move_alloc_ptr_dofs_per_fe_out(old_ptr_dofs_per_fe)
+  call this%move_alloc_lst_dofs_lids_out(old_lst_dofs_lids)
+  assert ( old_num_cells == (size(old_ptr_dofs_per_fe,2)-1) )
   
   ! ** This is dirty. Again, I think that this%create() MUST not be called inside refine_and_coarsen()
   block_layout => this%get_block_layout()
@@ -1134,10 +1130,10 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems( this,
   call memalloc(this%get_number_fields(), &
                 old_num_cells+1,          &
                 old_ptr_dofs_per_fe,__FILE__,__LINE__)
-  call this%copy_ptr_dofs_per_fe(old_ptr_dofs_per_fe)
+  call this%move_alloc_ptr_dofs_per_fe_out(old_ptr_dofs_per_fe)
   call memalloc(old_ptr_dofs_per_fe(1,old_num_cells+1)-1, &
                 old_lst_dofs_lids,__FILE__,__LINE__)
-  call this%copy_lst_dofs_lids(old_lst_dofs_lids)
+  call this%move_alloc_lst_dofs_lids_out(old_lst_dofs_lids)
   
   ! ** This is dirty. Again, I think that this%create() MUST not be called inside refine_and_coarsen()
   block_layout => this%get_block_layout()
