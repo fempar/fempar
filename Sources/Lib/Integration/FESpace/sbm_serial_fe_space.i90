@@ -1176,6 +1176,16 @@ subroutine serial_fe_space_allocate_ref_fe_id_per_fe ( this )
        __FILE__, __LINE__)
 end subroutine serial_fe_space_allocate_ref_fe_id_per_fe
 
+subroutine serial_fe_space_move_alloc_ref_fe_id_per_fe_out ( this, ref_fe_id_per_fe )
+  implicit none
+  class(serial_fe_space_t)             , intent(inout) :: this
+  integer(ip)             , allocatable, intent(inout) :: ref_fe_id_per_fe(:,:)
+  assert ( .not. allocated(ref_fe_id_per_fe) )
+  if ( allocated(this%reference_fe_id_per_fe) ) then
+     call move_alloc( to=ref_fe_id_per_fe, from=this%reference_fe_id_per_fe )
+  end if
+end subroutine serial_fe_space_move_alloc_ref_fe_id_per_fe_out
+
 subroutine serial_fe_space_free_ref_fe_id_per_fe ( this )
   class(serial_fe_space_t), intent(inout) :: this
   if (allocated(this%reference_fe_id_per_fe)) then
