@@ -181,9 +181,11 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
                     select case ( edge_continuity_algorithm ) 
                     case (tangential_average) 
                        call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp )	
-                    case (tangential_average_and_first_order_moment) 
-                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor*edge_length )	
+                    case (tangential_average_and_first_order_moment) 					  
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor * edge_length )	
+                       if ( this%number_fine_edges_per_coarse_edge(coarse_edge) .gt. 1 ) then 
                        call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid) )	
+					   end if 
                     case (all_dofs_in_coarse_edges) 
                        icdof = this%order*( this%perm_sorted_edges(coarse_edge, fine_edge) - 1 ) + vef_local_dof 
                        call constraint_matrix%insert(dof_lid, coarse_dof_lid+icdof, 1.0_rp )	
@@ -273,11 +275,10 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
   if ( this%order > 1 ) call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
 
    call this%change_basis_matrix%B%convert(csr_format) 
-  ! call this%change_basis_matrix%B%print_matrix_market(6)
+   call this%change_basis_matrix%B%print_matrix_market(6)
    call memfree(edge_elmat, __FILE__, __LINE__ ) 
   end if 
   
- 
 end subroutine Hcurl_l1_compute_change_basis_matrix
 
 subroutine Hcurl_l1_compute_edge_discrete_gradient_elmat(this, par_fe_space, elmat)
@@ -396,7 +397,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
            if ( vef_within_object%get_dimension() == 1 ) then 
               fine_edge = fine_edge + 1  
 			  edge_length = this%compute_edge_length(par_fe_space, vef_within_object)
-			  factor = 1.0_rp !/this%compute_edge_length(par_fe_space, vef_within_object)
+			  factor = 1.0_rp/this%compute_edge_length(par_fe_space, vef_within_object)
 			  call this%get_wire_basis_dofs_from_vef(par_fe_space, vef_within_object, dofs_wire_edge_old_basis)
 			  call this%get_new_basis_dofs_from_edge( coarse_edge, fine_edge, edge2dof_new_basis ) 
  
@@ -424,14 +425,14 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
 			   if ( .not. this%follows_coarse_edge_orientation(coarse_edge,fine_edge) ) sign_factor = -1.0_rp 
               call this%change_basis_matrix%G(coarse_edge)%insert(ia       = dofs_wire_edge_old_basis(idof)-offset_wire_edge_dofs,           &
                                                                   ja       = this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order, &  ! Last DOF 
-                                                                  val      = sign_factor ) !* edge_length ) 
+                                                                  val      = sign_factor * edge_length ) 
               end do
 			  
            end if
         end do
 		
         call this%change_basis_matrix%G(coarse_edge)%convert(csr_format)
-	  !  call this%change_basis_matrix%G(coarse_edge)%print_matrix_market(6)
+	    call this%change_basis_matrix%G(coarse_edge)%print_matrix_market(6)
      end if
      call object%next()
   end do
@@ -488,12 +489,13 @@ coarse_edge = 0
 do while ( .not. object%has_finished() )
    if ( object%get_dimension() == 1 ) then ! Only sort coarse edges
       coarse_edge = coarse_edge + 1
-      fine_edge = 0
+	  fine_edge = 0
+
       do ivef_within_object=1, object%get_num_vefs()
          call object%get_vef(ivef_within_object, vef_within_object)
-
          if ( vef_within_object%get_dimension() == 0 .and. (.not. vef_within_object%is_at_boundary()) ) then  ! Only act if an interior vertex is found  
 		    call coupled_vefs_added_to_node%init( this%number_fine_edges_per_coarse_edge(coarse_edge)*this%order )
+			
             do ielem = 1, vef_within_object%get_num_cells_around()
                call vef_within_object%get_cell_around(ielem, fe)      
                if ( fe%is_local() ) then 
@@ -526,7 +528,7 @@ do while ( .not. object%has_finished() )
                                  ! Assembly its part to the Discrete Gradient for the coupled EDGE  
                                  new_basis_dof       =  this%get_new_basis_dof_from_node_id(coarse_edge, interior_node_id) 
                                  call this%get_wire_basis_dofs_from_vef(par_fe_space, edge, dofs_wire_edge_old_basis)		
-                                 factor = 1.0_rp !/this%compute_edge_length(par_fe_space, edge)
+                                 factor = 1.0_rp/this%compute_edge_length(par_fe_space, edge)
 						
 				                 if ( is_affluent ) then  ! Affluent edge 
                                     call this%change_basis_matrix%B%insert(nz       = this%order,                                            & 
@@ -1515,8 +1517,8 @@ subroutine Hcurl_l1_fill_dofs_in_coarse_edges_renumbering( this, current_dof, ib
 
   allocate(cell_coordinates( fe%cell%get_num_nodes() ) , stat=istat); check(istat==0) 
 
-  ! Count Coarse and Fine Edges 
-  call memalloc( 12, this%number_fine_edges_per_coarse_edge, __FILE__, __LINE__ ) 
+  ! Count Coarse and Fine Edges ! 12 magic number, think upper bound for number of coarse edges 
+  call memalloc( 50, this%number_fine_edges_per_coarse_edge, __FILE__, __LINE__ ) 
   this%number_coarse_edges = 0	
   this%number_fine_edges_per_coarse_edge = 0
   do while ( .not. object%has_finished() )
@@ -1548,6 +1550,7 @@ subroutine Hcurl_l1_fill_dofs_in_coarse_edges_renumbering( this, current_dof, ib
         num_fine_edges = object%get_num_vefs()
         ! To assign number of fine edges within coarse edge 
         call memalloc( num_fine_edges, 2, vertices_in_edge, __FILE__, __LINE__ )
+		vertices_in_edge = 0
         call nodes_visited%init( num_fine_edges )
         allocate( node_coordinates( num_fine_edges, 2 ), stat=istat)
 
@@ -1600,7 +1603,7 @@ subroutine Hcurl_l1_fill_dofs_in_coarse_edges_renumbering( this, current_dof, ib
         dofs_per_edge = this%order 
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object, vef_within_object)
-           if ( vef_within_object%get_dimension() == 1 ) then  ! Only act if a fine edge has been found 
+           if ( (vef_within_object%get_dimension() == 1) .and. (.not. vef_within_object%is_at_boundary() )) then  ! Only act if a fine edge has been found 
               fine_edge = fine_edge + 1		  
               call vef_within_object%get_cell_around(1,fe) 
               call fe%get_field_elem2dof(field_id, elem2dof)
@@ -1677,13 +1680,12 @@ subroutine Hcurl_l1_fill_dofs_coupled_to_coarse_edges_renumbering( this, current
   iedge_coarse = 0   
   call object%first() 
   do while ( .not. object%has_finished() )
-     if ( object%get_dimension() == 1 ) then 
+      if ( object%get_dimension() == 1 ) then 
         iedge_coarse = iedge_coarse + 1
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object,vef_within_object)
               ! Check corners&edge -container elements 
               call this%coupled_vefs_added(iedge_coarse)%put( key=vef_within_object%get_lid(), val=1, stat=istat)
-              ! Take local fes 
               do ielem = 1, vef_within_object%get_num_cells_around() 
                  call vef_within_object%get_cell_around(ielem,fe)
                  if ( fe%is_local() ) then 
@@ -1822,7 +1824,7 @@ subroutine Hcurl_l1_sort_fine_edges_within_coarse_edge( this, coarse_edge, start
         if (following_edge_is_found) exit 
      end do
   end do
-     
+  
   call edges_visited%free() 
   call memfree(perm, __FILE__, __LINE__) 
 end subroutine Hcurl_l1_sort_fine_edges_within_coarse_edge
