@@ -142,9 +142,21 @@ module base_static_triangulation_names
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_iterator_get_scan_sum_number_vefs
 
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
-    procedure :: is_cut      => cell_iterator_is_cut
-    procedure :: is_interior => cell_iterator_is_interior
-    procedure :: is_exterior => cell_iterator_is_exterior
+    procedure :: update_sub_triangulation    => cell_iterator_update_sub_triangulation
+    procedure :: get_mc_case                 => cell_iterator_get_mc_case
+    procedure :: get_number_of_subcells      => cell_iterator_get_number_of_subcells
+    procedure :: get_number_of_subcell_nodes => cell_iterator_get_number_of_subcell_nodes
+    procedure :: get_phys_coords_of_subcell  => cell_iterator_get_phys_coords_of_subcell
+    procedure :: get_ref_coords_of_subcell   => cell_iterator_get_ref_coords_of_subcell
+    procedure :: get_number_of_subfaces      => cell_iterator_get_number_of_subfaces
+    procedure :: get_number_of_subface_nodes => cell_iterator_get_number_of_subface_nodes
+    procedure :: get_phys_coords_of_subface  => cell_iterator_get_phys_coords_of_subface
+    procedure :: get_ref_coords_of_subface   => cell_iterator_get_ref_coords_of_subface
+    procedure :: is_cut                      => cell_iterator_is_cut
+    procedure :: is_interior                 => cell_iterator_is_interior
+    procedure :: is_exterior                 => cell_iterator_is_exterior
+    procedure :: is_interior_subcell         => cell_iterator_is_interior_subcell
+    procedure :: is_exterior_subcell         => cell_iterator_is_exterior_subcell
 
     procedure, non_overridable, private  :: fill_nodes_on_vertices        => cell_iterator_fill_nodes_on_vertices
     procedure, non_overridable, private  :: fill_nodes_on_vef_new         => cell_iterator_fill_nodes_on_vef_new

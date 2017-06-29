@@ -53,31 +53,32 @@ module unfitted_triangulations_names
     procedure :: free   => unfitted_cell_iterator_free
     
     ! Updater: to be called each time the lid changes
-    procedure, non_overridable :: update_sub_triangulation    => unfitted_cell_iterator_update_sub_triangulation
+    procedure :: update_sub_triangulation    => unfitted_cell_iterator_update_sub_triangulation
 
     ! TODO this one should be private in the future
     ! Now it is public because the fe iterator uses it
     ! The goal is that the fe iterator does not assume that the mc algorithm is used to subdivide the elements
-    procedure, non_overridable :: get_mc_case   => unfitted_cell_iterator_get_mc_case
+    ! Do not forget in the future to remove it also from cell_iterator_t
+    procedure :: get_mc_case   => unfitted_cell_iterator_get_mc_case
     
     ! Getters related with the subcells
-    procedure, non_overridable :: get_number_of_subcells      => unfitted_cell_iterator_get_number_of_subcells
-    procedure, non_overridable :: get_number_of_subcell_nodes => unfitted_cell_iterator_get_number_of_subcell_nodes
-    procedure, non_overridable :: get_phys_coords_of_subcell  => unfitted_cell_iterator_get_phys_coords_of_subcell
-    procedure, non_overridable :: get_ref_coords_of_subcell   => unfitted_cell_iterator_get_ref_coords_of_subcell
+    procedure :: get_number_of_subcells      => unfitted_cell_iterator_get_number_of_subcells
+    procedure :: get_number_of_subcell_nodes => unfitted_cell_iterator_get_number_of_subcell_nodes
+    procedure :: get_phys_coords_of_subcell  => unfitted_cell_iterator_get_phys_coords_of_subcell
+    procedure :: get_ref_coords_of_subcell   => unfitted_cell_iterator_get_ref_coords_of_subcell
     
     ! Getters related with the subfaces
-    procedure, non_overridable :: get_number_of_subfaces      => unfitted_cell_iterator_get_number_of_subfaces
-    procedure, non_overridable :: get_number_of_subface_nodes => unfitted_cell_iterator_get_number_of_subface_nodes
-    procedure, non_overridable :: get_phys_coords_of_subface  => unfitted_cell_iterator_get_phys_coords_of_subface
-    procedure, non_overridable :: get_ref_coords_of_subface   => unfitted_cell_iterator_get_ref_coords_of_subface
+    procedure :: get_number_of_subfaces      => unfitted_cell_iterator_get_number_of_subfaces
+    procedure :: get_number_of_subface_nodes => unfitted_cell_iterator_get_number_of_subface_nodes
+    procedure :: get_phys_coords_of_subface  => unfitted_cell_iterator_get_phys_coords_of_subface
+    procedure :: get_ref_coords_of_subface   => unfitted_cell_iterator_get_ref_coords_of_subface
     
     ! Checkers
     procedure :: is_cut      => unfitted_cell_iterator_is_cut
     procedure :: is_interior => unfitted_cell_iterator_is_interior
     procedure :: is_exterior => unfitted_cell_iterator_is_exterior
-    procedure, non_overridable :: is_interior_subcell => unfitted_cell_iterator_is_interior_subcell
-    procedure, non_overridable :: is_exterior_subcell => unfitted_cell_iterator_is_exterior_subcell
+    procedure :: is_interior_subcell => unfitted_cell_iterator_is_interior_subcell
+    procedure :: is_exterior_subcell => unfitted_cell_iterator_is_exterior_subcell
 
     ! Private TBPs
     procedure, non_overridable, private :: get_number_of_subnodes         => unfitted_cell_iterator_get_number_of_subnodes

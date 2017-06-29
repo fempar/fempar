@@ -316,32 +316,42 @@ contains
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-      if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
-        set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
-        set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
-        call this%fe_space%create( triangulation            = this%triangulation,       &
-                                   reference_fes            = this%reference_fes,       &
-                                   set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                                   conditions               = this%poisson_conditions )
-      else 
+      if ( this%test_params%get_fe_formulation() == 'cG' ) then
+        if ( this%test_params%get_use_void_fes() ) then
+          set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
+          set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
+          call this%fe_space%create( triangulation            = this%triangulation,       &
+                                     reference_fes            = this%reference_fes,       &
+                                     set_ids_to_reference_fes = set_ids_to_reference_fes, &
+                                     conditions               = this%poisson_conditions )
+        else 
+          call this%fe_space%create( triangulation       = this%triangulation, &
+                                     reference_fes       = this%reference_fes, &
+                                     conditions          = this%poisson_conditions )
+        end if
+      else
         call this%fe_space%create( triangulation       = this%triangulation, &
-                                   reference_fes       = this%reference_fes, &
-                                   conditions          = this%poisson_conditions )
-      end if  
+                                   reference_fes       = this%reference_fes )
+      end if
     else
       call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
-      if (this%test_params%get_use_void_fes() .and.  this%test_params%get_fe_formulation() == 'cG') then
-        set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
-        set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
-        call this%fe_space%create( triangulation       = this%triangulation,            &
-                                   reference_fes       = this%reference_fes,            &
-                                   set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                                   conditions          = this%vector_poisson_conditions )
+      if ( this%test_params%get_fe_formulation() == 'cG' ) then
+        if ( this%test_params%get_use_void_fes() ) then
+          set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
+          set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
+          call this%fe_space%create( triangulation       = this%triangulation,            &
+                                     reference_fes       = this%reference_fes,            &
+                                     set_ids_to_reference_fes = set_ids_to_reference_fes, &
+                                     conditions          = this%vector_poisson_conditions )
+        else
+          call this%fe_space%create( triangulation       = this%triangulation, &
+                                     reference_fes       = this%reference_fes, &
+                                     conditions          = this%vector_poisson_conditions )
+        end if
       else
         call this%fe_space%create( triangulation       = this%triangulation, &
-                                   reference_fes       = this%reference_fes, &
-                                   conditions          = this%vector_poisson_conditions )
+                                   reference_fes       = this%reference_fes )
       end if
     end if
     call this%fe_space%initialize_fe_integration()
@@ -390,31 +400,35 @@ contains
     class(test_poisson_driver_t), intent(inout) :: this
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then    
       if ( this%test_params%get_fe_formulation() == 'cG' ) then
-         call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
-         call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                               diagonal_blocks_symmetric_storage = [ .true. ], &
-                                               diagonal_blocks_symmetric         = [ .true. ], &
-                                               diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                               fe_space                          = this%fe_space, &
-                                               discrete_integration              = this%poisson_cG_integration )
+        call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
+        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                              diagonal_blocks_symmetric_storage = [ .true. ], &
+                                              diagonal_blocks_symmetric         = [ .true. ], &
+                                              diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                              fe_space                          = this%fe_space, &
+                                              discrete_integration              = this%poisson_cG_integration )
       else
-         call this%poisson_dG_integration%set_analytical_functions(this%poisson_analytical_functions)
-         call this%poisson_dG_integration%set_poisson_conditions(this%poisson_conditions)
-         call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                               diagonal_blocks_symmetric_storage = [ .true. ], &
-                                               diagonal_blocks_symmetric         = [ .true. ], &
-                                               diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                               fe_space                          = this%fe_space, &
-                                               discrete_integration              = this%poisson_dG_integration )
+        call this%poisson_dG_integration%set_analytical_functions(this%poisson_analytical_functions)
+        call this%poisson_dG_integration%set_poisson_conditions(this%poisson_conditions)
+        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                              diagonal_blocks_symmetric_storage = [ .true. ], &
+                                              diagonal_blocks_symmetric         = [ .true. ], &
+                                              diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                              fe_space                          = this%fe_space, &
+                                              discrete_integration              = this%poisson_dG_integration )
       end if
     else
-       call this%vector_poisson_integration%set_source_term(this%vector_poisson_analytical_functions%get_source_term())
-       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                             diagonal_blocks_symmetric_storage = [ .true. ], &
-                                             diagonal_blocks_symmetric         = [ .true. ], &
-                                             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                             fe_space                          = this%fe_space, &
-                                             discrete_integration              = this%vector_poisson_integration )
+      if ( this%test_params%get_fe_formulation() == 'cG' ) then
+        call this%vector_poisson_integration%set_source_term(this%vector_poisson_analytical_functions%get_source_term())
+        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                              diagonal_blocks_symmetric_storage = [ .true. ], &
+                                              diagonal_blocks_symmetric         = [ .true. ], &
+                                              diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                              fe_space                          = this%fe_space, &
+                                              discrete_integration              = this%vector_poisson_integration )
+      else
+        mcheck(.false.,'Vector poisson dG integration is not implemented')
+      end if
     end if
   end subroutine setup_system
   

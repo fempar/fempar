@@ -60,9 +60,9 @@ module fe_space_names
   use direct_solver_parameters_names
   use iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
+  
+  use piecewise_fe_map_names
 
-  
-  
  ! Parallel modules
   use environment_names
   !use par_context_names
@@ -153,9 +153,21 @@ module fe_space_names
     procedure, non_overridable           :: scan_sum_number_vefs    => base_fe_iterator_get_scan_sum_number_vefs
     procedure, non_overridable, private  :: base_fe_iterator_get_vef
     generic                              :: get_vef                 => base_fe_iterator_get_vef
-    procedure                            :: is_cut                  => base_fe_iterator_is_cut
-    procedure                            :: is_interior             => base_fe_iterator_is_interior
-    procedure                            :: is_exterior             => base_fe_iterator_is_exterior
+    procedure                            :: update_sub_triangulation    => base_fe_iterator_update_sub_triangulation
+    procedure                            :: get_mc_case                 => base_fe_iterator_get_mc_case
+    procedure                            :: get_number_of_subcells      => base_fe_iterator_get_number_of_subcells
+    procedure                            :: get_number_of_subcell_nodes => base_fe_iterator_get_number_of_subcell_nodes
+    procedure                            :: get_phys_coords_of_subcell  => base_fe_iterator_get_phys_coords_of_subcell
+    procedure                            :: get_ref_coords_of_subcell   => base_fe_iterator_get_ref_coords_of_subcell
+    procedure                            :: get_number_of_subfaces      => base_fe_iterator_get_number_of_subfaces
+    procedure                            :: get_number_of_subface_nodes => base_fe_iterator_get_number_of_subface_nodes
+    procedure                            :: get_phys_coords_of_subface  => base_fe_iterator_get_phys_coords_of_subface
+    procedure                            :: get_ref_coords_of_subface   => base_fe_iterator_get_ref_coords_of_subface
+    procedure                            :: is_cut                      => base_fe_iterator_is_cut
+    procedure                            :: is_interior                 => base_fe_iterator_is_interior
+    procedure                            :: is_exterior                 => base_fe_iterator_is_exterior
+    procedure                            :: is_interior_subcell         => base_fe_iterator_is_interior_subcell
+    procedure                            :: is_exterior_subcell         => base_fe_iterator_is_exterior_subcell
   end type base_fe_iterator_t
   
   
@@ -227,6 +239,14 @@ module fe_space_names
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
     procedure, non_overridable          :: first_local_non_void                       => fe_iterator_first_local_non_void
+
+    ! Added by unfitted_fe_iterator
+    procedure                           :: get_boundary_quadrature                    => fe_iterator_get_boundary_quadrature
+    procedure                           :: get_boundary_piecewise_fe_map              => fe_iterator_get_boundary_piecewise_fe_map
+    procedure                           :: get_boundary_fe_map                        => fe_iterator_get_boundary_fe_map
+    procedure                           :: get_boundary_cell_integrator               => fe_iterator_get_boundary_cell_integrator
+    procedure                           :: update_boundary_integration                => fe_iterator_update_boundary_integration
+
   end type fe_iterator_t
    
   type :: base_fe_vef_iterator_t

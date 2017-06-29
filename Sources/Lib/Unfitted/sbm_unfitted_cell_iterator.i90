@@ -161,6 +161,16 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
 end subroutine unfitted_cell_iterator_update_sub_triangulation
 
 !========================================================================================
+function unfitted_cell_iterator_get_mc_case( this ) result ( mc_case )
+  implicit none
+  class(unfitted_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: mc_case
+  assert(this%is_local())
+  assert(this%marching_cubes%mc_runtime_init)
+  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+end function unfitted_cell_iterator_get_mc_case
+
+!========================================================================================
 function unfitted_cell_iterator_get_number_of_subcells( this ) result ( num_subcells )
   implicit none
   class(unfitted_cell_iterator_t), intent(in) :: this
@@ -312,16 +322,6 @@ subroutine unfitted_cell_iterator_get_ref_coords_of_subface( this, subface, poin
   points(:) = subnodes_ref_coords(subface_node_ids(:))
 
 end subroutine unfitted_cell_iterator_get_ref_coords_of_subface
-
-!========================================================================================
-function unfitted_cell_iterator_get_mc_case( this ) result ( mc_case )
-  implicit none
-  class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  assert(this%is_local())
-  assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
-end function unfitted_cell_iterator_get_mc_case
 
 !========================================================================================
 function unfitted_cell_iterator_is_cut( this ) result ( is_cut )
