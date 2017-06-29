@@ -162,13 +162,6 @@ module unfitted_triangulations_names
     ! Creation / deletion methods
     procedure                  :: create                        => marching_cubes_create
     procedure                  :: free                          => marching_cubes_free
-    
-    ! Polymorphic creation of the iterator to be used only within this module
-    procedure, non_overridable, private :: create_cell_iterator          => marching_cubes_create_cell_iterator
-
-    ! Non polimorphic creation / deletion  of iterators to be used only within this module
-    procedure, non_overridable, private :: create_unfitted_cell_iterator => marching_cubes_create_unfitted_cell_iterator
-    procedure, non_overridable, private :: free_unfitted_cell_iterator   => marching_cubes_free_unfitted_cell_iterator
 
     ! Getters
     procedure, non_overridable :: get_num_cut_cells             => marching_cubes_get_num_cut_cells

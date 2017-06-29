@@ -756,7 +756,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
         ! write(*,*) points(3)%get_value()
 
         do inode=1,face_num_nodes
-           l_node = cell%get_node_lid( this%reference_fe_geo_list(cell_type)%p%get_own_dof_n_face(inode,ivef_pos_in_cell) )
+           l_node = cell%get_node_lid( this%reference_fe_geo_list(cell_type)%p%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef_pos_in_cell) )
            this%coordinates(l_node) = coordinates(inode)
         end do
      end if      

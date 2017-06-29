@@ -63,38 +63,6 @@ subroutine uim_free( this )
 end subroutine uim_free
 
 !========================================================================================
-subroutine uim_create_fe_iterator( this, fe )
-  implicit none
-  class(unfitted_integration_manager_t), intent(in)    :: this
-  class(fe_iterator_t), allocatable,     intent(inout) :: fe
-  integer(ip) :: istat
-  allocate(unfitted_fe_iterator_t :: fe, stat=istat); check(istat==0)
-  select type(fe)
-  class is (unfitted_fe_iterator_t)
-    call this%create_unfitted_fe_iterator(fe)
-  class default
-    check(.false.)
-  end select
-end subroutine uim_create_fe_iterator
-
-!========================================================================================
-subroutine uim_create_unfitted_fe_iterator( this, fe )
-  implicit none
-  class(unfitted_integration_manager_t), intent(in)    :: this
-  type(unfitted_fe_iterator_t),          intent(inout) :: fe
-  call this%free_unfitted_fe_iterator(fe)
-  call fe%create(this%fe_space)
-end subroutine uim_create_unfitted_fe_iterator
-
-!========================================================================================
-subroutine uim_free_unfitted_fe_iterator( this, fe )
-  implicit none
-  class(unfitted_integration_manager_t), intent(in)    :: this
-  type(unfitted_fe_iterator_t),          intent(inout) :: fe
-  call fe%free()
-end subroutine uim_free_unfitted_fe_iterator
-
-!========================================================================================
 subroutine uim_check_assumptions(this)
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this

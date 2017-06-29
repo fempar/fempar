@@ -1839,7 +1839,10 @@ subroutine serial_fe_space_fill_dof_info( this, block_layout )
       call this%count_dofs()
     end if  
     call this%list_dofs()
+  else  
+    block_layout = this%block_layout
   end if
+  
 end subroutine serial_fe_space_fill_dof_info
 
 subroutine serial_fe_space_count_dofs ( this ) 

@@ -61,8 +61,10 @@ subroutine put_create_cell_iterator ( this, cell )
   implicit none
   class(par_unfitted_triangulation_t), intent(in)    :: this
   class(cell_iterator_t), allocatable, intent(inout) :: cell
+  integer(ip) :: istat
   call this%free_cell_iterator(cell)
-  call this%marching_cubes%create_cell_iterator(cell)
+  allocate(unfitted_cell_iterator_t :: cell, stat=istat); check(istat==0)
+  call cell%create(this)
 end subroutine put_create_cell_iterator
 
 !========================================================================================
