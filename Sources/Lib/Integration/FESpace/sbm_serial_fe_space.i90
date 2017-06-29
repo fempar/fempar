@@ -182,6 +182,8 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
   class(fe_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe
 
+  call this%free_ptr_lst_dofs()
+  
   call memalloc ( this%number_fields, &
        this%triangulation%get_num_cells()+1, &
        this%ptr_dofs_per_fe, __FILE__, __LINE__ )
