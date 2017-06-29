@@ -81,5 +81,8 @@ subroutine suhpafs_create_fe_iterator(this, fe)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(in)    :: this
   class(fe_iterator_t), allocatable, intent(inout) :: fe
-  call this%unfitted_integration%create_fe_iterator(fe)
+  integer(ip) :: istat
+  call this%free_fe_iterator(fe)
+  allocate(unfitted_hp_adaptive_fe_iterator_t :: fe, stat=istat); check(istat==0)
+  call fe%create(this)
 end subroutine suhpafs_create_fe_iterator

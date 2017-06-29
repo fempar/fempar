@@ -208,13 +208,6 @@ module unfitted_triangulations_names
     ! Creation / deletion methods
     procedure                  :: create                        => marching_cubes_create
     procedure                  :: free                          => marching_cubes_free
-    
-    ! Creation of the iterator (interfaces with cell_iterator_t)
-    procedure, non_overridable, private :: create_cell_iterator          => marching_cubes_create_cell_iterator
-
-    ! Creation / deletion of the itrator (interfaces with unfitted_cell_iterator_t) to be used only within this module
-    procedure, non_overridable, private :: create_unfitted_cell_iterator => marching_cubes_create_unfitted_cell_iterator
-    procedure, non_overridable, private :: free_unfitted_cell_iterator   => marching_cubes_free_unfitted_cell_iterator
 
     ! Getters
     procedure, non_overridable :: get_num_cut_cells             => marching_cubes_get_num_cut_cells
