@@ -395,6 +395,7 @@ end subroutine fe_function_interpolate_tensor_function
     class(fe_function_t), intent(inout) :: this
     type (fe_function_t), intent(in)    :: other
     this%strong_dirichlet_values = other%strong_dirichlet_values
+    if( .not. allocated(this%dof_values) ) allocate(this%dof_values,mold=other%dof_values) 
     this%dof_values = other%dof_values
   end subroutine fe_function_copy
   

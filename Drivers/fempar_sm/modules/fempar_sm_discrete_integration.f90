@@ -46,8 +46,10 @@ module fempar_sm_discrete_integration_names
      integer(ip), allocatable :: field_blocks(:)
      logical    , allocatable :: field_coupling(:,:)
      class(vector_function_t), pointer :: source_term  => null()
-     class(fe_function_t)    , pointer :: solution     => null()
-     class(fe_function_t)    , pointer :: solution_old => null()
+     ! The solution needs to be stored here to avoid an aliasing problem
+     ! in nonlinear_operator_apply
+     class(fe_function_t), pointer :: solution => null()
+     class(fe_function_t), pointer :: solution_old => null()
      type(fempar_sm_analytical_functions_t), pointer :: analytical_functions => null()
      real(rp) :: current_time
    contains
@@ -61,6 +63,7 @@ module fempar_sm_discrete_integration_names
      !procedure :: get_fe_order
      !procedure :: get_conformity
      !procedure :: get_continuity
+     procedure :: get_fe_function
      procedure :: set_number_fields
      procedure :: set_number_components
      procedure :: set_field_blocks
@@ -192,7 +195,7 @@ contains
   subroutine set_solution (this, solution)
     implicit none
     class(fempar_sm_discrete_integration_t), intent(inout) :: this
-    class(fe_function_t),      target, intent(in)    :: solution
+    type(fe_function_t) , target           , intent(in)    :: solution
     this%solution => solution
   end subroutine set_solution
 
@@ -202,6 +205,13 @@ contains
     class(fe_function_t),            target, intent(in)    :: solution_old
     this%solution_old => solution_old
   end subroutine set_solution_old
+
+  function get_fe_function (this)
+    implicit none
+    class(fempar_sm_discrete_integration_t), target, intent(in) :: this
+    class(fe_function_t), pointer                               :: get_fe_function
+    get_fe_function => this%solution
+  end function get_fe_function
 
   !=============================================================================
   

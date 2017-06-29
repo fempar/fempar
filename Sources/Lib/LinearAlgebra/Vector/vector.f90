@@ -123,8 +123,8 @@ module vector_names
      subroutine clone_interface(op1,op2)
        import :: vector_t
        implicit none
-       class(vector_t)         ,intent(inout) :: op1
-       class(vector_t)         ,intent(in)    :: op2
+       class(vector_t),target         ,intent(inout) :: op1
+       class(vector_t),target         ,intent(in)    :: op2
      end subroutine clone_interface
      ! Determines whether this belongs to the same
      ! vector space as vector   
@@ -268,8 +268,11 @@ contains
   ! op1 <- op2
   subroutine assign_vector(op1,op2) 
     implicit none
-    class(vector_t), intent(inout):: op1
-    class(vector_t), intent(in):: op2
+    class(vector_t), target, intent(inout):: op1
+    class(vector_t), target, intent(in):: op2
+    class(vector_t), pointer :: p
+    p => op1
+    if(associated(p,op2)) return ! It's aliasing
 
     call op2%GuardTemp()
     

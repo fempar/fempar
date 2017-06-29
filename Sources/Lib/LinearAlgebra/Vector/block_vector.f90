@@ -373,11 +373,14 @@ contains
  ! op1 <- clone(op2) 
  subroutine block_vector_clone(op1,op2)
    implicit none
-   class(block_vector_t), intent(inout) :: op1
-   class(vector_t), intent(in)    :: op2
+   class(block_vector_t), target, intent(inout) :: op1
+   class(vector_t)      , target, intent(in)    :: op2
    ! Locals
    integer(ip) :: iblk
-
+   class(vector_t), pointer :: p
+   p => op1
+   if(associated(p,op2)) return ! It's aliasing
+    
    call op2%GuardTemp()
    select type(op2)
    class is (block_vector_t)

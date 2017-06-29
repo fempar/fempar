@@ -361,11 +361,14 @@ contains
   subroutine par_block_array_clone(op1,op2)
     implicit none
     ! Parameters
-    class(par_block_array_t)    , intent(inout) :: op1
-    class(vector_t), intent(in)    :: op2
-
+    class(par_block_array_t), target    , intent(inout) :: op1
+    class(vector_t), target, intent(in)    :: op2
     ! Locals
     integer(ip) :: ib
+    class(vector_t), pointer :: p
+    p => op1
+    if(associated(p,op2)) return ! It's aliasing
+    
     assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)

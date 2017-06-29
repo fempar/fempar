@@ -35,7 +35,6 @@ module fempar_sm_nonlinear_operator_names
   type, extends(operator_t) :: nonlinear_operator_t
      private
      type(fe_affine_operator_t)             , pointer :: residual  => null()
-     type(fe_function_t)                              :: argument
      class(fempar_sm_discrete_integration_t), pointer :: discrete_integration
    contains
      procedure :: create           => nonlinear_operator_create
@@ -61,13 +60,11 @@ contains
     ! Create a nonlinear fe operator
     this%residual => residual
     fe_space => this%residual%get_fe_space()
-    call this%argument%create(fe_space)     ! tmp workspace
 
     discrete_integration => this%residual%get_discrete_integration()
     select type(discrete_integration)
     class is(fempar_sm_discrete_integration_t)
        this%discrete_integration => discrete_integration
-       call this%discrete_integration%set_solution(this%argument)
     class default
        mcheck(.false.,'nonlinear operator only works with fempar_sm_discrete_integration')
     end select
@@ -77,7 +74,6 @@ contains
   subroutine nonlinear_operator_free(this)
     implicit none
     class(nonlinear_operator_t), intent(inout) :: this
-    call this%argument%free()
     this%residual => null()
     this%discrete_integration => null()
   end subroutine nonlinear_operator_free
@@ -89,15 +85,17 @@ contains
   subroutine nonlinear_operator_apply(this,x,y) 
     implicit none
     class(nonlinear_operator_t), intent(in)   :: this
-    class(vector_t) , intent(in)    :: x
-    class(vector_t) , intent(inout) :: y 
-    class(vector_t) , pointer :: tmp
-    tmp => this%argument%get_dof_values()
-    tmp = x
+    class(vector_t)    , intent(in)    :: x
+    class(vector_t)    , intent(inout) :: y 
+    class(vector_t)    , pointer       :: dof_values
+    type(fe_function_t), pointer       :: argument
+    argument   => this%discrete_integration%get_fe_function()
+    dof_values => argument%get_dof_values()
+    dof_values = x
     call this%discrete_integration%set_terms_to_integrate(translation_terms)
     call this%residual%numerical_setup()
-    tmp => this%residual%get_translation()
-    y = tmp 
+    dof_values => this%residual%get_translation()
+    y = dof_values 
   end subroutine nonlinear_operator_apply
 
   ! op%apply_add(x,y) <=> y <- op*x+y
@@ -105,15 +103,17 @@ contains
   subroutine nonlinear_operator_apply_add(this,x,y) 
     implicit none
     class(nonlinear_operator_t), intent(in)    :: this
-    class(vector_t) , intent(in)    :: x
-    class(vector_t) , intent(inout) :: y 
-    class(vector_t) , pointer :: tmp
-    tmp => this%argument%get_dof_values()
-    tmp = x
+    class(vector_t)    , intent(in)    :: x
+    class(vector_t)    , intent(inout) :: y 
+    class(vector_t)    , pointer       :: dof_values
+    type(fe_function_t), pointer       :: argument
+    argument   => this%discrete_integration%get_fe_function()
+    dof_values => argument%get_dof_values()
+    dof_values = x
     call this%discrete_integration%set_terms_to_integrate(translation_terms)
     call this%residual%numerical_setup()
-    tmp => this%residual%get_translation()
-    y = y + tmp 
+    dof_values => this%residual%get_translation()
+    y = y + dof_values 
   end subroutine nonlinear_operator_apply_add
 
   function nonlinear_operator_is_linear(this) 
@@ -127,11 +127,13 @@ contains
     implicit none
     class(nonlinear_operator_t)          , intent(in) :: this
     class(vector_t)  , optional, intent(in) :: x
-    type(lvalue_operator_t)          :: tangent 
-    class(vector_t) , pointer :: tmp
+    type(lvalue_operator_t)                 :: tangent 
+    class(vector_t)     , pointer           :: dof_values
+    type(fe_function_t) , pointer           :: argument
     if(present(x)) then
-       tmp => this%argument%get_dof_values()
-       tmp = x
+       argument   => this%discrete_integration%get_fe_function()
+       dof_values => argument%get_dof_values()
+       dof_values = x
        call this%discrete_integration%set_terms_to_integrate(tangent_terms)
        call this%residual%numerical_setup()
     end if
