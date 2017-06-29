@@ -120,55 +120,23 @@ subroutine marching_cubes_free(this)
 end subroutine marching_cubes_free
 
 !========================================================================================
-subroutine marching_cubes_create_cell_iterator ( this, cell )
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  class(cell_iterator_t), allocatable, intent(inout) :: cell
-  integer(ip) :: istat
-  allocate(unfitted_cell_iterator_t :: cell, stat=istat); check(istat==0)
-  select type(cell)
-  class is (unfitted_cell_iterator_t)
-    call this%create_unfitted_cell_iterator(cell)
-  class default
-    check(.false.)
-  end select
-end subroutine marching_cubes_create_cell_iterator
-
-!========================================================================================
-subroutine marching_cubes_create_unfitted_cell_iterator ( this, cell )
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  type(unfitted_cell_iterator_t),  intent(inout) :: cell
-  call this%free_unfitted_cell_iterator(cell)
-  call cell%create(this%triangulation)
-end subroutine marching_cubes_create_unfitted_cell_iterator
-
-!========================================================================================
-subroutine marching_cubes_free_unfitted_cell_iterator ( this, cell )
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  type(unfitted_cell_iterator_t),  intent(inout) :: cell
-  call cell%free()
-end subroutine marching_cubes_free_unfitted_cell_iterator
-
-!========================================================================================
 function marching_cubes_get_num_cut_cells( this ) result ( num_cut_cells )
 
   implicit none
   class(marching_cubes_t), intent(in)    :: this
 
   integer(ip) :: num_cut_cells
-  type(unfitted_cell_iterator_t) :: cell
+  class(cell_iterator_t), allocatable :: cell
 
   num_cut_cells = 0_ip
-  call this%create_unfitted_cell_iterator(cell)
+  call this%triangulation%create_cell_iterator(cell)
   do while ( .not. cell%has_finished() )
     if ( cell%is_cut() ) then
       num_cut_cells = num_cut_cells + 1_ip
     end if
     call cell%next()
   end do
-  call this%free_unfitted_cell_iterator(cell)
+  call this%triangulation%free_cell_iterator(cell)
 
 end function marching_cubes_get_num_cut_cells
 
@@ -179,17 +147,17 @@ function marching_cubes_get_num_interior_cells( this ) result ( num_interior_cel
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: num_interior_cells
 
-  type(unfitted_cell_iterator_t)  :: cell
+  class(cell_iterator_t), allocatable :: cell
 
   num_interior_cells = 0_ip
-  call this%create_unfitted_cell_iterator(cell)
+  call this%triangulation%create_cell_iterator(cell)
   do while ( .not. cell%has_finished() )
     if ( cell%is_interior() ) then
       num_interior_cells = num_interior_cells + 1_ip
     end if
     call cell%next()
   end do
-  call this%free_unfitted_cell_iterator(cell)
+  call this%triangulation%free_cell_iterator(cell)
 
 end function marching_cubes_get_num_interior_cells
 
@@ -200,17 +168,17 @@ function marching_cubes_get_num_exterior_cells( this ) result ( num_exterior_cel
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: num_exterior_cells
 
-  type(unfitted_cell_iterator_t)  :: cell
+  class(cell_iterator_t), allocatable :: cell
 
   num_exterior_cells = 0_ip
-  call this%create_unfitted_cell_iterator(cell)
+  call this%triangulation%create_cell_iterator(cell)
   do while ( .not. cell%has_finished() )
     if ( cell%is_exterior() ) then
       num_exterior_cells = num_exterior_cells + 1_ip
     end if
     call cell%next()
   end do
-  call this%free_unfitted_cell_iterator(cell)
+  call this%triangulation%free_cell_iterator(cell)
 
 end function marching_cubes_get_num_exterior_cells
 
@@ -237,10 +205,10 @@ function marching_cubes_get_total_num_of_subcells( this ) result ( total_num )
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: total_num
 
-  type(unfitted_cell_iterator_t)  :: cell
+  class(cell_iterator_t), allocatable :: cell
 
   total_num = 0_ip
-  call this%create_unfitted_cell_iterator(cell)
+  call this%triangulation%create_cell_iterator(cell)
   do while ( .not. cell%has_finished() )
     if (cell%is_ghost()) then
       call cell%next(); cycle
@@ -249,7 +217,7 @@ function marching_cubes_get_total_num_of_subcells( this ) result ( total_num )
     total_num = total_num + cell%get_number_of_subcells()
     call cell%next()
   end do
-  call this%free_unfitted_cell_iterator(cell)
+  call this%triangulation%free_cell_iterator(cell)
 
 end function marching_cubes_get_total_num_of_subcells
 
@@ -276,16 +244,16 @@ function marching_cubes_get_total_num_of_subfaces( this ) result ( total_num )
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: total_num
 
-  type(unfitted_cell_iterator_t)  :: cell
+  class(cell_iterator_t), allocatable :: cell
 
   total_num = 0_ip
-  call this%create_unfitted_cell_iterator(cell)
+  call this%triangulation%create_cell_iterator(cell)
   do while ( .not. cell%has_finished() )
     call cell%update_sub_triangulation()
     total_num = total_num + cell%get_number_of_subfaces()
     call cell%next()
   end do
-  call this%free_unfitted_cell_iterator(cell)
+  call this%triangulation%free_cell_iterator(cell)
 
 end function marching_cubes_get_total_num_of_subfaces
 
@@ -337,7 +305,7 @@ subroutine marching_cubes_print ( this )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
 
-  type(unfitted_cell_iterator_t)  :: cell
+  class(cell_iterator_t), allocatable :: cell
   type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords, subface_coords
   integer(ip) :: inode, isubcell, isubface
 
@@ -361,7 +329,7 @@ subroutine marching_cubes_print ( this )
   write(*,*) " "
 
   ! Print basic info of cells
-  call this%create_unfitted_cell_iterator(cell)
+  call this%triangulation%create_cell_iterator(cell)
   write(*,'(7a20)') 'id', 'is_cut', 'is_interior', 'is_exterior', 'num_nodes' , 'num_subcells', 'num_nodes_subcell'
   do while ( .not. cell%has_finished() )
     write(*,'(i20,3L20,3i20)') cell%get_lid(), cell%is_cut(), cell%is_interior(), cell%is_exterior(), &
@@ -400,7 +368,7 @@ subroutine marching_cubes_print ( this )
  call memfree( cell_coords   , __FILE__, __LINE__ )
  call memfree( subcell_coords, __FILE__, __LINE__ )
  call memfree( subface_coords, __FILE__, __LINE__ )
-  call this%free_unfitted_cell_iterator(cell)
+ call this%triangulation%free_cell_iterator(cell)
 
 end subroutine marching_cubes_print
 
