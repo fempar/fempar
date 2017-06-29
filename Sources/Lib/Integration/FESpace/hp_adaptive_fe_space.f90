@@ -349,7 +349,6 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
 
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
   integer(ip)                          :: i, istat, jfield, ifield
 
   call this%free()
@@ -370,15 +369,10 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
   
+  if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
-  if ( present(conditions) ) then
-     call this%set_conditions(conditions)
-     call this%set_up_strong_dirichlet_bcs()
-  else
-     strong_dirichlet_values => this%get_strong_dirichlet_values()
-     call strong_dirichlet_values%create_and_allocate(0)
-  end if
+  call this%set_up_strong_dirichlet_bcs()
   
 end subroutine shpafs_create_same_reference_fes_on_all_cells 
 
@@ -394,7 +388,6 @@ subroutine shpafs_create_different_between_cells( this,          &
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
 
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
   integer(ip) :: i, istat, jfield, ifield
 
   call this%free()
@@ -415,15 +408,10 @@ subroutine shpafs_create_different_between_cells( this,          &
   call this%allocate_and_fill_fe_space_type_per_field()
   call this%allocate_and_init_ptr_lst_dofs()
   
+  if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
-  if ( present(conditions) ) then
-     call this%set_conditions(conditions)
-     call this%set_up_strong_dirichlet_bcs()
-  else
-     strong_dirichlet_values => this%get_strong_dirichlet_values()
-     call strong_dirichlet_values%create_and_allocate(0)
-  end if
+  call this%set_up_strong_dirichlet_bcs()
   
 end subroutine shpafs_create_different_between_cells
 
