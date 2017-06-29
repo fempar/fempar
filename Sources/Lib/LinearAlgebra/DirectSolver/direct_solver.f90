@@ -267,11 +267,8 @@ contains
                         if (maxval(abs(x_real))>0) then
                           err = maxval(abs(r_real))/maxval(abs(x_real))
                         end if
-                        write(serr,'(e10.3)') err
-                        if (maxval(abs(r_real))>tol*maxval(abs(x_real))) then
-                          write(*,*) 'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr
-                        end if
-                        !massert( maxval(abs(r_real))<=tol*maxval(abs(x_real)), 'Direct solver (single rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+                        write(serr,'(e10.3)') err                              
+                        wassert( maxval(abs(r_real))<=tol*maxval(abs(x_real)), 'Direct solver (single rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
                         call r%free()
 #endif
                     class DEFAULT
@@ -336,10 +333,7 @@ contains
             err = maxval(abs(r_real))/maxval(abs(x_real))
           end if
           write(serr,'(e10.3)') err
-          if (maxval(abs(r_real))>tol*maxval(abs(x_real))) then
-            write(*,*) 'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr
-          end if
-          !massert( maxval(abs(r_real))<=tol*maxval(abs(x_real)),'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+          wassert( maxval(abs(r_real))<=tol*maxval(abs(x_real)),'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
         end do
         call xarr%free()
         call yarr%free()

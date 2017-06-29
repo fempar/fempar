@@ -87,6 +87,7 @@ module par_pb_bddc_poisson_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: write_solution
+     procedure        , private :: write_matrices
      procedure        , private :: free
      procedure                  :: free_environment
      procedure                  :: free_command_line_parameters
@@ -319,9 +320,9 @@ contains
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
     call this%fe_space%create( triangulation       = this%triangulation, &
-                               conditions          = this%poisson_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handlers  = this%coarse_fe_handlers)
+                               coarse_fe_handlers  = this%coarse_fe_handlers, &
+                               conditions          = this%poisson_conditions )
 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration()
@@ -541,6 +542,32 @@ contains
     end subroutine free_set_id_cell_vector
   end subroutine write_solution
 
+  subroutine write_matrices(this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+    character(:), allocatable :: matrix_filename
+    class(matrix_t), pointer       :: matrix
+    integer(ip) :: luout
+    
+    if ( this%test_params%get_write_matrices() ) then
+    
+    if ( this%environment%am_i_l1_task() ) then
+        matrix_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() 
+        call numbered_filename_compose(this%environment%get_l1_rank(),this%environment%get_l1_size(),matrix_filename)
+        luout = io_open ( matrix_filename, 'write')
+        matrix => this%fe_affine_operator%get_matrix()
+        select type(matrix)
+        class is (par_sparse_matrix_t)  
+          call matrix%print_matrix_market(luout) 
+        class DEFAULT
+          assert(.false.) 
+        end select
+        call io_close(luout)
+   end if
+   
+   end if
+  end subroutine write_matrices
+  
 
   subroutine run_simulation(this) 
     implicit none
@@ -566,6 +593,7 @@ contains
     
     !call this%check_solution()
     call this%write_solution()
+    call this%write_matrices()
     call this%free()
   end subroutine run_simulation
 

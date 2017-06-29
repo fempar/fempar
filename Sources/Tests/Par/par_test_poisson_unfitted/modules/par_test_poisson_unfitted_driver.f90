@@ -76,10 +76,10 @@ module par_test_poisson_unfitted_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
      
-!#ifdef ENABLE_MKL     
+#ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
      type(mlbddc_t)                            :: mlbddc
-!#endif  
+#endif  
     
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
@@ -239,7 +239,7 @@ end subroutine free_timers
 
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
-    type(vef_iterator_t)  :: vef
+    class(vef_iterator_t), allocatable  :: vef
     integer(ip) :: inode
 
     type(point_t), allocatable :: coords(:)
@@ -401,15 +401,16 @@ end subroutine free_timers
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_VOID) = PAR_POISSON_UNFITTED_SET_ID_VOID
     
     call this%fe_space%create( triangulation            = this%triangulation, &
-                               conditions               = this%poisson_unfitted_conditions, &
                                reference_fes            = this%reference_fes, &
                                set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                               coarse_fe_handlers       = this%l1_coarse_fe_handlers)
+                               coarse_fe_handlers       = this%l1_coarse_fe_handlers, &
+                               conditions               = this%poisson_unfitted_conditions )
     
     !call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
     
     call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
     call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
     call this%fe_space%interpolate_dirichlet_values(this%poisson_unfitted_conditions)    
     !call this%fe_space%print()
@@ -476,6 +477,7 @@ end subroutine free_timers
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
 
+#ifdef ENABLE_MKL  
     ! The unfitted coarse fe handler has to be created after the system is assembled
     ! but prior to the setup of the coarse space
     coarse_fe_handler =>  this%l1_coarse_fe_handler
@@ -541,10 +543,12 @@ end subroutine free_timers
       call this%mlbddc%numerical_setup()
 
     end if
+#endif    
    
     call parameter_list%init()
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
+
     FPLError = parameter_list%set(key = ils_stopping_criteria, value = res_rhs); assert(FPLError == 0)
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp); assert(FPLError == 0)
     FPLError = parameter_list%set(key = ils_atol, value = 0.0_rp); assert(FPLError == 0)
@@ -552,11 +556,15 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call parameter_list%free()
 
+#ifdef ENABLE_MKL
     if (this%test_params%get_use_preconditioner()) then
       call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
     else
       call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
     end if
+#else
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+#endif   
     
   end subroutine setup_solver
 
@@ -596,6 +604,7 @@ end subroutine free_timers
       write(*,'(a,i22)') 'num_dofs (sub-assembled): ', nint(num_dofs        , kind=ip )
     end if
 
+#ifdef ENABLE_MKL     
     if (this%test_params%get_use_preconditioner()) then
       if (environment%am_i_lgt1_task()) then
         coarse_fe_space => this%fe_space%get_coarse_fe_space()
@@ -603,6 +612,7 @@ end subroutine free_timers
         write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
       end if
     end if
+#endif  
 
   end subroutine print_info
   
@@ -648,10 +658,17 @@ end subroutine free_timers
     real(rp) :: h1_semi_norm
     real(rp) :: l2_norm
     class(environment_t), pointer :: environment
+    real(rp) :: error_tolerance, tol
 
     call solution_checker%create(this%fe_space,this%solution,this%poisson_unfitted_analytical_functions%get_solution_function())
     call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm)
     call solution_checker%free()
+
+#ifdef ENABLE_MKL
+    error_tolerance = 1.0e-08
+#else
+    error_tolerance = 1.0e-06
+#endif
 
     environment => this%fe_space%get_environment()
     if (environment%get_l1_rank() == 0) then
@@ -661,6 +678,12 @@ end subroutine free_timers
       write(*,'(a,e32.25)') 'error_h1_semi_norm:    ', error_h1_semi_norm
       write(*,'(a,e32.25)') 'rel_error_l2_norm:     ', error_l2_norm/l2_norm
       write(*,'(a,e32.25)') 'rel_error_h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
+      if ( this%test_params%are_checks_active() ) then
+        tol = error_tolerance*l2_norm
+        check( error_l2_norm < tol )
+        tol = error_tolerance*h1_semi_norm
+        check( error_h1_semi_norm < tol )
+      end if
     end if
     
     !type(error_norms_scalar_t) :: error_norm 
@@ -797,9 +820,9 @@ end subroutine free_timers
     class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
     
     call this%solution%free()
-!#ifdef ENABLE_MKL    
+#ifdef ENABLE_MKL    
     call this%mlbddc%free()
-!#endif    
+#endif    
     call this%iterative_linear_solver%free()
 
     coarse_fe_handler =>  this%l1_coarse_fe_handler

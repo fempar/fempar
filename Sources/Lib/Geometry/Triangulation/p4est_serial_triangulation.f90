@@ -237,7 +237,7 @@ module p4est_serial_triangulation_names
     procedure                                   :: get_p4est_refinement_and_coarsening_flags     => p4est_st_get_p4est_refinement_and_coarsening_flags
     
     ! Set up related methods
-    procedure, private                          :: serial_triangulation_create                   => p4est_serial_triangulation_create
+    procedure                                   :: serial_triangulation_create                   => p4est_serial_triangulation_create
     procedure                                   :: free                                          => p4est_serial_triangulation_free
     procedure                 , non_overridable :: refine_and_coarsen                            => p4est_serial_triangulation_refine_and_coarsen
     procedure, private        , non_overridable :: update_p4est_mesh                             => p4est_serial_triangulation_update_p4est_mesh

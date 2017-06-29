@@ -84,6 +84,7 @@ subroutine quadrature_get_coordinates_as_points ( this, points )
   integer(ip) :: ipo, idi
   assert( size(points) == this%number_quadrature_points )
   do ipo = 1, this%number_quadrature_points
+    call points(ipo)%init(0.0_rp)
     do idi = 1, this%number_dimensions
      call points(ipo)%set( idi, this%coordinates(idi,ipo) )
     end do

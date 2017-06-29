@@ -165,7 +165,7 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
-    type(vef_iterator_t)  :: vef
+    class(vef_iterator_t), allocatable  :: vef
     integer(ip) :: istat
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
@@ -282,32 +282,22 @@ contains
     set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
     set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
 
-    if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
-     !call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-
-      !TODO this is hard coded
-
-      select case(this%triangulation%get_num_dimensions())
-      case (2)
-        call this%poisson_unfitted_analytical_functions%create('ex002_2d') ! TODO Assumes scalar functions
-      case (3)
-        call this%poisson_unfitted_analytical_functions%create('ex002_3d') ! TODO Assumes scalar functions
-      case default
-        check(.false.)
-      end select
-
+    if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+      call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
       call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
-      call this%fe_space%create( triangulation       = this%triangulation, &
-                                 conditions          = this%poisson_unfitted_conditions, &
-                                 reference_fes            = this%reference_fes,&
-                                 set_ids_to_reference_fes = set_ids_to_reference_fes)
+      if (this%test_params%get_fe_formulation() == 'cG') then
+        call this%fe_space%create( triangulation            = this%triangulation, &
+                                   reference_fes            = this%reference_fes, &
+                                   set_ids_to_reference_fes = set_ids_to_reference_fes, &
+                                   conditions               = this%poisson_unfitted_conditions )
+      else 
+        mcheck(.false.,'Test only runs for continuous Galerkin')
+      end if  
     else
-      !call this%vector_poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-      call this%vector_poisson_unfitted_conditions%set_boundary_function(this%vector_poisson_unfitted_analytical_functions%get_boundary_function())
-      call this%fe_space%create( triangulation       = this%triangulation, &
-                                 conditions          = this%vector_poisson_unfitted_conditions, &
-                                 reference_fes       = this%reference_fes)
+      mcheck(.false.,'Test only runs for Scalar Problems')
     end if
+
     !call this%fe_space%fill_dof_info()
     call this%fe_space%initialize_fe_integration()
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
@@ -321,8 +311,8 @@ contains
   subroutine setup_system (this)
     implicit none
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
-    if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
-      if ( trim(this%test_params%get_fe_formulation()) == 'cG' ) then
+    if ( this%test_params%get_laplacian_type() == 'scalar' ) then    
+      if ( this%test_params%get_fe_formulation() == 'cG' ) then
          call this%poisson_unfitted_cG_integration%set_analytical_functions(this%poisson_unfitted_analytical_functions)
          call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                                diagonal_blocks_symmetric_storage = [ .true. ], &
@@ -331,24 +321,10 @@ contains
                                                fe_space                          = this%fe_space, &
                                                discrete_integration              = this%poisson_unfitted_cG_integration )
       else
-         call this%poisson_unfitted_dG_integration%set_analytical_functions(this%poisson_unfitted_analytical_functions)
-         call this%poisson_unfitted_dG_integration%set_poisson_unfitted_conditions(this%poisson_unfitted_conditions)
-         call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                               diagonal_blocks_symmetric_storage = [ .true. ], &
-                                               diagonal_blocks_symmetric         = [ .true. ], &
-                                               diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                               fe_space                          = this%fe_space, &
-                                               discrete_integration              = this%poisson_unfitted_dG_integration )
+         mcheck(.false.,'Test only runs for continuous Galerkin')
       end if
     else
-       check(.false.) ! Only implemented for scalar problems for the moment!
-       !call this%vector_poisson_unfitted_integration%set_source_term(this%vector_poisson_unfitted_analytical_functions%get_source_term())
-       !call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-       !                                      diagonal_blocks_symmetric_storage = [ .true. ], &
-       !                                      diagonal_blocks_symmetric         = [ .true. ], &
-       !                                      diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-       !                                      fe_space                          = this%fe_space, &
-       !                                      discrete_integration              = this%vector_poisson_unfitted_integration )
+        mcheck(.false.,'Test only runs for Scalar Problems')
     end if
   end subroutine setup_system
 
@@ -459,6 +435,7 @@ contains
     real(rp) :: error_l2_norm
     real(rp) :: h1_semi_norm
     real(rp) :: l2_norm
+    real(rp) :: error_tolerance, tol
 
     call solution_checker%create(this%fe_space,this%solution,this%poisson_unfitted_analytical_functions%get_solution_function())
     call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm)
@@ -470,6 +447,19 @@ contains
     write(*,'(a,e32.25)') 'error_h1_semi_norm:    ', error_h1_semi_norm
     write(*,'(a,e32.25)') 'rel_error_l2_norm:     ', error_l2_norm/l2_norm
     write(*,'(a,e32.25)') 'rel_error_h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
+
+#ifdef ENABLE_MKL
+    error_tolerance = 1.0e-08
+#else
+    error_tolerance = 1.0e-06
+#endif
+
+    if ( this%test_params%are_checks_active() ) then
+      tol = error_tolerance*l2_norm
+      check( error_l2_norm < tol )
+      tol = error_tolerance*h1_semi_norm
+      check( error_h1_semi_norm < tol )
+    end if
 
     !type(error_norms_scalar_t) :: error_norm
     !real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
@@ -558,26 +548,30 @@ contains
     class(scalar_function_t), pointer :: scal_fun
     integer(ip) :: fieldid
 
-    fieldid = 1
-    fe_space_ptr => this%fe_space
-    scal_fun => this%poisson_unfitted_analytical_functions%get_solution_function()
-    !call this%solution%interpolate_function(fe_space_ptr,fieldid,scal_fun)
+    if(this%test_params%get_write_solution()) then
 
-    call vtk_writer%attach_triangulation(this%triangulation)
-    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh.vtu')
-    call vtk_writer%free()
+      fieldid = 1
+      fe_space_ptr => this%fe_space
+      scal_fun => this%poisson_unfitted_analytical_functions%get_solution_function()
+      !call this%solution%interpolate_function(fe_space_ptr,fieldid,scal_fun)
 
-    call vtk_writer%attach_boundary_faces(this%triangulation)
-    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh_boundary.vtu')
-    call vtk_writer%free()
+      call vtk_writer%attach_triangulation(this%triangulation)
+      call vtk_writer%write_to_vtk_file('out_mesh.vtu')
+      call vtk_writer%free()
 
-    call vtk_writer%attach_boundary_quad_points(this%fe_space)
-    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh_boundary_normals.vtu')
-    call vtk_writer%free()
+      call vtk_writer%attach_boundary_faces(this%triangulation)
+      call vtk_writer%write_to_vtk_file('out_mesh_boundary.vtu')
+      call vtk_writer%free()
 
-    call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-    if ( this%triangulation%get_num_cells() <= 100000 ) call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
-    call vtk_writer%free()
+      call vtk_writer%attach_boundary_quad_points(this%fe_space)
+      call vtk_writer%write_to_vtk_file('out_mesh_boundary_normals.vtu')
+      call vtk_writer%free()
+
+      call vtk_writer%attach_fe_function(this%solution,this%fe_space)
+      call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
+      call vtk_writer%free()
+
+    end if
 
     !type(output_handler_t)                   :: oh
     !character(len=:), allocatable            :: path

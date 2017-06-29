@@ -165,8 +165,8 @@ module unfitted_triangulations_names
 
     ! Auxiliary dummy things to create the fe space for the levelset
     type(p_reference_fe_t), allocatable :: reference_fes(:) 
-    type(mc_dummy_conditions_t)         :: dummy_conditions
     type(mc_dummy_coarse_fe_handler_t)  :: dummy_coarse_handler
+    type(mc_dummy_conditions_t)         :: dummy_conditions
     type(p_l1_coarse_fe_handler_t), allocatable  :: dummy_coarse_handlers(:)
 
     ! Look up-tables (precomputed off-line, for each cell type)
@@ -300,7 +300,7 @@ module unfitted_triangulations_names
       generic             :: create                       => upst_create
       procedure           :: free                         => upst_free
       procedure           :: update_cut_cells             => upst_update_cut_cells
-      procedure,  private :: serial_triangulation_create  => upst_serial_triangulation_create
+      procedure           :: serial_triangulation_create  => upst_serial_triangulation_create
       procedure,  private :: upst_create
 
       ! Generate iterator by overloading the procedure of the father

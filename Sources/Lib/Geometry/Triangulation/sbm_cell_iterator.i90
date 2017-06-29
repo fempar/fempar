@@ -176,15 +176,9 @@ subroutine cell_iterator_get_coordinates_ref_space (this, cell_coordinates)
   nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
   assert( size(cell_coordinates) == nodal_quadrature%get_number_quadrature_points() )
   
-  if ( this%is_local() ) then
-    call nodal_quadrature%get_coordinates_as_points( cell_coordinates ) 
- else
-    do inode=1, reference_fe_geo%get_number_shape_functions()
-      cell_coordinates(inode) = 0.0_rp
-    end do
- end if
- 
-end subroutine cell_iterator_get_coordinates_ref_space
+  call nodal_quadrature%get_coordinates_as_points( cell_coordinates ) 
+
+ end subroutine cell_iterator_get_coordinates_ref_space
 
 pure function cell_iterator_get_lid (this)
   implicit none

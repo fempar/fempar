@@ -52,6 +52,8 @@ module test_poisson_unfitted_params_names
      character(len=:), allocatable :: default_is_periodic_in_x
      character(len=:), allocatable :: default_is_periodic_in_y
      character(len=:), allocatable :: default_is_periodic_in_z
+     character(len=:), allocatable :: default_is_in_fe_space
+     character(len=:), allocatable :: default_check_solution
 
      type(Command_Line_Interface):: cli 
 
@@ -69,6 +71,8 @@ module test_poisson_unfitted_params_names
      integer(ip) :: num_dimensions     
      integer(ip) :: number_of_cells_per_dir(0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
+     logical :: in_fe_space
+     logical :: check_sol
 
    contains
      procedure, non_overridable             :: create       => test_poisson_unfitted_create
@@ -86,6 +90,8 @@ module test_poisson_unfitted_params_names
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dimensions
+     procedure, non_overridable             :: is_in_fe_space
+     procedure, non_overridable             :: are_checks_active
   end type test_poisson_unfitted_params_t  
 
   ! Types
@@ -133,6 +139,8 @@ contains
     this%default_is_periodic_in_x = '0'
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
+    this%default_is_in_fe_space = '.true.'
+    this%default_check_solution = '.true.'
 
   end subroutine test_poisson_unfitted_set_default
   
@@ -196,6 +204,12 @@ contains
         call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
     check(error==0) 
+        call this%cli%add(switch='--solution_in_fe_space',switch_ab='-in_space',help='Is the solution in fe space',&
+         &            required=.false.,act='store',def=trim(this%default_is_in_fe_space),error=error) 
+    check(error==0) 
+        call this%cli%add(switch='--check_solution',switch_ab='-check',help='Check or not the solution',&
+         &            required=.false.,act='store',def=trim(this%default_check_solution),error=error) 
+    check(error==0) 
 
   end subroutine test_poisson_unfitted_add_to_cli
   
@@ -225,6 +239,8 @@ contains
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
+    call this%cli%get(switch='-in_space',val=this%in_fe_space,error=istat); check(istat==0)
+    call this%cli%get(switch='-check',val=this%check_sol,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -255,6 +271,8 @@ contains
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
+    if(allocated(this%default_is_in_fe_space)) deallocate(this%default_is_in_fe_space)
+    if(allocated(this%default_check_solution)) deallocate(this%default_check_solution)
     call this%cli%free()
   end subroutine test_poisson_unfitted_free
 
@@ -337,5 +355,21 @@ contains
     integer(ip) :: get_num_dimensions
     get_num_dimensions = this%num_dimensions
   end function get_num_dimensions
+
+  !==================================================================================================
+  function is_in_fe_space(this)
+    implicit none
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
+    logical :: is_in_fe_space
+    is_in_fe_space = this%in_fe_space
+  end function is_in_fe_space
+
+  !==================================================================================================
+  function are_checks_active(this)
+    implicit none
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
+    logical :: are_checks_active
+    are_checks_active = this%check_sol
+  end function are_checks_active
 
 end module test_poisson_unfitted_params_names

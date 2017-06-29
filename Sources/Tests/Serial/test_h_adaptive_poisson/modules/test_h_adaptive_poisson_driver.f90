@@ -256,15 +256,15 @@ contains
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-      call this%fe_space%create( triangulation       = this%triangulation,      &
-                                 conditions          = this%poisson_conditions, &
-                                 reference_fes       = this%reference_fes) 
+      call this%fe_space%create( triangulation = this%triangulation, &
+                                 reference_fes = this%reference_fes, &
+                                 conditions    = this%poisson_conditions ) 
     else
       call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
-      call this%fe_space%create( triangulation       = this%triangulation,             &
-                                 conditions          = this%vector_poisson_conditions, &
-                                 reference_fes       = this%reference_fes)
+      call this%fe_space%create( triangulation = this%triangulation, &
+                                 reference_fes = this%reference_fes, &
+                                 conditions    = this%vector_poisson_conditions )
     end if
     
     call this%fe_space%initialize_fe_integration()    

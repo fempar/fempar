@@ -147,12 +147,12 @@ contains
 
     ! Find the first non-void FE
     call fe%first_local_non_void(field_id = 1)
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
-    if (num_quad_points==0) then
+    if (fe%has_finished()) then 
       call fe_space%free_fe_iterator(fe_std)
       return
     end if
+    quad            => fe%get_quadrature()
+    num_quad_points = quad%get_number_quadrature_points()
 
     ! TODO We assume that all non-void FEs are the same...
     num_dofs = fe%get_number_dofs()

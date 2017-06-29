@@ -642,8 +642,11 @@ function fe_iterator_get_quadrature_degree ( this )
   implicit none
   class(fe_iterator_t), intent(in) :: this
   integer(ip) :: fe_iterator_get_quadrature_degree
-  fe_iterator_get_quadrature_degree = this%fe_space%fe_quadratures_degree(this%get_lid())
-  if ( fe_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
+  if ( allocated(this%fe_space%fe_quadratures_degree) ) then
+     fe_iterator_get_quadrature_degree = this%fe_space%fe_quadratures_degree(this%get_lid())
+  end if
+  if ( .not. allocated(this%fe_space%fe_quadratures_degree) .or. &
+       fe_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
      fe_iterator_get_quadrature_degree = this%get_default_quadrature_degree()
   end if
 end function fe_iterator_get_quadrature_degree
@@ -653,7 +656,7 @@ function fe_iterator_get_default_quadrature_degree ( this )
   class(fe_iterator_t), intent(in) :: this
   integer(ip) :: fe_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
- 
+  assert( allocated(this%fe_space%max_order_reference_fe_id_per_fe) )
   reference_fe_id = this%fe_space%max_order_reference_fe_id_per_fe(this%get_lid())
   fe_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
@@ -663,8 +666,11 @@ subroutine fe_iterator_set_quadrature_degree ( this, quadrature_degree )
   implicit none
   class(fe_iterator_t), intent(inout) :: this
   integer(ip)         , intent(in)    :: quadrature_degree
-  assert ( quadrature_degree >= 0 )
-  assert ( allocated ( this%fe_space%fe_quadratures_degree) )
+  assert ( quadrature_degree >= -1 )
+  if ( .not. allocated ( this%fe_space%fe_quadratures_degree) ) then
+     call this%fe_space%allocate_fe_quadratures_degree()
+     call this%fe_space%clear_fe_quadratures_degree()
+  end if
   this%fe_space%fe_quadratures_degree(this%get_lid()) = quadrature_degree
 end subroutine fe_iterator_set_quadrature_degree
 
@@ -841,7 +847,7 @@ subroutine fe_iterator_first_local_non_void(this,field_id)
  integer(ip),          intent(in)    :: field_id
  class(base_static_triangulation_t), pointer :: base_static_triangulation
  ! Find the first local elem non void in this field
- ! If all the elems are void, then return the last local elem
+ ! If all local elems are void, then position the iterator at the end ( this%has_finished() == .true. )
  call this%first()
  do while( .not. this%has_finished())
    if (this%is_local()) then
@@ -849,7 +855,5 @@ subroutine fe_iterator_first_local_non_void(this,field_id)
    end if
    call this%next()
  end do
- base_static_triangulation => this%fe_space%get_triangulation()
- if (this%has_finished()) call this%set_lid(base_static_triangulation%get_num_local_cells())
 end subroutine fe_iterator_first_local_non_void
 
