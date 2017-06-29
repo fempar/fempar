@@ -347,7 +347,7 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   class(serial_hp_adaptive_fe_space_t)        , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
-  class(conditions_t)               , optional, intent(in)    :: conditions
+  class(conditions_t)       , target, optional, intent(in)    :: conditions
 
   type(serial_scalar_array_t), pointer :: strong_dirichlet_values
   integer(ip)                          :: i, istat, jfield, ifield
@@ -373,7 +373,8 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
   if ( present(conditions) ) then
-     call this%set_up_strong_dirichlet_bcs( conditions )
+     call this%set_conditions(conditions)
+     call this%set_up_strong_dirichlet_bcs()
   else
      strong_dirichlet_values => this%get_strong_dirichlet_values()
      call strong_dirichlet_values%create_and_allocate(0)
@@ -391,7 +392,7 @@ subroutine shpafs_create_different_between_cells( this,          &
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
-  class(conditions_t)               , optional, intent(in)    :: conditions
+  class(conditions_t)       , target, optional, intent(in)    :: conditions
 
   type(serial_scalar_array_t), pointer :: strong_dirichlet_values
   integer(ip) :: i, istat, jfield, ifield
@@ -417,7 +418,8 @@ subroutine shpafs_create_different_between_cells( this,          &
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
   if ( present(conditions) ) then
-     call this%set_up_strong_dirichlet_bcs( conditions )
+     call this%set_conditions(conditions)
+     call this%set_up_strong_dirichlet_bcs()
   else
      strong_dirichlet_values => this%get_strong_dirichlet_values()
      call strong_dirichlet_values%create_and_allocate(0)
@@ -462,13 +464,12 @@ function shpafs_get_number_fixed_dofs(this)
   shpafs_get_number_fixed_dofs = this%number_fixed_dofs
 end function shpafs_get_number_fixed_dofs
 
-subroutine shpafs_set_up_strong_dirichlet_bcs( this, conditions )
+subroutine shpafs_set_up_strong_dirichlet_bcs( this )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
-  class(conditions_t)                 , intent(in)    :: conditions
   integer(ip) :: i
   
-  call serial_fe_space_set_up_strong_dirichlet_bcs(this,conditions)
+  call serial_fe_space_set_up_strong_dirichlet_bcs(this)
   
   ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
   call this%ptr_constraint_dofs%resize(0)
