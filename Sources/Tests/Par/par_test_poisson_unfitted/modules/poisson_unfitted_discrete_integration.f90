@@ -74,9 +74,7 @@ contains
 
     ! FE space traversal-related data types
     ! TODO We need this because the accesors and iterators are not polymorphic
-    class(unfitted_fe_iterator_t), pointer :: fe
-    class(fe_iterator_t), allocatable, target :: fe_std
-    class(unfitted_cell_iterator_t), pointer :: cell
+    class(fe_iterator_t), allocatable  :: fe
 
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
@@ -129,13 +127,7 @@ contains
     beta_coef = this%test_params%get_nitsche_beta_factor()
 
     ! TODO We will delete this once implemented the fake methods in the father class
-    call fe_space%create_fe_iterator(fe_std)
-    select type(fe_std)
-      class is (unfitted_fe_iterator_t)
-      fe => fe_std
-      class default
-        check(.false.)
-    end select
+    call fe_space%create_fe_iterator(fe)
 
     source_term => this%analytical_functions%get_source_term()
     exact_sol   => this%analytical_functions%get_solution_function()
@@ -148,7 +140,7 @@ contains
     ! Find the first non-void FE
     call fe%first_local_non_void(field_id = 1)
     if (fe%has_finished()) then 
-      call fe_space%free_fe_iterator(fe_std)
+      call fe_space%free_fe_iterator(fe)
       return
     end if
     quad            => fe%get_quadrature()
@@ -226,8 +218,7 @@ contains
          ! Only for cut elements
          ! TODO @fverdugo FEMPAR PRIORITY LOW EFFORT HIGH
          ! Create iterator for cut and for full elements? Then we can remove this if
-         cell => fe%get_unfitted_cell_iterator()
-         if (cell%is_cut()) then
+         if (fe%is_cut()) then
 
            call fe%update_boundary_integration()
 
@@ -374,7 +365,7 @@ contains
     call memfree ( elmatV, __FILE__, __LINE__ )
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call eigs%free()
-    call fe_space%free_fe_iterator(fe_std)
+    call fe_space%free_fe_iterator(fe)
 
   end subroutine integrate
   

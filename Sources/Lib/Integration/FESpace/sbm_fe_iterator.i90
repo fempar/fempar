@@ -770,3 +770,38 @@ subroutine fe_iterator_first_local_non_void(this,field_id)
  end do
 end subroutine fe_iterator_first_local_non_void
 
+function fe_iterator_get_boundary_quadrature(this) result (quadrature)
+  implicit none
+  class(fe_iterator_t),  intent(in) :: this
+  type(quadrature_t), pointer      :: quadrature
+  mcheck(.false.,'This TPB cannot be called from this class')
+end function fe_iterator_get_boundary_quadrature
+
+function fe_iterator_get_boundary_piecewise_fe_map(this) result (fe_map)
+  implicit none
+  class(fe_iterator_t), intent(in) :: this
+  type(piecewise_fe_map_t), pointer :: fe_map
+  mcheck(.false.,'This TPB cannot be called from this class')
+end function fe_iterator_get_boundary_piecewise_fe_map
+
+function fe_iterator_get_boundary_fe_map(this) result (fe_map)
+  implicit none
+  class(fe_iterator_t), intent(in) :: this
+  type(fe_map_t), pointer :: fe_map
+  mcheck(.false.,'This TPB cannot be called from this class')
+end function fe_iterator_get_boundary_fe_map
+
+function fe_iterator_get_boundary_cell_integrator(this, field_id) result (cell_int)
+  implicit none
+  class(fe_iterator_t), intent(in)   :: this
+  integer(ip)         , intent(in)   :: field_id
+  type(cell_integrator_t), pointer :: cell_int
+  mcheck(.false.,'This TPB cannot be called from this class')
+end function fe_iterator_get_boundary_cell_integrator
+
+subroutine fe_iterator_update_boundary_integration( this )
+  implicit none
+  class(fe_iterator_t), intent(inout) :: this
+  mcheck(.false.,'This TPB cannot be called from this class')
+end subroutine fe_iterator_update_boundary_integration
+
