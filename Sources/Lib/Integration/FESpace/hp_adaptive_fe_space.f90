@@ -952,6 +952,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
   integer(ip)                                        :: num_children_per_cell
   integer(ip)                                        :: transformation_flag
   integer(ip)                                        :: subcell_id, old_cell_lid, new_cell_lid
+  integer(ip)                                        :: current_old_cell_lid, current_new_cell_lid
   integer(ip)                                        :: old_num_cells
   integer(ip)                                        :: field_id
   class(fe_iterator_t)                 , allocatable :: new_fe
@@ -999,6 +1000,8 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
     transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
     call new_fe%set_lid(new_cell_lid)
     do field_id = 1,this%get_number_fields()
+      current_old_cell_lid = old_cell_lid
+      current_new_cell_lid = new_cell_lid
       reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
       number_nodes_field = reference_fe%get_number_shape_functions()
       old_field_elem2dof => get_field_elem2dof()
@@ -1011,7 +1014,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
         call transformed_fe_function%insert_nodal_values( new_fe,   &
                                                           field_id, &
                                                           old_nodal_values(1,1:number_nodes_field) )
-        new_cell_lid = new_cell_lid + 1
+        current_new_cell_lid = current_new_cell_lid + 1
       else if ( transformation_flag == refinement ) then
         do subcell_id = 0,num_children_per_cell-1
           select type(reference_fe)
@@ -1025,12 +1028,12 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
           call transformed_fe_function%insert_nodal_values( new_fe,   &
                                                             field_id, &
                                                             new_nodal_values(1:number_nodes_field) )
-          new_cell_lid = new_cell_lid + 1
-          call new_fe%set_lid(new_cell_lid)
+          current_new_cell_lid = current_new_cell_lid + 1
+          call new_fe%set_lid(current_new_cell_lid)
         end do
       else if ( transformation_flag == coarsening ) then
         do subcell_id = 2,num_children_per_cell
-          old_cell_lid = old_cell_lid + 1
+          current_old_cell_lid = current_old_cell_lid + 1
           old_field_elem2dof => get_field_elem2dof()
           call fe_function%gather_nodal_values( field_id,                & 
                                                 old_field_elem2dof,      &
@@ -1048,11 +1051,13 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
         call transformed_fe_function%insert_nodal_values( new_fe,   &
                                                           field_id, &
                                                           new_nodal_values(1:number_nodes_field) )        
-        new_cell_lid = new_cell_lid + 1
+        current_new_cell_lid = current_new_cell_lid + 1
       else
         assert(.false.)
       end if
     end do
+    old_cell_lid = current_old_cell_lid
+    new_cell_lid = current_new_cell_lid
     old_cell_lid = old_cell_lid + 1
   end do
 
@@ -1076,11 +1081,11 @@ contains
     implicit none
     integer(ip), pointer     :: get_field_elem2dof(:)
     integer(ip)              :: spos, epos
-    spos = old_ptr_dofs_per_fe(field_id,old_cell_lid)
+    spos = old_ptr_dofs_per_fe(field_id,current_old_cell_lid)
     if ( field_id == this%get_number_fields() ) then
-      epos = old_ptr_dofs_per_fe(1,old_cell_lid+1)-1
+      epos = old_ptr_dofs_per_fe(1,current_old_cell_lid+1)-1
     else
-      epos = old_ptr_dofs_per_fe(field_id+1,old_cell_lid)-1
+      epos = old_ptr_dofs_per_fe(field_id+1,current_old_cell_lid)-1
     end if
     get_field_elem2dof => old_lst_dofs_lids(spos:epos)    
   end function get_field_elem2dof
