@@ -485,12 +485,12 @@ module reference_fe_names
 
      procedure :: get_number_own_dofs_n_face => reference_fe_get_number_own_dofs_n_face
      procedure :: create_own_dofs_on_n_face_iterator => reference_fe_create_own_dofs_on_n_face_iterator
-     procedure :: get_own_dof_n_face => reference_fe_get_own_dof_n_face
+     procedure :: translate_dof_lid_n_face_to_dof_lid_cell => rfe_translate_dof_lid_n_face_to_dof_lid_cell
 
      procedure :: has_nodal_quadrature => reference_fe_has_nodal_quadrature
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_permutation_index => reference_fe_compute_permutation_index
-     procedure :: get_permuted_own_dof_n_face  => reference_fe_get_permuted_own_dof_n_face
+     procedure :: permute_dof_LID_n_face  => reference_fe_permute_dof_LID_n_face
 
   end type reference_fe_t
 
@@ -1202,8 +1202,8 @@ contains
              & => tet_lagrangian_reference_fe_invert_change_basis_matrix
    procedure, private :: apply_change_basis_matrix_to_interpolation                     &
              & => tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
-   procedure :: get_permuted_own_dof_n_face                                            &
-             & => tet_lagrangian_reference_fe_get_permuted_own_dof_n_face
+   procedure :: permute_dof_LID_n_face                                            &
+             & => tet_lagrangian_reference_fe_permute_dof_LID_n_face
 end type tet_lagrangian_reference_fe_t
 
 public :: tet_lagrangian_reference_fe_t

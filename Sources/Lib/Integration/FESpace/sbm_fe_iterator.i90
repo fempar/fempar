@@ -230,9 +230,11 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   class(reference_fe_t), pointer :: reference_fe_target 
   integer(ip)                    :: base_pos_lst_dofs_lids_target
   
-  integer(ip)                    :: idof_source, idof_target
-  integer(ip)                    :: own_dof_within_vef_target_fe
+  integer(ip)                    :: source_dof_LID_cell, target_dof_LID_cell
+  integer(ip)                    :: target_dof_LID_vef
+  integer(ip)                    :: source_dof_LID_vef
   integer(ip)                    :: permutation_index
+  integer(ip)                    :: source_ivef_dimension
 
   assert ( target_ivef <= this%get_num_vefs() )
   assert ( source_ivef <= source_fe%get_num_vefs() )
@@ -243,6 +245,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   
   reference_fe_source => source_fe%get_reference_fe(field_id)
   base_pos_lst_dofs_lids_source = this%fe_space%ptr_dofs_per_fe(field_id, source_fe%get_lid())-1
+  source_ivef_dimension = reference_fe_source%get_n_face_dimension(source_ivef)
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within target fe
   own_dofs_on_vef_iterator_target = reference_fe_target%create_own_dofs_on_n_face_iterator(target_ivef)
@@ -253,17 +256,17 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
                                                                           source_ivef, &
                                                                           this%get_vef_lids(), &
                                                                           source_fe%get_vef_lids())
-      own_dof_within_vef_target_fe = 1
+      
       do while (.not. own_dofs_on_vef_iterator_target%is_upper_bound())
-        idof_target = own_dofs_on_vef_iterator_target%get_current()
-        idof_source = reference_fe_source%get_permuted_own_dof_n_face(own_dof_within_vef_target_fe, &
-                                                                    source_ivef, & 
+        target_dof_LID_vef = own_dofs_on_vef_iterator_target%get_distance_to_lower_bound()
+        source_dof_LID_vef = reference_fe_source%permute_dof_LID_n_face(target_dof_LID_vef, &
+                                                                    source_ivef_dimension, & 
                                                                     permutation_index)
-        
-        this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target+idof_target) = &                                                      
-            this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_source+idof_source)
+        target_dof_LID_cell = own_dofs_on_vef_iterator_target%get_current()
+        source_dof_LID_cell = reference_fe_source%translate_dof_lid_n_face_to_dof_lid_cell(source_dof_LID_vef, source_ivef)
+        this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target+target_dof_LID_cell) = &                                                      
+            this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_source+source_dof_LID_cell)
         call own_dofs_on_vef_iterator_target%next()
-        own_dof_within_vef_target_fe = own_dof_within_vef_target_fe + 1
       end do
   end if
 end subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe
