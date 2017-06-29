@@ -46,9 +46,6 @@ module unfitted_fe_spaces_names
     ! Creation / deletion methods
     procedure :: create => unfitted_fe_iterator_create
     procedure :: free   => unfitted_fe_iterator_free
-    
-    ! Access to the aggregated object
-    procedure, non_overridable :: get_unfitted_cell_iterator => unfitted_fe_iterator_get_unfitted_cell_iterator
 
     ! Getters that override
     procedure          :: get_quadrature        => unfitted_fe_iterator_get_quadrature
