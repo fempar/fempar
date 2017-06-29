@@ -85,8 +85,7 @@ contains
 
     integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
     integer(ip) :: istat, icell, inode, ino, isubcell
-    class(cell_iterator_t), allocatable, target  :: cell_std
-    class(unfitted_cell_iterator_t), pointer  :: cell
+    class(cell_iterator_t), allocatable  :: cell
     type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
     integer(ip) :: the_cell_type, the_subcell_type
     integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
@@ -98,7 +97,7 @@ contains
     if ( .not. this%environment%am_i_l1_task() ) return
     my_part_id = this%environment%get_l1_rank() + 1
 
-    call triangulation%create_cell_iterator(cell_std)
+    call triangulation%create_cell_iterator(cell)
 
     select type (triangulation)
     class is (serial_unfitted_triangulation_t)
@@ -108,13 +107,6 @@ contains
       num_subcells = triangulation%get_total_num_of_subcells()
       num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
     class default
-      check(.false.)
-    end select
-
-    select type (cell_std)
-    class is (unfitted_cell_iterator_t)
-      cell => cell_std
-    class default 
       check(.false.)
     end select
 
@@ -227,7 +219,7 @@ contains
     deallocate ( subcell_coords, stat = istat ); check(istat == 0)
     call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
     call memfree ( nodesids, __FILE__, __LINE__ )
-    call triangulation%free_cell_iterator(cell_std)
+    call triangulation%free_cell_iterator(cell)
 
   end subroutine  uvtkw_attach_triangulation
 
@@ -240,8 +232,7 @@ contains
   
     integer(ip) :: num_subfaces, num_subface_nodes, num_dime
     integer(ip) :: istat, iface, inode, ino, isubface
-    class(cell_iterator_t), allocatable, target  :: cell_std
-    class(unfitted_cell_iterator_t), pointer  :: cell
+    class(cell_iterator_t), allocatable  :: cell
     type(point_t), allocatable, dimension(:) :: subface_coords
     integer(ip) :: the_subface_type
 
@@ -250,13 +241,7 @@ contains
     this%environment => triangulation%get_par_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
 
-    call triangulation%create_cell_iterator(cell_std)
-    select type (cell_std)
-    class is (unfitted_cell_iterator_t)
-      cell => cell_std
-    class default
-      check(.false.)
-    end select
+    call triangulation%create_cell_iterator(cell)
 
   
     num_dime = triangulation%get_num_dimensions()
@@ -320,7 +305,7 @@ contains
     if (num_dime == 2_ip) this%z(:) = 0
   
     deallocate ( subface_coords, stat = istat ); check(istat == 0)
-    call triangulation%free_cell_iterator(cell_std)
+    call triangulation%free_cell_iterator(cell)
   
   end subroutine uvtkw_attach_boundary_faces
 
@@ -333,9 +318,7 @@ contains
     class(serial_fe_space_t),      intent(in)    :: fe_space
 
     class(base_static_triangulation_t), pointer :: triangulation
-    class(fe_iterator_t), allocatable, target  :: fe_std
-    class(unfitted_fe_iterator_t),     pointer :: fe
-    class(unfitted_cell_iterator_t),   pointer :: cell
+    class(fe_iterator_t), allocatable  :: fe
     class(reference_fe_t), pointer :: ref_fe
     type(quadrature_t) :: subcel_nodal_quad
     type(interpolation_t) :: fe_interpol
@@ -375,14 +358,7 @@ contains
     call subcel_nodal_quad%create(num_dime,num_subelem_nodes)
     subcell_coords => subcel_nodal_quad%get_coordinates()
 
-    call fe_space%create_fe_iterator(fe_std)
-
-    select type(fe_std)
-      class is (unfitted_fe_iterator_t)
-      fe => fe_std
-      class default
-        check(.false.)
-    end select
+    call fe_space%create_fe_iterator(fe)
 
     ipoint = 1
     do while ( .not. fe%has_finished() )
@@ -392,11 +368,10 @@ contains
          call fe%next(); cycle
        end if
 
-       cell => fe%get_unfitted_cell_iterator()
        ref_fe => fe%get_reference_fe(1) ! TODO we assume a single field
 
        ! Recover nodal values
-       if (cell%is_exterior()) then
+       if (fe%is_exterior()) then
          nodal_vals(:) = 0.0
        else
          call fe_function%gather_nodal_values(fe,1,nodal_vals)!TODO we assume a single field
@@ -407,13 +382,13 @@ contains
          ipoint = ipoint + 1
        end do
 
-       call cell%update_sub_triangulation()
+       call fe%update_sub_triangulation()
 
-       do subcell = 1, cell%get_number_of_subcells()
+       do subcell = 1, fe%get_number_of_subcells()
 
          ! Get the subcell values
-         if (cell%is_interior_subcell(subcell)) then
-           call cell%get_ref_coords_of_subcell(subcell,subcell_points)
+         if (fe%is_interior_subcell(subcell)) then
+           call fe%get_ref_coords_of_subcell(subcell,subcell_points)
            ! TODO this is always a nightmare
            do inode = 1, num_subelem_nodes
              do idime = 1, num_dime
@@ -442,7 +417,7 @@ contains
     deallocate(subcell_points,stat = istat); check(istat == 0)
     call subcel_nodal_quad%free()
     call fe_interpol%free()
-    call fe_space%free_fe_iterator(fe_std)
+    call fe_space%free_fe_iterator(fe)
 
 
   end subroutine  uvtkw_attach_fe_function
@@ -454,8 +429,7 @@ contains
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
   
-    class(unfitted_fe_iterator_t), pointer :: fe
-    class(fe_iterator_t),allocatable, target :: fe_std
+    class(fe_iterator_t),allocatable :: fe
     type(quadrature_t), pointer :: quadrature
     type(point_t), pointer :: quadrature_coordinates(:)
     type(piecewise_fe_map_t),     pointer :: fe_map
@@ -483,13 +457,7 @@ contains
       check(.false.)
     end select
   
-    call fe_space%create_fe_iterator(fe_std)
-    select type(fe_std)
-    class is (unfitted_fe_iterator_t)
-      fe => fe_std
-    class default
-      check(.false.)
-    end select
+    call fe_space%create_fe_iterator(fe)
 
     num_gp_subface = 0
     do while ( .not. fe%has_finished() )
@@ -552,7 +520,7 @@ contains
   
     if (num_dime == 2_ip) this%z(:) = 0
     if (num_dime == 2_ip) this%v_z(:) = 0
-    call fe_space%free_fe_iterator(fe_std)
+    call fe_space%free_fe_iterator(fe)
   
   end subroutine uvtkw_attach_boundary_quad_points
 
