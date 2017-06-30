@@ -283,7 +283,6 @@ contains
     
     do i=1, 10
        
-       call this%triangulation%clear_refinement_and_coarsening_flags()
        if ( mod(i,3) == 0 ) then 
           call this%set_cells_for_coarsening()
        else

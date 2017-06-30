@@ -94,7 +94,6 @@ module hp_adaptive_fe_space_names
      
      procedure          :: project_ref_fe_id_per_fe                               => shpafs_project_ref_fe_id_per_fe
      procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
-     procedure          :: serial_hp_adaptive_fe_space_refine_and_coarsen
  end type serial_hp_adaptive_fe_space_t  
  
  type, extends(fe_iterator_t) :: hp_adaptive_fe_iterator_t
@@ -1140,6 +1139,13 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   fe_function = transformed_fe_function
   
   call this%transfer_dirichlet_to_fe_space( fe_function%get_fixed_dof_values() )
+  
+  select type(triangulation)
+  class is (p4est_serial_triangulation_t)
+    call triangulation%clear_refinement_and_coarsening_flags()
+  class default
+    assert(.false.)
+  end select
   
   call this%free_fe_iterator(new_fe)
   call transformed_fe_function%free()
