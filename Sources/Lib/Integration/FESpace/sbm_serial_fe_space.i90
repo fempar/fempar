@@ -281,6 +281,8 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   integer(ip)                        :: previous_number_dirichlet_dofs
   integer(ip)                        :: number_strong_dirichlet_dofs
   
+  call this%strong_dirichlet_values%free()
+  
   if ( .not. associated(this%conditions) ) then
     call this%strong_dirichlet_values%create_and_allocate(0)
     return
