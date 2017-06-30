@@ -34,6 +34,8 @@ module fempar_sm_driver_names
   use fempar_sm_linear_solver_names
   use fempar_sm_nonlinear_operator_names
   use fempar_sm_nonlinear_solver_names
+  use fempar_sm_time_integration_names
+  
 # include "debug.i90"
 
   implicit none
@@ -66,7 +68,9 @@ module fempar_sm_driver_names
      type(linear_solver_t)                       :: linear_solver
      type(nonlinear_operator_t)                  :: nonlinear_operator
      type(nonlinear_solver_t)                    :: nonlinear_solver 
-     
+     !class(time_integration_t), allocatable     :: time_integration
+     type(theta_time_integration_t)              :: time_integration
+
      ! Problem solution FE function
      type(fe_function_t)                         :: solution
      type(constant_vector_function_t)            :: zero_vector
@@ -133,10 +137,14 @@ contains
    
     ! Solve the problem
     call this%timer_solver_run%start()
-    unknown => this%solution%get_dof_values()
-    !write(*,*) unknown%nrm2()
-    call this%nonlinear_solver%solve(this%nonlinear_operator, unknown)
-    mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged.' )
+    ! Nonlinear steady problems
+    !unknown => this%solution%get_dof_values()
+    !!write(*,*) unknown%nrm2()
+    !call this%nonlinear_solver%solve(this%nonlinear_operator, unknown)
+    !mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged.' )
+
+    call this%time_integration%apply(this%solution)
+    
     call this%timer_solver_run%stop()
 
     ! Postprocess
@@ -330,6 +338,7 @@ end subroutine free_timers
     integer(ip) :: ilev
     integer(ip) :: FPLError
     integer(ip) :: field_id
+    integer(ip) :: istat
     type(vector_field_t) :: zero_vector_field
     class(vector_t), pointer  :: dof_values
     
@@ -346,7 +355,7 @@ end subroutine free_timers
        end if
     end do
     call this%solution%update_strong_dirichlet_values(this%fe_space)
-    call this%fempar_sm_integration%set_solution(this%solution)
+    call this%fempar_sm_integration%set_fe_function(this%solution)
     
     ! FE operator
     if(this%fempar_sm_integration%is_symmetric().and.this%fempar_sm_integration%is_coercive()) then
@@ -405,8 +414,7 @@ end subroutine free_timers
     FPLError = linear_pl%set(key = ils_atol, value = 1.0e-9); assert(FPLError == 0)
     call this%linear_solver%set_parameters_from_pl(linear_pl) 
 
-    ! allocate this%nonlinear_operator to a specific time stepping operator (e.g. BDFk)
-    call this%nonlinear_operator%create(this%fe_affine_operator)
+    !call this%nonlinear_operator%create(this%fe_affine_operator)
 
     ! Nonlinear solver ! fempar_sm_abs_res_norm_and_rel_inc_norm
     call this%nonlinear_solver%create(convergence_criteria = fempar_sm_abs_res_norm, & 
@@ -416,6 +424,8 @@ end subroutine free_timers
          &                                   linear_solver = this%linear_solver, &
          &                                     environment = this%par_environment)    
 
+    !allocate(theta_time_integration_t :: this%time_integration, stat = istat); check(istat==0)
+    call this%time_integration%create(this%fe_affine_operator, this%nonlinear_solver, 0.0_rp, 1.0_rp, 5, 1.0_rp)
   end subroutine setup_operators
 
    
@@ -522,6 +532,7 @@ end subroutine free_timers
     class(fempar_sm_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
 
+    call this%time_integration%free()
     call this%nonlinear_operator%free()
     call this%nonlinear_solver%free()
     call this%linear_solver%free()

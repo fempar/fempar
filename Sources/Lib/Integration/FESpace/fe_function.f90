@@ -59,10 +59,12 @@ module fe_function_names
                                                                               interpolate_vector_function, &
                                                                               interpolate_tensor_function
      procedure, non_overridable          :: copy                           => fe_function_copy
+     procedure, non_overridable          :: axpby                          => fe_function_axpby
      procedure, non_overridable          :: get_dof_values                 => fe_function_get_dof_values
      procedure, non_overridable          :: get_strong_dirichlet_values    => fe_function_get_strong_dirichlet_values
      procedure, non_overridable          :: free                           => fe_function_free
      generic                             :: assignment(=)                  => copy
+     
   end type fe_function_t 
    
   public :: fe_function_t  

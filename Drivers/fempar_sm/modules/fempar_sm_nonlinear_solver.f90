@@ -133,7 +133,7 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
  
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
-    call this%linear_solver%update(nonlinear_operator%get_tangent())
+    call this%linear_solver%update(nonlinear_operator%get_tangent(unknown))
     call this%linear_solver%solve( - this%current_residual, this%increment_dof_values )
     unknown = unknown + this%increment_dof_values
     call nonlinear_operator%apply(unknown,this%current_residual)  ! this implies a (potentially unnecessary) copy 

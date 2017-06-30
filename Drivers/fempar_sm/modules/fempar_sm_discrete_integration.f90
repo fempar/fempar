@@ -38,8 +38,11 @@ module fempar_sm_discrete_integration_names
      integer(ip) :: number_dimensions
      integer(ip) :: number_fields
      integer(ip) :: number_components
-     logical :: include_tangent_terms     = .false.
-     logical :: include_translation_terms = .false.
+     real(rp)    :: mass_coefficient
+     real(rp)    :: residual_coefficient
+     real(rp)    :: currrent_time
+     character(len=:), allocatable :: terms_to_integrate
+     character(len=:), allocatable :: terms_in_the_residual
      character(len=256), allocatable :: fe_type(:)
      character(len=256), allocatable :: field_type(:)
      character(len=256), allocatable :: field_name(:)
@@ -48,8 +51,8 @@ module fempar_sm_discrete_integration_names
      class(vector_function_t), pointer :: source_term  => null()
      ! The solution needs to be stored here to avoid an aliasing problem
      ! in nonlinear_operator_apply
-     class(fe_function_t), pointer :: solution => null()
-     class(fe_function_t), pointer :: solution_old => null()
+     class(fe_function_t), pointer :: fe_function => null()
+     class(fe_function_t), pointer :: fe_function_old => null()
      type(fempar_sm_analytical_functions_t), pointer :: analytical_functions => null()
      real(rp) :: current_time
    contains
@@ -60,20 +63,19 @@ module fempar_sm_discrete_integration_names
      procedure :: get_field_type
      procedure :: get_fe_type
      procedure :: get_field_name
-     !procedure :: get_fe_order
-     !procedure :: get_conformity
-     !procedure :: get_continuity
      procedure :: get_fe_function
      procedure :: set_number_fields
      procedure :: set_number_components
      procedure :: set_field_blocks
      procedure :: set_field_coupling
      procedure :: set_analytical_functions
-     procedure :: set_solution
-     procedure :: set_solution_old
+     procedure :: set_fe_function
+     procedure :: set_old_fe_function
      procedure :: set_terms_to_integrate
-     procedure :: integrate_tangent_terms  
-     procedure :: integrate_translation_terms
+     procedure :: set_terms_in_the_residual
+     procedure :: set_mass_coefficient
+     procedure :: set_residual_coefficient
+     procedure :: set_current_time
      procedure(create_interface)          , deferred :: create
      procedure(is_symmetric_interface)    , deferred :: is_symmetric
      procedure(is_coercive_interface)     , deferred :: is_coercive
@@ -117,7 +119,12 @@ module fempar_sm_discrete_integration_names
   character(*), parameter :: translation_terms             = 'translation'
   character(*), parameter :: tangent_and_translation_terms = 'both'
   public :: tangent_terms, translation_terms, tangent_and_translation_terms
-  
+
+  character(*), parameter :: implicit_terms  = 'implicit'
+  character(*), parameter :: explicit_terms  = 'explicit'
+  character(*), parameter :: transient_terms = 'transient' ! + implicit
+  public :: implicit_terms, explicit_terms, transient_terms
+
   type, extends(fempar_sm_discrete_integration_t) :: irreducible_discrete_integration_t
      private
    contains
@@ -160,30 +167,16 @@ contains
   subroutine set_terms_to_integrate(this,terms_to_integrate)
      implicit none
      class(fempar_sm_discrete_integration_t), intent(inout)  :: this
-     character(*)                       , intent(in)     :: terms_to_integrate
-     if(terms_to_integrate==tangent_terms.or.terms_to_integrate==tangent_and_translation_terms) then
-        this%include_tangent_terms=.true.
-     else
-        this%include_tangent_terms=.false.
-     end if
-     if(terms_to_integrate==translation_terms.or.terms_to_integrate==tangent_and_translation_terms) then
-        this%include_translation_terms=.true.
-     else
-        this%include_translation_terms=.false.
-     end if
+     character(*)                           , intent(in)     :: terms_to_integrate
+     this%terms_to_integrate = terms_to_integrate
   end subroutine set_terms_to_integrate  
-  
-  function integrate_tangent_terms(this)
-     class(fempar_sm_discrete_integration_t),intent(in)  :: this
-     logical :: integrate_tangent_terms
-     integrate_tangent_terms = this%include_tangent_terms
-  end function integrate_tangent_terms  
-  
-  function integrate_translation_terms(this)
-     class(fempar_sm_discrete_integration_t),intent(in)  :: this
-     logical :: integrate_translation_terms
-     integrate_translation_terms = this%include_translation_terms
-  end function integrate_translation_terms  
+
+  subroutine set_terms_in_the_residual(this,terms_in_the_residual)
+     implicit none
+     class(fempar_sm_discrete_integration_t), intent(inout)  :: this
+     character(*)                           , intent(in)     :: terms_in_the_residual
+     this%terms_in_the_residual = terms_in_the_residual
+  end subroutine set_terms_in_the_residual
 
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
@@ -192,25 +185,39 @@ contains
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
   
-  subroutine set_solution (this, solution)
+  subroutine set_fe_function (this, fe_function)
     implicit none
     class(fempar_sm_discrete_integration_t), intent(inout) :: this
-    type(fe_function_t) , target           , intent(in)    :: solution
-    this%solution => solution
-  end subroutine set_solution
+    type(fe_function_t) , target           , intent(in)    :: fe_function
+    this%fe_function => fe_function
+  end subroutine set_fe_function
 
-  subroutine set_solution_old (this, solution_old)
+  subroutine set_old_fe_function (this, old_fe_function)
     implicit none
     class(fempar_sm_discrete_integration_t), intent(inout) :: this
-    class(fe_function_t),            target, intent(in)    :: solution_old
-    this%solution_old => solution_old
-  end subroutine set_solution_old
+    class(fe_function_t),            target, intent(in)    :: old_fe_function
+    this%fe_function_old => old_fe_function
+  end subroutine set_old_fe_function
 
+  subroutine set_mass_coefficient(this,mass_coefficient)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    real(rp)                               , intent(in)    :: mass_coefficient
+    this%mass_coefficient = mass_coefficient
+  end subroutine set_mass_coefficient
+
+  subroutine set_residual_coefficient(this, residual_coefficient)
+    implicit none
+    class(fempar_sm_discrete_integration_t), intent(inout) :: this
+    real(rp)                               , intent(in)    :: residual_coefficient
+    this%residual_coefficient = residual_coefficient
+  end subroutine set_residual_coefficient
+  
   function get_fe_function (this)
     implicit none
     class(fempar_sm_discrete_integration_t), target, intent(in) :: this
     class(fe_function_t), pointer                               :: get_fe_function
-    get_fe_function => this%solution
+    get_fe_function => this%fe_function
   end function get_fe_function
 
   !=============================================================================

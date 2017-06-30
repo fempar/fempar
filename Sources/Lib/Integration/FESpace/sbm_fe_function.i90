@@ -427,3 +427,17 @@ end subroutine fe_function_interpolate_tensor_function
     end if
     call this%strong_dirichlet_values%free()
   end subroutine fe_function_free
+
+ !=============================================================================================== 
+     ! op1 <- alpha*op2 + beta*op1
+  subroutine fe_function_axpby(op1, alpha, op2, beta)
+    implicit none
+    class(fe_function_t), intent(inout) :: op1
+    real(rp), intent(in) :: alpha
+    class(fe_function_t), intent(in) :: op2
+    real(rp), intent(in) :: beta
+
+    call op1%dof_values%axpby(alpha,op2%dof_values,beta)
+    call op1%strong_dirichlet_values%axpby(alpha,op2%strong_dirichlet_values,beta)
+  end subroutine fe_function_axpby
+  

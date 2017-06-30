@@ -36,6 +36,7 @@ module fempar_sm_nonlinear_operator_names
      private
      type(fe_affine_operator_t)             , pointer :: residual  => null()
      class(fempar_sm_discrete_integration_t), pointer :: discrete_integration
+     class(vector_t)                        , pointer :: rhs_values => null() ! useful to define nonlinear problems arising from time dependent operators
    contains
      procedure :: create           => nonlinear_operator_create
      procedure :: apply            => nonlinear_operator_apply
@@ -50,15 +51,17 @@ module fempar_sm_nonlinear_operator_names
 
 contains
 
-  subroutine nonlinear_operator_create(this, residual)
+  subroutine nonlinear_operator_create(this, residual, rhs_values)
     implicit none
-    class(nonlinear_operator_t)          , intent(inout) :: this
-    type(fe_affine_operator_t)   , target, intent(in)    :: residual
+    class(nonlinear_operator_t)       , intent(inout) :: this
+    type(fe_affine_operator_t), target, intent(in)    :: residual
+    class(vector_t)           , target, optional      :: rhs_values
     class(discrete_integration_t), pointer :: discrete_integration
-    class(serial_fe_space_t), pointer :: fe_space
+    class(serial_fe_space_t)     , pointer :: fe_space
 
     ! Create a nonlinear fe operator
-    this%residual => residual
+    this%residual   => residual
+    if(present(rhs_values)) this%rhs_values => rhs_values
     fe_space => this%residual%get_fe_space()
 
     discrete_integration => this%residual%get_discrete_integration()
@@ -75,6 +78,7 @@ contains
     implicit none
     class(nonlinear_operator_t), intent(inout) :: this
     this%residual => null()
+    this%rhs_values => null()
     this%discrete_integration => null()
   end subroutine nonlinear_operator_free
   
@@ -95,7 +99,11 @@ contains
     call this%discrete_integration%set_terms_to_integrate(translation_terms)
     call this%residual%numerical_setup()
     dof_values => this%residual%get_translation()
-    y = dof_values 
+    if(associated(this%rhs_values)) then
+       y = dof_values + this%rhs_values
+    else
+       y = dof_values 
+    end if
   end subroutine nonlinear_operator_apply
 
   ! op%apply_add(x,y) <=> y <- op*x+y
@@ -113,7 +121,11 @@ contains
     call this%discrete_integration%set_terms_to_integrate(translation_terms)
     call this%residual%numerical_setup()
     dof_values => this%residual%get_translation()
-    y = y + dof_values 
+    if(associated(this%rhs_values)) then
+       y = y + dof_values + this%rhs_values
+    else
+       y = y + dof_values 
+    end if 
   end subroutine nonlinear_operator_apply_add
 
   function nonlinear_operator_is_linear(this) 

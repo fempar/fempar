@@ -19,6 +19,12 @@ subroutine  irreducible_discrete_integration_create(this,number_dimensions,analy
   this%field_blocks(1)     = 1
   this%field_coupling(1,1) = .true.
 
+  ! Initializations
+  this%mass_coefficient      = 0.0_rp
+  this%residual_coefficient  = 1.0_rp
+  this%terms_to_integrate    = tangent_and_translation_terms
+  this%terms_in_the_residual = implicit_terms
+  
   ! Could be done in the mother class
   this%analytical_functions => analytical_functions
   this%source_term => this%analytical_functions%get_source_term_u()
@@ -74,7 +80,10 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
   integer(ip)  :: idof, jdof, num_dofs
 
   type(cell_fe_function_vector_t) :: cell_solution_u
-  type(tensor_field_t), pointer   :: gp_solution_gradu(:) => null()
+  type(cell_fe_function_vector_t) :: cell_solution_u_old
+  type(tensor_field_t), pointer   :: gp_solution_gradu(:)  => null()
+  type(vector_field_t), pointer   :: gp_solution_value(:)  => null()
+  type(vector_field_t), pointer   :: gp_solution_old_value(:) => null()
 
   ! Problem variables
   type(vector_field_t) :: source_term_value
@@ -105,11 +114,14 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
   vol_int         => fe%get_volume_integrator(1)
 
   do while ( .not. fe%has_finished())
+
      if ( fe%is_local() ) then
         ! Update FE-integration related data structures
         call fe%update_integration()
-        call cell_solution_u%update(fe,this%solution)
-        gp_solution_gradu => cell_solution_u%get_quadrature_points_gradients()
+        call cell_solution_u%update(fe,this%fe_function)
+        gp_solution_gradu     => cell_solution_u%get_quadrature_points_gradients()
+        gp_solution_value     => cell_solution_u%get_quadrature_points_values()
+        gp_solution_old_value => cell_solution_u_old%get_quadrature_points_values()
 
         ! Get DoF numbering within current FE
         call fe%get_elem2dof(elem2dof)
@@ -122,25 +134,67 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
         elvec = 0.0_rp
         call vol_int%get_gradients(shape_gradients)
         call vol_int%get_values(shape_values)
-        do qpoint = 1, num_quad_points
-           dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-           ! Diffusive term
-           do idof = 1, num_dofs
-              do jdof = 1, num_dofs
-                 epsi  = symmetric_part(shape_gradients(jdof,qpoint))
-                 sigma = lambda*trace(epsi)*Id + 2*mu*epsi
-                 elmat(idof,jdof) = elmat(idof,jdof) + dV * double_contract(shape_gradients(idof,qpoint),sigma)
+
+        ! Tangent
+        if (this%terms_to_integrate == tangent_terms .or. this%terms_to_integrate == tangent_and_translation_terms) then
+
+           do qpoint = 1, num_quad_points
+              dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+              ! Diffusive term
+              do idof = 1, num_dofs
+                 do jdof = 1, num_dofs
+                    epsi  = symmetric_part(shape_gradients(jdof,qpoint))
+                    sigma = lambda*trace(epsi)*Id + 2*mu*epsi
+                    elmat(idof,jdof) = elmat(idof,jdof) + this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
+                 end do
               end do
            end do
-           ! Source term
-           call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
-           epsi = symmetric_part(gp_solution_gradu(qpoint))
-           sigma = lambda*trace(epsi)*Id + 2*mu*epsi
-           do idof = 1, num_dofs
-              elvec(idof) = elvec(idof) - dV * source_term_value * shape_values(idof,qpoint)
-              elvec(idof) = elvec(idof) + dV * double_contract(shape_gradients(idof,qpoint),sigma)
+
+           if( this%terms_in_the_residual == transient_terms) then
+              do qpoint = 1, num_quad_points
+                 dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+                 do idof = 1, num_dofs
+                    do jdof = 1, num_dofs
+                       epsi  = symmetric_part(shape_gradients(jdof,qpoint))
+                       sigma = lambda*trace(epsi)*Id + 2*mu*epsi
+                       elmat(idof,jdof) = elmat(idof,jdof) + this%mass_coefficient * dV * shape_values(idof,qpoint) * shape_values(jdof,qpoint)
+                    end do
+                 end do
+              end do
+
+           end if
+        end if
+        
+        ! Residual
+        if (this%terms_to_integrate == translation_terms .or. this%terms_to_integrate == tangent_and_translation_terms) then
+
+           do qpoint = 1, num_quad_points
+              dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+              ! Source term
+              call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
+              epsi = symmetric_part(gp_solution_gradu(qpoint))
+              sigma = lambda*trace(epsi)*Id + 2*mu*epsi
+              do idof = 1, num_dofs
+                 elvec(idof) = elvec(idof) - this%residual_coefficient * dV * source_term_value * shape_values(idof,qpoint)
+                 elvec(idof) = elvec(idof) + this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
+              end do
            end do
-        end do
+
+           if( this%terms_in_the_residual == transient_terms) then
+              do qpoint = 1, num_quad_points
+                 dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+                 ! Source term
+                 call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
+                 epsi = symmetric_part(gp_solution_gradu(qpoint))
+                 sigma = lambda*trace(epsi)*Id + 2*mu*epsi
+                 do idof = 1, num_dofs
+                    elvec(idof) = elvec(idof) + this%mass_coefficient * dV * gp_solution_value(qpoint) * shape_values(idof,qpoint)
+                    elvec(idof) = elvec(idof) - this%mass_coefficient * dV * gp_solution_old_value(qpoint) * shape_values(idof,qpoint)
+                 end do
+              end do
+           end if
+
+        end if
 
         ! Apply boundary conditions
         !call fe%impose_strong_dirichlet_bcs( elmat, elvec )
@@ -148,6 +202,10 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
      end if
      call fe%next()
   end do
+
+
+
+
 
   call cell_solution_u%free()
   call fe_space%free_fe_iterator(fe)

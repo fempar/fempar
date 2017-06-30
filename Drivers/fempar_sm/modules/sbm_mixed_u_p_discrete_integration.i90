@@ -120,8 +120,8 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_arr
      if ( fe%is_local() ) then
         ! Update FE-integration related data structures
         call fe%update_integration()
-        call cell_solution_u%update(fe,this%solution)
-        call cell_solution_p%update(fe,this%solution)
+        call cell_solution_u%update(fe,this%fe_function)
+        call cell_solution_p%update(fe,this%fe_function)
         solution_gradu => cell_solution_u%get_quadrature_points_gradients()
         solution_p     => cell_solution_p%get_quadrature_points_values()
 
