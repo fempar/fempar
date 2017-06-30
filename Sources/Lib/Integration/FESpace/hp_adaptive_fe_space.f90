@@ -990,13 +990,13 @@ subroutine shpafs_project_ref_fe_id_per_fe(this)
         do subcell_id = 1,num_children_per_cell-1
           current_old_cell_lid = current_old_cell_lid + 1
           if ( old_reference_fe_id /= old_ref_fe_id_per_fe(field_id,current_old_cell_lid) ) then
-            assert( .false. )
+            massert(.false.,'Coarsened subcells do not have the same reference FE id')
           end if
         end do
         call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
         current_new_cell_lid = current_new_cell_lid + 1
       else
-        assert(.false.)
+        massert(.false.,'Unrecognised refinement and coarsening flag')
       end if
     end do
     old_cell_lid = current_old_cell_lid
@@ -1004,7 +1004,7 @@ subroutine shpafs_project_ref_fe_id_per_fe(this)
     old_cell_lid = old_cell_lid + 1
   end do
   
-  assert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells() )
+  massert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
   
   call this%free_fe_iterator(new_fe)
   call memfree(old_ref_fe_id_per_fe,__FILE__,__LINE__)
@@ -1051,7 +1051,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
   
   call this%move_alloc_ptr_dofs_per_fe_out(old_ptr_dofs_per_fe)
   call this%move_alloc_lst_dofs_lids_out(old_lst_dofs_lids)
-  assert ( old_num_cells == (size(old_ptr_dofs_per_fe,2)-1) )
+  massert ( old_num_cells == (size(old_ptr_dofs_per_fe,2)-1), 'Incorrect size of p4est_refinement_and_coarsening_flags' )
   
   call this%project_ref_fe_id_per_fe()
   
@@ -1132,7 +1132,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
                                                           new_nodal_values(1:number_nodes_field) )        
         current_new_cell_lid = current_new_cell_lid + 1
       else
-        assert(.false.)
+        massert(.false.,'Unrecognised refinement and coarsening flag')
       end if
     end do
     old_cell_lid = current_old_cell_lid
@@ -1140,7 +1140,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
     old_cell_lid = old_cell_lid + 1
   end do
 
-  assert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells() )
+  massert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
   
   call fe_function%create(this)
   fe_function = transformed_fe_function
