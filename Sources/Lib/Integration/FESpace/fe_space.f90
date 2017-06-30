@@ -658,6 +658,11 @@ module fe_space_names
 	   logical     , allocatable               :: follows_coarse_edge_orientation(:,:)
 	   type(hash_table_ip_ip_t), allocatable   :: coupled_vefs_added(:)
 	   type(hash_table_ip_ip_t), allocatable   :: coarse_edge_nodes_order(:)
+	   
+	   type(hash_table_ip_ip_t)                :: fine_edge_direction
+	   type(list_t)                            :: subedges_per_coarse_edge 
+	   type(list_t)                            :: sorted_fine_edges_in_coarse_subedge 
+
        type(edge_change_basis_matrix_t)        :: change_basis_matrix 
 	   
   contains
@@ -671,7 +676,9 @@ module fe_space_names
 	   procedure                           :: compute_change_basis_matrix                   => Hcurl_l1_compute_change_basis_matrix 
 	   procedure, private, nopass          :: get_BDDC_edge_continuity_algorithm_case       => Hcurl_l1_get_BDDC_edge_continuity_algorithm_case
 	   ! Auxiliar procedures for renumbering 
+	   procedure, non_overridable, private :: fill_edge_dofs                                => Hcurl_l1_fill_edge_dofs ! TO CLEAN 
 	   procedure, non_overridable, private :: fill_dofs_in_coarse_edges_renumbering         => Hcurl_l1_fill_dofs_in_coarse_edges_renumbering 
+	   procedure, non_overridable, private :: count_and_fill_coarse_subedges_and_owned_fine_edges => Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges
 	   procedure, non_overridable, private :: fill_dofs_coupled_to_coarse_edges_renumbering => Hcurl_l1_fill_dofs_coupled_to_coarse_edges_renumbering
 	   procedure, non_overridable, private, nopass :: set_coarse_edge_orientation           => Hcurl_l1_set_coarse_edge_orientation
 	   procedure, non_overridable, private :: sort_fine_edges_within_coarse_edge            => Hcurl_l1_sort_fine_edges_within_coarse_edge
@@ -701,7 +708,10 @@ module fe_space_names
 	   ! Auxiliar basic procedures 
 	   procedure, non_overridable, private :: compute_edge_length              => Hcurl_l1_compute_edge_length 
   end type  Hcurl_l1_coarse_fe_handler_t
-     
+       
+  integer(ip), parameter :: opposite_to_coarse_edge                   = 0
+  integer(ip), parameter :: same_as_coarse_edge                       = 1
+  
   integer(ip), parameter :: tangential_average                        = 1
   integer(ip), parameter :: tangential_average_and_first_order_moment = 2
   integer(ip), parameter :: all_dofs_in_coarse_edges                  = 3 

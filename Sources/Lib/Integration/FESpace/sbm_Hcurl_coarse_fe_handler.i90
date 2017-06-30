@@ -34,7 +34,7 @@ implicit none
    if (allocated(this%number_fine_edges_per_coarse_edge))  call memfree(this%number_fine_edges_per_coarse_edge, __FILE__, __LINE__ )
    if (allocated(this%perm_sorted_edges))                  call memfree(this%perm_sorted_edges, __FILE__, __LINE__ )
    if (allocated(this%follows_coarse_edge_orientation))    call memfree(this%follows_coarse_edge_orientation, __FILE__, __LINE__ )
-   
+    
    ! Free local change basis matrices 
    do coarse_edge=1, this%number_coarse_edges
    call this%coarse_edge_nodes_order(coarse_edge)%free()
@@ -43,6 +43,11 @@ implicit none
    end do 
    !if (allocated(this%change_basis_matrix%G))              deallocate(this%change_basis_matrix%G, stat=istat); check(istat==0); 
    !if (allocated(this%coarse_edge_nodes_order))            deallocate(this%coarse_edge_nodes_order, stat=istat); check(istat==0); 
+   
+      ! New data 
+      call this%fine_edge_direction%free() 
+      call this%subedges_per_coarse_edge%free() 	
+	  call this%sorted_fine_edges_in_coarse_subedge%free()
    
    call this%change_basis_matrix%B%free() 
 end subroutine Hcurl_l1_free
@@ -275,7 +280,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
   if ( this%order > 1 ) call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
 
    call this%change_basis_matrix%B%convert(csr_format) 
-   call this%change_basis_matrix%B%print_matrix_market(6)
+  ! call this%change_basis_matrix%B%print_matrix_market(6)
    call memfree(edge_elmat, __FILE__, __LINE__ ) 
   end if 
   
@@ -432,7 +437,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
         end do
 		
         call this%change_basis_matrix%G(coarse_edge)%convert(csr_format)
-	    call this%change_basis_matrix%G(coarse_edge)%print_matrix_market(6)
+	   ! call this%change_basis_matrix%G(coarse_edge)%print_matrix_market(6)
      end if
      call object%next()
   end do
@@ -1448,8 +1453,11 @@ subroutine Hcurl_l1_renumber_interface_dofs_first_E_then_Ec(this, par_fe_space, 
   this%number_interior_dofs = current_dof - 1
  
   call this%fill_dofs_in_coarse_edges_renumbering( current_dof, iblock, par_fe_space, perm_old2new, perm_new2wire ) 
+    ! New subedges work
+  call this%count_and_fill_coarse_subedges_and_owned_fine_edges( par_fe_space )
+  !call this%fill_edge_dofs( current_dof, iblock, par_fe_space, perm_old2new, perm_new2wire )
   this%number_edge_wire_dofs = (current_dof-1) - this%number_interior_dofs
-
+  
   call this%fill_dofs_coupled_to_coarse_edges_renumbering( current_dof, iblock, par_fe_space, perm_old2new, perm_new2wire )
   this%number_total_wire_dofs = (current_dof-1) - this%number_interior_dofs
 
@@ -1895,3 +1903,477 @@ subroutine Hcurl_l1_get_BDDC_edge_continuity_algorithm_case( parameter_list, alg
   assert(FPLError == 0)
 
 end subroutine Hcurl_l1_get_BDDC_edge_continuity_algorithm_case 
+
+! ===================================  NEW SUBEDGiNG SUBROUTINES ==================================================
+
+subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, par_fe_space ) 
+  implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)       , intent(inout)  :: this
+  type(par_fe_space_t)                      , intent(in)     :: par_fe_space 
+
+  ! Iterators 
+  type(fe_object_iterator_t)             :: object
+  type(fe_vef_iterator_t)                :: vef_within_object, vef_within_cell 
+  class(fe_iterator_t), allocatable      :: fe
+  integer(ip)                            :: ivef_within_cell, ivef_within_object
+  integer(ip)                            :: iedge, istat
+
+  ! Vertices in edges  
+  type(fe_vef_iterator_t)                   :: vertex 
+  class(lagrangian_reference_fe_t), pointer :: ref_fe_geo
+  type(list_t), pointer                     :: vertices_of_line
+  type(list_iterator_t)                     :: vertices_of_line_iterator
+  integer(ip)                               :: vertex_within_cell_id, vertex_within_edge_id  
+  integer(ip)                               :: fine_edge, node_id
+  integer(ip) , allocatable                 :: vertices_in_edge(:,:)
+  type(point_t), allocatable                :: cell_coordinates(:)
+  type(point_t), allocatable                :: node_coordinates(:)
+
+  ! Coarse vertices checker 
+  integer(ip)                               :: number_coarse_vertices 
+  integer(ip), allocatable                  :: coarse_vertices_list(:)
+  integer(ip)                               :: ivertex_coarse 
+  integer(ip)                               :: number_nodes, inode  
+  integer(ip), allocatable                  :: node_list(:)
+  type(hash_table_ip_ip_t)                  :: nodes_counter 
+  integer(ip)                               :: counter
+
+  integer(ip)             , allocatable   :: number_fine_edges_per_coarse_edge(:)
+  integer(ip)             , allocatable   :: fine_edges_list(:,:) 
+  integer(ip)             , allocatable   :: perm_sorted_edges(:,:) 
+  integer                                 :: number_coarse_edges, iedge_coarse, iedge_fine 
+
+  ! Subedges counterpart 
+  integer(ip)  :: number_potential_startend_nodes 
+  integer(ip)  :: number_subedges, start_node 
+
+  ! Edge sorting algorithms 
+  logical                  :: reached_endpoint, found_following_edge
+  integer(ip)              :: following_node, local_edge
+  integer(ip), allocatable :: perm(:) 
+  integer(ip)              :: c 
+  type(list_iterator_t)    :: subedges_iterator
+  type(hash_table_ip_ip_t) :: number_fine_edges_per_subedge, added_edges 
+  type(list_iterator_t)    :: fine_edges_in_subedges_iterator
+  integer(ip)              :: isub_edge_in_coarse_edge, number_subedges_in_coarse_edge 
+  integer(ip)              :: total_number_subedges, isubedge, number_fine_edges, isubedge_coarse
+  integer(ip)              :: iedge_local 
+
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_vef_iterator(vef_within_object)
+  call par_fe_space%create_fe_vef_iterator(vef_within_cell)
+  call par_fe_space%create_fe_vef_iterator(vertex)
+
+  allocate(cell_coordinates( fe%cell%get_num_nodes() ) , stat=istat); check(istat==0) 
+
+  ! Initialize variables 
+  total_number_subedges  = 0
+  number_coarse_vertices = 0
+  number_coarse_edges    = 0
+
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 0 ) then 
+        number_coarse_vertices = number_coarse_vertices + 1
+     elseif ( object%get_dimension() == 1 ) then 
+        number_coarse_edges = number_coarse_edges + 1
+     end if
+     call object%next() 
+  end do
+
+  call memalloc( number_coarse_vertices, coarse_vertices_list, __FILE__, __LINE__ ) 
+  coarse_vertices_list = 0 
+  call memalloc( number_coarse_edges, number_fine_edges_per_coarse_edge, __FILE__, __LINE__ ) 
+  number_fine_edges_per_coarse_edge = 0  
+  
+  iedge_coarse   = 0
+  ivertex_coarse = 0
+  call object%first() 
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 0 ) then 
+        call object%get_vef(1, vef_within_object)
+        ivertex_coarse = ivertex_coarse + 1
+        coarse_vertices_list(ivertex_coarse) = vef_within_object%get_lid() 
+     elseif ( object%get_dimension() == 1 ) then 
+        iedge_coarse = iedge_coarse + 1
+        do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object, vef_within_object)
+           if ( vef_within_object%get_dimension() == 1 ) then  
+              number_fine_edges_per_coarse_edge( iedge_coarse ) = number_fine_edges_per_coarse_edge( iedge_coarse ) + 1
+           end if
+        end do
+     end if
+     call object%next() 
+  end do
+
+  call this%subedges_per_coarse_edge%create( number_coarse_edges ) 
+  call number_fine_edges_per_subedge%init( sum(number_fine_edges_per_coarse_edge) )
+  call this%fine_edge_direction%init( sum(number_fine_edges_per_coarse_edge) )
+  call memalloc( number_coarse_edges, maxval(number_fine_edges_per_coarse_edge), fine_edges_list, __FILE__, __LINE__ ) 
+  call memalloc( number_coarse_edges, maxval(number_fine_edges_per_coarse_edge), perm_sorted_edges, __FILE__, __LINE__ )
+  call added_edges%init(sum(number_fine_edges_per_coarse_edge)) 
+  fine_edges_list   = 0
+  perm_sorted_edges = 0
+
+  call object%first() 
+  iedge_coarse = 0
+  do while ( .not. object%has_finished() )
+     if ( object%get_dimension() == 1 ) then
+        iedge_coarse = iedge_coarse + 1	   
+
+        ! Initialize variables 
+        call memalloc( number_fine_edges_per_coarse_edge(iedge_coarse), 2, vertices_in_edge, __FILE__, __LINE__ )
+        call nodes_counter%init( 2*number_fine_edges_per_coarse_edge(iedge_coarse) )
+        call memalloc( 2*number_fine_edges_per_coarse_edge(iedge_coarse), node_list, __FILE__, __LINE__ )
+        call memalloc( 2*number_fine_edges_per_coarse_edge(iedge_coarse), node_coordinates, __FILE__, __LINE__ )
+
+        vertices_in_edge = 0
+        node_list        = 0
+        number_nodes     = 0
+
+        iedge_fine = 0
+        do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object, vef_within_object)
+           if ( vef_within_object%get_dimension() == 1 ) then
+              iedge_fine = iedge_fine + 1
+              fine_edges_list(iedge_coarse, iedge_fine) = vef_within_object%get_lid() 
+
+              call vef_within_object%get_cell_around(1,fe) 
+              ref_fe_geo                => fe%get_reference_fe_geo()
+              vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
+              ivef_within_cell          = fe%find_lpos_vef_lid(vef_within_object%get_lid())     
+              vertices_of_line_iterator = vertices_of_line%create_iterator(ivef_within_cell)
+              vertex_within_edge_id     = 1
+
+              do while( .not. vertices_of_line_iterator%is_upper_bound() )
+                 vertex_within_cell_id = vertices_of_line_iterator%get_current()
+                 call fe%get_vef(vertex_within_cell_id, vertex )
+                 node_id = vertex%get_lid() 		
+
+                 ! Fill vertices in each edge   
+                 vertices_in_edge( iedge_fine, vertex_within_edge_id )  = node_id 
+
+                 ! Count how many times nodes appear
+                 call nodes_counter%get( key=node_id, val=counter, stat=istat )
+                 if ( istat/=key_found ) then 
+                    number_nodes = number_nodes + 1
+                    node_list(number_nodes) = node_id
+                    call fe%cell%get_coordinates(cell_coordinates)		
+                    node_coordinates(number_nodes) = cell_coordinates(vertex_within_cell_id) 
+                    call nodes_counter%put(key=node_id, val=1, stat=istat)
+                 else 
+                    counter = counter + 1
+                    call nodes_counter%del(key=node_id, stat=istat)
+                    call nodes_counter%put(key=node_id, val=counter, stat=istat)
+                 end if
+
+                 vertex_within_edge_id = vertex_within_edge_id + 1
+                 call vertices_of_line_iterator%next() 
+              end do
+
+           end if
+        end do
+
+        ! Mark corners contained in edge vefs extremes 
+        do inode=1, number_coarse_vertices  
+           call nodes_counter%get(key=coarse_vertices_list(inode), val=counter, stat=istat) 
+           if (istat==key_found .and. counter==2 ) then 
+              call nodes_counter%del(key=coarse_vertices_list(inode), stat=istat)
+              call nodes_counter%put(key=coarse_vertices_list(inode), val=-counter, stat=istat)
+           end if
+        end do
+
+        call count_number_of_subedges( node_list, nodes_counter, number_subedges, number_potential_startend_nodes ) 	
+        call this%subedges_per_coarse_edge%sum_to_pointer_index(iedge_coarse, number_subedges)
+
+        local_edge            = 0
+        do isub_edge_in_coarse_edge = 1, number_subedges 
+           total_number_subedges = total_number_subedges + 1
+           start_node = identify_following_starting_node( number_potential_startend_nodes, node_coordinates, node_list, nodes_counter ) 
+           call build_path_from_starting_node() 
+        end do
+
+        call memfree(vertices_in_edge, __FILE__, __LINE__)
+        call nodes_counter%free()
+        call memfree( node_list, __FILE__, __LINE__ )
+        call memfree( node_coordinates, __FILE__, __LINE__ )
+     end if
+     call object%next() 
+  end do
+  
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_vef_iterator(vef_within_object)
+  call par_fe_space%free_fe_vef_iterator(vef_within_cell)
+  call par_fe_space%free_fe_vef_iterator(vertex)
+
+  ! Build definitive lists 
+  call this%subedges_per_coarse_edge%calculate_header()
+  call this%subedges_per_coarse_edge%allocate_list_from_pointer()	
+
+  c=0 
+  subedges_iterator = this%subedges_per_coarse_edge%create_iterator()
+  do while ( .not. subedges_iterator%is_upper_bound() )
+     c = c + 1
+     call subedges_iterator%set_current(c)
+     call subedges_iterator%next()
+  end do
+
+  call create_and_fill_sorted_fine_edges_list() 
+
+  call memfree( fine_edges_list, __FILE__, __LINE__ ) 
+  call memfree( perm_sorted_edges, __FILE__, __LINE__ )
+  call number_fine_edges_per_subedge%free()
+  call added_edges%free()
+  call fine_edges_in_subedges_iterator%free() 
+  call memfree( coarse_vertices_list, __FILE__, __LINE__ ) 
+  call memfree( number_fine_edges_per_coarse_edge, __FILE__, __LINE__ ) 
+
+contains 
+
+  subroutine count_number_of_subedges(node_list, nodes_counter, number_subedges, number_potential_startend_nodes)
+    implicit none 
+    integer(ip) , allocatable , intent(in) :: node_list(:) 
+    type(hash_table_ip_ip_t)  , intent(in) :: nodes_counter 
+    integer(ip) :: number_subedges 
+
+    integer(ip) :: ncorners_in_edge, number_potential_startend_nodes
+    integer(ip) :: ninterior_node, nbifurcation_node 
+
+    ncorners_in_edge     = 0
+    number_potential_startend_nodes = 0
+    ninterior_node       = 0
+    nbifurcation_node    = 0 
+    do inode=1, number_nodes 
+       call nodes_counter%get( key=node_list(inode), val=counter, stat=istat) 
+       if (counter.lt.0)  then 
+          ncorners_in_edge      = ncorners_in_edge + 1
+       elseif (counter==1) then 
+          number_potential_startend_nodes  = number_potential_startend_nodes + 1
+       elseif (counter==2) then
+          ninterior_node        = ninterior_node + 1
+       elseif (counter==3) then
+          nbifurcation_node     = nbifurcation_node + 1
+       elseif (counter>3) then 
+          WRITE(*,*) 'WARNING: bifurcation into', counter, 'paths' ; check(.false.) 
+       end if
+    end do
+
+    number_subedges = ( number_potential_startend_nodes + 3*nbifurcation_node + 2*ncorners_in_edge )/2 
+
+  end subroutine count_number_of_subedges
+
+  ! *****************************************************************************************
+  function identify_following_starting_node( number_potential_startend_nodes, node_coordinates, node_list, nodes_counter ) result(start_node) 
+    implicit none 
+    integer(ip)               , intent(in) :: number_potential_startend_nodes
+    type(point_t), allocatable, intent(in) :: node_coordinates(:)
+    integer(ip) , allocatable , intent(in) :: node_list(:) 
+    type(hash_table_ip_ip_t)  , intent(in) :: nodes_counter 
+    integer(ip)     :: start_node 
+
+    integer(ip)                         :: inode
+    integer(ip)                         :: found_nodes, i, icomp, istat 
+    integer(ip)  , allocatable          :: start_end_nodes(:) 
+    integer(ip)  , allocatable, target  :: node_indices(:) 
+    integer(ip)  , pointer              :: sorted_indices(:) 
+    real(rp)     , allocatable          :: icomp_coords(:) 
+    integer(ip)                         :: nodes_with_same_x_i, npotential_candidates
+
+
+    call memalloc( number_potential_startend_nodes, node_indices,    __FILE__, __LINE__ )
+    call memalloc( number_potential_startend_nodes, start_end_nodes, __FILE__, __LINE__ )
+    call memalloc( number_potential_startend_nodes, icomp_coords,    __FILE__, __LINE__ )
+
+    found_nodes = 0
+    do inode=1, size(node_list)  
+       call nodes_counter%get( key=node_list(inode), val=counter, stat=istat)
+       if ( (istat==key_found) .and. (counter == 1) ) then
+          found_nodes = found_nodes + 1
+          start_end_nodes( found_nodes ) = inode 
+       end if
+    end do
+
+    ! Minimum [ x_i ] identifier and uniqueness determines the starting position 
+    npotential_candidates = number_potential_startend_nodes 
+    node_indices          = (/(i, i=1,number_potential_startend_nodes, 1)/)
+    start_node = 0
+    icomp      = 0
+    do while (start_node == 0)    
+       icomp = icomp + 1
+       sorted_indices => node_indices(1:npotential_candidates) 
+       do inode=1, npotential_candidates 
+          icomp_coords(inode) = node_coordinates(start_end_nodes(sorted_indices(inode)))%get(icomp) 
+       end do
+       call sort(npotential_candidates, icomp_coords, index=sorted_indices)
+       if ( icomp_coords(1) .lt. icomp_coords(2) ) then 
+          ! Is the only minimum valued node with this coordinates, select it as start_node 
+          start_node = node_list( start_end_nodes( sorted_indices(1) ) )
+       else ! Compare next component of the coincident ones!	
+          nodes_with_same_x_i = 1	
+          do inode=2, npotential_candidates 
+             if (icomp_coords(inode) == icomp_coords(1) ) then 
+                nodes_with_same_x_i = nodes_with_same_x_i + 1 
+             end if
+          end do
+          npotential_candidates = nodes_with_same_x_i
+          call memrealloc( npotential_candidates, icomp_coords, __FILE__, __LINE__) 
+       end if
+       assert( icomp .le. 3 ) 
+    end do
+
+    call memfree( node_indices, __FILE__, __LINE__ ) 
+    call memfree( start_end_nodes, __FILE__, __LINE__ )
+    call memfree( icomp_coords, __FILE__, __LINE__ )  
+
+  end function identify_following_starting_node
+  ! ****************************************************************************************
+  subroutine build_path_from_starting_node() 
+
+    call nodes_counter%del( key=start_node, stat=istat)
+    number_potential_startend_nodes = number_potential_startend_nodes - 1
+
+    call memalloc( 2, perm, __FILE__, __LINE__ ) 
+    perm(1) = 2; perm(2) = 1; 
+
+    following_node    = start_node 
+    iedge_local       = 0 
+
+    reached_endpoint  = .false. 
+    do while ( .not. reached_endpoint )
+       found_following_edge = .false. 
+       do iedge = 1, number_fine_edges_per_coarse_edge(iedge_coarse)
+          do inode = 1,2
+             if ( (vertices_in_edge( iedge, inode) == following_node) ) then		         
+                call added_edges%put(fine_edges_list(iedge_coarse, iedge), val=local_edge+1, stat=istat)
+
+                if ( istat/=was_stored ) then 
+                   local_edge = local_edge + 1	
+                   iedge_local = iedge_local + 1
+                   perm_sorted_edges(iedge_coarse, local_edge) = iedge
+                   if ( inode .eq. 1 ) then
+                      call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=same_as_coarse_edge, stat=istat)
+                   else 
+                      call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=opposite_to_coarse_edge, stat=istat)   
+                   end if
+
+                   found_following_edge = .true. 
+                   following_node = vertices_in_edge(iedge, perm(inode))  
+
+                   ! Choose path 
+                   call nodes_counter%get( key=following_node, val=counter, stat=istat) 
+                   if (counter.lt.0)  then 
+                      reached_endpoint = .true. 
+                      call nodes_counter%del( key=following_node, stat=istat) 
+                      call nodes_counter%put( key=following_node, val=1, stat=istat)
+                      number_potential_startend_nodes = number_potential_startend_nodes + 1
+                   elseif ( counter==1 ) then
+                      reached_endpoint = .true.
+                      call nodes_counter%del( key=following_node, stat=istat)
+                      number_potential_startend_nodes = number_potential_startend_nodes - 1
+                   elseif (counter==2 ) then
+                      call nodes_counter%del( key=following_node, stat=istat)
+                   elseif (counter==3) then 
+                      WRITE(*,*) 'Still not ready for handling bifurcations'; assert(.false.) 
+                   end if
+
+                   exit 
+                end if
+
+             end if
+          end do
+          if (found_following_edge) exit 
+       end do
+    end do
+
+    call number_fine_edges_per_subedge%put( key=total_number_subedges, val=iedge_local, stat=istat ); check(istat==now_stored) 
+    call memfree(perm, __FILE__, __LINE__) 
+
+  end subroutine build_path_from_starting_node
+  ! ****************************************************************************************
+  subroutine create_and_fill_sorted_fine_edges_list( )
+
+    call this%sorted_fine_edges_in_coarse_subedge%create( this%subedges_per_coarse_edge%get_size() )
+    do isubedge = 1, this%subedges_per_coarse_edge%get_size()
+       call number_fine_edges_per_subedge%get( key=isubedge, val=number_fine_edges, stat=istat ); check(istat==key_found) 
+       call this%sorted_fine_edges_in_coarse_subedge%sum_to_pointer_index(isubedge, number_fine_edges )
+    end do
+
+    call this%sorted_fine_edges_in_coarse_subedge%calculate_header()
+    call this%sorted_fine_edges_in_coarse_subedge%allocate_list_from_pointer()	
+
+    fine_edges_in_subedges_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator()
+    do iedge_coarse = 1, number_coarse_edges 
+       do c=1, number_fine_edges_per_coarse_edge(iedge_coarse)
+          call fine_edges_in_subedges_iterator%set_current( fine_edges_list(iedge_coarse, perm_sorted_edges(iedge_coarse,c) ) )
+          call fine_edges_in_subedges_iterator%next() 
+       end do
+    end do
+
+    call this%sorted_fine_edges_in_coarse_subedge%print(6) 
+
+  end subroutine create_and_fill_sorted_fine_edges_list
+
+end subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges
+
+subroutine Hcurl_l1_fill_edge_dofs( this, current_dof, iblock, par_fe_space, perm_old2new, perm_new2wire) 
+  implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)       , intent(inout)  :: this
+  integer(ip)                               , intent(inout)  :: current_dof 
+  integer(ip)                               , intent(in)     :: iblock 
+  type(par_fe_space_t)                      , intent(in)     :: par_fe_space 
+  integer(ip) , allocatable                 , intent(inout)  :: perm_old2new(:)
+  integer(ip) , allocatable                 , intent(inout)  :: perm_new2wire(:) 
+
+  ! Iterators 
+  type(list_iterator_t)                  :: fine_edges_iterator
+  type(fe_vef_iterator_t)                :: vef
+  integer(ip)                            :: ivef_within_cell
+  class(fe_iterator_t), allocatable      :: fe
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+
+  integer(ip)            , pointer       :: elem2dof(:)
+  integer(ip)                            :: field_id
+  integer(ip)                            :: fine_edge_direction
+  integer(ip)                            :: idof, own_idof, istat
+
+     call par_fe_space%create_fe_iterator(fe) 
+	 call par_fe_space%create_fe_vef_iterator(vef) 
+	 field_id = par_fe_space%field_blocks(iblock)
+	 
+	 fine_edges_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator() 
+	 do while ( .not. fine_edges_iterator%is_upper_bound() )
+	 
+	 call vef%set_lid( fine_edges_iterator%get_current() ) 
+     call vef%get_cell_around(1,fe)
+     call fe%get_field_elem2dof(field_id, elem2dof)
+     ivef_within_cell = fe%find_lpos_vef_lid( vef%get_lid() )
+     own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+
+	          own_idof = 0
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )			     
+                 idof     = own_dofs_on_vef_iterator%get_current()
+				 own_idof = own_idof + 1
+                 if (perm_new2wire(perm_old2new(elem2dof(idof))) .eq. 0) then
+					call this%fine_edge_direction%get( key=vef%get_lid(), val=fine_edge_direction, stat=istat); check(istat==key_found) 
+					select case ( fine_edge_direction ) 
+					case ( same_as_coarse_edge ) 
+					perm_new2wire(perm_old2new(elem2dof(idof))) = current_dof 
+					case ( opposite_to_coarse_edge ) 
+                    perm_new2wire(perm_old2new(elem2dof(idof))) = current_dof + this%order - own_idof 
+					end select 
+                    current_dof = current_dof + 1
+                 end if				 
+                 call own_dofs_on_vef_iterator%next()
+              end do
+	  
+			  call fine_edges_iterator%next() 	  
+	  end do 	  
+	  		
+	  call fine_edges_iterator%free() 
+	  call par_fe_space%free_fe_iterator(fe) 
+	  call par_fe_space%free_fe_vef_iterator(vef) 
+	  
+end subroutine Hcurl_l1_fill_edge_dofs
+
+
