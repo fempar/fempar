@@ -10,6 +10,26 @@ then
       # Scalar-valued tests
       ###############################################################################################################################
 
+      # Cube + Hexas + Hybrid Void/Full FEs (popcorn pattern)
+      for gorder in 1
+      do
+       for order in 2 3 4 5 6 7 8 
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true."
+            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true.
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      ###############################################################################################################################
+      # Vector-valued tests
+      ###############################################################################################################################
 
       # Cube + Hexas + Hybrid Void/Full FEs (popcorn pattern)
       for gorder in 1
@@ -18,8 +38,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order 2 -wsolution .true."
-            $TEST_BINARY_PATH -tt structured -dim 2  -order 2 -wsolution .true.
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -lt vector"
+            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -lt vector
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
