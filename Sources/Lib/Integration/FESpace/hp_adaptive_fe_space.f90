@@ -92,6 +92,7 @@ module hp_adaptive_fe_space_names
      procedure                            :: update_fixed_dof_values                                => shpafs_update_fixed_dof_values
      procedure                            :: interpolate_dirichlet_values                           => shpafs_interpolate_dirichlet_values
      
+     procedure                            :: project_ref_fe_id_per_fe                               => shpafs_project_ref_fe_id_per_fe
      generic                              :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen, &
                                                                                                        serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems
      procedure                            :: serial_hp_adaptive_fe_space_refine_and_coarsen
@@ -933,6 +934,83 @@ subroutine shpafs_transfer_dirichlet_to_fe_space(this,fixed_dof_values)
   call memfree(indices,__FILE__,__LINE__)
 end subroutine shpafs_transfer_dirichlet_to_fe_space
 
+subroutine shpafs_project_ref_fe_id_per_fe(this)
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
+  class(base_static_triangulation_t), pointer     :: triangulation
+  type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
+  class(fe_iterator_t)              , allocatable :: new_fe
+  class(reference_fe_t)             , pointer     :: reference_fe
+  integer(ip)                       , allocatable :: old_ref_fe_id_per_fe(:,:)
+  integer(ip)                                     :: old_num_cells
+  integer(ip)                                     :: num_children_per_cell
+  integer(ip)                                     :: subcell_id, old_cell_lid, new_cell_lid
+  integer(ip)                                     :: current_old_cell_lid, current_new_cell_lid
+  integer(ip)                                     :: field_id
+  integer(ip)                                     :: transformation_flag
+  integer(ip)                                     :: old_reference_fe_id
+  
+  triangulation => this%get_triangulation()
+  select type(triangulation)
+  class is (p4est_serial_triangulation_t)
+    p4est_refinement_and_coarsening_flags => triangulation%get_p4est_refinement_and_coarsening_flags()
+  class default
+    assert(.false.)
+  end select
+  
+  call this%move_alloc_ref_fe_id_per_fe_out(old_ref_fe_id_per_fe)
+  call this%allocate_ref_fe_id_per_fe()
+  
+  old_num_cells = size(old_ref_fe_id_per_fe,2)
+  
+  call this%create_fe_iterator(new_fe)
+  
+  reference_fe => new_fe%get_reference_fe_geo()
+  num_children_per_cell = reference_fe%get_number_n_faces_of_dimension(0)
+  
+  old_cell_lid = 1
+  new_cell_lid = 1
+  do while ( old_cell_lid .le. old_num_cells )
+    transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
+    call new_fe%set_lid(new_cell_lid)
+    do field_id = 1,this%get_number_fields()
+      current_old_cell_lid = old_cell_lid
+      current_new_cell_lid = new_cell_lid
+      old_reference_fe_id  = old_ref_fe_id_per_fe(field_id,current_old_cell_lid)
+      if ( transformation_flag == do_nothing ) then
+        call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
+        current_new_cell_lid = current_new_cell_lid + 1
+      else if ( transformation_flag == refinement ) then
+        do subcell_id = 0,num_children_per_cell-1
+          call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
+          current_new_cell_lid = current_new_cell_lid + 1
+          call new_fe%set_lid(current_new_cell_lid)
+        end do
+      else if ( transformation_flag == coarsening ) then
+        do subcell_id = 1,num_children_per_cell-1
+          current_old_cell_lid = current_old_cell_lid + 1
+          if ( old_reference_fe_id /= old_ref_fe_id_per_fe(field_id,current_old_cell_lid) ) then
+            assert( .false. )
+          end if
+        end do
+        call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
+        current_new_cell_lid = current_new_cell_lid + 1
+      else
+        assert(.false.)
+      end if
+    end do
+    old_cell_lid = current_old_cell_lid
+    new_cell_lid = current_new_cell_lid
+    old_cell_lid = old_cell_lid + 1
+  end do
+  
+  assert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells() )
+  
+  call this%free_fe_iterator(new_fe)
+  call memfree(old_ref_fe_id_per_fe,__FILE__,__LINE__)
+  
+end subroutine shpafs_project_ref_fe_id_per_fe
+
 subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
                                                            triangulation, &
                                                            conditions,    &
@@ -975,6 +1053,8 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
   call this%move_alloc_lst_dofs_lids_out(old_lst_dofs_lids)
   assert ( old_num_cells == (size(old_ptr_dofs_per_fe,2)-1) )
   
+  call this%project_ref_fe_id_per_fe()
+  
   ! ** This is dirty. Again, I think that this%create() MUST not be called inside refine_and_coarsen()
   block_layout => this%get_block_layout()
   call this%create(triangulation,reference_fes,conditions)
@@ -984,15 +1064,14 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
                                          ! It will be actually required whenever we re-consider this%refine_and_coarsen()
   call this%fill_dof_info(block_layout)
   
-  assert( reference_fes(1)%p%get_topology() == topology_hex )
-  num_children_per_cell = reference_fes(1)%p%get_number_n_faces_of_dimension(0)
+  call this%create_fe_iterator(new_fe)
+  reference_fe => new_fe%get_reference_fe_geo()
+  num_children_per_cell = reference_fe%get_number_n_faces_of_dimension(0)
   call memalloc(num_children_per_cell, &
                 this%get_max_number_shape_functions(),old_nodal_values,__FILE__,__LINE__)
   call memalloc(this%get_max_number_shape_functions(),new_nodal_values,__FILE__,__LINE__)
   
   call transformed_fe_function%create(this)
-  
-  call this%create_fe_iterator(new_fe)
   
   old_cell_lid = 1
   new_cell_lid = 1
@@ -1032,14 +1111,14 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
           call new_fe%set_lid(current_new_cell_lid)
         end do
       else if ( transformation_flag == coarsening ) then
-        do subcell_id = 2,num_children_per_cell
+        do subcell_id = 1,num_children_per_cell-1
           current_old_cell_lid = current_old_cell_lid + 1
           old_field_elem2dof => get_field_elem2dof()
           call fe_function%gather_nodal_values( field_id,                & 
                                                 old_field_elem2dof,      &
                                                 number_nodes_field,      & 
                                                 this%get_field_blocks(), &
-                                                old_nodal_values(subcell_id,1:number_nodes_field) )
+                                                old_nodal_values(subcell_id+1,1:number_nodes_field) )
         end do
         select type(reference_fe)
         type is (hex_lagrangian_reference_fe_t)
