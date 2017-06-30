@@ -72,31 +72,29 @@ module hp_adaptive_fe_space_names
      procedure                            :: create_fe_iterator                                     => serial_hp_adaptive_fe_space_create_fe_iterator
      
      
-     procedure                            :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
-     procedure                            :: serial_fe_space_create_different_between_cells         => shpafs_create_different_between_cells
-     procedure                            :: free                                                   => serial_hp_adaptive_fe_space_free
+     procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
+     procedure          :: serial_fe_space_create_different_between_cells         => shpafs_create_different_between_cells
+     procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
      
      
-     procedure                            :: fill_dof_info                                          => serial_hp_adaptive_fe_space_fill_dof_info
-     procedure                  , private :: fill_elem2dof_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
+     procedure          :: fill_dof_info                                          => serial_hp_adaptive_fe_space_fill_dof_info
+     procedure, private :: fill_elem2dof_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
      
-     procedure                            :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
-     procedure                            :: transfer_dirichlet_to_constraint_dof_coefficients      => shpafs_transfer_dirichlet_to_constraint_dof_coefficients
-     procedure                            :: transfer_dirichlet_to_fe_space                         => shpafs_transfer_dirichlet_to_fe_space
-     procedure                            :: free_ptr_constraint_dofs                               => shpafs_free_ptr_constraint_dofs
-     procedure                            :: free_constraint_dofs_dependencies                      => shpafs_free_constraint_dofs_dependencies
-     procedure                            :: free_constraint_dofs_coefficients                      => shpafs_free_constraint_dofs_coefficients
+     procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
+     procedure          :: transfer_dirichlet_to_constraint_dof_coefficients      => shpafs_transfer_dirichlet_to_constraint_dof_coefficients
+     procedure          :: transfer_dirichlet_to_fe_space                         => shpafs_transfer_dirichlet_to_fe_space
+     procedure          :: free_ptr_constraint_dofs                               => shpafs_free_ptr_constraint_dofs
+     procedure          :: free_constraint_dofs_dependencies                      => shpafs_free_constraint_dofs_dependencies
+     procedure          :: free_constraint_dofs_coefficients                      => shpafs_free_constraint_dofs_coefficients
      
-     procedure                            :: get_number_fixed_dofs                                  => shpafs_get_number_fixed_dofs
-     procedure                            :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
-     procedure                            :: update_fixed_dof_values                                => shpafs_update_fixed_dof_values
-     procedure                            :: interpolate_dirichlet_values                           => shpafs_interpolate_dirichlet_values
+     procedure          :: get_number_fixed_dofs                                  => shpafs_get_number_fixed_dofs
+     procedure          :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
+     procedure          :: update_fixed_dof_values                                => shpafs_update_fixed_dof_values
+     procedure          :: interpolate_dirichlet_values                           => shpafs_interpolate_dirichlet_values
      
-     procedure                            :: project_ref_fe_id_per_fe                               => shpafs_project_ref_fe_id_per_fe
-     generic                              :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen, &
-                                                                                                       serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems
-     procedure                            :: serial_hp_adaptive_fe_space_refine_and_coarsen
-     procedure                            :: serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems
+     procedure          :: project_ref_fe_id_per_fe                               => shpafs_project_ref_fe_id_per_fe
+     procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
+     procedure          :: serial_hp_adaptive_fe_space_refine_and_coarsen
  end type serial_hp_adaptive_fe_space_t  
  
  type, extends(fe_iterator_t) :: hp_adaptive_fe_iterator_t
@@ -1011,29 +1009,28 @@ subroutine shpafs_project_ref_fe_id_per_fe(this)
   
 end subroutine shpafs_project_ref_fe_id_per_fe
 
-subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, &
-                                                           fe_function )
+subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   implicit none
-  class(serial_hp_adaptive_fe_space_t),           intent(inout) :: this
-  type(fe_function_t)                           , intent(inout) :: fe_function
-  class(base_static_triangulation_t)   , pointer     :: triangulation
-  type(fe_function_t)                                :: transformed_fe_function
-  type(std_vector_integer_ip_t)        , pointer     :: p4est_refinement_and_coarsening_flags
-  integer(ip)                          , allocatable :: old_ptr_dofs_per_fe(:,:)
-  integer(ip)                  , target, allocatable :: old_lst_dofs_lids(:)
-  integer(ip)                          , pointer     :: old_field_elem2dof(:)
-  integer(ip)                                        :: num_children_per_cell
-  integer(ip)                                        :: transformation_flag
-  integer(ip)                                        :: subcell_id, old_cell_lid, new_cell_lid
-  integer(ip)                                        :: current_old_cell_lid, current_new_cell_lid
-  integer(ip)                                        :: old_num_cells
-  integer(ip)                                        :: field_id
-  class(fe_iterator_t)                 , allocatable :: new_fe
-  real(rp)                             , allocatable :: old_nodal_values(:,:)
-  real(rp)                             , allocatable :: new_nodal_values(:)
-  class(reference_fe_t)                , pointer     :: reference_fe
-  integer(ip)                                        :: number_nodes_field
-  type(block_layout_t), pointer :: block_layout
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
+  type(fe_function_t)                 , intent(inout) :: fe_function
+  class(base_static_triangulation_t), pointer     :: triangulation
+  type(fe_function_t)                             :: transformed_fe_function
+  type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
+  integer(ip)                       , allocatable :: old_ptr_dofs_per_fe(:,:)
+  integer(ip)              , target , allocatable :: old_lst_dofs_lids(:)
+  integer(ip)                       , pointer     :: old_field_elem2dof(:)
+  integer(ip)                                     :: num_children_per_cell
+  integer(ip)                                     :: transformation_flag
+  integer(ip)                                     :: subcell_id, old_cell_lid, new_cell_lid
+  integer(ip)                                     :: current_old_cell_lid, current_new_cell_lid
+  integer(ip)                                     :: old_num_cells
+  integer(ip)                                     :: field_id
+  class(fe_iterator_t)              , allocatable :: new_fe
+  real(rp)                          , allocatable :: old_nodal_values(:,:)
+  real(rp)                          , allocatable :: new_nodal_values(:)
+  class(reference_fe_t)             , pointer     :: reference_fe
+  integer(ip)                                     :: number_nodes_field
+  type(block_layout_t)              , pointer     :: block_layout
   
   triangulation => this%get_triangulation()
   select type(triangulation)
@@ -1056,12 +1053,9 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, &
   call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs()
   
-  ! ** This is dirty. Again, I think that this%create() MUST not be called inside refine_and_coarsen()
-  block_layout => this%get_block_layout()
-  
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-  call this%nullify_block_layout()       ! Not actually required (by now) as this%create() already nullifies the pointer
-                                         ! It will be actually required whenever we re-consider this%refine_and_coarsen()
+  block_layout => this%get_block_layout()
+  call this%nullify_block_layout()
   call this%fill_dof_info(block_layout)
   
   call this%create_fe_iterator(new_fe)
@@ -1170,167 +1164,6 @@ contains
   end function get_field_elem2dof
   
 end subroutine serial_hp_adaptive_fe_space_refine_and_coarsen
-
-
-subroutine serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems( this,          &
-                                                           triangulation, &
-                                                           conditions,    &
-                                                           reference_fes, &
-                                                           fe_function,   &
-                                                           set_ids_to_reference_fes)
-  implicit none
-  class(serial_hp_adaptive_fe_space_t),           intent(inout) :: this
-  class(base_static_triangulation_t)  , target  , intent(in)    :: triangulation
-  class(conditions_t)                           , intent(in)    :: conditions
-  type(p_reference_fe_t)                        , intent(in)    :: reference_fes(:)
-  type(fe_function_t)                           , intent(inout) :: fe_function
-  integer(ip)                                   , intent(in)    :: set_ids_to_reference_fes(:,:)
-  type(fe_function_t)                                :: transformed_fe_function
-  type(std_vector_integer_ip_t)        , pointer     :: p4est_refinement_and_coarsening_flags
-  integer(ip)                          , allocatable :: old_ptr_dofs_per_fe(:,:)
-  integer(ip)                  , target, allocatable :: old_lst_dofs_lids(:)
-  integer(ip)                          , pointer     :: old_field_elem2dof(:)
-  integer(ip)                                        :: num_children_per_cell
-  integer(ip)                                        :: transformation_flag
-  integer(ip)                                        :: subcell_id, old_cell_lid, new_cell_lid
-  integer(ip)                                        :: old_num_cells
-  integer(ip)                                        :: field_id
-  class(fe_iterator_t)                 , allocatable :: new_fe
-  real(rp)                             , allocatable :: old_nodal_values(:,:)
-  real(rp)                             , allocatable :: new_nodal_values(:)
-  class(reference_fe_t)                , pointer     :: reference_fe
-  integer(ip)                                        :: number_nodes_field
-  type(block_layout_t), pointer :: block_layout
-  
-  select type(triangulation)
-  class is (p4est_serial_triangulation_t)
-    p4est_refinement_and_coarsening_flags => triangulation%get_p4est_refinement_and_coarsening_flags()
-  class default
-    assert(.false.)
-  end select
-  
-  old_num_cells = p4est_refinement_and_coarsening_flags%size()
-  
-  call memalloc(this%get_number_fields(), &
-                old_num_cells+1,          &
-                old_ptr_dofs_per_fe,__FILE__,__LINE__)
-  call this%move_alloc_ptr_dofs_per_fe_out(old_ptr_dofs_per_fe)
-  call memalloc(old_ptr_dofs_per_fe(1,old_num_cells+1)-1, &
-                old_lst_dofs_lids,__FILE__,__LINE__)
-  call this%move_alloc_lst_dofs_lids_out(old_lst_dofs_lids)
-  
-  ! ** This is dirty. Again, I think that this%create() MUST not be called inside refine_and_coarsen()
-  block_layout => this%get_block_layout()
-  call this%create(triangulation,reference_fes,set_ids_to_reference_fes,conditions)
-  
-  ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-  call this%nullify_block_layout()       ! Not actually required (by now) as this%create() already nullifies the pointer
-                                         ! It will be actually required whenever we re-consider this%refine_and_coarsen()
-  call this%fill_dof_info(block_layout)
-  
-  assert( reference_fes(1)%p%get_topology() == topology_hex )
-  num_children_per_cell = reference_fes(1)%p%get_number_n_faces_of_dimension(0)
-  call memalloc(num_children_per_cell, &
-                this%get_max_number_shape_functions(),old_nodal_values,__FILE__,__LINE__)
-  call memalloc(this%get_max_number_shape_functions(),new_nodal_values,__FILE__,__LINE__)
-  
-  call transformed_fe_function%create(this)
-  
-  call this%create_fe_iterator(new_fe)
-  
-  old_cell_lid = 1
-  new_cell_lid = 1
-  do while ( old_cell_lid .le. old_num_cells )
-    transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
-    call new_fe%set_lid(new_cell_lid)
-    do field_id = 1,this%get_number_fields()
-      reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
-      number_nodes_field = reference_fe%get_number_shape_functions()
-      old_field_elem2dof => get_field_elem2dof()
-      call fe_function%gather_nodal_values( field_id,                & 
-                                            old_field_elem2dof,      &
-                                            number_nodes_field,      & 
-                                            this%get_field_blocks(), &
-                                            old_nodal_values(1,1:number_nodes_field) )
-      if ( transformation_flag == do_nothing ) then
-        call transformed_fe_function%insert_nodal_values( new_fe,   &
-                                                           field_id, &
-                                                           old_nodal_values(1,1:number_nodes_field) )
-        new_cell_lid = new_cell_lid + 1
-      else if ( transformation_flag == refinement ) then
-        do subcell_id = 0,num_children_per_cell-1
-          select type(reference_fe)
-          type is (hex_lagrangian_reference_fe_t)
-            call reference_fe%interpolate_nodal_values_on_subcell( subcell_id,                               & 
-                                                                   old_nodal_values(1,1:number_nodes_field), &
-                                                                   new_nodal_values(1:number_nodes_field) )
-          class default
-            assert(.false.)
-          end select
-          call transformed_fe_function%insert_nodal_values( new_fe,   &
-                                                             field_id, &
-                                                             new_nodal_values(1:number_nodes_field) )
-          new_cell_lid = new_cell_lid + 1
-          call new_fe%set_lid(new_cell_lid)
-        end do
-      else if ( transformation_flag == coarsening ) then
-        do subcell_id = 2,num_children_per_cell
-          old_cell_lid = old_cell_lid + 1
-          old_field_elem2dof => get_field_elem2dof()
-          call fe_function%gather_nodal_values( field_id,                & 
-                                                old_field_elem2dof,      &
-                                                number_nodes_field,      & 
-                                                this%get_field_blocks(), &
-                                                old_nodal_values(subcell_id,1:number_nodes_field) )
-        end do
-        select type(reference_fe)
-        type is (hex_lagrangian_reference_fe_t)
-          call reference_fe%project_nodal_values_on_cell( old_nodal_values(:,1:number_nodes_field), &
-                                                          new_nodal_values(1:number_nodes_field) )
-        class default
-          assert(.false.)
-        end select
-        call transformed_fe_function%insert_nodal_values( new_fe,   &
-                                                           field_id, &
-                                                           new_nodal_values(1:number_nodes_field) )        
-        new_cell_lid = new_cell_lid + 1
-      else
-        assert(.false.)
-      end if
-    end do
-    old_cell_lid = old_cell_lid + 1
-  end do
-
-  assert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells() )
-  
-  call fe_function%create(this)
-  fe_function = transformed_fe_function
-  
-  call this%transfer_dirichlet_to_fe_space( fe_function%get_fixed_dof_values() )
-  
-  call this%free_fe_iterator(new_fe)
-  call transformed_fe_function%free()
-  call memfree(old_nodal_values,__FILE__,__LINE__)
-  call memfree(new_nodal_values,__FILE__,__LINE__)
-  call memfree(old_ptr_dofs_per_fe,__FILE__,__LINE__)
-  call memfree(old_lst_dofs_lids,__FILE__,__LINE__)
-  
-contains
-  
-  function get_field_elem2dof()
-    implicit none
-    integer(ip), pointer     :: get_field_elem2dof(:)
-    integer(ip)              :: spos, epos
-    spos = old_ptr_dofs_per_fe(field_id,old_cell_lid)
-    if ( field_id == this%get_number_fields() ) then
-      epos = old_ptr_dofs_per_fe(1,old_cell_lid+1)-1
-    else
-      epos = old_ptr_dofs_per_fe(field_id+1,old_cell_lid)-1
-    end if
-    get_field_elem2dof => old_lst_dofs_lids(spos:epos)    
-  end function get_field_elem2dof
-  
-end subroutine serial_hp_adaptive_fe_space_refine_and_coarsen_different_elems
 
 
 end module hp_adaptive_fe_space_names
