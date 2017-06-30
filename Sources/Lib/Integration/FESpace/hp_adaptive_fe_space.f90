@@ -1011,17 +1011,12 @@ subroutine shpafs_project_ref_fe_id_per_fe(this)
   
 end subroutine shpafs_project_ref_fe_id_per_fe
 
-subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
-                                                           triangulation, &
-                                                           conditions,    &
-                                                           reference_fes, &
+subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, &
                                                            fe_function )
   implicit none
   class(serial_hp_adaptive_fe_space_t),           intent(inout) :: this
-  class(base_static_triangulation_t)  , target  , intent(in)    :: triangulation
-  class(conditions_t)                           , intent(in)    :: conditions
-  type(p_reference_fe_t)                        , intent(in)    :: reference_fes(:)
   type(fe_function_t)                           , intent(inout) :: fe_function
+  class(base_static_triangulation_t)   , pointer     :: triangulation
   type(fe_function_t)                                :: transformed_fe_function
   type(std_vector_integer_ip_t)        , pointer     :: p4est_refinement_and_coarsening_flags
   integer(ip)                          , allocatable :: old_ptr_dofs_per_fe(:,:)
@@ -1040,6 +1035,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
   integer(ip)                                        :: number_nodes_field
   type(block_layout_t), pointer :: block_layout
   
+  triangulation => this%get_triangulation()
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
     p4est_refinement_and_coarsening_flags => triangulation%get_p4est_refinement_and_coarsening_flags()
@@ -1054,10 +1050,14 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this,          &
   massert ( old_num_cells == (size(old_ptr_dofs_per_fe,2)-1), 'Incorrect size of p4est_refinement_and_coarsening_flags' )
   
   call this%project_ref_fe_id_per_fe()
+  !call this%check_cell_vs_fe_topology_consistency()
+  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_init_at_strong_dirichlet_bound()
+  call this%allocate_and_init_has_fixed_dofs()
+  call this%set_up_strong_dirichlet_bcs()
   
   ! ** This is dirty. Again, I think that this%create() MUST not be called inside refine_and_coarsen()
   block_layout => this%get_block_layout()
-  call this%create(triangulation,reference_fes,conditions)
   
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
   call this%nullify_block_layout()       ! Not actually required (by now) as this%create() already nullifies the pointer

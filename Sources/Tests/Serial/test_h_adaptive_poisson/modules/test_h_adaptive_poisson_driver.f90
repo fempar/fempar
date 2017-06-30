@@ -292,17 +292,7 @@ contains
        call this%fill_cells_set()
        call this%triangulation%refine_and_coarsen()
        
-       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-         call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,      &
-                                                conditions          = this%poisson_conditions, &
-                                                reference_fes       = this%reference_fes,      &
-                                                fe_function         = this%solution ) 
-       else
-         call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
-                                                conditions          = this%vector_poisson_conditions, &
-                                                reference_fes       = this%reference_fes,      &
-                                                fe_function         = this%solution )
-       end if
+       call this%fe_space%refine_and_coarsen( fe_function = this%solution ) 
        
        call this%fe_space%initialize_fe_integration()
        
