@@ -538,8 +538,8 @@ end subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
        end do
        num_global_dofs = per_rank_dofs_with_gid(number_parts+1)-1 
     else
-      call par_environment%l1_gather (input_data=number_local_dofs_with_gid, &
-                                      output_data=dummy_integer_array ) 
+      call par_environment%l1_gather (input_data=int(number_local_dofs_with_gid,igp), &
+                                      output_data=dummy_integer_array_igp ) 
     end if
     
     call par_environment%l1_bcast (data = num_global_dofs )
