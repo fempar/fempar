@@ -93,6 +93,8 @@ module hp_adaptive_fe_space_names
      procedure          :: interpolate_dirichlet_values                           => shpafs_interpolate_dirichlet_values
      
      procedure          :: project_ref_fe_id_per_fe                               => shpafs_project_ref_fe_id_per_fe
+     procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
+     procedure          :: project_fe_face_integration_arrays                     => shpafs_project_fe_face_integration_arrays
      procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
  end type serial_hp_adaptive_fe_space_t  
  
@@ -1008,6 +1010,18 @@ subroutine shpafs_project_ref_fe_id_per_fe(this)
   
 end subroutine shpafs_project_ref_fe_id_per_fe
 
+subroutine shpafs_project_fe_integration_arrays(this)
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
+  wassert(.false.,'if allocated, FE integration arrays not projected')
+end subroutine shpafs_project_fe_integration_arrays
+
+subroutine shpafs_project_fe_face_integration_arrays(this)
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
+  wassert(.false.,'if allocated, FE face integration arrays not projected')
+end subroutine shpafs_project_fe_face_integration_arrays
+
 subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
@@ -1047,6 +1061,8 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   
   call this%project_ref_fe_id_per_fe()
   !call this%check_cell_vs_fe_topology_consistency()
+  call this%project_fe_integration_arrays()
+  call this%project_fe_face_integration_arrays()
   call this%allocate_and_init_ptr_lst_dofs()
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
