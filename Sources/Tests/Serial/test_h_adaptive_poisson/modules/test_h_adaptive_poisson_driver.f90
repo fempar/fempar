@@ -42,6 +42,9 @@ module test_h_adaptive_poisson_driver_names
   implicit none
   private
   
+  integer(ip), parameter :: TEST_POISSON_FULL = 1
+  integer(ip), parameter :: TEST_POISSON_VOID = 2
+  
   type test_h_adaptive_poisson_driver_t 
      private 
      
@@ -51,6 +54,7 @@ module test_h_adaptive_poisson_driver_names
      
      ! Cells and lower dimension objects container
      type(p4est_serial_triangulation_t)           :: triangulation
+     integer(ip), allocatable                     :: cell_set_ids(:)
      
      ! Discrete weak problem integration-related data type instances 
      type(serial_hp_adaptive_fe_space_t)          :: fe_space 
@@ -112,23 +116,126 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
-    class(vef_iterator_t),allocatable :: vef
 
-
-    !call this%triangulation%create(this%test_params%get_dir_path(),&
-    !                               this%test_params%get_prefix(),&
-    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%parameter_list)
+    class(cell_iterator_t), allocatable :: cell
+    type(point_t), allocatable :: cell_coords(:)
+    integer(ip) :: istat
+    integer(ip) :: set_id
+    real(rp) :: x, y
+    integer(ip) :: num_void_neigs
     
-    call this%triangulation%create_vef_iterator(vef)
-    do while ( .not. vef%has_finished() )
-      if(vef%is_at_boundary()) then
-         call vef%set_set_id(1)
-      end if
-      call vef%next()
-    end do
-    call this%triangulation%free_vef_iterator(vef) 
+    integer(ip)           :: ivef
+    class(vef_iterator_t),allocatable :: vef, vef_of_vef
+    type(list_t), pointer :: vefs_of_vef
+    type(list_t), pointer :: vertices_of_line
+    type(list_iterator_t) :: vefs_of_vef_iterator
+    type(list_iterator_t) :: vertices_of_line_iterator
+    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
+    integer(ip) :: vertex_pos_in_cell, icell_arround
+    
+    integer(ip), parameter :: number_nodes_per_cell = 4
+    
+    call this%triangulation%create(this%parameter_list)
+    call this%set_cells_for_refinement()
+    call this%triangulation%refine_and_coarsen()
+    call this%triangulation%clear_refinement_and_coarsening_flags()
+    
+    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+        call memalloc(this%triangulation%get_num_cells(),this%cell_set_ids)
+        call this%triangulation%create_cell_iterator(cell)
+        allocate(cell_coords(1:number_nodes_per_cell),stat=istat); check(istat == 0)
+        do while( .not. cell%has_finished() )
+          if (cell%is_local()) then
+            set_id = TEST_POISSON_VOID
+            call cell%get_coordinates(cell_coords)
+            select case (this%test_params%get_use_void_fes_case())
+            case ('half')
+              y = cell_coords(1)%get(2)
+              if (y>=0.5) set_id = TEST_POISSON_FULL
+            case ('quarter')
+              x = cell_coords(1)%get(1)
+              y = cell_coords(1)%get(2)
+              if (x>=0.5 .and. y>=0.5) set_id = TEST_POISSON_FULL
+            case default
+              check(.false.)
+            end select
+            this%cell_set_ids(cell%get_lid()) = set_id
+          end if
+          call cell%next()
+        end do
+        call this%triangulation%free_cell_iterator(cell)
+        deallocate(cell_coords, stat = istat); check(istat == 0)
+        call this%triangulation%fill_cells_set(this%cell_set_ids)
+    end if
+    
+    if ( this%test_params%get_triangulation_type() == 'structured' ) then
+       call this%triangulation%create_vef_iterator(vef)
+       do while ( .not. vef%has_finished() )
+          if(vef%is_at_boundary()) then
+             call vef%set_set_id(1)
+          else
+             call vef%set_set_id(0)
+          end if
+          call vef%next()
+       end do
+       call this%triangulation%free_vef_iterator(vef)
+    end if
+    
+    ! Set all the vefs on the interface between full/void if there are void fes
+    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+      call this%triangulation%create_vef_iterator(vef)
+      call this%triangulation%create_vef_iterator(vef_of_vef)
+      call this%triangulation%create_cell_iterator(cell)
+      do while ( .not. vef%has_finished() )
+                                       
+         ! If it is an INTERIOR face
+         if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
 
+           ! Compute number of void neighbors
+           num_void_neigs = 0
+           do icell_arround = 1,vef%get_num_cells_around()
+             call vef%get_cell_around(icell_arround,cell)
+             if (cell%get_set_id() == TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
+           end do
+
+           if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
+
+               ! Set this face as Dirichlet boundary
+               call vef%set_set_id(1)
+
+               ! Do a loop on all edges in 3D (vertex in 2D) of the face
+               ivef = vef%get_lid()
+               call vef%get_cell_around(1,cell) ! There is always one cell around
+               reference_fe_geo => cell%get_reference_fe_geo()
+               ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
+               vefs_of_vef => reference_fe_geo%get_n_faces_n_face()
+               vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
+               do while( .not. vefs_of_vef_iterator%is_upper_bound() )
+
+                  ! Set edge (resp. vertex) as Dirichlet
+                  vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
+                  call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
+                  call vef_of_vef%set_set_id(1)
+
+                  ! If 3D, traverse vertices of current line
+                  if ( this%triangulation%get_num_dimensions() == 3 ) then
+                    massert(.false.,'h_adaptivity only available for 2D')
+                  end if
+
+                  call vefs_of_vef_iterator%next()
+               end do ! Loop in edges (resp. vertices)
+
+           end if ! If face on void/full boundary
+         end if ! If vef is an interior face
+
+         call vef%next()
+      end do ! Loop in vefs
+      call this%triangulation%free_vef_iterator(vef)
+      call this%triangulation%free_vef_iterator(vef_of_vef)
+      call this%triangulation%free_cell_iterator(cell)
+    end if    
+    
   end subroutine setup_triangulation
   
   subroutine set_cells_for_refinement(this)
@@ -211,7 +318,7 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
-    integer(ip) :: istat    
+    integer(ip)                                   :: istat
     class(cell_iterator_t)          , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
     character(:)                    , allocatable :: field_type
@@ -281,9 +388,9 @@ contains
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
     integer(ip) :: i
     
-    do i=1, 10
+    do i=1,6
        
-       if ( mod(i,3) == 0 ) then 
+       if ( mod(i+1,3) == 0 ) then 
           call this%set_cells_for_coarsening()
        else
          call this%set_cells_for_refinement()
@@ -529,21 +636,27 @@ contains
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
         
-        N=this%triangulation%get_num_cells()
-        P=6
-        call this%triangulation%create_cell_iterator(cell)
-        do pid=0, P-1
-            i=0
-            do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
-              cell_vector(cell%get_lid()) = pid 
-              call cell%next()
-              i=i+1
-            end do
-        end do
-        call this%triangulation%free_cell_iterator(cell)
+        !N=this%triangulation%get_num_cells()
+        !P=6
+        !call this%triangulation%create_cell_iterator(cell)
+        !do pid=0, P-1
+        !    i=0
+        !    do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
+        !      cell_vector(cell%get_lid()) = pid 
+        !      call cell%next()
+        !      i=i+1
+        !    end do
+        !end do
+        !call this%triangulation%free_cell_iterator(cell)
 
-        call oh%add_cell_vector(cell_vector,'cell_set_ids')
+        !call oh%add_cell_vector(cell_vector,'cell_set_ids')
 
+        if (this%test_params%get_use_void_fes() .and.  this%test_params%get_fe_formulation() == 'cG') then
+           call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
+           cell_vector(:) = this%cell_set_ids(:)
+           call oh%add_cell_vector(cell_vector,'cell_set_ids')
+        end if
+        
         call oh%open(path, prefix)
         call oh%write()
         call oh%close()
@@ -672,6 +785,7 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
+    if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
     call this%test_params%free()
   end subroutine free  
   
