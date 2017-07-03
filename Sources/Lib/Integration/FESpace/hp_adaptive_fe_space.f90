@@ -1094,6 +1094,8 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
             call reference_fe%interpolate_nodal_values_on_subcell( subcell_id,                               & 
                                                                    old_nodal_values(1,1:number_nodes_field), &
                                                                    new_nodal_values(1:number_nodes_field) )
+          type is (void_reference_fe_t)
+            ! Do nothing
           class default
             assert(.false.)
           end select
@@ -1117,6 +1119,8 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
         type is (hex_lagrangian_reference_fe_t)
           call reference_fe%project_nodal_values_on_cell( old_nodal_values(:,1:number_nodes_field), &
                                                           new_nodal_values(1:number_nodes_field) )
+        type is (void_reference_fe_t)
+          ! Do nothing
         class default
           assert(.false.)
         end select
