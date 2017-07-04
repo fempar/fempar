@@ -1013,13 +1013,13 @@ end subroutine shpafs_project_ref_fe_id_per_fe
 subroutine shpafs_project_fe_integration_arrays(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
-  wassert(.false.,'if allocated, FE integration arrays not projected')
+  ! if allocated, FE integration arrays not projected
 end subroutine shpafs_project_fe_integration_arrays
 
 subroutine shpafs_project_fe_face_integration_arrays(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
-  wassert(.false.,'if allocated, FE face integration arrays not projected')
+  ! if allocated, FE face integration arrays not projected
 end subroutine shpafs_project_fe_face_integration_arrays
 
 subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
