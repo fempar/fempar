@@ -87,6 +87,8 @@ module par_pb_bddc_poisson_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: write_solution
+     procedure        , private :: write_matrices
+     procedure        , private :: print_info
      procedure        , private :: free
      procedure                  :: free_environment
      procedure                  :: free_command_line_parameters
@@ -128,7 +130,7 @@ contains
       call this%setup_cell_set_ids() 
     end if  
     call this%triangulation%setup_coarse_triangulation()
-    write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
+    !write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
     if ( this%test_params%get_coarse_fe_handler_type() == standard_bddc ) then
       call this%setup_cell_set_ids() 
     end if
@@ -369,9 +371,9 @@ contains
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
     call this%fe_space%create( triangulation       = this%triangulation, &
-                               conditions          = this%poisson_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handlers  = this%coarse_fe_handlers)
+                               coarse_fe_handlers  = this%coarse_fe_handlers, &
+                               conditions          = this%poisson_conditions )
 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration()
@@ -591,7 +593,96 @@ contains
     end subroutine free_set_id_cell_vector
   end subroutine write_solution
 
+  subroutine write_matrices(this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+    character(:), allocatable :: matrix_filename
+    character(:), allocatable :: mapping_filename
+    class(matrix_t), pointer :: matrix
+    integer(ip) :: luout
+    integer(igp) :: num_global_dofs
+    integer(igp), allocatable :: dofs_gids(:)
+    type(serial_scalar_array_t) :: mapping
+    integer(ip) :: i
+    
+    if ( this%test_params%get_write_matrices() ) then
+      if ( this%environment%am_i_l1_task() ) then
+        matrix_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() 
+        call numbered_filename_compose(this%environment%get_l1_rank(),this%environment%get_l1_size(),matrix_filename)
+        luout = io_open ( matrix_filename, 'write')
+        matrix => this%fe_affine_operator%get_matrix()
+        select type(matrix)
+        class is (par_sparse_matrix_t)  
+          call matrix%print_matrix_market(luout) 
+        class DEFAULT
+          assert(.false.) 
+        end select
+        call io_close(luout)
+        
+        call this%fe_space%compute_num_global_dofs_and_their_gids(num_global_dofs, dofs_gids)
+        call mapping%create_and_allocate(size(dofs_gids))
+        do i=1, size(dofs_gids)
+          call mapping%insert(i,real(dofs_gids(i),rp))
+        end do
+        
+        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "mapping"
+        call numbered_filename_compose(this%environment%get_l1_rank(),this%environment%get_l1_size(),mapping_filename)
+        luout = io_open ( mapping_filename, 'write')
+        call mapping%print_matrix_market(luout)
+        call io_close(luout)
+        call mapping%free()
+        call memfree(dofs_gids, __FILE__, __LINE__)
+        
+        if ( this%environment%get_l1_rank() == 0 ) then
+          mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "num_global_dofs"
+          luout = io_open ( mapping_filename, 'write')
+          write(luout,*) num_global_dofs
+          call io_close(luout)
+        end if  
+        
+      end if
+   end if
+  end subroutine write_matrices
+  
 
+  !========================================================================================
+  subroutine print_info (this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+
+    integer(ip) :: num_sub_domains
+    real(rp) :: num_total_cells
+    real(rp) :: num_dofs
+    integer(ip) :: num_coarse_dofs
+
+    class(environment_t), pointer :: environment
+    class(coarse_fe_space_t), pointer :: coarse_fe_space
+
+    environment => this%fe_space%get_environment()
+
+    if (environment%am_i_l1_task()) then
+      num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
+      num_dofs         = real(this%fe_space%get_field_number_dofs(1),kind=rp)
+      call environment%l1_sum(num_total_cells )
+      call environment%l1_sum(num_dofs        )
+    end if
+
+    if (environment%get_l1_rank() == 0) then
+      num_sub_domains = environment%get_l1_size()
+      write(*,'(a,i22)') 'num_sub_domains:          ', num_sub_domains
+      write(*,'(a,i22)') 'num_total_cells:          ', nint(num_total_cells , kind=ip )
+      write(*,'(a,i22)') 'num_dofs (sub-assembled): ', nint(num_dofs        , kind=ip )
+    end if
+
+    if (environment%am_i_lgt1_task()) then
+      coarse_fe_space => this%fe_space%get_coarse_fe_space()
+      num_coarse_dofs = coarse_fe_space%get_field_number_dofs(1)
+      write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
+    end if
+
+  end subroutine print_info
+  
+  
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
@@ -616,6 +707,8 @@ contains
     
     !call this%check_solution()
     call this%write_solution()
+    call this%write_matrices()
+    call this%print_info()
     call this%free()
   end subroutine run_simulation
 

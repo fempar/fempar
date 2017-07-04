@@ -280,12 +280,30 @@ function reference_fe_get_dofs_n_face ( this )
   reference_fe_get_dofs_n_face => this%dofs_n_face
 end function reference_fe_get_dofs_n_face
 
+function reference_fe_create_dofs_n_face_iterator ( this, n_face_id) result(list_iterator)
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip)          , intent(in) :: n_face_id
+  type(list_iterator_t) :: list_iterator
+  assert ( n_face_id >= 1 .and. n_face_id <= this%get_number_n_faces() )
+  list_iterator = this%dofs_n_face%create_iterator(n_face_id)
+end function reference_fe_create_dofs_n_face_iterator
+
 function reference_fe_get_vertices_n_face ( this )
   implicit none
   class(reference_fe_t), target, intent(in) :: this
   type(list_t), pointer :: reference_fe_get_vertices_n_face
   reference_fe_get_vertices_n_face => this%vertices_n_face
 end function reference_fe_get_vertices_n_face
+
+function reference_fe_create_vertices_n_face_iterator ( this, n_face_id) result(list_iterator)
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip)          , intent(in) :: n_face_id
+  type(list_iterator_t) :: list_iterator
+  assert ( n_face_id >= 1 .and. n_face_id <= this%get_number_n_faces() )
+  list_iterator = this%vertices_n_face%create_iterator(n_face_id)
+end function reference_fe_create_vertices_n_face_iterator
 
 function reference_fe_get_n_faces_n_face ( this )
   implicit none
@@ -320,15 +338,15 @@ function reference_fe_create_dofs_on_n_face_iterator ( this, i )
   reference_fe_create_dofs_on_n_face_iterator = this%dofs_n_face%create_iterator(i)    
 end function reference_fe_create_dofs_on_n_face_iterator
 
-function reference_fe_get_own_dof_n_face ( this, i, j )
+function rfe_translate_dof_lid_n_face_to_dof_lid_cell ( this, i, j )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip), intent(in) :: i, j
-  integer(ip) :: reference_fe_get_own_dof_n_face
+  integer(ip) :: rfe_translate_dof_lid_n_face_to_dof_lid_cell
   type(list_iterator_t)   :: iterator
   iterator = this%own_dofs_n_face%create_iterator(j)
-  reference_fe_get_own_dof_n_face = iterator%get_from_current(i-1)
-end function reference_fe_get_own_dof_n_face
+  rfe_translate_dof_lid_n_face_to_dof_lid_cell = iterator%get_from_current(i-1)
+end function rfe_translate_dof_lid_n_face_to_dof_lid_cell
 
 function reference_fe_get_number_own_dofs_n_face ( this, i )
   implicit none
@@ -421,27 +439,24 @@ function reference_fe_compute_permutation_index(source_reference_fe, target_refe
 end function reference_fe_compute_permutation_index
 
 !==================================================================================================
-function reference_fe_get_permuted_own_dof_n_face(this,inode,target_n_face_id,     &
-     &                                            permutation_index)
+! Given a permutation index for a pair of elements K1 (source) and K2 (target) that share a vef, a reference fe in which one has the 
+! permutations table, the LID-in-vef of a node in cell K1, and the LID of the face in K1, it returns 
+! the LID-in-cell of the node wrt K2
+!==================================================================================================
+function reference_fe_permute_dof_LID_n_face(this,source_dof_LID_n_face,n_face_dimension,permutation_index)
   implicit none
   class(reference_fe_t), intent(in)  :: this
-  integer(ip)          , intent(in)  :: inode
-  integer(ip)          , intent(in)  :: target_n_face_id ! Local n-face ID
+  integer(ip)          , intent(in)  :: source_dof_LID_n_face
+  integer(ip)          , intent(in)  :: n_face_dimension
   integer(ip)          , intent(in)  :: permutation_index
-  integer(ip) :: reference_fe_get_permuted_own_dof_n_face
-  integer(ip) :: n_face_dimension, permuted_own_dof
-
-  n_face_dimension = this%get_n_face_dimension(target_n_face_id)
-
+  integer(ip) :: reference_fe_permute_dof_LID_n_face
   if ( n_face_dimension == 0 ) then
-     permuted_own_dof = inode
+     reference_fe_permute_dof_LID_n_face = source_dof_LID_n_face
   else
-     permuted_own_dof = this%own_dof_permutations          &
-          & (n_face_dimension)%a(inode,permutation_index)
-
+     reference_fe_permute_dof_LID_n_face = this%own_dof_permutations          &
+          & (n_face_dimension)%a(source_dof_LID_n_face,permutation_index)
   end if
-  reference_fe_get_permuted_own_dof_n_face = this%get_own_dof_n_face(permuted_own_dof, target_n_face_id)
-end function reference_fe_get_permuted_own_dof_n_face
+end function reference_fe_permute_dof_LID_n_face
 
 !==================================================================================================
 subroutine p_reference_fe_free( this )

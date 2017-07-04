@@ -88,8 +88,10 @@ module reference_fe_names
      procedure, non_overridable :: print  => quadrature_print
      procedure, non_overridable :: get_number_dimensions => quadrature_get_number_dimensions
      procedure, non_overridable :: get_number_quadrature_points => quadrature_get_number_quadrature_points
-     procedure, non_overridable :: get_coordinates => quadrature_get_coordinates     
+     procedure, non_overridable :: get_coordinates => quadrature_get_coordinates
+     procedure, non_overridable :: get_coordinates_as_points => quadrature_get_coordinates_as_points
      procedure, non_overridable :: get_weight => quadrature_get_weight
+     procedure, non_overridable :: get_weights => quadrature_get_weights
   end type quadrature_t
 
   type p_quadrature_t
@@ -105,12 +107,12 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type interpolation_t
      private
-     integer(ip)                ::  &
-          number_dimensions,        &      
-          number_shape_functions,   &      
-          number_quadrature_points, &      
-          number_entries_symmetric_tensor
-     real(rp), allocatable      ::  &
+     integer(ip)                    ::  &
+          number_dimensions = 0,        &      
+          number_shape_functions = 0,   &      
+          number_quadrature_points = 0, &      
+          number_entries_symmetric_tensor = 0
+     real(rp), allocatable        ::  &
           shape_functions(:,:,:),     &   
           shape_derivatives(:,:,:,:), &   
           hessian(:,:,:,:)     
@@ -120,6 +122,7 @@ module reference_fe_names
      procedure, non_overridable :: copy   => interpolation_copy
      procedure, non_overridable :: clone  => interpolation_clone
      procedure, non_overridable :: print  => interpolation_print
+     procedure, non_overridable, private :: is_needed_to_allocate => interpolation_is_needed_to_allocate
   end type interpolation_t
 
   public :: interpolation_t
@@ -163,9 +166,11 @@ module reference_fe_names
      procedure, non_overridable :: update                            => fe_map_update
      procedure, non_overridable :: update_face_map                   => fe_map_update_face_map
      procedure, non_overridable :: update_edge_map                   => fe_map_update_edge_map
+     procedure, non_overridable :: update_interpolation              => fe_map_update_interpolation
      procedure, non_overridable :: free                              => fe_map_free
      procedure, non_overridable :: print                             => fe_map_print
      procedure, non_overridable :: get_det_jacobian                  => fe_map_get_det_jacobian
+     procedure, non_overridable :: get_det_jacobians                 => fe_map_get_det_jacobians
      procedure, non_overridable :: compute_h                         => fe_map_compute_h
      procedure, non_overridable :: compute_h_min                     => fe_map_compute_h_min
      procedure, non_overridable :: compute_h_max                     => fe_map_compute_h_max
@@ -177,6 +182,7 @@ module reference_fe_names
      procedure, non_overridable :: compute_quadrature_coordinates    => fe_map_compute_quadrature_coordinates
      procedure, non_overridable :: get_quadrature_coordinates        => fe_map_get_quadrature_coordinates
      procedure, non_overridable :: get_normal                        => fe_map_get_normal
+     procedure, non_overridable :: get_normals                       => fe_map_get_normals
      procedure, non_overridable :: get_tangent                       => fe_map_get_tangent
      procedure, non_overridable :: get_jacobian_normalized_column    => fe_map_get_jacobian_normalized_column
      procedure, non_overridable :: is_det_jacobian_positive          => fe_map_is_det_jacobian_positive
@@ -467,21 +473,24 @@ module reference_fe_names
      procedure :: get_number_shape_functions => reference_fe_get_number_shape_functions
      procedure :: get_n_face_dimension  => reference_fe_get_n_face_dimension
      procedure :: get_vertices_n_face  =>   reference_fe_get_vertices_n_face
+
+     procedure :: create_vertices_n_face_iterator => reference_fe_create_vertices_n_face_iterator
+     procedure :: create_dofs_n_face_iterator => reference_fe_create_dofs_n_face_iterator
      procedure :: get_dofs_n_face   =>   reference_fe_get_dofs_n_face
+                    
      procedure :: get_n_faces_n_face   =>   reference_fe_get_n_faces_n_face
      procedure :: get_number_vertices_n_face => reference_fe_get_number_vertices_n_face
-
      procedure :: get_number_dofs_on_n_face => reference_fe_get_number_dofs_on_n_face
      procedure :: create_dofs_on_n_face_iterator => reference_fe_create_dofs_on_n_face_iterator
 
      procedure :: get_number_own_dofs_n_face => reference_fe_get_number_own_dofs_n_face
      procedure :: create_own_dofs_on_n_face_iterator => reference_fe_create_own_dofs_on_n_face_iterator
-     procedure :: get_own_dof_n_face => reference_fe_get_own_dof_n_face
+     procedure :: translate_dof_lid_n_face_to_dof_lid_cell => rfe_translate_dof_lid_n_face_to_dof_lid_cell
 
      procedure :: has_nodal_quadrature => reference_fe_has_nodal_quadrature
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_permutation_index => reference_fe_compute_permutation_index
-     procedure :: get_permuted_own_dof_n_face  => reference_fe_get_permuted_own_dof_n_face
+     procedure :: permute_dof_LID_n_face  => reference_fe_permute_dof_LID_n_face
 
   end type reference_fe_t
 
@@ -1193,8 +1202,8 @@ contains
              & => tet_lagrangian_reference_fe_invert_change_basis_matrix
    procedure, private :: apply_change_basis_matrix_to_interpolation                     &
              & => tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
-   procedure :: get_permuted_own_dof_n_face                                            &
-             & => tet_lagrangian_reference_fe_get_permuted_own_dof_n_face
+   procedure :: permute_dof_LID_n_face                                            &
+             & => tet_lagrangian_reference_fe_permute_dof_LID_n_face
 end type tet_lagrangian_reference_fe_t
 
 public :: tet_lagrangian_reference_fe_t
@@ -1397,6 +1406,7 @@ procedure, non_overridable :: create_on_face => cell_integrator_create_on_face
 procedure, non_overridable :: free           => cell_integrator_free
 procedure, non_overridable :: update         => cell_integrator_update
 procedure, non_overridable :: print          => cell_integrator_print
+procedure, non_overridable :: update_interpolation  => cell_integrator_update_interpolation
 
 procedure, non_overridable :: get_interpolation_reference_cell =>                               &
 &                                   cell_integrator_get_interpolation_reference_cell

@@ -54,6 +54,7 @@ module timer_names
      procedure, non_overridable :: start  => timer_start
      procedure, non_overridable :: stop   => timer_stop
      procedure, non_overridable :: report => timer_report
+     procedure, non_overridable :: get_time => timer_get_time
   end type timer_t
 
   ! Public types
@@ -99,7 +100,7 @@ contains
       if (allocated(this%context)) then
         call this%context%free(finalize=.false.)
         deallocate(this%context,stat=istat); check(istat==0);
-      end if
+      end if    
       
       this%t_start   = 0.0_rp
       this%t_stop    = 0.0_rp
@@ -190,5 +191,12 @@ contains
       end if
 
     end subroutine timer_report
+
+    function timer_get_time(this)
+      implicit none 
+      class(timer_t), intent(in)  :: this
+      real(rp) :: timer_get_time
+      timer_get_time = this%t_accum
+    end function timer_get_time
 
 end module timer_names

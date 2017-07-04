@@ -207,9 +207,9 @@ contains
                                             J  = this%test_params%get_external_current_amplitude(),         &
                                             wJ = this%test_params%get_external_current_frequency()  )  
     
-    call this%fe_space%create( triangulation       = this%triangulation,          &
-                               conditions          = this%hts_nedelec_conditions, &
-                               reference_fes       = this%reference_fes           )
+    call this%fe_space%create( triangulation = this%triangulation, &
+                               reference_fes = this%reference_fes, &
+                               conditions    = this%hts_nedelec_conditions )
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration() 

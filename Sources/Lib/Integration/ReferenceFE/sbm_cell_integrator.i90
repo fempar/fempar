@@ -361,9 +361,17 @@ subroutine fe_map_update_face_map(this,reorientation_factor,quadrature)
           &                         sqrt(dot_product(this%normals(:,evaluation_point_id),         &
           &                                          this%normals(:,evaluation_point_id)))
 
-     ! Normalize the normal vector and make it point in the correct direction
+     ! Normalize the normal vector (safely handling degenerated cases)
+     if (this%det_jacobian(evaluation_point_id) .ne. 0.0_rp) then
+       this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id)/               &
+          &                                                 this%det_jacobian(evaluation_point_id)
+     else
+       this%normals (:,evaluation_point_id) = 0.0_rp
+     end if
+     
+     ! and make it point in the correct direction
      this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
-          &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
+          &                                                             real(reorientation_factor) 
   end do
 end subroutine fe_map_update_face_map
 
@@ -414,8 +422,14 @@ subroutine fe_map_update_edge_map(this,local_edge_id,reference_fe,quadrature)
   end do
 end subroutine fe_map_update_edge_map
 
-
-
+!==================================================================================================
+subroutine fe_map_update_interpolation( this, quadrature, reference_fe_geometry )
+  implicit none
+  class(fe_map_t)                 , intent(inout) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
+  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation_geometry )
+end subroutine fe_map_update_interpolation
 
 !==================================================================================================
 subroutine fe_map_free( this )
@@ -455,6 +469,13 @@ function fe_map_get_det_jacobian ( this, i )
   real(rp) :: fe_map_get_det_jacobian
   fe_map_get_det_jacobian = this%det_jacobian(i)
 end function fe_map_get_det_jacobian
+
+function fe_map_get_det_jacobians ( this )
+  implicit none
+  class(fe_map_t), target, intent(in) :: this
+  real(rp), pointer :: fe_map_get_det_jacobians(:)
+  fe_map_get_det_jacobians => this%det_jacobian
+end function fe_map_get_det_jacobians
 
 !==================================================================================================
 function fe_map_compute_h ( this, qpoin)
@@ -645,6 +666,13 @@ subroutine fe_map_get_normal(this, qpoint, normal)
  end do
 end subroutine  fe_map_get_normal
 
+function fe_map_get_normals(this)
+ implicit none
+ class(fe_map_t), target, intent(in)    :: this
+ real(rp), pointer :: fe_map_get_normals(:,:)
+ fe_map_get_normals => this%normals
+end function  fe_map_get_normals
+
 subroutine fe_map_get_tangent(this, qpoint, tangent)
  implicit none
  class(fe_map_t)     , intent(in)    :: this
@@ -757,6 +785,16 @@ subroutine cell_integrator_print( this )
   write(*,*) '%%%%%%%%%%%%%%%% interpolation_o_map: %%%%%%%%%%%%%%%%'
   call this%interpolation_o_map%print()
 end subroutine cell_integrator_print
+
+!==================================================================================================
+subroutine cell_integrator_update_interpolation( this, quadrature )
+  implicit none
+  ! Parameters
+  class(cell_integrator_t), intent(inout) :: this 
+  type(quadrature_t)        ,  intent(in)   :: quadrature
+  call this%reference_fe%create_interpolation( quadrature, this%interpolation )
+  call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
+end subroutine cell_integrator_update_interpolation
 
 !==================================================================================================
 function cell_integrator_get_interpolation_reference_cell(this)

@@ -370,16 +370,16 @@ end subroutine free_timers
     if (this%test_params%get_use_void_fes()) then
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_FULL) = PAR_TEST_POISSON_FULL
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_VOID) = PAR_TEST_POISSON_VOID
-      call this%fe_space%create( triangulation            = this%triangulation, &
-                                 conditions               = this%poisson_conditions, &
-                                 reference_fes            = this%reference_fes, &
+      call this%fe_space%create( triangulation            = this%triangulation,       &
+                                 reference_fes            = this%reference_fes,       &
                                  set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                                 coarse_fe_handlers  = this%coarse_fe_handlers)
+                                 coarse_fe_handlers       = this%coarse_fe_handlers,  &
+                                 conditions               = this%poisson_conditions )
     else
-      call this%fe_space%create( triangulation       = this%triangulation, &
-                                 conditions          = this%poisson_conditions, &
-                                 reference_fes       = this%reference_fes, &
-                                 coarse_fe_handlers  = this%coarse_fe_handlers)
+      call this%fe_space%create( triangulation       = this%triangulation,      &
+                                 reference_fes       = this%reference_fes,      &
+                                 coarse_fe_handlers  = this%coarse_fe_handlers, &
+                                 conditions          = this%poisson_conditions )
     end if
     
     call this%fe_space%initialize_fe_integration()

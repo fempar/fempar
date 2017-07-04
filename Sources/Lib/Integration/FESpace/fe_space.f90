@@ -61,8 +61,8 @@ module fe_space_names
   use iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
   
-  
-  
+  use piecewise_fe_map_names
+
  ! Parallel modules
   use environment_names
   !use par_context_names
@@ -151,6 +151,21 @@ module fe_space_names
     procedure, non_overridable           :: scan_sum_number_vefs    => base_fe_iterator_get_scan_sum_number_vefs
     procedure, non_overridable, private  :: base_fe_iterator_get_vef
     generic                              :: get_vef                 => base_fe_iterator_get_vef
+    procedure                            :: update_sub_triangulation    => base_fe_iterator_update_sub_triangulation
+    procedure                            :: get_mc_case                 => base_fe_iterator_get_mc_case
+    procedure                            :: get_number_of_subcells      => base_fe_iterator_get_number_of_subcells
+    procedure                            :: get_number_of_subcell_nodes => base_fe_iterator_get_number_of_subcell_nodes
+    procedure                            :: get_phys_coords_of_subcell  => base_fe_iterator_get_phys_coords_of_subcell
+    procedure                            :: get_ref_coords_of_subcell   => base_fe_iterator_get_ref_coords_of_subcell
+    procedure                            :: get_number_of_subfaces      => base_fe_iterator_get_number_of_subfaces
+    procedure                            :: get_number_of_subface_nodes => base_fe_iterator_get_number_of_subface_nodes
+    procedure                            :: get_phys_coords_of_subface  => base_fe_iterator_get_phys_coords_of_subface
+    procedure                            :: get_ref_coords_of_subface   => base_fe_iterator_get_ref_coords_of_subface
+    procedure                            :: is_cut                      => base_fe_iterator_is_cut
+    procedure                            :: is_interior                 => base_fe_iterator_is_interior
+    procedure                            :: is_exterior                 => base_fe_iterator_is_exterior
+    procedure                            :: is_interior_subcell         => base_fe_iterator_is_interior_subcell
+    procedure                            :: is_exterior_subcell         => base_fe_iterator_is_exterior_subcell
   end type base_fe_iterator_t
   
   
@@ -158,8 +173,8 @@ module fe_space_names
     private
     class(serial_fe_space_t), pointer    :: fe_space => NULL()
   contains
-    procedure                 , private :: create                                     => fe_iterator_create
-    procedure                 , private :: free                                       => fe_iterator_free
+    procedure                           :: create                                     => fe_iterator_create
+    procedure                           :: free                                       => fe_iterator_free
     final                               :: fe_iterator_free_final
     procedure, non_overridable, private :: count_own_dofs                             => fe_iterator_count_own_dofs
     procedure, non_overridable, private :: fill_own_dofs                              => fe_iterator_fill_own_dofs
@@ -170,7 +185,7 @@ module fe_space_names
     procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_iterator_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_iterator_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_iterator_renumber_dofs_field
-    procedure, non_overridable          :: update_integration                         => fe_iterator_update_integration
+    procedure                           :: update_integration                         => fe_iterator_update_integration
 
     procedure, non_overridable          :: get_fe_space                               => fe_iterator_get_fe_space
     procedure, non_overridable          :: get_number_fields                          => fe_iterator_get_number_fields
@@ -199,9 +214,9 @@ module fe_space_names
     procedure, non_overridable          :: get_default_quadrature_degree              => fe_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree                      => fe_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree                      => fe_iterator_set_quadrature_degree
-    procedure, non_overridable          :: get_quadrature                             => fe_iterator_get_quadrature
-    procedure, non_overridable          :: get_fe_map                                 => fe_iterator_get_fe_map
-    procedure, non_overridable          :: get_cell_integrator                      => fe_iterator_get_cell_integrator    
+    procedure                           :: get_quadrature                             => fe_iterator_get_quadrature
+    procedure                           :: get_fe_map                                 => fe_iterator_get_fe_map
+    procedure                           :: get_cell_integrator                        => fe_iterator_get_cell_integrator
     
     procedure, non_overridable, private :: fe_iterator_get_fe_vef
     generic                             :: get_vef                                    => fe_iterator_get_fe_vef
@@ -209,8 +224,18 @@ module fe_space_names
     procedure, non_overridable          :: get_max_order_reference_fe                 => fe_iterator_get_max_order_reference_fe
     procedure, non_overridable          :: get_max_order_reference_fe_id              => fe_iterator_get_max_order_reference_fe_id
     procedure, non_overridable          :: get_reference_fe_id                        => fe_iterator_get_reference_fe_id
+    procedure, non_overridable          :: is_void                                    => fe_iterator_is_void
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
+    procedure, non_overridable          :: first_local_non_void                       => fe_iterator_first_local_non_void
+
+    ! Added by unfitted_fe_iterator
+    procedure                           :: get_boundary_quadrature                    => fe_iterator_get_boundary_quadrature
+    procedure                           :: get_boundary_piecewise_fe_map              => fe_iterator_get_boundary_piecewise_fe_map
+    procedure                           :: get_boundary_fe_map                        => fe_iterator_get_boundary_fe_map
+    procedure                           :: get_boundary_cell_integrator               => fe_iterator_get_boundary_cell_integrator
+    procedure                           :: update_boundary_integration                => fe_iterator_update_boundary_integration
+
   end type fe_iterator_t
    
   type :: base_fe_vef_iterator_t
@@ -318,6 +343,7 @@ module fe_space_names
      integer(ip)                   , allocatable :: lst_dofs_lids(:)
     
      ! Strong Dirichlet BCs-related member variables
+     class(conditions_t)           , pointer     :: conditions    => NULL()
      type(serial_scalar_array_t)                 :: strong_dirichlet_values
      logical                       , allocatable :: at_strong_dirichlet_boundary_per_fe(:,:)
      
@@ -410,6 +436,8 @@ module fe_space_names
      procedure, non_overridable          :: get_max_number_face_quadrature_points        => serial_fe_space_get_max_number_face_quadrature_points     
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
+     procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
+     procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      procedure                           :: get_number_blocks                            => serial_fe_space_get_number_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
@@ -528,6 +556,7 @@ module fe_space_names
    procedure                         , private :: count_and_list_dofs_on_ghosts                   => par_fe_space_count_and_list_dofs_on_ghosts
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
    procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
+   procedure        , non_overridable          :: compute_num_global_dofs_and_their_gids          => par_fe_space_compute_num_global_dofs_and_their_gids
 
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import

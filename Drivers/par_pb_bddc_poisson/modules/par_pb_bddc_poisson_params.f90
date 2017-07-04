@@ -6,7 +6,8 @@ module par_pb_bddc_poisson_params_names
 
   character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
-  character(len=*), parameter :: write_solution_key         = 'write_solution'        
+  character(len=*), parameter :: write_solution_key         = 'write_solution'  
+  character(len=*), parameter :: write_matrices_key         = 'write_matrices'  
   character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
   character(len=*), parameter :: jump_key                   = 'jump'    
   character(len=*), parameter :: inclusion_key              = 'inclusion'  
@@ -25,6 +26,7 @@ module par_pb_bddc_poisson_params_names
        procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
+       procedure, non_overridable             :: get_write_matrices
        procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_jump
        procedure, non_overridable             :: get_inclusion
@@ -63,6 +65,7 @@ contains
     error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
     error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
+    error = list%set(key = write_matrices_key                , value =  .false.)             ; check(error==0)
     error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
     error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
     error = list%set(key = jump_key                          , value =  1)  ; check(error==0)
@@ -84,6 +87,7 @@ contains
     error = switches%set(key = reference_fe_geo_order_key    , value = '--reference-fe-geo-order')  ; check(error==0)
     error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-order')      ; check(error==0)
     error = switches%set(key = write_solution_key            , value = '--write-solution')          ; check(error==0)
+    error = switches%set(key = write_matrices_key            , value = '--write-matrices')          ; check(error==0)
     error = switches%set(key = triangulation_generate_key    , value = '--triangulation-type')      ; check(error==0)
     error = switches%set(key = execution_context_key         , value = '--execution_context')       ; check(error==0)
     error = switches%set(key = jump_key                      , value = '--jump')                    ; check(error==0)
@@ -105,6 +109,7 @@ contains
     error = switches_ab%set(key = reference_fe_geo_order_key , value = '-gorder')   ; check(error==0)
     error = switches_ab%set(key = reference_fe_order_key     , value = '-order')    ; check(error==0)
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
+    error = switches_ab%set(key = write_matrices_key         , value = '-wmatrices'); check(error==0)
     error = switches_ab%set(key = triangulation_generate_key , value = '-tt')       ; check(error==0)
     error = switches_ab%set(key = execution_context_key      , value = '-exe')      ; check(error==0)
     error = switches_ab%set(key = jump_key                   , value = '-j')        ; check(error==0)
@@ -125,6 +130,7 @@ contains
     error = helpers%set(key = reference_fe_geo_order_key     , value = 'Order of the triangulation reference fe')     ; check(error==0)
     error = helpers%set(key = reference_fe_order_key         , value = 'Order of the fe space reference fe')          ; check(error==0)
     error = helpers%set(key = write_solution_key             , value = 'Write solution in VTK format')                ; check(error==0)
+    error = helpers%set(key = write_matrices_key             , value = 'Write local-to-subdomain sparse matrices  in matrix market format')                ; check(error==0)
     error = helpers%set(key = jump_key                       , value = 'Jump of physical parameter in the inclusion') ; check(error==0)
     error = helpers%set(key = inclusion_key                  , value = 'Inclusion type')                              ; check(error==0)
     error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
@@ -154,6 +160,7 @@ contains
     error = required%set(key = reference_fe_geo_order_key    , value = .false.) ; check(error==0)
     error = required%set(key = reference_fe_order_key        , value = .false.) ; check(error==0)
     error = required%set(key = write_solution_key            , value = .false.) ; check(error==0)
+    error = required%set(key = write_matrices_key            , value = .false.) ; check(error==0)
     error = required%set(key = triangulation_generate_key    , value = .false.) ; check(error==0)
     error = required%set(key = execution_context_key         , value = .false.) ; check(error==0)
     error = required%set(key = jump_key                      , value = .false.) ; check(error==0)
@@ -244,6 +251,19 @@ contains
     error = list%Get(key = write_solution_key, Value = get_write_solution)
     check(error==0)
   end function get_write_solution
+  
+  !==========================================================================================par_pb_bddc_poisson_params_t========
+  function get_write_matrices(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    logical                                       :: get_write_matrices
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(write_matrices_key, get_write_matrices))
+    error = list%Get(key = write_matrices_key, Value = get_write_matrices)
+    check(error==0)
+  end function get_write_matrices
 
   !==================================================================================================
   function get_triangulation_type(this)
