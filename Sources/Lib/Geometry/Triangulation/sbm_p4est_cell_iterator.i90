@@ -340,6 +340,24 @@ function p4est_cell_iterator_is_ghost (this)
   p4est_cell_iterator_is_ghost = .false.
 end function p4est_cell_iterator_is_ghost
 
+function p4est_cell_iterator_is_ancestor(this,child_coords)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                 , intent(in) :: child_coords(:)
+  logical     :: p4est_cell_iterator_is_ancestor
+  integer(ip) :: idime, pos, len
+  pos = max_allowed_refinement_levels_2D-this%get_level()+1
+  len = this%get_level()
+  do idime = 1,this%p4est_triangulation%p4est_num_dimensions
+    if ( IBITS(child_coords(idime),pos,len) /= &
+         IBITS(this%p4est_triangulation%quad_coords(idime,this%get_lid()),pos,len) ) then
+      p4est_cell_iterator_is_ancestor = .false.
+      return
+    end if
+  end do
+  p4est_cell_iterator_is_ancestor = .true.
+end function p4est_cell_iterator_is_ancestor
+
 subroutine p4est_cell_iterator_set_for_coarsening(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
