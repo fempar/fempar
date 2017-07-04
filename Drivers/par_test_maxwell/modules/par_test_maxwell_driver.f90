@@ -325,7 +325,7 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
 !#ifdef ENABLE_MKL
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) !this%mlbddc) 
 !#else
 !    call parameter_list%init()
 !    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
