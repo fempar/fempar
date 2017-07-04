@@ -171,7 +171,7 @@ end subroutine free_timers
 
     call this%triangulation%create(this%parameter_list, this%par_environment)
 	
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+   ! if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
@@ -182,7 +182,7 @@ end subroutine free_timers
           call vef%next()
        end do
        call this%triangulation%free_vef_iterator(vef)
-    end if  
+   ! end if  
 	
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation

@@ -692,6 +692,7 @@ module fe_space_names
 	   ! DoF numbering getters 
 	   procedure, non_overridable, private :: get_dofs_from_vef                => Hcurl_l1_get_dofs_from_vef 
 	   procedure, non_overridable, private :: get_new_basis_dofs_from_vef      => Hcurl_l1_get_new_basis_dofs_from_vef 
+	   procedure, non_overridable, private :: is_at_dirichlet_boundary         => Hcurl_l1_is_at_dirichlet_boundary 
 	   ! Auxiliar basic procedures 
 	   procedure, non_overridable, private :: compute_edge_length              => Hcurl_l1_compute_edge_length 
 	   procedure, non_overridable, private :: find_edge_downstream_vertex      => Hcurl_l1_find_edge_downstream_vertex 
