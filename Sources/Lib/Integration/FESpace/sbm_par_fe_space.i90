@@ -1515,9 +1515,9 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
      ! Create linear system 
      call matrix%create(par_environment, &
                         dof_import, &
-                        symmetric_storage=.true.,       &
-                        is_symmetric=.true.,            &
-                        sign=SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE)
+                        symmetric_storage=.false.,       &
+                        is_symmetric=.false.,            &
+                        sign=SPARSE_MATRIX_SIGN_UNKNOWN)
 
      call rhs%create_and_allocate(par_environment, dof_import) 
      call rhs%init(0.0_rp)
