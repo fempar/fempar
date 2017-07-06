@@ -50,10 +50,10 @@ module par_test_maxwell_driver_names
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
    !  class(standard_l1_coarse_fe_handler_t), allocatable  :: coarse_fe_handler
-     type( Hcurl_l1_coarse_fe_handler_t)         :: coarse_fe_handler 
-	 type(maxwell_CG_discrete_integration_t)     :: maxwell_integration
-     type(maxwell_conditions_t)                  :: maxwell_conditions
-     type(maxwell_analytical_functions_t)        :: maxwell_analytical_functions
+     class( Hcurl_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handler 
+	 type(maxwell_CG_discrete_integration_t)           :: maxwell_integration
+     type(maxwell_conditions_t)                        :: maxwell_conditions
+     type(maxwell_analytical_functions_t)              :: maxwell_analytical_functions
 
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
@@ -208,17 +208,15 @@ end subroutine free_timers
                                                    continuity = .true. )
       call this%triangulation%free_cell_iterator(cell)
     end if  
+		 
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
 	
-	! Set-up coarse fe_handler depending on the number of dimensions
-	 !if (this%triangulation%get_num_dimensions() == 3 ) then 
-	 !  allocate ( Hcurl_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
-	 !end if 
-    
+	call allocate_Hcurl_coarse_fe_handler_type() 
+	    
 	call this%maxwell_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%maxwell_conditions, &
@@ -246,6 +244,28 @@ end subroutine free_timers
 	call this%coarse_fe_handler%compute_change_basis_matrix( this%fe_space ) 
 !	end select 
 
+	contains 
+	
+	subroutine allocate_Hcurl_coarse_fe_handler_type() 	
+    class(cell_iterator_t), allocatable       :: cell
+    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+	
+	if ( this%par_environment%am_i_l1_task() ) then
+	call this%triangulation%create_cell_iterator(cell)
+    reference_fe_geo => cell%get_reference_fe_geo()
+	call this%triangulation%free_cell_iterator(cell)
+	
+	 if (this%triangulation%get_num_dimensions() == 3 ) then 
+	   if ( reference_fe_geo%get_topology() == topology_tet ) then
+	   allocate ( tet_Hcurl_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
+	   elseif ( reference_fe_geo%get_topology() == topology_hex ) then 
+	   allocate ( hex_Hcurl_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
+	   end if 
+	 end if 
+	 end if 
+		
+	 end subroutine allocate_Hcurl_coarse_fe_handler_type
+	 
   end subroutine setup_fe_space
   
   subroutine setup_system (this)

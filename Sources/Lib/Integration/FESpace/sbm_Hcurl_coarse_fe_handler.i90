@@ -171,7 +171,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
 		own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)	
 		if (.not. own_coarse_dofs_iterator%is_upper_bound() ) coarse_dof_lid = own_coarse_dofs_iterator%get_current()
 		
-		coarse_subedge_iterator = this%subedges_per_coarse_edge%create_iterator(coarse_edge)        
+		coarse_subedge_iterator = this%subedges_per_coarse_edge%create_iterator(coarse_edge)       		
         do while ( .not. coarse_subedge_iterator%is_upper_bound() ) 
 			
            isubedge_coarse = isubedge_coarse + 1
@@ -183,6 +183,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
               call vef%set_lid( fine_edge_iterator%get_current() )
               fine_edge = fine_edge + 1; sign_factor = 1.0_rp
               edge_length = this%compute_edge_length(par_fe_space, vef)
+
               call this%fine_edge_direction%get(key=fine_edge_iterator%get_current(), val=orientation, stat=istat); check(istat==key_found)
               if ( orientation == opposite_to_coarse_edge ) sign_factor = -sign_factor
 
@@ -692,7 +693,11 @@ subroutine Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, par_
                                field_type        = field_type_scalar,     &
                                continuity        = .true. )
 
-  call memalloc( 2*this%order*(this%order-1), this%order+1, elmat, __FILE__, __LINE__ )	   	  
+  if (ref_fe%get_topology() == topology_tet ) then 
+  call memalloc( this%order*(this%order-1), this%order+1, elmat, __FILE__, __LINE__ )	   	 
+  elseif (ref_fe%get_topology() == topology_hex ) then 
+  call memalloc( 2*this%order*(this%order-1), this%order+1, elmat, __FILE__, __LINE__ )	   	 
+  end if 
   call Nedelec_fe_2D%create_interpolation( fe_face%get_quadrature(), Nedelec_interpolation )
 
   coarse_subedge_iterator = this%subedges_per_coarse_edge%create_iterator() 
@@ -760,9 +765,11 @@ subroutine Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, par_
   call memfree(elmat, __FILE__, __LINE__ ) 
 end subroutine Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
 
-subroutine Hcurl_l1_find_interface_fe_face_around_edge( this, fe, ivef, iface_around_edge, fe_face)
+! ***********************************************************************************************************
+
+subroutine hex_Hcurl_l1_find_interface_fe_face_around_edge( this, fe, ivef, iface_around_edge, fe_face)
   implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)       :: this
+  class(hex_Hcurl_l1_coarse_fe_handler_t)   , intent(in)   :: this
   type(fe_iterator_t)                   , intent(in)       :: fe
   integer(ip)                           , intent(in)       :: ivef 
   integer(ip)                           , intent(in)       :: iface_around_edge 
@@ -790,15 +797,41 @@ subroutine Hcurl_l1_find_interface_fe_face_around_edge( this, fe, ivef, iface_ar
   call fe_face%set_lid( face_lid )
 
   call memfree( faces_around_edge, __FILE__, __LINE__ )
-end subroutine Hcurl_l1_find_interface_fe_face_around_edge
+end subroutine hex_Hcurl_l1_find_interface_fe_face_around_edge
 
-subroutine Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, Nedelec_fe_2D, Lagrangian_fe_3D, Nedelec_interpolation, Lagrangian_interpolation_ref, nodes_in_edge_iterator, elmat)
+subroutine tet_Hcurl_l1_find_interface_fe_face_around_edge( this, fe, ivef, iface_around_edge, fe_face)
   implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)       :: this
+  class(tet_Hcurl_l1_coarse_fe_handler_t)   , intent(in)   :: this
+  type(fe_iterator_t)                   , intent(in)       :: fe
+  integer(ip)                           , intent(in)       :: ivef 
+  integer(ip)                           , intent(in)       :: iface_around_edge 
+  type(fe_face_iterator_t)              , intent(inout)    :: fe_face
+
+  integer(ip)              :: face_lid
+  integer(ip), allocatable :: faces_around_edge(:,:)
+
+  call memalloc( 12, 2, faces_around_edge, __FILE__, __LINE__ ) 
+  faces_around_edge(1,1) = 11; faces_around_edge(1,2) = 12; 
+  faces_around_edge(2,1) = 11; faces_around_edge(2,2) = 13;
+  faces_around_edge(3,1) = 11; faces_around_edge(3,2) = 14; 
+  faces_around_edge(4,1) = 12; faces_around_edge(4,2) = 13; 
+  faces_around_edge(5,1) = 12; faces_around_edge(5,2) = 14;
+  faces_around_edge(6,1) = 13; faces_around_edge(6,2) = 14; 
+
+  ! Local fe_faces around EDGE 
+  face_lid = fe%get_vef_lid( faces_around_edge(ivef-4, iface_around_edge) )
+  call fe_face%set_lid( face_lid )
+
+  call memfree( faces_around_edge, __FILE__, __LINE__ )
+end subroutine tet_Hcurl_l1_find_interface_fe_face_around_edge
+
+subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, Nedelec_fe_2D, Lagrangian_fe_3D, Nedelec_interpolation, Lagrangian_interpolation_ref, nodes_in_edge_iterator, elmat)
+  implicit none 
+  class(hex_Hcurl_l1_coarse_fe_handler_t)   , intent(in)   :: this
   type(fe_iterator_t)                   , intent(inout)    :: fe 
   type(fe_face_iterator_t)              , intent(inout)    :: fe_face
-  type(hex_nedelec_reference_fe_t)      , intent(in)       :: Nedelec_fe_2D
-  type(hex_lagrangian_reference_fe_t)   , intent(in)       :: Lagrangian_fe_3D
+  class(nedelec_reference_fe_t)         , intent(in)       :: Nedelec_fe_2D
+  class(lagrangian_reference_fe_t)      , intent(in)       :: Lagrangian_fe_3D
   type(interpolation_t)                 , intent(in)       :: Nedelec_interpolation
   type(interpolation_t)                 , intent(in)       :: Lagrangian_interpolation_ref
   type(list_iterator_t)                 , intent(inout)    :: nodes_in_edge_iterator
@@ -869,7 +902,88 @@ subroutine Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, Nede
 
   call Lagrangian_interpolation_phy%free() 
 
-end subroutine Hcurl_l1_compute_face_discrete_gradient_elmat
+end subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat
+
+subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, Nedelec_fe_2D, Lagrangian_fe_3D, Nedelec_interpolation, Lagrangian_interpolation_ref, nodes_in_edge_iterator, elmat)
+  implicit none 
+  class(tet_Hcurl_l1_coarse_fe_handler_t)   , intent(in)   :: this
+  type(fe_iterator_t)                   , intent(inout)    :: fe 
+  type(fe_face_iterator_t)              , intent(inout)    :: fe_face
+  class(nedelec_reference_fe_t)         , intent(in)       :: Nedelec_fe_2D
+  class(lagrangian_reference_fe_t)      , intent(in)       :: Lagrangian_fe_3D
+  type(interpolation_t)                 , intent(in)       :: Nedelec_interpolation
+  type(interpolation_t)                 , intent(in)       :: Lagrangian_interpolation_ref
+  type(list_iterator_t)                 , intent(inout)    :: nodes_in_edge_iterator
+  real(rp), allocatable                 , intent(inout)    :: elmat(:,:) 
+
+  integer(ip) :: ielem 
+  type(quadrature_t)       , pointer     :: quad
+  type(fe_map_t)           , pointer     :: fe_map
+  type(face_map_t)         , pointer     :: face_map
+  type(fe_map_t)           , pointer     :: face_map_face_map
+  type(interpolation_t)                  :: Lagrangian_interpolation_phy 
+  type(vector_field_t)                   :: cross_product_v_shape_trial_normal
+  type(vector_field_t)                   :: cross_product_v_shape_trial_normal_proj
+  type(vector_field_t)                   :: col_jacobian
+
+  integer(ip)                            :: number_qpoints, idof, i 
+  real(rp)                               :: factor
+  type(vector_field_t)                   :: normal, v_shape_test, gradv_shape_trial
+  integer(ip)                            :: ishape, jshape, qpoint, iface
+
+  call fe%update_integration() 	
+  call fe_face%update_integration()
+
+  quad              => fe_face%get_quadrature()
+  number_qpoints    =  quad%get_number_quadrature_points()
+  face_map          => fe_face%get_face_map()
+  face_map_face_map => face_map%get_face_map()
+
+  elmat = 0.0_rp 
+  call cross_product_v_shape_trial_normal_proj%init(0.0_rp)
+
+  call Lagrangian_interpolation_phy%copy(Lagrangian_interpolation_ref) 
+  call Lagrangian_fe_3D%update_interpolation( fe%get_fe_map(),              &
+       Lagrangian_interpolation_ref, &
+       Lagrangian_interpolation_phy )
+
+  do qpoint = 1, number_qpoints
+     factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+     call face_map_face_map%get_normal(qpoint, normal)
+     ! Trick to have normals pointing to the same direction in different faces 
+     do i=1, SPACE_DIM
+        call normal%set(i, abs(normal%get(i)))
+     end do
+
+     do ishape = 1, 2*this%order*(this%order-1)
+        call Nedelec_fe_2D%get_value(Nedelec_interpolation, ishape, qpoint, v_shape_test)
+        ! WARNING: Update 2D interpolation for the Nedelec test functions ( J**{-T} will only work in HEX structured meshes! )
+        do i=1, Lagrangian_fe_3D%get_number_dimensions()-1
+           call face_map_face_map%get_jacobian_column(i,qpoint,col_jacobian)
+           call v_shape_test%set(i, v_shape_test%get(i)/col_jacobian%nrm2() )
+        end do
+
+        call nodes_in_edge_iterator%begin() 
+        do jshape = 1, nodes_in_edge_iterator%get_size() 
+           call Lagrangian_fe_3D%get_gradient(Lagrangian_interpolation_phy, nodes_in_edge_iterator%get_current(), qpoint, gradv_shape_trial)
+           cross_product_v_shape_trial_normal = cross_product(gradv_shape_trial,normal)			         
+           ! Multiply the transpose of the jacobian with normalized columns by u^n
+           ! This is required to transform u^n in a vector contained within the face
+           do i=1,Lagrangian_fe_3D%get_number_dimensions()-1
+              call face_map_face_map%get_jacobian_normalized_column(i,qpoint,col_jacobian)
+              call cross_product_v_shape_trial_normal_proj%set(i, col_jacobian*cross_product_v_shape_trial_normal)
+           end do
+           elmat(ishape,jshape) = elmat(ishape, jshape) + factor*cross_product_v_shape_trial_normal_proj*v_shape_test
+           call nodes_in_edge_iterator%next() 
+        end do
+     end do
+  end do
+
+  call Lagrangian_interpolation_phy%free() 
+
+end subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat
+
+! ****************************************************************************************************************************************
 
 subroutine Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_space, elmat, fe_face, fine_edge, coarse_edge, vef)
   implicit none 
@@ -1533,7 +1647,6 @@ subroutine Hcurl_l1_renumber_interface_dofs_first_E_then_Ec(this, par_fe_space, 
      end if
   end do
 
-  ! By composition of permutations, perm_old2wire = perm_new2wire(perm_old2new)
   do idof=1, par_fe_space%get_block_number_dofs(iblock) 
      perm_old2new(idof) = perm_new2wire(perm_old2new(idof))
   end do
@@ -1727,7 +1840,7 @@ function Hcurl_l1_compute_edge_length(this, par_fe_space, vef) result(edge_lengt
 
   tangent_vector = node_coordinates(2) - node_coordinates(1)
   edge_length = tangent_vector%nrm2() 
-
+ 
   call par_fe_space%free_fe_vef_iterator(vertex) 
   call par_fe_space%free_fe_iterator(fe) 
   deallocate( cell_coordinates , stat=istat); check(istat==0) 
@@ -2007,10 +2120,14 @@ end subroutine mark_nodes_not_belonging_to_edge_object
        elseif (counter==3) then
           nbifurcation_node     = nbifurcation_node + 1
        elseif (counter>3) then 
-          WRITE(*,*) 'WARNING: bifurcation into', counter, 'paths' ; check(.false.) 
+          WRITE(*,*) 'ABORTING: bifurcation into', counter, 'paths' ; check(.false.) 
        end if
     end do
 
+	if ( (number_potential_startend_nodes == 0) .and. ( (ninterior_node + ncorners_in_edge + nbifurcation_node) /= 0) ) then 
+    WRITE(*,*) 'ABORTING: Partition gives place a closed path coarse edge'; check(.false.) 
+	end if 
+	
 	WRITE(*,*) 'Edge partitioning resume: *************************'
 	WRITE(*,*) 'Found', ncorners_in_edge, 'adjacent edge problematic cases,', number_potential_startend_nodes, &
 	           'Start/end nodes', nbifurcation_node, 'bifurcation nodes', ninterior_node, 'Interior nodes'
@@ -2193,8 +2310,7 @@ end subroutine mark_nodes_not_belonging_to_edge_object
   implicit none 
   integer(ip) :: dummy_val, i, index 
   integer(ip) , allocatable :: potential_following_nodes(:)
-  integer(ip) , allocatable :: potential_following_edges(:)
-  
+  integer(ip) , allocatable :: potential_following_edges(:) 
 
     call memalloc( 2, perm, __FILE__, __LINE__ ) 
     perm(1) = 2; perm(2) = 1; 
@@ -2234,7 +2350,7 @@ end subroutine mark_nodes_not_belonging_to_edge_object
 	  local_to_coarse_edge = local_to_coarse_edge + 1	
       local_to_coarse_subedge = local_to_coarse_subedge + 1
       perm_sorted_edges(iedge_coarse, local_to_coarse_edge) = iedge
-       if ( inode .eq. 1 ) then
+       if ( vertices_in_edge(iedge,1) == start_node ) then
          call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=same_as_coarse_edge, stat=istat)
        else 
          call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=opposite_to_coarse_edge, stat=istat)   
@@ -2332,7 +2448,7 @@ end subroutine mark_nodes_not_belonging_to_edge_object
           call fine_edges_in_subedges_iterator%next() 
        end do
     end do
-
+	
     call this%sorted_fine_edges_in_coarse_subedge%print(6) 
 
   end subroutine create_and_fill_sorted_fine_edges_list
