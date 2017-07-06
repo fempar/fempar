@@ -98,7 +98,7 @@ contains
     real(rp)                , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      result = point%get(1)**2+ point%get(2)**2 ! x+y
+      result = point%get(1)**2+ point%get(2)**2 ! x*2+y*2
     else if ( this%num_dimensions == 3 ) then
       result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
     end if  
@@ -112,7 +112,7 @@ contains
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      result = point%get(1)**2+ point%get(2)**2 ! x+y 
+      result = point%get(1)**2+ point%get(2)**2 ! x*2+y*2 
     else if ( this%num_dimensions == 3 ) then
       result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
     end if  

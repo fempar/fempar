@@ -42,6 +42,9 @@ module test_h_adaptive_poisson_driver_names
   implicit none
   private
   
+  integer(ip), parameter :: TEST_POISSON_FULL = 1
+  integer(ip), parameter :: TEST_POISSON_VOID = 2
+  
   type test_h_adaptive_poisson_driver_t 
      private 
      
@@ -69,13 +72,13 @@ module test_h_adaptive_poisson_driver_names
      
      ! Direct and Iterative linear solvers data type
 #ifdef ENABLE_MKL     
-     type(direct_solver_t)                     :: direct_solver
+     type(direct_solver_t)                        :: direct_solver
 #else     
-     type(iterative_linear_solver_t)           :: iterative_linear_solver
+     type(iterative_linear_solver_t)              :: iterative_linear_solver
 #endif     
  
      ! Poisson problem solution FE function
-     type(fe_function_t)                       :: solution
+     type(fe_function_t)                          :: solution
    contains
      procedure                  :: run_simulation
      procedure        , private :: parse_command_line_parameters
@@ -112,23 +115,136 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
-    class(vef_iterator_t),allocatable :: vef
 
-
-    !call this%triangulation%create(this%test_params%get_dir_path(),&
-    !                               this%test_params%get_prefix(),&
-    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%parameter_list)
+    class(cell_iterator_t), allocatable :: cell
+    integer(ip), allocatable :: cell_set_ids(:)
+    type(point_t), allocatable :: cell_coords(:)
+    integer(ip) :: istat
+    integer(ip) :: set_id
+    real(rp) :: x, y
+    integer(ip) :: num_void_neigs
     
-    call this%triangulation%create_vef_iterator(vef)
-    do while ( .not. vef%has_finished() )
-      if(vef%is_at_boundary()) then
-         call vef%set_set_id(1)
-      end if
-      call vef%next()
-    end do
-    call this%triangulation%free_vef_iterator(vef) 
+    integer(ip)           :: ivef
+    class(vef_iterator_t),allocatable :: vef, vef_of_vef
+    type(list_t), pointer :: vefs_of_vef
+    type(list_t), pointer :: vertices_of_line
+    type(list_iterator_t) :: vefs_of_vef_iterator
+    type(list_iterator_t) :: vertices_of_line_iterator
+    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
+    integer(ip) :: vertex_pos_in_cell, icell_arround
+    
+    integer(ip), parameter :: number_nodes_per_cell = 4
+    
+    call this%triangulation%create(this%parameter_list)
+    call this%set_cells_for_refinement()
+    call this%triangulation%refine_and_coarsen()
+    call this%triangulation%clear_refinement_and_coarsening_flags()
+    
+    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+        call memalloc(this%triangulation%get_num_cells(),cell_set_ids)
+        call this%triangulation%create_cell_iterator(cell)
+        allocate(cell_coords(1:number_nodes_per_cell),stat=istat); check(istat == 0)
+        do while( .not. cell%has_finished() )
+          if (cell%is_local()) then
+            set_id = TEST_POISSON_VOID
+            call cell%get_coordinates(cell_coords)
+            select case (this%test_params%get_use_void_fes_case())
+            case ('half')
+              y = cell_coords(1)%get(2)
+              if (y>=0.5) set_id = TEST_POISSON_FULL
+            case ('quarter')
+              x = cell_coords(1)%get(1)
+              y = cell_coords(1)%get(2)
+              if (x>=0.5 .and. y>=0.5) set_id = TEST_POISSON_FULL
+            case default
+              check(.false.)
+            end select
+            cell_set_ids(cell%get_lid()) = set_id
+          end if
+          call cell%next()
+        end do
+        call this%triangulation%free_cell_iterator(cell)
+        deallocate(cell_coords, stat = istat); check(istat == 0)
+        call this%triangulation%fill_cells_set(cell_set_ids)
+    end if
+    
+    if ( this%test_params%get_triangulation_type() == 'structured' ) then
+       call this%triangulation%create_vef_iterator(vef)
+       do while ( .not. vef%has_finished() )
+          if(vef%is_at_boundary()) then
+             call vef%set_set_id(1)
+          else
+             call vef%set_set_id(0)
+          end if
+          call vef%next()
+       end do
+       call this%triangulation%free_vef_iterator(vef)
+    end if
+    
+    ! Set all the vefs on the interface between full/void if there are void fes
+    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+      call this%triangulation%create_vef_iterator(vef)
+      call this%triangulation%create_vef_iterator(vef_of_vef)
+      call this%triangulation%create_cell_iterator(cell)
+      do while ( .not. vef%has_finished() )
+                                       
+         ! If it is an INTERIOR face
+         if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
 
+           ! Compute number of void neighbors
+           num_void_neigs = 0
+           do icell_arround = 1,vef%get_num_cells_around()
+             call vef%get_cell_around(icell_arround,cell)
+             if (cell%get_set_id() == TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
+           end do
+
+           if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
+
+               ! Set this face as Dirichlet boundary
+               call vef%set_set_id(1)
+
+               ! Do a loop on all edges in 3D (vertex in 2D) of the face
+               ivef = vef%get_lid()
+               call vef%get_cell_around(1,cell) ! There is always one cell around
+               reference_fe_geo => cell%get_reference_fe_geo()
+               ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
+               vefs_of_vef => reference_fe_geo%get_n_faces_n_face()
+               vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
+               do while( .not. vefs_of_vef_iterator%is_upper_bound() )
+
+                  ! Set edge (resp. vertex) as Dirichlet
+                  vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
+                  call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
+                  call vef_of_vef%set_set_id(1)
+
+                  ! If 3D, traverse vertices of current line
+                  if ( this%triangulation%get_num_dimensions() == 3 ) then
+                    massert(.false.,'h_adaptivity only available for 2D')
+                  end if
+
+                  call vefs_of_vef_iterator%next()
+               end do ! Loop in edges (resp. vertices)
+
+           end if ! If face on void/full boundary
+         end if ! If vef is an interior face
+         
+         if(vef%is_at_boundary()) then
+            call vef%get_cell_around(1,cell)
+            if (cell%get_set_id() == TEST_POISSON_FULL) then
+               call vef%set_set_id(1)
+            end if
+         end if
+
+         call vef%next()
+      end do ! Loop in vefs
+      call this%triangulation%free_vef_iterator(vef)
+      call this%triangulation%free_vef_iterator(vef_of_vef)
+      call this%triangulation%free_cell_iterator(cell)
+    end if    
+    
+    if (allocated(cell_set_ids)) call memfree(cell_set_ids,__FILE__,__LINE__)
+    
   end subroutine setup_triangulation
   
   subroutine set_cells_for_refinement(this)
@@ -211,7 +327,7 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
-    integer(ip) :: istat    
+    integer(ip)                                   :: istat
     class(cell_iterator_t)          , allocatable :: cell
     class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
     character(:)                    , allocatable :: field_type
@@ -220,7 +336,11 @@ contains
     integer(ip), pointer :: h_refinement_subface_permutation(:,:,:)
     integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
     
-    allocate(this%reference_fes(1), stat=istat)
+    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+      allocate(this%reference_fes(2), stat=istat)
+    else
+      allocate(this%reference_fes(1), stat=istat)
+    end if
     check(istat==0)
     
     field_type = field_type_scalar
@@ -230,14 +350,24 @@ contains
     
     call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
-    this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                 fe_type = fe_type_lagrangian, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = this%test_params%get_reference_fe_order(), &
-                                                 field_type = field_type, &
-                                                 conformity = .true. )
+    this%reference_fes(TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
+                                                                 fe_type = fe_type_lagrangian,                                &
+                                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                 order = this%test_params%get_reference_fe_order(),           &
+                                                                 field_type = field_type,                                     &
+                                                                 conformity = .true. )
+    
+    if ( this%test_params%get_use_void_fes() ) then
+         this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
+                                                                      fe_type = fe_type_void,                                      &
+                                                                      number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                      order = -1,                                                  &
+                                                                      field_type = field_type,                                     &
+                                                                      conformity = .true. )
+    end if
     call this%triangulation%free_cell_iterator(cell)
     
+    ! Take h_refinement arrays to local scope to debug with DDT
     select type( reference_fe => this%reference_fes(1)%p )
     type is (hex_lagrangian_reference_fe_t)
        h_refinement_interpolation       => reference_fe%get_h_refinement_interpolation()
@@ -252,19 +382,38 @@ contains
   subroutine setup_fe_space(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
-    
+    integer(ip) :: set_ids_to_reference_fes(1,2)
+
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-      call this%fe_space%create( triangulation = this%triangulation, &
-                                 reference_fes = this%reference_fes, &
-                                 conditions    = this%poisson_conditions ) 
+      if ( this%test_params%get_use_void_fes() ) then
+        set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
+        set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
+        call this%fe_space%create( triangulation            = this%triangulation,       &
+                                   reference_fes            = this%reference_fes,       &
+                                   set_ids_to_reference_fes = set_ids_to_reference_fes, &
+                                   conditions               = this%poisson_conditions )
+      else 
+        call this%fe_space%create( triangulation       = this%triangulation, &
+                                   reference_fes       = this%reference_fes, &
+                                   conditions          = this%poisson_conditions )
+      end if
     else
       call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
-      call this%fe_space%create( triangulation = this%triangulation, &
-                                 reference_fes = this%reference_fes, &
-                                 conditions    = this%vector_poisson_conditions )
+      if ( this%test_params%get_use_void_fes() ) then
+        set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
+        set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
+        call this%fe_space%create( triangulation       = this%triangulation,            &
+                                   reference_fes       = this%reference_fes,            &
+                                   set_ids_to_reference_fes = set_ids_to_reference_fes, &
+                                   conditions          = this%vector_poisson_conditions )
+      else
+        call this%fe_space%create( triangulation       = this%triangulation, &
+                                   reference_fes       = this%reference_fes, &
+                                   conditions          = this%vector_poisson_conditions )
+      end if
     end if
     
     call this%fe_space%initialize_fe_integration()    
@@ -281,28 +430,17 @@ contains
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
     integer(ip) :: i
     
-    do i=1, 10
+    do i=1,6
        
-       call this%triangulation%clear_refinement_and_coarsening_flags()
-       if ( mod(i,3) == 0 ) then 
+       if ( mod(i+1,3) == 0 ) then 
           call this%set_cells_for_coarsening()
        else
          call this%set_cells_for_refinement()
        end if
-       call this%fill_cells_set()
+       !call this%fill_cells_set()
        call this%triangulation%refine_and_coarsen()
        
-       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-         call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,      &
-                                                conditions          = this%poisson_conditions, &
-                                                reference_fes       = this%reference_fes,      &
-                                                fe_function         = this%solution ) 
-       else
-         call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
-                                                conditions          = this%vector_poisson_conditions, &
-                                                reference_fes       = this%reference_fes,      &
-                                                fe_function         = this%solution )
-       end if
+       call this%fe_space%refine_and_coarsen( fe_function = this%solution ) 
        
        call this%fe_space%initialize_fe_integration()
        
@@ -540,21 +678,28 @@ contains
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
         
-        N=this%triangulation%get_num_cells()
-        P=6
         call this%triangulation%create_cell_iterator(cell)
-        do pid=0, P-1
-            i=0
-            do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
-              cell_vector(cell%get_lid()) = pid 
-              call cell%next()
-              i=i+1
-            end do
-        end do
+        if (this%test_params%get_use_void_fes()) then
+          do while( .not. cell%has_finished() )
+            cell_vector(cell%get_lid()) = cell%get_set_id()
+            call cell%next()
+          end do
+          call oh%add_cell_vector(cell_vector,'cell_set_ids')
+        else
+          N=this%triangulation%get_num_cells()
+          P=6
+          do pid=0, P-1
+              i=0
+              do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
+                cell_vector(cell%get_lid()) = pid 
+                call cell%next()
+                i=i+1
+              end do
+          end do
+          call oh%add_cell_vector(cell_vector,'cell_set_ids')
+        end if
         call this%triangulation%free_cell_iterator(cell)
-
-        call oh%add_cell_vector(cell_vector,'cell_set_ids')
-
+        
         call oh%open(path, prefix)
         call oh%write()
         call oh%close()

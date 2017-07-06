@@ -10,16 +10,70 @@ then
       # Scalar-valued tests
       ###############################################################################################################################
 
-
-      # Cube + Hexas + Hybrid Void/Full FEs (popcorn pattern)
+      # Cube + Hexas
       for gorder in 1
       do
        for order in 2 3 4 5 6 7 8 
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order 2 -wsolution .true."
-            $TEST_BINARY_PATH -tt structured -dim 2  -order 2 -wsolution .true.
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true."
+            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true.
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      # Cube + Hexas + Hybrid Void/Full FEs (half)
+      for gorder in 1
+      do
+       for order in 2
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -order 2 -use-voids T -use-voids-case half -wsolution .true."
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -order 2 -use-voids T -use-voids-case half -wsolution .true.
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      # Cube + Hexas + Hybrid Void/Full FEs (quarter)
+      for gorder in 1
+      do
+       for order in 2
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -order 2 -use-voids T -use-voids-case quarter -wsolution .true."
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -order 2 -use-voids T -use-voids-case quarter -wsolution .true.
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      ###############################################################################################################################
+      # Vector-valued tests
+      ###############################################################################################################################
+
+      # Cube + Hexas 
+      for gorder in 1
+      do
+       for order in 2 3 4 5 6 7 8 
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -lt vector"
+            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -lt vector
             if [ $? -ne 0 ] 
             then
              final_exit_code=1

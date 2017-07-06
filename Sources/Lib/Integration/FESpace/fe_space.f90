@@ -235,6 +235,7 @@ module fe_space_names
     procedure, non_overridable          :: get_max_order_reference_fe                 => fe_iterator_get_max_order_reference_fe
     procedure, non_overridable          :: get_max_order_reference_fe_id              => fe_iterator_get_max_order_reference_fe_id
     procedure, non_overridable          :: get_reference_fe_id                        => fe_iterator_get_reference_fe_id
+    procedure, non_overridable          :: set_reference_fe_id                        => fe_iterator_set_reference_fe_id
     procedure, non_overridable          :: is_void                                    => fe_iterator_is_void
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
@@ -365,6 +366,7 @@ module fe_space_names
      integer(ip)                   , allocatable :: lst_dofs_lids(:)
     
      ! Strong Dirichlet BCs-related member variables
+     class(conditions_t)           , pointer     :: conditions    => NULL()
      type(serial_scalar_array_t)                 :: strong_dirichlet_values
      logical                       , allocatable :: at_strong_dirichlet_boundary_per_fe(:,:)
      logical                       , allocatable :: has_fixed_dofs_per_fe(:,:)
@@ -384,6 +386,7 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
      procedure, non_overridable          :: allocate_ref_fe_id_per_fe                    => serial_fe_space_allocate_ref_fe_id_per_fe
+     procedure, non_overridable          :: move_alloc_ref_fe_id_per_fe_out              => serial_fe_space_move_alloc_ref_fe_id_per_fe_out
      procedure, non_overridable, private :: free_ref_fe_id_per_fe                        => serial_fe_space_free_ref_fe_id_per_fe
      procedure, non_overridable          :: fill_ref_fe_id_per_fe_same_on_all_cells      => serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
      procedure, non_overridable          :: fill_ref_fe_id_per_fe_different_between_cells=> serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells
@@ -391,6 +394,8 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_fe_space_type_per_field    => serial_fe_space_allocate_and_fill_fe_space_type_per_field
      procedure, non_overridable, private :: free_fe_space_type_per_field                 => serial_fe_space_free_fe_space_type_per_field
      procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs               => serial_fe_space_allocate_and_init_ptr_lst_dofs
+     procedure, non_overridable          :: move_alloc_ptr_dofs_per_fe_out               => serial_fe_space_move_alloc_ptr_dofs_per_fe_out     
+     procedure, non_overridable          :: move_alloc_lst_dofs_lids_out                 => serial_fe_space_move_alloc_lst_dofs_lids_out
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => serial_fe_space_free_ptr_lst_dofs
      procedure, non_overridable          :: allocate_and_init_at_strong_dirichlet_bound  => serial_fe_space_allocate_and_init_at_strong_dirichlet_bound  
      procedure, non_overridable, private :: free_at_strong_dirichlet_bound               => serial_fe_space_free_at_strong_dirichlet_bound
@@ -458,10 +463,10 @@ module fe_space_names
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
      procedure                           :: get_number_strong_dirichlet_dofs             => serial_fe_space_get_number_strong_dirichlet_dofs
+     procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
+     procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      procedure                           :: get_number_fixed_dofs                        => serial_fe_space_get_number_fixed_dofs     
-     procedure, non_overridable          :: copy_ptr_dofs_per_fe                         => serial_fe_space_copy_ptr_dofs_per_fe     
-     procedure, non_overridable          :: copy_lst_dofs_lids                           => serial_fe_space_copy_lst_dofs_lids
      procedure                           :: get_number_blocks                            => serial_fe_space_get_number_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling

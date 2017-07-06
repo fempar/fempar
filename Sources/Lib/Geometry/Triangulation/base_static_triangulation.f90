@@ -132,6 +132,8 @@ module base_static_triangulation_names
     procedure                            :: is_local                => cell_iterator_is_local
     procedure                            :: is_ghost                => cell_iterator_is_ghost
     
+    procedure                            :: is_ancestor             => cell_iterator_is_ancestor
+    
     procedure                            :: set_for_coarsening      => cell_iterator_set_for_coarsening
     procedure                            :: set_for_refinement      => cell_iterator_set_for_refinement
     procedure                            :: set_for_do_nothing      => cell_iterator_set_for_do_nothing

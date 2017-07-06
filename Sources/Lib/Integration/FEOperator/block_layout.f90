@@ -240,12 +240,8 @@ contains
     block_layout_equal = (size(block_layout_op1%field_id_to_block_id) == size(block_layout_op2%field_id_to_block_id))  
     if (.not. block_layout_equal) return
     
-    block_layout_equal = (allocated(block_layout_op1%num_dofs_x_block) .and. allocated(block_layout_op2%num_dofs_x_block))  
-    if (.not. block_layout_equal) return
-    
-    block_layout_equal = (size(block_layout_op1%num_dofs_x_block) == size(block_layout_op2%num_dofs_x_block))  
-    if (.not. block_layout_equal) return
-    
+    block_layout_equal = (all(block_layout_op1%field_id_to_block_id == block_layout_op2%field_id_to_block_id))  
+    if (.not. block_layout_equal) return  
   end function block_layout_equal 
     
 end module block_layout_names

@@ -363,6 +363,14 @@ function cell_iterator_is_ghost (this)
   cell_iterator_is_ghost = (this%lid > this%base_static_triangulation%num_local_cells)
 end function cell_iterator_is_ghost
 
+function cell_iterator_is_ancestor(this,child_coords)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip)           , intent(in) :: child_coords(:)
+  logical     :: cell_iterator_is_ancestor
+  assert(.false.)
+end function cell_iterator_is_ancestor
+
 subroutine cell_iterator_set_for_coarsening(this)
   implicit none
   class(cell_iterator_t), intent(inout) :: this
@@ -531,7 +539,7 @@ subroutine cell_iterator_fill_nodes_on_vertices (this)
   reference_fe => this%get_reference_fe_geo()
   do ivef=1,reference_fe%get_number_n_faces_of_dimension(0)
      assert(reference_fe%get_number_own_dofs_n_face(ivef)==1)
-     inode = reference_fe%get_own_dof_n_face(1,ivef)
+     inode = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(1,ivef)
      lnode = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid) + ivef - 1 )
      this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid) + inode - 1 ) = lnode
   end do
@@ -550,7 +558,7 @@ subroutine cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
   ivef_pos_in_cell = this%find_lpos_vef_lid(ivef)
 
   do inode = 1,reference_fe%get_number_own_dofs_n_face(ivef_pos_in_cell)
-    l_node = reference_fe%get_own_dof_n_face(inode,ivef_pos_in_cell)
+    l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef_pos_in_cell)
     assert(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+l_node-1)<=0)
     if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+l_node-1)==0) then
        node_count = node_count + 1
@@ -569,14 +577,15 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   class(lagrangian_reference_fe_t) , pointer  :: source_ref_fe, target_ref_fe
   integer(ip)          :: source_vef_lid, target_vef_lid
   integer(ip), pointer :: source_vefs(:), target_vefs(:), source_node_list(:), target_node_list(:)
-  integer(ip) :: own_inode, l_node, own_nnode, inode_source, inode_target
-  integer(ip) :: permutation_index
+  integer(ip) :: source_node_LID_vef, l_node, own_nnode, source_node_LID_cell
+  integer(ip) :: permutation_index, target_vef_dimension, target_node_LID_cell, target_node_LID_vef
 
   source_ref_fe => this%get_reference_fe_geo()
   source_vef_lid = this%find_lpos_vef_lid(ivef)
 
   target_ref_fe => cell%get_reference_fe_geo()
   target_vef_lid = cell%find_lpos_vef_lid(ivef)
+  target_vef_dimension = target_ref_fe%get_n_face_dimension(target_vef_lid)
  
   source_vefs => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid): &
                                                           &   this%base_static_triangulation%ptr_vefs_per_cell(this%lid+1)-1)
@@ -594,7 +603,6 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   own_nnode = source_ref_fe%get_number_own_dofs_n_face(source_vef_lid)
 
   if ( own_nnode > 0 ) then
-
      check (target_ref_fe%check_compatibility_of_n_faces(source_ref_fe,source_vef_lid,target_vef_lid))
      permutation_index = source_ref_fe%compute_permutation_index( target_ref_fe, &
           &                                                       source_vef_lid, &
@@ -602,13 +610,13 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
           &                                                       source_vefs,    &
           &                                                       target_vefs)
      
-     do own_inode = 1, own_nnode
-        inode_source = source_ref_fe%get_own_dof_n_face(own_inode,source_vef_lid)
-        inode_target = target_ref_fe%get_permuted_own_dof_n_face(own_inode,               &
-             &                          target_vef_lid, permutation_index)
-        assert ( target_node_list(inode_target) <= 0 )
-        if ( target_node_list(inode_target) == 0 ) then
-          target_node_list(inode_target) = source_node_list(inode_source)
+     do source_node_LID_vef = 1, own_nnode
+        source_node_LID_cell = source_ref_fe%translate_dof_lid_n_face_to_dof_lid_cell(source_node_LID_vef,source_vef_lid)
+        target_node_LID_vef = target_ref_fe%permute_dof_LID_n_face(source_node_LID_vef,target_vef_dimension, permutation_index)
+        target_node_LID_cell = target_ref_fe%translate_dof_lid_n_face_to_dof_lid_cell(target_node_LID_vef, target_vef_lid)
+        assert ( target_node_list(target_node_LID_cell) <= 0 )
+        if ( target_node_list(target_node_LID_cell) == 0 ) then
+          target_node_list(target_node_LID_cell) = source_node_list(source_node_LID_cell)
         end if
     end do 
  end if
@@ -626,7 +634,7 @@ subroutine cell_iterator_fill_internal_nodes_new(this,node_count)
   
   ivef = reference_fe%get_number_n_faces()+1 ! volume
   do inode = 1, reference_fe%get_number_own_dofs_n_face(ivef)
-     l_node = reference_fe%get_own_dof_n_face(inode,ivef)
+     l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef)
      node_count = node_count +1
      this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)-1+l_node) = node_count
   end do
