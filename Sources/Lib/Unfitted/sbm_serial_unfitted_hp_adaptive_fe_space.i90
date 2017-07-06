@@ -36,7 +36,7 @@ subroutine suhpafs_create_same_reference_fes_on_all_cells(&
   class(serial_unfitted_hp_adaptive_fe_space_t)                    , intent(inout) :: this
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
-  class(conditions_t)               , optional, intent(in)    :: conditions
+  class(conditions_t), target       , optional, intent(in)    :: conditions
   mcheck(.false.,'You cannot create an unfitted fe space with the same reference fe on all cells (you need void and non void ref elems)')
 end subroutine suhpafs_create_same_reference_fes_on_all_cells
 
@@ -52,7 +52,7 @@ subroutine suhpafs_space_create_different_between_cells(&
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
-  class(conditions_t)               , optional, intent(in)    :: conditions
+  class(conditions_t), target       , optional, intent(in)    :: conditions
   class(marching_cubes_t), pointer :: marching_cubes
   call this%free()
   call this%serial_hp_adaptive_fe_space_t%create(&
@@ -65,6 +65,7 @@ subroutine suhpafs_space_create_different_between_cells(&
   class default
     check(.false.)
   end select
+  call this%allocate_and_fill_aggregate_ids()
 end subroutine suhpafs_space_create_different_between_cells
 
 !========================================================================================
@@ -74,6 +75,9 @@ subroutine suhpafs_free(this)
   call this%serial_hp_adaptive_fe_space_t%free()
   this%unfitted_triangulation => null()
   call this%unfitted_integration%free()
+  if (allocated(this%aggregate_ids)) then
+    call memfree(this%aggregate_ids,__FILE__,__LINE__)
+  end if
 end subroutine suhpafs_free
 
 !========================================================================================
@@ -86,3 +90,115 @@ subroutine suhpafs_create_fe_iterator(this, fe)
   allocate(unfitted_hp_adaptive_fe_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
 end subroutine suhpafs_create_fe_iterator
+
+!========================================================================================
+function suhpafs_get_aggregate_ids(this)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
+  integer(ip), pointer :: suhpafs_get_aggregate_ids(:)
+  suhpafs_get_aggregate_ids => this%aggregate_ids
+end function suhpafs_get_aggregate_ids
+
+!========================================================================================
+subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
+
+  class(cell_iterator_t), allocatable :: cell
+  class(cell_iterator_t), allocatable :: cell_arround
+  integer(ip), parameter :: max_num_sweeps = 5
+  integer(ip) :: isweep
+  logical ::  is_needed 
+  logical :: has_been_aggregated
+  integer(ip) :: icell_arround
+  class(base_static_triangulation_t), pointer :: triangulation
+  class(vef_iterator_t), allocatable :: vef
+  integer(ip) :: ivef
+
+  triangulation => this%get_triangulation()
+  call memalloc(triangulation%get_num_local_cells(),this%aggregate_ids,__FILE__,__LINE__)
+ 
+  call triangulation%create_cell_iterator(cell)
+  call triangulation%create_cell_iterator(cell_arround)
+  call triangulation%create_vef_iterator(vef)
+
+  ! Initialize by setting the roots of the aggregates
+  do while (.not. cell%has_finished())
+    if (cell%is_local()) then
+      if (cell%is_interior()) then
+        this%aggregate_ids(cell%get_lid()) = cell%get_lid()
+      else
+        this%aggregate_ids(cell%get_lid()) = 0
+      end if
+    end if
+    call cell%next()
+  end do
+
+  is_needed = .true.
+  isweep = 1
+  do while (is_needed)
+
+    ! Check that we not reach the max num of sweeps allowed
+    wassert(isweep <= max_num_sweeps, 'Max number of sweeps reached in the cut cell agglometarion algorithm. Refine your mesh!')
+    if (isweep > max_num_sweeps) exit
+
+    ! Glue to the neighbors
+    call cell%first()
+    is_needed = .false.
+    do while (.not. cell%has_finished())
+      if (cell%is_local()) then
+        if ( cell%is_cut() .and. (this%aggregate_ids(cell%get_lid()) == 0) ) then
+
+          ! TODO: We try to glue only by true neighbors
+          ! For adaptive meshes, shall we look for improper neighbors as well?
+
+          ! First try to glue to full cells
+          has_been_aggregated = .false.
+          vefsloop: do ivef = 1, cell%get_num_vefs()
+            call cell%get_vef(ivef,vef)
+            if ( .not. vef%is_face() ) cycle
+            do icell_arround = 1,vef%get_num_cells_around()
+              call vef%get_cell_around(icell_arround,cell_arround)
+              if ( cell_arround%is_interior() ) then
+                this%aggregate_ids(cell%get_lid()) = this%aggregate_ids(cell_arround%get_lid())
+                has_been_aggregated = .true.
+                exit vefsloop
+              end if
+            end do
+          end do vefsloop
+
+          ! If the cut cell has not been aggregated, try to glue to any neighbor cell already aggregated
+          if (.not. has_been_aggregated) then
+            vefsloop2: do ivef = 1, cell%get_num_vefs()
+              call cell%get_vef(ivef,vef)
+              if ( .not. vef%is_face() ) cycle
+              do icell_arround = 1,vef%get_num_cells_around()
+                call vef%get_cell_around(icell_arround,cell_arround)
+                if ( this%aggregate_ids(cell_arround%get_lid()) > 0 ) then
+                  this%aggregate_ids(cell%get_lid()) = this%aggregate_ids(cell_arround%get_lid())
+                  has_been_aggregated = .true.
+                  exit vefsloop2
+                end if
+              end do
+            end do vefsloop2
+          end if
+
+          if (this%aggregate_ids(cell%get_lid()) == 0) then
+            is_needed = .true.
+          end if
+
+        end if
+      end if
+      call cell%next()
+    end do
+
+    isweep = isweep + 1
+  end do
+
+  call triangulation%free_cell_iterator(cell)
+  call triangulation%free_cell_iterator(cell_arround)
+  call triangulation%free_vef_iterator(vef)
+
+end subroutine suhpafs_allocate_and_fill_aggregate_ids
+
+

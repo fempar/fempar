@@ -207,7 +207,7 @@ contains
     real(rp), parameter :: Ri = 0.15625
     real(rp) :: R
     integer(ip), parameter :: max_num_cell_nodes = 4
-    integer(ip), parameter :: max_level = 5
+    integer(ip), parameter :: max_level = 3
     real(rp) :: val
 
     call this%triangulation%create_cell_iterator(cell)
@@ -406,11 +406,7 @@ contains
        call this%triangulation%refine_and_coarsen()
        
        if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-         call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,      &
-                                                conditions          = this%poisson_conditions, &
-                                                reference_fes       = this%reference_fes,      &
-                                                fe_function         = this%solution,           &
-                                                set_ids_to_reference_fes = set_ids_to_reference_fes) 
+         call this%fe_space%refine_and_coarsen(this%solution) 
        else
          mcheck(.false.,'Only tested for scalar problems')
          !call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
@@ -648,7 +644,10 @@ contains
     real(rp),allocatable :: cell_vector(:)
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
-
+    
+    real(rp),allocatable :: aggrs_ids(:)
+    integer(ip), pointer :: aggregate_ids(:)
+    
     type(unfitted_vtk_writer_t) :: vtk_writer
 
     if(this%test_params%get_write_solution()) then
@@ -659,6 +658,10 @@ contains
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),aggrs_ids,__FILE__,__LINE__)
+        
+        aggregate_ids => this%fe_space%get_aggregate_ids()
+        aggrs_ids(:) = real(aggregate_ids,kind=rp)
         
         N=this%triangulation%get_num_cells()
         P=6
@@ -674,12 +677,15 @@ contains
         call this%triangulation%free_cell_iterator(cell)
 
         call oh%add_cell_vector(cell_vector,'cell_set_ids')
+        
+        call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
 
         call oh%open(path, prefix)
         call oh%write()
         call oh%close()
         call oh%free()
         call memfree(cell_vector,__FILE__,__LINE__)
+        call memfree(aggrs_ids,__FILE__,__LINE__)
 
         ! Write the unfitted mesh
         call vtk_writer%attach_triangulation(this%triangulation)

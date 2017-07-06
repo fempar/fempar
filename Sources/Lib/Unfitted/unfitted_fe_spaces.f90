@@ -163,6 +163,7 @@ module unfitted_fe_spaces_names
 
       class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
       type(unfitted_integration_manager_t) :: unfitted_integration
+      integer(ip), allocatable :: aggregate_ids(:)
 
     contains
 
@@ -170,9 +171,15 @@ module unfitted_fe_spaces_names
       procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
       procedure           :: serial_fe_space_create_different_between_cells         => suhpafs_space_create_different_between_cells
       procedure           :: free  => suhpafs_free
-
+      
       ! Creation of the iterator
-      procedure :: create_fe_iterator           => suhpafs_create_fe_iterator
+      procedure :: create_fe_iterator                                               => suhpafs_create_fe_iterator
+
+      ! Getters
+      procedure, non_overridable :: get_aggregate_ids                               => suhpafs_get_aggregate_ids
+
+      ! Private TBPs
+      procedure, private, non_overridable :: allocate_and_fill_aggregate_ids        => suhpafs_allocate_and_fill_aggregate_ids
 
   end type serial_unfitted_hp_adaptive_fe_space_t
 
