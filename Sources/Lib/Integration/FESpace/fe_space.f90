@@ -680,10 +680,10 @@ module fe_space_names
 	   procedure                           :: compute_change_basis_matrix                   => Hcurl_l1_compute_change_basis_matrix
 	   procedure, non_overridable, private :: fill_edge_local_change_of_basis               => Hcurl_l1_fill_edge_local_change_of_basis 
 	   procedure, non_overridable, private :: fill_edge_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis
-	   procedure, non_overridable, private :: fill_face_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis 
+	   procedure (Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis) , private, deferred :: fill_face_coupled_to_edges_local_change_of_basis
+	   procedure (Hcurl_l1_find_interface_fe_face_around_edge)               , private, deferred :: find_interface_fe_face_around_edge
+	   procedure (Hcurl_l1_compute_face_discrete_gradient_elmat)             , private, deferred :: compute_face_discrete_gradient_elmat
 	   procedure, non_overridable, private :: assemble_face_coupled_to_edges_B_elmat        => Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
-	   procedure (Hcurl_l1_find_interface_fe_face_around_edge)   ,private, deferred :: find_interface_fe_face_around_edge
-	   procedure (Hcurl_l1_compute_face_discrete_gradient_elmat) ,private, deferred :: compute_face_discrete_gradient_elmat
 	   ! Change of basis application 
 	   procedure, non_overridable, private :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
 	   procedure, non_overridable, private :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
@@ -699,6 +699,12 @@ module fe_space_names
   end type  Hcurl_l1_coarse_fe_handler_t
   
   abstract interface
+  
+      subroutine Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, par_fe_space ) 
+	import :: Hcurl_l1_coarse_fe_handler_t, par_fe_space_t
+	class(Hcurl_l1_coarse_fe_handler_t)  , intent(inout)    :: this
+	type(par_fe_space_t)                 , intent(inout)    :: par_fe_space
+	end subroutine Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
     
     subroutine Hcurl_l1_find_interface_fe_face_around_edge( this, fe, ivef, iface_around_edge, fe_face) 
 	import :: Hcurl_l1_coarse_fe_handler_t, fe_iterator_t, fe_face_iterator_t, ip
@@ -709,16 +715,16 @@ module fe_space_names
     type(fe_face_iterator_t)              , intent(inout):: fe_face
 	end subroutine Hcurl_l1_find_interface_fe_face_around_edge
 	
-	subroutine Hcurl_l1_compute_face_discrete_gradient_elmat( this, fe, fe_face, Nedelec_fe_2D, Lagrangian_fe_3D, &
-															 Nedelec_interpolation, Lagrangian_interpolation_ref, nodes_in_edge_iterator, elmat) 
-	import :: Hcurl_l1_coarse_fe_handler_t, fe_iterator_t, fe_face_iterator_t, nedelec_reference_fe_t, lagrangian_reference_fe_t, & 
+	subroutine Hcurl_l1_compute_face_discrete_gradient_elmat( this, fe, fe_face, ref_fe_2D, Lagrangian_fe_3D, &
+															 ref_fe_interpolation, Lagrangian_interpolation_ref, nodes_in_edge_iterator, elmat) 
+	import :: Hcurl_l1_coarse_fe_handler_t, fe_iterator_t, fe_face_iterator_t, lagrangian_reference_fe_t, & 
 	          interpolation_t, list_iterator_t, rp 
     class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)       :: this
     type(fe_iterator_t)                   , intent(inout)    :: fe 
     type(fe_face_iterator_t)              , intent(inout)    :: fe_face
-    class(nedelec_reference_fe_t)         , intent(in)       :: Nedelec_fe_2D
+    class(lagrangian_reference_fe_t)      , intent(in)       :: ref_fe_2D
     class(lagrangian_reference_fe_t)      , intent(in)       :: Lagrangian_fe_3D
-    type(interpolation_t)                 , intent(in)       :: Nedelec_interpolation
+    type(interpolation_t)                 , intent(in)       :: ref_fe_interpolation
     type(interpolation_t)                 , intent(in)       :: Lagrangian_interpolation_ref
     type(list_iterator_t)                 , intent(inout)    :: nodes_in_edge_iterator
     real(rp), allocatable                 , intent(inout)    :: elmat(:,:) 
@@ -729,15 +735,17 @@ module fe_space_names
   type, extends(Hcurl_l1_coarse_fe_handler_t) :: hex_Hcurl_l1_coarse_fe_handler_t
   private
   contains 
-  procedure, private :: find_interface_fe_face_around_edge            => hex_Hcurl_l1_find_interface_fe_face_around_edge 
-  procedure, private :: compute_face_discrete_gradient_elmat          => hex_Hcurl_l1_compute_face_discrete_gradient_elmat
+  procedure, private :: fill_face_coupled_to_edges_local_change_of_basis => hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
+  procedure, private :: find_interface_fe_face_around_edge               => hex_Hcurl_l1_find_interface_fe_face_around_edge 
+  procedure, private :: compute_face_discrete_gradient_elmat             => hex_Hcurl_l1_compute_face_discrete_gradient_elmat
   end type hex_Hcurl_l1_coarse_fe_handler_t
   
   type, extends(Hcurl_l1_coarse_fe_handler_t) :: tet_Hcurl_l1_coarse_fe_handler_t
   private
   contains 
-  procedure, private :: find_interface_fe_face_around_edge            => tet_Hcurl_l1_find_interface_fe_face_around_edge 
-  procedure, private :: compute_face_discrete_gradient_elmat          => tet_Hcurl_l1_compute_face_discrete_gradient_elmat
+  procedure, private :: fill_face_coupled_to_edges_local_change_of_basis => tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
+  procedure, private :: find_interface_fe_face_around_edge               => tet_Hcurl_l1_find_interface_fe_face_around_edge 
+  procedure, private :: compute_face_discrete_gradient_elmat             => tet_Hcurl_l1_compute_face_discrete_gradient_elmat
   end type tet_Hcurl_l1_coarse_fe_handler_t
        
   integer(ip), parameter :: opposite_to_coarse_edge                   = 0

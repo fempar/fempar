@@ -1114,7 +1114,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
                  do jshape=1, face_interpolation%number_shape_functions
                     call this%get_value(face_interpolation, jshape, qpoint, v_shape_trial)   	
                     this%change_basis_matrix(d+ishape+c,jshape) = this%change_basis_matrix(d+ishape+c,jshape) &
-                                         + 1/face_area * v_shape_trial * v_scalar_shape_test * tangent * factor
+                                         + 1.0_rp/face_area * v_shape_trial * v_scalar_shape_test * tangent * factor
                  end do
               end do
            end do
