@@ -262,7 +262,7 @@ contains
           end do
        end do
     else if ( inclusion == 5 ) then
-       ! Hieu's test in PB-BDDC article (two channels)
+       ! Number of channels can be choosen from the command line using option -nc
        p1_b = [4.0_rp/32.0_rp, 12.0_rp/32.0_rp, 20.0_rp/32.0_rp, 28.0_rp/32.0_rp] ! lower y value
        p2_b = [6.0_rp/32.0_rp, 14.0_rp/32.0_rp, 22.0_rp/32.0_rp, 30.0_rp/32.0_rp] ! upper y value
 
@@ -270,12 +270,12 @@ contains
        !call memalloc(nchannel_per_direction, p1_c, __FILE__, __LINE__)
        !call memalloc(nchannel_per_direction, p2_c, __FILE__, __LINE__)
        box_width = 1.0_rp/nchannel_per_direction
-       half_channel_width = box_width/16
+       half_channel_width = box_width/5
        center = box_width/2
        eps = 1e-14_rp
        do j=1, nchannel_per_direction
-          p1_c(j)=center - half_channel_width - eps
-          p2_c(j)=center + half_channel_width + eps 
+          p1_c(j)=center - half_channel_width 
+          p2_c(j)=center + half_channel_width  
           center = center + box_width
        enddo
 
