@@ -419,8 +419,8 @@ end subroutine base_mlbddc_allocate_coarse_grid_basis
 
 subroutine base_mlbddc_setup_coarse_grid_basis ( this )
   implicit none
-  class(base_mlbddc_t)           , intent(inout) :: this
-  class(base_fe_space_t)      , pointer       :: fe_space
+  class(base_mlbddc_t)  , intent(inout) :: this
+  class(base_fe_space_t), pointer       :: fe_space
   real(rp), allocatable                     :: work1(:,:)
   real(rp), allocatable                     :: work2(:,:)
   integer(ip)                               :: i, j

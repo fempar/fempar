@@ -847,8 +847,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
 
      ! Update face_map on current face
      local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
-     call face_map%update_face_map(number_cell_dimensions = d_fe_geo%number_dimensions, &
-                                   reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+     call face_map%update_face_map(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
                                    quadrature             = d_1_quadrature ) 
      
      call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
@@ -966,11 +965,11 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   ! Re-define own_node_permutations-related stuff
   if ( allocated(this%number_rotations_per_dimension) )  call memfree (this%number_rotations_per_dimension,__FILE__,__LINE__)
   if ( allocated(this%number_orientations_per_dimension) ) call memfree (this%number_orientations_per_dimension,__FILE__,__LINE__)
-  if (allocated(this%own_node_permutations)) then
+  if (allocated(this%own_dof_permutations)) then
      do i = 1, this%number_dimensions-1
-        call this%own_node_permutations(i)%free()
+        call this%own_dof_permutations(i)%free()
      end do
-     deallocate(this%own_node_permutations, stat=istat)
+     deallocate(this%own_dof_permutations, stat=istat)
      check(istat==0)
   end if
   
@@ -984,7 +983,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
                                                               this%number_orientations_per_dimension(idime))
   end do
   
-  allocate(this%own_node_permutations(this%number_dimensions-1)) 
+  allocate(this%own_dof_permutations(this%number_dimensions-1)) 
   do idime = 1, this%number_dimensions-1
     num_cols_own_node_permutations = this%number_rotations_per_dimension(idime)*this%number_orientations_per_dimension(idime)
     if ( idime == 1 .and. this%number_dimensions == 3 ) then
@@ -993,7 +992,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
       num_rows_own_node_permutations = d_1_interpolation%number_shape_functions
     end if   
   
-   call this%own_node_permutations(this%number_dimensions-1)%create(num_rows_own_node_permutations, &
+   call this%own_dof_permutations(this%number_dimensions-1)%create(num_rows_own_node_permutations, &
                                                                     num_cols_own_node_permutations)
    
    ! Warning: temporarily initializing this%own_node_permutations(number_dimensions-1)%a(:)
@@ -1002,7 +1001,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
    if (num_rows_own_node_permutations > 0) then
      do j=1, num_cols_own_node_permutations
        do i=1, num_rows_own_node_permutations
-         this%own_node_permutations(this%number_dimensions-1)%a(i,j) = i
+         this%own_dof_permutations(this%number_dimensions-1)%a(i,j) = i
        end do
      end do
    end if
@@ -1028,14 +1027,34 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
 
    ! @sbadia: It could be replaced by an anisotropic quadrature
    !==================================================================================================
-   function hex_raviart_thomas_reference_fe_set_number_quadrature_points( this, order, dimension )
+   function hrtrf_compute_number_quadrature_points( this, degree, dimension )
      implicit none
      class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
-     integer(ip)                         , intent(in)    :: order
+     integer(ip)                         , intent(in)    :: degree
      integer(ip)                         , intent(in)    :: dimension
-     integer(ip) :: hex_raviart_thomas_reference_fe_set_number_quadrature_points
-     hex_raviart_thomas_reference_fe_set_number_quadrature_points = (order + 1)**dimension
-   end function hex_raviart_thomas_reference_fe_set_number_quadrature_points
+     integer(ip) :: hrtrf_compute_number_quadrature_points
+     hrtrf_compute_number_quadrature_points = int(ceiling(real(degree + 1,rp)/2.0_rp)**real(dimension,rp),ip)
+   end function hrtrf_compute_number_quadrature_points
+   
+   
+!==================================================================================================
+subroutine hrtrf_fill_qpoints_permutations(this, quadrature, qpoints_perm)
+  implicit none
+  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                  , intent(in)    :: quadrature
+  type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
+  integer(ip)    :: ndime, n_q_points, order
+  
+  ndime      = quadrature%get_number_dimensions()
+  n_q_points = quadrature%get_number_quadrature_points()
+  order      = int(real(n_q_points,rp)**(1.0_rp/real(ndime,rp)),ip)+1
+  
+  call this%node_array%fill_permutations( order, &
+                                          ndime, &
+                                          this%polytope, &
+                                          qpoints_perm )
+  
+end subroutine hrtrf_fill_qpoints_permutations
 
    !**************************************************************************************************
    ! Concrete TBPs of this derived data type

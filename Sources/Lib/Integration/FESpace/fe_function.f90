@@ -52,6 +52,7 @@ module fe_function_names
      procedure, non_overridable          :: create                         => fe_function_create
      procedure, non_overridable          :: update_strong_dirichlet_values => fe_function_update_strong_dirichlet_values
      procedure, non_overridable          :: gather_nodal_values            => fe_function_gather_nodal_values
+     procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
      procedure, private, non_overridable :: interpolate_scalar_function    => fe_function_interpolate_scalar_function
      procedure, private, non_overridable :: interpolate_vector_function    => fe_function_interpolate_vector_function
      procedure, private, non_overridable :: interpolate_tensor_function    => fe_function_interpolate_tensor_function

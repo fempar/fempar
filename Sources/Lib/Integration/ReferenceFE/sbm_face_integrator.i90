@@ -136,7 +136,6 @@ subroutine face_map_update(this,face_lid,face_quadrature,left_reference_fe_geo)
   integer(ip)          , intent(in)    :: face_lid(2)
   type(quadrature_t), intent(in)    :: face_quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
-  integer(ip)             :: number_cell_dimensions
   real   (rp)             :: reorientation_factor
 
   ! Update fe_maps
@@ -147,10 +146,9 @@ subroutine face_map_update(this,face_lid,face_quadrature,left_reference_fe_geo)
   end if
   
   ! Compute normals reorientation factors from |J|'s original sign and face orientation
-  number_cell_dimensions = left_reference_fe_geo%number_dimensions
   reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(face_lid(1),this%fe_maps(1)%fe_map(face_lid(1)))
   ! Update face_map
-  call this%face_map%update_face_map(number_cell_dimensions,reorientation_factor,face_quadrature)
+  call this%face_map%update_face_map(reorientation_factor,face_quadrature)
 end subroutine face_map_update
 
 !==================================================================================================
@@ -253,57 +251,57 @@ function face_map_get_face_map ( this )
 end function face_map_get_face_map
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!volume_integrator_face_restriction_t type bound procedures
-subroutine volume_integrator_face_restriction_create(this, quadrature, reference_fe)
+!cell_integrator_face_restriction_t type bound procedures
+subroutine cell_integrator_face_restriction_create(this, quadrature, reference_fe)
   implicit none
   ! Parameters
-  class(volume_integrator_face_restriction_t), intent(inout) :: this
+  class(cell_integrator_face_restriction_t), intent(inout) :: this
   type(quadrature_t)                         , intent(in)    :: quadrature
   class(reference_fe_t)                      , intent(in)    :: reference_fe
   integer(ip) :: face_lid, istat
   call this%free()
   this%active_face_lid = -1
   this%number_faces = reference_fe%get_number_faces()
-  allocate(this%volume_integrator(this%number_faces), stat = istat); check(istat==0);
+  allocate(this%cell_integrator(this%number_faces), stat = istat); check(istat==0);
   do face_lid =1, this%number_faces
-     call this%volume_integrator(face_lid)%create_on_face(quadrature, reference_fe, face_lid)
+     call this%cell_integrator(face_lid)%create_on_face(quadrature, reference_fe, face_lid)
   end do
-end subroutine volume_integrator_face_restriction_create
+end subroutine cell_integrator_face_restriction_create
 
 !==================================================================================================
-subroutine volume_integrator_face_restriction_update(this, fe_map, face_lid)
+subroutine cell_integrator_face_restriction_update(this, fe_map, face_lid)
   implicit none
-  class(volume_integrator_face_restriction_t), intent(inout) :: this
+  class(cell_integrator_face_restriction_t), intent(inout) :: this
   type(fe_map_t)                             , intent(in)    :: fe_map
   integer(ip)                                , intent(in)    :: face_lid
   this%active_face_lid = face_lid
-  call this%volume_integrator(face_lid)%update(fe_map)
-end subroutine volume_integrator_face_restriction_update
+  call this%cell_integrator(face_lid)%update(fe_map)
+end subroutine cell_integrator_face_restriction_update
 
 !==================================================================================================
-subroutine volume_integrator_face_restriction_free(this)
+subroutine cell_integrator_face_restriction_free(this)
   implicit none
   ! Parameters
-  class(volume_integrator_face_restriction_t), intent(inout) :: this
+  class(cell_integrator_face_restriction_t), intent(inout) :: this
   integer(ip) :: i, istat
-  if (allocated(this%volume_integrator)) then
+  if (allocated(this%cell_integrator)) then
      do i = 1, this%number_faces
-       call this%volume_integrator(i)%free()
+       call this%cell_integrator(i)%free()
      end do
-     deallocate(this%volume_integrator, stat = istat); check(istat==0);
+     deallocate(this%cell_integrator, stat = istat); check(istat==0);
   end if
   this%number_faces   = 0
   this%active_face_lid = 0
-end subroutine volume_integrator_face_restriction_free
+end subroutine cell_integrator_face_restriction_free
 
-function volume_integrator_face_restriction_get_active_volume_integrator(this)
+function cell_integrator_face_restriction_get_active_cell_integrator(this)
   implicit none
   ! Parameters
-  class(volume_integrator_face_restriction_t), target, intent(in) :: this
-  type(volume_integrator_t), pointer :: volume_integrator_face_restriction_get_active_volume_integrator
+  class(cell_integrator_face_restriction_t), target, intent(in) :: this
+  type(cell_integrator_t), pointer :: cell_integrator_face_restriction_get_active_cell_integrator
   assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%number_faces )
-  volume_integrator_face_restriction_get_active_volume_integrator => this%volume_integrator(this%active_face_lid)
-end function volume_integrator_face_restriction_get_active_volume_integrator
+  cell_integrator_face_restriction_get_active_cell_integrator => this%cell_integrator(this%active_face_lid)
+end function cell_integrator_face_restriction_get_active_cell_integrator
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !face_integrator_t type procedures
@@ -318,16 +316,16 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
 
   this%is_boundary = (.not. associated(right_reference_fe))
   this%reference_fe(1)%p => left_reference_fe
-  call this%volume_integrator_face_restriction(1)%create(quadrature,this%reference_fe(1)%p)
+  call this%cell_integrator_face_restriction(1)%create(quadrature,this%reference_fe(1)%p)
 
   if (.not. this%is_boundary) then
      this%reference_fe(2)%p => right_reference_fe
-     call this%volume_integrator_face_restriction(2)%create(quadrature,this%reference_fe(2)%p)
+     call this%cell_integrator_face_restriction(2)%create(quadrature,this%reference_fe(2)%p)
   end if
 
   this%current_qpoints_perm_cols = 1
   
-  call left_reference_fe%fill_qpoints_permutations( quadrature%number_dimensions, &
+  call left_reference_fe%fill_qpoints_permutations( quadrature, &
                                                     this%qpoints_perm )
 end subroutine face_integrator_create
 
@@ -339,25 +337,23 @@ subroutine face_integrator_free(this)
   integer(ip) :: i
   do i=1,2
      this%reference_fe(i)%p => NULL()
-     call this%volume_integrator_face_restriction(i)%free()
+     call this%cell_integrator_face_restriction(i)%free()
   end do
   call this%qpoints_perm%free()
 end subroutine face_integrator_free
 
 !==================================================================================================
-subroutine face_integrator_update(this,face_lid,face_map,relative_orientation,relative_rotation)
+subroutine face_integrator_update(this,face_lid,face_map,permutation_index)
   implicit none
   ! Parameters
   class(face_integrator_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: face_lid(2)
-  integer(ip)             , intent(in)    :: relative_orientation,relative_rotation
+  integer(ip)             , intent(in)    :: permutation_index
   type(face_map_t)        , intent(in)    :: face_map
-  call this%volume_integrator_face_restriction(1)%update(face_map%fe_maps(1)%get_active_fe_map(),face_lid(1))
+  call this%cell_integrator_face_restriction(1)%update(face_map%fe_maps(1)%get_active_fe_map(),face_lid(1))
   if (.not. this%is_boundary) then
-     this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
-         & this%reference_fe(2)%p%number_rotations_per_dimension(this%reference_fe(2)%p%number_dimensions-1)  &
-         & * relative_orientation
-     call this%volume_integrator_face_restriction(2)%update(face_map%fe_maps(2)%get_active_fe_map(),face_lid(2))
+     this%current_qpoints_perm_cols(2) = permutation_index
+     call this%cell_integrator_face_restriction(2)%update(face_map%fe_maps(2)%get_active_fe_map(),face_lid(2))
   end if
 end subroutine face_integrator_update
 
@@ -370,12 +366,12 @@ subroutine face_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scala
   integer(ip)             , intent(in)    :: ineigh
   real(rp)                , intent(out)   :: scalar_field
   integer(ip) :: actual_qpoint
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
-  volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
+  cell_integrator => this%cell_integrator_face_restriction(ineigh)%get_active_cell_integrator()
   actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(ineigh))
-  call volume_integrator%get_value(ishape,actual_qpoint,scalar_field)
+  call cell_integrator%get_value(ishape,actual_qpoint,scalar_field)
 end subroutine face_integrator_get_value_scalar
 
 !==================================================================================================
@@ -388,12 +384,12 @@ subroutine face_integrator_get_value_vector (this, ishape, qpoint, ineigh, vecto
   type(vector_field_t)    , intent(out)   :: vector_field
 
   integer(ip) :: actual_qpoint
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
   assert( this%reference_fe(ineigh)%p%field_type == field_type_vector )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
-  volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
+  cell_integrator => this%cell_integrator_face_restriction(ineigh)%get_active_cell_integrator()
   actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(ineigh))
-  call volume_integrator%get_value(ishape,actual_qpoint,vector_field)
+  call cell_integrator%get_value(ishape,actual_qpoint,vector_field)
 end subroutine face_integrator_get_value_vector
 
 !==================================================================================================
@@ -402,10 +398,10 @@ subroutine face_integrator_get_values_scalar (this, ineigh, values)
   class(face_integrator_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: ineigh
   real(rp), allocatable   , intent(inout) :: values(:,:)
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
-  volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
-  call volume_integrator%get_values(values,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+  cell_integrator => this%cell_integrator_face_restriction(ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_values(values,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
 end subroutine face_integrator_get_values_scalar
 
 !==================================================================================================
@@ -414,11 +410,11 @@ subroutine face_integrator_get_values_vector (this, ineigh, values)
   class(face_integrator_t)         , intent(in)    :: this
   integer(ip)                      , intent(in)    :: ineigh
   type(vector_field_t), allocatable, intent(inout) :: values(:,:)
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
   assert( this%reference_fe(ineigh)%p%field_type == field_type_vector )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
-  volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
-  call volume_integrator%get_values(values,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+  cell_integrator => this%cell_integrator_face_restriction(ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_values(values,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
 end subroutine face_integrator_get_values_vector
 
 !=================================================================================================
@@ -431,12 +427,12 @@ subroutine face_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, ve
   type(vector_field_t)    , intent(out)   :: vector_field
   
   integer(ip) :: actual_qpoint
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
   actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(ineigh))
-  volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
-  call volume_integrator%get_gradient(ishape,actual_qpoint,vector_field)
+  cell_integrator => this%cell_integrator_face_restriction(ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_gradient(ishape,actual_qpoint,vector_field)
 end subroutine face_integrator_get_gradient_scalar
 
 !=================================================================================================
@@ -445,11 +441,11 @@ subroutine face_integrator_get_gradients_scalar (this, ineigh, gradients)
   class(face_integrator_t)         , intent(in)    :: this
   integer(ip)                      , intent(in)    :: ineigh
   type(vector_field_t), allocatable, intent(inout) :: gradients(:,:)
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
-  volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
-  call volume_integrator%get_gradients(gradients,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+  cell_integrator => this%cell_integrator_face_restriction(ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_gradients(gradients,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
 end subroutine face_integrator_get_gradients_scalar
 
 !=================================================================================================
@@ -462,13 +458,13 @@ subroutine face_integrator_get_curl_vector (this, ishape, qpoint, ineigh, vector
   type(vector_field_t)    , intent(out)   :: vector_field
   
   integer(ip) :: actual_qpoint
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
 
   assert( this%reference_fe(ineigh)%p%field_type == field_type_vector )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
-  volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
+  cell_integrator => this%cell_integrator_face_restriction(ineigh)%get_active_cell_integrator()
   actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(ineigh))
-  call volume_integrator%get_curl(ishape,actual_qpoint,vector_field)
+  call cell_integrator%get_curl(ishape,actual_qpoint,vector_field)
 end subroutine face_integrator_get_curl_vector
 
 !=================================================================================================
@@ -477,11 +473,11 @@ subroutine face_integrator_get_curls_vector (this, ineigh, curls)
   class(face_integrator_t)             , intent(in)    :: this
   integer(ip)                          , intent(in)    :: ineigh
   type(vector_field_t)    , allocatable, intent(inout) :: curls(:,:)
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
   assert( this%reference_fe(ineigh)%p%field_type == field_type_vector )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
-  volume_integrator => this%volume_integrator_face_restriction(ineigh)%get_active_volume_integrator()
-  call volume_integrator%get_curls(curls,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
+  cell_integrator => this%cell_integrator_face_restriction(ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_curls(curls,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(ineigh)))
 end subroutine face_integrator_get_curls_vector
 
 !=================================================================================================
@@ -503,9 +499,9 @@ subroutine face_integrator_evaluate_fe_function_scalar ( this,                  
   integer(ip)             , intent(in)    :: neighbour_id
   real(rp)                , intent(in)    :: nodal_values(:)
   real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
-  type(volume_integrator_t), pointer :: volume_integrator
-  volume_integrator => this%volume_integrator_face_restriction(neighbour_id)%get_active_volume_integrator()
-  call volume_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_face_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
 end subroutine face_integrator_evaluate_fe_function_scalar
 
 !=================================================================================================
@@ -518,9 +514,9 @@ subroutine face_integrator_evaluate_fe_function_vector ( this,                  
   integer(ip)                      , intent(in)    :: neighbour_id
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  type(volume_integrator_t), pointer :: volume_integrator
-  volume_integrator => this%volume_integrator_face_restriction(neighbour_id)%get_active_volume_integrator()
-  call volume_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_face_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
 end subroutine face_integrator_evaluate_fe_function_vector
 
 !=================================================================================================
@@ -533,9 +529,9 @@ subroutine face_integrator_evaluate_fe_function_tensor ( this,                  
   integer(ip)                      , intent(in)    :: neighbour_id
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  type(volume_integrator_t), pointer :: volume_integrator
-  volume_integrator => this%volume_integrator_face_restriction(neighbour_id)%get_active_volume_integrator()
-  call volume_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_face_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
 end subroutine face_integrator_evaluate_fe_function_tensor
 
 !=================================================================================================
@@ -548,9 +544,9 @@ subroutine face_integrator_evaluate_gradient_fe_function_scalar ( this,         
   integer(ip)                      , intent(in)    :: neighbour_id
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  type(volume_integrator_t), pointer :: volume_integrator
-  volume_integrator => this%volume_integrator_face_restriction(neighbour_id)%get_active_volume_integrator()
-  call volume_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_face_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
 end subroutine face_integrator_evaluate_gradient_fe_function_scalar
 
 !=================================================================================================
@@ -563,7 +559,7 @@ subroutine face_integrator_evaluate_gradient_fe_function_vector ( this,         
   integer(ip)                      , intent(in)    :: neighbour_id
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  type(volume_integrator_t), pointer :: volume_integrator
-  volume_integrator => this%volume_integrator_face_restriction(neighbour_id)%get_active_volume_integrator()
-  call volume_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_face_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
 end subroutine face_integrator_evaluate_gradient_fe_function_vector

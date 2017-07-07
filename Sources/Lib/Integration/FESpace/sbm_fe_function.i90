@@ -93,6 +93,46 @@
                                              nodal_values )
     
   end subroutine fe_function_gather_nodal_values
+
+  subroutine fe_function_insert_nodal_values ( this, fe, field_id, nodal_values )
+    implicit none
+    class(fe_function_t)       , intent(inout) :: this 
+    class(fe_iterator_t)       , intent(in)    :: fe
+    integer(ip)                , intent(in)    :: field_id
+    real(rp)                   , intent(in)    :: nodal_values(:)
+    
+    class(reference_fe_t)      , pointer :: reference_fe
+    real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
+    integer(ip)                , pointer :: elem2dof(:)
+    integer(ip) :: inode, number_nodes_field
+    integer(ip) :: block_id
+    integer(ip), pointer :: field_blocks(:)
+    
+    call fe%get_field_elem2dof(field_id,elem2dof)
+    reference_fe => fe%get_reference_fe(field_id)
+    number_nodes_field = reference_fe%get_number_shape_functions()
+    assert(number_nodes_field<=size(nodal_values))
+
+    if ( fe%at_strong_dirichlet_boundary(field_id) ) then
+      ! Insert nodal values associated to dirichlet bcs
+      strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
+      do inode = 1, number_nodes_field
+        if ( elem2dof(inode) < 0 ) then
+            strong_dirichlet_values_entries(-elem2dof(inode)) = nodal_values(inode)
+        end if
+      end do
+    end if
+    
+    field_blocks => fe%get_field_blocks()
+    block_id = field_blocks(field_id)
+    
+    ! Extract nodal values associated to dofs
+    call this%dof_values%insert_subvector ( block_id, &
+                                             number_nodes_field, &
+                                             elem2dof, &
+                                             nodal_values )
+    
+  end subroutine fe_function_insert_nodal_values
   
   subroutine fe_function_interpolate_scalar_function( this, &
                                                       fe_space, &
