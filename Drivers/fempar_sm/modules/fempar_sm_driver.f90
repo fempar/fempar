@@ -376,9 +376,9 @@ end subroutine free_timers
     
     ! BDDC preconditioner
     plist => this%parameter_list 
-    if ( this%par_environment%get_l1_size() == 1 ) then
-       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-    end if
+    !if ( this%par_environment%get_l1_size() == 1 ) then
+    !   FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    !end if
     do ilev=1, this%par_environment%get_num_levels()-1
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
        FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
@@ -387,13 +387,13 @@ end subroutine free_timers
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
        plist  => coarse 
     end do
-    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
     
     ! Set coarsest-grid solver type (currently NOT inherited from fine level matrices types)
     if(this%fempar_sm_integration%is_coercive()) then
-       FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
     else
-       FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
     end if
 
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
