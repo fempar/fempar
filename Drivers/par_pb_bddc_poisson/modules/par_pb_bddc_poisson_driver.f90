@@ -263,15 +263,55 @@ contains
        end do
     else if ( inclusion == 5 ) then
        ! Number of channels can be choosen from the command line using option -nc
-       p1_b = [4.0_rp/32.0_rp, 12.0_rp/32.0_rp, 20.0_rp/32.0_rp, 28.0_rp/32.0_rp] ! lower y value
-       p2_b = [6.0_rp/32.0_rp, 14.0_rp/32.0_rp, 22.0_rp/32.0_rp, 30.0_rp/32.0_rp] ! upper y value
 
        ! defining positions of the channels
-       !call memalloc(nchannel_per_direction, p1_c, __FILE__, __LINE__)
-       !call memalloc(nchannel_per_direction, p2_c, __FILE__, __LINE__)
        box_width = 1.0_rp/nchannel_per_direction
        half_channel_width = box_width/5
        center = box_width/2
+       eps = 1e-14_rp
+       do j=1, nchannel_per_direction
+          p1_c(j)=center - half_channel_width 
+          p2_c(j)=center + half_channel_width  
+          center = center + box_width
+       enddo
+
+       nchannel = 1
+       ! x edges
+       do j = 1, nchannel_per_direction
+          do k = 1,nchannel_per_direction
+             call origin%set(1,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(3,p1_c(k));
+             call opposite%set(1,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(3,p2_c(k));
+             nchannel = nchannel + 1
+             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+          end do
+       end do
+       ! y edges
+       do j = 1, nchannel_per_direction
+          do k = 1,nchannel_per_direction
+             call origin%set(2,0.0_rp)  ; call origin%set(1, p1_c(j)) ; call origin%set(3,p1_c(k));
+             call opposite%set(2,1.0_rp); call opposite%set(1,p2_c(j)); call opposite%set(3,p2_c(k));
+             nchannel = nchannel + 1
+             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+          end do
+       end do
+       ! z edges
+       do j = 1, nchannel_per_direction
+          do k = 1,nchannel_per_direction
+             call origin%set(3,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(1,p1_c(k));
+             call opposite%set(3,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(1,p2_c(k));
+             nchannel = nchannel + 1
+             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+          end do
+       end do
+    else if ( inclusion == 6 ) then
+       ! Number of channels can be choosen from the command line using option -nc
+       ! Channels are positioned so that some will touch but not cross the interface
+       ! if the nchannel_per_direction is a multiple of the number partitions per direction 
+
+       ! defining positions of the channels
+       box_width = 1.0_rp/nchannel_per_direction
+       half_channel_width = box_width/5
+       center = half_channel_width
        eps = 1e-14_rp
        do j=1, nchannel_per_direction
           p1_c(j)=center - half_channel_width 
