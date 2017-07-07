@@ -173,6 +173,8 @@ contains
     class(vef_iterator_t),allocatable :: vef
 
     class(cell_iterator_t), allocatable :: cell
+    integer(ip) :: ilev
+    integer(ip) :: max_levels
 
 
     ! Create the triangulation, with the levelsetfunction
@@ -192,7 +194,40 @@ contains
        call this%triangulation%free_vef_iterator(vef)
     end if
     
-    call this%triangulation%print()
+    max_levels = 3
+    do ilev = 1, max_levels
+      ! Refine one level uniformly
+      call this%triangulation%create_cell_iterator(cell)
+      do while (.not. cell%has_finished())
+        call cell%set_for_refinement()
+        call cell%next()
+      end do
+      call this%triangulation%refine_and_coarsen()
+      call this%triangulation%free_cell_iterator(cell)
+    end do
+    
+    !! Refine one level uniformly
+    !call this%triangulation%create_cell_iterator(cell)
+    !do while (.not. cell%has_finished())
+    !  call cell%set_for_refinement()
+    !  call cell%next()
+    !end do
+    !call this%triangulation%refine_and_coarsen()    
+    !call this%triangulation%free_cell_iterator(cell)
+    
+    !! Refine one level uniformly
+    !call this%triangulation%create_cell_iterator(cell)
+    !do while (.not. cell%has_finished())
+    !  call cell%set_for_refinement()
+    !  call cell%next()
+    !end do
+    !call this%triangulation%refine_and_coarsen()    
+    !call this%triangulation%free_cell_iterator(cell)
+    
+    ! Update the marching cubes accordingly (TODO: move this inside refine and coarsen)
+    call this%triangulation%update_cut_cells(this%level_set_function)
+    
+    !call this%triangulation%print()
 
   end subroutine setup_triangulation
   
@@ -207,7 +242,7 @@ contains
     real(rp), parameter :: Ri = 0.15625
     real(rp) :: R
     integer(ip), parameter :: max_num_cell_nodes = 4
-    integer(ip), parameter :: max_level = 3
+    integer(ip), parameter :: max_level = 2
     real(rp) :: val
 
     call this%triangulation%create_cell_iterator(cell)
@@ -222,7 +257,7 @@ contains
       call cell%get_coordinates(coords)
       do k=1,cell%get_num_nodes()
         call this%level_set_function%get_value_space(coords(k),val)
-        if ( (val<0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0)) then
+        if ( (val<0) .and. (cell%get_level()< max_level) .or. (cell%get_level() == 0)) then
           call cell%set_for_refinement()
           exit
         end if
@@ -784,15 +819,15 @@ contains
     call this%fill_cells_set()
     call this%setup_reference_fes()
     
-    ! It is conter intuitive that this is needed for adapting the mesh
-    call this%setup_fe_space()
-    call this%setup_system()
-    call this%assemble_system()
-    call this%solution%create(this%fe_space) 
+    !! It is conter intuitive that this is needed for adapting the mesh
+    !call this%setup_fe_space()
+    !call this%setup_system()
+    !call this%assemble_system()
+    !call this%solution%create(this%fe_space) 
     
-    ! Adapt mesh
-    call this%refine_and_coarsen()
-    call this%fill_cells_set()
+    !! Adapt mesh
+    !call this%refine_and_coarsen()
+    !call this%fill_cells_set()
     
     ! Setup fe space and co for the new mesh 
     call this%setup_fe_space()
