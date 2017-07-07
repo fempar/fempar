@@ -61,12 +61,12 @@ module hp_adaptive_fe_space_names
      ! l1                          : constraint DOFs dependencies (0 for independent term)
      ! constraint_dofs_coefficients: constraint DoFs coefficients (also independent term)
      ! u_fixed = sum u_dep w_dep + c
-     integer(ip)                                 :: number_fixed_dofs = -1
-     type(std_vector_integer_ip_t)               :: ptr_constraint_dofs
-     type(std_vector_integer_ip_t)               :: constraint_dofs_dependencies
-     type(std_vector_real_rp_t)                  :: constraint_dofs_coefficients
+     integer(ip), public                         :: number_fixed_dofs = -1
+     type(std_vector_integer_ip_t), public       :: ptr_constraint_dofs
+     type(std_vector_integer_ip_t),public        :: constraint_dofs_dependencies
+     type(std_vector_real_rp_t), public          :: constraint_dofs_coefficients
      
-     type(p4est_serial_triangulation_t), pointer :: p4est_triangulation =>  NULL()
+     type(p4est_serial_triangulation_t), pointer, public :: p4est_triangulation =>  NULL()
    contains
      procedure                            :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
      procedure                            :: create_fe_iterator                                     => serial_hp_adaptive_fe_space_create_fe_iterator
