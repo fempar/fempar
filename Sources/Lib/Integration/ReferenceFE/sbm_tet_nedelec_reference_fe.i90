@@ -1056,7 +1056,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
            do jshape=1, edge_interpolation%number_shape_functions
               call this%get_value(edge_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
-                   + shape_test * v_shape_trial * tangent * factor
+                   + 1.0_rp/tangent%nrm2() * shape_test * v_shape_trial * tangent * factor
            end do
         end do
      end do
@@ -1103,7 +1103,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
         ! Integrate face boundary moments int_Face(u^n q), q \in P_k-2,k-2 x P_k-2,k-2
         do qpoint = 1, face_quadrature%number_quadrature_points
            factor = face_map%get_det_jacobian(qpoint) * face_quadrature%get_weight(qpoint)		   
-           face_area = 0.5_rp*face_map%get_det_jacobian(qpoint) 
+           face_area = 0.5_rp*face_map%get_det_jacobian(qpoint)  
 		! Each scalar test function is endowed with vector field type  
 		! through v_scalar_shape_test * tangent vectors to the face 
            do direction=1,2

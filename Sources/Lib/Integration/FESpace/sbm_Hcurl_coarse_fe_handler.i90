@@ -85,7 +85,7 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_
            case (tangential_average) 
               num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 1
            case (tangential_average_and_first_order_moment) 
-              if ( number_fine_edges_in_subedge == 1 ) then 
+              if ( number_fine_edges_in_subedge == 1 .and. this%order == 1) then 
                  num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 1 
               else 
                  num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 2 
@@ -199,10 +199,10 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
 
                     select case ( edge_continuity_algorithm ) 
                     case (tangential_average) 
-                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp )	
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
                     case (tangential_average_and_first_order_moment) 					  
-                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor * edge_length )	
-                       if ( number_fine_edges_in_subedge .gt. 1 ) then 
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
+                       if ( (number_fine_edges_in_subedge .gt. 1) .or. (this%order .gt. 1) ) then 
                           call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid) )	
                        end if
                     case (all_dofs_in_coarse_edges) 
@@ -223,7 +223,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
               coarse_dof_lid = coarse_dof_lid + 1
            case (tangential_average_and_first_order_moment) 					  
               coarse_dof_lid = coarse_dof_lid + 1
-              if ( number_fine_edges_in_subedge .gt. 1) coarse_dof_lid = coarse_dof_lid + 1
+              if ( (number_fine_edges_in_subedge .gt. 1) .or. (this%order .gt. 1) ) coarse_dof_lid = coarse_dof_lid + 1
            case (all_dofs_in_coarse_edges) 
               coarse_dof_lid = coarse_dof_lid + this%order*number_fine_edges_in_subedge
            end select
@@ -305,7 +305,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
      call this%compute_edge_discrete_gradient_elmat(par_fe_space, edge_elmat)  
      call this%fill_edge_local_change_of_basis(par_fe_space, edge_elmat)
      call this%fill_edge_coupled_to_edges_local_change_of_basis(par_fe_space, edge_elmat)
-    ! if ( this%order > 1 ) call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
+     if ( this%order > 1 ) call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
 
      call this%change_basis_matrix%B%convert(csr_format) 
      ! call this%change_basis_matrix%B%print_matrix_market(6)
@@ -680,7 +680,8 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
   call par_fe_space%create_fe_iterator(fe) 
   call par_fe_space%create_fe_vef_iterator(vef)
   number_nedelec_dofs_per_face = 2*this%order*(this%order-1)
-
+  
+  ref_fe => par_fe_space%get_reference_fe(field_id)
   call Nedelec_fe_2D%create(topology          = topology_hex,          &
                             number_dimensions = 2,                     &
                             order             = this%order-1,          &
@@ -716,7 +717,7 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
 
                     nodes_in_edge          => Lagrangian_fe_3D%get_nodes_n_face() 
                     nodes_in_edge_iterator = nodes_in_edge%create_iterator(ivef_within_fe)
-
+				    
                     call Lagrangian_fe_3D%create_face_interpolation( fe%find_lpos_vef_lid(fe_face%get_lid())-ref_fe%get_first_face_id()+1   ,&
                                                                      fe_face%get_quadrature()                                               ,&
                                                                      Lagrangian_interpolation                                                )
@@ -1677,38 +1678,6 @@ subroutine Hcurl_l1_get_new_basis_dofs_from_vef( this, par_fe_space, local_vef, 
   call memfree(dof_list, __FILE__, __LINE__ )
 end subroutine Hcurl_l1_get_new_basis_dofs_from_vef
 
-function Hcurl_l1_is_at_dirichlet_boundary(this, par_fe_space, vef) result(is_at_dirichlet_boundary)
-  implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)           , intent(in)       :: this
-  type(par_fe_space_t)                          , intent(in)       :: par_fe_space 
-  class(fe_vef_iterator_t)                      , intent(in)       :: vef
-  logical  :: is_at_dirichlet_boundary 
-  
-  class(fe_iterator_t) , allocatable     :: fe
-  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
-  integer(ip)                            :: field_id, ivef_within_cell 
-  integer(ip)            , pointer       :: elem2dof(:)
-  integer(ip)                            :: start_dof, end_dof, idof, dof_lid
-
-  field_id = 1
-  idof     = 0
-  call par_fe_space%create_fe_iterator(fe) 
-
-  call vef%get_cell_around(1,fe)
-  call fe%get_field_elem2dof(field_id, elem2dof)
-  ivef_within_cell = fe%find_lpos_vef_lid( vef%get_lid() )
-  own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
-  
-  ! All dofs on top of the vef are of the same kind 
-  if ( elem2dof(own_dofs_on_vef_iterator%get_current()) < 0 ) then 
-  is_at_dirichlet_boundary = .true. 
-  else 
-  is_at_dirichlet_boundary = .false.
-  end if 
-
-  call par_fe_space%free_fe_iterator(fe) 
-end function Hcurl_l1_is_at_dirichlet_boundary
-
 ! ----------------------------------------------------------------------------------
 !
 !                      Delegated from par_fe_space 
@@ -2063,7 +2032,7 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
            call object%get_vef(ivef_within_object, vef_within_object)
 		   if ( vef_within_object%get_dimension() == 0 ) then  
 		      call edge_interior_vertices(iedge_coarse)%put( key=vef_within_object%get_lid(), val=1, stat=istat); check(istat==now_stored)
-           elseif ( vef_within_object%get_dimension() == 1 .and. (.not. this%is_at_dirichlet_boundary(par_fe_space, vef_within_object) ) ) then  
+           elseif ( vef_within_object%get_dimension() == 1 .and. (.not. vef_within_object%is_at_boundary() ) ) then  
               number_fine_edges_per_coarse_edge( iedge_coarse ) = number_fine_edges_per_coarse_edge( iedge_coarse ) + 1
            end if
         end do
@@ -2098,7 +2067,7 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
         iedge_fine = 0
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object, vef_within_object)
-           if ( vef_within_object%get_dimension() == 1 .and. (.not. this%is_at_dirichlet_boundary(par_fe_space, vef_within_object) ) ) then
+           if ( vef_within_object%get_dimension() == 1 .and. (.not. vef_within_object%is_at_boundary() ) ) then
               iedge_fine = iedge_fine + 1
               fine_edges_list(iedge_coarse, iedge_fine) = vef_within_object%get_lid() 
 
@@ -2273,88 +2242,60 @@ end subroutine mark_nodes_not_belonging_to_edge_object
        end if
     end do
 	
-	call find_minimum_coordinate_node( par_fe_space, start_end_nodes, start_node ) 
+	call find_node_w_minimum_nonconsecutive_gid( par_fe_space, start_end_nodes, start_node ) 
   
     call memfree( start_end_nodes, __FILE__, __LINE__ )
     
   end function identify_following_starting_node_from_list 
-  
-  subroutine find_minimum_coordinate_node( par_fe_space, nodes_array, minimum_x_node_id, index) 
-  implicit none 
-  type(par_fe_space_t)       , intent(in)   :: par_fe_space
-  integer(ip)  , allocatable,  intent(in)   :: nodes_array(:) 
-  integer(ip)                , intent(inout):: minimum_x_node_id 
-  integer(ip), optional      , intent(inout):: index 
-  
-  class(fe_iterator_t), allocatable        :: fe 
-  type(fe_vef_iterator_t)                  :: vertex
-  
-  type(point_t), allocatable               :: cell_coords(:)
-  type(point_t), allocatable               :: node_coords(:)
-  
-  integer(ip)  , pointer              :: sorted_indices(:)
-  integer(ip)  , allocatable, target  :: node_indices(:) 
-  real(rp)     , allocatable          :: icomp_coords(:) 
-  integer(ip)                         :: nodes_with_same_x_i
-  integer(ip) :: npotential_candidates
-  integer(ip) :: i, icomp 
-  
-  
-  npotential_candidates = size(nodes_array)
-  call memalloc( npotential_candidates, icomp_coords,    __FILE__, __LINE__ )
-  call memalloc( npotential_candidates, node_indices,    __FILE__, __LINE__ )
-  
- 
-  call par_fe_space%create_fe_iterator(fe)
-  call par_fe_space%create_fe_vef_iterator(vertex) 
+  	
+ subroutine find_node_w_minimum_nonconsecutive_gid( par_fe_space, nodes_array, local_node_w_min_gid, pos_in_array) 
+   implicit none 
+   type(par_fe_space_t)       , intent(in)   :: par_fe_space
+   integer(ip)  , allocatable,  intent(in)   :: nodes_array(:) 
+   integer(ip)                , intent(inout):: local_node_w_min_gid 
+   integer(ip), optional      , intent(inout):: pos_in_array 
 
-  allocate( node_coords(npotential_candidates), stat=istat); check(istat==0) 
-  allocate( cell_coords( fe%cell%get_num_nodes() ) , stat=istat); check(istat==0) 
-  
-  do inode=1, npotential_candidates
-  call vertex%set_lid(nodes_array(inode))
-  call vertex%get_cell_around(1,fe)
-  call fe%cell%get_coordinates(cell_coords)	
-  ivef_within_cell = fe%find_lpos_vef_lid(vertex%get_lid())
-  node_coords(inode) = cell_coords(ivef_within_cell)
-  end do 
-     	
-	     ! Minimum [ x_i ] identifier and uniqueness determines the starting position 
-    node_indices          = (/(i, i=1,npotential_candidates, 1)/)
-    minimum_x_node_id = 0
-    icomp      = 0
-    do while (minimum_x_node_id == 0)    
-       icomp = icomp + 1
-       sorted_indices => node_indices(1:npotential_candidates) 
-       do inode=1, npotential_candidates 
-          icomp_coords(inode) = node_coords(sorted_indices(inode))%get(icomp) 
-       end do
-       call sort(npotential_candidates, icomp_coords, index=sorted_indices)
-       if ( icomp_coords(1) .lt. icomp_coords(2) ) then 
-          ! Is the only minimum valued node with this coordinates, select it as start_node 
-          minimum_x_node_id = nodes_array( sorted_indices(1) )
-		  if ( present(index) ) index = sorted_indices(1)
-       else ! Compare next component of the coincident ones!	
-          nodes_with_same_x_i = 1	
-          do inode=2, npotential_candidates 
-             if (icomp_coords(inode) == icomp_coords(1) ) then 
-                nodes_with_same_x_i = nodes_with_same_x_i + 1 
-             end if
-          end do
-          npotential_candidates = nodes_with_same_x_i
-          call memrealloc( npotential_candidates, icomp_coords, __FILE__, __LINE__) 
-       end if
-       assert( icomp .le. 3 ) 
-    end do
-	
-	call memfree( icomp_coords, __FILE__, __LINE__ ) 
-	call memfree( node_indices, __FILE__, __LINE__ )
-	deallocate( node_coords, stat=istat); check(istat==0) 
-	deallocate( cell_coords, stat=istat); check(istat==0) 
-	call par_fe_space%free_fe_iterator(fe)
-	call par_fe_space%free_fe_vef_iterator(vertex)
-	
-	end subroutine find_minimum_coordinate_node
+   class(fe_iterator_t), allocatable        :: fe 
+   type(fe_vef_iterator_t)                  :: vertex
+
+   type(par_triangulation_t)         :: triangulation
+   integer(igp)  , allocatable       :: node_gids(:) 
+   integer(ip)                    :: inode, npotential_candidates 
+   integer(igp)                   :: cell_around_gid, maximum_cell_around_gid 
+   integer(ip)                    :: ielem, ielem_with_max_gid, inode_w_min_gid 
+
+   npotential_candidates = size(nodes_array)
+   call memalloc( npotential_candidates, node_gids,  __FILE__, __LINE__ )
+
+   call par_fe_space%create_fe_iterator(fe)
+   call par_fe_space%create_fe_vef_iterator(vertex) 
+ 
+   do inode=1, npotential_candidates
+      call vertex%set_lid(nodes_array(inode))
+	  maximum_cell_around_gid = 0 
+      do ielem = 1, vertex%get_num_cells_around()  
+         call vertex%get_cell_around(ielem,fe)
+         cell_around_gid = fe%get_gid()	
+         if ( cell_around_gid > maximum_cell_around_gid ) then 
+            maximum_cell_around_gid = cell_around_gid
+            ielem_with_max_gid      = ielem 
+         end if
+      end do
+      call vertex%get_cell_around(ielem_with_max_gid, fe)
+      ivef_within_cell = fe%find_lpos_vef_lid(vertex%get_lid())
+      node_gids(inode) = triangulation%generate_non_consecutive_vef_gid( maximum_cell_around_gid, ivef_within_cell, 1 )  
+   end do
+   
+   call par_fe_space%free_fe_iterator(fe)
+   call par_fe_space%free_fe_vef_iterator(vertex)
+
+   inode_w_min_gid      = minloc( node_gids, DIM=1 ) 
+   local_node_w_min_gid = nodes_array( inode_w_min_gid ) 
+   
+   if (present(pos_in_array)) pos_in_array = inode_w_min_gid
+
+   call memfree( node_gids, __FILE__, __LINE__ )
+ end subroutine find_node_w_minimum_nonconsecutive_gid
 
   subroutine build_path_from_starting_node() 
 
@@ -2455,8 +2396,7 @@ end subroutine mark_nodes_not_belonging_to_edge_object
 			 end do 
 			 end do 
 			 	 
-     ! Choose minimum node coordinate based 
-       call find_minimum_coordinate_node( par_fe_space, potential_following_nodes, following_node, index )
+	 call find_node_w_minimum_nonconsecutive_gid( par_fe_space, potential_following_nodes, following_node, index )
 	   
 	 ! Add first VEF from the minimum coordinate based direction 
 	 iedge = potential_following_edges(index)

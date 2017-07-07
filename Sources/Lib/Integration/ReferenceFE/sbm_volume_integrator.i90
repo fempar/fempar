@@ -409,9 +409,8 @@ subroutine fe_map_update_edge_map(this,local_edge_id,reference_fe,quadrature)
           &                         sqrt(dot_product(this%tangents(:,evaluation_point_id), &
           &                                          this%tangents(:,evaluation_point_id)))
 
-     ! Normalize the tangent vector 
      ! @amartin: How can we make the tangent to point in the right direction? 
-     this%tangents (:,evaluation_point_id) = this%tangents (:,evaluation_point_id) / this%det_jacobian(evaluation_point_id) 
+     this%tangents (:,evaluation_point_id) = this%tangents (:,evaluation_point_id)
   end do
 end subroutine fe_map_update_edge_map
 
@@ -692,6 +691,23 @@ function fe_map_is_det_jacobian_possitive ( this )
   logical  ::  fe_map_is_det_jacobian_possitive
   fe_map_is_det_jacobian_possitive = this%det_jacobian_positiveness
 end function fe_map_is_det_jacobian_possitive
+
+function fe_map_compute_measure ( this, quadrature )
+  implicit none
+  class(fe_map_t)     , intent(in) :: this
+  type(quadrature_t)  , intent(in) :: quadrature
+  real(rp)  ::  fe_map_compute_measure 
+  
+  integer(ip)                 :: q_poin 
+    
+  fe_map_compute_measure = 0.0_rp
+  do q_poin = 1, this%number_quadrature_points
+     fe_map_compute_measure = fe_map_compute_measure + &
+          &                   this%get_det_jacobian(q_poin) * &
+          &                   quadrature%get_weight(q_poin)
+  end do
+
+end function fe_map_compute_measure 
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures

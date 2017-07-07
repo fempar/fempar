@@ -425,7 +425,7 @@ end subroutine free_timers
     !w1infty_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     !w1infty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
       !write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-03 )
       !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-03 )
       !write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-03 )
@@ -446,7 +446,6 @@ end subroutine free_timers
     type(output_handler_t)                          :: oh
 	
 	class(fe_iterator_t)              , allocatable    :: fe
-	class(base_static_triangulation_t), pointer        :: triangulation
 	real(rp), allocatable                              :: set_id_cell_vector(:)
 	integer(ip)                                        :: i, istat
 	
@@ -467,9 +466,8 @@ end subroutine free_timers
 	
   contains 
       subroutine build_set_id_cell_vector()
-      triangulation => this%fe_space%get_triangulation()
-      call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
-      do i=1, triangulation%get_num_local_cells()
+      call memalloc(this%triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
+      do i=1, this%triangulation%get_num_local_cells()
             set_id_cell_vector(i) = this%par_environment%get_l1_rank() + 1
       enddo
     end subroutine build_set_id_cell_vector

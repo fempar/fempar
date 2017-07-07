@@ -168,7 +168,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: is_at_boundary            => vef_iterator_is_at_boundary
      procedure, non_overridable          :: is_local                  => vef_iterator_is_local
      procedure, non_overridable          :: is_ghost                  => vef_iterator_is_ghost
-     procedure, non_overridable          :: is_at_interface           => vef_iterator_is_at_interface
+     procedure, non_overridable          :: is_at_interface           => vef_iterator_is_at_interface 
      procedure, non_overridable          :: is_face                   => vef_iterator_is_face
      
      procedure, non_overridable          :: get_num_cells_around      => vef_iterator_get_num_cells_around
@@ -482,10 +482,16 @@ module base_static_triangulation_names
   
   type, extends(fine_triangulation_t) :: par_triangulation_t
   contains
-     procedure, non_overridable          :: create                              => par_triangulation_create
-     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => par_triangulation_allocate_and_fill_lst_vefs_lids 
+     procedure, non_overridable          :: create                            => par_triangulation_create
+     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids   => par_triangulation_allocate_and_fill_lst_vefs_lids 
+	 procedure, nopass, non_overridable  :: generate_non_consecutive_vef_gid  => par_triangulation_generate_non_consecutive_vef_gid
   end type par_triangulation_t
 
+  ! These parameter constants are used in order to generate a unique (non-consecutive) 
+  ! but consistent across MPI tasks global ID (integer(igp)) of a given VEF.
+  integer(ip), parameter :: cell_gid_shift              = 44
+  integer(ip), parameter :: vefs_per_reference_fe_shift = 14
+  integer(ip), parameter :: number_fields_shift         = igp*8-(cell_gid_shift+vefs_per_reference_fe_shift)-1
   
   type, extends(base_static_triangulation_t) :: coarse_triangulation_t
   contains

@@ -137,6 +137,8 @@ module reference_fe_names
      real(rp), allocatable    :: d2sdx(:,:,:,:)     
      ! Coordinates of git  points (number_dimensions,number_quadrature_points)       
      type(point_t), allocatable    :: coordinates_quadrature(:)  
+	 ! Weights of git points ( number_quadrature_points ) 
+	 real(rp), allocatable    :: weights_quadrature(:) 
      ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
      type(point_t), allocatable    :: coordinates_nodes(:)  
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
@@ -181,6 +183,7 @@ module reference_fe_names
      procedure, non_overridable :: get_jacobian_normalized_column    => fe_map_get_jacobian_normalized_column
 	 procedure, non_overridable :: get_jacobian_column               => fe_map_get_jacobian_column
      procedure, non_overridable :: is_det_jacobian_positive          => fe_map_is_det_jacobian_possitive
+	 procedure, non_overridable :: compute_measure                   => fe_map_compute_measure 
   end type fe_map_t
 
   type p_fe_map_t
