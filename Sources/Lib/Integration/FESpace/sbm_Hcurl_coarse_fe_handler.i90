@@ -281,7 +281,7 @@ subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y)
   y_local         => y%get_serial_scalar_array()
   y_local_entries => y_local%get_entries()
 
-  call this%apply_global_change_basis_transpose( x, x )
+  call this%apply_global_change_basis_transpose( x, x ) 
   y_local_entries = x_local_entries*W 
   call this%apply_inverse_local_change_basis_transpose( y_local, y_local )  
 
@@ -1072,12 +1072,13 @@ subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
 	 c = (direction-1)*number_scalar_test_functions 
 	 face_area = 0.5_rp*face_map_face_map%get_det_jacobian(qpoint)
 	 call face_map_face_map%get_jacobian_column(direction,qpoint,tangent)
+	 WRITE(*,*) 'TANGENT', tangent%get(1), tangent%get(2), tangent%get(3) 
      do ishape = 1, number_scalar_test_functions 
         call ref_fe_2D%get_value(ref_fe_interpolation, ishape, qpoint, v_shape_test)
         call nodes_in_edge_iterator%begin() 
         do jshape = 1, nodes_in_edge_iterator%get_size() 
            call Lagrangian_fe_3D%get_gradient(Lagrangian_interpolation_phy, nodes_in_edge_iterator%get_current(), qpoint, gradv_shape_trial)		         
-           elmat(ishape+c,jshape) = elmat(ishape+c, jshape) + 1.0_rp/face_area*factor*gradv_shape_trial*v_shape_test*tangent 
+           elmat(ishape+c,jshape) = elmat(ishape+c, jshape) + 1.0_rp/face_area * factor*gradv_shape_trial*v_shape_test*tangent 
            call nodes_in_edge_iterator%next() 
         end do
      end do
