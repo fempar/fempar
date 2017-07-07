@@ -178,6 +178,7 @@ module reference_fe_names
      procedure, non_overridable :: get_quadrature_points_coordinates => fe_map_get_quadrature_points_coordinates
      procedure, non_overridable :: get_inv_jacobian_tensor           => fe_map_get_inv_jacobian_tensor
      procedure, non_overridable :: get_reference_h                   => fe_map_get_reference_h
+     procedure, non_overridable :: apply_jacobian                    => fe_map_apply_jacobian
      procedure, non_overridable :: apply_inv_jacobian                => fe_map_apply_inv_jacobian
      procedure, non_overridable :: compute_quadrature_coordinates    => fe_map_compute_quadrature_coordinates
      procedure, non_overridable :: get_quadrature_coordinates        => fe_map_get_quadrature_coordinates
