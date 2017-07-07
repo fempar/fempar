@@ -66,7 +66,7 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
   type(fe_map_t)           , pointer :: fe_map
   type(quadrature_t)       , pointer :: quad
   type(point_t)            , pointer :: quad_coords(:)
-  type(volume_integrator_t), pointer :: vol_int
+  type(cell_integrator_t)  , pointer :: cell_int
   type(tensor_field_t), allocatable  :: shape_gradients(:,:)
   type(vector_field_t), allocatable  :: shape_values(:,:)
 
@@ -111,7 +111,7 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
   quad            => fe%get_quadrature()
   num_quad_points = quad%get_number_quadrature_points()
   fe_map          => fe%get_fe_map()
-  vol_int         => fe%get_volume_integrator(1)
+  cell_int         => fe%get_cell_integrator(1)
 
   do while ( .not. fe%has_finished())
 
@@ -132,8 +132,8 @@ subroutine irreducible_discrete_integration_integrate ( this, fe_space, matrix_a
         ! Compute element matrix and vector
         elmat = 0.0_rp
         elvec = 0.0_rp
-        call vol_int%get_gradients(shape_gradients)
-        call vol_int%get_values(shape_values)
+        call cell_int%get_gradients(shape_gradients)
+        call cell_int%get_values(shape_values)
 
         ! Tangent
         if (this%terms_to_integrate == tangent_terms .or. this%terms_to_integrate == tangent_and_translation_terms) then

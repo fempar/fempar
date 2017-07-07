@@ -65,8 +65,8 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_arr
   type(fe_map_t)           , pointer :: fe_map
   type(quadrature_t)       , pointer :: quad
   type(point_t)            , pointer :: quad_coords(:)
-  type(volume_integrator_t), pointer :: vol_int_u
-  type(volume_integrator_t), pointer :: vol_int_p
+  type(cell_integrator_t)  , pointer :: cell_int_u
+  type(cell_integrator_t)  , pointer :: cell_int_p
   type(vector_field_t), allocatable  :: shape_p_gradients(:,:)
   real(rp)            , allocatable  :: shape_p_values(:,:)
   type(tensor_field_t), allocatable  :: shape_u_gradients(:,:)
@@ -113,8 +113,8 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_arr
   quad            => fe%get_quadrature()
   num_quad_points = quad%get_number_quadrature_points()
   fe_map          => fe%get_fe_map()
-  vol_int_u => fe%get_volume_integrator(1)
-  vol_int_p => fe%get_volume_integrator(2)
+  cell_int_u => fe%get_cell_integrator(1)
+  cell_int_p => fe%get_cell_integrator(2)
 
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
@@ -135,10 +135,10 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, matrix_arr
         elmat = 0.0_rp
         elvec = 0.0_rp
 
-        call vol_int_u%get_gradients(shape_u_gradients)
-        call vol_int_u%get_values(shape_u_values)
-        call vol_int_p%get_gradients(shape_p_gradients)
-        call vol_int_p%get_values(shape_p_values)
+        call cell_int_u%get_gradients(shape_u_gradients)
+        call cell_int_u%get_values(shape_u_values)
+        call cell_int_p%get_gradients(shape_p_gradients)
+        call cell_int_p%get_values(shape_p_values)
 
         do qpoint = 1, num_quad_points
            dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)

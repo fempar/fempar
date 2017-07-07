@@ -317,11 +317,8 @@ end subroutine free_timers
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%fempar_sm_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handlers  = this%coarse_fe_handlers, &
-                               field_blocks        = this%fempar_sm_integration%get_field_blocks(),            &
-                               field_coupling      = this%fempar_sm_integration%get_field_coupling())
+                               coarse_fe_handlers  = this%coarse_fe_handlers)
     
-    call this%fe_space%fill_dof_info() 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%interpolate_dirichlet_values(this%fempar_sm_conditions)    
@@ -342,6 +339,27 @@ end subroutine free_timers
     type(vector_field_t) :: zero_vector_field
     class(vector_t), pointer  :: dof_values
     
+    ! FE operator
+    if(this%fempar_sm_integration%is_symmetric().and.this%fempar_sm_integration%is_coercive()) then
+       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+            &                                diagonal_blocks_symmetric_storage = [ .true. ], &
+            &                                diagonal_blocks_symmetric         = [ .true. ], &
+            &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+            &                                fe_space                          = this%fe_space, &
+            &                                discrete_integration              = this%fempar_sm_integration, &
+            &                                field_blocks                      = this%fempar_sm_integration%get_field_blocks(),            &
+            &                                field_coupling                    = this%fempar_sm_integration%get_field_coupling()) 
+    else if(this%fempar_sm_integration%is_symmetric()) then
+       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+            &                                diagonal_blocks_symmetric_storage = [ .true. ], &
+            &                                diagonal_blocks_symmetric         = [ .true. ], &
+            &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ], &
+            &                                fe_space                          = this%fe_space, &
+            &                                discrete_integration              = this%fempar_sm_integration, &
+            &                                field_blocks                      = this%fempar_sm_integration%get_field_blocks(),            &
+            &                                field_coupling                    = this%fempar_sm_integration%get_field_coupling()) 
+    end if
+
     ! Solution and initial guess
     call this%solution%create(this%fe_space) 
     call this%zero_scalar%create(0.0_rp)
@@ -356,24 +374,7 @@ end subroutine free_timers
     end do
     call this%solution%update_strong_dirichlet_values(this%fe_space)
     call this%fempar_sm_integration%set_fe_function(this%solution)
-    
-    ! FE operator
-    if(this%fempar_sm_integration%is_symmetric().and.this%fempar_sm_integration%is_coercive()) then
-       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-            &                                diagonal_blocks_symmetric_storage = [ .true. ], &
-            &                                diagonal_blocks_symmetric         = [ .true. ], &
-            &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-            &                                fe_space                          = this%fe_space, &
-            &                                discrete_integration              = this%fempar_sm_integration )
-    else if(this%fempar_sm_integration%is_symmetric()) then
-       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-            &                                diagonal_blocks_symmetric_storage = [ .true. ], &
-            &                                diagonal_blocks_symmetric         = [ .true. ], &
-            &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ], &
-            &                                fe_space                          = this%fe_space, &
-            &                                discrete_integration              = this%fempar_sm_integration )
-    end if
-    
+        
     ! BDDC preconditioner
     plist => this%parameter_list 
     !if ( this%par_environment%get_l1_size() == 1 ) then
