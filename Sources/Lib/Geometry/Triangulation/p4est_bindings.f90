@@ -131,7 +131,7 @@ module p4est_bindings_names
                                                    quadcoords, &
                                                    quadlevel) bind(c,name="F90_p4est_get_mesh_topology_arrays")
        use, intrinsic :: iso_c_binding
-       import :: P4EST_F90_LOCIDX, P4EST_F90_GLOIDX, P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
        implicit none
        type(c_ptr), value       , intent(in)     :: p4est
        type(c_ptr), value       , intent(in)     :: p4est_mesh
@@ -242,6 +242,35 @@ module p4est_bindings_names
        integer(c_int)            , value, intent(in)     :: corner
        real(c_double)                   , intent(inout)  :: vxyz(3)
      end subroutine F90_p4est_get_quadrant_vertex_coordinates
+     
+     !=================================================================================================================================
+     !> summary: Test if a quadrant q1 is an ancestor of another quadrant q2.
+     !=================================================================================================================================
+     function F90_p4est_is_ancestor(q1_x,q1_y,q1_level,q2_x,q2_y,q2_level) bind(c, name="F90_p4est_is_ancestor")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q1_x
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q1_y
+       integer(P4EST_F90_QLEVEL) , value, intent(in)     :: q1_level
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q2_x
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q2_y
+       integer(P4EST_F90_QLEVEL) , value, intent(in)     :: q2_level
+       integer(c_int)                                    :: F90_p4est_is_ancestor
+     end function F90_p4est_is_ancestor
+     
+     !=================================================================================================================================
+     !> summary: Set quadrant q Morton indices based on linear position id in uniform grid of level l.
+     !=================================================================================================================================
+     subroutine F90_p4est_quadrant_set_morton(l,id,q_x,q_y) bind(c, name="F90_p4est_quadrant_set_morton")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD
+       implicit none
+       integer(c_int)           , value, intent(in)     :: l
+       integer(c_int64_t)       , value, intent(in)     :: id
+       integer(P4EST_F90_QCOORD)       , intent(out)    :: q_x
+       integer(P4EST_F90_QCOORD)       , intent(out)    :: q_y
+     end subroutine F90_p4est_quadrant_set_morton
      
      !subroutine p4_savemesh(filename, p4est) bind(c)
      !  !=================================================================================================================================

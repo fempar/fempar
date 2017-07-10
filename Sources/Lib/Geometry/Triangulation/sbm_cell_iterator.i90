@@ -363,11 +363,12 @@ function cell_iterator_is_ghost (this)
   cell_iterator_is_ghost = (this%lid > this%base_static_triangulation%num_local_cells)
 end function cell_iterator_is_ghost
 
-function cell_iterator_is_ancestor(this,child_coords)
+function cell_iterator_is_ancestor(this,child_level,child_linear_id)
   implicit none
   class(cell_iterator_t), intent(in) :: this
-  integer(ip)           , intent(in) :: child_coords(:)
-  logical     :: cell_iterator_is_ancestor
+  integer(ip)           , intent(in) :: child_level
+  integer(ip)           , intent(in) :: child_linear_id
+  logical :: cell_iterator_is_ancestor
   assert(.false.)
 end function cell_iterator_is_ancestor
 
