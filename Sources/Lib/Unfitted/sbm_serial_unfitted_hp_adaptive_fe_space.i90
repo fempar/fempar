@@ -81,6 +81,14 @@ subroutine suhpafs_free(this)
 end subroutine suhpafs_free
 
 !========================================================================================
+subroutine suhpafs_set_use_constraints(this,use_constraints)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
+  logical, intent(in) :: use_constraints
+  this%use_constraints = use_constraints
+end subroutine suhpafs_set_use_constraints
+
+!========================================================================================
 subroutine suhpafs_create_fe_iterator(this, fe)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(in)    :: this
@@ -100,9 +108,12 @@ subroutine suhpafs_fill_dof_info( this, block_layout )
   integer(ip) :: block_id, field_id
   type(block_layout_t), pointer :: p_block_layout
 
-  ! Call the father
-  call this%serial_hp_adaptive_fe_space_t%fill_dof_info(block_layout)
-  
+  if (.not. this%use_constraints) then
+    ! Call the father
+    call this%serial_hp_adaptive_fe_space_t%fill_dof_info(block_layout)
+    return
+  end if
+
   p_block_layout => this%get_block_layout()
   perform_numbering = .not. associated(p_block_layout) 
   if (.not. perform_numbering) perform_numbering = .not. (p_block_layout == block_layout)
@@ -159,6 +170,12 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
   integer(ip) :: source_cell_id
   integer(ip) :: source_vef_lid  
   integer(ip) :: icell_improper_around
+
+  if (.not. this%use_constraints) then
+    ! Call the father
+    call this%serial_hp_adaptive_fe_space_t%fill_elem2dof_and_count_dofs(field_id)
+    return
+  end if
 
   field_blocks            => this%get_field_blocks()
   fe_space_type_per_field => this%get_fe_space_type()
@@ -349,8 +366,14 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   class(vef_iterator_t), allocatable :: vef
   integer(ip) :: ivef
 
+
   triangulation => this%get_triangulation()
   call memalloc(triangulation%get_num_local_cells(),this%aggregate_ids,__FILE__,__LINE__)
+
+  if (.not. this%use_constraints) then
+    this%aggregate_ids(:) = 0
+    return
+  end if
  
   call triangulation%create_cell_iterator(cell)
   call triangulation%create_cell_iterator(cell_arround)
@@ -501,8 +524,7 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
       num_dofs_in_root = size(root_elem2dof)
 
       do idof = 1, size(elem2dof)
-        massert( fe%is_fixed_dof(elem2dof(idof)) , 'Only constrained dofs in cut cells allowed' )
-        if ( .not. fe%is_strong_dirichlet_dof(elem2dof(idof)) ) then
+        if ( fe%is_fixed_dof(elem2dof(idof)) .and. (.not. fe%is_strong_dirichlet_dof(elem2dof(idof))) ) then
           improper_dof_lid = abs(elem2dof(idof))
           if ( .not. visited_improper_dof_lids(improper_dof_lid) ) then
             call this%ptr_constraint_dofs%set(improper_dof_lid+1, num_dofs_in_root )
@@ -573,8 +595,7 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
       call cell_integrator%get_values(shape_values)
 
       do idof = 1, size(elem2dof)
-        massert( fe%is_fixed_dof(elem2dof(idof)) , 'Only constrained dofs in cut cells allowed' )
-        if ( .not. fe%is_strong_dirichlet_dof(elem2dof(idof)) ) then
+        if ( fe%is_fixed_dof(elem2dof(idof)) .and. (.not. fe%is_strong_dirichlet_dof(elem2dof(idof))) ) then
           improper_dof_lid = abs(elem2dof(idof))
           if ( .not. visited_improper_dof_lids(improper_dof_lid) ) then
             do root_idof = 1,size(root_elem2dof)
@@ -597,7 +618,7 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   call fe_map%free()
   call cell_integrator%free()
   call nodal_quad_in_root_fe%free()
-  deallocate(shape_values, stat=istat); check(istat==0)
+  call memfree(shape_values,__FILE__,__LINE__)
   call memfree(visited_improper_dof_lids,__FILE__,__LINE__)
 
 end subroutine suhpafs_setup_cut_cells_constraints
@@ -628,7 +649,7 @@ subroutine send_to_reference_space(phys_coords_as_point,fe_quad,fe_map,ref_coord
 #ifdef DEBUG
   det_jacobians => fe_map%get_det_jacobians()
   do qpoint = 1, size(det_jacobians)
-    massert(det_jacobians(1) == det_jacobians(qpoint), 'We assume that the FE map is afine')
+    massert( abs(det_jacobians(1) - det_jacobians(qpoint)) < 1.0e-13, 'We assume that the FE map is afine')
   end do
 #endif
 

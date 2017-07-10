@@ -78,7 +78,7 @@ module hp_adaptive_fe_space_names
      
      
      procedure          :: fill_dof_info                                          => serial_hp_adaptive_fe_space_fill_dof_info
-     procedure, private :: fill_elem2dof_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
+     procedure          :: fill_elem2dof_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
      procedure          :: transfer_dirichlet_to_constraint_dof_coefficients      => shpafs_transfer_dirichlet_to_constraint_dof_coefficients

@@ -445,7 +445,7 @@ module fe_space_names
      procedure                           :: allocate_number_dofs_per_field               =>  serial_fe_space_allocate_number_dofs_per_field
      procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
      procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
-     procedure                 , private :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
+     procedure                           :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
      procedure                 , private :: renumber_dofs_block                          => serial_fe_space_renumber_dofs_block
  
      ! Getters
