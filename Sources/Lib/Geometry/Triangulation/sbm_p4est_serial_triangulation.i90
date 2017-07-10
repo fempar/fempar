@@ -159,7 +159,6 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
     call this%update_cell_set_ids()
     call this%update_vef_set_ids(old_lst_vefs_lids)
     call old_lst_vefs_lids%free()
-    call this%clear_refinement_and_coarsening_flags()
   else if ( this%p4est_num_dimensions == 3 ) then
     check(.false.)
   end if
