@@ -891,7 +891,7 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
      end do
   end do 
 
-   call apply_scaling(this, map, ref, phy) 
+    call apply_scaling(this, map, ref, phy) 
   contains 
 
   subroutine apply_scaling(this,map,ref,phy)  

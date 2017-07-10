@@ -544,6 +544,7 @@ module fe_space_names
   type, abstract :: l1_coarse_fe_handler_t
   contains
     ! Deferred methods
+       procedure (l1_free)                                  , deferred :: free 
        procedure (l1_compute_change_basis_matrix)           , deferred :: compute_change_basis_matrix 
        procedure (l1_get_num_coarse_dofs_interface)         , deferred :: get_num_coarse_dofs
 	   procedure (l1_renumber_interface_dofs_first_E_then_Ec),deferred :: renumber_interface_dofs_first_E_then_Ec
@@ -556,6 +557,11 @@ module fe_space_names
   abstract interface	
     ! In H(curl) conforming spaces a specific change of basis is needed in the 3D case. 
     ! In all other cases this subroutine will have no impact 
+    subroutine l1_free( this ) 
+	import :: l1_coarse_fe_handler_t
+	class(l1_coarse_fe_handler_t), intent(inout) :: this
+	end subroutine l1_free
+	
     subroutine l1_compute_change_basis_matrix( this, par_fe_space ) 
 	import :: l1_coarse_fe_handler_t, par_fe_space_t
 	class(l1_coarse_fe_handler_t), intent(inout) :: this
@@ -683,7 +689,8 @@ module fe_space_names
 	   procedure (Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis) , private, deferred :: fill_face_coupled_to_edges_local_change_of_basis
 	   procedure (Hcurl_l1_find_interface_fe_face_around_edge)               , private, deferred :: find_interface_fe_face_around_edge
 	   procedure (Hcurl_l1_compute_face_discrete_gradient_elmat)             , private, deferred :: compute_face_discrete_gradient_elmat
-	   procedure, non_overridable, private :: assemble_face_coupled_to_edges_B_elmat        => Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
+	   procedure, non_overridable, private :: assemble_face_coupled_to_edges_B_elmat        => Hcurl_l1_assemble_face_coupled_to_edges_B_elmat 
+	   procedure, non_overridable, private :: assemble_face_coupled_to_vertex_B_elmat       => Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat
 	   ! Change of basis application 
 	   procedure, non_overridable, private :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
 	   procedure, non_overridable, private :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose

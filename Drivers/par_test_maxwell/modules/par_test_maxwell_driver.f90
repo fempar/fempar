@@ -50,7 +50,7 @@ module par_test_maxwell_driver_names
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
    !  class(standard_l1_coarse_fe_handler_t), allocatable  :: coarse_fe_handler
-     class( Hcurl_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handler 
+     class(l1_coarse_fe_handler_t), allocatable        :: coarse_fe_handler 
 	 type(maxwell_CG_discrete_integration_t)           :: maxwell_integration
      type(maxwell_conditions_t)                        :: maxwell_conditions
      type(maxwell_analytical_functions_t)              :: maxwell_analytical_functions
@@ -239,11 +239,11 @@ end subroutine free_timers
 	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) ! Nedelec element 
 
 	! Setup alternative fe space in 3D Hcurl problems 	
-!	select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
-!	class is ( Hcurl_l1_coarse_fe_handler_t ) 
+	select type ( ch=> this%coarse_fe_handler ) 
+	class is ( Hcurl_l1_coarse_fe_handler_t ) 
 	call this%coarse_fe_handler%compute_change_basis_matrix( this%fe_space ) 
-!	end select 
-
+	end select 
+	
 	contains 
 	
 	subroutine allocate_Hcurl_coarse_fe_handler_type() 	
@@ -261,6 +261,8 @@ end subroutine free_timers
 	   elseif ( reference_fe_geo%get_topology() == topology_hex ) then 
 	   allocate ( hex_Hcurl_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
 	   end if 
+	 else 
+	  allocate ( standard_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
 	 end if 
 	 end if 
 		
