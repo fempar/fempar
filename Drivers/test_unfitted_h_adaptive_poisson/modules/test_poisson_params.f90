@@ -42,6 +42,7 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_reference_fe_geo_order
      character(len=:), allocatable :: default_reference_fe_order
      character(len=:), allocatable :: default_write_solution
+     character(len=:), allocatable :: default_write_matrix
      character(len=:), allocatable :: default_laplacian_type
      character(len=:), allocatable :: default_triangulation_type
      character(len=:), allocatable :: default_num_dimensions
@@ -51,6 +52,12 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_is_periodic_in_x
      character(len=:), allocatable :: default_is_periodic_in_y
      character(len=:), allocatable :: default_is_periodic_in_z
+     character(len=:), allocatable :: default_max_level
+     character(len=:), allocatable :: default_is_in_fe_space
+     character(len=:), allocatable :: default_check_solution
+     character(len=:), allocatable :: default_unfitted_boundary_is_dirichlet
+     character(len=:), allocatable :: default_is_constant_nitches_beta
+     character(len=:), allocatable :: default_use_constraints
 
      type(Command_Line_Interface):: cli 
 
@@ -62,12 +69,19 @@ module test_poisson_params_names
      integer(ip)                   :: reference_fe_geo_order
      integer(ip)                   :: reference_fe_order
      logical                       :: write_solution
+     logical                       :: write_matrix
      character(len=str_cla_len)    :: laplacian_type
 
      character(len=str_cla_len)    :: triangulation_type
      integer(ip) :: num_dimensions     
      integer(ip) :: number_of_cells_per_dir(0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
+     integer(ip) :: max_level
+     logical :: in_fe_space
+     logical :: check_sol
+     logical :: unfitted_boundary_is_dirichlet
+     logical :: is_constant_nitches_beta
+     logical :: use_constraints
 
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -81,9 +95,16 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
+     procedure, non_overridable             :: get_write_matrix
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dimensions
+     procedure, non_overridable             :: get_max_level
+     procedure, non_overridable             :: is_in_fe_space
+     procedure, non_overridable             :: are_checks_active
+     procedure, non_overridable             :: get_unfitted_boundary_is_dirichlet
+     procedure, non_overridable             :: get_is_constant_nitches_beta
+     procedure, non_overridable             :: get_use_constraints
   end type test_poisson_params_t  
 
   ! Types
@@ -120,6 +141,7 @@ contains
     this%default_reference_fe_geo_order = '1'
     this%default_reference_fe_order = '1'
     this%default_write_solution = '.false.'
+    this%default_write_matrix   = '.false.'
     this%default_laplacian_type = 'scalar'
     
     this%default_triangulation_type = 'unstructured'
@@ -130,6 +152,12 @@ contains
     this%default_is_periodic_in_x = '0'
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
+    this%default_max_level = '3'
+    this%default_is_in_fe_space = '.true.'
+    this%default_check_solution = '.true.'
+    this%default_unfitted_boundary_is_dirichlet = '.true.'
+    this%default_is_constant_nitches_beta       = '.false.'
+    this%default_use_constraints = '.true.'
     
   end subroutine test_poisson_set_default
   
@@ -161,6 +189,9 @@ contains
     call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
          &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
     check(error==0)
+    call this%cli%add(switch='--write-matrix',switch_ab='-wmatrix',help='Write matrix in matrix market format',&
+         &            required=.false.,act='store',def=trim(this%default_write_matrix),error=error) 
+    check(error==0)
     call this%cli%add(switch='--laplacian-type',switch_ab='-lt',help='Scalar or Vector-Valued Laplacian PDE?',&
          &            required=.false.,act='store',def=trim(this%default_laplacian_type),choices='scalar,vector',error=error) 
     check(error==0)
@@ -188,6 +219,24 @@ contains
     call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
     check(error==0) 
+    call this%cli%add(switch='--max_level',switch_ab='-maxl',help='Maximum h-refinement level allowed',&
+         &            required=.false.,act='store',def=trim(this%default_max_level),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--solution_in_fe_space',switch_ab='-in_space',help='Is the solution in fe space',&
+         &            required=.false.,act='store',def=trim(this%default_is_in_fe_space),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--check_solution',switch_ab='-check',help='Check or not the solution',&
+         &            required=.false.,act='store',def=trim(this%default_check_solution),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--is_dirichlet',switch_ab='-is_diri',help='True if the unfitted boundary is dirichlet',&
+         &            required=.false.,act='store',def=trim(this%default_unfitted_boundary_is_dirichlet),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--is_beta_constant',switch_ab='-is_bconst',help='True if the Nitsches beta is constant',&
+         &            required=.false.,act='store',def=trim(this%default_is_constant_nitches_beta),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--use_constraints',switch_ab='-uconstraints',help='Use or not the constraints provided by the cut cell aggregation',&
+         &            required=.false.,act='store',def=trim(this%default_use_constraints),error=error) 
+    check(error==0) 
   end subroutine test_poisson_add_to_cli
   
   subroutine test_poisson_parse(this,parameter_list)
@@ -205,6 +254,7 @@ contains
     call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=istat); check(istat==0)
     call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
     call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
+    call this%cli%get(switch='-wmatrix',val=this%write_matrix,error=istat); check(istat==0)
     call this%cli%get(switch='-lt',val=this%laplacian_type,error=istat); check(istat==0)
     call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
     call this%cli%get(switch='-dim',val=this%num_dimensions,error=istat); check(istat==0)
@@ -214,6 +264,12 @@ contains
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
+    call this%cli%get(switch='-maxl',val=this%max_level,error=istat); check(istat==0)
+    call this%cli%get(switch='-in_space',val=this%in_fe_space,error=istat); check(istat==0)
+    call this%cli%get(switch='-check',val=this%check_sol,error=istat); check(istat==0)
+    call this%cli%get(switch='-is_diri',val=this%unfitted_boundary_is_dirichlet,error=istat); check(istat==0)
+    call this%cli%get(switch='-is_bconst',val=this%is_constant_nitches_beta,error=istat); check(istat==0)
+    call this%cli%get(switch='-uconstraints',val=this%use_constraints,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -242,7 +298,14 @@ contains
     if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
+    if(allocated(this%default_write_matrix)) deallocate(this%default_write_matrix)
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
+    if(allocated(this%default_max_level)) deallocate(this%default_max_level)
+    if(allocated(this%default_is_in_fe_space)) deallocate(this%default_is_in_fe_space)
+    if(allocated(this%default_check_solution)) deallocate(this%default_check_solution)
+    if(allocated(this%default_unfitted_boundary_is_dirichlet)) deallocate(this%default_unfitted_boundary_is_dirichlet)
+    if(allocated(this%default_is_constant_nitches_beta)) deallocate(this%default_is_constant_nitches_beta)
+    if(allocated(this%default_use_constraints)) deallocate(this%default_use_constraints)
     call this%cli%free()
   end subroutine test_poisson_free
 
@@ -293,6 +356,14 @@ contains
     logical :: get_write_solution
     get_write_solution = this%write_solution
   end function get_write_solution
+
+  !==================================================================================================
+  function get_write_matrix(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: get_write_matrix
+    get_write_matrix = this%write_matrix
+  end function get_write_matrix
   
   !==================================================================================================
   function get_laplacian_type(this)
@@ -317,5 +388,53 @@ contains
     integer(ip) :: get_num_dimensions
     get_num_dimensions = this%num_dimensions
   end function get_num_dimensions
+
+  !==================================================================================================
+  function get_max_level(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    integer(ip) :: get_max_level
+    get_max_level = this%max_level
+  end function get_max_level
+
+  !==================================================================================================
+  function is_in_fe_space(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: is_in_fe_space
+    is_in_fe_space = this%in_fe_space
+  end function is_in_fe_space
+
+  !==================================================================================================
+  function are_checks_active(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: are_checks_active
+    are_checks_active = this%check_sol
+  end function are_checks_active
+
+  !==================================================================================================
+  function get_unfitted_boundary_is_dirichlet(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: get_unfitted_boundary_is_dirichlet
+    get_unfitted_boundary_is_dirichlet = this%unfitted_boundary_is_dirichlet
+  end function get_unfitted_boundary_is_dirichlet
+
+  !==================================================================================================
+  function get_is_constant_nitches_beta(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: get_is_constant_nitches_beta
+    get_is_constant_nitches_beta = this%is_constant_nitches_beta
+  end function get_is_constant_nitches_beta
+
+  !==================================================================================================
+  function get_use_constraints(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: get_use_constraints
+    get_use_constraints = this%use_constraints
+  end function get_use_constraints
 
 end module test_poisson_params_names

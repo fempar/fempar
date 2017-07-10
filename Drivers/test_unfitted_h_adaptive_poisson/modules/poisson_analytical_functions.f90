@@ -32,10 +32,18 @@ module poisson_analytical_functions_names
 # include "debug.i90"
   private
 
+  real(rp), parameter :: offset_x = -2.3
+  real(rp), parameter :: offset_y = 0.0
+  real(rp), parameter :: offset_z = 0.0
+  real(rp), parameter :: val_k    = 4.0*PI
+
   type, extends(scalar_function_t) :: base_scalar_function_t
     integer(ip) :: num_dimensions = -1  
+    logical     :: in_fe_space = .true.
   contains
     procedure :: set_num_dimensions    => base_scalar_function_set_num_dimensions 
+    procedure :: set_is_in_fe_space    => base_scalar_function_set_is_in_fe_space
+    procedure :: is_in_fe_space        => base_scalar_function_is_in_fe_space
   end type base_scalar_function_t
   
   type, extends(base_scalar_function_t) :: source_term_t
@@ -64,6 +72,7 @@ module poisson_analytical_functions_names
      type(solution_function_t) :: solution_function
    contains
      procedure :: set_num_dimensions      => poisson_analytical_functions_set_num_dimensions
+     procedure :: set_is_in_fe_space      => poisson_analytical_functions_set_is_in_fe_space
      procedure :: get_source_term         => poisson_analytical_functions_get_source_term
      procedure :: get_boundary_function   => poisson_analytical_functions_get_boundary_function
      procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
@@ -73,6 +82,97 @@ module poisson_analytical_functions_names
 
 contains  
 
+  !==============================================================================================
+  !==============================================================================================
+  subroutine sol_ex002_2d_u(point,val)
+    implicit none
+    type(point_t), intent(in) :: point
+    real(rp), intent(inout) :: val
+    real(rp) :: x1, x2
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    val = sin(val_k*(x1**2 + x2**2)**(1/2.0))
+  end subroutine sol_ex002_2d_u
+
+  !==============================================================================================
+  subroutine sol_ex002_2d_grad_u(point,val)
+    implicit none
+    type(point_t), intent(in) :: point
+    type(vector_field_t), intent(inout) :: val
+    real(rp) :: x1, x2, g1, g2
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    g1 = (val_k*x1*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(1/2.0)
+    g2 = (val_k*x2*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(1/2.0)
+    call val%set(1,g1)
+    call val%set(2,g2)
+    call val%set(3,0.0)
+  end subroutine sol_ex002_2d_grad_u
+
+  !==============================================================================================
+  subroutine sol_ex002_2d_lapl_u(point,val)
+    implicit none
+    type(point_t), intent(in) :: point
+    real(rp), intent(inout) :: val
+    real(rp) :: x1, x2
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    val = (2*val_k*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(1/2.0) -&
+          (val_k**2*x1**2*sin(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2) -&
+          (val_k**2*x2**2*sin(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2) -&
+          (val_k*x1**2*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(3/2.0) -&
+          (val_k*x2**2*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(3/2.0)
+  end subroutine sol_ex002_2d_lapl_u
+
+  !==============================================================================================
+  !==============================================================================================
+  subroutine sol_ex002_3d_u(point,val)
+    implicit none
+    type(point_t), intent(in) :: point
+    real(rp), intent(inout) :: val
+    real(rp) :: x1, x2, x3
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    x3 = point%get(3) - offset_z
+    val = sin(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0))
+  end subroutine sol_ex002_3d_u
+
+  !==============================================================================================
+  subroutine sol_ex002_3d_grad_u(point,val)
+    implicit none
+    type(point_t), intent(in) :: point
+    type(vector_field_t), intent(inout) :: val
+    real(rp) :: x1, x2, x3, g1, g2, g3
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    x3 = point%get(3) - offset_z
+    g1 = (val_k*x1*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(1/2.0)
+    g2 = (val_k*x2*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(1/2.0)
+    g3 = (val_k*x3*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(1/2.0)
+    call val%set(1,g1)
+    call val%set(2,g2)
+    call val%set(3,g3)
+  end subroutine sol_ex002_3d_grad_u
+
+  !==============================================================================================
+  subroutine sol_ex002_3d_lapl_u(point,val)
+    implicit none
+    type(point_t), intent(in) :: point
+    real(rp), intent(inout) :: val
+    real(rp) :: x1, x2, x3
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    x3 = point%get(3) - offset_z
+    val = (3*val_k*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(1/2.0) -&
+          (val_k*x1**2*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(3/2.0) -&
+          (val_k*x2**2*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(3/2.0) -&
+          (val_k*x3**2*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(3/2.0) -&
+          (val_k**2*x1**2*sin(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2) -&
+          (val_k**2*x2**2*sin(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2) -&
+          (val_k**2*x3**2*sin(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)
+  end subroutine sol_ex002_3d_lapl_u
+
+  !===============================================================================================
   subroutine base_scalar_function_set_num_dimensions ( this, num_dimensions )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -81,13 +181,43 @@ contains
   end subroutine base_scalar_function_set_num_dimensions
 
   !===============================================================================================
+  subroutine base_scalar_function_set_is_in_fe_space(this,val)
+    implicit none
+    class(base_scalar_function_t), intent(inout)    :: this
+    logical,                       intent(in)       :: val
+    this%in_fe_space = val
+  end subroutine base_scalar_function_set_is_in_fe_space
+
+  !===============================================================================================
+  function base_scalar_function_is_in_fe_space(this)
+    implicit none
+    class(base_scalar_function_t), intent(in)    :: this
+    logical :: base_scalar_function_is_in_fe_space 
+    base_scalar_function_is_in_fe_space = this%in_fe_space
+  end function base_scalar_function_is_in_fe_space
+
+  !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    result = 0.0_rp 
+    if ( this%num_dimensions == 2 ) then
+      if (this%is_in_fe_space()) then
+        result = 0.0_rp 
+      else
+        call sol_ex002_2d_lapl_u(point,result)
+        result = -1.0*result
+      end if
+    else if ( this%num_dimensions == 3 ) then
+      if (this%is_in_fe_space()) then
+        result = 0.0_rp 
+      else
+        call sol_ex002_3d_lapl_u(point,result)
+        result = -1.0*result
+      end if
+    end if  
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -98,9 +228,17 @@ contains
     real(rp)                , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      result = point%get(1)+ point%get(2)
+      if (this%is_in_fe_space()) then
+        result = point%get(1)+ point%get(2) ! x+y
+      else
+        call sol_ex002_2d_u(point,result)
+      end if
     else if ( this%num_dimensions == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3)
+      if (this%is_in_fe_space()) then
+        result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
+      else
+        call sol_ex002_3d_u(point,result)
+      end if
     end if  
   end subroutine boundary_function_get_value_space 
 
@@ -112,11 +250,18 @@ contains
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      result = point%get(1)+ point%get(2) 
+      if (this%is_in_fe_space()) then
+        result = point%get(1)+ point%get(2) ! x+y
+      else
+        call sol_ex002_2d_u(point,result)
+      end if
     else if ( this%num_dimensions == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3)
+      if (this%is_in_fe_space()) then
+        result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
+      else
+        call sol_ex002_3d_u(point,result)
+      end if
     end if  
-      
   end subroutine solution_function_get_value_space
   
   !===============================================================================================
@@ -127,13 +272,21 @@ contains
     type(vector_field_t)      , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
+      if (this%is_in_fe_space()) then
       call result%set( 1, 1.0_rp ) 
       call result%set( 2, 1.0_rp )
+      else
+        call sol_ex002_2d_grad_u(point,result)
+      end if
     else if ( this%num_dimensions == 3 ) then
+      if (this%is_in_fe_space()) then
       call result%set( 1, 1.0_rp ) 
       call result%set( 2, 1.0_rp )
       call result%set( 3, 1.0_rp ) 
-    end if
+      else
+        call sol_ex002_3d_grad_u(point,result)
+      end if
+    end if  
   end subroutine solution_function_get_gradient_space
   
   !===============================================================================================
@@ -145,6 +298,16 @@ contains
     call this%boundary_function%set_num_dimensions(num_dimensions)
     call this%solution_function%set_num_dimensions(num_dimensions)
   end subroutine poisson_analytical_functions_set_num_dimensions 
+
+  !===============================================================================================
+  subroutine poisson_analytical_functions_set_is_in_fe_space(this,val)
+    implicit none
+    class(poisson_analytical_functions_t), intent(inout)    :: this
+    logical, intent(in) :: val
+    call this%source_term      %set_is_in_fe_space(val)
+    call this%boundary_function%set_is_in_fe_space(val)
+    call this%solution_function%set_is_in_fe_space(val)
+  end subroutine poisson_analytical_functions_set_is_in_fe_space
   
   !===============================================================================================
   function poisson_analytical_functions_get_source_term ( this )

@@ -176,8 +176,7 @@ contains
     integer(ip) :: ilev
     integer(ip) :: max_levels
 
-
-    ! Create the triangulation, with the levelsetfunction
+    ! Create the triangulation, with the levelset function
     call this%triangulation%create(this%parameter_list,this%level_set_function)
 
     ! Impose Dirichlet in the boundary of the background mesh
@@ -194,7 +193,7 @@ contains
        call this%triangulation%free_vef_iterator(vef)
     end if
     
-    max_levels = 3
+    max_levels = this%test_params%get_max_level()
     do ilev = 1, max_levels
       ! Refine one level uniformly
       call this%triangulation%create_cell_iterator(cell)
@@ -203,26 +202,9 @@ contains
         call cell%next()
       end do
       call this%triangulation%refine_and_coarsen()
+      call this%triangulation%clear_refinement_and_coarsening_flags()
       call this%triangulation%free_cell_iterator(cell)
     end do
-    
-    !! Refine one level uniformly
-    !call this%triangulation%create_cell_iterator(cell)
-    !do while (.not. cell%has_finished())
-    !  call cell%set_for_refinement()
-    !  call cell%next()
-    !end do
-    !call this%triangulation%refine_and_coarsen()    
-    !call this%triangulation%free_cell_iterator(cell)
-    
-    !! Refine one level uniformly
-    !call this%triangulation%create_cell_iterator(cell)
-    !do while (.not. cell%has_finished())
-    !  call cell%set_for_refinement()
-    !  call cell%next()
-    !end do
-    !call this%triangulation%refine_and_coarsen()    
-    !call this%triangulation%free_cell_iterator(cell)
     
     ! Update the marching cubes accordingly (TODO: move this inside refine and coarsen)
     call this%triangulation%update_cut_cells(this%level_set_function)
@@ -395,7 +377,9 @@ contains
     
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
       call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
+      call this%fe_space%set_use_constraints(this%test_params%get_use_constraints())
       call this%fe_space%create( triangulation       = this%triangulation,      &
                                  conditions          = this%poisson_conditions, &
                                  reference_fes            = this%reference_fes,&
@@ -470,6 +454,8 @@ contains
 
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then    
       call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
+      call this%poisson_cG_integration%set_unfitted_boundary_is_dirichlet(this%test_params%get_unfitted_boundary_is_dirichlet())
+      call this%poisson_cG_integration%set_is_constant_nitches_beta(this%test_params%get_is_constant_nitches_beta())
       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format,                               &
                                             diagonal_blocks_symmetric_storage = [ .true. ],                               &
                                             diagonal_blocks_symmetric         = [ .true. ],                               &
@@ -534,13 +520,22 @@ contains
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
+
+    integer(ip) :: iounit
+
+
     call this%fe_affine_operator%numerical_setup()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
-    
+
     select type(matrix)
     class is (sparse_matrix_t)  
-       !call matrix%print_matrix_market(6) 
+       if (this%test_params%get_write_matrix()) then
+       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_matrix.mm',action='write')
+       check(iounit>0)
+       call matrix%print_matrix_market(iounit) 
+       call io_close(iounit)
+       end if
     class DEFAULT
        assert(.false.) 
     end select
@@ -589,46 +584,96 @@ contains
     !   assert(.false.) 
     !end select
   end subroutine solve_system
-  
+
   subroutine check_solution(this)
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
-    type(error_norms_scalar_t) :: error_norm
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
-    real(rp) :: error_tolerance
-    
-    call error_norm%create(this%fe_space,1)
-    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
 
-#ifdef ENABLE_MKL    
+    type(unfitted_solution_checker_t) :: solution_checker
+    real(rp) :: error_h1_semi_norm
+    real(rp) :: error_l2_norm
+    real(rp) :: h1_semi_norm
+    real(rp) :: l2_norm
+    real(rp) :: error_tolerance, tol
+    integer(ip) :: iounit
+
+    call solution_checker%create(this%fe_space,this%solution,this%poisson_analytical_functions%get_solution_function())
+    call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm)
+    call solution_checker%free()
+
+    write(*,'(a,e32.25)') 'l2_norm:               ', l2_norm
+    write(*,'(a,e32.25)') 'h1_semi_norm:          ', h1_semi_norm
+    write(*,'(a,e32.25)') 'error_l2_norm:         ', error_l2_norm
+    write(*,'(a,e32.25)') 'error_h1_semi_norm:    ', error_h1_semi_norm
+    write(*,'(a,e32.25)') 'rel_error_l2_norm:     ', error_l2_norm/l2_norm
+    write(*,'(a,e32.25)') 'rel_error_h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
+
+    if (this%test_params%get_write_matrix()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
+      check(iounit>0)
+      write(iounit,'(a,e32.25)') 'l2_norm                ;', l2_norm
+      write(iounit,'(a,e32.25)') 'h1_semi_norm           ;', h1_semi_norm
+      write(iounit,'(a,e32.25)') 'error_l2_norm          ;', error_l2_norm
+      write(iounit,'(a,e32.25)') 'error_h1_semi_norm     ;', error_h1_semi_norm
+      write(iounit,'(a,e32.25)') 'rel_error_l2_norm      ;', error_l2_norm/l2_norm
+      write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm ;', error_h1_semi_norm/h1_semi_norm
+      call io_close(iounit)
+    end if
+
+#ifdef ENABLE_MKL
     error_tolerance = 1.0e-08
 #else
     error_tolerance = 1.0e-06
-#endif    
-    
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-    call error_norm%free()
+#endif
+
+    if ( this%test_params%are_checks_active() ) then
+      tol = error_tolerance*l2_norm
+      check( error_l2_norm < tol )
+      tol = error_tolerance*h1_semi_norm
+      check( error_h1_semi_norm < tol )
+    end if
   end subroutine check_solution
+
+  
+!  subroutine check_solution(this)
+!    implicit none
+!    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
+!    type(error_norms_scalar_t) :: error_norm
+!    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+!    real(rp) :: error_tolerance
+!    
+!    call error_norm%create(this%fe_space,1)
+!    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+!    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+!    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+!    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+!    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+!    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+!    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+!    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+!    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+!    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+!    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+!
+!#ifdef ENABLE_MKL    
+!    error_tolerance = 1.0e-08
+!#else
+!    error_tolerance = 1.0e-06
+!#endif    
+!    
+!    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+!    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+!    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+!    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+!    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+!    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+!    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+!    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+!    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+!    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+!    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+!    call error_norm%free()
+!  end subroutine check_solution
   
   subroutine check_solution_vector(this)
     implicit none
@@ -724,12 +769,12 @@ contains
 
         ! Write the unfitted mesh
         call vtk_writer%attach_triangulation(this%triangulation)
-        call vtk_writer%write_to_vtk_file('out_mesh.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh.vtu')
         call vtk_writer%free()
         
         ! Write the solution
         call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-        call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
         call vtk_writer%free()
         
 
@@ -749,7 +794,6 @@ contains
     real(rp) ::  xc,yc
     integer(ip), parameter :: max_num_cell_nodes = 4
     integer(ip), parameter :: vtk_1d_elem_id = 3
-    character(len=*), parameter :: filename_out = 'output/filling_curve.vtu'
     integer(ip) :: E_IO
     if(this%test_params%get_write_solution()) then
 
@@ -793,7 +837,9 @@ contains
       deallocate(coords,stat=istat); check(istat==0)
       call this%triangulation%free_cell_iterator(cell)
 
-      E_IO = VTK_INI_XML(output_format = 'ascii', filename = filename_out, mesh_topology = 'UnstructuredGrid')
+      E_IO = VTK_INI_XML(output_format = 'ascii',&
+                              filename = this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_filling_curve.vtu',&
+                         mesh_topology = 'UnstructuredGrid')
       E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
       E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) )
       E_IO = VTK_GEO_XML()
@@ -836,11 +882,12 @@ contains
     call this%setup_solver()
     call this%solution%create(this%fe_space) 
     call this%solve_system()
-    !if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-    !  call this%check_solution()
-    !else
+    if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+      call this%check_solution()
+    else
+      mcheck(.false.,'Only for scalar fnctions')
     !  call this%check_solution_vector()
-    !end if
+    end if
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()
