@@ -285,6 +285,7 @@ contains
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
       call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
+      call this%poisson_unfitted_analytical_functions%set_degree(this%test_params%get_reference_fe_order())
       call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
       if (this%test_params%get_fe_formulation() == 'cG') then
         call this%fe_space%create( triangulation            = this%triangulation, &

@@ -131,8 +131,6 @@ module unfitted_fe_spaces_names
       procedure, non_overridable, private :: check_assumptions      => uim_check_assumptions
       procedure, non_overridable, private :: init_reference_subelem => uim_init_reference_subelem
       procedure, non_overridable, private :: free_reference_subelem => uim_free_reference_subelem
-      procedure, non_overridable, private :: init_reference_subface => uim_init_reference_subface
-      procedure, non_overridable, private :: free_reference_subface => uim_free_reference_subface
       procedure, non_overridable, private :: init_cut_integration   => uim_init_cut_integration
       procedure, non_overridable, private :: free_cut_integration   => uim_free_cut_integration
       procedure, non_overridable, private :: init_cut_boundary_integration   => uim_init_cut_boundary_integration
