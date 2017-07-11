@@ -2000,14 +2000,6 @@ subroutine bst_create_edge_iterator ( this, edge )
   call edge%create(this)
 end subroutine bst_create_edge_iterator
 
-subroutine bst_create_face_iterator ( this, face )
-  implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(face_iterator_t)          , intent(inout) :: face
-  call this%free_vef_iterator(face)
-  call face%create(this)
-end subroutine bst_create_face_iterator
-
 subroutine bst_free_vef_iterator ( this, vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this

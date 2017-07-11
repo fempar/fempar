@@ -637,13 +637,13 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   real(rp)                          , intent(in)    :: vertices_coordinates(:,:)
   class(cell_iterator_t), allocatable :: cell
   type(vertex_iterator_t)  :: vertex
-  type(face_iterator_t)    :: face
+  type(vef_iterator_t)     :: vef
   type(line_t), pointer     :: line
   type(list_t), pointer     :: vertices_of_vefs
   integer(ip)   :: istat, inode, l_node, order
   integer(ip)   :: vertex1, vertex2, ivef_pos_in_cell, ivef 
   integer(ip)   :: cell_num_vefs, cell_num_nodes, cell_type
-  integer(ip)   :: face_num_nodes
+  integer(ip)   :: vef_num_nodes
   type(point_t) :: point1,point2
   real(rp)      :: u_param1, u_param2, param, u_param
   type(point_t), allocatable :: coordinates(:)
@@ -674,19 +674,19 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   call memalloc(order+1, coordinates, __FILE__,__LINE__)
   
   call this%create_cell_iterator(cell)
-  call this%create_face_iterator(face)
-  do while ( .not. face%has_finished() )
-     if ( .not. face%is_ghost() ) then
-        ivef = face%get_lid()
+  call this%create_vef_iterator(vef)
+  do while ( .not. vef%has_finished() )
+     if ( vef%is_face() .and. .not. vef%is_ghost() ) then
+        ivef = vef%get_lid()
 
-        call face%get_cell_around (1, cell) ! there is always one element around
+        call vef%get_cell_around (1, cell) ! there is always one element around
         ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
         cell_num_vefs = cell%get_num_vefs()
         call this%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
         assert(istat==key_found)
         vertices_of_vefs => this%reference_fe_geo_list(cell_type)%p%get_vertices_n_face()
-        face_num_nodes = this%reference_fe_geo_list(cell_type)%p%get_number_own_dofs_n_face(ivef_pos_in_cell)
-        call memrealloc( face_num_nodes, coordinates, __FILE__,__LINE__)
+        vef_num_nodes = this%reference_fe_geo_list(cell_type)%p%get_number_own_dofs_n_face(ivef_pos_in_cell)
+        call memrealloc( vef_num_nodes, coordinates, __FILE__,__LINE__)
         ! assert(face_num_nodes<=10) ! see declaration of points above
 
         vertices_of_vefs_iterator = vertices_of_vefs%create_iterator(ivef_pos_in_cell)
@@ -702,16 +702,16 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
            line => this%geometry%get_line( this%vefs_geometry(ivef) )
            u_param1 = line%get_parameter(point1,1.0e-8_rp)
            u_param2 = line%get_parameter(point2,1.0e-8_rp)
-           do inode = 1,face_num_nodes
-              param = real(inode,rp)/(face_num_nodes+1)
+           do inode = 1,vef_num_nodes
+              param = real(inode,rp)/(vef_num_nodes+1)
               u_param = u_param1 * (1.0_rp - param) + &
                    &            u_param2 * param 
               call line%evaluate(u_param,coordinates(inode))
            end do
         else
            ! Put nodes by linear interpolation
-           do inode = 1,face_num_nodes
-              u_param = real(inode,rp)/(face_num_nodes+1)
+           do inode = 1,vef_num_nodes
+              u_param = real(inode,rp)/(vef_num_nodes+1)
               coordinates(inode) = point1*(1.0_rp -u_param) + &
                    &               point2*u_param
            end do
@@ -723,14 +723,14 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
         ! write(*,*) points(2)%get_value()
         ! write(*,*) points(3)%get_value()
 
-        do inode=1,face_num_nodes
+        do inode=1,vef_num_nodes
            l_node = cell%get_node_lid( this%reference_fe_geo_list(cell_type)%p%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef_pos_in_cell) )
            this%coordinates(l_node) = coordinates(inode)
         end do
      end if      
-     call face%next()
+     call vef%next()
   end do
-  call this%free_vef_iterator(face)
+  call this%free_vef_iterator(vef)
 
   ! Fill internal nodes
   ! write(*,*) 'Fill internal nodes'
