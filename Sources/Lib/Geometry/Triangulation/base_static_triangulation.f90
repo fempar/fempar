@@ -220,8 +220,6 @@ module base_static_triangulation_names
     procedure                           :: get_coordinates                  => face_iterator_get_coordinates
     procedure                           :: get_face_lid                     => face_iterator_get_face_lid
     procedure                           :: get_face_lpos_within_cell_around => face_iterator_get_face_lpos_within_cell_around
-    procedure                           :: get_face_permutation_index       => face_iterator_get_face_permutation_index
-    procedure, non_overridable, private :: set_face_permutation_index       => face_iterator_set_face_permutation_index
   end type face_iterator_t
 
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
@@ -327,9 +325,6 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: lst_itfc_vefs(:)
      integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
-     
-     ! Data structures related to face integration
-     integer(ip), allocatable              :: face_permutation_index(:)
 
      ! Data structures to create objects (coarse cell info)
      integer(ip)                             :: number_global_objects = 0
@@ -437,10 +432,6 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_cells_around                   => bst_free_cells_around
      procedure, non_overridable, private :: find_and_list_vefs_at_interfaces    => bst_find_and_list_vefs_at_interfaces
      procedure, non_overridable, private :: free_lst_itfc_vefs                  => bst_free_lst_itfc_vefs
-     
-     ! Private methods for creating face-related data (for face integration)
-     procedure, non_overridable, private :: allocate_and_fill_face_permutation_index => bst_allocate_and_fill_face_permutation_index
-     procedure, non_overridable, private :: free_face_permutation_index              => bst_free_face_permutation_index
 
      ! Private methods to compute objects
      procedure, non_overridable          :: get_number_subparts                            => bst_get_number_subparts

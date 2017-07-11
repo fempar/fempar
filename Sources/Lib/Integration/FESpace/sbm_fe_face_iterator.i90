@@ -324,6 +324,6 @@ function fe_face_iterator_get_face_permutation_index ( this ) result(face_permut
   implicit none
   class(fe_face_iterator_t), intent(in) :: this
   integer(ip)                           :: face_permutation_index
-  face_permutation_index = this%face%get_face_permutation_index ( )
+  face_permutation_index = this%fe_space%face_permutation_indices%get(this%get_face_lid())
 end function fe_face_iterator_get_face_permutation_index 
 

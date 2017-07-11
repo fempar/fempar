@@ -1473,6 +1473,49 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face ( this 
   call this%free_fe_iterator(fe)
 end subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face  
 
+subroutine serial_fe_space_compute_face_permutation_indices ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  type(fe_face_iterator_t)                      :: fe_face
+  class(fe_iterator_t)            , allocatable :: first_fe
+  class(fe_iterator_t)            , allocatable :: second_fe
+  class(lagrangian_reference_fe_t), pointer     :: first_reference_fe_geo
+  class(lagrangian_reference_fe_t), pointer     :: second_reference_fe_geo
+  integer(ip)                                   :: fe_face_permutation_index
+  
+  call this%face_permutation_indices%resize(this%triangulation%get_num_faces(),-1)
+  call this%create_fe_iterator(first_fe)
+  call this%create_fe_iterator(second_fe)
+  call this%create_fe_face_iterator(fe_face)
+  do while ( .not. fe_face%has_finished() )
+    if ( .not. fe_face%is_ghost() .and. fe_face%get_num_cells_around() == 2 ) then
+      call fe_face%get_cell_around(1,first_fe)
+      first_reference_fe_geo => first_fe%get_reference_fe_geo()
+      call fe_face%get_cell_around(2, second_fe)
+      second_reference_fe_geo => second_fe%get_reference_fe_geo()
+      fe_face_permutation_index = &
+        first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,                        &
+                                                          first_fe%find_lpos_vef_lid(fe_face%get_lid()),  &
+                                                          second_fe%find_lpos_vef_lid(fe_face%get_lid()), &
+                                                          first_fe%get_vef_lids(),                        &
+                                                          second_fe%get_vef_lids() )
+      call this%face_permutation_indices%set(fe_face%get_face_lid(), &
+                                             fe_face_permutation_index)
+    end if
+    call fe_face%next()
+  end do
+  call this%free_fe_vef_iterator(fe_face)
+  call this%free_fe_iterator(second_fe)
+  call this%free_fe_iterator(first_fe)
+
+end subroutine serial_fe_space_compute_face_permutation_indices
+
+subroutine serial_fe_space_free_face_permutation_indices ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  call this%face_permutation_indices%free()
+end subroutine serial_fe_space_free_face_permutation_indices
+
 subroutine serial_fe_space_initialize_fe_face_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
@@ -1502,6 +1545,8 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
 
   call this%allocate_max_order_reference_fe_id_per_fe_face()
   call this%compute_max_order_reference_fe_id_per_fe_face()
+  
+  call this%compute_face_permutation_indices()
   
   ! Determine the size of fe_face_quadratures, fe_face_maps, 
   ! and fe_face_integrators while filling the corresponding hash tables
@@ -1666,6 +1711,7 @@ subroutine serial_fe_space_free_fe_face_integration ( this )
   
   call this%free_fe_face_quadratures_degree()
   call this%free_max_order_reference_fe_id_per_fe_face()
+  call this%free_face_permutation_indices()
   
 end subroutine serial_fe_space_free_fe_face_integration
 

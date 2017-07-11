@@ -32,6 +32,7 @@ module fe_space_names
   use memor_names
   use sort_names
   use allocatable_array_names
+  use std_vector_integer_ip_names
   use hash_table_names
   use FPL
 
@@ -337,7 +338,10 @@ module fe_space_names
      type(hash_table_ip_ip_t)                    :: fe_face_integrators_position  ! Key = [quadrature_degree,
                                                                                   !       left_reference_fe_id,
                                                                                   !       left_reference_fe_id (with 0 for boundary faces)]
-    
+     
+     ! Member variables to provide support to fe_face_iterator_t
+     type(std_vector_integer_ip_t)               :: face_permutation_indices
+     
      ! DoF identifiers associated to each FE and field within FE
      integer(ip)                   , allocatable :: ptr_dofs_per_fe(:,:) ! (number_fields, number_fes+1)
      integer(ip)                   , allocatable :: lst_dofs_lids(:)
@@ -410,6 +414,9 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_max_order_reference_fe_id_per_fe_face => serial_fe_space_allocate_max_order_reference_fe_id_per_fe_face
      procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe_face     => serial_fe_space_free_max_order_reference_fe_id_per_fe_face
      procedure, non_overridable, private :: compute_max_order_reference_fe_id_per_fe_face  => serial_fe_space_compute_max_order_reference_fe_id_per_fe_face   
+     
+     procedure, non_overridable, private :: compute_face_permutation_indices             => serial_fe_space_compute_face_permutation_indices
+     procedure, non_overridable, private :: free_face_permutation_indices                => serial_fe_space_free_face_permutation_indices
      
      procedure, non_overridable          :: initialize_fe_face_integration               => serial_fe_space_initialize_fe_face_integration
      procedure, non_overridable, private :: free_fe_face_integration                     => serial_fe_space_free_fe_face_integration

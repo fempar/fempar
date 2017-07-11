@@ -363,20 +363,6 @@ function face_iterator_get_face_lpos_within_cell_around(this, icell_around) resu
   face_lpos_within_cell_around = this%cell%find_lpos_vef_lid(this%lid) - reference_fe_geo%get_first_face_id() + 1
 end function face_iterator_get_face_lpos_within_cell_around
 
-function face_iterator_get_face_permutation_index ( this ) result(face_orientation)
-  implicit none
-  class(face_iterator_t), intent(in)    :: this
-  integer(ip)                           :: face_orientation
-  face_orientation = this%base_static_triangulation%face_permutation_index(this%get_face_lid())
-end function face_iterator_get_face_permutation_index 
-
-subroutine face_iterator_set_face_permutation_index (this, face_permutation_index)
-  implicit none
-  class(face_iterator_t), intent(inout)    :: this
-  integer(ip)           , intent(in)       :: face_permutation_index
-  this%base_static_triangulation%face_permutation_index(this%get_face_lid()) = face_permutation_index
-end subroutine face_iterator_set_face_permutation_index
-
 ! We need cells around to evaluate it. Storing faces of elements, 
 ! edges of faces and vertices of edges, this would not be necessary.
 !subroutine vef_iterator_get_vertices(this,vertices)
