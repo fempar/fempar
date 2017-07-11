@@ -13,7 +13,7 @@ then
       # Square + Quads        
       for gorder in 1
       do
-       for order in 1
+       for order in 1 2 5
         do
           if [ $order -ge $gorder ]
           then

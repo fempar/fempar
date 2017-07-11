@@ -148,7 +148,7 @@ contains
     ref_fe => fe%get_reference_fe(1)
     nodal_quad => ref_fe%get_nodal_quadrature()
     call memalloc ( num_dofs, num_dofs  , shape2mono, __FILE__, __LINE__ )
-    call evaluate_monomials(nodal_quad,shape2mono)
+    call evaluate_monomials(nodal_quad,shape2mono,degree=this%analytical_functions%get_degree())
     ! TODO  We assume that the constant monomial is the first
     shape2mono_fixed => shape2mono(:,2:)
     ! Allocate the eigenvalue solver
@@ -270,16 +270,16 @@ contains
            if (istat .ne. 0) then
              write(*,*) 'istat = ', istat
              write(*,*) 'lid   = ', fe%get_lid()
-             write(*,*) 'elmatB = '
-             do idof = 1,size(elmatB,1)
-               write(*,*) elmatB(idof,:)
-             end do
-             write(*,*) 'elmatV = '
-             do idof = 1,size(elmatV,1)
-               write(*,*) elmatV(idof,:)
-             end do
+           !  write(*,*) 'elmatB = '
+           !  do idof = 1,size(elmatB,1)
+           !    write(*,*) elmatB(idof,:)
+           !  end do
+           !  write(*,*) 'elmatV = '
+           !  do idof = 1,size(elmatV,1)
+           !    write(*,*) elmatV(idof,:)
+           !  end do
            end if
-           check(istat == 0)
+           mcheck(istat == 0,'Failed to solve the generalized eigenvalue problem')
 
            ! The eigenvalue should be real. Thus, it is save to take only the real part.
            beta = beta_coef*maxval(lambdas(:,1))
