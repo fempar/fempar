@@ -42,6 +42,7 @@ subroutine fe_face_iterator_create ( this, fe_space, vef )
    assert(.false.)
   end select
   call this%fe_space%create_fe_iterator(this%fe)
+  call this%first()
 end subroutine fe_face_iterator_create
 
 subroutine fe_face_iterator_free ( this )
@@ -54,8 +55,35 @@ subroutine fe_face_iterator_free ( this )
     deallocate(this%fe, stat=istat); check(istat==0);
     nullify(this%face)
   end if
+  this%face_lid = -1
 end subroutine fe_face_iterator_free
 
+subroutine fe_face_iterator_first ( this )
+  implicit none
+  class(fe_face_iterator_t) , intent(inout)      :: this
+  this%face_lid = 1
+  if ( .not. this%has_finished() ) then
+    call this%base_fe_vef_iterator_t%set_lid( &
+      this%fe_space%vef_lids_of_fe_faces%get(this%face_lid) )
+  end if
+end subroutine fe_face_iterator_first
+
+subroutine fe_face_iterator_next ( this )
+  implicit none
+  class(fe_face_iterator_t) , intent(inout)      :: this
+  this%face_lid = this%face_lid + 1
+  if ( .not. this%has_finished() ) then
+    call this%base_fe_vef_iterator_t%set_lid( &
+      this%fe_space%vef_lids_of_fe_faces%get(this%face_lid) )
+  end if
+end subroutine fe_face_iterator_next
+
+function fe_face_iterator_has_finished ( this )
+  implicit none
+  class(fe_face_iterator_t) , intent(in)         :: this
+  logical :: fe_face_iterator_has_finished
+  fe_face_iterator_has_finished = ( this%face_lid > this%fe_space%vef_lids_of_fe_faces%size() )
+end function fe_face_iterator_has_finished
 
 subroutine fe_face_iterator_update_integration( this )
   implicit none
@@ -122,7 +150,7 @@ function fe_face_iterator_get_quadrature_degree ( this )
   class(fe_face_iterator_t), intent(in) :: this
   integer(ip) :: fe_face_iterator_get_quadrature_degree
   if ( allocated(this%fe_space%fe_face_quadratures_degree) ) then
-     fe_face_iterator_get_quadrature_degree = this%fe_space%fe_face_quadratures_degree(this%get_face_lid())
+     fe_face_iterator_get_quadrature_degree = this%fe_space%fe_face_quadratures_degree(this%face_lid)
   end if
   if ( .not. allocated(this%fe_space%fe_face_quadratures_degree) .or. &
        fe_face_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
@@ -137,7 +165,7 @@ function fe_face_iterator_get_default_quadrature_degree ( this )
   integer(ip) :: fe_face_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
   assert( allocated(this%fe_space%max_order_reference_fe_id_per_fe_face) )
-  reference_fe_id = this%fe_space%max_order_reference_fe_id_per_fe_face(this%get_face_lid())
+  reference_fe_id = this%fe_space%max_order_reference_fe_id_per_fe_face(this%face_lid)
   fe_face_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
 end function fe_face_iterator_get_default_quadrature_degree
@@ -152,7 +180,7 @@ subroutine fe_face_iterator_set_quadrature_degree ( this, quadrature_degree )
      call this%fe_space%allocate_fe_face_quadratures_degree()
      call this%fe_space%clear_fe_face_quadratures_degree()
   end if
-  this%fe_space%fe_face_quadratures_degree(this%get_face_lid()) = quadrature_degree
+  this%fe_space%fe_face_quadratures_degree(this%face_lid) = quadrature_degree
 end subroutine fe_face_iterator_set_quadrature_degree
 
 !=================================================================================================
@@ -309,7 +337,7 @@ function fe_face_iterator_get_face_lid (this) result(face_lid)
   implicit none
   class(fe_face_iterator_t), intent(in)    :: this
   integer(ip) :: face_lid
-  face_lid = this%face%get_face_lid()
+  face_lid = this%face_lid
 end function fe_face_iterator_get_face_lid
 
 function fe_face_iterator_get_face_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
@@ -324,6 +352,6 @@ function fe_face_iterator_get_face_permutation_index ( this ) result(face_permut
   implicit none
   class(fe_face_iterator_t), intent(in) :: this
   integer(ip)                           :: face_permutation_index
-  face_permutation_index = this%fe_space%face_permutation_indices%get(this%get_face_lid())
+  face_permutation_index = this%fe_space%face_permutation_indices%get(this%face_lid)
 end function fe_face_iterator_get_face_permutation_index 
 

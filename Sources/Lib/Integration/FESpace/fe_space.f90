@@ -246,8 +246,8 @@ module fe_space_names
      ! Methods exploiting ("inherited from") vef_t
      procedure                           :: first                     => base_fe_vef_iterator_first
      procedure                           :: next                      => base_fe_vef_iterator_next
+     procedure                           :: has_finished              => base_fe_vef_iterator_has_finished
      procedure, non_overridable          :: set_lid                   => base_fe_vef_iterator_set_lid
-     procedure, non_overridable          :: has_finished              => base_fe_vef_iterator_has_finished
      procedure, non_overridable          :: get_lid                   => base_fe_vef_iterator_get_lid
      procedure, non_overridable          :: get_set_id                => base_fe_vef_iterator_get_set_id
 
@@ -276,11 +276,15 @@ module fe_space_names
     
   type, extends(fe_vef_iterator_t) :: fe_face_iterator_t
     private
+    integer(ip)                         :: face_lid
     class(fe_iterator_t)  , allocatable :: fe
     class(face_iterator_t), pointer     :: face
    contains
     procedure         , private         :: create                                     => fe_face_iterator_create
     procedure         , private         :: free                                       => fe_face_iterator_free
+    procedure                           :: first                                      => fe_face_iterator_first
+    procedure                           :: next                                       => fe_face_iterator_next
+    procedure                           :: has_finished                               => fe_face_iterator_has_finished
     procedure         , non_overridable :: update_integration                         => fe_face_iterator_update_integration 
     procedure         , non_overridable :: get_fe_space                               => fe_face_iterator_get_fe_space
     procedure         , non_overridable :: get_elem2dof                               => fe_face_iterator_get_elem2dof

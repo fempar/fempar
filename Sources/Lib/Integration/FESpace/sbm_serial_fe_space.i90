@@ -1466,7 +1466,7 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face ( this 
            end if
         end do
      end do
-     this%max_order_reference_fe_id_per_fe_face(fe_face%get_face_lid()) = max_order_reference_fe_id 
+     this%max_order_reference_fe_id_per_fe_face(fe_face%face_lid) = max_order_reference_fe_id 
      call fe_face%next()
   end do
   call this%free_fe_vef_iterator(fe_face)
@@ -1523,7 +1523,7 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
                                                           second_fe%find_lpos_vef_lid(fe_face%get_lid()), &
                                                           first_fe%get_vef_lids(),                        &
                                                           second_fe%get_vef_lids() )
-      call this%face_permutation_indices%set(fe_face%get_face_lid(), &
+      call this%face_permutation_indices%set(fe_face%face_lid, &
                                              fe_face_permutation_index)
     end if
     call fe_face%next()
@@ -1661,7 +1661,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
                                                 val  = current_fe_face_quadrature, &
                                                 stat = istat)  
      if (istat == now_stored) then
-        reference_fe=>this%reference_fes( this%max_order_reference_fe_id_per_fe_face(fe_face%get_face_lid()) )%p
+        reference_fe=>this%reference_fes( this%max_order_reference_fe_id_per_fe_face(fe_face%face_lid) )%p
         call reference_fe%create_face_quadrature(this%fe_face_quadratures(current_fe_face_quadrature),fe_face%get_quadrature_degree())
         call this%fe_face_maps(current_fe_face_map)%create(fe_face%get_quadrature(), &
                                                            reference_fes_geo(1)%p, &
