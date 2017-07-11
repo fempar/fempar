@@ -344,27 +344,6 @@ function face_iterator_has_finished ( this )
   face_iterator_has_finished = (this%lid > this%base_static_triangulation%num_vefs)
 end function face_iterator_has_finished
 
-function face_iterator_get_face_lid (this) result(face_lid)
-  implicit none
-  class(face_iterator_t), intent(in)    :: this
-  integer(ip) :: face_lid
-  face_lid = this%lid - (this%base_static_triangulation%num_vertices+&
-                         this%base_static_triangulation%num_edges)
-end function face_iterator_get_face_lid
-
-function face_iterator_get_face_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
-  implicit none
-  class(face_iterator_t), intent(inout)    :: this
-  integer(ip)           , intent(in)       :: icell_around
-  integer(ip)                           :: face_lpos_within_cell_around
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-  assert ( allocated(this%cell) )
-  call this%get_cell_around(icell_around, this%cell)
-  reference_fe_geo => this%cell%get_reference_fe_geo()
-  assert ( this%cell%find_lpos_vef_lid (this%lid) /= -1 )
-  face_lpos_within_cell_around = this%cell%find_lpos_vef_lid(this%lid) - reference_fe_geo%get_first_face_id() + 1
-end function face_iterator_get_face_lpos_within_cell_around
-
 ! We need cells around to evaluate it. Storing faces of elements, 
 ! edges of faces and vertices of edges, this would not be necessary.
 !subroutine vef_iterator_get_vertices(this,vertices)

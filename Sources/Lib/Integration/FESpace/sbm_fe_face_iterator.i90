@@ -33,14 +33,6 @@ subroutine fe_face_iterator_create ( this, fe_space, vef )
   class(vef_iterator_t)    , intent(in)            :: vef
   call this%free()
   call this%fe_vef_iterator_t%create(fe_space,vef)
-  ! Type guard against polymorphic vef with dynamic type
-  ! different from face_iterator_t
-  select type(vef=>this%vef)
-  class is (face_iterator_t)
-    this%face => vef
-  class default
-   assert(.false.)
-  end select
   call this%fe_space%create_fe_iterator(this%fe)
   call this%first()
 end subroutine fe_face_iterator_create
@@ -53,7 +45,6 @@ subroutine fe_face_iterator_free ( this )
   if (allocated(this%fe)) then
     call this%fe%free()
     deallocate(this%fe, stat=istat); check(istat==0);
-    nullify(this%face)
   end if
   this%face_lid = -1
 end subroutine fe_face_iterator_free
@@ -325,14 +316,6 @@ function fe_face_iterator_compute_surface ( this )
   
 end function fe_face_iterator_compute_surface
 
-! Exploiting ("inherited from") face_iterator_t
-subroutine fe_face_iterator_get_coordinates (this, face_coordinates)
-  implicit none
-  class(fe_face_iterator_t), intent(inout)  :: this
-  type(point_t)            ,  intent(inout) :: face_coordinates(:)
-  call this%face%get_coordinates(face_coordinates)
-end subroutine fe_face_iterator_get_coordinates
-
 function fe_face_iterator_get_face_lid (this) result(face_lid)
   implicit none
   class(fe_face_iterator_t), intent(in)    :: this
@@ -342,10 +325,15 @@ end function fe_face_iterator_get_face_lid
 
 function fe_face_iterator_get_face_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
   implicit none
-  class(fe_face_iterator_t), intent(inout) :: this
-  integer(ip)              , intent(in)    :: icell_around
-  integer(ip)                              :: face_lpos_within_cell_around
-  face_lpos_within_cell_around = this%face%get_face_lpos_within_cell_around(icell_around)
+  class(fe_face_iterator_t) , intent(inout) :: this
+  integer(ip)               , intent(in)    :: icell_around
+  integer(ip)                               :: face_lpos_within_cell_around
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  assert ( allocated(this%fe) )
+  call this%get_cell_around(icell_around, this%fe)
+  reference_fe_geo => this%fe%get_reference_fe_geo()
+  assert ( this%fe%find_lpos_vef_lid (this%get_lid()) /= -1 )
+  face_lpos_within_cell_around = this%fe%find_lpos_vef_lid(this%get_lid()) - reference_fe_geo%get_first_face_id() + 1
 end function fe_face_iterator_get_face_lpos_within_cell_around
 
 function fe_face_iterator_get_face_permutation_index ( this ) result(face_permutation_index)

@@ -60,7 +60,12 @@ subroutine fe_object_iterator_get_fe_face (this, iface, fe_face)
   class(fe_object_iterator_t), intent(in)    :: this
   integer(ip)                , intent(in)    :: iface
   type(fe_face_iterator_t)   , intent(inout) :: fe_face
-  call this%get_face(iface, fe_face%face)
+  select type ( vef => fe_face%vef )
+  class is (face_iterator_t)
+    call this%get_face(iface,vef)
+  class default
+    assert(.false.)
+  end select
 end subroutine fe_object_iterator_get_fe_face
 
 subroutine fe_object_iterator_first(this)

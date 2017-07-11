@@ -218,8 +218,6 @@ module base_static_triangulation_names
     final                               ::                                     face_iterator_free_final
     procedure                           :: first                            => face_iterator_first
     procedure                           :: has_finished                     => face_iterator_has_finished
-    procedure                           :: get_face_lid                     => face_iterator_get_face_lid
-    procedure                           :: get_face_lpos_within_cell_around => face_iterator_get_face_lpos_within_cell_around
   end type face_iterator_t
 
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
