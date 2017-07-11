@@ -340,12 +340,13 @@ module fe_space_names
                                                                                   !       left_reference_fe_id (with 0 for boundary faces)]
      
      ! Member variables to provide support to fe_face_iterator_t
+     type(std_vector_integer_ip_t)               :: vef_lids_of_fe_faces
      type(std_vector_integer_ip_t)               :: face_permutation_indices
      
      ! DoF identifiers associated to each FE and field within FE
      integer(ip)                   , allocatable :: ptr_dofs_per_fe(:,:) ! (number_fields, number_fes+1)
      integer(ip)                   , allocatable :: lst_dofs_lids(:)
-    
+     
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
      type(serial_scalar_array_t)                 :: strong_dirichlet_values
@@ -414,6 +415,9 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_max_order_reference_fe_id_per_fe_face => serial_fe_space_allocate_max_order_reference_fe_id_per_fe_face
      procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe_face     => serial_fe_space_free_max_order_reference_fe_id_per_fe_face
      procedure, non_overridable, private :: compute_max_order_reference_fe_id_per_fe_face  => serial_fe_space_compute_max_order_reference_fe_id_per_fe_face   
+     
+     procedure                 , private :: fill_vef_lids_of_fe_faces                    => serial_fe_space_fill_vef_lids_of_fe_faces
+     procedure, non_overridable, private :: free_vef_lids_of_fe_faces                    => serial_fe_space_free_vef_lids_of_fe_faces
      
      procedure, non_overridable, private :: compute_face_permutation_indices             => serial_fe_space_compute_face_permutation_indices
      procedure, non_overridable, private :: free_face_permutation_indices                => serial_fe_space_free_face_permutation_indices

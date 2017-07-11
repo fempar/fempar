@@ -1473,6 +1473,30 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face ( this 
   call this%free_fe_iterator(fe)
 end subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face  
 
+subroutine serial_fe_space_fill_vef_lids_of_fe_faces ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  type(fe_vef_iterator_t) :: fe_vef
+  integer(ip)             :: face_lid
+  face_lid = 0
+  call this%vef_lids_of_fe_faces%resize(this%triangulation%get_num_faces())
+  call this%create_fe_vef_iterator(fe_vef)
+  do while ( .not. fe_vef%has_finished() )
+    if ( fe_vef%is_face() ) then
+      face_lid = face_lid + 1
+      call this%vef_lids_of_fe_faces%set(face_lid,fe_vef%get_lid())
+    end if
+    call fe_vef%next()
+  end do
+  call this%free_fe_vef_iterator(fe_vef)
+end subroutine serial_fe_space_fill_vef_lids_of_fe_faces
+
+subroutine serial_fe_space_free_vef_lids_of_fe_faces ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  call this%vef_lids_of_fe_faces%free()
+end subroutine serial_fe_space_free_vef_lids_of_fe_faces
+
 subroutine serial_fe_space_compute_face_permutation_indices ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
@@ -1543,10 +1567,11 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
 
   call this%free_fe_face_integration()
 
+  call this%fill_vef_lids_of_fe_faces()
+  call this%compute_face_permutation_indices()
+  
   call this%allocate_max_order_reference_fe_id_per_fe_face()
   call this%compute_max_order_reference_fe_id_per_fe_face()
-  
-  call this%compute_face_permutation_indices()
   
   ! Determine the size of fe_face_quadratures, fe_face_maps, 
   ! and fe_face_integrators while filling the corresponding hash tables
@@ -1711,6 +1736,8 @@ subroutine serial_fe_space_free_fe_face_integration ( this )
   
   call this%free_fe_face_quadratures_degree()
   call this%free_max_order_reference_fe_id_per_fe_face()
+  
+  call this%free_vef_lids_of_fe_faces()
   call this%free_face_permutation_indices()
   
 end subroutine serial_fe_space_free_fe_face_integration
