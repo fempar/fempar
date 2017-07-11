@@ -167,6 +167,7 @@ module base_static_triangulation_names
      procedure                           :: next                      => vef_iterator_next
      procedure, non_overridable          :: set_lid                   => vef_iterator_set_lid
      procedure                           :: has_finished              => vef_iterator_has_finished
+     procedure, non_overridable          :: get_coordinates           => vef_iterator_get_coordinates
      procedure, non_overridable          :: get_triangulation         => vef_iterator_get_triangulation
      procedure, non_overridable          :: get_lid                   => vef_iterator_get_lid
      procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
@@ -217,7 +218,6 @@ module base_static_triangulation_names
     final                               ::                                     face_iterator_free_final
     procedure                           :: first                            => face_iterator_first
     procedure                           :: has_finished                     => face_iterator_has_finished
-    procedure                           :: get_coordinates                  => face_iterator_get_coordinates
     procedure                           :: get_face_lid                     => face_iterator_get_face_lid
     procedure                           :: get_face_lpos_within_cell_around => face_iterator_get_face_lpos_within_cell_around
   end type face_iterator_t
