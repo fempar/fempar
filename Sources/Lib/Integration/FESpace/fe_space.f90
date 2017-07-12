@@ -280,26 +280,26 @@ module fe_space_names
     integer(ip)                         :: face_lid
     class(fe_iterator_t)  , allocatable :: fe
    contains
-    procedure, private                  :: create                        => fe_face_iterator_create
-    procedure, private                  :: free                          => fe_face_iterator_free
+    procedure                 , private :: create                        => fe_face_iterator_create
+    procedure                 , private :: free                          => fe_face_iterator_free
     procedure                           :: first                         => fe_face_iterator_first
     procedure                           :: next                          => fe_face_iterator_next
     procedure                           :: has_finished                  => fe_face_iterator_has_finished
-    procedure         , non_overridable :: set_lid                       => fe_face_iterator_set_lid
-    procedure         , non_overridable :: get_lid                       => fe_face_iterator_get_lid
-    procedure         , non_overridable :: update_integration            => fe_face_iterator_update_integration
-    procedure         , non_overridable :: get_fe_space                  => fe_face_iterator_get_fe_space
-    procedure         , non_overridable :: get_elem2dof                  => fe_face_iterator_get_elem2dof
-    procedure         , non_overridable :: get_default_quadrature_degree => fe_face_iterator_get_default_quadrature_degree
-    procedure         , non_overridable :: get_quadrature_degree         => fe_face_iterator_get_quadrature_degree
-    procedure         , non_overridable :: set_quadrature_degree         => fe_face_iterator_set_quadrature_degree
-    procedure         , non_overridable :: get_quadrature                => fe_face_iterator_get_quadrature
-    procedure         , non_overridable :: get_face_map                  => fe_face_iterator_get_face_map
-    procedure         , non_overridable :: get_face_integrator           => fe_face_iterator_get_face_integrator
-    procedure         , non_overridable :: impose_strong_dirichlet_bcs   => fe_face_iterator_impose_strong_dirichlet_bcs
-    procedure         , non_overridable :: compute_surface               => fe_face_iterator_compute_surface
-    procedure         , non_overridable :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
-    procedure         , non_overridable :: get_face_permutation_index    => fe_face_iterator_get_face_permutation_index
+    procedure, non_overridable          :: set_lid                       => fe_face_iterator_set_lid
+    procedure, non_overridable          :: get_lid                       => fe_face_iterator_get_lid
+    procedure, non_overridable          :: update_integration            => fe_face_iterator_update_integration
+    procedure, non_overridable          :: get_fe_space                  => fe_face_iterator_get_fe_space
+    procedure, non_overridable          :: get_elem2dof                  => fe_face_iterator_get_elem2dof
+    procedure, non_overridable          :: get_default_quadrature_degree => fe_face_iterator_get_default_quadrature_degree
+    procedure, non_overridable          :: get_quadrature_degree         => fe_face_iterator_get_quadrature_degree
+    procedure, non_overridable          :: set_quadrature_degree         => fe_face_iterator_set_quadrature_degree
+    procedure, non_overridable          :: get_quadrature                => fe_face_iterator_get_quadrature
+    procedure, non_overridable          :: get_face_map                  => fe_face_iterator_get_face_map
+    procedure, non_overridable          :: get_face_integrator           => fe_face_iterator_get_face_integrator
+    procedure, non_overridable          :: impose_strong_dirichlet_bcs   => fe_face_iterator_impose_strong_dirichlet_bcs
+    procedure, non_overridable          :: compute_surface               => fe_face_iterator_compute_surface
+    procedure, non_overridable          :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
+    procedure, non_overridable          :: get_face_permutation_index    => fe_face_iterator_get_face_permutation_index
   end type fe_face_iterator_t
       
   integer(ip), parameter :: fe_space_type_cg                        = 0 ! H^1 conforming FE space
@@ -463,8 +463,9 @@ module fe_space_names
      procedure                           :: free_fe_iterator                             => serial_fe_space_free_fe_iterator
      procedure, non_overridable          :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
      procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator     
-     procedure, non_overridable          :: create_fe_face_iterator                      => serial_fe_space_create_fe_face_iterator
      procedure, non_overridable          :: free_fe_vef_iterator                         => serial_fe_space_free_fe_vef_iterator
+     procedure, non_overridable          :: create_fe_face_iterator                      => serial_fe_space_create_fe_face_iterator
+     procedure, non_overridable          :: free_fe_face_iterator                        => serial_fe_space_free_fe_face_iterator
  end type serial_fe_space_t  
  
  public :: serial_fe_space_t   

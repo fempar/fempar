@@ -605,8 +605,8 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
-  class(fe_iterator_t), allocatable  :: fe
-  type(fe_face_iterator_t)           :: fe_face
+  class(fe_iterator_t)     , allocatable :: fe
+  class(fe_face_iterator_t), allocatable :: fe_face
 
   type(i1p_t), allocatable :: elem2dof(:)
 
@@ -744,7 +744,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
      end if
      call fe_face%next()
   end do
-  call fe_face%free()
+  call this%free_fe_face_iterator(fe_face)
   call this%free_fe_iterator(fe)
   call matrix%convert(csr_format)
 
@@ -923,7 +923,7 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
                                                             function_scalar_components )
   implicit none
   class(serial_fe_space_t)    , intent(in)    :: this
-  type(fe_face_iterator_t)    , intent(in)    :: fe_face
+  class(fe_face_iterator_t)   , intent(in)    :: fe_face
   class(fe_iterator_t)        , intent(inout) :: fe
   integer(ip)                 , intent(in)    :: field_id
   integer(ip)                 , intent(in)    :: component_id
@@ -959,7 +959,7 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
                                                                       time)
   implicit none
   class(serial_fe_space_t) , intent(in)    :: this
-  type(fe_face_iterator_t) , intent(inout) :: fe_face
+  class(fe_face_iterator_t), intent(inout) :: fe_face
   class(fe_iterator_t)     , intent(inout) :: fe
   integer(ip)              , intent(in)    :: field_id
   type(p_scalar_function_t), intent(in)    :: function_scalar_components(:)
@@ -1020,7 +1020,7 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
                                                                          elvec)
   implicit none
   class(serial_fe_space_t) , intent(in)    :: this
-  type(fe_face_iterator_t) , intent(inout) :: fe_face
+  class(fe_face_iterator_t), intent(inout) :: fe_face
   class(fe_iterator_t)     , intent(inout) :: fe
   integer(ip)              , intent(in)    :: field_id
   type(vector_field_t)     , intent(in)    :: vector_function_values(:,:)
@@ -1446,8 +1446,8 @@ end subroutine serial_fe_space_free_max_order_reference_fe_id_per_fe_face
 subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  type(fe_face_iterator_t) :: fe_face
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_face_iterator_t), allocatable :: fe_face
+  class(fe_iterator_t)     , allocatable :: fe
   integer(ip) :: max_order, max_order_reference_fe_id, reference_fe_id
   integer(ip) :: max_order_fes_around_fe_face
   integer(ip) :: field_id, icell_around
@@ -1469,7 +1469,7 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face ( this 
      this%max_order_reference_fe_id_per_fe_face(fe_face%face_lid) = max_order_reference_fe_id 
      call fe_face%next()
   end do
-  call this%free_fe_vef_iterator(fe_face)
+  call this%free_fe_face_iterator(fe_face)
   call this%free_fe_iterator(fe)
 end subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face  
 
@@ -1500,7 +1500,7 @@ end subroutine serial_fe_space_free_vef_lids_of_fe_faces
 subroutine serial_fe_space_compute_face_permutation_indices ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  type(fe_face_iterator_t)                      :: fe_face
+  class(fe_face_iterator_t)       , allocatable :: fe_face
   class(fe_iterator_t)            , allocatable :: first_fe
   class(fe_iterator_t)            , allocatable :: second_fe
   class(lagrangian_reference_fe_t), pointer     :: first_reference_fe_geo
@@ -1528,7 +1528,7 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
     end if
     call fe_face%next()
   end do
-  call this%free_fe_vef_iterator(fe_face)
+  call this%free_fe_face_iterator(fe_face)
   call this%free_fe_iterator(second_fe)
   call this%free_fe_iterator(first_fe)
 
@@ -1544,8 +1544,8 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
 
-  type(fe_face_iterator_t)          :: fe_face
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_face_iterator_t), allocatable :: fe_face
+  class(fe_iterator_t)     , allocatable :: fe
 
   integer(ip) :: current_fe_face_quadrature
   integer(ip) :: current_fe_face_map
@@ -1697,7 +1697,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
      call fe_face%next()
   end do
   call this%free_fe_iterator(fe)
-  call fe_face%free()
+  call this%free_fe_face_iterator(fe_face)
 end subroutine serial_fe_space_initialize_fe_face_integration
 
 subroutine serial_fe_space_free_fe_face_integration ( this )
@@ -2297,16 +2297,6 @@ subroutine serial_fe_space_create_itfc_fe_vef_iterator ( this, fe_vef )
   call fe_vef%create(this,vef)
 end subroutine serial_fe_space_create_itfc_fe_vef_iterator
 
-subroutine serial_fe_space_create_fe_face_iterator ( this, fe_face )
-  implicit none
-  class(serial_fe_space_t) , target, intent(in)    :: this
-  type(fe_face_iterator_t)         , intent(inout) :: fe_face
-  type(face_iterator_t) :: vef
-  integer(ip) :: istat
-  call fe_face%free()
-  call fe_face%create(this,vef)
-end subroutine serial_fe_space_create_fe_face_iterator
-
 subroutine serial_fe_space_free_fe_vef_iterator ( this, fe_vef )
   implicit none
   class(serial_fe_space_t), intent(in)    :: this
@@ -2314,5 +2304,24 @@ subroutine serial_fe_space_free_fe_vef_iterator ( this, fe_vef )
   call fe_vef%free()
 end subroutine serial_fe_space_free_fe_vef_iterator
 
+subroutine serial_fe_space_create_fe_face_iterator ( this, fe_face )
+  implicit none
+  class(serial_fe_space_t) , target     , intent(in)    :: this
+  class(fe_face_iterator_t), allocatable, intent(inout) :: fe_face
+  type(vef_iterator_t) :: vef
+  integer(ip)          :: istat
+  call this%free_fe_face_iterator(fe_face)
+  allocate(fe_face_iterator_t :: fe_face, stat=istat); check(istat==0)
+  call fe_face%create(this,vef)
+end subroutine serial_fe_space_create_fe_face_iterator
 
-
+subroutine serial_fe_space_free_fe_face_iterator ( this, fe_face )
+  implicit none
+  class(serial_fe_space_t)              , intent(in)    :: this
+  class(fe_face_iterator_t), allocatable, intent(inout) :: fe_face
+  integer(ip) :: istat
+  if (allocated(fe_face)) then
+    call fe_face%free()
+    deallocate(fe_face, stat=istat); check(istat==0);
+  end if
+end subroutine serial_fe_space_free_fe_face_iterator

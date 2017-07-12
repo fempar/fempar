@@ -59,7 +59,7 @@ subroutine fe_object_iterator_get_fe_face(this, face_lid, fe_face)
   implicit none
   class(fe_object_iterator_t), intent(in)    :: this
   integer(ip)                , intent(in)    :: face_lid
-  type(fe_face_iterator_t)   , intent(inout) :: fe_face
+  class(fe_face_iterator_t)  , intent(inout) :: fe_face
   assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
   call fe_face%set_lid(face_lid)
 end subroutine fe_object_iterator_get_fe_face

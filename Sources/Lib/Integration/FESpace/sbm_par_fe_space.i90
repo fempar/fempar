@@ -1607,8 +1607,8 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
-  type(fe_face_iterator_t)          :: fe_face
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_face_iterator_t), allocatable :: fe_face
+  class(fe_iterator_t)     , allocatable :: fe
   
   type(i1p_t), allocatable :: elem2dof(:)
 
@@ -1759,6 +1759,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
         call fe_face%next()
      end do
      call this%free_fe_iterator(fe) 
+     call this%free_fe_face_iterator(fe_face)
      call matrix%convert(csr_format)
 
      call parameter_list%init()
