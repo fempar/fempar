@@ -1518,10 +1518,10 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
       call fe_face%get_cell_around(2, second_fe)
       second_reference_fe_geo => second_fe%get_reference_fe_geo()
       fe_face_permutation_index = &
-        first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,                        &
-                                                          first_fe%find_lpos_vef_lid(fe_face%get_lid()),  &
-                                                          second_fe%find_lpos_vef_lid(fe_face%get_lid()), &
-                                                          first_fe%get_vef_lids(),                        &
+        first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,                &
+                                                          fe_face%get_lpos_within_cell_around(1), &
+                                                          fe_face%get_lpos_within_cell_around(2), &
+                                                          first_fe%get_vef_lids(),                &
                                                           second_fe%get_vef_lids() )
       call this%face_permutation_indices%set(fe_face%face_lid, &
                                              fe_face_permutation_index)

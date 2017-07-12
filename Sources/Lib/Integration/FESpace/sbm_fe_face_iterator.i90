@@ -76,6 +76,22 @@ function fe_face_iterator_has_finished ( this )
   fe_face_iterator_has_finished = ( this%face_lid > this%fe_space%vef_lids_of_fe_faces%size() )
 end function fe_face_iterator_has_finished
 
+subroutine fe_face_iterator_set_lid ( this, lid )
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: lid
+  assert ( lid >= 1 .and. lid <= this%fe_space%vef_lids_of_fe_faces%size() )
+  this%face_lid = lid
+  call this%base_fe_vef_iterator_t%set_lid(this%fe_space%vef_lids_of_fe_faces%get(lid))
+end subroutine fe_face_iterator_set_lid
+
+function fe_face_iterator_get_lid (this) result(face_lid)
+  implicit none
+  class(fe_face_iterator_t), intent(in)    :: this
+  integer(ip) :: face_lid
+  face_lid = this%face_lid
+end function fe_face_iterator_get_lid
+
 subroutine fe_face_iterator_update_integration( this )
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this 
@@ -95,9 +111,10 @@ subroutine fe_face_iterator_update_integration( this )
   call this%get_coordinates(coords)
 
   do icell_around=1, this%get_num_cells_around()
-    face_lpos_within_cells_around(icell_around) = &
-      this%get_face_lpos_within_cell_around(icell_around)  
     call this%get_cell_around(icell_around,this%fe)  
+    reference_fe_geo => this%fe%get_reference_fe_geo()
+    face_lpos_within_cells_around(icell_around) = &
+      this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_face_id() + 1
     coords => face_map%get_coordinates_neighbour(icell_around, &
                                                  face_lpos_within_cells_around(icell_around))
     call this%fe%get_coordinates(coords)    
@@ -316,25 +333,20 @@ function fe_face_iterator_compute_surface ( this )
   
 end function fe_face_iterator_compute_surface
 
-function fe_face_iterator_get_face_lid (this) result(face_lid)
-  implicit none
-  class(fe_face_iterator_t), intent(in)    :: this
-  integer(ip) :: face_lid
-  face_lid = this%face_lid
-end function fe_face_iterator_get_face_lid
-
-function fe_face_iterator_get_face_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
+function fe_face_iterator_get_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
   implicit none
   class(fe_face_iterator_t) , intent(inout) :: this
   integer(ip)               , intent(in)    :: icell_around
   integer(ip)                               :: face_lpos_within_cell_around
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  integer(ip)                               :: vef_lid_of_face
   assert ( allocated(this%fe) )
   call this%get_cell_around(icell_around, this%fe)
   reference_fe_geo => this%fe%get_reference_fe_geo()
-  assert ( this%fe%find_lpos_vef_lid (this%get_lid()) /= -1 )
-  face_lpos_within_cell_around = this%fe%find_lpos_vef_lid(this%get_lid()) - reference_fe_geo%get_first_face_id() + 1
-end function fe_face_iterator_get_face_lpos_within_cell_around
+  vef_lid_of_face = this%base_fe_vef_iterator_t%get_lid()
+  assert ( this%fe%find_lpos_vef_lid (vef_lid_of_face) /= -1 )
+  face_lpos_within_cell_around = this%fe%find_lpos_vef_lid(vef_lid_of_face)
+end function fe_face_iterator_get_lpos_within_cell_around
 
 function fe_face_iterator_get_face_permutation_index ( this ) result(face_permutation_index)
   implicit none
