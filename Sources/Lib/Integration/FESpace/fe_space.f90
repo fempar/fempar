@@ -755,8 +755,16 @@ module fe_space_names
   procedure, non_overridable, private :: assemble_face_coupled_to_vertex_B_elmat       => tet_Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat
   end type tet_Hcurl_l1_coarse_fe_handler_t
        
+  ! Node type 
+  integer(ip), parameter :: num_node_types     = 4
+  integer(ip), parameter :: edge_boundary_node = 1
+  integer(ip), parameter :: interior_node      = 2
+  integer(ip), parameter :: not_owned_node     = 3
+  integer(ip), parameter :: n_furcation_node   = 4 
+  ! Fine edge direction related to coarse edge direction 
   integer(ip), parameter :: opposite_to_coarse_edge                   = 0
   integer(ip), parameter :: same_as_coarse_edge                       = 1  
+  ! Continuity algorithm 
   integer(ip), parameter :: tangential_average                        = 1
   integer(ip), parameter :: tangential_average_and_first_order_moment = 2
   integer(ip), parameter :: all_dofs_in_coarse_edges                  = 3 

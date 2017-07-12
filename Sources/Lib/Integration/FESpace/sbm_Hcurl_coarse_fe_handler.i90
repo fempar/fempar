@@ -181,10 +181,11 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
 
            do while ( .not. fine_edge_iterator%is_upper_bound() ) 
               call vef%set_lid( fine_edge_iterator%get_current() )
-              fine_edge = fine_edge + 1; sign_factor = 1.0_rp
+              fine_edge = fine_edge + 1 
               edge_length = this%compute_edge_length(par_fe_space, vef)
               
               call this%fine_edge_direction%get(key=fine_edge_iterator%get_current(), val=orientation, stat=istat); check(istat==key_found)
+			  sign_factor = 1.0_rp
               if ( orientation == opposite_to_coarse_edge ) sign_factor = -sign_factor
 
               call vef%get_cell_around(1,fe)
@@ -422,9 +423,9 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
      number_fine_edges_in_subedge = this%sorted_fine_edges_in_coarse_subedge%get_sublist_size( coarse_subedge_iterator%get_current() )
 
      call this%change_basis_matrix%G(isubedge)%create(num_rows_and_cols= this%order*number_fine_edges_in_subedge, &
-          symmetric_storage=.false.,                  &
-          is_symmetric     =.false.,                  &
-          sign             = SPARSE_MATRIX_SIGN_UNKNOWN )
+                                                      symmetric_storage=.false.,                                  &
+                                                      is_symmetric     =.false.,                                  &
+                                                      sign             = SPARSE_MATRIX_SIGN_UNKNOWN )
 
      fine_edge_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator( coarse_subedge_iterator%get_current() )
      local_edge = 0
@@ -1213,7 +1214,7 @@ subroutine tet_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_spa
   number_fine_edges_in_subedge = this%sorted_fine_edges_in_coarse_subedge%get_sublist_size( coarse_edge )
   call this%get_new_basis_dofs_from_vef( par_fe_space, fine_edge, number_fine_edges_in_subedge, vef, dofs_new_basis )
   call this%fine_edge_direction%get( key=vef%get_lid(), val=fine_edge_direction, stat=istat); check(istat==key_found)  
-  do jdof = 2, this%order      ! Interior-only coupling 
+  do jdof = 2, this%order  ! Interior-only coupling 
      if ( dofs_new_basis(jdof) > 0) then
 	 select case ( fine_edge_direction ) 
 	 case ( same_as_coarse_edge ) 
@@ -2099,6 +2100,7 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
   integer(ip)                               :: number_nodes, inode  
   integer(ip), allocatable                  :: node_list(:)
   type(hash_table_ip_ip_t)                  :: nodes_counter
+  type(hash_table_ip_ip_t)                  :: nodes_type 
   type(hash_table_ip_ip_t), allocatable     :: edge_interior_vertices(:) 
   integer(ip)                               :: counter
 
@@ -2108,21 +2110,18 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
   integer                                 :: number_coarse_edges, iedge_coarse, iedge_fine 
 
   ! Subedges counterpart 
-  integer(ip)  :: number_potential_startend_nodes 
-  integer(ip)  :: number_subedges, start_node 
+  integer(ip), allocatable :: num_nodes_each_type(:) 
+  integer(ip)              :: start_node_id, first_fine_edge 
+  integer(ip)              :: num_fine_edges_found 
 
   ! Edge sorting algorithms 
-  logical                  :: reached_endpoint, found_following_edge
-  logical                  :: bifurcation_occurred 
-  integer(ip)              :: preceding_node, following_node
-  integer(ip), allocatable :: perm(:) 
   integer(ip)              :: c 
   type(list_iterator_t)    :: subedges_iterator
   type(list_iterator_t)    :: fine_edges_in_subedges_iterator
-  type(hash_table_ip_ip_t) :: number_fine_edges_per_subedge, added_edges   
+  type(hash_table_ip_ip_t) :: number_fine_edges_per_subedge
   integer(ip)              :: number_subedges_in_coarse_edge 
-  integer(ip)              :: total_number_subedges, isubedge, number_fine_edges
-  integer(ip)              :: local_to_coarse_edge, local_to_coarse_subedge
+  integer(ip)              :: total_number_subedges, isubedge
+  integer(ip)              :: offcomponent_fine_edges, number_fine_edges
 
   call par_fe_space%create_fe_iterator(fe)
   call par_fe_space%create_fe_object_iterator(object)
@@ -2171,12 +2170,12 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
   call this%fine_edge_direction%init( sum(number_fine_edges_per_coarse_edge) )
   call memalloc( number_coarse_edges, maxval(number_fine_edges_per_coarse_edge), fine_edges_list, __FILE__, __LINE__ ) 
   call memalloc( number_coarse_edges, maxval(number_fine_edges_per_coarse_edge), perm_sorted_edges, __FILE__, __LINE__ )
-  call added_edges%init(sum(number_fine_edges_per_coarse_edge)) 
   fine_edges_list   = 0
   perm_sorted_edges = 0
 
   call object%first() 
   iedge_coarse = 0
+  call memalloc( num_node_types, num_nodes_each_type, __FILE__, __LINE__ ) 
   do while ( .not. object%has_finished() )
      if ( object%get_dimension() == 1 ) then
         iedge_coarse = iedge_coarse + 1	   
@@ -2184,6 +2183,7 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
         ! Initialize variables 
         call memalloc( number_fine_edges_per_coarse_edge(iedge_coarse), 2, vertices_in_edge, __FILE__, __LINE__ )
         call nodes_counter%init( 2*number_fine_edges_per_coarse_edge(iedge_coarse) )
+		call nodes_type%init( 2*number_fine_edges_per_coarse_edge(iedge_coarse) )
         call memalloc( 2*number_fine_edges_per_coarse_edge(iedge_coarse), node_list, __FILE__, __LINE__ )
 
         vertices_in_edge = 0
@@ -2231,25 +2231,34 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
            end if
         end do
 		
-		call mark_nodes_not_belonging_to_edge_object( edge_interior_vertices(iedge_coarse), nodes_counter )		
-        call count_number_subedges( node_list, nodes_counter, number_subedges_in_coarse_edge, number_potential_startend_nodes ) 	
-        call this%subedges_per_coarse_edge%sum_to_pointer_index(iedge_coarse, number_subedges_in_coarse_edge)
+		call assign_and_count_node_types( edge_interior_vertices(iedge_coarse), number_nodes, node_list, nodes_counter, nodes_type, num_nodes_each_type ) 
 
-        local_to_coarse_edge = 0	
-		bifurcation_occurred = .false. 
-        do isubedge = 1, number_subedges_in_coarse_edge
-           total_number_subedges = total_number_subedges + 1 
-		   if  ( .not. bifurcation_occurred ) then 
-		   start_node = identify_following_starting_node_from_list( number_potential_startend_nodes, node_list, nodes_counter )
-           call build_path_from_starting_node() 
-		   elseif ( bifurcation_occurred ) then 
-		   start_node = following_node 
-		   call build_path_from_bifurcation_node()
-		   end if 
-        end do
+		! Build [ start-->end ] node paths till all nodes have been assigned to a subedge 
+		num_fine_edges_found           = 0
+		number_subedges_in_coarse_edge = 0
+		offcomponent_fine_edges        = 0
+		do while ( any(num_nodes_each_type.ne.0) ) 
+		number_subedges_in_coarse_edge =  number_subedges_in_coarse_edge + 1
+		total_number_subedges = total_number_subedges + 1
 
+		call identify_following_starting_node( par_fe_space, number_nodes, num_nodes_each_type, node_list, nodes_type, start_node_id )
+		
+		call choose_path_direction( par_fe_space, start_node_id, number_fine_edges_per_coarse_edge(iedge_coarse), vertices_in_edge, & 
+								    node_list, nodes_counter, nodes_type, first_fine_edge )   
+        
+		call build_path_from_starting_node_and_direction_till_end_node(this, iedge_coarse, number_fine_edges_per_coarse_edge(iedge_coarse), fine_edges_list, &
+																	   vertices_in_edge, nodes_counter, nodes_type, start_node_id, first_fine_edge,    &
+																	   num_nodes_each_type, num_fine_edges_found, offcomponent_fine_edges, perm_sorted_edges)
+		
+		offcomponent_fine_edges = offcomponent_fine_edges + num_fine_edges_found 
+		call number_fine_edges_per_subedge%put( key=total_number_subedges, val=num_fine_edges_found, stat=istat ); check(istat==now_stored) 
+		end do 
+		 		
+		call this%subedges_per_coarse_edge%sum_to_pointer_index(iedge_coarse, number_subedges_in_coarse_edge)
+		
         call memfree(vertices_in_edge, __FILE__, __LINE__)
         call nodes_counter%free()
+		call nodes_type%free()
         call memfree( node_list, __FILE__, __LINE__ )
      end if
      call object%next() 
@@ -2273,108 +2282,386 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
      call subedges_iterator%next()
   end do
 
-  call create_and_fill_sorted_fine_edges_list() 
+      call this%sorted_fine_edges_in_coarse_subedge%create( this%subedges_per_coarse_edge%get_size() )
+    do isubedge = 1, this%subedges_per_coarse_edge%get_size()
+       call number_fine_edges_per_subedge%get( key=isubedge, val=number_fine_edges, stat=istat ); check(istat==key_found) 
+       call this%sorted_fine_edges_in_coarse_subedge%sum_to_pointer_index(isubedge, number_fine_edges )
+    end do
 
+    call this%sorted_fine_edges_in_coarse_subedge%calculate_header()
+    call this%sorted_fine_edges_in_coarse_subedge%allocate_list_from_pointer()	
+
+    fine_edges_in_subedges_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator()
+    do iedge_coarse = 1, number_coarse_edges 
+       do c=1, number_fine_edges_per_coarse_edge(iedge_coarse)
+          call fine_edges_in_subedges_iterator%set_current( fine_edges_list(iedge_coarse, perm_sorted_edges(iedge_coarse,c) ) )
+          call fine_edges_in_subedges_iterator%next() 
+       end do
+    end do
+	
+   ! call this%sorted_fine_edges_in_coarse_subedge%print(6)
+
+  call memfree( num_nodes_each_type, __FILE__, __LINE__ ) 
   call memfree( fine_edges_list, __FILE__, __LINE__ ) 
   call memfree( perm_sorted_edges, __FILE__, __LINE__ )
   call number_fine_edges_per_subedge%free()
-  call added_edges%free()
   call fine_edges_in_subedges_iterator%free()  
   call memfree( number_fine_edges_per_coarse_edge, __FILE__, __LINE__ ) 
   deallocate( edge_interior_vertices, stat=istat); check(istat==0)
 
-contains 
+end subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges
 
-subroutine mark_nodes_not_belonging_to_edge_object( edge_interior_vertices, nodes_counter ) 
-implicit none 
-  type(hash_table_ip_ip_t)  , intent(inout)   :: nodes_counter
-  type(hash_table_ip_ip_t)  , intent(in)      :: edge_interior_vertices
-  
+subroutine assign_and_count_node_types(edge_interior_vertices, number_nodes, node_list, nodes_counter, nodes_type, num_nodes_each_type )
+  implicit none 
+  type(hash_table_ip_ip_t)  , intent(in)    :: edge_interior_vertices
+  integer(ip)               , intent(in)    :: number_nodes 
+  integer(ip) , allocatable , intent(in)    :: node_list(:)  
+  type(hash_table_ip_ip_t)  , intent(in)    :: nodes_counter 
+  type(hash_table_ip_ip_t)  , intent(inout) :: nodes_type 
+  integer(ip), allocatable  , intent(inout) :: num_nodes_each_type(:)
+  ! Locals 
+  integer(ip) :: num_startend_nodes 
   integer(ip) :: inode
   integer(ip) :: counter, istat 
 
-		 do inode=1, number_nodes 
-           call edge_interior_vertices%get(key=node_list(inode), val=counter, stat=istat) 
-           if ( istat==key_not_found ) then 
-		      call nodes_counter%get(key=node_list(inode), val=counter, stat=istat) 
-			  if ( counter == 2) then 
-              call nodes_counter%del(key=node_list(inode), stat=istat)
-              call nodes_counter%put(key=node_list(inode), val=-counter, stat=istat)
-			  end if 
-           end if
-        end do
-		
-end subroutine mark_nodes_not_belonging_to_edge_object
-		
-  subroutine count_number_subedges(node_list, nodes_counter, number_subedges, number_potential_startend_nodes)
-    implicit none 
-    integer(ip) , allocatable , intent(in) :: node_list(:) 
-    type(hash_table_ip_ip_t)  , intent(in) :: nodes_counter 
-    integer(ip) :: number_subedges 
+  num_nodes_each_type = 0	
+  num_startend_nodes  = 0 
+  do inode=1, number_nodes 
+     call nodes_counter%get( key=node_list(inode), val=counter, stat=istat) 
+     if (counter .eq. 1) then 
+        call nodes_type%put(key=node_list(inode), val=edge_boundary_node, stat=istat)
+        num_nodes_each_type( edge_boundary_node ) = num_nodes_each_type( edge_boundary_node ) + 1
+        num_startend_nodes = num_startend_nodes + 1
+     elseif (counter .eq. 2) then
+        call nodes_type%put(key=node_list(inode), val=interior_node, stat=istat)
+        num_nodes_each_type( interior_node ) = num_nodes_each_type( interior_node ) + 1
+     elseif (counter .ge. 3) then
+	    WRITE(*,*) ' WARNING: Handling a', counter, '-furcation edge path'
+        call nodes_type%put(key=node_list(inode), val=n_furcation_node, stat=istat)
+        num_nodes_each_type( n_furcation_node ) = num_nodes_each_type( n_furcation_node ) + 1
+        num_startend_nodes    = num_startend_nodes + counter 
+     end if
+  end do
 
-    integer(ip) :: ncorners_in_edge, number_potential_startend_nodes
-    integer(ip) :: ninterior_node, nbifurcation_node 
+  ! Mark interior_nodes not belonging to the coarse object as not_owned_nodes 
+  do inode=1, number_nodes  
+     call edge_interior_vertices%get(key=node_list(inode), val=counter, stat=istat) 
+     if ( istat==key_not_found ) then 
+        call nodes_counter%get( key=node_list(inode), val=counter, stat=istat); check(istat==key_found) 
+        if ( counter == 2) then 
+		   call nodes_type%del(key=node_list(inode), stat=istat); check(istat==deleted) 
+           call nodes_type%put(key=node_list(inode), val=not_owned_node, stat=istat)
+           num_nodes_each_type( interior_node )  = num_nodes_each_type( interior_node ) - 1
+           num_nodes_each_type( not_owned_node ) = num_nodes_each_type( not_owned_node ) + 1
+           num_startend_nodes = num_startend_nodes + 2 
+        end if
+     end if
+  end do
 
-    ncorners_in_edge     = 0
-    number_potential_startend_nodes = 0
-    ninterior_node       = 0
-    nbifurcation_node    = 0 
-    do inode=1, number_nodes 
-       call nodes_counter%get( key=node_list(inode), val=counter, stat=istat) 
-       if (counter.lt.0)  then 
-          ncorners_in_edge      = ncorners_in_edge + 1
-       elseif (counter==1) then 
-          number_potential_startend_nodes  = number_potential_startend_nodes + 1
-       elseif (counter==2) then
-          ninterior_node        = ninterior_node + 1
-       elseif (counter==3) then
-          nbifurcation_node     = nbifurcation_node + 1
-       elseif (counter>3) then 
-          WRITE(*,*) 'ABORTING: bifurcation into', counter, 'paths' ; check(.false.) 
-       end if
-    end do
-
-	if ( (number_potential_startend_nodes == 0) .and. ( (ninterior_node + ncorners_in_edge + nbifurcation_node) /= 0) ) then 
-    WRITE(*,*) 'ABORTING: Partition gives place a closed path coarse edge'; check(.false.) 
-	end if 
-	
-	!WRITE(*,*) 'Edge partitioning resume: *************************'
-	!WRITE(*,*) 'Found', ncorners_in_edge, 'adjacent edge problematic cases,', number_potential_startend_nodes, &
-	!           'Start/end nodes', nbifurcation_node, 'bifurcation nodes', ninterior_node, 'Interior nodes'
-	!WRITE(*,*) '***************************************************'
-    number_subedges = ( number_potential_startend_nodes + 3*nbifurcation_node + 2*ncorners_in_edge )/2 
-
-  end subroutine count_number_subedges
-
-  function identify_following_starting_node_from_list( number_potential_startend_nodes, node_list, nodes_counter ) result(start_node) 
-    implicit none 
-    integer(ip)               , intent(in) :: number_potential_startend_nodes
-    integer(ip) , allocatable , intent(in) :: node_list(:) 
-    type(hash_table_ip_ip_t)  , intent(in) :: nodes_counter 
-    integer(ip)     :: start_node 
-
-    integer(ip)                         :: inode
-    integer(ip)                         :: found_nodes, istat 
-    integer(ip)  , allocatable          :: start_end_nodes(:) 
-
-    call memalloc( number_potential_startend_nodes, start_end_nodes, __FILE__, __LINE__ )
-    
-    found_nodes = 0
-    do inode=1, size(node_list)  
-       call nodes_counter%get( key=node_list(inode), val=counter, stat=istat)
-       if ( (istat==key_found) .and. (counter == 1) ) then
-          found_nodes = found_nodes + 1
-          start_end_nodes( found_nodes ) = node_list(inode) 
-       end if
-    end do
-	
-	call find_node_w_minimum_nonconsecutive_gid( par_fe_space, start_end_nodes, start_node ) 
+  ! WRITE(*,*) 'This Coarse Edge contains', num_startend_nodes/2, 'number of subedges'
+  ! WRITE(*,*) 'Edge partitioning resume: *************************'
+  ! WRITE(*,*) 'Found Start/end nodes', num_nodes_each_type(edge_boundary_node), 'adjacent edge problematic cases,', num_nodes_each_type(not_owned_node), &
+  !           'bifurcation nodes', num_nodes_each_type( n_furcation_node ), 'Interior nodes', num_nodes_each_type( interior_node )
+  ! WRITE(*,*) '***************************************************'
+end subroutine assign_and_count_node_types
   
-    call memfree( start_end_nodes, __FILE__, __LINE__ )
+  subroutine identify_following_starting_node( par_fe_space, number_nodes, num_nodes_each_type, node_list, nodes_type, start_node_id )
+    implicit none 
+    type(par_fe_space_t)      , intent(in)    :: par_fe_space 
+    integer(ip)               , intent(in)    :: number_nodes 
+    integer(ip) , allocatable , intent(in)    :: num_nodes_each_type(:)
+    integer(ip) , allocatable , intent(in)    :: node_list(:) 
+    type(hash_table_ip_ip_t)  , intent(in)    :: nodes_type 
+    integer(ip)               , intent(inout) :: start_node_id 
+
+    integer(ip)                    :: inode, node_type 
+    integer(ip)                    :: found_nodes, istat 
+    integer(ip)  , allocatable     :: potential_startend_nodes(:) 
+
+    ! Priority to edge_boundary nodes 
+    if ( num_nodes_each_type(edge_boundary_node) > 0 ) then 
+
+       call memalloc( num_nodes_each_type(edge_boundary_node), potential_startend_nodes, __FILE__, __LINE__ )    
+       found_nodes = 0
+       do inode=1, number_nodes   
+          call nodes_type%get( key=node_list(inode), val=node_type, stat=istat)
+          if ( (istat==key_found) .and. (node_type == edge_boundary_node) ) then
+             found_nodes = found_nodes + 1
+             potential_startend_nodes( found_nodes ) = node_list(inode) 
+          end if
+       end do
+
+       ! Secondly, look for not_owned nodes where the coarse edge may be splitted 
+    elseif ( num_nodes_each_type(not_owned_node) > 0 ) then 
+
+       call memalloc( num_nodes_each_type(not_owned_node), potential_startend_nodes, __FILE__, __LINE__ )    
+       found_nodes = 0
+       do inode=1, number_nodes   
+          call nodes_type%get( key=node_list(inode), val=node_type, stat=istat)
+          if ( (istat==key_found) .and. (node_type == not_owned_node) ) then
+             found_nodes = found_nodes + 1
+             potential_startend_nodes( found_nodes ) = node_list(inode) 
+          end if
+       end do
+
+       ! Thirdly, look for n_furcation_nodes where the coarse edge may be splitted 
+    elseif ( num_nodes_each_type(n_furcation_node) > 0 ) then   
+       call memalloc( num_nodes_each_type(n_furcation_node), potential_startend_nodes, __FILE__, __LINE__ )    
+       found_nodes = 0
+       do inode=1, number_nodes   
+          call nodes_type%get( key=node_list(inode), val=node_type, stat=istat)
+          if ( (istat==key_found) .and. (node_type == n_furcation_node) ) then
+             found_nodes = found_nodes + 1
+             potential_startend_nodes( found_nodes ) = node_list(inode) 
+          end if
+       end do
+
+       ! If none of the others, we only have interior nodes and a closed path, the edge may be splitted 
+    elseif ( num_nodes_each_type(interior_node) > 0 ) then 
+       WRITE(*,*) ' WARNING: Handling a CLOSED PATH LOOP ' 
+       call memalloc( num_nodes_each_type(interior_node), potential_startend_nodes, __FILE__, __LINE__ )   
+       found_nodes = 0
+       do inode=1, number_nodes   
+          call nodes_type%get( key=node_list(inode), val=node_type, stat=istat) 
+          if ( (istat==key_found) .and. (node_type==interior_node) ) then
+             found_nodes = found_nodes + 1
+             potential_startend_nodes( found_nodes ) = node_list(inode) 
+          end if
+       end do
+
+    end if
+
+    ! Choose one node among the potential ones: the minimum_nonconsecutive_gid node 
+    call find_node_w_minimum_nonconsecutive_gid( par_fe_space, potential_startend_nodes, start_node_id ) 
+
+    call memfree( potential_startend_nodes, __FILE__, __LINE__ )
+
+  end subroutine identify_following_starting_node
+  
+  subroutine choose_path_direction( par_fe_space, start_node_id, number_fine_edges, vertices_in_edge, node_list, nodes_type, nodes_counter, first_fine_edge)
+    implicit none 
+    type(par_fe_space_t)     , intent(in)    :: par_fe_space 
+    integer(ip)              , intent(in)    :: start_node_id
+    integer(ip)              , intent(in)    :: number_fine_edges 
+    integer(ip), allocatable , intent(in)    :: vertices_in_edge(:,:)
+    integer(ip), allocatable , intent(in)    :: node_list(:) 
+    type(hash_table_ip_ip_t) , intent(in)    :: nodes_type
+    type(hash_table_ip_ip_t) , intent(in)    :: nodes_counter
+    integer(ip)              , intent(inout) :: first_fine_edge
+    ! Locals 
+    integer(ip) :: i, node_type 
+    integer(ip) :: perm(2) 
+    integer(ip) :: counter, istat  
+    integer(ip) :: iedge, inode
+    integer(ip) , allocatable :: potential_following_nodes_ids(:)
+    integer(ip) , allocatable :: potential_following_edges(:) 
+    integer(ip) :: following_node_id, index 
+
+
+    call nodes_type%get( key=start_node_id, val=node_type, stat=istat); check(istat==key_found) 
+    if ( node_type .eq. edge_boundary_node ) then
+
+       ! Unique direction defined by edge containing the node 
+       do iedge = 1, number_fine_edges
+          if ( (vertices_in_edge(iedge,1)==start_node_id) .or. (vertices_in_edge(iedge,2)==start_node_id) ) then 
+             first_fine_edge = iedge; exit 
+          end if
+       end do
+
+    else
+
+       ! Choose first edge from all potential first edges 
+       call nodes_counter%get( key=start_node_id, val=counter, stat=istat ); check(istat==key_found) 
+       perm = (/ 1,2 /)
+       call memalloc( counter, potential_following_nodes_ids, __FILE__, __LINE__ ) 
+       call memalloc( counter, potential_following_edges, __FILE__, __LINE__ )
+
+       i = 0
+       do iedge = 1, number_fine_edges
+          do inode = 1,2
+             if ( vertices_in_edge(iedge,inode)==start_node_id ) then	
+                i = i + 1
+                potential_following_nodes_ids(i) = vertices_in_edge(iedge, perm(inode)) 
+                potential_following_edges(i)     = iedge 
+             end if
+          end do
+       end do
+
+       call find_node_w_minimum_nonconsecutive_gid( par_fe_space, potential_following_nodes_ids, following_node_id, index )
+
+       ! Add first VEF from the minimum coordinate based direction 
+       first_fine_edge = potential_following_edges(index)
+
+       call memfree( potential_following_nodes_ids, __FILE__, __LINE__ ) 
+       call memfree( potential_following_edges, __FILE__, __LINE__ ) 
+    end if
+
+  end subroutine choose_path_direction
+  
+   subroutine build_path_from_starting_node_and_direction_till_end_node(this, iedge_coarse, number_fine_edges_in_coarse_edge, fine_edges_list, vertices_in_edge, &
+																		nodes_counter, nodes_type, start_node_id, first_fine_edge, num_nodes_each_type,          & 
+																		num_fine_edges_found, offcomponent_fine_edges, perm_sorted_edges )
+   implicit none 
+   class(Hcurl_l1_coarse_fe_handler_t)     , intent(inout)  :: this
+   integer(ip)                             , intent(in)     :: iedge_coarse 
+   integer(ip)                             , intent(in)     :: number_fine_edges_in_coarse_edge 
+   integer(ip)              , allocatable  , intent(in)     :: fine_edges_list(:,:) 
+   integer(ip)              , allocatable  , intent(inout)  :: vertices_in_edge(:,:) 
+   type(hash_table_ip_ip_t)                , intent(inout)  :: nodes_counter
+   type(hash_table_ip_ip_t)                , intent(inout)  :: nodes_type 
+   integer(ip)                             , intent(inout)  :: start_node_id 
+   integer(ip)                             , intent(in)     :: first_fine_edge 
+   integer(ip)                             , intent(inout)  :: num_nodes_each_type(num_node_types) 
+   integer(ip)                             , intent(inout)  :: num_fine_edges_found 
+   integer(ip)                             , intent(in)     :: offcomponent_fine_edges
+   integer(ip)             , allocatable   , intent(inout)  :: perm_sorted_edges(:,:) 
+
+	integer(ip) :: iedge, inode 
+    integer(ip) :: counter, perm(2) 
+	integer(ip) :: following_node_id 
+	integer(ip) :: node_type, istat
+	
+	perm = (/ 2,1 /) 
+	
+	! Fill first edge information  
+    num_fine_edges_found   = 1
+    perm_sorted_edges(iedge_coarse, offcomponent_fine_edges + num_fine_edges_found) = first_fine_edge
+	
+	do inode=1,2 
+	if (vertices_in_edge(first_fine_edge,inode) == start_node_id) then 
+	following_node_id = vertices_in_edge(first_fine_edge, perm(inode) ); exit 
+	end if 
+	end do 
+					   
+	if ( inode .eq. 1 ) then
+     call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, first_fine_edge), val=same_as_coarse_edge, stat=istat)
+    else 
+     call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, first_fine_edge), val=opposite_to_coarse_edge, stat=istat)   
+    end if
+		
+	! Update nodes counter and node type if needed 
+	call update_nodes_counter_and_type( start_node_id, nodes_counter, nodes_type, num_nodes_each_type )
+	vertices_in_edge(first_fine_edge,:) = 0 ! Delete from potential list 
     
-  end function identify_following_starting_node_from_list 
-  	
- subroutine find_node_w_minimum_nonconsecutive_gid( par_fe_space, nodes_array, local_node_w_min_gid, pos_in_array) 
+	do while ( .not. is_end_node(nodes_type, following_node_id) )
+		call update_nodes_counter_and_type( following_node_id, nodes_counter, nodes_type, num_nodes_each_type )
+		start_node_id = following_node_id
+		call update_nodes_counter_and_type( start_node_id, nodes_counter, nodes_type, num_nodes_each_type )
+		
+	    edges_loop: do iedge = 1, number_fine_edges_in_coarse_edge
+          nodes_loop: do inode = 1,2
+             if ( (vertices_in_edge(iedge,inode)==start_node_id) ) then		         
+                   num_fine_edges_found = num_fine_edges_found + 1
+                   perm_sorted_edges(iedge_coarse, offcomponent_fine_edges+num_fine_edges_found) = iedge
+                   if ( inode .eq. 1 ) then
+                      call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=same_as_coarse_edge, stat=istat)
+                   else 
+                      call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=opposite_to_coarse_edge, stat=istat)   
+                   end if
+
+				   ! Update information for the next node 
+				   following_node_id         = vertices_in_edge(iedge, perm(inode)) 
+	               vertices_in_edge(iedge,:) = 0 ! Delete from potential list 
+                   exit edges_loop 
+                end if
+             end do nodes_loop
+           end do edges_loop
+       end do
+
+	   call update_nodes_counter_and_type( following_node_id, nodes_counter, nodes_type, num_nodes_each_type )
+	   
+  end subroutine build_path_from_starting_node_and_direction_till_end_node
+  
+  subroutine update_nodes_counter_and_type ( node_id, nodes_counter, nodes_type, num_nodes_each_type ) 
+    ! This subroutine Updates counters and the state according to the following diagram 
+    !   NODE_TYPE     |   NODE_COUNTER       ||        UPDATED NODE_TYPE   |  UPDATED NODE_COUNTER 
+    ! ----------------------------------------------------------------------------------------------
+    !   edge_boundary         1           ---- >                    -                   0
+    !   interior            n={1,2}       ---- >      n=2       interior                1
+    !                                                 n=1          -                    0
+    !   n-furcation           n           ---- >     (n>2)   n-furcation               n-1    
+    !                                     ----->     (n=2)   edge_boundary              1
+    !   not_owned             2           ---- >             edge_boundary              1
+    ! ----------------------------------------------------------------------------------------------
+
+    implicit none 
+    integer(ip)              , intent(in)    :: node_id 
+    type(hash_table_ip_ip_t) , intent(inout) :: nodes_counter
+    type(hash_table_ip_ip_t) , intent(inout) :: nodes_type 
+    integer(ip)              , intent(inout) :: num_nodes_each_type(num_node_types)  
+
+    integer(ip) :: node_type
+    integer(ip) :: counter 
+    integer(ip) :: istat 
+
+    call nodes_type%get( key=node_id, val=node_type, stat=istat); check(istat==key_found) 
+
+    select case ( node_type ) 
+    case (edge_boundary_node)  
+
+       call nodes_counter%del( key=node_id, stat=istat); check(istat==deleted)
+       call nodes_type%del( key=node_id, stat=istat); check(istat==deleted)
+       num_nodes_each_type( edge_boundary_node ) = num_nodes_each_type( edge_boundary_node ) - 1
+
+    case ( interior_node ) 
+
+       call nodes_counter%get( key=node_id, val=counter, stat=istat); check(istat==key_found)
+       if ( counter .eq. 2 ) then 
+          call nodes_counter%del( key=node_id, stat=istat); check(istat==deleted)
+          call nodes_counter%put( key=node_id, val=counter-1, stat=istat); check(istat==now_stored)
+       elseif ( counter .eq. 1) then 
+          call nodes_counter%del( key=node_id, stat=istat); check(istat==deleted)
+          call nodes_type%del( key=node_id, stat=istat); check(istat==deleted)
+          num_nodes_each_type( interior_node ) = num_nodes_each_type( interior_node ) - 1
+       else 
+          assert(.false.) 
+       end if
+
+    case ( n_furcation_node ) 
+
+       call nodes_counter%get( key=node_id, val=counter, stat=istat); check(istat==key_found)
+       call nodes_counter%del( key=node_id, stat=istat); check(istat==deleted)
+       call nodes_counter%put( key=node_id, val=counter-1, stat=istat); check(istat==now_stored)
+
+       if ( counter .eq. 2 ) then 
+          call nodes_type%del( key=node_id, stat=istat); check(istat==deleted)
+          call nodes_type%put( key=node_id, val=edge_boundary_node, stat=istat); check(istat==now_stored)
+          num_nodes_each_type( n_furcation_node ) = num_nodes_each_type( n_furcation_node ) - 1
+          num_nodes_each_type( edge_boundary_node ) = num_nodes_each_type( edge_boundary_node ) + 1
+       end if
+
+    case ( not_owned_node ) 
+
+	   call nodes_counter%get( key=node_id, val=counter, stat=istat); check(istat==key_found)
+       call nodes_counter%del( key=node_id, stat=istat); check(istat==deleted)
+       call nodes_counter%put( key=node_id, val=counter-1, stat=istat); check(istat==now_stored)
+       call nodes_type%del( key=node_id, stat=istat); check(istat==deleted)
+       call nodes_type%put( key=node_id, val=edge_boundary_node, stat=istat); check(istat==now_stored)
+       num_nodes_each_type( not_owned_node ) = num_nodes_each_type( not_owned_node ) - 1
+       num_nodes_each_type( edge_boundary_node ) = num_nodes_each_type( edge_boundary_node ) + 1
+
+    end select
+
+  end subroutine update_nodes_counter_and_type
+  
+  function is_end_node( nodes_type, node_id ) 
+  implicit none 
+  type(hash_table_ip_ip_t)  , intent(in) :: nodes_type
+  integer(ip)               , intent(in) :: node_id 
+  logical :: is_end_node 
+  
+  integer(ip) :: node_type, istat
+
+  call nodes_type%get( key=node_id, val=node_type, stat=istat); check(istat==key_found) 
+  if ( node_type==interior_node ) then 
+  is_end_node = .false.  
+  else 
+  is_end_node = .true. 
+  end if 
+  
+  end function is_end_node 
+  
+   subroutine find_node_w_minimum_nonconsecutive_gid( par_fe_space, nodes_array, local_node_w_min_gid, pos_in_array) 
    implicit none 
    type(par_fe_space_t)       , intent(in)   :: par_fe_space
    integer(ip)  , allocatable,  intent(in)   :: nodes_array(:) 
@@ -2386,6 +2673,7 @@ end subroutine mark_nodes_not_belonging_to_edge_object
 
    type(par_triangulation_t)         :: triangulation
    integer(igp)  , allocatable       :: node_gids(:) 
+   integer(ip)                    :: ivef_within_cell 
    integer(ip)                    :: inode, npotential_candidates 
    integer(igp)                   :: cell_around_gid, maximum_cell_around_gid 
    integer(ip)                    :: ielem, ielem_with_max_gid, inode_w_min_gid 
@@ -2422,216 +2710,4 @@ end subroutine mark_nodes_not_belonging_to_edge_object
 
    call memfree( node_gids, __FILE__, __LINE__ )
  end subroutine find_node_w_minimum_nonconsecutive_gid
-
-  subroutine build_path_from_starting_node() 
-
-    call memalloc( 2, perm, __FILE__, __LINE__ ) 
-    perm(1) = 2; perm(2) = 1; 
-	
-    call nodes_counter%del( key=start_node, stat=istat)
-    number_potential_startend_nodes = number_potential_startend_nodes - 1
-
-    following_node           = start_node 
-    local_to_coarse_subedge  = 0 
-    reached_endpoint         = .false. 
-    do while ( .not. reached_endpoint )
-       found_following_edge = .false. 
-       do iedge = 1, number_fine_edges_per_coarse_edge(iedge_coarse)
-          do inode = 1,2
-             if ( (vertices_in_edge( iedge, inode) == following_node) ) then		         
-                call added_edges%put(fine_edges_list(iedge_coarse, iedge), val=local_to_coarse_edge+1, stat=istat)
-
-                if ( istat/=was_stored ) then 
-                   local_to_coarse_edge = local_to_coarse_edge + 1	
-                   local_to_coarse_subedge = local_to_coarse_subedge + 1
-                   perm_sorted_edges(iedge_coarse, local_to_coarse_edge) = iedge
-                   if ( inode .eq. 1 ) then
-                      call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=same_as_coarse_edge, stat=istat)
-                   else 
-                      call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=opposite_to_coarse_edge, stat=istat)   
-                   end if
-
-                   found_following_edge = .true. 
-				   preceding_node = vertices_in_edge(iedge, inode)
-                   following_node = vertices_in_edge(iedge, perm(inode))  
-
-                   ! Choose path 
-                   call nodes_counter%get( key=following_node, val=counter, stat=istat) 
-                   if (counter.lt.0)  then 
-                      reached_endpoint = .true. 
-                      call nodes_counter%del( key=following_node, stat=istat) 
-                      call nodes_counter%put( key=following_node, val=1, stat=istat)
-                      number_potential_startend_nodes = number_potential_startend_nodes + 1
-                   elseif ( counter==1 ) then
-                      reached_endpoint = .true.
-                      call nodes_counter%del( key=following_node, stat=istat)
-                      number_potential_startend_nodes = number_potential_startend_nodes - 1
-                   elseif (counter==2 ) then
-                      call nodes_counter%del( key=following_node, stat=istat)
-                   elseif (counter==3) then 
-				      reached_endpoint    = .true. 
-					  bifurcation_occurred = .true. 
-                      WRITE(*,*) 'Handling a bifurcation';  
-                   end if
-
-                   exit 
-                end if
-
-             end if
-          end do
-          if (found_following_edge) exit 
-       end do
-    end do
-
-    call number_fine_edges_per_subedge%put( key=total_number_subedges, val=local_to_coarse_subedge, stat=istat ); check(istat==now_stored) 
-    call memfree(perm, __FILE__, __LINE__) 
-
-  end subroutine build_path_from_starting_node
   
-  subroutine build_path_from_bifurcation_node() 
-  implicit none 
-  integer(ip) :: dummy_val, i, index 
-  integer(ip) , allocatable :: potential_following_nodes(:)
-  integer(ip) , allocatable :: potential_following_edges(:) 
-
-    call memalloc( 2, perm, __FILE__, __LINE__ ) 
-    perm(1) = 2; perm(2) = 1; 
-	call memalloc( 2, potential_following_nodes, __FILE__, __LINE__ ) 
-	call memalloc( 2, potential_following_edges, __FILE__, __LINE__ )
-
-	dummy_val                = 0 
-    following_node           = start_node 
-    local_to_coarse_subedge  = 0 
-    reached_endpoint         = .false. 
-	bifurcation_occurred     = .false. 
-	
-	 ! Set bifurcation node as a potential start/end node 
-	 call nodes_counter%del( key=following_node, stat=istat) 
-     call nodes_counter%put( key=following_node, val=1, stat=istat)
-     number_potential_startend_nodes = number_potential_startend_nodes + 1
-	
-	! Find potential directions  
-	   i = 0
-	   do iedge = 1, number_fine_edges_per_coarse_edge(iedge_coarse)
-          do inode = 1,2
-             if ( (vertices_in_edge( iedge, inode) == following_node) .and. (vertices_in_edge(iedge, perm(inode)) /= preceding_node) ) then	
-				     i = i + 1
-				     potential_following_nodes(i) = vertices_in_edge(iedge, perm(inode)) 
-					 potential_following_edges(i) = iedge 
-				 end if 
-			 end do 
-			 end do 
-			 	 
-	 call find_node_w_minimum_nonconsecutive_gid( par_fe_space, potential_following_nodes, following_node, index )
-	   
-	 ! Add first VEF from the minimum coordinate based direction 
-	 iedge = potential_following_edges(index)
-     call added_edges%put(fine_edges_list(iedge_coarse, iedge), val=local_to_coarse_edge+1, stat=istat); assert(istat/=was_stored) 
-	 	 
-	  local_to_coarse_edge = local_to_coarse_edge + 1	
-      local_to_coarse_subedge = local_to_coarse_subedge + 1
-      perm_sorted_edges(iedge_coarse, local_to_coarse_edge) = iedge
-       if ( vertices_in_edge(iedge,1) == start_node ) then
-         call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=same_as_coarse_edge, stat=istat)
-       else 
-         call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=opposite_to_coarse_edge, stat=istat)   
-       end if
-
-       ! Choose path 
-       call nodes_counter%get( key=following_node, val=counter, stat=istat) 
-       if (counter.lt.0)  then 
-        reached_endpoint = .true. 
-       call nodes_counter%del( key=following_node, stat=istat) 
-       call nodes_counter%put( key=following_node, val=1, stat=istat)
-        number_potential_startend_nodes = number_potential_startend_nodes + 1
-       elseif ( counter==1 ) then
-        reached_endpoint = .true.
-       call nodes_counter%del( key=following_node, stat=istat)
-        number_potential_startend_nodes = number_potential_startend_nodes - 1
-       elseif (counter==2 ) then
-        call nodes_counter%del( key=following_node, stat=istat)
-       elseif (counter==3) then 
-		reached_endpoint    = .true. 
-		bifurcation_occurred = .true. 
-        WRITE(*,*) 'Handling a bifurcation';  
-       end if
-					
-    do while ( .not. reached_endpoint )
-       found_following_edge = .false. 
-       do iedge = 1, number_fine_edges_per_coarse_edge(iedge_coarse)
-          do inode = 1,2
-             if ( (vertices_in_edge( iedge, inode) == following_node) ) then		         
-                call added_edges%put(fine_edges_list(iedge_coarse, iedge), val=local_to_coarse_edge+1, stat=istat)
-
-                if ( istat/=was_stored ) then 
-                   local_to_coarse_edge = local_to_coarse_edge + 1	
-                   local_to_coarse_subedge = local_to_coarse_subedge + 1
-                   perm_sorted_edges(iedge_coarse, local_to_coarse_edge) = iedge
-                   if ( inode .eq. 1 ) then
-                      call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=same_as_coarse_edge, stat=istat)
-                   else 
-                      call this%fine_edge_direction%put(key=fine_edges_list(iedge_coarse, iedge), val=opposite_to_coarse_edge, stat=istat)   
-                   end if
-
-                   found_following_edge = .true. 
-                   following_node = vertices_in_edge(iedge, perm(inode))  
-
-                   ! Choose path 
-                   call nodes_counter%get( key=following_node, val=counter, stat=istat) 
-                   if (counter.lt.0)  then 
-                      reached_endpoint = .true. 
-                      call nodes_counter%del( key=following_node, stat=istat) 
-                      call nodes_counter%put( key=following_node, val=1, stat=istat)
-                      number_potential_startend_nodes = number_potential_startend_nodes + 1
-                   elseif ( counter==1 ) then
-                      reached_endpoint = .true.
-                      call nodes_counter%del( key=following_node, stat=istat)
-                      number_potential_startend_nodes = number_potential_startend_nodes - 1
-                   elseif (counter==2 ) then
-                      call nodes_counter%del( key=following_node, stat=istat)
-                   elseif (counter==3) then 
-				      reached_endpoint    = .true. 
-					  bifurcation_occurred = .true. 
-                      WRITE(*,*) 'Handling a bifurcation';  
-                   end if
-
-                   exit 
-                end if
-
-             end if
-          end do
-          if (found_following_edge) exit 
-       end do
-    end do
-
-    call number_fine_edges_per_subedge%put( key=total_number_subedges, val=local_to_coarse_subedge, stat=istat ); check(istat==now_stored) 
-    call memfree(perm, __FILE__, __LINE__) 
-    call memfree(potential_following_nodes, __FILE__, __LINE__ )
-	call memfree(potential_following_edges, __FILE__, __LINE__ ) 
-	
-  end subroutine build_path_from_bifurcation_node
-
-  subroutine create_and_fill_sorted_fine_edges_list( )
-
-    call this%sorted_fine_edges_in_coarse_subedge%create( this%subedges_per_coarse_edge%get_size() )
-    do isubedge = 1, this%subedges_per_coarse_edge%get_size()
-       call number_fine_edges_per_subedge%get( key=isubedge, val=number_fine_edges, stat=istat ); check(istat==key_found) 
-       call this%sorted_fine_edges_in_coarse_subedge%sum_to_pointer_index(isubedge, number_fine_edges )
-    end do
-
-    call this%sorted_fine_edges_in_coarse_subedge%calculate_header()
-    call this%sorted_fine_edges_in_coarse_subedge%allocate_list_from_pointer()	
-
-    fine_edges_in_subedges_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator()
-    do iedge_coarse = 1, number_coarse_edges 
-       do c=1, number_fine_edges_per_coarse_edge(iedge_coarse)
-          call fine_edges_in_subedges_iterator%set_current( fine_edges_list(iedge_coarse, perm_sorted_edges(iedge_coarse,c) ) )
-          call fine_edges_in_subedges_iterator%next() 
-       end do
-    end do
-	
-    call this%sorted_fine_edges_in_coarse_subedge%print(6) 
-
-  end subroutine create_and_fill_sorted_fine_edges_list
-
-end subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges
