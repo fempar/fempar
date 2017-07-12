@@ -1223,46 +1223,6 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end do
   end subroutine bst_compute_vefs_and_parts_object_body
   
-  subroutine bst_compute_faces_object(this)
-    implicit none
-    class(base_static_triangulation_t), intent(inout) :: this
-    integer(ip) :: iobj
-    type(vef_iterator_t)  :: vef
-    type(list_iterator_t) :: vefs_object_iterator, faces_object_iterator   
-    
-    call this%faces_object%create(n=this%number_objects)
-    
-    call this%create_vef_iterator(vef)
-    do iobj=1,this%number_objects
-      vefs_object_iterator = this%vefs_object%create_iterator(iobj)
-      do while ( .not. vefs_object_iterator%is_upper_bound() ) 
-        call vef%set_lid(vefs_object_iterator%get_current())
-        if ( vef%get_dimension() == this%get_num_dimensions()-1 ) then
-            call this%faces_object%sum_to_pointer_index(iobj, 1)
-         end if
-        call vefs_object_iterator%next()
-      end do
-    end do
-    
-    call this%faces_object%calculate_header()
-    call this%faces_object%allocate_list_from_pointer()
-    do iobj=1,this%number_objects
-      vefs_object_iterator = this%vefs_object%create_iterator(iobj)
-      faces_object_iterator = this%faces_object%create_iterator(iobj)
-      do while ( .not. vefs_object_iterator%is_upper_bound() ) 
-        call vef%set_lid(vefs_object_iterator%get_current())
-        if ( vef%get_dimension() == this%get_num_dimensions()-1 ) then
-            call faces_object_iterator%set_current(vef%get_lid())
-            call faces_object_iterator%next() 
-         end if
-        call vefs_object_iterator%next()
-      end do
-    end do
-    
-    call this%free_vef_iterator(vef)
-  end subroutine bst_compute_faces_object
-  
-  
   subroutine bst_compute_objects_dimension(this)
     implicit none
     class(base_static_triangulation_t), intent(inout) :: this
@@ -1560,7 +1520,6 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
     if ( this%p_env%am_i_l1_task() ) then
       call this%compute_vefs_and_parts_object()
-      call this%compute_faces_object()
       call this%compute_objects_dimension()
       call this%compute_number_global_objects_and_their_gids()
     end if  
@@ -2110,7 +2069,6 @@ subroutine bst_print ( this )
         ! Free coarse objects-related data
         call this%free_objects_gids_and_dim()
         call this%vefs_object%free()
-        call this%faces_object%free()
         call this%parts_object%free()
         call this%subparts_object%free()
         call this%g2l_subparts%free()

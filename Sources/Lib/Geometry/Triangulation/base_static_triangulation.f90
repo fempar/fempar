@@ -234,14 +234,12 @@ module base_static_triangulation_names
     private
     integer(ip)                                 :: lid = -1
     type(list_iterator_t)                       :: vefs_object_iterator
-    type(list_iterator_t)                       :: faces_object_iterator
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
     procedure                           :: create                          => object_iterator_create
     procedure                           :: free                            => object_iterator_free
     final                               ::                                    object_iterator_free_final
     procedure, non_overridable, private :: update_vefs_object_iterator     => object_iterator_update_vefs_object_iterator
-    procedure, non_overridable, private :: update_faces_object_iterator    => object_iterator_update_faces_object_iterator
     procedure                           :: first                           => object_iterator_first
     procedure                           :: next                            => object_iterator_next
     procedure                           :: set_lid                         => object_iterator_set_lid
@@ -255,8 +253,6 @@ module base_static_triangulation_names
     procedure, non_overridable          :: create_subparts_around_iterator => object_iterator_create_subparts_around_iterator
     procedure, non_overridable          :: get_num_vefs                    => object_iterator_get_num_vefs
     procedure, non_overridable          :: get_vef                         => object_iterator_get_vef
-    procedure, non_overridable          :: get_num_faces                   => object_iterator_get_num_faces
-    procedure, non_overridable          :: get_face                        => object_iterator_get_face
   end type object_iterator_t
        
    ! JP-TODO: implement states: discuss with Alberto and Victor.
@@ -439,7 +435,6 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: compute_subparts_itfc_vefs                     => bst_compute_subparts_itfc_vefs
      procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => bst_compute_parts_object_from_subparts_object
      procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => bst_compute_part_id_from_subpart_gid
-     procedure, non_overridable, private :: compute_faces_object                           => bst_compute_faces_object
      procedure, non_overridable, private :: compute_objects_dimension                      => bst_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
      procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids

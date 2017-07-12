@@ -55,14 +55,6 @@ subroutine fe_object_iterator_get_fe_vef (this, ivef, fe_vef)
   call this%object%get_vef(ivef, fe_vef%vef)
 end subroutine fe_object_iterator_get_fe_vef
 
-function fe_object_iterator_get_num_faces(this)
-  implicit none
-  class(fe_object_iterator_t), intent(in) :: this
-  integer(ip) :: fe_object_iterator_get_num_faces
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  fe_object_iterator_get_num_faces = this%fe_space%faces_object%get_sublist_size(this%get_lid())
-end function fe_object_iterator_get_num_faces
-
 subroutine fe_object_iterator_get_fe_face(this, face_lid, fe_face)
   implicit none
   class(fe_object_iterator_t), intent(in)    :: this
@@ -72,24 +64,13 @@ subroutine fe_object_iterator_get_fe_face(this, face_lid, fe_face)
   call fe_face%set_lid(face_lid)
 end subroutine fe_object_iterator_get_fe_face
 
-subroutine fe_object_iterator_first(this)
+function fe_object_iterator_get_num_faces(this)
   implicit none
-  class(fe_object_iterator_t), intent(inout) :: this
-  call this%object%first()
-end subroutine fe_object_iterator_first
-
-subroutine fe_object_iterator_next(this)
-  implicit none
-  class(fe_object_iterator_t), intent(inout) :: this
-  call this%object%next()
-end subroutine fe_object_iterator_next
-
-subroutine fe_object_iterator_set_lid(this, lid)
-  implicit none
-  class(fe_object_iterator_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: lid
-  call this%object%set_lid(lid)
-end subroutine fe_object_iterator_set_lid
+  class(fe_object_iterator_t), intent(in) :: this
+  integer(ip) :: fe_object_iterator_get_num_faces
+  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  fe_object_iterator_get_num_faces = this%fe_space%faces_object%get_sublist_size(this%get_lid())
+end function fe_object_iterator_get_num_faces
 
 function fe_object_iterator_get_number_coarse_dofs(this, field_id)
   implicit none
