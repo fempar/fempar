@@ -504,9 +504,8 @@ module fe_space_names
     final                                :: fe_object_iterator_free_final
     ! Own methods of fe_object_iterator_t
     procedure, non_overridable, private  :: fe_object_iterator_get_fe_vef
-    procedure, non_overridable, private  :: fe_object_iterator_get_fe_face
     generic                              :: get_vef                               => fe_object_iterator_get_fe_vef 
-    generic                              :: get_face                              => fe_object_iterator_get_fe_face
+    procedure, non_overridable, private  :: get_face                              => fe_object_iterator_get_fe_face
     procedure, non_overridable           :: get_num_faces                         => fe_object_iterator_get_num_faces
     procedure, non_overridable           :: get_number_coarse_dofs                => fe_object_iterator_get_number_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_iterator_create_own_coarse_dofs_iterator
