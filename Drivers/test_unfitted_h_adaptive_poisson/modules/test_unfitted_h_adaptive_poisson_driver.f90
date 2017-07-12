@@ -591,15 +591,23 @@ contains
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
 
     type(unfitted_solution_checker_t) :: solution_checker
+
     real(rp) :: error_h1_semi_norm
     real(rp) :: error_l2_norm
     real(rp) :: h1_semi_norm
     real(rp) :: l2_norm
+
+    real(rp) :: l2_norm_boundary           
+    real(rp) :: h1_semi_norm_boundary      
+    real(rp) :: error_l2_norm_boundary     
+    real(rp) :: error_h1_semi_norm_boundary
+
     real(rp) :: error_tolerance, tol
     integer(ip) :: iounit
 
     call solution_checker%create(this%fe_space,this%solution,this%poisson_analytical_functions%get_solution_function())
-    call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm)
+    call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm,&
+           error_h1_semi_norm_boundary, error_l2_norm_boundary, h1_semi_norm_boundary, l2_norm_boundary)
     call solution_checker%free()
 
     write(*,'(a,e32.25)') 'l2_norm:               ', l2_norm
@@ -608,6 +616,13 @@ contains
     write(*,'(a,e32.25)') 'error_h1_semi_norm:    ', error_h1_semi_norm
     write(*,'(a,e32.25)') 'rel_error_l2_norm:     ', error_l2_norm/l2_norm
     write(*,'(a,e32.25)') 'rel_error_h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
+
+    write(*,'(a,e32.25)') 'l2_norm_boundary:               ', l2_norm_boundary               
+    write(*,'(a,e32.25)') 'h1_semi_norm_boundary:          ', h1_semi_norm_boundary          
+    write(*,'(a,e32.25)') 'error_l2_norm_boundary:         ', error_l2_norm_boundary         
+    write(*,'(a,e32.25)') 'error_h1_semi_norm_boundary:    ', error_h1_semi_norm_boundary    
+    write(*,'(a,e32.25)') 'rel_error_l2_norm_boundary:     ', error_l2_norm_boundary      /l2_norm_boundary
+    write(*,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
     if (this%test_params%get_write_matrix()) then
       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
@@ -618,6 +633,12 @@ contains
       write(iounit,'(a,e32.25)') 'error_h1_semi_norm     ;', error_h1_semi_norm
       write(iounit,'(a,e32.25)') 'rel_error_l2_norm      ;', error_l2_norm/l2_norm
       write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm ;', error_h1_semi_norm/h1_semi_norm
+      write(iounit,'(a,e32.25)') 'l2_norm_boundary               ;', l2_norm_boundary               
+      write(iounit,'(a,e32.25)') 'h1_semi_norm_boundary          ;', h1_semi_norm_boundary          
+      write(iounit,'(a,e32.25)') 'error_l2_norm_boundary         ;', error_l2_norm_boundary         
+      write(iounit,'(a,e32.25)') 'error_h1_semi_norm_boundary    ;', error_h1_semi_norm_boundary    
+      write(iounit,'(a,e32.25)') 'rel_error_l2_norm_boundary     ;', error_l2_norm_boundary      /l2_norm_boundary
+      write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary;', error_h1_semi_norm_boundary /h1_semi_norm_boundary
       call io_close(iounit)
     end if
 
