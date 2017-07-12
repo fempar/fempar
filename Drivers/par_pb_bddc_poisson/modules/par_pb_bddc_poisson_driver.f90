@@ -165,7 +165,8 @@ contains
              cells_set( cell%get_lid() ) = cell_set_id( grav_center, &
                   this%triangulation%get_num_dimensions(), &
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
-                  this%test_params%get_nchannel_per_direction())
+                  this%test_params%get_nchannel_per_direction(), &
+                  this%test_params%get_nparts_with_channels())
           end if
           call cell%next()
        end do
@@ -176,13 +177,14 @@ contains
     
   end subroutine setup_cell_set_ids
 
-  function cell_set_id( coord, num_dimensions, jump, inclusion, nchannel_per_direction)
+  function cell_set_id( coord, num_dimensions, jump, inclusion, nchannel_per_direction, nparts_with_channels)
     implicit none
     type(point_t), intent(in)  :: coord
     integer(ip)  , intent(in)  :: num_dimensions
     integer(ip)  , intent(in)  :: jump
     integer(ip)  , intent(in)  :: inclusion
     integer(ip)  , intent(in)  :: nchannel_per_direction
+    integer(ip)  , intent(in)  :: nparts_with_channels
     type(point_t) :: origin, opposite
     integer(ip) :: cell_set_id
     integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
@@ -313,6 +315,49 @@ contains
        half_channel_width = box_width/5
        center = half_channel_width
        eps = 1e-14_rp
+       do j=1, nchannel_per_direction
+          p1_c(j)=center - half_channel_width 
+          p2_c(j)=center + half_channel_width  
+          center = center + box_width
+       enddo
+
+       nchannel = 1
+       ! x edges
+       do j = 1, nchannel_per_direction
+          do k = 1,nchannel_per_direction
+             call origin%set(1,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(3,p1_c(k));
+             call opposite%set(1,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(3,p2_c(k));
+             nchannel = nchannel + 1
+             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+          end do
+       end do
+       ! y edges
+       do j = 1, nchannel_per_direction
+          do k = 1,nchannel_per_direction
+             call origin%set(2,0.0_rp)  ; call origin%set(1, p1_c(j)) ; call origin%set(3,p1_c(k));
+             call opposite%set(2,1.0_rp); call opposite%set(1,p2_c(j)); call opposite%set(3,p2_c(k));
+             nchannel = nchannel + 1
+             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+          end do
+       end do
+       ! z edges
+       do j = 1, nchannel_per_direction
+          do k = 1,nchannel_per_direction
+             call origin%set(3,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(1,p1_c(k));
+             call opposite%set(3,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(1,p2_c(k));
+             nchannel = nchannel + 1
+             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+          end do
+       end do
+    else if ( inclusion == 7 ) then
+       ! Number of channels can be choosen from the command line using option -nc
+       ! Channels are positioned so that some will touch but not cross the interface
+       ! if the nchannel_per_direction is a multiple of the number partitions per direction 
+
+       ! defining positions of the channels
+       box_width = 1.0_rp/nparts_with_channels
+       half_channel_width = box_width/5
+       center = half_channel_width
        do j=1, nchannel_per_direction
           p1_c(j)=center - half_channel_width 
           p2_c(j)=center + half_channel_width  
