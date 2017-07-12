@@ -56,17 +56,13 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
                                                                 triangulation,      &
                                                                 reference_fes,      &
                                                                 coarse_fe_handlers, &
-                                                                conditions,         &
-                                                                field_blocks,       &
-                                                                field_coupling )
+                                                                conditions)
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(base_static_triangulation_t), target, intent(in)     :: triangulation
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
   class(conditions_t)             , optional, intent(in)     :: conditions
-  integer(ip)                     , optional, intent(in)     :: field_blocks(:)
-  logical                         , optional, intent(in)     :: field_coupling(:,:)
 
   type(environment_t), pointer :: par_environment 
   integer(ip)                  :: field_id
@@ -1556,6 +1552,8 @@ subroutine par_fe_space_create_dof_values(this, dof_values)
   class(vector_t), allocatable, intent(inout) :: dof_values
   integer(ip) :: istat
   type(environment_t), pointer :: par_environment
+  
+  assert ( associated(this%block_layout) )
   
   if (allocated(dof_values)) then
     call dof_values%free()
