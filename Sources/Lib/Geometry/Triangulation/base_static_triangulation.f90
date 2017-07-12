@@ -195,31 +195,6 @@ module base_static_triangulation_names
      generic                             :: get_cell_around           => vef_iterator_get_cell_around
   end type vef_iterator_t
 
-  type, extends(vef_iterator_t) :: vertex_iterator_t
-    private
-    contains
-     procedure          :: first                     => vertex_iterator_first
-     procedure          :: has_finished              => vertex_iterator_has_finished
-  end type vertex_iterator_t
-
-  type, extends(vef_iterator_t) :: edge_iterator_t
-    private
-    contains
-     procedure          :: first                     => edge_iterator_first
-     procedure          :: has_finished              => edge_iterator_has_finished
-  end type edge_iterator_t
-  
-  type, extends(vef_iterator_t) :: face_iterator_t
-    private
-    class(cell_iterator_t), allocatable :: cell
-  contains
-    procedure                           :: create                           => face_iterator_create
-    procedure                           :: free                             => face_iterator_free
-    final                               ::                                     face_iterator_free_final
-    procedure                           :: first                            => face_iterator_first
-    procedure                           :: has_finished                     => face_iterator_has_finished
-  end type face_iterator_t
-
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
     private
     integer(ip)  :: itfc_lid = -1
@@ -365,8 +340,6 @@ module base_static_triangulation_names
      ! Vef traversals-related TBPs
      procedure                           :: create_vef_iterator              => bst_create_vef_iterator
      procedure                           :: create_itfc_vef_iterator         => bst_create_itfc_vef_iterator
-     procedure                           :: create_vertex_iterator           => bst_create_vertex_iterator
-     procedure                           :: create_edge_iterator             => bst_create_edge_iterator
      procedure                           :: free_vef_iterator                => bst_free_vef_iterator
      
      ! Objects-related traversals
@@ -503,7 +476,7 @@ module base_static_triangulation_names
   public :: par_triangulation_t
   public :: cell_iterator_t
   public :: vef_iterator_t
-  public :: itfc_vef_iterator_t, face_iterator_t, object_iterator_t
+  public :: itfc_vef_iterator_t, object_iterator_t
   
 contains
 

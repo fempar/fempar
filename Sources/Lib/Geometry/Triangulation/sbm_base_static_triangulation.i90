@@ -1943,22 +1943,6 @@ subroutine bst_create_itfc_vef_iterator ( this, itfc_vef )
   call itfc_vef%create(this)
 end subroutine bst_create_itfc_vef_iterator
 
-subroutine bst_create_vertex_iterator ( this, vertex )
-  implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(vertex_iterator_t)          , intent(inout) :: vertex
-  call this%free_vef_iterator(vertex)
-  call vertex%create(this)
-end subroutine bst_create_vertex_iterator
-
-subroutine bst_create_edge_iterator ( this, edge )
-  implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(edge_iterator_t)          , intent(inout) :: edge
-  call this%free_vef_iterator(edge)
-  call edge%create(this)
-end subroutine bst_create_edge_iterator
-
 subroutine bst_free_vef_iterator ( this, vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
