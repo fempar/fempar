@@ -112,7 +112,6 @@ contains
     type(vef_iterator_t)  :: vef
     
     call this%triangulation%create(this%parameter_list, this%environment)
-    write(*,*) 'number of parts:',this%test_params%get_nparts()
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
@@ -167,7 +166,8 @@ contains
                   this%triangulation%get_num_dimensions(), &
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
                   this%test_params%get_nchannel_per_direction(), &
-                  this%test_params%get_nparts_with_channels())
+                  this%test_params%get_nparts_with_channels(), &
+                  this%test_params%get_nparts())
           end if
           call cell%next()
        end do
@@ -178,7 +178,7 @@ contains
     
   end subroutine setup_cell_set_ids
 
-  function cell_set_id( coord, num_dimensions, jump, inclusion, nchannel_per_direction, nparts_with_channels)
+  function cell_set_id( coord, num_dimensions, jump, inclusion, nchannel_per_direction, nparts_with_channels,nparts)
     implicit none
     type(point_t), intent(in)  :: coord
     integer(ip)  , intent(in)  :: num_dimensions
@@ -186,6 +186,7 @@ contains
     integer(ip)  , intent(in)  :: inclusion
     integer(ip)  , intent(in)  :: nchannel_per_direction
     integer(ip)  , intent(in)  :: nparts_with_channels
+    integer(ip)  , intent(in)  :: nparts
     type(point_t) :: origin, opposite
     integer(ip) :: cell_set_id
     integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
@@ -356,7 +357,7 @@ contains
        ! if the nchannel_per_direction is a multiple of the number partitions per direction 
 
        ! defining positions of the channels
-       box_width = 1.0_rp/nparts_with_channels
+       box_width = 1.0*nparts_with_channels/(nchannel_per_direction*nparts)
        half_channel_width = box_width/5
        center = half_channel_width
        do j=1, nchannel_per_direction
