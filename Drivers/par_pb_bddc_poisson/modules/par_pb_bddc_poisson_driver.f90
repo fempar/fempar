@@ -112,6 +112,7 @@ contains
     type(vef_iterator_t)  :: vef
     
     call this%triangulation%create(this%parameter_list, this%environment)
+    write(*,*) 'number of parts:',this%test_params%get_nparts()
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)

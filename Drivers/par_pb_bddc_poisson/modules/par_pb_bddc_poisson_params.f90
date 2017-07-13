@@ -34,6 +34,7 @@ module par_pb_bddc_poisson_params_names
        procedure, non_overridable             :: get_coarse_fe_handler_type
        procedure, non_overridable             :: get_nchannel_per_direction
        procedure, non_overridable             :: get_nparts_with_channels
+       procedure, non_overridable             :: get_nparts
        !procedure, non_overridable             :: get_num_dimensions
   end type par_pb_bddc_poisson_params_t
 
@@ -348,5 +349,30 @@ contains
     error = list%Get(key = nparts_with_channels_key, Value = get_nparts_with_channels)
     assert(error==0)
   end function get_nparts_with_channels
+
+  !==================================================================================================
+  function get_nparts(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    integer(ip)                                   :: number_of_levels, get_nparts
+    integer(ip), allocatable :: number_of_parts_per_dir(:) ! 0:SPACE_DIM-1)
+    integer(ip), allocatable :: array_size(:)
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(number_of_levels_key, number_of_levels))
+    error = list%Get(key = number_of_levels_key, Value = number_of_levels)
+    assert(error==0)       
+    error = list%GetShape(key = number_of_parts_per_dir_key   , shape = array_size); 
+    check(error==0)
+    assert(array_size(1) >= number_of_levels*SPACE_DIM)
+    call memalloc(array_size(1), number_of_parts_per_dir)
+    error = list%get(key = number_of_parts_per_dir_key , value = number_of_parts_per_dir) 
+    check(error==0)
+    get_nparts=number_of_parts_per_dir(1)
+    if(allocated(array_size)) deallocate(array_size)
+    if(allocated(number_of_parts_per_dir)) deallocate(number_of_parts_per_dir)
+
+  end function get_nparts
 
 end module par_pb_bddc_poisson_params_names
