@@ -147,7 +147,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
      call this%compute_first_order_moment_in_edges(par_fe_space, first_moment_constraint_in_edges)
      first_moment_constraint_in_edges_entries => first_moment_constraint_in_edges%get_entries()
   end if
-
+ 
   ! Free any dynamic memory that constraint_matrix may have inside
   call constraint_matrix%free()
   num_rows = par_fe_space%number_dofs_per_field(field_id)
@@ -197,12 +197,11 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
                  idof          = own_dofs_on_vef_iterator%get_current()
                  dof_lid       = elem2dof(idof)
                  if ( dof_lid > 0 ) then
-
                     select case ( edge_continuity_algorithm ) 
                     case (tangential_average) 
-                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor*edge_length )	
                     case (tangential_average_and_first_order_moment) 					  
-                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor*edge_length )	
                        if ( (number_fine_edges_in_subedge .gt. 1) .or. (this%order .gt. 1) ) then 
                           call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid) )	
                        end if
@@ -309,7 +308,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
      if ( this%order > 1 ) call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
 
      call this%change_basis_matrix%B%convert(csr_format) 
-     !call this%change_basis_matrix%B%print_matrix_market(6)
+    ! call this%change_basis_matrix%B%print_matrix_market(6)
 
      call memfree(edge_elmat, __FILE__, __LINE__ ) 
   end if
@@ -470,7 +469,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
      end do
 
      call this%change_basis_matrix%G(coarse_subedge_iterator%get_current())%convert(csr_format)
-     ! call this%change_basis_matrix%G(coarse_subedge_iterator%get_current())%print_matrix_market(6)
+    ! call this%change_basis_matrix%G(coarse_subedge_iterator%get_current())%print_matrix_market(6)
      offset_wire_edge_dofs = offset_wire_edge_dofs + this%order*number_fine_edges_in_subedge
 
      call coarse_subedge_iterator%next()
@@ -912,6 +911,8 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
            end if
         end do
 		
+		if ( fine_edge_iterator%get_distance_to_upper_bound() > 1 ) then 
+		
 		call this%find_edge_downstream_vertex( par_fe_space, vef, vertex )		
 		do ielem = 1, vertex%get_num_cells_around()
            call vertex%get_cell_around(ielem, fe)      
@@ -965,6 +966,8 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
            end if
         end do
 
+		end if 
+		
         call fine_edge_iterator%next() 
      end do
 
@@ -1214,6 +1217,7 @@ subroutine tet_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_spa
   number_fine_edges_in_subedge = this%sorted_fine_edges_in_coarse_subedge%get_sublist_size( coarse_edge )
   call this%get_new_basis_dofs_from_vef( par_fe_space, fine_edge, number_fine_edges_in_subedge, vef, dofs_new_basis )
   call this%fine_edge_direction%get( key=vef%get_lid(), val=fine_edge_direction, stat=istat); check(istat==key_found)  
+
   do jdof = 2, this%order  ! Interior-only coupling 
      if ( dofs_new_basis(jdof) > 0) then
 	 select case ( fine_edge_direction ) 
@@ -1249,6 +1253,7 @@ subroutine tet_Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat( this, par_fe_sp
   integer(ip)                            :: number_nedelec_dofs_per_face
   integer(ip)                            :: idof, jdof
   integer(ip), allocatable               :: dofs_face_old_basis(:)
+  integer(ip), allocatable               :: dofs_new_basis(:)
   integer(ip)                            :: dof_new_basis
   integer(ip)                            :: number_fine_edges_in_subedge 
   integer(ip)                            :: fine_edge_direction, istat
@@ -1257,14 +1262,17 @@ subroutine tet_Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat( this, par_fe_sp
   
   call memalloc( number_nedelec_dofs_per_face, dofs_face_old_basis, __FILE__, __LINE__ ) 
   call this%get_dofs_from_vef(par_fe_space, fe_face, dofs_face_old_basis)
-
+  call memalloc( this%order+1, dofs_new_basis, __FILE__, __LINE__ )
+  
   number_fine_edges_in_subedge = this%sorted_fine_edges_in_coarse_subedge%get_sublist_size( coarse_edge )
-  dof_new_basis = this%order*fine_edge 
+  call this%get_new_basis_dofs_from_vef( par_fe_space, fine_edge, number_fine_edges_in_subedge, vef, dofs_new_basis )
+  dof_new_basis = dofs_new_basis(this%order+1) 
            call this%change_basis_matrix%B%insert(nz       = number_nedelec_dofs_per_face,                        & 
                                                   ia       = dofs_face_old_basis - this%number_edge_wire_dofs,    &
                                                   ja       = dof_new_basis,                                       &
                                                   val      = elmat(:, 1) )
 
+  call memfree( dofs_new_basis, __FILE__, __LINE__ )
   call memfree( dofs_face_old_basis, __FILE__, __LINE__ )
 end subroutine tet_Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat
 
@@ -1715,7 +1723,9 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local
 
      call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_subedge_iterator%get_current()), same_nonzero_pattern=.false.) 
      call direct_solver%solve( x_new_local_edge, inv_Gt_application )
-     call x_old_local_edge%copy(inv_Gt_application)
+	 
+	 call x_old_local_edge%copy(inv_Gt_application)
+	 
 
      call x_old_local_edge%free()
      call x_new_local_edge%free()
@@ -2299,7 +2309,7 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
        end do
     end do
 	
-   ! call this%sorted_fine_edges_in_coarse_subedge%print(6)
+  ! call this%sorted_fine_edges_in_coarse_subedge%print(6)
 
   call memfree( num_nodes_each_type, __FILE__, __LINE__ ) 
   call memfree( fine_edges_list, __FILE__, __LINE__ ) 
@@ -2336,7 +2346,7 @@ subroutine assign_and_count_node_types(edge_interior_vertices, number_nodes, nod
         call nodes_type%put(key=node_list(inode), val=interior_node, stat=istat)
         num_nodes_each_type( interior_node ) = num_nodes_each_type( interior_node ) + 1
      elseif (counter .ge. 3) then
-	    WRITE(*,*) ' WARNING: Handling a', counter, '-furcation edge path'
+	   ! WRITE(*,*) ' WARNING: Handling a', counter, '-furcation edge path'
         call nodes_type%put(key=node_list(inode), val=n_furcation_node, stat=istat)
         num_nodes_each_type( n_furcation_node ) = num_nodes_each_type( n_furcation_node ) + 1
         num_startend_nodes    = num_startend_nodes + counter 
@@ -2354,10 +2364,13 @@ subroutine assign_and_count_node_types(edge_interior_vertices, number_nodes, nod
            num_nodes_each_type( interior_node )  = num_nodes_each_type( interior_node ) - 1
            num_nodes_each_type( not_owned_node ) = num_nodes_each_type( not_owned_node ) + 1
            num_startend_nodes = num_startend_nodes + 2 
+		  ! WRITE(*,*) 'WARNING: Handling a not-owned node'
         end if
      end if
   end do
 
+ ! if (num_nodes_each_type( edge_boundary_node ) > 2) WRITE(*,*) 'WARNING: Handling Disconnected Parts of the Coarse Edge' 
+  
   ! WRITE(*,*) 'This Coarse Edge contains', num_startend_nodes/2, 'number of subedges'
   ! WRITE(*,*) 'Edge partitioning resume: *************************'
   ! WRITE(*,*) 'Found Start/end nodes', num_nodes_each_type(edge_boundary_node), 'adjacent edge problematic cases,', num_nodes_each_type(not_owned_node), &

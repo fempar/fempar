@@ -749,9 +749,9 @@ module fe_space_names
   type, extends(Hcurl_l1_coarse_fe_handler_t) :: tet_Hcurl_l1_coarse_fe_handler_t
   private
   contains 
-  procedure, private :: fill_face_coupled_to_edges_local_change_of_basis => tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
-  procedure, private :: compute_face_discrete_gradient_elmat             => tet_Hcurl_l1_compute_face_discrete_gradient_elmat
-  procedure, private :: assemble_face_coupled_to_edges_B_elmat           => tet_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
+  procedure, private :: fill_face_coupled_to_edges_local_change_of_basis               => tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
+  procedure, private :: compute_face_discrete_gradient_elmat                           => tet_Hcurl_l1_compute_face_discrete_gradient_elmat
+  procedure, private :: assemble_face_coupled_to_edges_B_elmat                         => tet_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
   procedure, non_overridable, private :: assemble_face_coupled_to_vertex_B_elmat       => tet_Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat
   end type tet_Hcurl_l1_coarse_fe_handler_t
        

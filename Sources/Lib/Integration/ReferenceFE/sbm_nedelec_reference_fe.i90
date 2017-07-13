@@ -921,7 +921,7 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
   type(quadrature_t)                 :: cell_quadrature
   integer(ip)                        :: vertex_within_cell_id
   ! Measure application 
-  real(rp)                :: edge_measure, face_measure, cell_measure 
+  real(rp)                :: edge_measure, face_measure, cell_measure  
   type(list_iterator_t)   :: interior_nodes_iterator
   integer(ip)             :: inode
   
@@ -965,10 +965,11 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
                                    quadrature    = edge_quadrature )
 	 			
 	 edge_measure = edge_map%compute_measure(edge_quadrature) 
-	 
+	 	 
     interior_nodes_iterator = this%interior_nodes_n_face%create_iterator(edge_id)
     do while ( .not. interior_nodes_iterator%is_upper_bound() )
        inode = interior_nodes_iterator%get_current()
+	  	   
 	   ! Scale own node functions 	  
       phy%shape_functions(:,inode,:)     = edge_measure * phy%shape_functions(:,inode,:)
 	  phy%shape_derivatives(:,:,inode,:) = edge_measure * phy%shape_derivatives(:,:,inode,:)
@@ -1021,8 +1022,8 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
     do while ( .not. interior_nodes_iterator%is_upper_bound() )
        inode = interior_nodes_iterator%get_current()
 	   ! Scale own node functions 	  
-      ! phy%shape_functions(:,inode,:)     = cell_measure * phy%shape_functions(:,inode,:)
-	  ! phy%shape_derivatives(:,:,inode,:) = cell_measure * phy%shape_derivatives(:,:,inode,:)
+       phy%shape_functions(:,inode,:)     = cell_measure * phy%shape_functions(:,inode,:)
+	   phy%shape_derivatives(:,:,inode,:) = cell_measure * phy%shape_derivatives(:,:,inode,:)
        call interior_nodes_iterator%next()
      end do 
 	end if 

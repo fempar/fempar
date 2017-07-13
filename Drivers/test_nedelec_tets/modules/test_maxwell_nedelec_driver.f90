@@ -117,7 +117,7 @@ contains
                                                  field_type = field_type_vector, &
                                                  continuity = .true. ) 
     
-    !if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
 	   call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
@@ -128,7 +128,7 @@ contains
           call vef%next()
        end do
 	    call this%triangulation%free_vef_iterator(vef)
-     !end if    
+     end if    
     
   end subroutine setup_reference_fes
 

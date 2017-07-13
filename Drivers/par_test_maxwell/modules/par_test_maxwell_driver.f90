@@ -529,7 +529,7 @@ end subroutine free_timers
 	if ( this%par_environment%am_i_l1_task() ) then 
 	select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
 	class is ( Hcurl_l1_coarse_fe_handler_t )
-	call this%coarse_fe_handler%free()
+	call this%coarse_fe_handler%free() 
 	end select 
 	end if 
 	
