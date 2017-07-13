@@ -370,8 +370,8 @@ contains
     error = list%get(key = number_of_parts_per_dir_key , value = number_of_parts_per_dir) 
     check(error==0)
     get_nparts=number_of_parts_per_dir(1)
-    if(allocated(array_size)) deallocate(array_size)
-    if(allocated(number_of_parts_per_dir)) deallocate(number_of_parts_per_dir)
+    if (allocated(array_size)) deallocate(array_size) 
+    call memfree(number_of_parts_per_dir)
 
   end function get_nparts
 
