@@ -1022,8 +1022,8 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
     do while ( .not. interior_nodes_iterator%is_upper_bound() )
        inode = interior_nodes_iterator%get_current()
 	   ! Scale own node functions 	  
-       phy%shape_functions(:,inode,:)     = cell_measure * phy%shape_functions(:,inode,:)
-	   phy%shape_derivatives(:,:,inode,:) = cell_measure * phy%shape_derivatives(:,:,inode,:)
+      ! phy%shape_functions(:,inode,:)     = cell_measure * phy%shape_functions(:,inode,:)
+	  ! phy%shape_derivatives(:,:,inode,:) = cell_measure * phy%shape_derivatives(:,:,inode,:)
        call interior_nodes_iterator%next()
      end do 
 	end if 
