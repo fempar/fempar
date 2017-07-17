@@ -32,6 +32,10 @@
 #include <p4est_bits.h>
 #include <p4est_base.h>
 #include "p4est_wrapper.h"
+#include <p8est.h>
+#include <p8est_extended.h>
+#include <p8est_mesh.h>
+#include <p8est_bits.h>
 #ifndef SC_ENABLE_MPI
   static int sc_mpi_initialized = 0;
 #else
@@ -89,6 +93,13 @@ void F90_p4est_connectivity_new_unitsquare(p4est_connectivity_t **p4est_connecti
   F90_p4est_connectivity_destroy(p4est_connectivity);
   *p4est_connectivity = p4est_connectivity_new_unitsquare();
   P4EST_ASSERT (p4est_connectivity_is_valid (*p4est_connectivity));
+}
+
+void F90_p8est_connectivity_new_unitcube(p8est_connectivity_t **p8est_connectivity)
+{
+  F90_p8est_connectivity_destroy(p8est_connectivity);
+  *p8est_connectivity = p8est_connectivity_new_unitcube();
+  P4EST_ASSERT (p8est_connectivity_is_valid (*p8est_connectivity));
 }
 
 void F90_p4est_new ( p4est_connectivity_t *conn,
@@ -154,6 +165,11 @@ void F90_p4est_mesh_new(p4est_t  *p4est,
 void F90_p4est_connectivity_destroy(p4est_connectivity_t **p4est_connectivity)
 {
     if (*p4est_connectivity) p4est_connectivity_destroy(*p4est_connectivity);
+}
+
+void F90_p8est_connectivity_destroy(p8est_connectivity_t **p8est_connectivity)
+{
+    if (*p8est_connectivity) p8est_connectivity_destroy(*p8est_connectivity);
 }
 
 void F90_p4est_destroy(p4est_t **p4est)

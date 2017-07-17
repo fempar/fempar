@@ -65,15 +65,15 @@ module p4est_serial_triangulation_names
                                                              1, 4,&
                                                              2, 4], [NUM_FACES_AT_CORNER_2D, NUM_CORNERS_2D])
                                                     
-  integer(ip), parameter :: FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(NUM_FACES_2D,NUM_SUBCELLS_IN_TOUCH_FACE_2D) = &
-                                                    reshape([1, 3,&
-                                                             1, 2,&  
-                                                             2, 4,&
-                                                             3, 4], [NUM_FACES_2D, NUM_SUBCELLS_IN_TOUCH_FACE_2D])
+  integer(ip), parameter :: FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(NUM_SUBCELLS_IN_TOUCH_FACE_2D,NUM_FACES_2D) = &
+                                                    reshape([1, 2,&
+                                                             3, 4,&  
+                                                             1, 3,&
+                                                             2, 4], [NUM_SUBCELLS_IN_TOUCH_FACE_2D, NUM_FACES_2D])
   
-  integer(ip), parameter :: P4EST_OPPOSITE_CORNER(NUM_CORNERS_2D) = [ 4, 3, 2, 1 ]
-  integer(ip), parameter :: P4EST_2_FEMPAR_CORNER(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
-  integer(ip), parameter :: P4EST_2_FEMPAR_FACE  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
+  integer(ip), parameter :: P4EST_OPPOSITE_CORNER_2D(NUM_CORNERS_2D) = [ 4, 3, 2, 1 ]
+  integer(ip), parameter :: P4EST_2_FEMPAR_CORNER_2D(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
+  integer(ip), parameter :: P4EST_2_FEMPAR_FACE_2D  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
   
   integer(ip), parameter :: refinement = 1 
   integer(ip), parameter :: coarsening = -1 

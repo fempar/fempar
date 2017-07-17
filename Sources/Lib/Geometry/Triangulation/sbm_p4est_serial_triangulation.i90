@@ -107,6 +107,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
   else if ( this%p4est_num_dimensions == 3 ) then
+    call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
     check(.false.)
   end if  
 #else
@@ -187,6 +188,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   integer(ip) :: improper_cell_around_ivef
   integer(ip) :: improper_cell_around_subvef
   integer(ip) :: i
+  integer(ip), allocatable :: P4EST_2_FEMPAR_CORNER(:)
   
 #ifdef ENABLE_P4EST  
   if ( this%p4est_num_dimensions == 2 ) then
@@ -196,6 +198,10 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
      num_face_corners     = NUM_FACE_CORNERS_2D
      num_faces_at_corner  = NUM_FACES_AT_CORNER_2D
      num_subfaces_face    = NUM_SUBFACES_FACE_2D
+     
+     call memalloc(size(P4EST_2_FEMPAR_CORNER_2D),P4EST_2_FEMPAR_CORNER,__FILE__,__LINE__)
+     P4EST_2_FEMPAR_CORNER(:) = P4EST_2_FEMPAR_CORNER_2D(:)
+     
   else if ( this%p4est_num_dimensions == 3 ) then
      check(.false.)
   end if
@@ -276,7 +282,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
             !    (this works at least for 2D)
             if ( face_corner /= isubface ) then
               if (is_proper) then
-                improper_cell_around_ivef    = num_corners_per_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
+                improper_cell_around_ivef    = num_corners_per_cell+P4EST_2_FEMPAR_FACE_2D(jcell_iface)
                 improper_cell_around_subvef  = -1
               end if
               is_proper = .false.
@@ -308,7 +314,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
        
        ! A corner cannot become improper by a corner neighbour which is not a face neighbour
        jcell          = this%quad_to_corner(icorner,icell)+1
-       jcell_icorner  = P4EST_OPPOSITE_CORNER(icorner)
+       jcell_icorner  = P4EST_OPPOSITE_CORNER_2D(icorner)
 
        if (jcell /= 0) then
          min_cell   = min(min_cell,jcell)
@@ -397,7 +403,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
          end if   
        else if ( mortar >= 1 .and. mortar <= num_subfaces_face )  then ! Double-size neighbour 
          if (is_proper) then
-           improper_cell_around_ivef    = num_corners_per_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
+           improper_cell_around_ivef    = num_corners_per_cell+P4EST_2_FEMPAR_FACE_2D(jcell_iface)
            improper_cell_around_subvef  = mortar
          end if
          jcell      = this%quad_to_quad(iface,icell)+1
@@ -412,7 +418,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
        if (icell == min_cell) then
          if (is_proper) then
            this%num_proper_vefs=this%num_proper_vefs+1
-           call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), this%num_proper_vefs)
+           call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE_2D(iface), this%num_proper_vefs)
            
            ! Fill cells_around proper vefs
            call this%p4est_ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
@@ -432,7 +438,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
            
          else 
            this%num_improper_vefs=this%num_improper_vefs+1
-           call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), -this%num_improper_vefs)
+           call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE_2D(iface), -this%num_improper_vefs)
            
            ! Fill cells_around improper vefs
            call this%p4est_ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
@@ -454,8 +460,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
            
          end if
        else ! Borrow vef gid from owner
-         call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), &
-                                           this%p4est_lst_vefs_lids%get(base_pos_min_cell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(min_iface)))
+         call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE_2D(iface), &
+                                           this%p4est_lst_vefs_lids%get(base_pos_min_cell+num_corners_per_cell+P4EST_2_FEMPAR_FACE_2D(min_iface)))
        end if
      end do ! iface
   end do
@@ -466,6 +472,9 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   
   call work_vector_cells_around%free()
   call work_vector_improper_cells_around%free()
+  
+  call memfree(P4EST_2_FEMPAR_CORNER,__FILE__,__LINE__)
+  
 #else
   call this%not_enabled_error()
 #endif    
@@ -584,7 +593,7 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
       do iface=1, this%reference_fe_geo%get_number_faces()
          ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0)  + iface
          do j=1, NUM_SUBCELLS_IN_TOUCH_FACE_2D
-            call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(iface,j)-1)
+            call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(j,iface)-1)
             call cell%get_vef(ivef,vef)
             old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
             old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
@@ -611,7 +620,7 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
          ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0)  + iface
          call cell%get_vef(ivef,vef)
          ! The VEF set id of a face in the coarse cell is extracted (arbitrarily) from the refined cell corresponding to its first subface
-         old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ (FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(iface,1)-1)*this%reference_fe_geo%get_number_n_faces() + ivef-1)
+         old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ (FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(1,iface)-1)*this%reference_fe_geo%get_number_n_faces() + ivef-1)
          old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
          call vef%set_set_id(old_vef_set_id)
       end do
@@ -956,6 +965,71 @@ SUBROUTINE p4est_eval_connectivity(Conn,nbSide,Flip,Mortar)
   END SELECT
 
 END SUBROUTINE p4est_eval_connectivity
+
+SUBROUTINE p8est_eval_connectivity(Conn,nbSide,Flip,Mortar)
+!===================================================================================================================================
+! Subroutine to read the mesh from a mesh data file
+!===================================================================================================================================
+! MODULES
+! IMPLICIT VARIABLE HANDLING
+IMPLICIT NONE
+!-----------------------------------------------------------------------------------------------------------------------------------
+! INPUT VARIABLES
+INTEGER(KIND=1),INTENT(IN)   :: Conn   ! p4est Side,Flip,Mortar encoding
+!-----------------------------------------------------------------------------------------------------------------------------------
+! OUTPUT VARIABLES
+INTEGER,INTENT(OUT)          :: nbSide ! Neighbour side in p4est convention: 0..5
+INTEGER,INTENT(OUT)          :: Flip   ! Flip in p4est convention: 0..3
+INTEGER,INTENT(OUT)          :: Mortar ! Mortar in p4est convention: 0..3,
+                                       ! -1 if conformal, 4 if half-size neighbour
+!-----------------------------------------------------------------------------------------------------------------------------------
+! LOCAL VARIABLES
+INTEGER                      :: tmp
+!-----------------------------------------------------------------------------------------------------------------------------------
+! The quad_to_quad list stores one value for each local quadrant's face.
+! This value is in 0..local_num_quadrants-1 for local quadrants, or in
+! local_num_quadrants + (0..ghost_num_quadrants-1) for ghost quadrants.
+! The quad_to_face list has equally many entries which are either:
+! 1. A value of v = 0..23 indicates one same-size neighbor.
+!    This value is decoded as v = r * 6 + nf, where nf = 0..5 is the
+!    neigbbor's connecting face number and r = 0..3 is the relative
+!    orientation of the neighbor's face, see p8est_connectivity.h.
+! 2. A value of v = 24..119 indicates a double-size neighbor.
+!    This value is decoded as v = 24 + h * 24 + r * 6 + nf, where
+!    r and nf are as above and h = 0..3 is the number of the subface.
+! 3. A value of v = -24..-1 indicates four half-size neighbors.
+!    In this case the corresponding quad_to_quad index points into the
+!    quad_to_half array which stores four quadrant numbers per index,
+!    and the orientation of the smaller faces follows from 24 + v.
+!    The entries of quad_to_half encode between local and ghost quadrant
+!    in the same way as the quad_to_quad values described above.
+! A quadrant on the boundary of the forest sees itself and its face number.
+
+SELECT CASE(Conn)
+CASE(0:23)   ! 1. conformal neighbour
+  nbSide = MOD(Conn,6)       ! 0..5
+  Flip   = (Conn-nbSide)/6   ! 0..3
+  Mortar = -1
+CASE(24:119) ! 2. double-size neighbour
+  tmp    = MOD(Conn,24)      ! 0..3
+  nbSide = MOD(tmp,6)        ! 0..5  
+  Flip   = (tmp-nbSide)/6    ! 0..3
+  Mortar = (Conn-tmp-24)/24  ! 0..3
+  Mortar = Mortar + 1        ! 1..4
+CASE(-24:-1) ! 3. half-size neighbour
+  tmp    = Conn+24
+  nbSide = MOD(tmp,6)       ! 0..5
+  Flip   = (tmp-nbSide)/6   ! 0..3
+  Mortar = 5
+CASE DEFAULT
+  massert(.false., 'This type of face connectivity does not exist, has to be -24<f<23')
+END SELECT
+  nbSide = nbSide +1  ! 1 .. 6
+  Flip   = Flip +  1  ! 1 .. 4
+END SUBROUTINE p8est_eval_connectivity
+
+
+
 
 function p4est_get_jcell_icorner(icell_iface,jcell_iface,icell_icorner)
   implicit none

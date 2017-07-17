@@ -69,6 +69,15 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), intent(inout)  :: p4est_connectivity
      end subroutine F90_p4est_connectivity_new_unitsquare
+
+     !=================================================================================================================================
+     !> summary: Creates p8est connectivity corresponding to unit cube domain
+     !=================================================================================================================================
+     subroutine F90_p8est_connectivity_new_unitcube(p8est_connectivity) bind(c,name="F90_p8est_connectivity_new_unitcube")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p8est_connectivity
+     end subroutine F90_p8est_connectivity_new_unitcube
      
      !=================================================================================================================================
      !> summary: Creates unrefined p4est (it will contain a single root octant)
@@ -201,6 +210,15 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), intent(inout)  :: p4est_connectivity
      end subroutine F90_p4est_connectivity_destroy
+     
+     !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in p8est_connectivity_t
+     !=================================================================================================================================
+     subroutine F90_p8est_connectivity_destroy(p8est_connectivity) bind(c, name="F90_p8est_connectivity_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p8est_connectivity
+     end subroutine F90_p8est_connectivity_destroy
      
      !=================================================================================================================================
      !> summary: Frees all dynamic memory involved in p4est_t
