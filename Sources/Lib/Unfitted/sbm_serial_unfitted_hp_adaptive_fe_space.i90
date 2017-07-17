@@ -365,10 +365,14 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   class(base_static_triangulation_t), pointer :: triangulation
   class(vef_iterator_t), allocatable :: vef
   integer(ip) :: ivef
+  integer(ip) :: min_distance
+  integer(ip) :: min_distance_aggr_id
 
+  integer(ip), allocatable :: distance(:)
 
   triangulation => this%get_triangulation()
   call memalloc(triangulation%get_num_local_cells(),this%aggregate_ids,__FILE__,__LINE__)
+  call memalloc(triangulation%get_num_local_cells(),distance,__FILE__,__LINE__)
 
   if (.not. this%use_constraints) then
     this%aggregate_ids(:) = 0
@@ -384,8 +388,10 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     if (cell%is_local()) then
       if (cell%is_interior()) then
         this%aggregate_ids(cell%get_lid()) = cell%get_lid()
+        distance(cell%get_lid()) = 0
       else
         this%aggregate_ids(cell%get_lid()) = 0
+        distance(cell%get_lid()) = -1
       end if
     end if
     call cell%next()
@@ -409,36 +415,25 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
           ! TODO: We try to glue only by true neighbors
           ! For adaptive meshes, shall we look for improper neighbors as well?
 
-          ! First try to glue to full cells
-          has_been_aggregated = .false.
-          vefsloop: do ivef = 1, cell%get_num_vefs()
+          ! Glue to the face-neighbor with the smallest distance to a full element
+          min_distance = 99999999
+          min_distance_aggr_id = 0
+          do ivef = 1, cell%get_num_vefs()
             call cell%get_vef(ivef,vef)
             if ( .not. vef%is_face() ) cycle
             do icell_arround = 1,vef%get_num_cells_around()
               call vef%get_cell_around(icell_arround,cell_arround)
-              if ( cell_arround%is_interior() ) then
-                this%aggregate_ids(cell%get_lid()) = this%aggregate_ids(cell_arround%get_lid())
-                has_been_aggregated = .true.
-                exit vefsloop
+              if ( this%aggregate_ids(cell_arround%get_lid()) > 0 ) then
+                if ( distance(cell_arround%get_lid()) < min_distance ) then
+                  min_distance = distance(cell_arround%get_lid())
+                  min_distance_aggr_id = this%aggregate_ids(cell_arround%get_lid())
+                end if
               end if
             end do
-          end do vefsloop
+          end do
 
-          ! If the cut cell has not been aggregated, try to glue to any neighbor cell already aggregated
-          if (.not. has_been_aggregated) then
-            vefsloop2: do ivef = 1, cell%get_num_vefs()
-              call cell%get_vef(ivef,vef)
-              if ( .not. vef%is_face() ) cycle
-              do icell_arround = 1,vef%get_num_cells_around()
-                call vef%get_cell_around(icell_arround,cell_arround)
-                if ( this%aggregate_ids(cell_arround%get_lid()) > 0 ) then
-                  this%aggregate_ids(cell%get_lid()) = this%aggregate_ids(cell_arround%get_lid())
-                  has_been_aggregated = .true.
-                  exit vefsloop2
-                end if
-              end do
-            end do vefsloop2
-          end if
+          this%aggregate_ids(cell%get_lid()) = min_distance_aggr_id
+          distance(cell%get_lid()) = isweep
 
           if (this%aggregate_ids(cell%get_lid()) == 0) then
             is_needed = .true.
@@ -455,6 +450,8 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   call triangulation%free_cell_iterator(cell)
   call triangulation%free_cell_iterator(cell_arround)
   call triangulation%free_vef_iterator(vef)
+
+  call memfree(distance,__FILE__,__LINE__)
 
 end subroutine suhpafs_allocate_and_fill_aggregate_ids
 
