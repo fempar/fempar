@@ -365,20 +365,24 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   class(base_static_triangulation_t), pointer :: triangulation
   class(vef_iterator_t), allocatable :: vef
   integer(ip) :: ivef
-  integer(ip) :: min_distance
+  integer(ip) :: ifacet
+  integer(ip) :: tent_distance(2) ! TODO make it also for 3D
+  integer(ip) :: min_distance(2)  ! TODO make it also for 3D
   integer(ip) :: min_distance_aggr_id
 
-  integer(ip), allocatable :: distance(:)
+  integer(ip), allocatable :: distance(:,:)
+  integer(ip), parameter :: face2dir(4,2) = reshape([0,0,1,-1,1,-1,0,0],[4,2]) ! TODO make it general for 3D
 
   triangulation => this%get_triangulation()
   call memalloc(triangulation%get_num_local_cells(),this%aggregate_ids,__FILE__,__LINE__)
-  call memalloc(triangulation%get_num_local_cells(),distance,__FILE__,__LINE__)
 
   if (.not. this%use_constraints) then
     this%aggregate_ids(:) = 0
     return
   end if
- 
+
+  call memalloc(triangulation%get_num_local_cells(),triangulation%get_num_dimensions(),distance,__FILE__,__LINE__)
+
   call triangulation%create_cell_iterator(cell)
   call triangulation%create_cell_iterator(cell_arround)
   call triangulation%create_vef_iterator(vef)
@@ -388,10 +392,9 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     if (cell%is_local()) then
       if (cell%is_interior()) then
         this%aggregate_ids(cell%get_lid()) = cell%get_lid()
-        distance(cell%get_lid()) = 0
+        distance(cell%get_lid(),:) = 0
       else
         this%aggregate_ids(cell%get_lid()) = 0
-        distance(cell%get_lid()) = -1
       end if
     end if
     call cell%next()
@@ -418,22 +421,30 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
           ! Glue to the face-neighbor with the smallest distance to a full element
           min_distance = 99999999
           min_distance_aggr_id = 0
+          ifacet = 0
           do ivef = 1, cell%get_num_vefs()
             call cell%get_vef(ivef,vef)
             if ( .not. vef%is_face() ) cycle
+            ifacet = ifacet + 1
             do icell_arround = 1,vef%get_num_cells_around()
               call vef%get_cell_around(icell_arround,cell_arround)
               if ( this%aggregate_ids(cell_arround%get_lid()) > 0 ) then
-                if ( distance(cell_arround%get_lid()) < min_distance ) then
-                  min_distance = distance(cell_arround%get_lid())
+
+                ! Compute the movement to reach the root element
+                tent_distance = distance(cell_arround%get_lid(),:) + face2dir(ifacet,:)
+
+                ! Find which is the best neighbor to glue into
+                if ( maxval(abs(tent_distance)) < maxval(abs(min_distance)) ) then
+                  min_distance =  tent_distance
                   min_distance_aggr_id = this%aggregate_ids(cell_arround%get_lid())
                 end if
+
               end if
             end do
           end do
 
           this%aggregate_ids(cell%get_lid()) = min_distance_aggr_id
-          distance(cell%get_lid()) = isweep
+          distance(cell%get_lid(),:) = min_distance
 
           if (this%aggregate_ids(cell%get_lid()) == 0) then
             is_needed = .true.
