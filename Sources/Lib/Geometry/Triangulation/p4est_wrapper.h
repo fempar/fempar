@@ -44,6 +44,7 @@ void F90_p4est_new_unit_square_connectivity(p4est_connectivity_t **);
 void F90_p4est_connectivity_destroy(p4est_connectivity_t **);
 void F90_p8est_connectivity_destroy(p8est_connectivity_t **);
 void F90_p4est_mesh_destroy(p4est_mesh_t **);
+void F90_p8est_mesh_destroy(p8est_mesh_t **);
 int refine_callback(p4est_t *,p4est_topidx_t, p4est_quadrant_t *);
 void init_fn_callback(p4est_t *,p4est_topidx_t,p4est_quadrant_t *);
 

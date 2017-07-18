@@ -88,6 +88,16 @@ module p4est_bindings_names
        type(c_ptr), value, intent(in)     :: p4est_connectivity
        type(c_ptr)       , intent(inout)  :: p4est
      end subroutine F90_p4est_new
+
+     !=================================================================================================================================
+     !> summary: Creates unrefined p8est (it will contain a single root octant)
+     !=================================================================================================================================
+     subroutine F90_p8est_new(p8est_connectivity, p8est) bind(c,name="F90_p8est_new")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value, intent(in)     :: p8est_connectivity
+       type(c_ptr)       , intent(inout)  :: p8est
+     end subroutine F90_p8est_new
      
      !=================================================================================================================================
      !> summary: set user_pointer member variable of p4est_t struct to input integer user_data array
@@ -110,6 +120,16 @@ module p4est_bindings_names
      end subroutine F90_p4est_mesh_new
      
      !=================================================================================================================================
+     !> summary: Creates p8est_mesh from p8est
+     !=================================================================================================================================
+     subroutine F90_p8est_mesh_new(p8est, p8est_mesh) bind(c,name="F90_p8est_mesh_new")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value, intent(in)     :: p8est
+       type(c_ptr)       , intent(inout)  :: p8est_mesh
+     end subroutine F90_p8est_mesh_new
+     
+     !=================================================================================================================================
      !> summary: Gets mesh info from (p4est, p4est_mesh)
      !=================================================================================================================================
      subroutine F90_p4est_get_mesh_info (p4est, &
@@ -127,6 +147,25 @@ module p4est_bindings_names
        integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant
        integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_faces
      end subroutine F90_p4est_get_mesh_info 
+     
+     !=================================================================================================================================
+     !> summary: Gets mesh info from (p8est, p8est_mesh)
+     !=================================================================================================================================
+     subroutine F90_p8est_get_mesh_info (p8est, &
+                                         p8est_mesh, &
+                                         local_num_quadrants, &
+                                         global_num_quadrants, &
+                                         global_first_quadrant, &
+                                         num_half_faces) bind(c,name="F90_p8est_get_mesh_info")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX, P4EST_F90_GLOIDX
+       type(c_ptr), value       , intent(in)     :: p8est
+       type(c_ptr), value       , intent(in)     :: p8est_mesh
+       integer(P4EST_F90_LOCIDX), intent(out)    :: local_num_quadrants
+       integer(P4EST_F90_GLOIDX), intent(out)    :: global_num_quadrants
+       integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant
+       integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_faces
+     end subroutine F90_p8est_get_mesh_info 
      
      !=================================================================================================================================
      !> summary: Gets mesh topology arrays from (p4est, p4est_mesh)
@@ -151,6 +190,30 @@ module p4est_bindings_names
        integer(P4EST_F90_QCOORD), intent(out)    :: quadcoords(2,*)
        integer(P4EST_F90_QLEVEL), intent(out)    :: quadlevel(*)
      end subroutine F90_p4est_get_mesh_topology_arrays
+
+     !=================================================================================================================================
+     !> summary: Gets mesh topology arrays from (p8est, p8est_mesh)
+     !=================================================================================================================================
+     subroutine F90_p8est_get_mesh_topology_arrays(p8est, &
+                                                   p8est_mesh, &
+                                                   quad_to_quad, &
+                                                   quad_to_face, &
+                                                   quad_to_half, &
+                                                   quad_to_corner, &
+                                                   quadcoords, &
+                                                   quadlevel) bind(c,name="F90_p8est_get_mesh_topology_arrays")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est
+       type(c_ptr), value       , intent(in)     :: p8est_mesh
+       type(c_ptr)              , intent(out)    :: quad_to_quad
+       type(c_ptr)              , intent(out)    :: quad_to_face
+       type(c_ptr)              , intent(out)    :: quad_to_half
+       type(c_ptr)              , intent(out)    :: quad_to_corner
+       integer(P4EST_F90_QCOORD), intent(out)    :: quadcoords(3,*)
+       integer(P4EST_F90_QLEVEL), intent(out)    :: quadlevel(*)
+     end subroutine F90_p8est_get_mesh_topology_arrays
      
      
      !=================================================================================================================================

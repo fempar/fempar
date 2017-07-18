@@ -115,6 +115,19 @@ void F90_p4est_new ( p4est_connectivity_t *conn,
   *p4est_out = p4est;
 }
 
+void F90_p8est_new ( p8est_connectivity_t *conn,
+                     p8est_t              **p8est_out)
+{
+  p8est_t* p8est;
+  P4EST_ASSERT (p8est_connectivity_is_valid (conn));
+  
+  // TODO: from where are we going to extract the MPI communicator in case
+  //       SC_ENABLE_MPI is defined???
+  /* Create a forest that is not refined; it consists of the root octant. */                                        
+  p8est = p8est_new (sc_MPI_COMM_WORLD, conn, 0, NULL, NULL);
+  *p8est_out = p8est;
+}
+
 
 void init_fn_callback(p4est_t * p4est,p4est_topidx_t which_tree,p4est_quadrant_t * quadrant)
 {
@@ -162,6 +175,24 @@ void F90_p4est_mesh_new(p4est_t  *p4est,
   *mesh_out=(p4est_mesh_t *)mesh;
 }
 
+void F90_p8est_mesh_new(p8est_t  *p8est,
+                        p8est_mesh_t  **mesh_out )
+{
+  p8est_mesh_t       *mesh;
+  p8est_ghost_t      *ghost;
+  
+  F90_p8est_mesh_destroy(mesh_out);
+
+  //create ghost layer and mesh
+  ghost = p8est_ghost_new (p8est, P8EST_CONNECT_FULL);
+  mesh = p8est_mesh_new (p8est,ghost,P8EST_CONNECT_FULL);
+
+  p8est_ghost_destroy(ghost);
+  
+  //return mesh as pointer address;
+  *mesh_out=(p8est_mesh_t *)mesh;
+}
+
 void F90_p4est_connectivity_destroy(p4est_connectivity_t **p4est_connectivity)
 {
     if (*p4est_connectivity) p4est_connectivity_destroy(*p4est_connectivity);
@@ -185,6 +216,14 @@ void F90_p4est_mesh_destroy(p4est_mesh_t **p4est_mesh)
     }   
 }
 
+void F90_p8est_mesh_destroy(p8est_mesh_t **p8est_mesh)
+{
+    if (*p8est_mesh) 
+    {    
+      p8est_mesh_destroy(*p8est_mesh);
+    }   
+}
+
 void F90_p4est_get_mesh_info (p4est_t        *p4est,
                               p4est_mesh_t   *mesh,
                               p4est_locidx_t *local_num_quadrants,
@@ -202,6 +241,26 @@ void F90_p4est_get_mesh_info (p4est_t        *p4est,
     *local_num_quadrants   = p4est->local_num_quadrants;
     *global_num_quadrants  = p4est->global_num_quadrants;
     *global_first_quadrant = p4est->global_first_quadrant[p4est->mpirank];
+    *num_half_faces        = mesh->quad_to_half->elem_count;
+}
+
+void F90_p8est_get_mesh_info (p8est_t        *p8est,
+                              p8est_mesh_t   *mesh,
+                              p4est_locidx_t *local_num_quadrants,
+                              p4est_gloidx_t *global_num_quadrants,
+                              p4est_gloidx_t *global_first_quadrant,
+                              p4est_locidx_t *num_half_faces)
+{
+    SC_CHECK_ABORTF (mesh->local_num_quadrants == p8est->local_num_quadrants,
+                     "mesh->local_num_quadrants [%d] and p8est->local_num_quadrants mismatch [%d]!",
+                     mesh->local_num_quadrants,  p8est->local_num_quadrants);
+    
+    SC_CHECK_ABORTF (p8est->trees->elem_count == 1,
+                     "p8est with more [%ld] than one tree!", p8est->trees->elem_count);
+    
+    *local_num_quadrants   = p8est->local_num_quadrants;
+    *global_num_quadrants  = p8est->global_num_quadrants;
+    *global_first_quadrant = p8est->global_first_quadrant[p8est->mpirank];
     *num_half_faces        = mesh->quad_to_half->elem_count;
 }
 
@@ -229,6 +288,39 @@ void F90_p4est_get_mesh_topology_arrays( p4est_t        *p4est,
     quadlevel [iquad    ] = q->level;
     quadcoords[iquad*2  ] = q->x;
     quadcoords[iquad*2+1] = q->y;
+  }
+
+  *quad_to_quad=mesh->quad_to_quad;
+  *quad_to_face=mesh->quad_to_face;
+  *quad_to_half = NULL;
+  if(mesh->quad_to_half->elem_count>0) *quad_to_half = (p4est_locidx_t *) mesh->quad_to_half->array;
+  *quad_to_corner=mesh->quad_to_corner;
+}
+
+void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
+                                         p8est_mesh_t   *mesh,
+                                         p4est_locidx_t **quad_to_quad,
+                                         int8_t         **quad_to_face, 
+                                         p4est_locidx_t **quad_to_half, 
+                                         p4est_locidx_t **quad_to_corner,
+                                         p4est_qcoord_t *quadcoords,
+                                         int8_t         *quadlevel ) 
+{
+  int iquad,iquadloc;
+  p8est_tree_t       *tree;
+  p8est_quadrant_t   *q;
+  sc_array_t         *quadrants;
+  
+  // Extract a reference to the first (and uniquely allowed) tree
+  tree = p8est_tree_array_index (p8est->trees,0);
+  for (iquad = 0; iquad < mesh->local_num_quadrants; iquad++) {  
+    quadrants = &(tree->quadrants);
+    iquadloc = iquad - tree->quadrants_offset;
+    q = p8est_quadrant_array_index(quadrants, iquadloc);
+    quadlevel [iquad    ] = q->level;
+    quadcoords[iquad*3  ] = q->x;
+    quadcoords[iquad*3+1] = q->y;
+    quadcoords[iquad*3+2] = q->z;
   }
 
   *quad_to_quad=mesh->quad_to_quad;
