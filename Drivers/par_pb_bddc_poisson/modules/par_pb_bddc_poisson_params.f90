@@ -77,8 +77,8 @@ contains
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_fe_handler_type_key        , value =  pb_bddc)                     ; check(error==0)
-    error = list%set(key = nchannel_per_direction_key        , value =  1)                           ; check(error==0)
-    error = list%set(key = nparts_with_channels_key          , value =  1)                           ; check(error==0)
+    error = list%set(key = nchannel_per_direction_key        , value = [1,1,1])                      ; check(error==0)
+    error = list%set(key = nparts_with_channels_key          , value = [1,1,1])                      ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                ; check(error==0)
@@ -328,7 +328,7 @@ contains
   function get_nchannel_per_direction(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_nchannel_per_direction
+    integer(ip)                                   :: get_nchannel_per_direction(3)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
@@ -341,7 +341,7 @@ contains
   function get_nparts_with_channels(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_nparts_with_channels
+    integer(ip)                                   :: get_nparts_with_channels(3)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
@@ -354,7 +354,8 @@ contains
   function get_nparts(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip)                                   :: number_of_levels, get_nparts
+    integer(ip)                                   :: number_of_levels
+    integer(ip)                                   :: get_nparts(3)
     integer(ip), allocatable :: number_of_parts_per_dir(:) ! 0:SPACE_DIM-1)
     integer(ip), allocatable :: array_size(:)
     type(ParameterList_t), pointer                :: list
@@ -369,7 +370,7 @@ contains
     call memalloc(array_size(1), number_of_parts_per_dir)
     error = list%get(key = number_of_parts_per_dir_key , value = number_of_parts_per_dir) 
     check(error==0)
-    get_nparts=number_of_parts_per_dir(1)
+    get_nparts=number_of_parts_per_dir(1:3)
     if (allocated(array_size)) deallocate(array_size) 
     call memfree(number_of_parts_per_dir)
 
