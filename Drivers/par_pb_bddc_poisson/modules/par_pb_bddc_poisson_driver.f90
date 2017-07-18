@@ -141,7 +141,7 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable       :: cell
-    integer(ip)                               :: istat
+    integer(ip)                               :: istat, idummy
     integer(ip), allocatable                  :: cells_set(:)
     type(point_t), allocatable :: cell_coords(:)
     type(point_t) :: grav_center
@@ -167,10 +167,16 @@ contains
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
                   this%test_params%get_nchannel_per_direction(), &
                   this%test_params%get_nparts_with_channels(), &
-                  this%test_params%get_nparts())
+                  this%test_params%get_nparts(),.false.)
           end if
           call cell%next()
        end do
+       idummy = cell_set_id( grav_center, &
+                  this%triangulation%get_num_dimensions(), &
+                  this%test_params%get_jump(), this%test_params%get_inclusion(), &
+                  this%test_params%get_nchannel_per_direction(), &
+                  this%test_params%get_nparts_with_channels(), &
+                  this%test_params%get_nparts(),.true.)
        call this%triangulation%fill_cells_set( cells_set )
        call memfree( cells_set, __FILE__, __LINE__ )
        call this%triangulation%free_cell_iterator(cell)
@@ -178,7 +184,7 @@ contains
     
   end subroutine setup_cell_set_ids
 
-  function cell_set_id( coord, num_dimensions, jump, inclusion, nchannel_per_direction, nparts_with_channels,nparts)
+  function cell_set_id( coord, num_dimensions, jump, inclusion, nchannel_per_direction, nparts_with_channels,nparts,memfree_flag)
     implicit none
     type(point_t), intent(in)  :: coord
     integer(ip)  , intent(in)  :: num_dimensions
@@ -195,7 +201,18 @@ contains
     real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
     real(rp) :: p1_c(256), p2_c(256)
     real(rp), allocatable, save :: px1(:), px2(:), py1(:), py2(:),  pz1(:), pz2(:)
+    logical :: memfree_flag
+
     cell_set_id = 1
+    if (memfree_flag) then
+       call memfree( px1, __FILE__, __LINE__ )
+       call memfree( px2, __FILE__, __LINE__ )
+       call memfree( py1, __FILE__, __LINE__ )
+       call memfree( py2, __FILE__, __LINE__ )
+       call memfree( pz1, __FILE__, __LINE__ )
+       call memfree( pz2, __FILE__, __LINE__ )
+       return
+    end if
         
     ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
     if ( inclusion == 1 ) then
@@ -359,8 +376,8 @@ contains
 
        ! defining positions of the channels
        if (.not.(allocated(px1))) then
-          call memalloc(nchannel_per_direction(1), px1)
-          call memalloc(nchannel_per_direction(1), px2)
+          call memalloc(nchannel_per_direction(1), px1, __FILE__, __LINE__ )
+          call memalloc(nchannel_per_direction(1), px2, __FILE__, __LINE__ )
           box_width = 1.0*nparts_with_channels(1)/(nchannel_per_direction(1)*nparts(1))
           half_channel_width = box_width/5
           center = half_channel_width
@@ -369,8 +386,8 @@ contains
              px2(j)=center + half_channel_width  
              center = center + box_width
           enddo
-          call memalloc(nchannel_per_direction(2), py1)
-          call memalloc(nchannel_per_direction(2), py2)
+          call memalloc(nchannel_per_direction(2), py1, __FILE__, __LINE__ )
+          call memalloc(nchannel_per_direction(2), py2, __FILE__, __LINE__ )
           box_width = 1.0*nparts_with_channels(2)/(nchannel_per_direction(2)*nparts(2))
           half_channel_width = box_width/5
           center = half_channel_width
@@ -379,8 +396,8 @@ contains
              py2(j)=center + half_channel_width  
              center = center + box_width
           enddo
-          call memalloc(nchannel_per_direction(3), pz1)
-          call memalloc(nchannel_per_direction(3), pz2)
+          call memalloc(nchannel_per_direction(3), pz1, __FILE__, __LINE__ )
+          call memalloc(nchannel_per_direction(3), pz2, __FILE__, __LINE__ )
           box_width = 1.0*nparts_with_channels(3)/(nchannel_per_direction(3)*nparts(3))
           half_channel_width = box_width/5
           center = half_channel_width
