@@ -204,6 +204,9 @@ contains
     logical :: memfree_flag
 
     cell_set_id = 1
+    assert(nparts_with_channels(1)<nparts(1))
+    assert(nparts_with_channels(2)<nparts(2))
+    assert(nparts_with_channels(3)<nparts(3))
     if (memfree_flag) then
        call memfree( px1, __FILE__, __LINE__ )
        call memfree( px2, __FILE__, __LINE__ )
