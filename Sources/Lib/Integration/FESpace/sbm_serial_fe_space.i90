@@ -1759,8 +1759,8 @@ subroutine serial_fe_space_fill_dof_info( this, block_layout )
       call this%count_dofs()
     end if  
     call this%list_dofs()
-  else  
-    block_layout = this%block_layout
+  else
+    call block_layout%copy_num_dofs_x_block(this%block_layout)
   end if
   
 end subroutine serial_fe_space_fill_dof_info
