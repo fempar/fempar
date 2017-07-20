@@ -28,6 +28,7 @@
 #include <p4est_mesh.h>
 #include <p8est.h>
 #include <p8est_mesh.h>
+#include <p8est_iterate.h>
 
 
 //These three globals values MUST match the corresponding ones
@@ -47,6 +48,14 @@ void F90_p4est_mesh_destroy(p4est_mesh_t **);
 void F90_p8est_mesh_destroy(p8est_mesh_t **);
 int refine_callback(p4est_t *,p4est_topidx_t, p4est_quadrant_t *);
 void init_fn_callback(p4est_t *,p4est_topidx_t,p4est_quadrant_t *);
+void edge_callback(p8est_iter_edge_info_t * info, void * user_data);
+
+typedef struct edge_info
+{
+  p4est_locidx_t *quad_to_quad_by_edge;
+  int8_t         *quad_to_edge;
+}
+edge_info_t;
 
 
 //void p4_savemesh ( char    filename[],

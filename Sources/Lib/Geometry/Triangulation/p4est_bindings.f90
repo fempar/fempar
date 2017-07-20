@@ -199,17 +199,21 @@ module p4est_bindings_names
                                                    quad_to_quad, &
                                                    quad_to_face, &
                                                    quad_to_half, &
+                                                   quad_to_quad_by_edge,&
+                                                   quad_to_edge,&
                                                    quad_to_corner, &
                                                    quadcoords, &
                                                    quadlevel) bind(c,name="F90_p8est_get_mesh_topology_arrays")
        use, intrinsic :: iso_c_binding
-       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL, P4EST_F90_LOCIDX
        implicit none
        type(c_ptr), value       , intent(in)     :: p8est
        type(c_ptr), value       , intent(in)     :: p8est_mesh
        type(c_ptr)              , intent(out)    :: quad_to_quad
        type(c_ptr)              , intent(out)    :: quad_to_face
        type(c_ptr)              , intent(out)    :: quad_to_half
+       integer(P4EST_F90_LOCIDX), intent(out)    :: quad_to_quad_by_edge(12,*)
+       integer(P4EST_F90_QLEVEL), intent(out)    :: quad_to_edge(12,*)
        type(c_ptr)              , intent(out)    :: quad_to_corner
        integer(P4EST_F90_QCOORD), intent(out)    :: quadcoords(3,*)
        integer(P4EST_F90_QLEVEL), intent(out)    :: quadlevel(*)

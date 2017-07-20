@@ -146,6 +146,16 @@ module p4est_serial_triangulation_names
                                                             4,-1,-1, 3,-1, 3,&
                                                            -1, 4,-1, 4,-1, 4 ],[NUM_FACES_3D,NUM_CORNERS_3D])
 
+  integer(ip), target :: P4EST_CORNER_IN_EDGE_3D(NUM_EDGES_3D,NUM_CORNERS_3D) = &
+                                                  reshape([ 1,-1,-1,-1, 1,-1,-1,-1, 1,-1,-1,-1,&
+                                                            2,-1,-1,-1,-1, 1,-1,-1,-1, 1,-1,-1,&
+                                                           -1, 1,-1,-1, 2,-1,-1,-1,-1,-1, 1,-1,&
+                                                           -1, 2,-1,-1,-1, 2,-1,-1,-1,-1,-1, 1,&
+                                                           -1,-1, 1,-1,-1,-1, 1,-1, 2,-1,-1,-1,&
+                                                           -1,-1, 2,-1,-1,-1,-1, 1,-1, 2,-1,-1,&
+                                                           -1,-1,-1, 1,-1,-1, 2,-1,-1,-1, 2,-1,&
+                                                           -1,-1,-1, 2,-1,-1,-1, 2,-1,-1,-1, 2 ],[NUM_EDGES_3D,NUM_CORNERS_3D])
+
   integer(ip), target :: P4EST_OPPOSITE_CORNER_3D(NUM_CORNERS_3D) = [ 8, 7, 6, 5, 4, 3, 2, 1 ]
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_3D(NUM_CORNERS_3D) = [ 1, 2, 3, 4, 5, 6, 7, 8 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_3D  (NUM_FACES_3D)   = [ 5, 6, 3, 4, 1, 2 ]
@@ -277,12 +287,16 @@ module p4est_serial_triangulation_names
     ! p4est face connectivity for mortars NUM_SUBFACES_FACE_2D/3D,1:nHalfFaces), (~small sides)
     integer(P4EST_F90_LOCIDX),pointer     :: quad_to_half(:,:)   => NULL()
     integer(P4EST_F90_LOCIDX),pointer     :: quad_to_corner(:,:) => NULL()
+    
+    integer(P4EST_F90_LOCIDX), allocatable :: quad_to_quad_by_edge(:,:)
+    integer(P4EST_F90_QLEVEL), allocatable :: quad_to_edge(:,:)
 
     ! TODO: The following 2x member variables should be replaced by our F200X implementation of "std::vector<T>" 
     ! p4est Integer coordinates of first quadrant node (xy/xyz,nQuads)
     integer(P4EST_F90_LOCIDX), allocatable :: quad_coords(:,:)
     ! p4est Integer Level of quadrant
     integer(P4EST_F90_QLEVEL), allocatable :: quad_level(:)
+   
     
     type(std_vector_integer_ip_t)          :: p4est_lst_vefs_lids
     
