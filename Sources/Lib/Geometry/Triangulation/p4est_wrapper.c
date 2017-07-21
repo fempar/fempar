@@ -129,7 +129,7 @@ void F90_p8est_new ( p8est_connectivity_t *conn,
 }
 
 
-void init_fn_callback(p4est_t * p4est,p4est_topidx_t which_tree,p4est_quadrant_t * quadrant)
+void init_fn_callback_2d(p4est_t * p4est,p4est_topidx_t which_tree,p4est_quadrant_t * quadrant)
 {
     p4est_tree_t       *tree;
     p4est_quadrant_t   *q;
@@ -151,10 +151,37 @@ void init_fn_callback(p4est_t * p4est,p4est_topidx_t which_tree,p4est_quadrant_t
     current_quadrant_index = (current_quadrant_index+1) % (quadrants->elem_count);    
 }
 
+void init_fn_callback_3d(p8est_t * p8est,p4est_topidx_t which_tree,p8est_quadrant_t * quadrant)
+{
+    p8est_tree_t       *tree;
+    p8est_quadrant_t   *q;
+    sc_array_t         *quadrants;
+    int                *user_pointer;
+    int                *quadrant_data;
+    int                 output;
+    
+    P4EST_ASSERT(which_tree == 0);
+    
+    // Extract a reference to the first (and uniquely allowed) tree
+    tree = p8est_tree_array_index (p8est->trees,0);
+    quadrants = &(tree->quadrants);
+    q = p8est_quadrant_array_index(quadrants, current_quadrant_index);
+    P4EST_ASSERT(p8est_quadrant_compare(q,quadrant) == 0);
+    user_pointer  = (int *) p8est->user_pointer;
+    quadrant_data = (int *) quadrant->p.user_data;
+    *quadrant_data = user_pointer[current_quadrant_index];
+    current_quadrant_index = (current_quadrant_index+1) % (quadrants->elem_count);    
+}
+
 
 void F90_p4est_set_user_pointer(int * user_data, p4est_t * p4est) 
 {
-    p4est_reset_data(p4est,sizeof(int),init_fn_callback,(void *)user_data);
+    p4est_reset_data(p4est,sizeof(int),init_fn_callback_2d,(void *)user_data);
+}
+
+void F90_p8est_set_user_pointer(int * user_data, p8est_t * p8est) 
+{
+    p8est_reset_data(p8est,sizeof(int),init_fn_callback_3d,(void *)user_data);
 }
 
 void F90_p4est_mesh_new(p4est_t  *p4est,
@@ -206,6 +233,11 @@ void F90_p8est_connectivity_destroy(p8est_connectivity_t **p8est_connectivity)
 void F90_p4est_destroy(p4est_t **p4est)
 {
     if (*p4est) p4est_destroy(*p4est);
+}
+
+void F90_p8est_destroy(p8est_t **p8est)
+{
+    if (*p8est) p8est_destroy(*p8est);
 }
 
 void F90_p4est_mesh_destroy(p4est_mesh_t **p4est_mesh)
@@ -410,7 +442,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
 
 }
 
-int refine_callback(p4est_t * p4est,
+int refine_callback_2d(p4est_t * p4est,
                     p4est_topidx_t which_tree,
                     p4est_quadrant_t * quadrant)
 {
@@ -418,8 +450,16 @@ int refine_callback(p4est_t * p4est,
     return (*((int *)quadrant->p.user_data) ==  FEMPAR_refinement_flag);
 }
 
+int refine_callback_3d(p8est_t * p8est,
+                    p4est_topidx_t which_tree,
+                    p8est_quadrant_t * quadrant)
+{
+    P4EST_ASSERT(which_tree == 0);
+    return (*((int *)quadrant->p.user_data) ==  FEMPAR_refinement_flag);
+}
 
-void  refine_replace_callback (p4est_t * p4est,
+
+void  refine_replace_callback_2d (p4est_t * p4est,
                                p4est_topidx_t which_tree,
                                int num_outgoing,
                                p4est_quadrant_t * outgoing[],
@@ -438,13 +478,36 @@ void  refine_replace_callback (p4est_t * p4est,
     }
  }
 
+void  refine_replace_callback_3d (p8est_t * p8est,
+                               p4est_topidx_t which_tree,
+                               int num_outgoing,
+                               p8est_quadrant_t * outgoing[],
+                               int num_incoming,
+                               p8est_quadrant_t * incoming[])
+ {
+    int quadrant_index;
+    int *quadrant_data;
+    P4EST_ASSERT(which_tree   == 0);
+    P4EST_ASSERT(num_outgoing == 1);
+    P4EST_ASSERT(num_incoming == P8EST_CHILDREN);
+    for (quadrant_index=0; quadrant_index < P8EST_CHILDREN; quadrant_index++)
+    {
+      quadrant_data = (int *) incoming[quadrant_index]->p.user_data;
+      *quadrant_data = FEMPAR_do_nothing_flag;
+    }
+ }
+
 void F90_p4est_refine( p4est_t * p4est )
 {
-    p4est_refine_ext(p4est, 0, -1, refine_callback, NULL, refine_replace_callback);
+    p4est_refine_ext(p4est, 0, -1, refine_callback_2d, NULL, refine_replace_callback_2d);
 }
 
+void F90_p8est_refine( p8est_t * p8est )
+{
+    p8est_refine_ext(p8est, 0, -1, refine_callback_3d, NULL, refine_replace_callback_3d);
+}
 
-int coarsen_callback (p4est_t * p4est,
+int coarsen_callback_2d (p4est_t * p4est,
                       p4est_topidx_t which_tree,
                       p4est_quadrant_t * quadrants[])
 {
@@ -461,9 +524,31 @@ int coarsen_callback (p4est_t * p4est,
     return coarsen;
 }
 
+int coarsen_callback_3d (p8est_t * p8est,
+                      p4est_topidx_t which_tree,
+                      p8est_quadrant_t * quadrants[])
+{
+    int quadrant_index;
+    int coarsen;
+    P4EST_ASSERT(which_tree == 0);
+    
+    coarsen = 1;
+    for (quadrant_index=0; quadrant_index < P8EST_CHILDREN; quadrant_index++)
+    {
+      coarsen = (*((int *)(quadrants[quadrant_index]->p.user_data)) ==  FEMPAR_coarsening_flag);
+      if (!coarsen) return coarsen;
+    }
+    return coarsen;
+}
+
 void F90_p4est_coarsen( p4est_t * p4est )
 {
-    p4est_coarsen(p4est, 0, coarsen_callback, NULL);
+    p4est_coarsen(p4est, 0, coarsen_callback_2d, NULL);
+}
+
+void F90_p8est_coarsen( p8est_t * p8est )
+{
+    p8est_coarsen(p8est, 0, coarsen_callback_3d, NULL);
 }
 
 void F90_p4est_copy( p4est_t * p4est_input, p4est_t ** p4est_output )
@@ -472,9 +557,20 @@ void F90_p4est_copy( p4est_t * p4est_input, p4est_t ** p4est_output )
    *p4est_output = p4est_copy(p4est_input,0);
 }
 
+void F90_p8est_copy( p8est_t * p8est_input, p8est_t ** p8est_output )
+{
+   F90_p8est_destroy(p8est_output);
+   *p8est_output = p8est_copy(p8est_input,0);
+}
+
 void F90_p4est_balance( p4est_t * p4est )
 {
   p4est_balance(p4est, P4EST_CONNECT_FULL, NULL);
+}
+
+void F90_p8est_balance( p8est_t * p8est )
+{
+  p8est_balance(p8est, P8EST_CONNECT_FULL, NULL);
 }
 
 void F90_p4est_update_refinement_and_coarsening_flags(p4est_t * p4est_old, p4est_t * p4est_new)
@@ -535,6 +631,65 @@ void F90_p4est_update_refinement_and_coarsening_flags(p4est_t * p4est_old, p4est
     }
 }
 
+void F90_p8est_update_refinement_and_coarsening_flags(p8est_t * p8est_old, p8est_t * p8est_new)
+{
+    p8est_tree_t       *tree_old;
+    p8est_quadrant_t   *q_old;
+    sc_array_t         *quadrants_old;
+    int                old_quadrant_index;
+    
+    p8est_tree_t       *tree_new;
+    p8est_quadrant_t   *q_new;
+    sc_array_t         *quadrants_new;
+    int                new_quadrant_index;
+    
+    int * user_pointer;
+   
+    P4EST_ASSERT(p8est_old->user_pointer == p8est_new->user_pointer);
+    
+    user_pointer = (int *) p8est_old->user_pointer;
+    
+    // Extract references to the first (and uniquely allowed) trees
+    tree_old = p8est_tree_array_index (p8est_old->trees,0);
+    tree_new = p8est_tree_array_index (p8est_new->trees,0);
+    
+    quadrants_old = &(tree_old->quadrants);
+    quadrants_new = &(tree_new->quadrants);
+    
+    new_quadrant_index = 0;
+    for (old_quadrant_index=0; old_quadrant_index < quadrants_old->elem_count;)
+    {
+       q_old = p8est_quadrant_array_index(quadrants_old, old_quadrant_index);
+       q_new = p8est_quadrant_array_index(quadrants_new, new_quadrant_index);
+       if ( p8est_quadrant_compare(q_old,q_new) == 0 ) //q_old was not refined nor coarsened
+       {
+           user_pointer[old_quadrant_index] = FEMPAR_do_nothing_flag;
+           old_quadrant_index++;
+           new_quadrant_index++;
+       }
+       else if ( p8est_quadrant_is_parent(q_old,q_new)  )  //q_old was refined
+       { 
+           user_pointer[old_quadrant_index] = FEMPAR_refinement_flag;
+           old_quadrant_index++;
+           new_quadrant_index = new_quadrant_index + P8EST_CHILDREN;
+       }
+       else if ( p8est_quadrant_is_parent(q_new,q_old) ) //q_old and its siblings were coarsened 
+       {
+           for (int i=0; i < P8EST_CHILDREN; i++)
+           {
+               user_pointer[old_quadrant_index] = FEMPAR_coarsening_flag;
+               old_quadrant_index++;
+           }
+           new_quadrant_index++;
+       }
+       else
+       {
+         P4EST_ASSERT(0);
+       }
+    }
+
+}
+
 void F90_p4est_get_quadrant_vertex_coordinates(p4est_connectivity_t * connectivity,
                                                p4est_topidx_t treeid,
                                                p4est_qcoord_t x,
@@ -578,6 +733,73 @@ void F90_p4est_get_quadrant_vertex_coordinates(p4est_connectivity_t * connectivi
                             neighbour.y, 
                             vxyz);
     vxyz[2] = 0.0;
+}
+
+void F90_p8est_get_quadrant_vertex_coordinates(p8est_connectivity_t * connectivity,
+                                               p4est_topidx_t treeid,
+                                               p4est_qcoord_t x,
+                                               p4est_qcoord_t y, 
+                                               p4est_qcoord_t z, 
+                                               int8_t level,
+                                               int   corner,
+                                               double vxyz[3])
+{
+    P4EST_ASSERT(treeid == 0);
+    p8est_quadrant_t myself;
+    p8est_quadrant_t neighbour;
+    
+    // Create myself
+    myself.x     = x;
+    myself.y     = y; 
+    myself.z     = z; 
+    myself.level = level;
+    
+    if ( corner == 0 ) {
+          neighbour = myself;
+      }      
+    else if ( corner == 1 ) {
+       p8est_quadrant_face_neighbor(&myself, 
+                                    1, 
+                                    &neighbour);
+    }
+    else if ( corner == 2 ) { 
+       p8est_quadrant_face_neighbor(&myself, 
+                                    3, 
+                                    &neighbour); 
+   }
+    else if ( corner == 3 ) {   
+       p8est_quadrant_edge_neighbor(&myself, 
+                                    11, 
+                                    &neighbour); 
+    }
+    else if ( corner == 4 ) {   
+       p8est_quadrant_face_neighbor(&myself, 
+                                    5, 
+                                    &neighbour); 
+   }
+    else if ( corner == 5 ) {   
+       p8est_quadrant_edge_neighbor(&myself, 
+                                    7, 
+                                    &neighbour); 
+   }
+    else if ( corner == 6 ) {   
+       p8est_quadrant_edge_neighbor(&myself, 
+                                    3, 
+                                    &neighbour); 
+   }
+    else if ( corner == 7 ) {   
+       p8est_quadrant_corner_neighbor(&myself, 
+                                    7, 
+                                    &neighbour); 
+   }
+   
+    // Extract numerical coordinates of lower_left corner of my corner neighbour
+    p8est_qcoord_to_vertex (connectivity, 
+                            treeid, 
+                            neighbour.x, 
+                            neighbour.y, 
+                            neighbour.z, 
+                            vxyz);
 }
 
 int F90_p4est_is_ancestor ( p4est_qcoord_t q1_x,

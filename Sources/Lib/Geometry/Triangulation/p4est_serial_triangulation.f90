@@ -84,13 +84,16 @@ module p4est_serial_triangulation_names
 
   ! For 3D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_3D = 4
+  integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_EDGE_3D = 2
   integer(ip), parameter :: NUM_CORNERS_3D                = 8
   integer(ip), parameter :: NUM_FACES_3D                  = 6
   integer(ip), parameter :: NUM_EDGES_3D                  = 12
   integer(ip), parameter :: NUM_SUBFACES_FACE_3D          = 4
   integer(ip), parameter :: NUM_FACE_CORNERS_3D           = 4
+  integer(ip), parameter :: NUM_FACE_EDGES_3D             = 4
   integer(ip), parameter :: NUM_EDGE_CORNERS_3D           = 2
   integer(ip), parameter :: NUM_FACES_AT_CORNER_3D        = 3
+  integer(ip), parameter :: NUM_FACES_AT_EDGE_3D          = 2
   integer(ip), parameter :: NUM_EDGES_AT_CORNER_3D        = 3
   integer(ip), parameter :: NUM_VEFS_3D              = NUM_CORNERS_3D+NUM_FACES_3D+NUM_EDGES_3D
 
@@ -116,6 +119,14 @@ module p4est_serial_triangulation_names
                                                             3, 7,&
                                                             4, 8], [NUM_EDGE_CORNERS_3D,NUM_EDGES_3D])
 
+  integer(ip), target :: P4EST_FACE_EDGES_3D(NUM_FACE_EDGES_3D,NUM_FACES_3D) = & 
+                                                  reshape([ 9, 11,  5,  7,&
+                                                           10, 12,  6,  8,&
+                                                            9, 10,  1,  3,&
+                                                           11, 12,  2,  4,&
+                                                            5,  6,  1,  2,&
+                                                            7,  8,  3,  4 ], [NUM_FACE_EDGES_3D,NUM_FACES_3D])
+
   integer(ip), target :: P4EST_FACES_AT_CORNER_3D(NUM_FACES_AT_CORNER_3D, NUM_CORNERS_3D) = & 
                                                     reshape([ 1, 3, 5,&
                                                               2, 3, 5,&
@@ -125,6 +136,20 @@ module p4est_serial_triangulation_names
                                                               2, 3, 6,&
                                                               1, 4, 6,&
                                                               2, 4, 6], [NUM_FACES_AT_CORNER_3D, NUM_CORNERS_3D])
+
+  integer(ip), target :: P4EST_FACES_AT_EDGE_3D(NUM_FACES_AT_EDGE_3D, NUM_EDGES_3D) = & 
+                                                    reshape([ 3, 5,&
+                                                              4, 5,&
+                                                              3, 6,&
+                                                              4, 6,&
+                                                              1, 5,&
+                                                              2, 5,&
+                                                              1, 6,&
+                                                              2, 6,&
+                                                              1, 3,&
+                                                              2, 3,&
+                                                              1, 4,&
+                                                              2, 4 ], [NUM_FACES_AT_EDGE_3D, NUM_EDGES_3D])
 
   integer(ip), target :: P4EST_EDGES_AT_CORNER_3D(NUM_EDGES_AT_CORNER_3D, NUM_CORNERS_3D) = & 
                                                     reshape([ 1,  5,  9,&
@@ -136,7 +161,7 @@ module p4est_serial_triangulation_names
                                                               4,  7, 11,&
                                                               4,  8, 12], [NUM_EDGES_AT_CORNER_3D, NUM_CORNERS_3D])
 
-  integer(ip), target :: P4EST_CORNER_IN_FACE_3D(NUM_FACES_3D,NUM_CORNERS_3D) = & 
+  integer(ip), target :: P4EST_CORNER_IN_FACE_3D(NUM_FACES_3D,NUM_CORNERS_3D) = &
                                                   reshape([ 1,-1, 1,-1, 1,-1,&
                                                            -1, 1, 2,-1, 2,-1,&
                                                             2,-1,-1, 1, 3,-1,&
@@ -145,6 +170,20 @@ module p4est_serial_triangulation_names
                                                            -1, 3, 4,-1,-1, 2,&
                                                             4,-1,-1, 3,-1, 3,&
                                                            -1, 4,-1, 4,-1, 4 ],[NUM_FACES_3D,NUM_CORNERS_3D])
+
+  integer(ip), target :: P4EST_EDGE_IN_FACE_3D(NUM_FACES_3D,NUM_EDGES_3D) = &
+                                                  reshape([ -1, -1,  3, -1,  3, -1,&
+                                                            -1, -1, -1,  3,  4, -1,&
+                                                            -1, -1,  4, -1, -1,  3,&
+                                                            -1, -1, -1,  4, -1,  4,&
+                                                             3, -1, -1, -1,  1, -1,&
+                                                            -1,  3, -1, -1,  2, -1,&
+                                                             4, -1, -1, -1, -1,  1,&
+                                                            -1,  4, -1, -1, -1,  2,&
+                                                             1, -1,  1, -1, -1, -1,&
+                                                            -1,  1,  2, -1, -1, -1,&
+                                                             2, -1, -1,  1, -1, -1,&
+                                                            -1,  2, -1,  2, -1, -1 ],[NUM_FACES_3D,NUM_EDGES_3D])
 
   integer(ip), target :: P4EST_CORNER_IN_EDGE_3D(NUM_EDGES_3D,NUM_CORNERS_3D) = &
                                                   reshape([ 1,-1,-1,-1, 1,-1,-1,-1, 1,-1,-1,-1,&
@@ -156,9 +195,32 @@ module p4est_serial_triangulation_names
                                                            -1,-1,-1, 1,-1,-1, 2,-1,-1,-1, 2,-1,&
                                                            -1,-1,-1, 2,-1,-1,-1, 2,-1,-1,-1, 2 ],[NUM_EDGES_3D,NUM_CORNERS_3D])
 
+  integer(ip), target :: FEMPAR_SUBCELLS_IN_TOUCH_FACE_3D(NUM_SUBCELLS_IN_TOUCH_FACE_3D,NUM_FACES_3D) = &
+                                                    reshape([ 1,  2,  3,  4,&
+                                                              5,  6,  7,  8,&
+                                                              1,  2,  5,  6,&
+                                                              3,  4,  7,  8,&
+                                                              1,  3,  5,  7,&
+                                                              2,  4,  6,  8 ], [NUM_SUBCELLS_IN_TOUCH_FACE_3D, NUM_FACES_3D])
+
+  integer(ip), target :: FEMPAR_SUBCELLS_IN_TOUCH_EDGE_3D(NUM_SUBCELLS_IN_TOUCH_EDGE_3D,NUM_EDGES_3D) = &
+                                                    reshape([ 1,  2,&
+                                                              3,  4,&
+                                                              5,  6,&
+                                                              7,  8,&
+                                                              1,  3,&
+                                                              2,  4,&
+                                                              5,  7,&
+                                                              6,  8,&
+                                                              1,  5,&
+                                                              2,  6,&
+                                                              3,  7,&
+                                                              4,  8 ], [NUM_SUBCELLS_IN_TOUCH_EDGE_3D, NUM_EDGES_3D])
+
   integer(ip), target :: P4EST_OPPOSITE_CORNER_3D(NUM_CORNERS_3D) = [ 8, 7, 6, 5, 4, 3, 2, 1 ]
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_3D(NUM_CORNERS_3D) = [ 1, 2, 3, 4, 5, 6, 7, 8 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_3D  (NUM_FACES_3D)   = [ 5, 6, 3, 4, 1, 2 ]
+  integer(ip), target :: P4EST_2_FEMPAR_EDGE_3D  (NUM_EDGES_3D)   = [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12 ]
   
   integer(ip), parameter :: refinement = 1 
   integer(ip), parameter :: coarsening = -1 
