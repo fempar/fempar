@@ -166,17 +166,19 @@ subroutine fe_affine_operator_create (this, &
                                       fe_space,&
                                       discrete_integration, &
                                       field_blocks, &
-                                      field_coupling)
+                                      field_coupling, &
+                                      trial_fe_space)
  implicit none
  class(fe_affine_operator_t)              , intent(inout) :: this
  character(*)                             , intent(in)    :: sparse_matrix_storage_format
  logical                                  , intent(in)    :: diagonal_blocks_symmetric_storage(:)
  logical                                  , intent(in)    :: diagonal_blocks_symmetric(:)
  integer(ip)                              , intent(in)    :: diagonal_blocks_sign(:)
- class(serial_fe_space_t)         , target, intent(inout) :: fe_space
- class(discrete_integration_t)    , target, intent(in)    :: discrete_integration
- integer(ip)                    , optional, intent(in)    :: field_blocks(:)
- logical                        , optional, intent(in)    :: field_coupling(:,:)
+ class(serial_fe_space_t)        , target, intent(inout) :: fe_space
+ class(discrete_integration_t)   , target, intent(in)    :: discrete_integration
+ integer(ip)                     , optional, intent(in)    :: field_blocks(:)
+ logical                         , optional, intent(in)    :: field_coupling(:,:)
+ class(serial_fe_space_t), target, optional, intent(inout) :: trial_fe_space
  
  call this%free()
 
@@ -198,6 +200,10 @@ subroutine fe_affine_operator_create (this, &
  
  call this%block_layout%create(fe_space%get_number_fields(), field_blocks, field_coupling )
  call this%fe_space%fill_dof_info(this%block_layout)
+ if ( present(trial_fe_space) ) then
+    this%trial_fe_space => trial_fe_space
+    call this%trial_fe_space%fill_dof_info(this%block_layout)
+ end if
  
   select type(fe_space => this%fe_space)
   class is(serial_fe_space_t) 
@@ -608,7 +614,11 @@ subroutine fe_affine_operator_fill_values(this)
   class(environment_t), pointer :: environment
   environment => this%fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then
-    call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
+    if ( associated(this%trial_fe_space) ) then
+     call this%discrete_integration%integrate( this%fe_space, this%trial_fe_space, this%matrix_array_assembler )
+    else
+     call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
+    end if  
   end if  
 end subroutine fe_affine_operator_fill_values
 
