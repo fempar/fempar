@@ -120,8 +120,8 @@ module fe_affine_operator_names
   integer(ip)                                     :: state  = start
   character(:)                      , allocatable :: sparse_matrix_storage_format
   type(block_layout_t)                            :: block_layout
-  class(serial_fe_space_t)          , pointer     :: fe_space               => NULL() ! trial_fe_space
-  class(serial_fe_space_t)          , pointer     :: test_fe_space          => NULL() ! To be used in the future
+  class(serial_fe_space_t)          , pointer     :: fe_space               => NULL() ! test_fe_space
+  class(serial_fe_space_t)          , pointer     :: trial_fe_space         => NULL() ! To be used in the future
   class(discrete_integration_t)     , pointer     :: discrete_integration   => NULL()
   class(matrix_array_assembler_t)   , pointer     :: matrix_array_assembler => NULL()
 contains
@@ -404,7 +404,7 @@ subroutine fe_affine_operator_free_clean(this)
  integer(ip) :: istat
  deallocate(this%sparse_matrix_storage_format)
  nullify(this%fe_space)
- nullify(this%test_fe_space)
+ nullify(this%trial_fe_space)
  nullify(this%discrete_integration)
  call this%matrix_array_assembler%free_in_stages(free_clean)
  deallocate(this%matrix_array_assembler, stat=istat )

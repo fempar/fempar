@@ -42,7 +42,7 @@ module poisson_unfitted_cG_discrete_integration_names
      type(poisson_unfitted_analytical_functions_t), pointer :: analytical_functions => NULL()
    contains
      procedure :: set_analytical_functions
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type poisson_unfitted_cG_discrete_integration_t
 
   public :: poisson_unfitted_cG_discrete_integration_t
@@ -58,7 +58,7 @@ contains
   end subroutine set_analytical_functions
 
 !========================================================================================
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
@@ -341,6 +341,6 @@ contains
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call eigs%free()
     call fe_space%free_fe_iterator(fe)
-  end subroutine integrate
+  end subroutine integrate_galerkin
 
 end module poisson_unfitted_cG_discrete_integration_names

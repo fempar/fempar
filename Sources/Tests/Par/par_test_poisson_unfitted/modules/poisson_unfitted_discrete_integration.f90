@@ -45,7 +45,7 @@ module poisson_unfitted_discrete_integration_names
    contains
      procedure :: set_analytical_functions
      procedure :: set_test_params
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type poisson_unfitted_cG_discrete_integration_t
   
   public :: poisson_unfitted_cG_discrete_integration_t
@@ -66,7 +66,7 @@ contains
      this%test_params => test_params
   end subroutine set_test_params
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
@@ -367,6 +367,6 @@ contains
     call eigs%free()
     call fe_space%free_fe_iterator(fe)
 
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module poisson_unfitted_discrete_integration_names
