@@ -431,6 +431,7 @@ contains
                if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
             end do
          end do
+         if ( cell_set_id /= 1 ) cell_set_id = 2
       end if
 
     end function cell_set_id

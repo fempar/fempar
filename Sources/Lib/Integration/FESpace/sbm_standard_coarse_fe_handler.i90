@@ -75,6 +75,19 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
      case (2)
        if (.not. use_faces) then
          call object%next(); cycle
+       else
+         do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object,vef)
+           if (vef%get_dimension()==2) exit
+         end do  
+         call vef%get_cell_around(1,fe)
+         if ( fe%get_set_id() == 1) then
+             call object%next(); cycle
+         end if     
+         call vef%get_cell_around(2,fe)
+         if ( fe%get_set_id() == 1) then
+           call object%next(); cycle
+         end if  
        end if  
      end select
     
