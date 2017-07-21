@@ -264,10 +264,9 @@ contains
             call memalloc(  number_nodes, this%Y,              __FILE__, __LINE__)
         endif
         if(allocated(this%Z)) then
-            call memrealloc(number_nodes, this%Z,              __FILE__, __LINE__)
+            call memrealloc(number_nodes, this%Z,              __FILE__, __LINE__,0.0_rp)
         else
-            call memalloc(  number_nodes, this%Z,              __FILE__, __LINE__)
-            this%Z = 0_rp
+            call memalloc(  number_nodes, this%Z,              __FILE__, __LINE__,0.0_rp)
         endif
         if(allocated(this%Offset)) then
             call memrealloc(number_cells, this%Offset,         __FILE__, __LINE__)

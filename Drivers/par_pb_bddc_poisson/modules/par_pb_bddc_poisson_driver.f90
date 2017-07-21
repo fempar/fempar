@@ -88,6 +88,7 @@ module par_pb_bddc_poisson_driver_names
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure        , private :: write_matrices
+     procedure        , private :: print_info
      procedure        , private :: free
      procedure                  :: free_environment
      procedure                  :: free_command_line_parameters
@@ -129,7 +130,7 @@ contains
       call this%setup_cell_set_ids() 
     end if  
     call this%triangulation%setup_coarse_triangulation()
-    write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
+    !write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
     if ( this%test_params%get_coarse_fe_handler_type() == standard_bddc ) then
       call this%setup_cell_set_ids() 
     end if
@@ -140,11 +141,12 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable       :: cell
-    integer(ip)                               :: istat
+    integer(ip)                               :: istat, idummy
     integer(ip), allocatable                  :: cells_set(:)
     type(point_t), allocatable :: cell_coords(:)
     type(point_t) :: grav_center
     integer(ip)   :: inode  
+    real(rp), allocatable:: px1(:), px2(:), py1(:), py2(:),  pz1(:), pz2(:)
 
     this%poisson_integration%diffusion_inclusion = this%test_params%get_jump()    
     this%H1_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
@@ -163,7 +165,10 @@ contains
              grav_center = (1.0_rp/cell%get_num_nodes())*grav_center
              cells_set( cell%get_lid() ) = cell_set_id( grav_center, &
                   this%triangulation%get_num_dimensions(), &
-                  this%test_params%get_jump(), this%test_params%get_inclusion() )
+                  this%test_params%get_jump(), this%test_params%get_inclusion(), &
+                  this%test_params%get_nchannel_per_direction(), &
+                  this%test_params%get_nparts_with_channels(), &
+                  this%test_params%get_nparts())
           end if
           call cell%next()
        end do
@@ -172,110 +177,283 @@ contains
        call this%triangulation%free_cell_iterator(cell)
     end if
     
+    if ( allocated(px1) ) call memfree( px1, __FILE__, __LINE__ )
+    if ( allocated(px2) ) call memfree( px2, __FILE__, __LINE__ )
+    if ( allocated(py1) ) call memfree( py1, __FILE__, __LINE__ )
+    if ( allocated(py2) ) call memfree( py2, __FILE__, __LINE__ )
+    if ( allocated(pz1) ) call memfree( pz1, __FILE__, __LINE__ )
+    if ( allocated(pz2) ) call memfree( pz2, __FILE__, __LINE__ )
+    
+  contains
+    
+    function cell_set_id( coord, num_dimensions, jump, inclusion, nchannel_per_direction, nparts_with_channels,nparts)
+      implicit none
+      type(point_t), intent(in)  :: coord
+      integer(ip)  , intent(in)  :: num_dimensions
+      integer(ip)  , intent(in)  :: jump
+      integer(ip)  , intent(in)  :: inclusion
+      integer(ip)  , intent(in)  :: nchannel_per_direction(3)
+      integer(ip)  , intent(in)  :: nparts_with_channels(3)
+      integer(ip)  , intent(in)  :: nparts(3)
+      type(point_t) :: origin, opposite
+      integer(ip) :: cell_set_id
+      integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
+      real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
+      real(rp)    :: box_width, half_channel_width, center, eps
+      real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
+      real(rp) :: p1_c(256), p2_c(256)
+
+
+      cell_set_id = 1
+      assert(nparts_with_channels(1)<=nparts(1))
+      assert(nparts_with_channels(2)<=nparts(2))
+      assert(nparts_with_channels(3)<=nparts(3))
+
+      ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
+      if ( inclusion == 1 ) then
+         call origin%set(1,0.0_rp)  ; call origin%set(2, 0.25_rp) ; call origin%set(3,0.25_rp);
+         call opposite%set(1,0.5_rp); call opposite%set(2,0.50_rp); call opposite%set(3,0.50_rp);
+         if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+      else if ( inclusion == 2 ) then
+         nchannel = 8
+         do i = 1, nchannel
+            j = 2*i
+            y_pos_0 = real(j-1)/real(2*nchannel+1)
+            y_pos_1 = j/real(2*nchannel+1)
+            z_pos_0 = (j-1)/real(2*nchannel+1)
+            z_pos_1 = j/real(2*nchannel+1)
+            call origin%set(1,y_pos_0)  ; call origin%set(2, y_pos_0) ; call origin%set(3,z_pos_0);
+            call opposite%set(1,1.0_rp); call opposite%set(2,y_pos_1); call opposite%set(3,z_pos_1);
+            if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+            ! 
+            z_pos_0 = j/real(2*nchannel+1)
+            z_pos_1 = (j+1)/real(2*nchannel+1)
+            call origin%set(1,y_pos_0)  ; call origin%set(2, y_pos_0) ; call origin%set(3,z_pos_0);
+            call opposite%set(1,y_pos_1); call opposite%set(2,1.0_rp); call opposite%set(3,z_pos_1);
+            if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+         end do
+      else if ( inclusion == 3 ) then
+         ! Hieu's test in PB-BDDC article (two channels)
+         p1 = [2.0_rp/36.0_rp, 7.0_rp/36.0_rp, 14.0_rp/36.0_rp, 19.0_rp/36.0_rp, 26.0_rp/36.0_rp, 30.0_rp/36.0_rp] ! lower y value
+         p2 = [4.0_rp/36.0_rp, 9.0_rp/36.0_rp, 16.0_rp/36.0_rp, 21.0_rp/36.0_rp, 28.0_rp/36.0_rp, 32.0_rp/36.0_rp] ! upper y value
+         do i = 1, 6
+            call origin%set(1,0.0_rp)  ; call origin%set(2, p1(i)) ; call origin%set(3,p1(7-i));
+            call opposite%set(1,1.0_rp); call opposite%set(2,p2(i)); call opposite%set(3,p2(7-i));
+            if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
+         end do
+         do i = 7, 12  
+            call origin%set(2,0.0_rp)  ; call origin%set(1, p1(i-6)) ; call origin%set(3,p1(i-6));
+            call opposite%set(2,1.0_rp); call opposite%set(1,p2(i-6)); call opposite%set(3,p2(i-6));
+            if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
+         end do
+      else if ( inclusion == 4 ) then
+         ! Hieu's test in PB-BDDC article (two channels)
+         p1_b = [4.0_rp/32.0_rp, 12.0_rp/32.0_rp, 20.0_rp/32.0_rp, 28.0_rp/32.0_rp] ! lower y value
+         p2_b = [6.0_rp/32.0_rp, 14.0_rp/32.0_rp, 22.0_rp/32.0_rp, 30.0_rp/32.0_rp] ! upper y value
+         nchannel = 1
+         ! x edges
+         do j = 1, 4
+            do k = 1,4
+               call origin%set(1,0.0_rp)  ; call origin%set(2, p1_b(j)) ; call origin%set(3,p1_b(k));
+               call opposite%set(1,1.0_rp); call opposite%set(2,p2_b(j)); call opposite%set(3,p2_b(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! y edges
+         do j = 1, 4
+            do k = 1,4
+               call origin%set(2,0.0_rp)  ; call origin%set(1, p1_b(j)) ; call origin%set(3,p1_b(k));
+               call opposite%set(2,1.0_rp); call opposite%set(1,p2_b(j)); call opposite%set(3,p2_b(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! z edges
+         do j = 1, 4
+            do k = 1,4
+               call origin%set(3,0.0_rp)  ; call origin%set(2, p1_b(j)) ; call origin%set(1,p1_b(k));
+               call opposite%set(3,1.0_rp); call opposite%set(2,p2_b(j)); call opposite%set(1,p2_b(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+      else if ( inclusion == 5 ) then
+         ! Number of channels can be choosen from the command line using option -nc
+
+         ! defining positions of the channels
+         box_width = 1.0_rp/nchannel_per_direction(1)
+         half_channel_width = box_width/5
+         center = box_width/2
+         eps = 1e-14_rp
+         do j=1, nchannel_per_direction(1)
+            p1_c(j)=center - half_channel_width 
+            p2_c(j)=center + half_channel_width  
+            center = center + box_width
+         enddo
+
+         nchannel = 1
+         ! x edges
+         do j = 1, nchannel_per_direction(1)
+            do k = 1,nchannel_per_direction(1)
+               call origin%set(1,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(3,p1_c(k));
+               call opposite%set(1,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(3,p2_c(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! y edges
+         do j = 1, nchannel_per_direction(1)
+            do k = 1,nchannel_per_direction(1)
+               call origin%set(2,0.0_rp)  ; call origin%set(1, p1_c(j)) ; call origin%set(3,p1_c(k));
+               call opposite%set(2,1.0_rp); call opposite%set(1,p2_c(j)); call opposite%set(3,p2_c(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! z edges
+         do j = 1, nchannel_per_direction(1)
+            do k = 1,nchannel_per_direction(1)
+               call origin%set(3,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(1,p1_c(k));
+               call opposite%set(3,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(1,p2_c(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+      else if ( inclusion == 6 ) then
+         ! Number of channels can be choosen from the command line using option -nc
+         ! Channels are positioned so that some will touch but not cross the interface
+         ! if the nchannel_per_direction is a multiple of the number partitions per direction 
+
+         ! defining positions of the channels
+         box_width = 1.0_rp/nchannel_per_direction(1)
+         half_channel_width = box_width/5
+         center = half_channel_width
+         eps = 1e-14_rp
+         do j=1, nchannel_per_direction(1)
+            p1_c(j)=center - half_channel_width 
+            p2_c(j)=center + half_channel_width  
+            center = center + box_width
+         enddo
+
+         nchannel = 1
+         ! x edges
+         do j = 1, nchannel_per_direction(1)
+            do k = 1,nchannel_per_direction(1)
+               call origin%set(1,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(3,p1_c(k));
+               call opposite%set(1,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(3,p2_c(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! y edges
+         do j = 1, nchannel_per_direction(1)
+            do k = 1,nchannel_per_direction(1)
+               call origin%set(2,0.0_rp)  ; call origin%set(1, p1_c(j)) ; call origin%set(3,p1_c(k));
+               call opposite%set(2,1.0_rp); call opposite%set(1,p2_c(j)); call opposite%set(3,p2_c(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! z edges
+         do j = 1, nchannel_per_direction(1)
+            do k = 1,nchannel_per_direction(1)
+               call origin%set(3,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(1,p1_c(k));
+               call opposite%set(3,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(1,p2_c(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+      else if ( inclusion == 7 ) then
+         ! Number of channels can be choosen from the command line using option -nc
+         ! Channels are positioned so that some will touch but not cross the interface
+         ! if the nchannel_per_direction is a multiple of the number partitions per direction 
+
+         ! defining positions of the channels
+         if (.not.(allocated(px1))) then
+            call memalloc(nchannel_per_direction(1), px1, __FILE__, __LINE__ )
+            call memalloc(nchannel_per_direction(1), px2, __FILE__, __LINE__ )
+            box_width = 1.0*nparts_with_channels(1)/(nchannel_per_direction(1)*nparts(1))
+            half_channel_width = box_width/5
+            center = half_channel_width
+            do j=1, nchannel_per_direction(1)
+               px1(j)=center - half_channel_width 
+               px2(j)=center + half_channel_width  
+               center = center + box_width
+            enddo
+            call memalloc(nchannel_per_direction(2), py1, __FILE__, __LINE__ )
+            call memalloc(nchannel_per_direction(2), py2, __FILE__, __LINE__ )
+            box_width = 1.0*nparts_with_channels(2)/(nchannel_per_direction(2)*nparts(2))
+            half_channel_width = box_width/5
+            center = half_channel_width
+            do j=1, nchannel_per_direction(2)
+               py1(j)=center - half_channel_width 
+               py2(j)=center + half_channel_width  
+               center = center + box_width
+            enddo
+            call memalloc(nchannel_per_direction(3), pz1, __FILE__, __LINE__ )
+            call memalloc(nchannel_per_direction(3), pz2, __FILE__, __LINE__ )
+            box_width = 1.0*nparts_with_channels(3)/(nchannel_per_direction(3)*nparts(3))
+            half_channel_width = box_width/5
+            center = half_channel_width
+            do j=1, nchannel_per_direction(3)
+               pz1(j)=center - half_channel_width 
+               pz2(j)=center + half_channel_width  
+               center = center + box_width
+            enddo
+         end if
+
+         nchannel = 1
+         ! x edges
+         do j = 1, nchannel_per_direction(2)
+            do k = 1,nchannel_per_direction(3)
+               call origin%set(1,0.0_rp)  ; call origin%set(2, py1(j)) ; call origin%set(3,pz1(k));
+               call opposite%set(1,1.0_rp); call opposite%set(2,py2(j)); call opposite%set(3,pz2(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! y edges
+         do j = 1, nchannel_per_direction(1)
+            do k = 1,nchannel_per_direction(3)
+               call origin%set(2,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(3,pz1(k));
+               call opposite%set(2,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(3,pz2(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! z edges
+         do j = 1, nchannel_per_direction(1)
+            do k = 1,nchannel_per_direction(2)
+               call origin%set(3,0.0_rp)  ; call origin%set(2, px1(j)) ; call origin%set(1,py1(k));
+               call opposite%set(3,1.0_rp); call opposite%set(2,px2(j)); call opposite%set(1,py2(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+            end do
+         end do
+      end if
+
+    end function cell_set_id
+
+    function is_point_in_rectangle( origin, opposite, coord, num_dimensions )
+      implicit none
+      type(point_t), intent(in)  :: origin
+      type(point_t), intent(in)  :: opposite
+      type(point_t), intent(in)  :: coord
+      integer(ip)  , intent(in)  :: num_dimensions
+      logical :: is_point_in_rectangle
+      integer(ip) :: i
+      is_point_in_rectangle = .true.
+      do i = 1, num_dimensions
+         if ( coord%get(i) < origin%get(i) .or. coord%get(i) > opposite%get(i) ) then
+            is_point_in_rectangle = .false.
+            exit
+         end if
+      end do
+    end function is_point_in_rectangle
+    
   end subroutine setup_cell_set_ids
 
-  function cell_set_id( coord, num_dimensions, jump, inclusion )
-    implicit none
-    type(point_t), intent(in)  :: coord
-    integer(ip)  , intent(in)  :: num_dimensions
-    integer(ip)  , intent(in)  :: jump
-    integer(ip)  , intent(in)  :: inclusion
-    type(point_t) :: origin, opposite
-    integer(ip) :: cell_set_id
-    integer(ip) :: i,j,k, nchannel
-    real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
-    real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
-    cell_set_id = 1
-        
-    ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
-    if ( inclusion == 1 ) then
-       call origin%set(1,0.0_rp)  ; call origin%set(2, 0.25_rp) ; call origin%set(3,0.25_rp);
-       call opposite%set(1,0.5_rp); call opposite%set(2,0.50_rp); call opposite%set(3,0.50_rp);
-       if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
-    else if ( inclusion == 2 ) then
-       nchannel = 8
-       do i = 1, nchannel
-          j = 2*i
-          y_pos_0 = real(j-1)/real(2*nchannel+1)
-          y_pos_1 = j/real(2*nchannel+1)
-          z_pos_0 = (j-1)/real(2*nchannel+1)
-          z_pos_1 = j/real(2*nchannel+1)
-          call origin%set(1,y_pos_0)  ; call origin%set(2, y_pos_0) ; call origin%set(3,z_pos_0);
-          call opposite%set(1,1.0_rp); call opposite%set(2,y_pos_1); call opposite%set(3,z_pos_1);
-          if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
-          ! 
-          z_pos_0 = j/real(2*nchannel+1)
-          z_pos_1 = (j+1)/real(2*nchannel+1)
-          call origin%set(1,y_pos_0)  ; call origin%set(2, y_pos_0) ; call origin%set(3,z_pos_0);
-          call opposite%set(1,y_pos_1); call opposite%set(2,1.0_rp); call opposite%set(3,z_pos_1);
-          if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
-       end do
-    else if ( inclusion == 3 ) then
-       ! Hieu's test in PB-BDDC article (two channels)
-       p1 = [2.0_rp/36.0_rp, 7.0_rp/36.0_rp, 14.0_rp/36.0_rp, 19.0_rp/36.0_rp, 26.0_rp/36.0_rp, 30.0_rp/36.0_rp] ! lower y value
-       p2 = [4.0_rp/36.0_rp, 9.0_rp/36.0_rp, 16.0_rp/36.0_rp, 21.0_rp/36.0_rp, 28.0_rp/36.0_rp, 32.0_rp/36.0_rp] ! upper y value
-       do i = 1, 6
-          call origin%set(1,0.0_rp)  ; call origin%set(2, p1(i)) ; call origin%set(3,p1(7-i));
-          call opposite%set(1,1.0_rp); call opposite%set(2,p2(i)); call opposite%set(3,p2(7-i));
-          if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
-       end do
-       do i = 7, 12  
-          call origin%set(2,0.0_rp)  ; call origin%set(1, p1(i-6)) ; call origin%set(3,p1(i-6));
-          call opposite%set(2,1.0_rp); call opposite%set(1,p2(i-6)); call opposite%set(3,p2(i-6));
-          if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
-       end do
-    else if ( inclusion == 4 ) then
-       ! Hieu's test in PB-BDDC article (two channels)
-       p1_b = [4.0_rp/32.0_rp, 12.0_rp/32.0_rp, 20.0_rp/32.0_rp, 28.0_rp/32.0_rp] ! lower y value
-       p2_b = [6.0_rp/32.0_rp, 14.0_rp/32.0_rp, 22.0_rp/32.0_rp, 30.0_rp/32.0_rp] ! upper y value
-       nchannel = 1
-       ! x edges
-       do j = 1, 4
-          do k = 1,4
-             call origin%set(1,0.0_rp)  ; call origin%set(2, p1_b(j)) ; call origin%set(3,p1_b(k));
-             call opposite%set(1,1.0_rp); call opposite%set(2,p2_b(j)); call opposite%set(3,p2_b(k));
-             nchannel = nchannel + 1
-             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
-          end do
-       end do
-       ! y edges
-       do j = 1, 4
-          do k = 1,4
-             call origin%set(2,0.0_rp)  ; call origin%set(1, p1_b(j)) ; call origin%set(3,p1_b(k));
-             call opposite%set(2,1.0_rp); call opposite%set(1,p2_b(j)); call opposite%set(3,p2_b(k));
-             nchannel = nchannel + 1
-             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
-          end do
-       end do
-       ! z edges
-       do j = 1, 4
-          do k = 1,4
-             call origin%set(3,0.0_rp)  ; call origin%set(2, p1_b(j)) ; call origin%set(1,p1_b(k));
-             call opposite%set(3,1.0_rp); call opposite%set(2,p2_b(j)); call opposite%set(1,p2_b(k));
-             nchannel = nchannel + 1
-             if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
-          end do
-       end do
-    end if
-
-  end function cell_set_id
-
-  function is_point_in_rectangle( origin, opposite, coord, num_dimensions )
-    implicit none
-    type(point_t), intent(in)  :: origin
-    type(point_t), intent(in)  :: opposite
-    type(point_t), intent(in)  :: coord
-    integer(ip)  , intent(in)  :: num_dimensions
-    logical :: is_point_in_rectangle
-    integer(ip) :: i
-    is_point_in_rectangle = .true.
-    do i = 1, num_dimensions
-       if ( coord%get(i) < origin%get(i) .or. coord%get(i) > opposite%get(i) ) then
-          is_point_in_rectangle = .false.
-          exit
-       end if
-    end do
-  end function is_point_in_rectangle
 
   subroutine setup_reference_fes(this)
     implicit none
@@ -546,12 +724,16 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
     character(:), allocatable :: matrix_filename
-    class(matrix_t), pointer       :: matrix
+    character(:), allocatable :: mapping_filename
+    class(matrix_t), pointer :: matrix
     integer(ip) :: luout
+    integer(igp) :: num_global_dofs
+    integer(igp), allocatable :: dofs_gids(:)
+    type(serial_scalar_array_t) :: mapping
+    integer(ip) :: i
     
     if ( this%test_params%get_write_matrices() ) then
-    
-    if ( this%environment%am_i_l1_task() ) then
+      if ( this%environment%am_i_l1_task() ) then
         matrix_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() 
         call numbered_filename_compose(this%environment%get_l1_rank(),this%environment%get_l1_size(),matrix_filename)
         luout = io_open ( matrix_filename, 'write')
@@ -563,12 +745,71 @@ contains
           assert(.false.) 
         end select
         call io_close(luout)
-   end if
-   
+        
+        call this%fe_space%compute_num_global_dofs_and_their_gids(num_global_dofs, dofs_gids)
+        call mapping%create_and_allocate(size(dofs_gids))
+        do i=1, size(dofs_gids)
+          call mapping%insert(i,real(dofs_gids(i),rp))
+        end do
+        
+        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "mapping"
+        call numbered_filename_compose(this%environment%get_l1_rank(),this%environment%get_l1_size(),mapping_filename)
+        luout = io_open ( mapping_filename, 'write')
+        call mapping%print_matrix_market(luout)
+        call io_close(luout)
+        call mapping%free()
+        call memfree(dofs_gids, __FILE__, __LINE__)
+        
+        if ( this%environment%get_l1_rank() == 0 ) then
+          mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "num_global_dofs"
+          luout = io_open ( mapping_filename, 'write')
+          write(luout,*) num_global_dofs
+          call io_close(luout)
+        end if  
+        
+      end if
    end if
   end subroutine write_matrices
   
 
+  !========================================================================================
+  subroutine print_info (this)
+    implicit none
+    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+
+    integer(ip) :: num_sub_domains
+    real(rp) :: num_total_cells
+    real(rp) :: num_dofs
+    integer(ip) :: num_coarse_dofs
+
+    class(environment_t), pointer :: environment
+    class(coarse_fe_space_t), pointer :: coarse_fe_space
+
+    environment => this%fe_space%get_environment()
+
+    if (environment%am_i_l1_task()) then
+      num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
+      num_dofs         = real(this%fe_space%get_field_number_dofs(1),kind=rp)
+      call environment%l1_sum(num_total_cells )
+      call environment%l1_sum(num_dofs        )
+    end if
+
+    if (environment%get_l1_rank() == 0) then
+      num_sub_domains = environment%get_l1_size()
+      write(*,'(a,i22)') 'num_sub_domains:          ', num_sub_domains
+      write(*,'(a,i22)') 'num_total_cells:          ', nint(num_total_cells , kind=ip )
+      write(*,'(a,i22)') 'num_dofs (sub-assembled): ', nint(num_dofs        , kind=ip )
+    end if
+
+    if (environment%am_i_lgt1_task()) then
+      coarse_fe_space => this%fe_space%get_coarse_fe_space()
+      num_coarse_dofs = coarse_fe_space%get_field_number_dofs(1)
+      write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
+    end if
+
+  end subroutine print_info
+  
+  
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
@@ -594,6 +835,7 @@ contains
     !call this%check_solution()
     call this%write_solution()
     call this%write_matrices()
+    call this%print_info()
     call this%free()
   end subroutine run_simulation
 

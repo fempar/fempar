@@ -34,7 +34,7 @@ subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this,    
   class(par_fe_space_t)                       , intent(inout)  :: this
   class(base_static_triangulation_t), target  , intent(in)     :: triangulation
   type(p_reference_fe_t)                      , intent(in)     :: reference_fes(:)
-  class(conditions_t)               , optional, intent(in)     :: conditions
+  class(conditions_t)       , target, optional, intent(in)     :: conditions
   assert(.false.)
 end subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells
 
@@ -48,7 +48,7 @@ subroutine par_fe_space_serial_create_different_between_cells( this,            
   class(base_static_triangulation_t), target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
-  class(conditions_t)               , optional, intent(in)    :: conditions
+  class(conditions_t)       , target, optional, intent(in)    :: conditions
   check(.false.)
 end subroutine par_fe_space_serial_create_different_between_cells
 
@@ -56,17 +56,13 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
                                                                 triangulation,      &
                                                                 reference_fes,      &
                                                                 coarse_fe_handlers, &
-                                                                conditions,         &
-                                                                field_blocks,       &
-                                                                field_coupling )
+                                                                conditions)
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(base_static_triangulation_t), target, intent(in)     :: triangulation
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
   class(conditions_t)             , optional, intent(in)     :: conditions
-  integer(ip)                     , optional, intent(in)     :: field_blocks(:)
-  logical                         , optional, intent(in)     :: field_coupling(:,:)
 
   type(environment_t), pointer :: par_environment 
   integer(ip)                  :: field_id
@@ -429,6 +425,178 @@ subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
   end if   
 end subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
 
+
+ subroutine par_fe_space_compute_num_global_dofs_and_their_gids ( this, num_global_dofs, dofs_gids )
+    implicit none
+    class(par_fe_space_t)    , intent(in)    :: this
+    integer(igp)             , intent(inout) :: num_global_dofs
+    integer(igp), allocatable, intent(inout) :: dofs_gids(:) 
+
+    integer(ip)                  :: num_rcv
+    integer(ip), allocatable     :: list_rcv(:)    
+    integer(ip), allocatable     :: rcv_ptrs(:)
+    integer(ip), allocatable     :: unpack_idx(:)
+    
+    integer(ip)                  :: num_snd
+    integer(ip), allocatable     :: list_snd(:)    
+    integer(ip), allocatable     :: snd_ptrs(:)
+    integer(ip), allocatable     :: pack_idx(:)
+   
+    integer(ip)                  :: number_local_dofs_with_gid
+    integer(ip), allocatable     :: local_dofs_with_gid(:)
+    integer(igp), allocatable    :: per_rank_dofs_with_gid(:)
+    integer(igp)                 :: start_dof_gid
+    integer(ip)                  :: part_id, my_part_id, number_parts
+    integer(ip)                  :: i, idof, dof_lid, istat, ivef, min_part_id, ielem
+    class(reference_fe_t), pointer :: reference_fe
+    
+    integer(ip)                  :: dummy_integer_array(1)
+    integer(igp)                 :: dummy_integer_array_igp(1)
+    type(environment_t), pointer :: par_environment
+    class(fe_iterator_t), allocatable :: fe 
+    type(fe_vef_iterator_t) :: vef
+    integer(ip) :: field_id
+    type(i1p_t), allocatable :: elem2dof(:)
+    type(list_iterator_t) :: own_dofs_on_vef_iterator
+    integer(igp), allocatable :: tmp_gids(:)
+
+    par_environment => this%get_par_environment()
+
+    assert ( par_environment%am_i_l1_task() )
+    assert ( this%get_number_fields() == 1 )
+    
+    my_part_id   = par_environment%get_l1_rank()  + 1 
+    number_parts = par_environment%get_l1_size()
+    
+    ! 1. Count/list how many local DoFs I am responsible to assign a global ID
+    call memalloc ( this%blocks_dof_import(1)%get_number_dofs(), local_dofs_with_gid, __FILE__, __LINE__ )
+    
+    number_local_dofs_with_gid = 0
+    do dof_lid=1, this%blocks_dof_import(1)%get_number_interior_dofs()
+      number_local_dofs_with_gid = number_local_dofs_with_gid + 1
+      local_dofs_with_gid(number_local_dofs_with_gid) = dof_lid
+    end do
+    
+    allocate ( elem2dof(this%number_fields), stat=istat ) 
+    check (istat==0)
+    
+    field_id = 1
+  
+    ! Traverse vefs on the interface
+    call this%create_itfc_fe_vef_iterator(vef)
+    call this%create_fe_iterator(fe) 
+    do while(.not. vef%has_finished())
+       min_part_id = my_part_id
+       do ielem=1, vef%get_num_cells_around()
+          call vef%get_cell_around(ielem,fe)
+          part_id = fe%get_my_part()
+          min_part_id = min(part_id, min_part_id)
+       end do
+    
+       if (.not. min_part_id == my_part_id) then
+         call vef%next()
+         cycle
+       end if
+    
+       call vef%get_cell_around(1,fe)
+       ivef = fe%find_lpos_vef_lid(vef%get_lid())
+       call fe%get_elem2dof( elem2dof )
+       reference_fe => fe%get_reference_fe(field_id)
+       
+       own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+       do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+           idof    =  own_dofs_on_vef_iterator%get_current()
+           dof_lid = elem2dof(field_id)%p(idof)
+           if ( dof_lid <= 0 ) then
+             call own_dofs_on_vef_iterator%next()
+             cycle
+           end if
+           number_local_dofs_with_gid = number_local_dofs_with_gid + 1
+           local_dofs_with_gid(number_local_dofs_with_gid) = dof_lid
+           call own_dofs_on_vef_iterator%next()
+       end do
+       call vef%next()   
+    end do
+    call this%free_fe_iterator(fe)
+    call this%free_fe_vef_iterator(vef)
+    deallocate(elem2dof, stat=istat ) 
+    check (istat==0)
+    
+    ! 2. Gather + Scatter
+    if ( par_environment%am_i_l1_root() ) then
+      call memalloc( number_parts+1, per_rank_dofs_with_gid, __FILE__,__LINE__ )
+      call par_environment%l1_gather (input_data=int(number_local_dofs_with_gid,igp), &
+                                      output_data=per_rank_dofs_with_gid(2:) ) 
+       ! Transform length to header
+       per_rank_dofs_with_gid(1)=1 
+       do i=1, number_parts
+          per_rank_dofs_with_gid(i+1) = per_rank_dofs_with_gid(i) + per_rank_dofs_with_gid(i+1) 
+       end do
+       num_global_dofs = per_rank_dofs_with_gid(number_parts+1)-1 
+    else
+      call par_environment%l1_gather (input_data=int(number_local_dofs_with_gid,igp), &
+                                      output_data=dummy_integer_array_igp ) 
+    end if
+    
+    call par_environment%l1_bcast (data = num_global_dofs )
+    
+    if ( par_environment%am_i_l1_root() ) then
+      call par_environment%l1_scatter (input_data=per_rank_dofs_with_gid, &
+                                       output_data=start_dof_gid) 
+      call memfree( per_rank_dofs_with_gid, __FILE__,__LINE__ )
+    else
+      call par_environment%l1_scatter (input_data=dummy_integer_array_igp, &
+                                       output_data=start_dof_gid) 
+    end if
+    
+    
+    call memalloc (this%blocks_dof_import(1)%get_number_dofs(), dofs_gids)
+    call memalloc (this%blocks_dof_import(1)%get_number_dofs(), tmp_gids)
+    dofs_gids = -1
+    do i=1, number_local_dofs_with_gid
+      dofs_gids ( local_dofs_with_gid(i) ) = start_dof_gid
+      start_dof_gid = start_dof_gid + 1 
+    end do
+    
+    tmp_gids = dofs_gids
+    call par_environment%l1_neighbours_exchange ( this%blocks_dof_import(1)%get_num_rcv(), &
+                                                  this%blocks_dof_import(1)%get_list_rcv(),&
+                                                  this%blocks_dof_import(1)%get_rcv_ptrs(),&
+                                                  this%blocks_dof_import(1)%get_unpack_idx(),&
+                                                  this%blocks_dof_import(1)%get_num_snd(),&
+                                                  this%blocks_dof_import(1)%get_list_snd(),&
+                                                  this%blocks_dof_import(1)%get_snd_ptrs(),&
+                                                  this%blocks_dof_import(1)%get_pack_idx(),&
+                                                  tmp_gids, &
+                                                  mask = -1_igp)
+    
+    
+    do i=1, size(dofs_gids)
+      if ( tmp_gids(i) /= -1 ) dofs_gids(i) = tmp_gids(i)
+    end do
+    
+
+    tmp_gids = dofs_gids
+    call par_environment%l1_neighbours_exchange ( this%blocks_dof_import(1)%get_num_snd(), &
+                                                  this%blocks_dof_import(1)%get_list_snd(),&
+                                                  this%blocks_dof_import(1)%get_snd_ptrs(),&
+                                                  this%blocks_dof_import(1)%get_pack_idx(),&
+                                                  this%blocks_dof_import(1)%get_num_rcv(),&
+                                                  this%blocks_dof_import(1)%get_list_rcv(),&
+                                                  this%blocks_dof_import(1)%get_rcv_ptrs(),&
+                                                  this%blocks_dof_import(1)%get_unpack_idx(),&
+                                                  tmp_gids,&
+                                                  mask = -1_igp)
+    
+    do i=1, size(dofs_gids)
+      if ( tmp_gids(i) /= -1 ) dofs_gids(i) = tmp_gids(i)
+    end do    
+    
+    call memfree ( local_dofs_with_gid, __FILE__, __LINE__ )
+    call memfree ( tmp_gids, __FILE__, __LINE__ )
+  end subroutine par_fe_space_compute_num_global_dofs_and_their_gids
+  
+  
 
 subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
@@ -1327,6 +1495,8 @@ subroutine par_fe_space_create_dof_values(this, dof_values)
   class(vector_t), allocatable, intent(inout) :: dof_values
   integer(ip) :: istat
   type(environment_t), pointer :: par_environment
+  
+  assert ( associated(this%block_layout) )
   
   if (allocated(dof_values)) then
     call dof_values%free()

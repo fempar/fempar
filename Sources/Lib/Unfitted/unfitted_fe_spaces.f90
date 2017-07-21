@@ -39,7 +39,6 @@ module unfitted_fe_spaces_names
 
     private
     class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
-    type(unfitted_cell_iterator_t)                 :: unfitted_cell_iterator
 
   contains
 
@@ -108,20 +107,11 @@ module unfitted_fe_spaces_names
       ! Creation / Deletion methods
       procedure, non_overridable :: create => uim_create
       procedure, non_overridable :: free   => uim_free
-    
-      ! Polymorphic creation of the iterator to be used only within this module
-      procedure, non_overridable, private  :: create_fe_iterator           => uim_create_fe_iterator
       
-      ! Non polimorphic creation / deletion  of iterators to be used only within this module
-      procedure, non_overridable, private  :: create_unfitted_fe_iterator  => uim_create_unfitted_fe_iterator
-      procedure, non_overridable, private  :: free_unfitted_fe_iterator    => uim_free_unfitted_fe_iterator
-
       !Private TBPs
       procedure, non_overridable, private :: check_assumptions      => uim_check_assumptions
       procedure, non_overridable, private :: init_reference_subelem => uim_init_reference_subelem
       procedure, non_overridable, private :: free_reference_subelem => uim_free_reference_subelem
-      procedure, non_overridable, private :: init_reference_subface => uim_init_reference_subface
-      procedure, non_overridable, private :: free_reference_subface => uim_free_reference_subface
       procedure, non_overridable, private :: init_cut_integration   => uim_init_cut_integration
       procedure, non_overridable, private :: free_cut_integration   => uim_free_cut_integration
       procedure, non_overridable, private :: init_cut_boundary_integration   => uim_init_cut_boundary_integration

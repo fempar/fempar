@@ -124,13 +124,19 @@ module environment_names
           environment_l1_neighbours_exchange_wo_pack_unpack_ieep
 
      procedure, private :: environment_l1_scatter_scalar_ip
-     generic   :: l1_scatter => environment_l1_scatter_scalar_ip                                                 
+     procedure, private :: environment_l1_scatter_scalar_igp
+     generic   :: l1_scatter => environment_l1_scatter_scalar_ip, &
+                                environment_l1_scatter_scalar_igp
 
      procedure, private :: environment_l1_gather_scalar_ip
-     generic   :: l1_gather => environment_l1_gather_scalar_ip 
+     procedure, private :: environment_l1_gather_scalar_igp
+     generic   :: l1_gather => environment_l1_gather_scalar_ip, &
+                               environment_l1_gather_scalar_igp
 
      procedure, private :: environment_l1_bcast_scalar_ip
-     generic   :: l1_bcast => environment_l1_bcast_scalar_ip 
+     procedure, private :: environment_l1_bcast_scalar_igp
+     generic   :: l1_bcast => environment_l1_bcast_scalar_ip, &
+                              environment_l1_bcast_scalar_igp 
 
      procedure, private :: environment_l2_from_l1_gather_ip
      procedure, private :: environment_l2_from_l1_gather_igp
@@ -748,7 +754,7 @@ contains
   subroutine environment_l1_neighbours_exchange_igp ( this, & 
        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        num_snd, list_snd, snd_ptrs, pack_idx,   &
-       x, chunk_size)
+       x, chunk_size, mask)
     implicit none
     class(environment_t), intent(in)    :: this
     ! Control info to receive
@@ -760,12 +766,13 @@ contains
     ! Raw data to be exchanged
     integer(igp)            , intent(inout) :: x(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
+    integer(igp)  , optional, intent(in)    :: mask
 
     assert( this%am_i_l1_task() )
 
     call this%l1_context%neighbours_exchange ( num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
          &                                     num_snd, list_snd, snd_ptrs, pack_idx,   &
-         &                                     x, chunk_size)
+         &                                     x, chunk_size, mask)
 
   end subroutine environment_l1_neighbours_exchange_igp
 
@@ -827,7 +834,18 @@ contains
     assert ( this%am_i_l1_task() )
     call this%l1_context%gather ( input_data, output_data )
   end subroutine environment_l1_gather_scalar_ip
-
+  
+  !=============================================================================
+  subroutine environment_l1_gather_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)   :: this
+    integer(igp)             , intent(in)   :: input_data
+    integer(igp)             , intent(out)  :: output_data(:) ! ( this%l1_context%get_num_tasks())
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%gather ( input_data, output_data )
+  end subroutine environment_l1_gather_scalar_igp
+  
+  !=============================================================================
   subroutine environment_l1_scatter_scalar_ip ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
@@ -836,17 +854,33 @@ contains
     assert( this%am_i_l1_task() )
     call this%l1_context%scatter ( input_data, output_data )
   end subroutine environment_l1_scatter_scalar_ip
-
+  
+  !=============================================================================
+  subroutine environment_l1_scatter_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)   :: this
+    integer(igp)        , intent(in)   :: input_data(:) ! ( this%l1_context%get_num_tasks())
+    integer(igp)        , intent(out)  :: output_data
+    assert( this%am_i_l1_task() )
+    call this%l1_context%scatter ( input_data, output_data )
+  end subroutine environment_l1_scatter_scalar_igp
+  
   subroutine environment_l1_bcast_scalar_ip ( this, data )
     implicit none
     class(environment_t), intent(in)    :: this
     integer(ip)             , intent(inout) :: data
-    integer(ip) :: icontxt
     assert ( this%am_i_l1_task() )
     call this%l1_context%bcast ( data )
   end subroutine environment_l1_bcast_scalar_ip
+  
+  subroutine environment_l1_bcast_scalar_igp ( this, data )
+    implicit none
+    class(environment_t), intent(in)    :: this
+    integer(igp)             , intent(inout) :: data
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%bcast ( data )
+  end subroutine environment_l1_bcast_scalar_igp
 
-  !=============================================================================
   !=============================================================================
   subroutine environment_l1_to_l2_transfer_ip ( this, input_data, output_data )
     implicit none

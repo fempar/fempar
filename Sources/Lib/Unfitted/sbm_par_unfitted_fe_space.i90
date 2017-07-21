@@ -32,17 +32,13 @@ subroutine pufs_create_same_reference_fes_on_all_cells(&
   triangulation, &
   reference_fes, &
   coarse_fe_handlers, &
-  conditions, &
-  field_blocks, &
-  field_coupling )
+  conditions )
   implicit none
   class(par_unfitted_fe_space_t)            , intent(inout)  :: this
   class(base_static_triangulation_t), target, intent(in)     :: triangulation
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
   class(conditions_t)             , optional, intent(in)     :: conditions
-  integer(ip)                     , optional, intent(in)     :: field_blocks(:)
-  logical                         , optional, intent(in)     :: field_coupling(:,:)
   mcheck(.false.,'You cannot create an unfitted fe space with the same reference fe on all cells (you need void and non void ref elems)')
 end subroutine pufs_create_same_reference_fes_on_all_cells
 
@@ -89,5 +85,8 @@ subroutine pufs_create_fe_iterator(this, fe)
   implicit none
   class(par_unfitted_fe_space_t),    intent(in)    :: this
   class(fe_iterator_t), allocatable, intent(inout) :: fe
-  call this%unfitted_integration%create_fe_iterator(fe)
+  integer(ip) :: istat
+  call this%free_fe_iterator(fe)
+  allocate(unfitted_fe_iterator_t :: fe, stat=istat); check(istat==0)
+  call fe%create(this)
 end subroutine pufs_create_fe_iterator
