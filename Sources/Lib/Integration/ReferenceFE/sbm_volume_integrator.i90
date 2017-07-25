@@ -410,7 +410,7 @@ subroutine fe_map_update_edge_map(this,local_edge_id,reference_fe,quadrature)
           &                                          this%tangents(:,evaluation_point_id)))
 
      ! @amartin: How can we make the tangent to point in the right direction? 
-     this%tangents (:,evaluation_point_id) = this%tangents (:,evaluation_point_id)
+     this%tangents (:,evaluation_point_id) = this%tangents (:,evaluation_point_id) / this%det_jacobian(evaluation_point_id)
   end do
 end subroutine fe_map_update_edge_map
 

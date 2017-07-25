@@ -1513,11 +1513,18 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
      end if  
   
      ! Create linear system 
-     call matrix%create(par_environment, &
+     !call matrix%create(par_environment, &
+     !                   dof_import, &
+     !                   symmetric_storage=.false.,       &
+     !                   is_symmetric=.false.,            &
+     !                   sign=SPARSE_MATRIX_SIGN_UNKNOWN)
+	 
+	 ! Symmetric linear system 
+	 call matrix%create(par_environment, &
                         dof_import, &
-                        symmetric_storage=.false.,       &
-                        is_symmetric=.false.,            &
-                        sign=SPARSE_MATRIX_SIGN_UNKNOWN)
+                        symmetric_storage=.true.,       &
+                        is_symmetric=.true.,            &
+                        sign=SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE)
 
      call rhs%create_and_allocate(par_environment, dof_import) 
      call rhs%init(0.0_rp)
@@ -1574,6 +1581,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
                     end do
                  
                     reference_fe => fe%get_reference_fe(field_id)
+
                     call matrix%insert(num_rows = reference_fe%get_number_shape_functions(),& 
                                       num_cols = reference_fe%get_number_shape_functions(),& 
                                       ia       = subset_elem2dof, &

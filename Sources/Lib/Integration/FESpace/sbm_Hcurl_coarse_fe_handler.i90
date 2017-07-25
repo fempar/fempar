@@ -1014,10 +1014,15 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
   type(vector_field_t)                   :: col_jacobian
 
   integer(ip)                            :: number_qpoints, idof, i 
-  real(rp)                               :: factor
+  real(rp)                               :: factor, face_area 
   type(vector_field_t)                   :: normal, v_shape_test, gradv_shape_trial
   integer(ip)                            :: ishape, jshape, qpoint
   integer(ip)                            :: number_nedelec_dofs_per_face 
+  
+  type(volume_integrator_t), pointer     :: vol_int
+  type(face_integrator_t), pointer       :: face_int
+  type(vector_field_t)                   :: shape_trial
+  real(rp), allocatable                  :: elm(:,:) 
   
   call fe%update_integration() 	
   call fe_face%update_integration()
@@ -1032,12 +1037,13 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
 
   call Lagrangian_interpolation_phy%copy(Lagrangian_interpolation_ref) 
   call Lagrangian_fe_3D%update_interpolation( fe%get_fe_map(),              &
-       Lagrangian_interpolation_ref, &
-       Lagrangian_interpolation_phy )
+                                              Lagrangian_interpolation_ref, &
+                                              Lagrangian_interpolation_phy )
 
   number_nedelec_dofs_per_face = 2*this%order*(this%order-1)
+  face_area = face_map_face_map%compute_measure(quad) 
   do qpoint = 1, number_qpoints
-     factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+     factor    = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
      call face_map_face_map%get_normal(qpoint, normal)
      ! Trick to have normals pointing to the same direction in different faces 
      do i=1, SPACE_DIM
@@ -1067,7 +1073,7 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
         end do
      end do
   end do
-
+   
   call Lagrangian_interpolation_phy%free() 
 
 end subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat
@@ -1100,6 +1106,11 @@ subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
   
   integer(ip) :: direction, c, number_scalar_test_functions 
   real(rp)    :: face_area 
+  
+  type(volume_integrator_t), pointer     :: vol_int
+  type(face_integrator_t), pointer       :: face_int
+  type(vector_field_t)                   :: shape_trial
+  real(rp), allocatable                  :: elm(:,:) 
 
   call fe%update_integration() 	
   call fe_face%update_integration()
@@ -1109,9 +1120,8 @@ subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
   face_map          => fe_face%get_face_map()
   face_map_face_map => face_map%get_face_map()
   fe_map => fe%get_fe_map() 
-      
+        
   elmat = 0.0_rp 
-
   call Lagrangian_interpolation_phy%copy(Lagrangian_interpolation_ref) 
   call Lagrangian_fe_3D%update_interpolation( fe%get_fe_map(),              &
                                               Lagrangian_interpolation_ref, &
@@ -1137,7 +1147,7 @@ subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
      end do
 	 end do 
   end do
-   
+  
   call Lagrangian_interpolation_phy%free() 
 
 end subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat
@@ -1595,12 +1605,12 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_lo
      number_fine_edges_in_subedge = this%sorted_fine_edges_in_coarse_subedge%get_sublist_size( coarse_subedge_iterator%get_current() )
 
      call x_old_local%create_view(offcomponent_coarse_edge + 1,                                       & 
-          offcomponent_coarse_edge + this%order*number_fine_edges_in_subedge, &
-          x_old_local_edge )
+                                  offcomponent_coarse_edge + this%order*number_fine_edges_in_subedge, &
+                                  x_old_local_edge )
 
      call x_new_local%create_view(offcomponent_coarse_edge + 1,                                       & 
-          offcomponent_coarse_edge + this%order*number_fine_edges_in_subedge, &
-          x_new_local_edge )
+                                  offcomponent_coarse_edge + this%order*number_fine_edges_in_subedge, &
+                                  x_new_local_edge )
 
      call inv_G_times_x_old%create_and_allocate(this%order*number_fine_edges_in_subedge) 
      call inv_G_times_x_old%init(0.0_rp) 
@@ -1870,7 +1880,7 @@ subroutine Hcurl_l1_renumber_interface_dofs_first_E_then_Ec(this, par_fe_space, 
 
   do idof=1, par_fe_space%get_block_number_dofs(iblock) 
      perm_old2new(idof) = perm_new2wire(perm_old2new(idof))
-  end do
+  end do 
 
   call par_fe_space%free_fe_iterator(fe)
   call memfree(perm_new2wire, __FILE__, __LINE__)
@@ -2242,7 +2252,7 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
         end do
 		
 		call assign_and_count_node_types( edge_interior_vertices(iedge_coarse), number_nodes, node_list, nodes_counter, nodes_type, num_nodes_each_type ) 
-
+		
 		! Build [ start-->end ] node paths till all nodes have been assigned to a subedge 
 		num_fine_edges_found           = 0
 		number_subedges_in_coarse_edge = 0
@@ -2306,9 +2316,9 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
        do c=1, number_fine_edges_per_coarse_edge(iedge_coarse)
           call fine_edges_in_subedges_iterator%set_current( fine_edges_list(iedge_coarse, perm_sorted_edges(iedge_coarse,c) ) )
           call fine_edges_in_subedges_iterator%next() 
-       end do
+		  end do
     end do
-	
+
   ! call this%sorted_fine_edges_in_coarse_subedge%print(6)
 
   call memfree( num_nodes_each_type, __FILE__, __LINE__ ) 
@@ -2451,15 +2461,15 @@ end subroutine assign_and_count_node_types
 
   end subroutine identify_following_starting_node
   
-  subroutine choose_path_direction( par_fe_space, start_node_id, number_fine_edges, vertices_in_edge, node_list, nodes_type, nodes_counter, first_fine_edge)
+  subroutine choose_path_direction( par_fe_space, start_node_id, number_fine_edges, vertices_in_edge, node_list, nodes_counter, nodes_type, first_fine_edge)
     implicit none 
     type(par_fe_space_t)     , intent(in)    :: par_fe_space 
     integer(ip)              , intent(in)    :: start_node_id
     integer(ip)              , intent(in)    :: number_fine_edges 
     integer(ip), allocatable , intent(in)    :: vertices_in_edge(:,:)
     integer(ip), allocatable , intent(in)    :: node_list(:) 
-    type(hash_table_ip_ip_t) , intent(in)    :: nodes_type
     type(hash_table_ip_ip_t) , intent(in)    :: nodes_counter
+    type(hash_table_ip_ip_t) , intent(in)    :: nodes_type 
     integer(ip)              , intent(inout) :: first_fine_edge
     ! Locals 
     integer(ip) :: i, node_type 
@@ -2485,7 +2495,7 @@ end subroutine assign_and_count_node_types
 
        ! Choose first edge from all potential first edges 
        call nodes_counter%get( key=start_node_id, val=counter, stat=istat ); check(istat==key_found) 
-       perm = (/ 1,2 /)
+       perm = (/ 2,1 /)
        call memalloc( counter, potential_following_nodes_ids, __FILE__, __LINE__ ) 
        call memalloc( counter, potential_following_edges, __FILE__, __LINE__ )
 

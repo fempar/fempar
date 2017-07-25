@@ -50,10 +50,10 @@ module par_test_maxwell_driver_names
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
    !  class(standard_l1_coarse_fe_handler_t), allocatable  :: coarse_fe_handler
-     class(l1_coarse_fe_handler_t), allocatable        :: coarse_fe_handler 
-	 type(maxwell_CG_discrete_integration_t)           :: maxwell_integration
-     type(maxwell_conditions_t)                        :: maxwell_conditions
-     type(maxwell_analytical_functions_t)              :: maxwell_analytical_functions
+     class(l1_coarse_fe_handler_t), pointer        :: coarse_fe_handler 
+	 type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
+     type(maxwell_conditions_t)                    :: maxwell_conditions
+     type(maxwell_analytical_functions_t)          :: maxwell_analytical_functions
 
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
@@ -168,13 +168,16 @@ end subroutine free_timers
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
     type(vef_iterator_t)  :: vef
+	
+	integer(ip) :: nv
+	nv=0
 
     call this%triangulation%create(this%parameter_list, this%par_environment)
 	
-   ! if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
+          if(vef%is_at_boundary()) then 
              call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
@@ -182,7 +185,7 @@ end subroutine free_timers
           call vef%next()
        end do
        call this%triangulation%free_vef_iterator(vef)
-   ! end if  
+    end if  
 	
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
@@ -236,7 +239,7 @@ end subroutine free_timers
 	call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
 	end if 
 	
-	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) ! Nedelec element 
+	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) 
 
 	! Setup alternative fe space in 3D Hcurl problems 	
 	select type ( ch=> this%coarse_fe_handler ) 
@@ -530,6 +533,7 @@ end subroutine free_timers
 	select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
 	class is ( Hcurl_l1_coarse_fe_handler_t )
 	call this%coarse_fe_handler%free() 
+	deallocate( this%coarse_fe_handler ) 
 	end select 
 	end if 
 	

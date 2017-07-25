@@ -952,7 +952,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
                                           face_interpolation )
      
      call cross_product_v_shape_trial_normal_proj%init(0.0_rp)
-     
+
      ! Integrate face boundary moments int_Face(u^n q), q \in Q_k-2,k-1 x Q_k-1,k-2
      do qpoint = 1, face_quadrature%number_quadrature_points
         factor = face_map%get_det_jacobian(qpoint) * face_quadrature%get_weight(qpoint)
@@ -963,7 +963,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
         !!                 to the same direction. This only works provided we have an "oriented"
         !!                 triangulation.
         !!!!!!!!!!!
-        normal = (-1.0_rp)**(this%orientation%a(facet_id)) * normal
+        !normal = (-1.0_rp)**(this%orientation%a(facet_id)) * normal
         do i=1, SPACE_DIM
           call normal%set(i, abs(normal%get(i)))
         end do
@@ -974,7 +974,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
               call this%get_value(face_interpolation, jshape, qpoint, v_shape_trial)
               
               ! Compute u^n
-              cross_product_v_shape_trial_normal = cross_product(v_shape_trial,normal)
+               cross_product_v_shape_trial_normal = cross_product(v_shape_trial,normal)
               
               ! Multiply the transpose of the jacobian with normalized columns by u^n
               ! This is required to transform u^n in a vector contained within the face
@@ -982,9 +982,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
                 call face_map%get_jacobian_normalized_column(i,qpoint,col_jacobian)
                 call cross_product_v_shape_trial_normal_proj%set(i, col_jacobian*cross_product_v_shape_trial_normal)
               end do
-              
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
-                                                         + cross_product_v_shape_trial_normal_proj * v_shape_test * factor
+                                                         + cross_product_v_shape_trial_normal_proj * v_shape_test * factor 
            end do
         end do
      end do
@@ -994,24 +993,22 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  
  
  if ( this%number_dimensions == 2 ) then
-   ! Qk-2,k-1 x Qk-1,k-2
-   !reduced_order_vector = this%order_vector-1
+   ! Qk-1,k-2 x Qk-2,k-1
    reduced_order_vector(1)   = this%order_vector(1)
-   reduced_order_vector(2:3) = this%order_vector(2:3)-2
+   reduced_order_vector(2) = this%order_vector(2)-2
  else if ( this%number_dimensions == 3 ) then
    ! Qk-1,k-2,k-2 x Qk-2,k-1,k-2 x Qk-2,k-2,k-1
    reduced_order_vector(1)   = this%order_vector(1)
    reduced_order_vector(2:3) = this%order_vector(2:3)-2
  end if
   
-
  ! compute number shape functions for reduced order element
  num_interior_moments = 1
  do idime = 1, this%number_dimensions
      num_interior_moments = num_interior_moments*(reduced_order_vector(idime)+1)
  end do
  num_interior_moments = num_interior_moments*this%number_dimensions
-  
+
  ! create cell quadrature
  call this%create_quadrature(cell_quadrature)
   
@@ -1035,7 +1032,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  end do
  call cell_map%update(cell_quadrature)
 
- ! ! Integration of interior moments int_K (u.q), q \in Qk-1,k,k x Qk,k-1,k x Qk,k,k-1     
+ ! Integration of interior moments int_K (u.q), q \in Qk-1,k-2,k-2 x Qk-2,k-1,k-2 x Qk-2,k-2,k-1     
  do qpoint = 1, cell_quadrature%number_quadrature_points
     factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
     do ishape=1, reduced_order_cell_interpolation%number_shape_functions

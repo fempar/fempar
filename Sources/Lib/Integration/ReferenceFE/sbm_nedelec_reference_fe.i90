@@ -968,8 +968,8 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
 	 	 
     interior_nodes_iterator = this%interior_nodes_n_face%create_iterator(edge_id)
     do while ( .not. interior_nodes_iterator%is_upper_bound() )
-       inode = interior_nodes_iterator%get_current()
-	  	   
+       inode = interior_nodes_iterator%get_current()  	   
+   
 	   ! Scale own node functions 	  
       phy%shape_functions(:,inode,:)     = edge_measure * phy%shape_functions(:,inode,:)
 	  phy%shape_derivatives(:,:,inode,:) = edge_measure * phy%shape_derivatives(:,:,inode,:)
@@ -1006,8 +1006,8 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
     do while ( .not. interior_nodes_iterator%is_upper_bound() )
        inode = interior_nodes_iterator%get_current()
 	   ! Scale own node functions
-       !phy%shape_functions(:,inode,:)     = face_measure * phy%shape_functions(:,inode,:)
-	   !phy%shape_derivatives(:,:,inode,:) = face_measure * phy%shape_derivatives(:,:,inode,:)
+      !  phy%shape_functions(:,inode,:)     = face_measure * phy%shape_functions(:,inode,:)
+	  !  phy%shape_derivatives(:,:,inode,:) = face_measure * phy%shape_derivatives(:,:,inode,:)
        call interior_nodes_iterator%next()
      end do 
 		
@@ -1015,6 +1015,7 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
 				
    end if 
    
+   ! In hexahedra order >= 2, tetrahedra order >= 3
     if ( this%get_order() .ge. 3 ) then 
     call this%create_quadrature( cell_quadrature ) 
     cell_measure = map%compute_measure( cell_quadrature )

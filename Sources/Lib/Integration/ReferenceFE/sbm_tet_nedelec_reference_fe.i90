@@ -1048,15 +1048,13 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      ! Integrate edge boundary moments int_edge(u.t q), q \in P_k-1
      do qpoint = 1, edge_quadrature%number_quadrature_points
         factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
-
-        call edge_map%get_tangent(qpoint, tangent)
-
+        call edge_map%get_tangent(qpoint, tangent) 
         do ishape=1, interpolation_1D%number_shape_functions
            call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
            do jshape=1, edge_interpolation%number_shape_functions
               call this%get_value(edge_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
-                   + 1.0_rp/tangent%nrm2() * shape_test * v_shape_trial * tangent * factor 
+                                                          +  shape_test * v_shape_trial * tangent * factor 
            end do
         end do
      end do
