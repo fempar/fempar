@@ -347,6 +347,7 @@ function p4est_cell_iterator_is_ancestor(this,child_level,child_linear_id)
   integer(ip)                 , intent(in) :: child_linear_id
   integer(ip) :: child_quad_coords(2)
   logical     :: p4est_cell_iterator_is_ancestor
+#ifdef ENABLE_P4EST
   call F90_p4est_quadrant_set_morton( child_level,                    &
                                       int(child_linear_id,c_int64_t), &
                                       child_quad_coords(1),           &
@@ -358,6 +359,9 @@ function p4est_cell_iterator_is_ancestor(this,child_level,child_linear_id)
                            child_quad_coords(1),                                   &
                            child_quad_coords(2),                                   &
                            int(child_level,c_int8_t) ) /= 0 )
+#else
+  call this%p4est_triangulation%not_enabled_error()
+#endif 
 end function p4est_cell_iterator_is_ancestor
 
 subroutine p4est_cell_iterator_set_for_coarsening(this)
