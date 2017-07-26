@@ -30,6 +30,7 @@
 #include <p4est_extended.h>
 #include <p4est_mesh.h>
 #include <p4est_bits.h>
+#include <p4est_base.h>
 #include "p4est_wrapper.h"
 #ifndef SC_ENABLE_MPI
   static int sc_mpi_initialized = 0;
@@ -391,6 +392,38 @@ void F90_p4est_get_quadrant_vertex_coordinates(p4est_connectivity_t * connectivi
     vxyz[2] = 0.0;
 }
 
+int F90_p4est_is_ancestor ( p4est_qcoord_t q1_x,
+                            p4est_qcoord_t q1_y,
+                            int8_t q1_level,
+                            p4est_qcoord_t q2_x,
+                            p4est_qcoord_t q2_y,
+                            int8_t q2_level )
+{
+    p4est_quadrant_t q1;
+    p4est_quadrant_t q2;
+    
+    q1.x = q1_x;
+    q1.y = q1_y;
+    q1.level = q1_level;
+    
+    q2.x = q2_x;
+    q2.y = q2_y;
+    q2.level = q2_level;
+    
+    return p4est_quadrant_is_ancestor ( &q1, &q2 );
+    
+}
+
+void F90_p4est_quadrant_set_morton ( int level,
+                                     int64_t id,
+                                     p4est_qcoord_t *q_x,
+                                     p4est_qcoord_t *q_y )
+{
+    p4est_quadrant_t q;
+    p4est_quadrant_set_morton( &q, level, id );
+    *q_x = q.x;
+    *q_y = q.y;
+}
 
 //void p4_savemesh ( char    filename[],
 //                   p4est_t *p4est)

@@ -75,8 +75,6 @@ module p4est_serial_triangulation_names
   integer(ip), parameter :: P4EST_2_FEMPAR_CORNER(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
   integer(ip), parameter :: P4EST_2_FEMPAR_FACE  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
   
-  integer(ip), parameter :: max_allowed_refinement_levels_2D = 29
-  
   integer(ip), parameter :: refinement = 1 
   integer(ip), parameter :: coarsening = -1 
   integer(ip), parameter :: do_nothing = 0 
@@ -268,8 +266,6 @@ module p4est_serial_triangulation_names
     procedure, non_overridable :: not_enabled_error => p4est_serial_triangulation_not_enabled_error
 #endif
   end type p4est_serial_triangulation_t
-  
-  public :: max_allowed_refinement_levels_2D
   
   public :: p4est_serial_triangulation_t, p4est_cell_iterator_t, p4est_vef_iterator_t
   public :: refinement, coarsening, do_nothing
