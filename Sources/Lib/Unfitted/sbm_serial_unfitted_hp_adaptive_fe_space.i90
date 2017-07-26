@@ -366,12 +366,16 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   class(vef_iterator_t), allocatable :: vef
   integer(ip) :: ivef
   integer(ip) :: ifacet
-  integer(ip) :: tent_distance(2) ! TODO make it also for 3D
-  integer(ip) :: min_distance(2)  ! TODO make it also for 3D
+  integer(ip), allocatable :: tent_distance(:) ! TODO make it also for 3D
+  integer(ip), allocatable :: min_distance(:)  ! TODO make it also for 3D
   integer(ip) :: min_distance_aggr_id
 
   integer(ip), allocatable :: distance(:,:)
-  integer(ip), parameter :: face2dir(4,2) = reshape([0,0,1,-1,1,-1,0,0],[4,2]) ! TODO make it general for 3D
+  integer(ip), target :: face2dir_2d(4,2) = reshape([0,0,1,-1,1,-1,0,0],[4,2])
+  integer(ip), target :: face2dir_3d(6,3) = reshape([ 0, 0, 0, 0, 1,-1,&
+                                                      0, 0, 1,-1, 0, 0,&
+                                                      1,-1, 0, 0, 0, 0],[6,3])
+  integer(ip), pointer :: face2dir(:,:)
 
   triangulation => this%get_triangulation()
   call memalloc(triangulation%get_num_local_cells(),this%aggregate_ids,__FILE__,__LINE__)
@@ -381,7 +385,18 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     return
   end if
 
+  if (triangulation%get_num_dimensions() == 2) then
+    face2dir => face2dir_2d
+  else if (triangulation%get_num_dimensions() == 3) then
+    face2dir => face2dir_3d
+  else
+    mcheck(.false.,'Only for 3D and 2D')
+  end if
+
+
   call memalloc(triangulation%get_num_local_cells(),triangulation%get_num_dimensions(),distance,__FILE__,__LINE__)
+  call memalloc(triangulation%get_num_dimensions(),tent_distance,__FILE__,__LINE__)
+  call memalloc(triangulation%get_num_dimensions(),min_distance,__FILE__,__LINE__)
 
   call triangulation%create_cell_iterator(cell)
   call triangulation%create_cell_iterator(cell_arround)
@@ -419,7 +434,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
           ! For adaptive meshes, shall we look for improper neighbors as well?
 
           ! Glue to the face-neighbor with the smallest distance to a full element
-          min_distance = 99999999
+          min_distance(:) = 99999999
           min_distance_aggr_id = 0
           ifacet = 0
           do ivef = 1, cell%get_num_vefs()
@@ -462,6 +477,8 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   call triangulation%free_cell_iterator(cell_arround)
   call triangulation%free_vef_iterator(vef)
 
+  call memfree(tent_distance,__FILE__,__LINE__)
+  call memfree(min_distance,__FILE__,__LINE__)
   call memfree(distance,__FILE__,__LINE__)
 
 end subroutine suhpafs_allocate_and_fill_aggregate_ids

@@ -102,7 +102,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
      procedure        , private :: fill_cells_set
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
-     procedure        , private :: refine_and_coarsen
+     !procedure        , private :: refine_and_coarsen
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
@@ -404,50 +404,50 @@ contains
     
   end subroutine setup_fe_space
   
-  subroutine refine_and_coarsen(this)
-    implicit none
-    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
-    integer(ip) :: i
-    
-    integer(ip) :: set_ids_to_reference_fes(1,2)
-
-    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
-    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
-    
-    do i=1, 10
-       
-       call this%triangulation%clear_refinement_and_coarsening_flags()
-       if ( mod(i,3) == 0 ) then 
-          call this%set_cells_for_coarsening()
-       else
-         call this%set_cells_for_refinement()
-       end if
-       !call this%fill_cells_set()
-       call this%triangulation%refine_and_coarsen()
-       
-       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-         call this%fe_space%refine_and_coarsen(this%solution) 
-       else
-         mcheck(.false.,'Only tested for scalar problems')
-         !call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
-         !                                       conditions          = this%vector_poisson_conditions, &
-         !                                       fe_function         = this%solution,           &
-         !                                       set_ids_to_reference_fes = set_ids_to_reference_fes)
-       end if
-       
-       call this%fe_space%initialize_fe_integration()
-       
-       !if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-       !  call this%check_solution()
-       !else
-       !  call this%check_solution_vector()
-       !end if
-       
-    end do  
-    
-    call this%triangulation%update_cut_cells(this%level_set_function)
-    
-  end subroutine refine_and_coarsen
+!  subroutine refine_and_coarsen(this)
+!    implicit none
+!    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
+!    integer(ip) :: i
+!    
+!    integer(ip) :: set_ids_to_reference_fes(1,2)
+!
+!    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
+!    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
+!    
+!    do i=1, 10
+!       
+!       call this%triangulation%clear_refinement_and_coarsening_flags()
+!       if ( mod(i,3) == 0 ) then 
+!          call this%set_cells_for_coarsening()
+!       else
+!         call this%set_cells_for_refinement()
+!       end if
+!       !call this%fill_cells_set()
+!       call this%triangulation%refine_and_coarsen()
+!       
+!       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+!         call this%fe_space%refine_and_coarsen(this%solution) 
+!       else
+!         mcheck(.false.,'Only tested for scalar problems')
+!         !call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
+!         !                                       conditions          = this%vector_poisson_conditions, &
+!         !                                       fe_function         = this%solution,           &
+!         !                                       set_ids_to_reference_fes = set_ids_to_reference_fes)
+!       end if
+!       
+!       call this%fe_space%initialize_fe_integration()
+!       
+!       !if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+!       !  call this%check_solution()
+!       !else
+!       !  call this%check_solution_vector()
+!       !end if
+!       
+!    end do  
+!    
+!    call this%triangulation%update_cut_cells(this%level_set_function)
+!    
+!  end subroutine refine_and_coarsen
   
   subroutine setup_system (this)
     implicit none
@@ -744,6 +744,7 @@ contains
     character(len=:), allocatable            :: path
     character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
+    real(rp),allocatable :: cell_vector_set_ids(:)
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
     
@@ -760,6 +761,7 @@ contains
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),cell_vector_set_ids,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids,__FILE__,__LINE__)
         
         aggregate_ids => this%fe_space%get_aggregate_ids()
@@ -778,7 +780,16 @@ contains
         end do
         call this%triangulation%free_cell_iterator(cell)
 
-        call oh%add_cell_vector(cell_vector,'cell_set_ids')
+        call this%triangulation%create_cell_iterator(cell)
+        do while (.not. cell%has_finished())
+          cell_vector_set_ids(cell%get_lid()) = cell%get_set_id()
+          call cell%next()
+        end do
+        call this%triangulation%free_cell_iterator(cell)
+
+
+        call oh%add_cell_vector(cell_vector,'cell_ids')
+        call oh%add_cell_vector(cell_vector_set_ids,'cell_set_ids')
         
         call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
 
@@ -787,6 +798,7 @@ contains
         call oh%close()
         call oh%free()
         call memfree(cell_vector,__FILE__,__LINE__)
+        call memfree(cell_vector_set_ids,__FILE__,__LINE__)
         call memfree(aggrs_ids,__FILE__,__LINE__)
 
         ! Write the unfitted mesh
@@ -814,7 +826,7 @@ contains
     type(point_t), allocatable :: coords(:)
     integer(ip) :: istat, k
     real(rp) ::  xc,yc
-    integer(ip), parameter :: max_num_cell_nodes = 4
+    integer(ip) :: max_num_cell_nodes
     integer(ip), parameter :: vtk_1d_elem_id = 3
     integer(ip) :: E_IO
     if(this%test_params%get_write_solution()) then
@@ -830,6 +842,8 @@ contains
       call memalloc ( 2*Ne, connect  , __FILE__, __LINE__ )
 
       call this%triangulation%create_cell_iterator(cell)
+      max_num_cell_nodes = this%triangulation%get_max_number_shape_functions()
+
       allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
 
       do while ( .not. cell%has_finished() )
