@@ -251,17 +251,17 @@ contains
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
     class(cell_iterator_t)      , allocatable :: cell
-    !type(point_t), allocatable :: coords(:)
-    !integer(ip) :: istat, k
-    !real(rp) ::  x,y
-    !real(rp), parameter :: Re = 0.46875
-    !real(rp), parameter :: Ri = 0.15625
-    !real(rp) :: R
-    !integer(ip), parameter :: max_num_cell_nodes = 4
-    integer(ip), parameter :: max_level = 1
+    type(point_t), allocatable :: coords(:)
+    integer(ip) :: istat, k
+    real(rp) ::  x,y
+    real(rp), parameter :: Re = 0.46875
+    real(rp), parameter :: Ri = 0.15625
+    real(rp) :: R
+    integer(ip), parameter :: max_num_cell_nodes = 4
+    integer(ip), parameter :: max_level = 4
 
     call this%triangulation%create_cell_iterator(cell)
-    !allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
+    allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
 
     do while ( .not. cell%has_finished() )
 
@@ -269,20 +269,16 @@ contains
       !  call cell%set_for_refinement()
       !end if
 
-      !call cell%get_coordinates(coords)
-      !x = 0.0
-      !y = 0.0
-      !do k=1,max_num_cell_nodes
-      ! x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
-      ! y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
-      !end do
-      !R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
+      call cell%get_coordinates(coords)
+      x = 0.0
+      y = 0.0
+      do k=1,max_num_cell_nodes
+       x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
+       y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
+      end do
+      R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
      
-      !if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
-      !  call cell%set_for_refinement()
-      !end if
-
-      if ( (cell%get_level()< max_level) .or. (cell%get_level() == 0) )then
+      if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
         call cell%set_for_refinement()
       end if
 
@@ -291,7 +287,7 @@ contains
       call cell%next()
     end do
 
-    !deallocate(coords,stat=istat); check(istat==0)
+    deallocate(coords,stat=istat); check(istat==0)
     call this%triangulation%free_cell_iterator(cell)
 
   end subroutine set_cells_for_refinement
@@ -437,9 +433,7 @@ contains
     do i=1,6
        
        if ( mod(i+1,3) == 0 ) then 
-          ! TODO Why coarsened sub-cells have to have the same reference FE id?
-          !      What about void elements?
-          !call this%set_cells_for_coarsening()
+          call this%set_cells_for_coarsening()
        else
          call this%set_cells_for_refinement()
        end if
