@@ -69,6 +69,15 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), intent(inout)  :: p4est_connectivity
      end subroutine F90_p4est_connectivity_new_unitsquare
+
+     !=================================================================================================================================
+     !> summary: Creates p8est connectivity corresponding to unit cube domain
+     !=================================================================================================================================
+     subroutine F90_p8est_connectivity_new_unitcube(p8est_connectivity) bind(c,name="F90_p8est_connectivity_new_unitcube")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p8est_connectivity
+     end subroutine F90_p8est_connectivity_new_unitcube
      
      !=================================================================================================================================
      !> summary: Creates unrefined p4est (it will contain a single root octant)
@@ -79,6 +88,16 @@ module p4est_bindings_names
        type(c_ptr), value, intent(in)     :: p4est_connectivity
        type(c_ptr)       , intent(inout)  :: p4est
      end subroutine F90_p4est_new
+
+     !=================================================================================================================================
+     !> summary: Creates unrefined p8est (it will contain a single root octant)
+     !=================================================================================================================================
+     subroutine F90_p8est_new(p8est_connectivity, p8est) bind(c,name="F90_p8est_new")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value, intent(in)     :: p8est_connectivity
+       type(c_ptr)       , intent(inout)  :: p8est
+     end subroutine F90_p8est_new
      
      !=================================================================================================================================
      !> summary: set user_pointer member variable of p4est_t struct to input integer user_data array
@@ -89,6 +108,16 @@ module p4est_bindings_names
        type(c_ptr) , value, intent(in)  :: user_data
        type(c_ptr) , value, intent(in)  :: p4est
      end subroutine F90_p4est_set_user_pointer
+
+     !=================================================================================================================================
+     !> summary: set user_pointer member variable of p8est_t struct to input integer user_data array
+     !=================================================================================================================================
+     subroutine F90_p8est_set_user_pointer(user_data, p8est) bind(c,name="F90_p8est_set_user_pointer")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr) , value, intent(in)  :: user_data
+       type(c_ptr) , value, intent(in)  :: p8est
+     end subroutine F90_p8est_set_user_pointer
      
      !=================================================================================================================================
      !> summary: Creates p4est_mesh from p4est
@@ -99,6 +128,16 @@ module p4est_bindings_names
        type(c_ptr), value, intent(in)     :: p4est
        type(c_ptr)       , intent(inout)  :: p4est_mesh
      end subroutine F90_p4est_mesh_new
+     
+     !=================================================================================================================================
+     !> summary: Creates p8est_mesh from p8est
+     !=================================================================================================================================
+     subroutine F90_p8est_mesh_new(p8est, p8est_mesh) bind(c,name="F90_p8est_mesh_new")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value, intent(in)     :: p8est
+       type(c_ptr)       , intent(inout)  :: p8est_mesh
+     end subroutine F90_p8est_mesh_new
      
      !=================================================================================================================================
      !> summary: Gets mesh info from (p4est, p4est_mesh)
@@ -118,6 +157,25 @@ module p4est_bindings_names
        integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant
        integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_faces
      end subroutine F90_p4est_get_mesh_info 
+     
+     !=================================================================================================================================
+     !> summary: Gets mesh info from (p8est, p8est_mesh)
+     !=================================================================================================================================
+     subroutine F90_p8est_get_mesh_info (p8est, &
+                                         p8est_mesh, &
+                                         local_num_quadrants, &
+                                         global_num_quadrants, &
+                                         global_first_quadrant, &
+                                         num_half_faces) bind(c,name="F90_p8est_get_mesh_info")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX, P4EST_F90_GLOIDX
+       type(c_ptr), value       , intent(in)     :: p8est
+       type(c_ptr), value       , intent(in)     :: p8est_mesh
+       integer(P4EST_F90_LOCIDX), intent(out)    :: local_num_quadrants
+       integer(P4EST_F90_GLOIDX), intent(out)    :: global_num_quadrants
+       integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant
+       integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_faces
+     end subroutine F90_p8est_get_mesh_info 
      
      !=================================================================================================================================
      !> summary: Gets mesh topology arrays from (p4est, p4est_mesh)
@@ -142,6 +200,34 @@ module p4est_bindings_names
        integer(P4EST_F90_QCOORD), intent(out)    :: quadcoords(2,*)
        integer(P4EST_F90_QLEVEL), intent(out)    :: quadlevel(*)
      end subroutine F90_p4est_get_mesh_topology_arrays
+
+     !=================================================================================================================================
+     !> summary: Gets mesh topology arrays from (p8est, p8est_mesh)
+     !=================================================================================================================================
+     subroutine F90_p8est_get_mesh_topology_arrays(p8est, &
+                                                   p8est_mesh, &
+                                                   quad_to_quad, &
+                                                   quad_to_face, &
+                                                   quad_to_half, &
+                                                   quad_to_quad_by_edge,&
+                                                   quad_to_edge,&
+                                                   quad_to_corner, &
+                                                   quadcoords, &
+                                                   quadlevel) bind(c,name="F90_p8est_get_mesh_topology_arrays")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL, P4EST_F90_LOCIDX
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est
+       type(c_ptr), value       , intent(in)     :: p8est_mesh
+       type(c_ptr)              , intent(out)    :: quad_to_quad
+       type(c_ptr)              , intent(out)    :: quad_to_face
+       type(c_ptr)              , intent(out)    :: quad_to_half
+       integer(P4EST_F90_LOCIDX), intent(out)    :: quad_to_quad_by_edge(12,*)
+       integer(P4EST_F90_QLEVEL), intent(out)    :: quad_to_edge(12,*)
+       type(c_ptr)              , intent(out)    :: quad_to_corner
+       integer(P4EST_F90_QCOORD), intent(out)    :: quadcoords(3,*)
+       integer(P4EST_F90_QLEVEL), intent(out)    :: quadlevel(*)
+     end subroutine F90_p8est_get_mesh_topology_arrays
      
      
      !=================================================================================================================================
@@ -152,6 +238,15 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), value       , intent(in)     :: p4est
      end subroutine F90_p4est_refine
+
+     !=================================================================================================================================
+     !> summary: Refines in place the p8est data structure
+     !=================================================================================================================================
+     subroutine F90_p8est_refine(p8est) bind(c,name="F90_p8est_refine")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est
+     end subroutine F90_p8est_refine
      
      !=================================================================================================================================
      !> summary: Coarsens in place the p4est data structure
@@ -161,6 +256,15 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), value       , intent(in)     :: p4est
      end subroutine F90_p4est_coarsen
+
+     !=================================================================================================================================
+     !> summary: Coarsens in place the p8est data structure
+     !=================================================================================================================================
+     subroutine F90_p8est_coarsen(p8est) bind(c,name="F90_p8est_coarsen")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est
+     end subroutine F90_p8est_coarsen
      
      !=================================================================================================================================
      !> summary: Makes a deep copy of p4est_input into p4est_output
@@ -171,6 +275,16 @@ module p4est_bindings_names
        type(c_ptr), value       , intent(in)     :: p4est_input
        type(c_ptr)              , intent(inout)  :: p4est_output
      end subroutine F90_p4est_copy
+
+     !=================================================================================================================================
+     !> summary: Makes a deep copy of p8est_input into p8est_output
+     !=================================================================================================================================
+     subroutine F90_p8est_copy(p8est_input, p8est_output) bind(c,name="F90_p8est_copy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est_input
+       type(c_ptr)              , intent(inout)  :: p8est_output
+     end subroutine F90_p8est_copy
      
      !=================================================================================================================================
      !> summary: 2:1 (FULL) balance the size differences of neighboring elements in a forest
@@ -180,6 +294,15 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), value       , intent(in)     :: p4est
      end subroutine F90_p4est_balance
+
+     !=================================================================================================================================
+     !> summary: 2:1 (FULL) balance the size differences of neighboring elements in a forest
+     !=================================================================================================================================
+     subroutine F90_p8est_balance(p8est) bind(c,name="F90_p8est_balance")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est
+     end subroutine F90_p8est_balance
      
      !=================================================================================================================================
      !> summary: compares p4est_old with p4est_new and updates refinement+coarsening flags of the former accordingly to how  
@@ -191,7 +314,17 @@ module p4est_bindings_names
        type(c_ptr), value       , intent(in)     :: p4est_old
        type(c_ptr), value       , intent(in)     :: p4est_new
      end subroutine F90_p4est_update_refinement_and_coarsening_flags
-     
+
+     !=================================================================================================================================
+     !> summary: compares p8est_old with p8est_new and updates refinement+coarsening flags of the former accordingly to how  
+     !>          the former has been transformed into the latter via refine+coarsen+balance
+     !=================================================================================================================================
+     subroutine F90_p8est_update_refinement_and_coarsening_flags(p8est_old, p8est_new) bind(c,name="F90_p8est_update_refinement_and_coarsening_flags")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est_old
+       type(c_ptr), value       , intent(in)     :: p8est_new
+     end subroutine F90_p8est_update_refinement_and_coarsening_flags
      
      !=================================================================================================================================
      !> summary: Frees all dynamic memory involved in p4est_connectivity_t
@@ -203,6 +336,15 @@ module p4est_bindings_names
      end subroutine F90_p4est_connectivity_destroy
      
      !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in p8est_connectivity_t
+     !=================================================================================================================================
+     subroutine F90_p8est_connectivity_destroy(p8est_connectivity) bind(c, name="F90_p8est_connectivity_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p8est_connectivity
+     end subroutine F90_p8est_connectivity_destroy
+     
+     !=================================================================================================================================
      !> summary: Frees all dynamic memory involved in p4est_t
      !=================================================================================================================================
      subroutine F90_p4est_destroy(p4est) bind(c, name="F90_p4est_destroy")
@@ -210,6 +352,15 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), intent(inout)  :: p4est
      end subroutine F90_p4est_destroy
+
+     !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in p8est_t
+     !=================================================================================================================================
+     subroutine F90_p8est_destroy(p8est) bind(c, name="F90_p8est_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p8est
+     end subroutine F90_p8est_destroy
      
      !=================================================================================================================================
      !> summary: Frees all dynamic memory involved in p4mesh_t
@@ -220,6 +371,14 @@ module p4est_bindings_names
        type(c_ptr), intent(inout)  :: p4est_mesh
      end subroutine F90_p4est_mesh_destroy
      
+     !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in p8mesh_t
+     !=================================================================================================================================
+     subroutine F90_p8est_mesh_destroy(p8est_mesh) bind(c, name="F90_p8est_mesh_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p8est_mesh
+     end subroutine F90_p8est_mesh_destroy
      
      !===========================================================================================================================
      !> summary: Provides in vxyz the coordinates in real space of a vertex given a quadrant(x,y,l) and corner ID within quadrant
@@ -242,6 +401,30 @@ module p4est_bindings_names
        integer(c_int)            , value, intent(in)     :: corner
        real(c_double)                   , intent(inout)  :: vxyz(3)
      end subroutine F90_p4est_get_quadrant_vertex_coordinates
+
+     !===========================================================================================================================
+     !> summary: Provides in vxyz the coordinates in real space of a vertex given a quadrant(x,y,l) and corner ID within quadrant
+     !===========================================================================================================================
+     subroutine F90_p8est_get_quadrant_vertex_coordinates(connectivity, &
+                                                          treeid, &
+                                                          x, &
+                                                          y, &
+                                                          z, &
+                                                          level, &
+                                                          corner, &
+                                                          vxyz) bind(c, name="F90_p8est_get_quadrant_vertex_coordinates")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_TOPIDX, P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       type(c_ptr)               , value, intent(in)     :: connectivity
+       integer(P4EST_F90_TOPIDX) , value, intent(in)     :: treeid
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: x
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: y
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: z
+       integer(P4EST_F90_QLEVEL) , value, intent(in)     :: level
+       integer(c_int)            , value, intent(in)     :: corner
+       real(c_double)                   , intent(inout)  :: vxyz(3)
+     end subroutine F90_p8est_get_quadrant_vertex_coordinates
      
      !=================================================================================================================================
      !> summary: Test if a quadrant q1 is an ancestor of another quadrant q2.

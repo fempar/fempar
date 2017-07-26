@@ -101,17 +101,16 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   call this%create_environment(parameters)
   
   this%p4est_num_cells = 1
-  
-  ! TODO: Extract num_dimensions out of parameters
-  this%p4est_num_dimensions = 2
+
+  ! Get num_dimensions from FPL
+  massert(parameters%isAssignable(number_of_dimensions_key, this%p4est_num_dimensions ),'Number of dimensions not found or un-usable.')
+  istat = parameters%get(key = number_of_dimensions_key, value = this%p4est_num_dimensions); assert(istat==0)
   
   call this%reference_fe_geo%create( topology_hex, &
                                      this%p4est_num_dimensions, &
                                      1, &
                                      field_type_scalar, & 
-                                     conformity=.true.)
-  
-  
+                                     conformity=.true.)  
   
   if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
@@ -125,7 +124,16 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
   else if ( this%p4est_num_dimensions == 3 ) then
-    check(.false.)
+    call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
+    call F90_p8est_new(this%p4est_connectivity, this%p4est)
+    call this%update_p4est_mesh()
+    call this%update_topology_from_p4est_mesh()
+    call this%update_lst_vefs_lids_and_cells_around(old_lst_vefs_lids)
+    call old_lst_vefs_lids%free()
+    call this%allocate_and_fill_per_cell_vertex_coordinates()
+    call this%clear_refinement_and_coarsening_flags()
+    call this%clear_cell_set_ids()
+    call this%clear_vef_set_ids()
   end if  
 #else
   call this%not_enabled_error()
@@ -150,18 +158,26 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
     call F90_p4est_balance(this%p4est)
     call F90_p4est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
     call F90_p4est_destroy(p4est_old)
-    call this%update_p4est_mesh()
-    call this%update_topology_from_p4est_mesh()
-    ! Update the number of triangulation cells
-    this%p4est_num_cells = size(this%quad_level)
-    call this%update_lst_vefs_lids_and_cells_around(old_lst_vefs_lids)
-    call this%allocate_and_fill_per_cell_vertex_coordinates()
-    call this%update_cell_set_ids()
-    call this%update_vef_set_ids(old_lst_vefs_lids)
-    call old_lst_vefs_lids%free()
   else if ( this%p4est_num_dimensions == 3 ) then
-    check(.false.)
+    user_pointer => this%p4est_refinement_and_coarsening_flags%get_raw_pointer()
+    call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+    p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
+    call F90_p8est_refine(this%p4est)
+    call F90_p8est_coarsen(this%p4est)
+    call F90_p8est_balance(this%p4est)
+    call F90_p8est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
+    call F90_p8est_destroy(p4est_old)
   end if
+
+  call this%update_p4est_mesh()
+  call this%update_topology_from_p4est_mesh()
+  ! Update the number of triangulation cells
+  this%p4est_num_cells = size(this%quad_level)
+  call this%update_lst_vefs_lids_and_cells_around(old_lst_vefs_lids)
+  call this%allocate_and_fill_per_cell_vertex_coordinates()
+  call this%update_cell_set_ids()
+  call this%update_vef_set_ids(old_lst_vefs_lids)
+  call old_lst_vefs_lids%free()
 #else
   call this%not_enabled_error()
 #endif  
@@ -180,6 +196,7 @@ pure function p4est_serial_triangulation_get_ptr_vefs_per_cell(this, icell)
   if ( this%p4est_num_dimensions == 2 ) then
     num_vefs_per_cell = NUM_VEFS_2D
   else if ( this%p4est_num_dimensions == 3 ) then
+    num_vefs_per_cell = NUM_VEFS_3D
   end if
   p4est_serial_triangulation_get_ptr_vefs_per_cell = (icell-1)*num_vefs_per_cell+1  
   
@@ -191,10 +208,10 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   type(std_vector_integer_ip_t)      , intent(inout) :: old_lst_vefs_lids
   integer(ip) :: num_corners_per_cell, num_edges_per_cell, num_faces_per_cell
   integer(ip) :: num_face_corners, num_faces_at_corner, num_subfaces_face
-  integer(ip) :: icell, icell_iface, icell_icorner
-  integer(ip) :: jcell, jcell_iface, jcell_icorner
-  integer(ip) :: min_cell, min_icorner, min_iface, icorner, iedge, iface
-  integer(ip) :: iface_at_corner
+  integer(ip) :: icell, icell_iface, icell_icorner, icell_iedge
+  integer(ip) :: jcell, jcell_iface, jcell_icorner, jcell_iedge
+  integer(ip) :: min_cell, min_icorner, min_iedge, min_iface, icorner, iedge, iface
+  integer(ip) :: iface_at_corner, iedge_at_corner, iface_at_edge
   integer(ip) :: face_corner, flip, mortar
   integer(P4EST_F90_QLEVEL) :: jcell_iconn 
   logical :: is_proper, vef_at_boundary
@@ -205,19 +222,42 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   integer(ip) :: improper_cell_around_ivef
   integer(ip) :: improper_cell_around_subvef
   integer(ip) :: i
+  integer(ip), pointer :: P4EST_2_FEMPAR_CORNER(:)
+  integer(ip), pointer :: P4EST_FACES_AT_CORNER(:,:)
+  integer(ip), pointer :: P4EST_FACE_CORNERS(:,:)
+  integer(ip), pointer :: P4EST_OPPOSITE_CORNER(:)
+  integer(ip), pointer :: P4EST_2_FEMPAR_FACE(:)
+  integer(ip), pointer :: P4EST_CORNER_IN_FACE(:,:)
   
 #ifdef ENABLE_P4EST  
   if ( this%p4est_num_dimensions == 2 ) then
-     num_corners_per_cell = NUM_CORNERS_2D
-     num_edges_per_cell   = 0 
-     num_faces_per_cell   = NUM_FACES_2D
-     num_face_corners     = NUM_FACE_CORNERS_2D
-     num_faces_at_corner  = NUM_FACES_AT_CORNER_2D
-     num_subfaces_face    = NUM_SUBFACES_FACE_2D
+     num_corners_per_cell    =  NUM_CORNERS_2D
+     num_edges_per_cell      =  0
+     num_faces_per_cell      =  NUM_FACES_2D
+     num_face_corners        =  NUM_FACE_CORNERS_2D
+     num_faces_at_corner     =  NUM_FACES_AT_CORNER_2D
+     num_subfaces_face       =  NUM_SUBFACES_FACE_2D
+     P4EST_2_FEMPAR_CORNER   => P4EST_2_FEMPAR_CORNER_2D
+     P4EST_FACES_AT_CORNER   => P4EST_FACES_AT_CORNER_2D
+     P4EST_FACE_CORNERS      => P4EST_FACE_CORNERS_2D
+     P4EST_OPPOSITE_CORNER   => P4EST_OPPOSITE_CORNER_2D
+     P4EST_2_FEMPAR_FACE     => P4EST_2_FEMPAR_FACE_2D
+     P4EST_CORNER_IN_FACE    => P4EST_CORNER_IN_FACE_2D
   else if ( this%p4est_num_dimensions == 3 ) then
-     check(.false.)
+     num_corners_per_cell    =  NUM_CORNERS_3D
+     num_edges_per_cell      =  NUM_EDGES_3D
+     num_faces_per_cell      =  NUM_FACES_3D
+     num_face_corners        =  NUM_FACE_CORNERS_3D
+     num_faces_at_corner     =  NUM_FACES_AT_CORNER_3D
+     num_subfaces_face       =  NUM_SUBFACES_FACE_3D
+     P4EST_2_FEMPAR_CORNER   => P4EST_2_FEMPAR_CORNER_3D
+     P4EST_FACES_AT_CORNER   => P4EST_FACES_AT_CORNER_3D
+     P4EST_FACE_CORNERS      => P4EST_FACE_CORNERS_3D
+     P4EST_OPPOSITE_CORNER   => P4EST_OPPOSITE_CORNER_3D
+     P4EST_2_FEMPAR_FACE     => P4EST_2_FEMPAR_FACE_3D
+     P4EST_CORNER_IN_FACE    => P4EST_CORNER_IN_FACE_3D
   end if
- 
+
   call old_lst_vefs_lids%copy(this%p4est_lst_vefs_lids)
   
   call this%p4est_lst_vefs_lids%resize(this%get_ptr_vefs_per_cell(this%p4est_num_cells+1)-1)
@@ -251,11 +291,17 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
        
        ! Find face neighbours
        do iface_at_corner=1, num_faces_at_corner
-         icell_iface = P4EST_FACES_AT_CORNER_2D(iface_at_corner,icorner)
+         icell_iface = P4EST_FACES_AT_CORNER(iface_at_corner,icorner)
          jcell_iconn = this%quad_to_face(icell_iface,icell)         
          
-         call p4est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
-         assert (flip==1) ! All cells we are working with MUST be aligned with each other
+         if (this%p4est_num_dimensions == 2) then
+           call p4est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+         elseif (this%p4est_num_dimensions == 3) then
+           call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+         else
+           check(.false.)
+         end if
+         assert (flip==1) ! All cells MUST be aligned with each other
 
          if (mortar == -1) then ! Conformal neighbour
             jcell      = this%quad_to_quad(icell_iface,icell)+1 
@@ -267,7 +313,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
               
             min_cell   = min(min_cell,jcell)
             if (min_cell == jcell) then
-               min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner)
+             min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
             end if
             call work_vector_cells_around%push_back(jcell)
          else if ( mortar >= 1 .and. mortar <= num_subfaces_face )  then ! Double-size neighbour 
@@ -284,7 +330,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
             
             ! 2. Determine which face_corner of my face am I
             do face_corner=1, num_face_corners
-              if (P4EST_FACE_CORNERS_2D(face_corner,icell_iface) == icorner) then
+              if (P4EST_FACE_CORNERS(face_corner,icell_iface) == icorner) then
                 exit
               end if
             end do
@@ -302,7 +348,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
             else
               min_cell   = min(min_cell,jcell)
               if (min_cell == jcell) then
-                min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner)
+                min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
               end if
               call work_vector_cells_around%push_back(jcell)
             end if
@@ -310,7 +356,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
             assert (mortar == 3)
             ! Determine which face_corner of my face am I
             do face_corner=1, num_face_corners
-              if (P4EST_FACE_CORNERS_2D(face_corner,icell_iface) == icorner) then
+              if (P4EST_FACE_CORNERS(face_corner,icell_iface) == icorner) then
                 exit
               end if
             end do
@@ -318,17 +364,37 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
             jcell       = this%quad_to_half(face_corner,this%quad_to_quad(icell_iface,icell)+1)+1
             min_cell   = min(min_cell,jcell)
             if (min_cell == jcell) then
-               min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner)
+               min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
             end if
             call work_vector_cells_around%push_back(jcell)
          end if
-       end do  
+       end do  ! End loop faces at corner
+
+       ! Find the edge neighbors
+       if (this%p4est_num_dimensions == 3) then
+         do iedge_at_corner=1, NUM_EDGES_AT_CORNER_3D
+
+           ! WARNING: TODO: For the moment this is implemented only for the conforming meshes without any check whether this is the case.
+           icell_iedge   = P4EST_EDGES_AT_CORNER_3D(iedge_at_corner,icorner)
+           jcell         = this%quad_to_quad_by_edge(icell_iedge,icell)+1
+           if (jcell > 0) then
+             min_cell   = min(min_cell,jcell)
+             if (min_cell == jcell) then
+                jcell_iedge   = this%quad_to_edge(icell_iedge,icell)+1
+                jcell_icorner = p4est_get_jcell_icorner(icell_iedge,jcell_iedge,icorner,P4EST_CORNER_IN_EDGE_3D,P4EST_EDGE_CORNERS_3D)
+                min_icorner=jcell_icorner
+             end if
+             call work_vector_cells_around%push_back(jcell)
+           end if
+
+         end do
+       end if
        
        ! A corner cannot become improper by a corner neighbour which is not a face neighbour
        jcell          = this%quad_to_corner(icorner,icell)+1
        jcell_icorner  = P4EST_OPPOSITE_CORNER(icorner)
 
-       if (jcell /= 0) then
+       if (jcell > 0) then
          min_cell   = min(min_cell,jcell)
          if (min_cell == jcell) then
             min_icorner=jcell_icorner
@@ -386,8 +452,85 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
        end if
      end do ! icorner
      
-     do iedge=1, num_edges_per_cell
-     end do ! iedge
+     if (this%p4est_num_dimensions == 3) then
+       do iedge=1, num_edges_per_cell
+         is_proper       = .true.
+         min_cell        = icell
+         min_iedge       = iedge
+         vef_at_boundary = .false.
+         
+         call work_vector_cells_around%resize(0)
+         call work_vector_cells_around%push_back(icell)
+         call work_vector_improper_cells_around%resize(0)
+
+         ! Find face neighbors
+         do iface_at_edge=1, num_faces_at_edge_3d
+           icell_iface = P4EST_FACES_AT_EDGE_3D(iface_at_edge,iedge)
+           jcell_iconn = this%quad_to_face(icell_iface,icell)         
+           call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+           assert (flip==1) ! All cells MUST be aligned with each other
+
+           if (mortar == -1) then ! Conformal neighbour
+            jcell      = this%quad_to_quad(icell_iface,icell)+1 
+            if ( icell == jcell ) then
+              vef_at_boundary = .true.
+              cycle
+            end if  
+             if (jcell > 0) then
+               min_cell   = min(min_cell,jcell)
+               if (min_cell == jcell) then
+                  min_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+               end if
+               call work_vector_cells_around%push_back(jcell)
+             end if
+           else
+             mcheck(.false.,'Implementation only for conforming faces')
+           end if
+
+         end do
+
+         ! Find neigs only by edge
+         jcell = this%quad_to_quad_by_edge(iedge,icell)+1
+         if (jcell > 0) then
+           min_cell   = min(min_cell,jcell)
+           if (min_cell == jcell) then
+              min_iedge   = this%quad_to_edge(iedge,icell)+1
+           end if
+           call work_vector_cells_around%push_back(jcell)
+         end if
+
+         base_pos_icell    = this%get_ptr_vefs_per_cell(icell)-1    + num_corners_per_cell
+         base_pos_min_cell = this%get_ptr_vefs_per_cell(min_cell)-1 + num_corners_per_cell
+
+         ! If am owner of this corner
+         if (icell == min_cell) then
+           if (is_proper) then
+             this%num_proper_vefs = this%num_proper_vefs+1
+             call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), this%num_proper_vefs)
+             
+             call this%p4est_ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
+             do i=1, work_vector_cells_around%size()
+              call this%p4est_lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
+             end do
+             ! Fill proper vefs dimension
+             call this%p4est_proper_vefs_dimension%push_back(1)
+             
+             ! Fill proper vefs at boundary
+             if ( vef_at_boundary ) then
+               call this%p4est_proper_vefs_at_boundary%push_back(1)
+             else
+               call this%p4est_proper_vefs_at_boundary%push_back(0)
+             end if
+           else
+             mcheck(.false.,'Implementation only for proper edges (for the moment)')
+           end if
+         else
+           call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), &
+                                             this%p4est_lst_vefs_lids%get(base_pos_min_cell+P4EST_2_FEMPAR_EDGE_3D(min_iedge)))
+         end if
+
+       end do ! iedge
+     end if
      
      do iface=1, num_faces_per_cell
        is_proper       = .true.
@@ -400,7 +543,15 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
        call work_vector_improper_cells_around%resize(0)
        
        jcell_iconn = this%quad_to_face(iface,icell)         
-       call p4est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+
+       if (this%p4est_num_dimensions == 2) then
+         call p4est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+       elseif (this%p4est_num_dimensions == 3) then
+         call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+       else
+         check(.false.)
+       end if
+
        assert (flip==1) ! All cells we are working with MUST be aligned with each other
        if (mortar == -1) then ! Conformal neighbour
          jcell      = this%quad_to_quad(iface,icell)+1 
@@ -423,14 +574,14 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
          call work_vector_improper_cells_around%push_back(jcell)
        end if
 
-       base_pos_icell    = this%get_ptr_vefs_per_cell(icell)-1
-       base_pos_min_cell = this%get_ptr_vefs_per_cell(min_cell)-1
+         base_pos_icell    = this%get_ptr_vefs_per_cell(icell)-1    + num_corners_per_cell + num_edges_per_cell
+         base_pos_min_cell = this%get_ptr_vefs_per_cell(min_cell)-1 + num_corners_per_cell + num_edges_per_cell
        
        ! If am owner of this corner
        if (icell == min_cell) then
          if (is_proper) then
            this%num_proper_vefs=this%num_proper_vefs+1
-           call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), this%num_proper_vefs)
+           call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), this%num_proper_vefs)
            
            ! Fill cells_around proper vefs
            call this%p4est_ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
@@ -450,7 +601,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
            
          else 
            this%num_improper_vefs=this%num_improper_vefs+1
-           call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), -this%num_improper_vefs)
+           call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), -this%num_improper_vefs)
            
            ! Fill cells_around improper vefs
            call this%p4est_ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
@@ -472,8 +623,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
            
          end if
        else ! Borrow vef gid from owner
-         call this%p4est_lst_vefs_lids%set(base_pos_icell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(iface), &
-                                           this%p4est_lst_vefs_lids%get(base_pos_min_cell+num_corners_per_cell+P4EST_2_FEMPAR_FACE(min_iface)))
+         call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), &
+                                           this%p4est_lst_vefs_lids%get(base_pos_min_cell+P4EST_2_FEMPAR_FACE(min_iface)))
        end if
      end do ! iface
   end do
@@ -484,6 +635,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   
   call work_vector_cells_around%free()
   call work_vector_improper_cells_around%free()
+  
 #else
   call this%not_enabled_error()
 #endif    
@@ -505,7 +657,7 @@ subroutine p4est_st_update_cell_set_ids(this)
   if ( this%p4est_num_dimensions == 2 ) then
     num_children_per_cell = NUM_CORNERS_2D
   else if ( this%p4est_num_dimensions == 3 ) then
-    check(.false.)
+    num_children_per_cell = NUM_CORNERS_3D
   end if
   
   assert ( old_cell_set_ids%size() == this%p4est_refinement_and_coarsening_flags%size() )
@@ -547,7 +699,7 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
   integer(ip) :: old_cell_id, new_cell_id, old_cell_base_pos
   integer(ip) :: transformation_flag
   integer(ip) :: num_corners
-  integer(ip) :: ivef, iface, j
+  integer(ip) :: ivef, iface, j, iedge
   integer(ip) :: old_vef_lid, old_vef_set_id
   class(cell_iterator_t), allocatable :: cell
   class(vef_iterator_t) , allocatable :: vef
@@ -557,8 +709,18 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
   type(list_iterator_t) :: vertices_per_n_face_iterator
   type(std_vector_integer_ip_t) :: old_proper_vefs_set_ids
   type(std_vector_integer_ip_t) :: old_improper_vefs_set_ids
+  integer(ip), pointer :: FEMPAR_SUBCELLS_IN_TOUCH_FACE(:,:)
+  integer(ip) :: num_edges_ref_elem_geo
 
 #ifdef ENABLE_P4EST    
+
+  if (this%p4est_num_dimensions == 2) then
+    FEMPAR_SUBCELLS_IN_TOUCH_FACE => FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D
+    num_edges_ref_elem_geo = 0
+  else
+    FEMPAR_SUBCELLS_IN_TOUCH_FACE => FEMPAR_SUBCELLS_IN_TOUCH_FACE_3D
+    num_edges_ref_elem_geo = this%reference_fe_geo%get_number_n_faces_of_dimension(1)
+  end if
   
   call old_proper_vefs_set_ids%copy(this%p4est_proper_vefs_set_ids)
   call old_improper_vefs_set_ids%copy(this%p4est_improper_vefs_set_ids)
@@ -598,11 +760,29 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
         old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
         call vef%set_set_id(old_vef_set_id)
       end do
+
+      if (this%p4est_num_dimensions == 3) then
+        do iedge=1, this%reference_fe_geo%get_number_n_faces_of_dimension(1)
+           ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0)  + iedge
+           do j=1, NUM_SUBCELLS_IN_TOUCH_EDGE_3D
+              call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_EDGE_3D(j,iedge)-1)
+              call cell%get_vef(ivef,vef)
+              old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
+              old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+              call vef%set_set_id(old_vef_set_id)
+           end do
+           vertices_per_n_face_iterator = vertices_n_face%create_iterator(ivef)
+           call cell%get_vef(vertices_per_n_face_iterator%get_current(),vef)
+           old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
+           old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+           call vef%set_set_id(old_vef_set_id)
+        end do
+      end if
       
       do iface=1, this%reference_fe_geo%get_number_faces()
-         ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0)  + iface
+         ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0) + num_edges_ref_elem_geo  + iface
          do j=1, NUM_SUBCELLS_IN_TOUCH_FACE_2D
-            call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(iface,j)-1)
+            call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE(j,iface)-1)
             call cell%get_vef(ivef,vef)
             old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
             old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
@@ -625,11 +805,24 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
         call vef%set_set_id(old_vef_set_id)
       end do
       
+      if (this%p4est_num_dimensions == 3) then
+        do iedge=1, this%reference_fe_geo%get_number_n_faces_of_dimension(1)
+           ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0) + iedge
+           call cell%get_vef(ivef,vef)
+           ! The VEF set id of a edge in the coarse cell is extracted (arbitrarily) from
+           ! the refined cell corresponding to its first sub-edge
+           old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+&
+             (FEMPAR_SUBCELLS_IN_TOUCH_EDGE_3D(1,iedge)-1)*this%reference_fe_geo%get_number_n_faces() + ivef-1)
+           old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+           call vef%set_set_id(old_vef_set_id)
+        end do
+      end if
+
       do iface=1, this%reference_fe_geo%get_number_faces()
-         ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0)  + iface
+         ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0) + num_edges_ref_elem_geo  + iface
          call cell%get_vef(ivef,vef)
          ! The VEF set id of a face in the coarse cell is extracted (arbitrarily) from the refined cell corresponding to its first subface
-         old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ (FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(iface,1)-1)*this%reference_fe_geo%get_number_n_faces() + ivef-1)
+         old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ (FEMPAR_SUBCELLS_IN_TOUCH_FACE(1,iface)-1)*this%reference_fe_geo%get_number_n_faces() + ivef-1)
          old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
          call vef%set_set_id(old_vef_set_id)
       end do
@@ -653,6 +846,9 @@ contains
   function get_vef_set_id( vef_lid, proper_vefs_set_ids, improper_vefs_set_ids)
     implicit none
     integer(ip), intent(in) :: vef_lid
+    ! TODO It seems that the 2 last arguments are not being used
+    !      The function is actually consuming data from the caller, not the passed arguments...
+    !      Is this the behavior we want?
     type(std_vector_integer_ip_t), intent(in) :: proper_vefs_set_ids
     type(std_vector_integer_ip_t), intent(in) :: improper_vefs_set_ids
     integer(ip) :: get_vef_set_id
@@ -691,20 +887,31 @@ subroutine p4est_st_allocate_and_fill_per_cell_vertex_coordinates(this)
   if ( this%p4est_num_dimensions == 2 ) then
     num_corners = NUM_CORNERS_2D
   else if ( this%p4est_num_dimensions == 3 ) then
-    check(.false.)
+    num_corners = NUM_CORNERS_3D
   end if
   allocate(this%per_cell_vertex_coordinates(this%p4est_num_cells*num_corners), stat=istat); check(istat==0);  
   
   current = 1 
   do icell=1, this%p4est_num_cells
      do corner=0, num_corners-1
-       call F90_p4est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
-                                                      int(0,P4EST_F90_TOPIDX),&
-                                                      this%quad_coords(1,icell),&
-                                                      this%quad_coords(2,icell), &
-                                                      this%quad_level(icell),&
-                                                      corner,&
-                                                      vxyz)
+       if ( this%p4est_num_dimensions == 2 ) then
+         call F90_p4est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
+                                                        int(0,P4EST_F90_TOPIDX),&
+                                                        this%quad_coords(1,icell),&
+                                                        this%quad_coords(2,icell), &
+                                                        this%quad_level(icell),&
+                                                        corner,&
+                                                        vxyz)
+       else if ( this%p4est_num_dimensions == 3 ) then
+         call F90_p8est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
+                                                        int(0,P4EST_F90_TOPIDX),&
+                                                        this%quad_coords(1,icell),&
+                                                        this%quad_coords(2,icell), &
+                                                        this%quad_coords(3,icell), &
+                                                        this%quad_level(icell),&
+                                                        corner,&
+                                                        vxyz)
+       end if
        call this%per_cell_vertex_coordinates(current)%init(vxyz)
        current = current + 1 
      end do  
@@ -791,7 +998,7 @@ subroutine p4est_serial_triangulation_update_p4est_mesh(this)
   if ( this%p4est_num_dimensions == 2 ) then
     call F90_p4est_mesh_new(this%p4est, this%p4est_mesh)
   else if ( this%p4est_num_dimensions == 3 ) then
-    check(.false.)
+    call F90_p8est_mesh_new(this%p4est, this%p4est_mesh)
   end if
 #else
   call this%not_enabled_error()
@@ -805,7 +1012,7 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
  integer(P4EST_F90_GLOIDX) :: global_num_quadrants
  integer(P4EST_F90_GLOIDX) :: global_first_quadrant
  integer(P4EST_F90_LOCIDX) :: num_half_faces
- type(c_ptr) :: QQ, QF, QH, QC
+ type(c_ptr) :: QQ, QF, QH, QC, QQE, QE
  
 #ifdef ENABLE_P4EST
  if ( this%p4est_num_dimensions == 2 ) then
@@ -839,8 +1046,46 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
   if(num_half_faces>0) call c_f_pointer(qh,this%quad_to_half,[NUM_SUBFACES_FACE_2D,num_half_faces])
   call c_f_pointer(qc,this%quad_to_corner,[NUM_CORNERS_2D,local_num_quadrants])
  else if ( this%p4est_num_dimensions == 3 ) then
-   check(.false.)
- end if 
+  call F90_p8est_get_mesh_info(this%p4est, &
+                               this%p4est_mesh, &
+                               local_num_quadrants, &
+                               global_num_quadrants, &
+                               global_first_quadrant, &
+                               num_half_faces)
+ 
+  if (allocated(this%quad_coords)) &
+     call memfree(this%quad_coords, __FILE__, __LINE__)
+  
+  if (allocated(this%quad_level)) &
+    call memfree(this%quad_level, __FILE__, __LINE__)
+
+  if (allocated(this%quad_to_quad_by_edge)) &
+    call memfree(this%quad_to_quad_by_edge, __FILE__, __LINE__)
+
+  if (allocated(this%quad_to_edge)) &
+    call memfree(this%quad_to_edge, __FILE__, __LINE__)
+  
+  call memalloc(3, local_num_quadrants, this%quad_coords, __FILE__, __LINE__)
+  call memalloc(local_num_quadrants, this%quad_level, __FILE__, __LINE__ )
+  call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_quad_by_edge, __FILE__, __LINE__ )
+  call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_edge, __FILE__, __LINE__ )
+  
+  call F90_p8est_get_mesh_topology_arrays(this%p4est, &
+                                          this%p4est_mesh, &
+                                          QQ, &
+                                          QF, &
+                                          QH, &
+                                          this%quad_to_quad_by_edge,&
+                                          this%quad_to_edge, &
+                                          QC, &
+                                          this%quad_coords, &
+                                          this%quad_level)
+  
+  call c_f_pointer(qq,this%quad_to_quad,[NUM_FACES_3D,local_num_quadrants])
+  call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_3D,local_num_quadrants])
+  if(num_half_faces>0) call c_f_pointer(qh,this%quad_to_half,[NUM_SUBFACES_FACE_3D,num_half_faces])
+  call c_f_pointer(qc,this%quad_to_corner,[NUM_CORNERS_3D,local_num_quadrants])
+ end if
   
 #else
   call this%not_enabled_error()
@@ -856,14 +1101,16 @@ subroutine p4est_serial_triangulation_free ( this)
     call F90_p4est_destroy(this%p4est)
     call F90_p4est_connectivity_destroy(this%p4est_connectivity)
     call F90_p4est_mesh_destroy(this%p4est_mesh)
-  
-    this%p4est_connectivity = c_null_ptr
-    this%p4est              = c_null_ptr
-    this%p4est_mesh         = c_null_ptr
-  else if ( this%p4est_num_dimensions == 3 ) then
-    check(.false.)
+  else if ( this%p4est_num_dimensions == 3 ) then  
+    call F90_p8est_destroy(this%p4est)
+    call F90_p8est_connectivity_destroy(this%p4est_connectivity)
+    call F90_p8est_mesh_destroy(this%p4est_mesh)
   end if
   
+  this%p4est_connectivity = c_null_ptr
+  this%p4est              = c_null_ptr
+  this%p4est_mesh         = c_null_ptr
+    
   call this%p4est_lst_vefs_lids%free()
   call this%p4est_ptr_cells_around_proper_vefs%free()
   call this%p4est_lst_cells_around_proper_vefs%free()
@@ -890,6 +1137,12 @@ subroutine p4est_serial_triangulation_free ( this)
   
   if (allocated(this%quad_level)) &
     call memfree(this%quad_level, __FILE__, __LINE__)
+
+  if (allocated(this%quad_to_quad_by_edge)) &
+    call memfree(this%quad_to_quad_by_edge, __FILE__, __LINE__)
+
+  if (allocated(this%quad_to_edge)) &
+    call memfree(this%quad_to_edge, __FILE__, __LINE__)
   
   this%p4est_num_dimensions  = -1
   this%p4est_num_cells = -1
@@ -975,43 +1228,81 @@ SUBROUTINE p4est_eval_connectivity(Conn,nbSide,Flip,Mortar)
 
 END SUBROUTINE p4est_eval_connectivity
 
-function p4est_get_jcell_icorner(icell_iface,jcell_iface,icell_icorner)
+SUBROUTINE p8est_eval_connectivity(Conn,nbSide,Flip,Mortar)
+!===================================================================================================================================
+! Subroutine to read the mesh from a mesh data file
+!===================================================================================================================================
+! MODULES
+! IMPLICIT VARIABLE HANDLING
+IMPLICIT NONE
+!-----------------------------------------------------------------------------------------------------------------------------------
+! INPUT VARIABLES
+INTEGER(KIND=1),INTENT(IN)   :: Conn   ! p4est Side,Flip,Mortar encoding
+!-----------------------------------------------------------------------------------------------------------------------------------
+! OUTPUT VARIABLES
+INTEGER,INTENT(OUT)          :: nbSide ! Neighbour side in p4est convention: 0..5
+INTEGER,INTENT(OUT)          :: Flip   ! Flip in p4est convention: 0..3
+INTEGER,INTENT(OUT)          :: Mortar ! Mortar in p4est convention: 0..3,
+                                       ! -1 if conformal, 4 if half-size neighbour
+!-----------------------------------------------------------------------------------------------------------------------------------
+! LOCAL VARIABLES
+INTEGER                      :: tmp
+!-----------------------------------------------------------------------------------------------------------------------------------
+! The quad_to_quad list stores one value for each local quadrant's face.
+! This value is in 0..local_num_quadrants-1 for local quadrants, or in
+! local_num_quadrants + (0..ghost_num_quadrants-1) for ghost quadrants.
+! The quad_to_face list has equally many entries which are either:
+! 1. A value of v = 0..23 indicates one same-size neighbor.
+!    This value is decoded as v = r * 6 + nf, where nf = 0..5 is the
+!    neigbbor's connecting face number and r = 0..3 is the relative
+!    orientation of the neighbor's face, see p8est_connectivity.h.
+! 2. A value of v = 24..119 indicates a double-size neighbor.
+!    This value is decoded as v = 24 + h * 24 + r * 6 + nf, where
+!    r and nf are as above and h = 0..3 is the number of the subface.
+! 3. A value of v = -24..-1 indicates four half-size neighbors.
+!    In this case the corresponding quad_to_quad index points into the
+!    quad_to_half array which stores four quadrant numbers per index,
+!    and the orientation of the smaller faces follows from 24 + v.
+!    The entries of quad_to_half encode between local and ghost quadrant
+!    in the same way as the quad_to_quad values described above.
+! A quadrant on the boundary of the forest sees itself and its face number.
+
+SELECT CASE(Conn)
+CASE(0:23)   ! 1. conformal neighbour
+  nbSide = MOD(Conn,6)       ! 0..5
+  Flip   = (Conn-nbSide)/6   ! 0..3
+  Mortar = -1
+CASE(24:119) ! 2. double-size neighbour
+  tmp    = MOD(Conn,24)      ! 0..3
+  nbSide = MOD(tmp,6)        ! 0..5  
+  Flip   = (tmp-nbSide)/6    ! 0..3
+  Mortar = (Conn-tmp-24)/24  ! 0..3
+  Mortar = Mortar + 1        ! 1..4
+CASE(-24:-1) ! 3. half-size neighbour
+  tmp    = Conn+24
+  nbSide = MOD(tmp,6)       ! 0..5
+  Flip   = (tmp-nbSide)/6   ! 0..3
+  Mortar = 5
+CASE DEFAULT
+  massert(.false., 'This type of face connectivity does not exist, has to be -24<f<23')
+END SELECT
+  nbSide = nbSide +1  ! 1 .. 6
+  Flip   = Flip +  1  ! 1 .. 4
+END SUBROUTINE p8est_eval_connectivity
+
+function p4est_get_jcell_icorner(icell_iface,jcell_iface,icell_icorner,corner_and_face_2_corner_in_face,face_2_corners)
   implicit none
   integer(ip), intent(in) :: icell_iface 
   integer(ip), intent(in) :: jcell_iface 
   integer(ip), intent(in) :: icell_icorner 
+  integer(ip), intent(in) :: corner_and_face_2_corner_in_face(:,:)
+  integer(ip), intent(in) :: face_2_corners(:,:)
   integer(ip) :: p4est_get_jcell_icorner
-
-  p4est_get_jcell_icorner = -1
-  SELECT CASE(icell_icorner)
-  CASE(1) 
-    if (icell_iface == 3 .and. jcell_iface == 4) then
-      p4est_get_jcell_icorner = 3 
-    else if (icell_iface == 1 .and. jcell_iface == 2) then
-      p4est_get_jcell_icorner = 2 
-    end if    
-  CASE(2)
-    if (icell_iface == 2 .and. jcell_iface == 1) then
-      p4est_get_jcell_icorner = 1 
-    else if (icell_iface == 3 .and. jcell_iface == 4) then
-      p4est_get_jcell_icorner = 4 
-    end if    
-  CASE(3)
-    if (icell_iface == 4 .and. jcell_iface == 3) then
-      p4est_get_jcell_icorner = 1
-    else if (icell_iface == 1 .and. jcell_iface == 2) then
-      p4est_get_jcell_icorner = 4 
-    end if    
-  CASE(4)
-    if (icell_iface == 2 .and. jcell_iface == 1) then
-      p4est_get_jcell_icorner = 3 
-    else if (icell_iface == 3 .and. jcell_iface == 4) then
-      p4est_get_jcell_icorner = 2 
-    end if    
-  END SELECT 
-  assert(p4est_get_jcell_icorner/=-1)
+  integer(ip) :: corner_in_face
+  corner_in_face = corner_and_face_2_corner_in_face(icell_iface,icell_icorner)
+  assert(corner_in_face/=-1)
+  p4est_get_jcell_icorner = face_2_corners(corner_in_face,jcell_iface)
 end function p4est_get_jcell_icorner
-
 
 #ifndef ENABLE_P4EST
   subroutine p4est_serial_triangulation_not_enabled_error(this)
