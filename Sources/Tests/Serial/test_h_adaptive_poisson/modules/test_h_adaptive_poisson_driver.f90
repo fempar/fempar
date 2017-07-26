@@ -263,33 +263,51 @@ contains
     integer(ip), parameter :: max_level = 4
 
     call this%triangulation%create_cell_iterator(cell)
-    allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
 
-    do while ( .not. cell%has_finished() )
+    if (this%triangulation%get_num_dimensions() == 2) then
 
-      !if ( mod(cell%get_gid()-1,2) == 0 ) then
-      !  call cell%set_for_refinement()
-      !end if
+      allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
 
-      call cell%get_coordinates(coords)
-      x = 0.0
-      y = 0.0
-      do k=1,max_num_cell_nodes
-       x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
-       y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
+      do while ( .not. cell%has_finished() )
+
+        !if ( mod(cell%get_lid()-1,2) == 0 ) then
+        !  call cell%set_for_refinement()
+        !end if
+
+        call cell%get_coordinates(coords)
+        x = 0.0
+        y = 0.0
+        do k=1,max_num_cell_nodes
+         x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
+         y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
+        end do
+        R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
+       
+        if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
+          call cell%set_for_refinement()
+        end if
+
+
+        call cell%next()
       end do
-      R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
-     
-      if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
-        call cell%set_for_refinement()
-      end if
+      deallocate(coords,stat=istat); check(istat==0)
 
-      !write(*,*) 'cid= ', cell%get_gid(), ' l= ', cell%get_level()
+    else if (this%triangulation%get_num_dims() == 3) then
 
-      call cell%next()
-    end do
+      do while ( .not. cell%has_finished() )
 
-    deallocate(coords,stat=istat); check(istat==0)
+        if ( (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
+          call cell%set_for_refinement()
+        end if
+
+        call cell%next()
+      end do
+
+    else
+      mcheck(.false.,'Only for 2D and 3D')
+
+    end if
+
     call this%triangulation%free_cell_iterator(cell)
 
   end subroutine set_cells_for_refinement
@@ -448,7 +466,9 @@ contains
     do i=1,6
        
        if ( mod(i+1,3) == 0 ) then 
-          call this%set_cells_for_coarsening()
+         if (this%triangulation%get_num_dimensions() == 2) then
+           call this%set_cells_for_coarsening()
+         end if
        else
          call this%set_cells_for_refinement()
        end if
