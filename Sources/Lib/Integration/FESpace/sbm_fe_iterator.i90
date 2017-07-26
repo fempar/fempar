@@ -100,18 +100,26 @@ function fe_iterator_count_own_dofs ( this, field_id )
   fe_iterator_count_own_dofs = own_dofs_on_vef_iterator%get_size() 
 end function fe_iterator_count_own_dofs
 
-subroutine fe_iterator_fill_own_dofs ( this, field_id, current_dof )
+subroutine fe_iterator_fill_own_dofs ( this, field_id, current_dof, are_free_dofs )
   implicit none
   ! Parameters
   class(fe_iterator_t), intent(inout)   :: this
   integer(ip)         , intent(in)      :: field_id
   integer(ip)         , intent(inout)   :: current_dof
+  logical, optional   , intent(in)      :: are_free_dofs
 
   ! Local variables
   integer(ip) :: ivef
   integer(ip) :: base_pos_lst_dofs_lids
   class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator
+  logical  :: are_free
+
+  if (present(are_free_dofs)) then
+    are_free = are_free_dofs
+  else
+    are_free = .true.
+  end if
   
   assert ( field_id>= 1 .and. field_id <= this%fe_space%number_fields )
   ivef = this%get_num_vefs()+1
@@ -127,7 +135,11 @@ subroutine fe_iterator_fill_own_dofs ( this, field_id, current_dof )
   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
     current_dof = current_dof + 1
-    this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) = current_dof
+    if (are_free) then
+      this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) = current_dof
+    else
+      this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) = -current_dof
+    end if
     call own_dofs_on_vef_iterator%next()
   end do
 end subroutine fe_iterator_fill_own_dofs

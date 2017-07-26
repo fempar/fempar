@@ -61,12 +61,12 @@ module hp_adaptive_fe_space_names
      ! l1                          : constraint DOFs dependencies (0 for independent term)
      ! constraint_dofs_coefficients: constraint DoFs coefficients (also independent term)
      ! u_fixed = sum u_dep w_dep + c
-     integer(ip)                                 :: number_fixed_dofs = -1
-     type(std_vector_integer_ip_t)               :: ptr_constraint_dofs
-     type(std_vector_integer_ip_t)               :: constraint_dofs_dependencies
-     type(std_vector_real_rp_t)                  :: constraint_dofs_coefficients
+     integer(ip), public                         :: number_fixed_dofs = -1
+     type(std_vector_integer_ip_t), public       :: ptr_constraint_dofs
+     type(std_vector_integer_ip_t),public        :: constraint_dofs_dependencies
+     type(std_vector_real_rp_t), public          :: constraint_dofs_coefficients
      
-     type(p4est_serial_triangulation_t), pointer :: p4est_triangulation =>  NULL()
+     type(p4est_serial_triangulation_t), pointer, public :: p4est_triangulation =>  NULL()
    contains
      procedure                            :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
      procedure                            :: create_fe_iterator                                     => serial_hp_adaptive_fe_space_create_fe_iterator
@@ -78,7 +78,7 @@ module hp_adaptive_fe_space_names
      
      
      procedure          :: fill_dof_info                                          => serial_hp_adaptive_fe_space_fill_dof_info
-     procedure, private :: fill_elem2dof_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
+     procedure          :: fill_elem2dof_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
      procedure          :: transfer_dirichlet_to_constraint_dof_coefficients      => shpafs_transfer_dirichlet_to_constraint_dof_coefficients
@@ -110,6 +110,7 @@ module hp_adaptive_fe_space_names
  end type hp_adaptive_fe_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t
+ public :: hp_adaptive_fe_iterator_t
  
 contains
 

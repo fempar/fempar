@@ -127,10 +127,10 @@ module fe_space_names
     class(cell_iterator_t), allocatable :: cell
   contains
     ! Methods exploiting ("inherited from") cell_t common to all descendants
-    procedure, non_overridable           :: next                    => base_fe_iterator_next
-    procedure, non_overridable           :: first                   => base_fe_iterator_first
-    procedure, non_overridable           :: last                    => base_fe_iterator_last
-    procedure, non_overridable           :: set_lid                 => base_fe_iterator_set_lid
+    procedure                            :: next                    => base_fe_iterator_next
+    procedure                            :: first                   => base_fe_iterator_first
+    procedure                            :: last                    => base_fe_iterator_last
+    procedure                            :: set_lid                 => base_fe_iterator_set_lid
     procedure, non_overridable           :: has_finished            => base_fe_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_iterator_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_iterator_get_reference_fe_geo_id
@@ -445,7 +445,7 @@ module fe_space_names
      procedure                           :: allocate_number_dofs_per_field               =>  serial_fe_space_allocate_number_dofs_per_field
      procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
      procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
-     procedure                 , private :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
+     procedure                           :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
      procedure                 , private :: renumber_dofs_block                          => serial_fe_space_renumber_dofs_block
  
      ! Getters
@@ -459,6 +459,7 @@ module fe_space_names
      procedure, non_overridable          :: get_max_number_quadrature_points             => serial_fe_space_get_max_number_quadrature_points
      procedure, non_overridable          :: get_max_number_nodal_quadrature_points       => serial_fe_space_get_max_number_nodal_quadrature_points
      procedure, non_overridable          :: get_max_number_face_quadrature_points        => serial_fe_space_get_max_number_face_quadrature_points     
+     procedure, non_overridable          :: get_max_order                                => serial_fe_space_get_max_order
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
@@ -590,6 +591,7 @@ module fe_space_names
    procedure                         , private :: count_and_list_dofs_on_ghosts                   => par_fe_space_count_and_list_dofs_on_ghosts
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
    procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
+   procedure        , non_overridable          :: compute_num_global_dofs_and_their_gids          => par_fe_space_compute_num_global_dofs_and_their_gids
 
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import

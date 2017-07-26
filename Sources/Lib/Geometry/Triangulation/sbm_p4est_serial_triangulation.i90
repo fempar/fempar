@@ -40,6 +40,24 @@ function p4est_serial_triangulation_get_num_cells(this)
   p4est_serial_triangulation_get_num_cells = this%p4est_num_cells
 end function p4est_serial_triangulation_get_num_cells
 
+function p4est_serial_triangulation_get_num_local_cells(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_serial_triangulation_get_num_local_cells
+  !TODO We assume there are no ghost cells
+  p4est_serial_triangulation_get_num_local_cells = this%p4est_num_cells
+end function p4est_serial_triangulation_get_num_local_cells
+
+function p4est_serial_triangulation_get_max_number_shape_functions(this) result (num)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: num
+  class(cell_iterator_t), allocatable :: cell
+  call this%create_cell_iterator(cell)
+  num = cell%get_num_nodes()
+  call this%free_cell_iterator(cell)
+end function p4est_serial_triangulation_get_max_number_shape_functions
+
 function p4est_serial_triangulation_get_num_vefs(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(in) :: this

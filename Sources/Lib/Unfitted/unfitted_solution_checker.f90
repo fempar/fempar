@@ -30,6 +30,7 @@
 module unfitted_solution_checker_names
   use fempar_names
   use unfitted_fe_spaces_names
+  use piecewise_fe_map_names
   implicit none
 # include "debug.i90"
   private
@@ -72,7 +73,9 @@ contains
   end subroutine unfitted_solution_checker_free
 
   !=================================================================================================
-  subroutine unfitted_solution_checker_compute_error_norms(this, error_h1_semi_norm, error_l2_norm, h1_semi_norm, l2_norm)
+  subroutine unfitted_solution_checker_compute_error_norms(this,&
+      error_h1_semi_norm, error_l2_norm, h1_semi_norm, l2_norm,&
+      error_h1_semi_norm_boundary, error_l2_norm_boundary, h1_semi_norm_boundary, l2_norm_boundary)
     implicit none
     class(unfitted_solution_checker_t), intent(in) :: this
     real(rp), intent(inout) :: error_h1_semi_norm
@@ -80,11 +83,17 @@ contains
     real(rp), intent(inout) :: h1_semi_norm
     real(rp), intent(inout) :: l2_norm
 
+    real(rp), optional , intent(inout) :: error_h1_semi_norm_boundary
+    real(rp), optional , intent(inout) :: error_l2_norm_boundary
+    real(rp), optional , intent(inout) :: h1_semi_norm_boundary
+    real(rp), optional , intent(inout) :: l2_norm_boundary
+
     class(fe_iterator_t), allocatable :: fe
     real(rp), allocatable :: nodal_vals(:)
     real(rp), allocatable :: element_vals(:)
     type(vector_field_t), allocatable :: grad_element_vals(:)
     type(fe_map_t)           , pointer :: fe_map
+    type(piecewise_fe_map_t) , pointer :: pw_fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int
@@ -109,6 +118,13 @@ contains
     error_l2_norm = 0.0
     h1_semi_norm = 0.0
     l2_norm = 0.0
+
+    if (present(error_l2_norm_boundary)) then
+      error_h1_semi_norm_boundary= 0.0
+      error_l2_norm_boundary     = 0.0
+      h1_semi_norm_boundary      = 0.0
+      l2_norm_boundary           = 0.0
+    end if
 
     num_dime = this%fe_space%get_num_dimensions()
     num_elem_nodes =  this%fe_space%get_max_number_shape_functions()
@@ -178,6 +194,61 @@ contains
        call memfree(element_vals,__FILE__, __LINE__)
        deallocate(grad_element_vals,stat=istat); check(istat==0)
 
+
+       if (present(error_l2_norm_boundary)) then
+         if (fe%is_cut()) then
+
+           call fe%update_boundary_integration()
+
+           ! Get info on the unfitted boundary for integrating BCs
+           quad            => fe%get_boundary_quadrature()
+           num_quad_points = quad%get_number_quadrature_points()
+           pw_fe_map       => fe%get_boundary_piecewise_fe_map()
+           quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
+           cell_int         => fe%get_boundary_cell_integrator(1)
+
+           !TODO move outside
+           call memalloc(num_quad_points,element_vals,__FILE__, __LINE__)
+           allocate(grad_element_vals(1:num_quad_points), stat=istat); check(istat==0)
+
+           ! Recover values of the FE solution at integration points
+           call cell_int%evaluate_fe_function(nodal_vals,element_vals)
+           call cell_int%evaluate_gradient_fe_function(nodal_vals,grad_element_vals)
+
+           ! Loop in quadrature points
+           do igp = 1, num_quad_points
+
+             ! Evaluate exact solution at quadrature points
+             call this%exact_solution%get_value(quad_coords(igp),u_exact_gp)
+             call this%exact_solution%get_gradient(quad_coords(igp),grad_u_exact_gp)
+
+             ! Integrand at gp
+             l2_gp = u_exact_gp**2
+             error_l2_gp   = (u_exact_gp - element_vals(igp))**2
+             h1sn_gp = 0.0
+             error_h1sn_gp = 0.0
+             ! TODO a way of avoiding this loop? Maybe using TBP of vector_field_t??
+             do idime = 1, num_dime
+               h1sn_gp = h1sn_gp + ( grad_u_exact_gp%get(idime) )**2
+               error_h1sn_gp = error_h1sn_gp + ( grad_u_exact_gp%get(idime) - grad_element_vals(igp)%get(idime) )**2
+             end do
+
+             ! Integrate
+             dV = pw_fe_map%get_det_jacobian(igp) * quad%get_weight(igp)
+             error_l2_norm_boundary     = error_l2_norm_boundary      + error_l2_gp  *dV
+             error_h1_semi_norm_boundary= error_h1_semi_norm_boundary + error_h1sn_gp*dV
+             h1_semi_norm_boundary      = h1_semi_norm_boundary       + l2_gp        *dV
+             l2_norm_boundary           = l2_norm_boundary            + h1sn_gp      *dV
+
+           end do
+
+           !TODO move outside
+           call memfree(element_vals,__FILE__, __LINE__)
+           deallocate(grad_element_vals,stat=istat); check(istat==0)
+
+         end if
+       end if
+
        call fe%next()
     end do
     call this%fe_space%free_fe_iterator(fe)
@@ -190,11 +261,25 @@ contains
     call environment%l1_sum(h1_semi_norm      )
     call environment%l1_sum(l2_norm           )
 
+    if (present(error_l2_norm_boundary)) then
+      call environment%l1_sum(error_l2_norm_boundary     )
+      call environment%l1_sum(error_h1_semi_norm_boundary)
+      call environment%l1_sum(h1_semi_norm_boundary      )
+      call environment%l1_sum(l2_norm_boundary           )
+    end if
+
     ! Do not forget to do the square root
     error_l2_norm      = sqrt(error_l2_norm)
     error_h1_semi_norm = sqrt(error_h1_semi_norm)
     l2_norm            = sqrt(l2_norm)
     h1_semi_norm       = sqrt(h1_semi_norm)
+
+    if (present(error_l2_norm_boundary)) then
+      error_l2_norm_boundary     = sqrt(error_l2_norm_boundary     )
+      error_h1_semi_norm_boundary= sqrt(error_h1_semi_norm_boundary)
+      h1_semi_norm_boundary      = sqrt(h1_semi_norm_boundary      )
+      l2_norm_boundary           = sqrt(l2_norm_boundary           )
+    end if
 
   end subroutine unfitted_solution_checker_compute_error_norms
 

@@ -34,17 +34,20 @@ subroutine unfitted_fe_iterator_create( this, fe_space )
   
   class(unfitted_integration_manager_t), pointer  :: unfitted_integration_manager
   class(base_static_triangulation_t),    pointer  :: triangulation
-  
+  integer(ip) :: istat
+
   triangulation => fe_space%get_triangulation()
   select type (fe_space)
-  class is (serial_unfitted_fe_space_t)
-    unfitted_integration_manager => fe_space%unfitted_integration
-  class is (par_unfitted_fe_space_t)
-    unfitted_integration_manager => fe_space%unfitted_integration  
-  class default
-    check(.false.)
+    class is ( serial_unfitted_fe_space_t)
+      unfitted_integration_manager => fe_space%unfitted_integration
+    class is (par_unfitted_fe_space_t)
+      unfitted_integration_manager => fe_space%unfitted_integration  
+    class is ( serial_unfitted_hp_adaptive_fe_space_t)
+      unfitted_integration_manager => fe_space%unfitted_integration  
+    class default
+      check(.false.)
   end select
-  
+
   call this%free()
   call this%fe_iterator_t%create(fe_space)
   this%unfitted_integration_manager => unfitted_integration_manager
@@ -55,6 +58,7 @@ end subroutine unfitted_fe_iterator_create
 subroutine unfitted_fe_iterator_free( this )
   implicit none
   class(unfitted_fe_iterator_t)   , intent(inout) :: this
+  integer(ip) :: istat
   this%unfitted_integration_manager => null()
   call this%fe_iterator_t%free()
 end subroutine unfitted_fe_iterator_free

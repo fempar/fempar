@@ -30,6 +30,7 @@ module unfitted_fe_spaces_names
   use fempar_names
   use unfitted_triangulations_names
   use piecewise_fe_map_names
+  use hp_adaptive_fe_space_names
 
   implicit none
 # include "debug.i90"
@@ -74,6 +75,24 @@ module unfitted_fe_spaces_names
 
   end type unfitted_fe_iterator_t
 
+  type, extends(unfitted_fe_iterator_t) :: unfitted_hp_adaptive_fe_iterator_t
+      type (hp_adaptive_fe_iterator_t) :: adaptive_fe
+    contains
+
+      ! We need to override the functions that change the state
+      procedure :: create               => unfitted_hp_adaptive_fe_iterator_create
+      procedure :: free                 => unfitted_hp_adaptive_fe_iterator_free
+      procedure :: next                 => unfitted_hp_adaptive_fe_iterator_next
+      procedure :: first                => unfitted_hp_adaptive_fe_iterator_first
+      procedure :: last                 => unfitted_hp_adaptive_fe_iterator_last
+      procedure :: set_lid              => unfitted_hp_adaptive_fe_iterator_set_lid
+
+      ! Overridden in hp_adaptive_fe_iterator_t
+      procedure :: assemble             => unfitted_hp_adaptive_fe_iterator_assemble
+
+  end type unfitted_hp_adaptive_fe_iterator_t
+
+
   type :: unfitted_integration_manager_t
 
     private
@@ -112,8 +131,6 @@ module unfitted_fe_spaces_names
       procedure, non_overridable, private :: check_assumptions      => uim_check_assumptions
       procedure, non_overridable, private :: init_reference_subelem => uim_init_reference_subelem
       procedure, non_overridable, private :: free_reference_subelem => uim_free_reference_subelem
-      procedure, non_overridable, private :: init_reference_subface => uim_init_reference_subface
-      procedure, non_overridable, private :: free_reference_subface => uim_free_reference_subface
       procedure, non_overridable, private :: init_cut_integration   => uim_init_cut_integration
       procedure, non_overridable, private :: free_cut_integration   => uim_free_cut_integration
       procedure, non_overridable, private :: init_cut_boundary_integration   => uim_init_cut_boundary_integration
@@ -139,6 +156,39 @@ module unfitted_fe_spaces_names
 
   end type serial_unfitted_fe_space_t
 
+  type, extends(serial_hp_adaptive_fe_space_t) :: serial_unfitted_hp_adaptive_fe_space_t
+    private
+
+      class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
+      type(unfitted_integration_manager_t) :: unfitted_integration
+      integer(ip), allocatable :: aggregate_ids(:)
+      logical :: use_constraints = .true.
+
+    contains
+
+      ! Creation / deletion methods
+      procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
+      procedure           :: serial_fe_space_create_different_between_cells         => suhpafs_space_create_different_between_cells
+      procedure           :: free                                                   => suhpafs_free
+      procedure           :: set_use_constraints                                    => suhpafs_set_use_constraints
+      
+      ! Creation of the iterator
+      procedure :: create_fe_iterator                                               => suhpafs_create_fe_iterator
+      
+      ! Creation of constrained degrees of freedom
+      procedure          :: fill_dof_info                                           => suhpafs_fill_dof_info 
+      procedure          :: fill_elem2dof_and_count_dofs                            => suhpafs_procedure_fill_elem2dof_and_count_dofs
+
+      ! Getters
+      procedure, non_overridable :: get_aggregate_ids                               => suhpafs_get_aggregate_ids
+
+      ! Private TBPs
+      procedure, private, non_overridable :: allocate_and_fill_aggregate_ids        => suhpafs_allocate_and_fill_aggregate_ids
+      procedure, private, non_overridable :: setup_cut_cells_constraints            => suhpafs_setup_cut_cells_constraints
+      
+
+  end type serial_unfitted_hp_adaptive_fe_space_t
+
   type, extends(par_fe_space_t) :: par_unfitted_fe_space_t
     private
 
@@ -159,14 +209,18 @@ module unfitted_fe_spaces_names
 
 
   public :: unfitted_fe_iterator_t
+  public :: unfitted_hp_adaptive_fe_iterator_t
   public :: serial_unfitted_fe_space_t
+  public :: serial_unfitted_hp_adaptive_fe_space_t
   public :: par_unfitted_fe_space_t
 
 contains
 
 #include "sbm_unfitted_fe_iterator.i90"
+#include "sbm_unfitted_hp_adaptive_fe_iterator.i90"
 #include "sbm_unfitted_integration_manager.i90"
 #include "sbm_serial_unfitted_fe_space.i90"
+#include "sbm_serial_unfitted_hp_adaptive_fe_space.i90"
 #include "sbm_par_unfitted_fe_space.i90"
 
 end module unfitted_fe_spaces_names

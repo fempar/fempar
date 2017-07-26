@@ -251,7 +251,7 @@ pure function cell_iterator_get_num_vefs (this)
        this%base_static_triangulation%ptr_vefs_per_cell(this%lid)
 end function cell_iterator_get_num_vefs
 
-pure function cell_iterator_get_num_nodes (this)
+function cell_iterator_get_num_nodes (this)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: cell_iterator_get_num_nodes

@@ -953,7 +953,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      
      call cross_product_v_shape_trial_normal_proj%init(0.0_rp)
      
-     ! Integrate face boundary moments int_Face(u^n q), q \in Q_k-2,k-1 x Q_k-1,k-2
+     ! Integrate face boundary moments int_Face(u x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
      do qpoint = 1, face_quadrature%number_quadrature_points
         factor = face_map%get_det_jacobian(qpoint) * face_quadrature%get_weight(qpoint)
         call face_map%get_normal(qpoint, normal)
@@ -973,11 +973,11 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
            do jshape=1, face_interpolation%number_shape_functions
               call this%get_value(face_interpolation, jshape, qpoint, v_shape_trial)
               
-              ! Compute u^n
+              ! Compute u x n
               cross_product_v_shape_trial_normal = cross_product(v_shape_trial,normal)
               
-              ! Multiply the transpose of the jacobian with normalized columns by u^n
-              ! This is required to transform u^n in a vector contained within the face
+              ! Multiply the transpose of the jacobian with normalized columns by u x n
+              ! This is required to transform u x n in a vector contained within the face
               do i=1,this%number_dimensions-1
                 call face_map%get_jacobian_normalized_column(i,qpoint,col_jacobian)
                 call cross_product_v_shape_trial_normal_proj%set(i, col_jacobian*cross_product_v_shape_trial_normal)

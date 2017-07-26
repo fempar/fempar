@@ -31,6 +31,7 @@ module unfitted_triangulations_names
   use level_set_functions_gallery_names
   use base_sparse_matrix_names
   use dof_import_names
+  use p4est_serial_triangulation_names
   
   implicit none
 # include "debug.i90"
@@ -87,6 +88,50 @@ module unfitted_triangulations_names
     
   end type unfitted_cell_iterator_t
 
+  type, extends(unfitted_cell_iterator_t) :: unfitted_p4est_cell_iterator_t
+    private
+    type(p4est_cell_iterator_t) :: p4est_cell
+  contains
+    procedure                            :: create                  => unfitted_p4est_cell_iterator_create
+    procedure                            :: free                    => unfitted_p4est_cell_iterator_free
+    !final                                ::                            unfitted_p4est_cell_iterator_free_final
+    procedure                            :: next                    => unfitted_p4est_cell_iterator_next
+    procedure                            :: first                   => unfitted_p4est_cell_iterator_first
+    procedure                            :: last                    => unfitted_p4est_cell_iterator_last
+    procedure                            :: set_lid                 => unfitted_p4est_cell_iterator_set_lid
+    !procedure, non_overridable, private  :: set_gid                 => unfitted_p4est_cell_iterator_set_gid
+    !procedure, non_overridable, private  :: set_mypart              => unfitted_p4est_cell_iterator_set_mypart
+    !procedure, non_overridable, private  :: get_triangulation       => unfitted_p4est_cell_iterator_get_triangulation
+    procedure                            :: has_finished            => unfitted_p4est_cell_iterator_has_finished
+    procedure                            :: get_reference_fe_geo    => unfitted_p4est_cell_iterator_get_reference_fe_geo
+    procedure                            :: get_reference_fe_geo_id => unfitted_p4est_cell_iterator_get_reference_fe_geo_id
+    procedure                            :: get_coordinates         => unfitted_p4est_cell_iterator_get_coordinates
+    !procedure, non_overridable           :: set_coordinates         => unfitted_p4est_cell_iterator_set_coordinates
+    !procedure, non_overridable           :: get_lid                 => unfitted_p4est_cell_iterator_get_lid
+    !procedure, non_overridable           :: get_gid                 => unfitted_p4est_cell_iterator_get_gid
+    !procedure, non_overridable           :: get_my_part             => unfitted_p4est_cell_iterator_get_mypart
+    !procedure, non_overridable           :: get_my_subpart          => unfitted_p4est_cell_iterator_get_mysubpart
+    !procedure, non_overridable           :: get_my_subpart_lid      => unfitted_p4est_cell_iterator_get_mysubpart_lid
+    procedure                            :: get_set_id              => unfitted_p4est_cell_iterator_get_set_id
+    procedure                            :: get_level               => unfitted_p4est_cell_iterator_get_level
+    procedure                            :: get_num_vefs            => unfitted_p4est_cell_iterator_get_num_vefs
+    procedure                            :: get_num_nodes           => unfitted_p4est_cell_iterator_get_num_nodes
+    !procedure, non_overridable           :: get_node_lid            => unfitted_p4est_cell_iterator_get_node_lid
+    procedure                            :: get_vef_lid             => unfitted_p4est_cell_iterator_get_vef_lid
+    procedure                            :: get_vef_lids            => unfitted_p4est_cell_iterator_get_vef_lids
+    !procedure, non_overridable           :: get_vef_gid             => unfitted_p4est_cell_iterator_get_vef_gid
+    !procedure                            :: find_lpos_vef_lid       => unfitted_p4est_cell_iterator_find_lpos_vef_lid
+    !procedure, non_overridable           :: find_lpos_vef_gid       => unfitted_p4est_cell_iterator_find_lpos_vef_gid
+    !procedure, non_overridable           :: get_vef                 => unfitted_p4est_cell_iterator_get_vef
+    procedure                            :: is_local                => unfitted_p4est_cell_iterator_is_local
+    procedure                            :: is_ghost                => unfitted_p4est_cell_iterator_is_ghost
+    
+    procedure                            :: set_for_coarsening      => unfitted_p4est_cell_iterator_set_for_coarsening
+    procedure                            :: set_for_refinement      => unfitted_p4est_cell_iterator_set_for_refinement
+    procedure                            :: set_for_do_nothing      => unfitted_p4est_cell_iterator_set_for_do_nothing
+    procedure                            :: get_transformation_flag => unfitted_p4est_cell_iterator_get_transformation_flag
+  end type unfitted_p4est_cell_iterator_t
+
   ! We need this to create a par fe space in marching_cubes_t to hold a discrete levelset function
   type, extends(standard_l1_coarse_fe_handler_t) :: mc_dummy_coarse_fe_handler_t
     contains
@@ -122,6 +167,7 @@ module unfitted_triangulations_names
     ! Auxiliary dummy things to create the fe space for the levelset
     type(p_reference_fe_t), allocatable :: reference_fes(:) 
     type(mc_dummy_coarse_fe_handler_t)  :: dummy_coarse_handler
+    type(mc_dummy_conditions_t)         :: dummy_conditions
     type(p_l1_coarse_fe_handler_t), allocatable  :: dummy_coarse_handlers(:)
 
     ! Look up-tables (precomputed off-line, for each cell type)
@@ -239,6 +285,46 @@ module unfitted_triangulations_names
 
   end type serial_unfitted_triangulation_t
 
+  type, extends(p4est_serial_triangulation_t) :: unfitted_p4est_serial_triangulation_t
+    private
+      type(marching_cubes_t) :: marching_cubes
+    contains
+
+      ! Creation / deletion methods
+      generic             :: create                       => upst_create
+      procedure           :: free                         => upst_free
+      procedure           :: update_cut_cells             => upst_update_cut_cells
+      procedure           :: serial_triangulation_create  => upst_serial_triangulation_create
+      procedure,  private :: upst_create
+
+      ! Generate iterator by overloading the procedure of the father
+      procedure :: create_cell_iterator => upst_create_cell_iterator
+
+      ! Getters
+      procedure, non_overridable :: get_marching_cubes            => upst_get_marching_cubes
+      procedure, non_overridable :: get_num_cut_cells             => upst_get_num_cut_cells
+      procedure, non_overridable :: get_num_interior_cells        => upst_get_num_interior_cells
+      procedure, non_overridable :: get_num_exterior_cells        => upst_get_num_exterior_cells
+      procedure, non_overridable :: get_max_num_subcells_in_cell  => upst_get_max_num_subcells_in_cell
+      procedure, non_overridable :: get_max_num_nodes_in_subcell  => upst_get_max_num_nodes_in_subcell
+      procedure, non_overridable :: get_total_num_of_subcells     => upst_get_total_num_of_subcells
+      procedure, non_overridable :: get_max_num_subfaces_in_cell  => upst_get_max_num_subfaces_in_cell
+      procedure, non_overridable :: get_max_num_nodes_in_subface  => upst_get_max_num_nodes_in_subface
+      procedure, non_overridable :: get_total_num_of_subfaces     => upst_get_total_num_of_subfaces
+      procedure, non_overridable :: get_max_num_subnodes_in_cell  => upst_get_max_num_subnodes_in_cell
+
+      ! TODO this getters should be removed in the future
+      ! Now the fe space uses them.
+      ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
+      procedure, non_overridable :: get_num_mc_cases              => upst_get_num_mc_cases
+      procedure, non_overridable :: get_num_subcells_mc_case      => upst_get_num_subcells_mc_case
+      procedure, non_overridable :: get_num_subfaces_mc_case      => upst_get_num_subfaces_mc_case
+
+      ! Printers
+      procedure :: print                     => upst_print
+
+  end type unfitted_p4est_serial_triangulation_t
+
   type, extends(par_triangulation_t) :: par_unfitted_triangulation_t
     private
       type(marching_cubes_t) :: marching_cubes
@@ -280,15 +366,19 @@ module unfitted_triangulations_names
 
   ! Derived types
   public :: unfitted_cell_iterator_t
+  public :: unfitted_p4est_cell_iterator_t
   public :: marching_cubes_t 
   public :: serial_unfitted_triangulation_t
+  public :: unfitted_p4est_serial_triangulation_t
   public :: par_unfitted_triangulation_t
 
 contains
 
 #include "sbm_unfitted_cell_iterator.i90"
+#include "sbm_unfitted_p4est_cell_iterator.i90"
 #include "sbm_marching_cubes.i90"
 #include "sbm_serial_unfitted_triangulation.i90"
+#include "sbm_unfitted_p4est_serial_triangulation.i90"
 #include "sbm_par_unfitted_triangulation.i90"
 
 end module unfitted_triangulations_names
