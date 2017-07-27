@@ -203,6 +203,14 @@ module p4est_serial_triangulation_names
                                                               1,  3,  5,  7,&
                                                               2,  4,  6,  8 ], [NUM_SUBCELLS_IN_TOUCH_FACE_3D, NUM_FACES_3D])
 
+  integer(ip), target :: FEMPAR_EDGE_OF_SUBCELLS_IN_TOUCH_FACE_3D(NUM_SUBCELLS_IN_TOUCH_FACE_3D,NUM_FACES_3D) = &
+                                                    reshape([ 6,  2,  1,  5,&
+                                                              8,  4,  3,  7,&
+                                                             10,  3,  1,  9,&
+                                                             12,  4,  2, 11,&
+                                                             11,  7,  5,  9,&
+                                                             12,  8,  6, 10 ], [NUM_SUBCELLS_IN_TOUCH_FACE_3D, NUM_FACES_3D])
+
   integer(ip), target :: FEMPAR_SUBCELLS_IN_TOUCH_EDGE_3D(NUM_SUBCELLS_IN_TOUCH_EDGE_3D,NUM_EDGES_3D) = &
                                                     reshape([ 1,  2,&
                                                               3,  4,&

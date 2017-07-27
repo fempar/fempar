@@ -710,15 +710,18 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
   type(std_vector_integer_ip_t) :: old_proper_vefs_set_ids
   type(std_vector_integer_ip_t) :: old_improper_vefs_set_ids
   integer(ip), pointer :: FEMPAR_SUBCELLS_IN_TOUCH_FACE(:,:)
+  integer(ip) :: NUM_SUBCELLS_IN_TOUCH_FACE
   integer(ip) :: num_edges_ref_elem_geo
 
 #ifdef ENABLE_P4EST    
 
   if (this%p4est_num_dimensions == 2) then
     FEMPAR_SUBCELLS_IN_TOUCH_FACE => FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D
+    NUM_SUBCELLS_IN_TOUCH_FACE = NUM_SUBCELLS_IN_TOUCH_FACE_2D
     num_edges_ref_elem_geo = 0
   else
     FEMPAR_SUBCELLS_IN_TOUCH_FACE => FEMPAR_SUBCELLS_IN_TOUCH_FACE_3D
+    NUM_SUBCELLS_IN_TOUCH_FACE = NUM_SUBCELLS_IN_TOUCH_FACE_3D
     num_edges_ref_elem_geo = this%reference_fe_geo%get_number_n_faces_of_dimension(1)
   end if
   
@@ -781,12 +784,17 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
       
       do iface=1, this%reference_fe_geo%get_number_faces()
          ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0) + num_edges_ref_elem_geo  + iface
-         do j=1, NUM_SUBCELLS_IN_TOUCH_FACE_2D
+         do j=1, NUM_SUBCELLS_IN_TOUCH_FACE
             call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE(j,iface)-1)
             call cell%get_vef(ivef,vef)
             old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
             old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
             call vef%set_set_id(old_vef_set_id)
+            if (this%p4est_num_dimensions == 3) then
+              iedge = FEMPAR_EDGE_OF_SUBCELLS_IN_TOUCH_FACE_3D(j,iface)
+              call cell%get_vef(this%reference_fe_geo%get_number_n_faces_of_dimension(0)+iedge,vef)
+              call vef%set_set_id(old_vef_set_id)
+            end if
          end do
          vertices_per_n_face_iterator = vertices_n_face%create_iterator(ivef)
          call cell%get_vef(vertices_per_n_face_iterator%get_current(),vef)
