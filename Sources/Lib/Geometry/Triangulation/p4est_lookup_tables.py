@@ -22,6 +22,7 @@ for iface in range(1,num_faces_3d+1):
     i = p4est_2_fempar_faces_3d.index(iface)
     fempar_subcells_in_touch_face.append(face_corners_3d[i])
 
+
 fempar_subcells_in_touch_edge = []
 for iedge in range(1,num_edges_3d+1):
     i = p4est_2_fempar_edges_3d.index(iedge)
@@ -39,6 +40,37 @@ for iface in range(0,num_faces_3d):
             if [c1,c2]==edge_corners :
                 aux.append(iedge+1)
     face_edges_3d.append(aux)
+
+fempar_edge_of_subcells_in_touch_face = []
+for iface in range(1,num_faces_3d+1):
+    #print 'face = ' + str(iface)
+    i = p4est_2_fempar_faces_3d.index(iface)
+    subcells = fempar_subcells_in_touch_face[iface-1]
+    edges = face_edges_3d[i]
+    edge_of_subcells = []
+    isubcell = 0
+    for subcell in subcells:
+        isubcell +=1
+        tent_edges = []
+        tent_edges_lid = []
+        #print '  subcell = ' + str(subcell)
+        for iedge in range(0,num_face_edges_3d):
+            corners = edge_corners_3d[edges[iedge]-1]
+            if ( (subcell not in corners) ):
+                tent_edges.append(edges[iedge])
+                tent_edges_lid.append(iedge)
+        #print '     tent_edges = ' + str(tent_edges)
+        #print '     tent_edges_lid = ' + str(tent_edges_lid)
+        if (isubcell in [1, 4]):
+            edge_winer = tent_edges[tent_edges_lid.index(min(tent_edges_lid))]
+        else:
+            edge_winer = tent_edges[tent_edges_lid.index(max(tent_edges_lid))]
+
+        #print '     edge = ' + str(edge_winer)
+        edge_of_subcells.append(edge_winer)
+
+    #print ''
+    fempar_edge_of_subcells_in_touch_face.append(edge_of_subcells)
 
 faces_at_corner_3d = []
 for icorner in range(1,num_corners_3d+1):
@@ -120,6 +152,14 @@ for scells in fempar_subcells_in_touch_face:
     buf = ''
     for cell in scells:
         buf += '{:3d}'.format(cell) + ','
+    buf += '&'
+    print buf
+
+print 'FEMPAR_EDGE_OF_SUBCELLS_IN_TOUCH_FACE_3D'
+for edges in fempar_edge_of_subcells_in_touch_face:
+    buf = ''
+    for edge in edges:
+        buf += '{:3d}'.format(edge) + ','
     buf += '&'
     print buf
 
