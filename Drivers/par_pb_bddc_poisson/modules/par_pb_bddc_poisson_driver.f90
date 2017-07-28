@@ -506,7 +506,7 @@ contains
     call this%fe_space%initialize_fe_face_integration()
     call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-    call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)    
+    call this%fe_space%interpolate_dirichlet_values(this%solution)    
     !call this%fe_space%print()
   end subroutine setup_fe_space
 

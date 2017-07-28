@@ -312,10 +312,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
 
   end do ! Loop in fields
 
-
-  call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
-  call this%strong_dirichlet_values%init(0.0_rp)
-
   call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
   call memfree (offset_component_per_field,__FILE__,__LINE__)
@@ -380,11 +376,12 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   end if
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
 
-subroutine serial_fe_space_interpolate_dirichlet_values (this, time, fields_to_interpolate)
+subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time, fields_to_interpolate)
   implicit none
-  class(serial_fe_space_t), intent(inout)  :: this
-  real(rp)       , optional   , intent(in) :: time
-  integer(ip)    , optional   , intent(in) :: fields_to_interpolate(:)
+  class(serial_fe_space_t)          , intent(inout) :: this
+  class(fe_function_t)              , intent(inout) :: fe_function
+  real(rp)                , optional, intent(in)    :: time
+  integer(ip)             , optional, intent(in)    :: fields_to_interpolate(:)
 
   !  Locals
   integer(ip)                                :: field_id, istat, ifield, jfield
@@ -411,6 +408,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, time, fields_to_i
 
   class(reference_fe_t)        , pointer     :: reference_fe
   class(scalar_function_t)     , pointer     :: scalar_function
+  type(serial_scalar_array_t)  , pointer     :: strong_dirichlet_values
 
   type(list_iterator_t)    :: own_dofs_on_vef_iterator
   class(fe_iterator_t), allocatable :: fe
@@ -468,6 +466,10 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, time, fields_to_i
   allocate ( elem2dof(number_fields), stat=istat ) 
   check (istat==0)
 
+  strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
+  call strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
+  call strong_dirichlet_values%init(0.0_rp)
+  
   ! IMPORTANT : The following code is implicitly assuming that the
   !             composition of reference FEs, for all cells on top of
   !             the same geometric reference FE, is the same.
@@ -546,7 +548,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, time, fields_to_i
                           if(elem2dof(field_id)%p(local_within_ref_fe_dof_id) < 0) then
                              local_within_ref_fe_scalar_dof_id = reference_fe%get_scalar_from_vector_node(local_within_ref_fe_dof_id)
                              strong_dirichlet_dof_id = -elem2dof(field_id)%p(local_within_ref_fe_dof_id)
-                             call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
+                             call strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
                           end if
                        end if
                        call own_dofs_on_vef_iterator%next()
@@ -572,6 +574,10 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, time, fields_to_i
      end do
   end do
 
+  ! TEMPORARY instructions for dev & testing
+  call this%strong_dirichlet_values%clone(strong_dirichlet_values)
+  call this%strong_dirichlet_values%copy(strong_dirichlet_values)
+  
   call memfree(offset_component, __FILE__, __LINE__) 
   deallocate(elem2dof, stat=istat ) 
   check (istat==0)
@@ -584,11 +590,12 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, time, fields_to_i
   call memfree ( fields_to_interpolate_, __FILE__, __LINE__ ) 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
-subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, time, fields_to_project)
+subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_function, time, fields_to_project)
   implicit none
-  class(serial_fe_space_t), intent(inout)  :: this
-  real(rp)       , optional   , intent(in) :: time
-  integer(ip)    , optional   , intent(in) :: fields_to_project(:) 
+  class(serial_fe_space_t)          , intent(inout) :: this
+  class(fe_function_t)              , intent(inout) :: fe_function
+  real(rp)                , optional, intent(in)    :: time
+  integer(ip)             , optional, intent(in)    :: fields_to_project(:)
 
   !  Locals
   integer(ip)                  , allocatable :: fields_to_project_(:)  
@@ -597,6 +604,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, time,
   integer(ip)                  , allocatable :: offset_component(:)
   integer(ip)                                :: number_components
   logical                      , allocatable :: components_code(:)
+  type(serial_scalar_array_t)  , pointer     :: strong_dirichlet_values
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
@@ -770,10 +778,16 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, time,
   call parameter_list%free()
 
   ! Insert projected nodal values into strong_dirichlet_values array 
-  call this%strong_dirichlet_values%insert_subvector(iblock=1, &
-                                                     size_indices=number_subset_strong_dirichlet_dofs, &
-                                                     indices=subset2global_dirichlet_dofs,             &
-                                                     values=projected_nodal_values%get_entries())
+  strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
+  call strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
+  call strong_dirichlet_values%init(0.0_rp)
+  call strong_dirichlet_values%insert_subvector(iblock=1, &
+                                                size_indices=number_subset_strong_dirichlet_dofs, &
+                                                indices=subset2global_dirichlet_dofs,             &
+                                                values=projected_nodal_values%get_entries())
+  ! TEMPORARY instructions for dev & testing
+  call this%strong_dirichlet_values%clone(strong_dirichlet_values)
+  call this%strong_dirichlet_values%copy(strong_dirichlet_values)
 
   call matrix%free()
   call rhs%free()
@@ -869,7 +883,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   if (allocated(subset2global)) call memfree(subset2global,__FILE__,__LINE__)
   
   allocate( elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
-  call memalloc ( this%strong_dirichlet_values%get_size(), global2subset, __FILE__, __LINE__ ) 
+  call memalloc ( this%number_strong_dirichlet_dofs, global2subset, __FILE__, __LINE__ ) 
   global2subset=0
 
   ! Count number of Dirichlet DOFs to be projected
@@ -898,7 +912,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   ! Allocate + compute subset2global_dirichlet_dofs from subset2global_dirichlet_dofs
   call memalloc ( num_subset_strong_dirichlet_dofs, subset2global, __FILE__, __LINE__ ) 
   idof_subset=1
-  do idof_global=1, this%strong_dirichlet_values%get_size()
+  do idof_global=1, this%number_strong_dirichlet_dofs
      if (global2subset(idof_global) /= 0) then
         subset2global(idof_subset) = global2subset(idof_global) 
         idof_subset=idof_subset+1

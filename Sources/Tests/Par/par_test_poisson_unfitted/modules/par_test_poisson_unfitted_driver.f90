@@ -412,7 +412,7 @@ end subroutine free_timers
     call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
     call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
-    call this%fe_space%interpolate_dirichlet_values()    
+    call this%fe_space%interpolate_dirichlet_values(this%solution)    
     !call this%fe_space%print()
   end subroutine setup_fe_space
   

@@ -220,12 +220,12 @@ contains
        call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
     end if
     ! Interpolate Dirichlet values to magnetic pressure field 
-    call this%fe_space%interpolate_dirichlet_values(this%theta_method%get_initial_time() , fields_to_interpolate=(/2/) )
+    call this%fe_space%interpolate_dirichlet_values(this%H_previous,this%theta_method%get_initial_time() , fields_to_interpolate=(/2/) )
     ! Create H_previous with initial time (t0) boundary conditions 
-    call this%fe_space%project_dirichlet_values_curl_conforming(time=this%theta_method%get_initial_time(), fields_to_project=(/1/) )
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%H_previous,time=this%theta_method%get_initial_time(), fields_to_project=(/1/) )
     call this%H_previous%create(this%fe_space) 
     ! Update fe_space to the current time (t1) boundary conditions, create H_current 
-    call this%fe_space%project_dirichlet_values_curl_conforming(time=this%theta_method%get_current_time(), fields_to_project=(/1/) )
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current,time=this%theta_method%get_current_time(), fields_to_project=(/1/) )
     call this%H_current%create(this%fe_space)
        
   end subroutine setup_fe_space 
@@ -489,7 +489,7 @@ contains
      end if
 
      if (.not. this%theta_method%finished() ) then 
-        call this%fe_space%project_dirichlet_values_curl_conforming(time=this%theta_method%get_current_time(), fields_to_project=(/ 1 /) )
+        call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current,time=this%theta_method%get_current_time(), fields_to_project=(/ 1 /) )
         call this%H_current%update_strong_dirichlet_values(this%fe_space) 
         call this%assemble_system() 
      end if

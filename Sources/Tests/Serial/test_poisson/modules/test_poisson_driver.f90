@@ -359,7 +359,7 @@ contains
       call this%fe_space%initialize_fe_face_integration()
     end if
     if ( this%test_params%get_fe_formulation() == 'cG' ) then
-      call this%fe_space%interpolate_dirichlet_values()
+      call this%fe_space%interpolate_dirichlet_values(this%solution)
     end if
     call this%setup_fe_quadratures_degree()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then

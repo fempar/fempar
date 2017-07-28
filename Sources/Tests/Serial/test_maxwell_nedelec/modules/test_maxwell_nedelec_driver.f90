@@ -147,7 +147,7 @@ contains
 	   if ( this%triangulation%get_num_dimensions() == 3) then 
 	     call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	   end if 
-    call this%fe_space%project_dirichlet_values_curl_conforming()
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
