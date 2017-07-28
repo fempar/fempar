@@ -87,7 +87,7 @@ subroutine vef_iterator_get_coordinates (this, vef_coordinates)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
   type(point_t)        , intent(inout) :: vef_coordinates(:)
-  class(cell_iterator_t)          , allocatable :: cell
+  type(cell_iterator_t)                         :: cell
   integer(ip)                                   :: inode_within_cell
   integer(ip)                                   :: inode_within_vef
   class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
@@ -96,7 +96,7 @@ subroutine vef_iterator_get_coordinates (this, vef_coordinates)
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
   assert ( allocated ( this%base_static_triangulation%coordinates ) )
   
-  call this%base_static_triangulation%create_cell_iterator(cell)
+  call cell%create(this%base_static_triangulation)
   call this%get_cell_around(1, cell)
   reference_fe_geo => cell%get_reference_fe_geo()
   dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%find_lpos_vef_lid(this%get_lid()))
@@ -107,7 +107,7 @@ subroutine vef_iterator_get_coordinates (this, vef_coordinates)
     call dofs_on_vef_iterator%next()
     inode_within_vef = inode_within_vef + 1
   end do
-  call this%base_static_triangulation%free_cell_iterator(cell)
+  call cell%free()
 end subroutine vef_iterator_get_coordinates
 
 function vef_iterator_get_lid (this)
