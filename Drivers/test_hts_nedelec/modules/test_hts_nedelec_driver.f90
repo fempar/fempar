@@ -213,20 +213,6 @@ contains
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration() 
-    call this%hts_nedelec_conditions%set_boundary_function_p(this%problem_functions%get_boundary_function_p())
-    call this%hts_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
-    call this%hts_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
-    if ( this%triangulation%get_num_dimensions() == 3) then 
-       call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
-    end if
-    ! Interpolate Dirichlet values to magnetic pressure field 
-    call this%fe_space%interpolate_dirichlet_values(this%H_previous,this%theta_method%get_initial_time() , fields_to_interpolate=(/2/) )
-    ! Create H_previous with initial time (t0) boundary conditions 
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%H_previous,time=this%theta_method%get_initial_time(), fields_to_project=(/1/) )
-    call this%H_previous%create(this%fe_space) 
-    ! Update fe_space to the current time (t1) boundary conditions, create H_current 
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current,time=this%theta_method%get_current_time(), fields_to_project=(/1/) )
-    call this%H_current%create(this%fe_space)
        
   end subroutine setup_fe_space 
     
@@ -252,6 +238,22 @@ contains
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_UNKNOWN ], &
                                           fe_space                          = this%fe_space,           &
                                           discrete_integration              = this%hts_nedelec_integration )
+    
+    call this%hts_nedelec_conditions%set_boundary_function_p(this%problem_functions%get_boundary_function_p())
+    call this%hts_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
+    call this%hts_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
+    if ( this%triangulation%get_num_dimensions() == 3) then 
+       call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
+    end if
+    ! Create H_previous with initial time (t0) boundary conditions 
+    call this%H_previous%create(this%fe_space)
+    call this%fe_space%interpolate_dirichlet_values(this%H_previous,this%theta_method%get_initial_time() , fields_to_interpolate=(/2/) )
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%H_previous,time=this%theta_method%get_initial_time(), fields_to_project=(/1/) ) 
+    ! Update fe_space to the current time (t1) boundary conditions, create H_current
+    call this%H_current%create(this%fe_space)
+    ! this%H_current = this%H_previous
+    call this%fe_space%interpolate_dirichlet_values(this%H_current,this%theta_method%get_initial_time() , fields_to_interpolate=(/2/) )
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current,time=this%theta_method%get_current_time(), fields_to_project=(/1/) )
     
         ! Setup constraint matrix if the problem is defined constrained 
     if (this%test_params%get_apply_current_density_constraint() ) then 

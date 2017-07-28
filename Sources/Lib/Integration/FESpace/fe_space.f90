@@ -440,6 +440,7 @@ module fe_space_names
      procedure                           :: get_environment                              => serial_fe_space_get_environment
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
+     procedure                           :: get_number_strong_dirichlet_dofs             => serial_fe_space_get_number_strong_dirichlet_dofs
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      procedure                           :: get_number_blocks                            => serial_fe_space_get_number_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks

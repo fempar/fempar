@@ -400,6 +400,10 @@ end subroutine free_timers
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_FULL) = PAR_POISSON_UNFITTED_SET_ID_FULL
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_VOID) = PAR_POISSON_UNFITTED_SET_ID_VOID
     
+    call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
+    call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
+    
     call this%fe_space%create( triangulation            = this%triangulation, &
                                reference_fes            = this%reference_fes, &
                                set_ids_to_reference_fes = set_ids_to_reference_fes, &
@@ -408,11 +412,6 @@ end subroutine free_timers
     
     !call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
-    
-    call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
-    call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
-    call this%fe_space%interpolate_dirichlet_values(this%solution)    
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
@@ -420,7 +419,6 @@ end subroutine free_timers
   subroutine setup_system (this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
-
     
     call this%poisson_unfitted_integration%set_analytical_functions(this%poisson_unfitted_analytical_functions)
     call this%poisson_unfitted_integration%set_test_params(this%test_params)
@@ -433,6 +431,8 @@ end subroutine free_timers
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_unfitted_integration )
 
+    call this%solution%create(this%fe_space) 
+    call this%fe_space%interpolate_dirichlet_values(this%solution)    
 
   end subroutine setup_system
 
@@ -792,7 +792,6 @@ end subroutine free_timers
 
     call this%timer_solver_total%start()
     call this%setup_solver()
-    call this%solution%create(this%fe_space) 
     call this%solve_system()
     call this%timer_solver_total%stop()
 

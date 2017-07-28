@@ -497,6 +497,9 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
+    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
+    
     call this%fe_space%create( triangulation       = this%triangulation, &
                                reference_fes       = this%reference_fes, &
                                coarse_fe_handlers  = this%coarse_fe_handlers, &
@@ -504,9 +507,7 @@ contains
 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration()
-    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-    call this%fe_space%interpolate_dirichlet_values(this%solution)    
+
     !call this%fe_space%print()
   end subroutine setup_fe_space
 
@@ -523,6 +524,10 @@ contains
          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
          fe_space                          = this%fe_space, &
          discrete_integration              = this%poisson_integration )
+    
+    call this%solution%create(this%fe_space) 
+    call this%fe_space%interpolate_dirichlet_values(this%solution)    
+    
   end subroutine setup_system
 
   subroutine setup_solver (this)
@@ -827,7 +832,6 @@ contains
     call t_solve_system%create(this%environment%get_w_context() , "SOLVE SYSTEM", TIMER_MODE_MIN)
     call t_solve_system%start()
     call this%setup_solver()
-    call this%solution%create(this%fe_space) 
     call this%solve_system()
     call t_solve_system%stop()
     call t_solve_system%report()

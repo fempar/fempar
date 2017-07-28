@@ -32,7 +32,7 @@
  
   ! * Create + allocate (polymorphic) dof_values member variable relying on fe_space
   !   (NOTE: it does not initialize it)
-  ! * Create + allocate + copy strong_dirichlet_values extracted from fe_space
+  ! * Create + allocate + init strong_dirichlet_values to be filled in fe_space
   subroutine fe_function_create( this, fe_space )
     implicit none
     class(fe_function_t)            , intent(inout) :: this
@@ -40,9 +40,8 @@
     type(serial_scalar_array_t), pointer :: strong_dirichlet_values
     call this%free()
     call fe_space%create_dof_values(this%dof_values)
-    strong_dirichlet_values => fe_space%get_strong_dirichlet_values()
-    call this%strong_dirichlet_values%clone(strong_dirichlet_values)
-    call this%strong_dirichlet_values%copy(strong_dirichlet_values)
+    call this%strong_dirichlet_values%create_and_allocate(fe_space%get_number_strong_dirichlet_dofs())
+    call this%strong_dirichlet_values%init(0.0_rp)
   end subroutine fe_function_create
  
  !===============================================================================================

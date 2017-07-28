@@ -236,8 +236,10 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   integer(ip), allocatable           :: visited_vef_to_fe_map(:,:)
   integer(ip)                        :: previous_number_dirichlet_dofs
   
+  ! Count number_strong_dirichlet_dofs
+  this%number_strong_dirichlet_dofs = 0
+  
   if ( .not. associated(this%conditions) ) then
-    call this%strong_dirichlet_values%create_and_allocate(0)
     return
   end if
   
@@ -250,9 +252,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
 
   call memalloc (this%get_number_fields()+1,offset_component_per_field,__FILE__,__LINE__)
   call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
-
-  ! Count number_strong_dirichlet_dofs
-  this%number_strong_dirichlet_dofs = 0
 
   call this%create_fe_iterator(fe)
   call this%create_fe_iterator(source_fe)
@@ -467,8 +466,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
   check (istat==0)
 
   strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
-  call strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
-  call strong_dirichlet_values%init(0.0_rp)
   
   ! IMPORTANT : The following code is implicitly assuming that the
   !             composition of reference FEs, for all cells on top of
@@ -779,8 +776,6 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
 
   ! Insert projected nodal values into strong_dirichlet_values array 
   strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
-  call strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
-  call strong_dirichlet_values%init(0.0_rp)
   call strong_dirichlet_values%insert_subvector(iblock=1, &
                                                 size_indices=number_subset_strong_dirichlet_dofs, &
                                                 indices=subset2global_dirichlet_dofs,             &
@@ -2149,6 +2144,13 @@ subroutine serial_fe_space_set_conditions( this, conditions )
   class(conditions_t)     , target, intent(in)    :: conditions
   this%conditions => conditions
 end subroutine serial_fe_space_set_conditions
+
+function serial_fe_space_get_number_strong_dirichlet_dofs(this) result(number_strong_dirichlet_dofs)
+  implicit none
+  class(serial_fe_space_t), target, intent(in)    :: this 
+  integer(ip) :: number_strong_dirichlet_dofs
+  number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs
+end function serial_fe_space_get_number_strong_dirichlet_dofs
 
 function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichlet_values)
   implicit none

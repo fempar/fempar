@@ -1717,8 +1717,6 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      
      ! Insert projected nodal values into strong_dirichlet_values array
      strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
-     call strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
-     call strong_dirichlet_values%init(0.0_rp)
      call this%strong_dirichlet_values%insert_subvector(iblock=1, &
                                                         size_indices=number_subset_strong_dirichlet_dofs, &
                                                         indices=subset2global_dirichlet_dofs,             &

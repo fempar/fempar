@@ -299,9 +299,7 @@ contains
       mcheck(.false.,'Test only runs for Scalar Problems')
     end if
 
-    !call this%fe_space%fill_dof_info()
     call this%fe_space%initialize_fe_integration()
-    call this%fe_space%interpolate_dirichlet_values(this%solution)
 
   end subroutine setup_fe_space
 
@@ -323,6 +321,8 @@ contains
     else
         mcheck(.false.,'Test only runs for Scalar Problems')
     end if
+    call this%solution%create(this%fe_space)
+    call this%fe_space%interpolate_dirichlet_values(this%solution)
   end subroutine setup_system
 
   subroutine setup_solver (this)
@@ -603,7 +603,6 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%solution%create(this%fe_space)
     call this%solve_system()
     call this%check_solution()
     !if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then

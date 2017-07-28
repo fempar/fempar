@@ -358,9 +358,6 @@ contains
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
       call this%fe_space%initialize_fe_face_integration()
     end if
-    if ( this%test_params%get_fe_formulation() == 'cG' ) then
-      call this%fe_space%interpolate_dirichlet_values(this%solution)
-    end if
     call this%setup_fe_quadratures_degree()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
       call this%setup_fe_face_quadratures_degree()
@@ -427,6 +424,10 @@ contains
       else
         mcheck(.false.,'Vector poisson dG integration is not implemented')
       end if
+    end if
+    call this%solution%create(this%fe_space) 
+    if ( this%test_params%get_fe_formulation() == 'cG' ) then
+      call this%fe_space%interpolate_dirichlet_values(this%solution)
     end if
   end subroutine setup_system
   
@@ -648,7 +649,6 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%solution%create(this%fe_space) 
     call this%solve_system()
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%check_solution()
