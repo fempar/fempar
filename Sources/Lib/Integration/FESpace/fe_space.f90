@@ -344,6 +344,7 @@ module fe_space_names
     
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
+     integer(ip)                                 :: number_strong_dirichlet_dofs
      type(serial_scalar_array_t)                 :: strong_dirichlet_values
      logical                       , allocatable :: at_strong_dirichlet_boundary_per_fe(:,:)
      

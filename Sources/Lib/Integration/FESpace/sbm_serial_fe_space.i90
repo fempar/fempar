@@ -235,7 +235,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   logical              , allocatable :: components_code(:)
   integer(ip), allocatable           :: visited_vef_to_fe_map(:,:)
   integer(ip)                        :: previous_number_dirichlet_dofs
-  integer(ip)                        :: number_strong_dirichlet_dofs
   
   if ( .not. associated(this%conditions) ) then
     call this%strong_dirichlet_values%create_and_allocate(0)
@@ -253,7 +252,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
 
   ! Count number_strong_dirichlet_dofs
-  number_strong_dirichlet_dofs = 0
+  this%number_strong_dirichlet_dofs = 0
 
   call this%create_fe_iterator(fe)
   call this%create_fe_iterator(source_fe)
@@ -288,19 +287,18 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
                call this%conditions%get_components_code( vef%get_set_id(), components_code )
 
                ! Auxiliary function containing the work done at each innermost iteration
-               previous_number_dirichlet_dofs = number_strong_dirichlet_dofs
+               previous_number_dirichlet_dofs = this%number_strong_dirichlet_dofs
                call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
                                                                       vef,&
                                                                       ivef,&
                                                                       field_id,&
                                                                       components_code(offset_component_per_field(field_id):&
                                                                                       offset_component_per_field(field_id+1)-1),&
-                                                                      number_strong_dirichlet_dofs,&
                                                                       visited_vef_to_fe_map,&
                                                                       source_fe)
 
                if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 .and. &
-                    previous_number_dirichlet_dofs < number_strong_dirichlet_dofs ) then
+                    previous_number_dirichlet_dofs < this%number_strong_dirichlet_dofs ) then
                   visited_vef_to_fe_map ( 1, vef%get_lid() ) = fe%get_lid()
                   visited_vef_to_fe_map ( 2, vef%get_lid() ) = ivef
                end if
@@ -315,7 +313,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   end do ! Loop in fields
 
 
-  call this%strong_dirichlet_values%create_and_allocate(number_strong_dirichlet_dofs)
+  call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
   call this%strong_dirichlet_values%init(0.0_rp)
 
   call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
@@ -332,7 +330,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
                                                                         ivef, &
                                                                         field_id,&
                                                                         components_code,&
-                                                                        number_strong_dirichlet_dofs,&
                                                                         visited_vef_to_fe_map,&
                                                                         source_fe)
   implicit none
@@ -342,7 +339,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   integer(ip),              intent(in)    :: ivef
   integer(ip),              intent(in)    :: field_id
   logical,                  intent(in)    :: components_code(:)
-  integer(ip),              intent(inout) :: number_strong_dirichlet_dofs
   integer(ip),              intent(inout) :: visited_vef_to_fe_map(:,:)
   class(fe_iterator_t),     intent(inout) :: source_fe
 
@@ -361,7 +357,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
        if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
            call fe%fill_own_dofs_on_vef ( ivef, &
                                           field_id, &
-                                          number_strong_dirichlet_dofs, &
+                                          this%number_strong_dirichlet_dofs, &
                                           free_dofs_loop=.false.)
        end if
      end if
@@ -369,7 +365,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
      if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
        call fe%fill_own_dofs_on_vef_component_wise ( ivef, &
                                                      field_id, &
-                                                     number_strong_dirichlet_dofs, &
+                                                     this%number_strong_dirichlet_dofs, &
                                                      components_code, &
                                                      free_dofs_loop=.false. )
      end if
