@@ -15,6 +15,7 @@ module par_pb_bddc_poisson_params_names
   character(len=*), parameter :: standard_bddc              = 'standard_bddc' 
   character(len=*), parameter :: pb_bddc                    = 'pb_bddc' 
   character(len=*), parameter :: nchannel_per_direction_key = 'nchannel_per_direction' 
+  character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels' 
 
   type, extends(parameter_handler_t) :: par_pb_bddc_poisson_params_t
      private
@@ -32,6 +33,8 @@ module par_pb_bddc_poisson_params_names
        procedure, non_overridable             :: get_inclusion
        procedure, non_overridable             :: get_coarse_fe_handler_type
        procedure, non_overridable             :: get_nchannel_per_direction
+       procedure, non_overridable             :: get_nparts_with_channels
+       procedure, non_overridable             :: get_nparts
        !procedure, non_overridable             :: get_num_dimensions
   end type par_pb_bddc_poisson_params_t
 
@@ -73,8 +76,9 @@ contains
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
-    error = list%set(key = coarse_fe_handler_type_key        , value =  pb_bddc)                      ; check(error==0)
-    error = list%set(key = nchannel_per_direction_key        , value =  1)  ; check(error==0)
+    error = list%set(key = coarse_fe_handler_type_key        , value =  pb_bddc)                     ; check(error==0)
+    error = list%set(key = nchannel_per_direction_key        , value = [1,1,1])                      ; check(error==0)
+    error = list%set(key = nparts_with_channels_key          , value = [1,1,1])                      ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                ; check(error==0)
@@ -97,6 +101,7 @@ contains
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
     error = switches%set(key = coarse_fe_handler_type_key    , value = '--coarse-fe-handler')        ; check(error==0)
     error = switches%set(key = nchannel_per_direction_key    , value = '--nchannel_per_direction')   ; check(error==0)
+    error = switches%set(key = nparts_with_channels_key      , value = '--nparts_with_channels')     ; check(error==0)
 
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
@@ -119,6 +124,7 @@ contains
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
     error = switches_ab%set(key = coarse_fe_handler_type_key    , value = '-coarse-handler')        ; check(error==0)
     error = switches_ab%set(key = nchannel_per_direction_key    , value = '-nc')        ; check(error==0)
+    error = switches_ab%set(key = nparts_with_channels_key      , value = '-npwc')      ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')               ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                       ; check(error==0)
@@ -138,6 +144,7 @@ contains
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = coarse_fe_handler_type_key    , value  = 'Which coarse fe handler to use?')        ; check(error==0)
     error = helpers%set(key = nchannel_per_direction_key    , value  = 'Number of channels per direction')       ; check(error==0)
+    error = helpers%set(key = nparts_with_channels_key      , value  = 'Number of parts per with channels')      ; check(error==0)
 
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -170,6 +177,7 @@ contains
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_fe_handler_type_key    , value = .false.) ; check(error==0)
     error = required%set(key = nchannel_per_direction_key    , value = .false.) ; check(error==0)
+    error = required%set(key = nparts_with_channels_key      , value = .false.) ; check(error==0)
 
 
   end subroutine par_pb_bddc_poisson_params_define_parameters
@@ -320,7 +328,7 @@ contains
   function get_nchannel_per_direction(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_nchannel_per_direction
+    integer(ip)                                   :: get_nchannel_per_direction(3)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
@@ -329,5 +337,43 @@ contains
     assert(error==0)
   end function get_nchannel_per_direction
 
+  !==================================================================================================
+  function get_nparts_with_channels(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_nparts_with_channels(3)
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(nparts_with_channels_key, get_nparts_with_channels))
+    error = list%Get(key = nparts_with_channels_key, Value = get_nparts_with_channels)
+    assert(error==0)
+  end function get_nparts_with_channels
+
+  !==================================================================================================
+  function get_nparts(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    integer(ip)                                   :: number_of_levels
+    integer(ip)                                   :: get_nparts(3)
+    integer(ip), allocatable :: number_of_parts_per_dir(:) ! 0:SPACE_DIM-1)
+    integer(ip), allocatable :: array_size(:)
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(number_of_levels_key, number_of_levels))
+    error = list%Get(key = number_of_levels_key, Value = number_of_levels)
+    assert(error==0)       
+    error = list%GetShape(key = number_of_parts_per_dir_key   , shape = array_size); 
+    check(error==0)
+    assert(array_size(1) >= number_of_levels*SPACE_DIM)
+    call memalloc(array_size(1), number_of_parts_per_dir)
+    error = list%get(key = number_of_parts_per_dir_key , value = number_of_parts_per_dir) 
+    check(error==0)
+    get_nparts=number_of_parts_per_dir(1:3)
+    if (allocated(array_size)) deallocate(array_size) 
+    call memfree(number_of_parts_per_dir)
+
+  end function get_nparts
 
 end module par_pb_bddc_poisson_params_names

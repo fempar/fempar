@@ -38,7 +38,7 @@ module mixed_laplacian_rt_discrete_integration_names
    contains
      procedure :: set_pressure_source_term
      procedure :: set_pressure_boundary_function
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type mixed_laplacian_rt_discrete_integration_t
   
   public :: mixed_laplacian_rt_discrete_integration_t
@@ -59,7 +59,7 @@ contains
     this%pressure_boundary_function => scalar_function
   end subroutine set_pressure_boundary_function
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(mixed_laplacian_rt_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
@@ -236,6 +236,6 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module mixed_laplacian_rt_discrete_integration_names

@@ -37,7 +37,7 @@ module pb_bddc_poisson_cG_discrete_integration_names
      real(rp), public :: diffusion_inclusion
    contains
      procedure :: set_analytical_functions
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type poisson_cG_discrete_integration_t
   
   public :: poisson_cG_discrete_integration_t
@@ -52,7 +52,7 @@ contains
   end subroutine set_analytical_functions
 
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
@@ -164,6 +164,6 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module pb_bddc_poisson_cG_discrete_integration_names

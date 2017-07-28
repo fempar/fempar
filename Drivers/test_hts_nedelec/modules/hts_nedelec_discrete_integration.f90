@@ -56,7 +56,7 @@ module hts_nedelec_discrete_integration_names
      class(vector_function_t), pointer :: source_term        => NULL()
    contains
      procedure :: create                => hts_nedelec_discrete_integration_create
-     procedure :: integrate             => hts_nedelec_discrete_integration_integrate 
+     procedure :: integrate_galerkin    => hts_nedelec_discrete_integration_integrate 
      procedure :: set_integration_type 
      procedure :: compute_resistivity
      procedure :: compute_tangent_resistivity 

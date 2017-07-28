@@ -1832,8 +1832,8 @@ subroutine serial_fe_space_fill_dof_info( this, block_layout )
       call this%count_dofs()
     end if  
     call this%list_dofs()
-  else  
-    block_layout = this%block_layout
+  else
+    call block_layout%copy_num_dofs_x_block(this%block_layout)
   end if
   
 end subroutine serial_fe_space_fill_dof_info
@@ -2175,6 +2175,18 @@ function serial_fe_space_get_max_number_face_quadrature_points( this )
           this%fe_face_quadratures(iquad)%get_number_quadrature_points())
   end do
 end function serial_fe_space_get_max_number_face_quadrature_points
+
+function serial_fe_space_get_max_order( this )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: serial_fe_space_get_max_order
+  integer(ip) :: irefe
+  serial_fe_space_get_max_order = 0
+  do irefe = 1, this%reference_fes_size
+     serial_fe_space_get_max_order = max(serial_fe_space_get_max_order, &
+          this%reference_fes(irefe)%p%get_max_order())
+  end do
+end function serial_fe_space_get_max_order
 
 function serial_fe_space_get_triangulation( this) result(triangulation)
   implicit none
