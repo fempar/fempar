@@ -847,6 +847,31 @@ module fe_space_names
     procedure :: setup_coarse_dofs       => standard_lgt1_setup_coarse_dofs
  end type standard_lgt1_coarse_fe_handler_t
  
+  type fe_function_t
+   private
+   class(vector_t), allocatable  :: dof_values
+   type(serial_scalar_array_t)   :: strong_dirichlet_values
+  contains
+     procedure, non_overridable          :: create                         => fe_function_create
+     procedure, non_overridable          :: update_strong_dirichlet_values => fe_function_update_strong_dirichlet_values
+     procedure, non_overridable          :: gather_nodal_values            => fe_function_gather_nodal_values
+     procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
+     procedure, private, non_overridable :: interpolate_scalar_function    => fe_function_interpolate_scalar_function
+     procedure, private, non_overridable :: interpolate_vector_function    => fe_function_interpolate_vector_function
+     procedure, private, non_overridable :: interpolate_tensor_function    => fe_function_interpolate_tensor_function
+     generic                             :: interpolate_function           => interpolate_scalar_function , &
+                                                                              interpolate_vector_function, &
+                                                                              interpolate_tensor_function
+     procedure, non_overridable          :: copy                           => fe_function_copy
+     procedure, non_overridable          :: get_dof_values                 => fe_function_get_dof_values
+     procedure, non_overridable          :: get_strong_dirichlet_values    => fe_function_get_strong_dirichlet_values
+     procedure, non_overridable          :: free                           => fe_function_free
+     generic                             :: assignment(=)                  => copy
+  end type fe_function_t 
+   
+  public :: fe_function_t  
+ 
+ 
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
@@ -868,5 +893,7 @@ contains
 #include "sbm_coarse_fe_object_iterator.i90"
 #include "sbm_coarse_fe_iterator.i90"
 #include "sbm_coarse_fe_vef_iterator.i90"
+
+#include "sbm_fe_function.i90"
 
 end module fe_space_names

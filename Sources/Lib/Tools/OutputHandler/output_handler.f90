@@ -63,8 +63,7 @@ module output_handler_names
 
 USE FPL
 USE types_names
-USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t
-USE fe_function_names,           only: fe_function_t
+USE fe_space_names,              only: serial_fe_space_t, fe_iterator_t, fe_function_t
 USE base_output_handler_names
 USE vtk_output_handler_names
 USE xh5_output_handler_names
