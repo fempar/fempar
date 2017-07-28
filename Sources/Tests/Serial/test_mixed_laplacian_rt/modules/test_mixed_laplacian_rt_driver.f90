@@ -132,7 +132,7 @@ contains
     call this%fe_space%create( triangulation       = this%triangulation, &
                                reference_fes       = this%reference_fes, &
                                conditions          = this%mixed_laplacian_rt_conditions )
-    call this%fe_space%interpolate_dirichlet_values(this%mixed_laplacian_rt_conditions)
+    call this%fe_space%interpolate_dirichlet_values()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)

@@ -1518,23 +1518,21 @@ subroutine par_fe_space_create_dof_values(this, dof_values)
   
 end subroutine par_fe_space_create_dof_values
 
-subroutine par_fe_space_interpolate_dirichlet_values(this, conditions, time, fields_to_interpolate)
+subroutine par_fe_space_interpolate_dirichlet_values(this, time, fields_to_interpolate)
   implicit none
   class(par_fe_space_t)     , intent(inout) :: this
-  class(conditions_t)       , intent(in)    :: conditions 
   real(rp), optional        , intent(in)    :: time
   integer(ip), optional     , intent(in)    :: fields_to_interpolate(:)
   type(environment_t), pointer :: par_environment
   par_environment => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
-    call this%serial_fe_space_t%interpolate_dirichlet_values(conditions,time,fields_to_interpolate)
+    call this%serial_fe_space_t%interpolate_dirichlet_values(time,fields_to_interpolate)
   end if
 end subroutine par_fe_space_interpolate_dirichlet_values
 
-subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time, fields_to_project)
+subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, time, fields_to_project)
   implicit none
   class(par_fe_space_t)       , intent(inout)  :: this
-  class(conditions_t)         , intent(in)     :: conditions
   real(rp)       , optional   , intent(in)     :: time
   integer(ip)    , optional   , intent(in)     :: fields_to_project(:) 
 
@@ -1584,9 +1582,8 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
   if ( par_environment%am_i_l1_task() ) then
   
   
-     number_components = this%get_number_components()
-     assert ( conditions%get_number_components() == number_components )
-     call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+     assert ( associated(this%conditions) )
+     call memalloc ( this%get_number_components(), components_code, __FILE__, __LINE__ )
 
      call this%allocate_and_fill_fields_to_project_(fields_to_project_, &
                                                     fields_to_project)
@@ -1643,7 +1640,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
               call fe_face%update_integration() 
               call fe_face%get_cell_around(1,fe)
               call fe%get_elem2dof(elem2dof)
-              call conditions%get_components_code( fe_face%get_set_id(), components_code )
+              call this%conditions%get_components_code( fe_face%get_set_id(), components_code )
               
               do ifield = 1, size(fields_to_project_)    
                  field_id = fields_to_project_(ifield) 
@@ -1654,7 +1651,6 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
                                                              fe, &
                                                              field_id, &
                                                              component_id, &
-                                                             conditions, &
                                                              function_scalar_components)
                  
                     call this%evaluate_vector_function_scalar_components(fe_face, &

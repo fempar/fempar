@@ -380,10 +380,9 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   end if
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
 
-subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time, fields_to_interpolate)
+subroutine serial_fe_space_interpolate_dirichlet_values (this, time, fields_to_interpolate)
   implicit none
   class(serial_fe_space_t), intent(inout)  :: this
-  class(conditions_t)     , intent(in)     :: conditions
   real(rp)       , optional   , intent(in) :: time
   integer(ip)    , optional   , intent(in) :: fields_to_interpolate(:)
 
@@ -453,7 +452,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
      offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_number_field_components() 
   end do
 
-  assert ( conditions%get_number_components() == number_components )
+  
+  assert ( associated(this%conditions) )
   call memalloc ( number_components, components_code, __FILE__, __LINE__ )
 
   call memalloc ( number_reference_fes, reference_fes_touched, __FILE__, __LINE__ )
@@ -521,12 +521,12 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
                     ! Get components code corresponding to set_id assigned to current vef
                     ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
                     ! a more clever strategy. Does it pay off to look carefully at this?
-                    call conditions%get_components_code( vef%get_set_id(), components_code )
+                    call this%conditions%get_components_code( vef%get_set_id(), components_code )
 
                     do icomp=1, reference_fe%get_number_field_components()
                        component_id = offset_component(field_id) + icomp
                        if (components_code(component_id)) then
-                          call conditions%get_function( vef%get_set_id(), component_id, scalar_function )
+                          call this%conditions%get_function( vef%get_set_id(), component_id, scalar_function )
                           assert(associated(scalar_function))
                           ! Evaluate function
                           if(present(time)) then
@@ -584,10 +584,9 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
   call memfree ( fields_to_interpolate_, __FILE__, __LINE__ ) 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
-subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time, fields_to_project)
+subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, time, fields_to_project)
   implicit none
   class(serial_fe_space_t), intent(inout)  :: this
-  class(conditions_t)     , intent(in)     :: conditions
   real(rp)       , optional   , intent(in) :: time
   integer(ip)    , optional   , intent(in) :: fields_to_project(:) 
 
@@ -632,9 +631,8 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   integer(ip)            :: ifield, jfield, idof, idof_subset, idof_global
   integer(ip)            :: number_subset_strong_dirichlet_dofs
 
-  number_components = this%get_number_components()
-  assert ( conditions%get_number_components() == number_components )
-  call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+  assert ( associated(this%conditions) )
+  call memalloc ( this%get_number_components(), components_code, __FILE__, __LINE__ )
 
   call this%allocate_and_fill_fields_to_project_(fields_to_project_, &
                                                  fields_to_project)
@@ -684,7 +682,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
            call fe_face%update_integration() 
            call fe_face%get_cell_around(1,fe)
            call fe%get_elem2dof(elem2dof)
-           call conditions%get_components_code( fe_face%get_set_id(), components_code )
+           call this%conditions%get_components_code( fe_face%get_set_id(), components_code )
 
            do ifield = 1, size(fields_to_project_)    
               field_id = fields_to_project_(ifield) 
@@ -695,7 +693,6 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                                                           fe, &
                                                           field_id, &
                                                           component_id, &
-                                                          conditions, &
                                                           function_scalar_components)
                  
                  call this%evaluate_vector_function_scalar_components(fe_face, &
@@ -915,7 +912,6 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
                                                             fe, &
                                                             field_id, &
                                                             component_id, &
-                                                            conditions, & 
                                                             function_scalar_components )
   implicit none
   class(serial_fe_space_t)    , intent(in)    :: this
@@ -923,7 +919,6 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
   class(fe_iterator_t)        , intent(inout) :: fe
   integer(ip)                 , intent(in)    :: field_id
   integer(ip)                 , intent(in)    :: component_id
-  class(conditions_t)         , intent(in)    :: conditions
   type(p_scalar_function_t)   , intent(inout) :: function_scalar_components(:)
   
   ! Locals
@@ -935,13 +930,13 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
   
   assert ( reference_fe%get_number_field_components() <= size(function_scalar_components) )
   assert ( field_id >= 1 .and. field_id <= this%get_number_fields() )
-  assert ( component_id >= 1 .and. component_id <= conditions%get_number_components() )
+  assert ( component_id >= 1 .and. component_id <= this%conditions%get_number_components() )
   
   ! Retreive the scalar functions corresponding to the components of the function to be projected
   do icomp=1, reference_fe%get_number_field_components()
-       call conditions%get_function(fe_face%get_set_id(), &
-                                    component_id+icomp-1, &
-                                    function_scalar_components(icomp)%p)
+       call this%conditions%get_function(fe_face%get_set_id(), &
+                                         component_id+icomp-1, &
+                                         function_scalar_components(icomp)%p)
   end do
 end subroutine serial_fe_space_get_function_scalar_components
 

@@ -358,10 +358,8 @@ contains
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
       call this%fe_space%initialize_fe_face_integration()
     end if
-    if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
-    else
-      call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_conditions)
+    if ( this%test_params%get_fe_formulation() == 'cG' ) then
+      call this%fe_space%interpolate_dirichlet_values()
     end if
     call this%setup_fe_quadratures_degree()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then

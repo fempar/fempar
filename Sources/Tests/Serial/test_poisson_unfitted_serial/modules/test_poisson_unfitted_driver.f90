@@ -301,11 +301,7 @@ contains
 
     !call this%fe_space%fill_dof_info()
     call this%fe_space%initialize_fe_integration()
-    if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
-      call this%fe_space%interpolate_dirichlet_values(this%poisson_unfitted_conditions)
-    else
-      call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_unfitted_conditions)
-    end if
+    call this%fe_space%interpolate_dirichlet_values()
 
   end subroutine setup_fe_space
 
