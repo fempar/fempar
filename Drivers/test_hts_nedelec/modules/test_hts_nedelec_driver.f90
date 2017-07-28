@@ -271,8 +271,8 @@ contains
     type(sparse_matrix_t), pointer :: coefficient_matrix
 
     ! Integration loop 
-    class(fe_iterator_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face 
+    class(fe_iterator_t)     , allocatable :: fe
+    class(fe_face_iterator_t), allocatable :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
@@ -408,6 +408,7 @@ contains
        call memfree ( facevec, __FILE__, __LINE__ )
     end if 
     call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_face_iterator(fe_face)
     ! Sum duplicates, re-order by rows, and leave the matrix in a final state
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 
