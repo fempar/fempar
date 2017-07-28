@@ -75,7 +75,7 @@
 ! two per n-face type. For any dimension, a d-cube has 2d facets. As a result, any n-face can be uniquely defined by 2d-bits, the 
 ! type and the anchor node. We note that the coordinate value related to a coordinate that is free has no sense, and in this case, 
 ! the coordinate value is enforced to 0. E.g., for the 3d cube we have the six faces 011|000, 011|100, 101|000, 101|010, 110|000, and
-! 110|001. Everything applies verbatim for edges and vertices. Further, all these concepts can be applied to any dimension.
+! 110|001. All these concepts can be applied to any dimension.
 
 ! The use of this ideas to define n-faces of polytopes that involve pyramid actions is slightly more complicated. Its relies on the
 ! following observation. Assume that we start with a (d-1)-polytope A, and denote by S the set of its vertices. The d-polytope P(A)
@@ -109,7 +109,7 @@
 !
 ! As a result, using these ideas, we can extract n-1-faces of a given n-face. 
 !
-! In FEMPAR, we have implemented the polytope_tree_t, which includes the topology and the number of dimensions of the polytope. Since the bit-based
+! In FEMPAR, we have implemented the polytope_t, which includes the topology and the number of dimensions of the polytope. Since the bit-based
 ! definition of the n-faces above is non-consecutive and it mixes objects of different dimensions, we define another numbering for the objects. Thus,
 ! first, given the polytope we generate all its n-faces, recursively obtaining the n-1-faces of an n-face. Next, we re-number these objects. The 
 ! permutation from the bit-based to the new numbering is in ijk_to_index and its inverse permutation in n_face_array.
@@ -172,9 +172,9 @@
 ! can freely change. When = 0 it is constrained. However, it does not mean that it is constant (it
 ! is only for hyper-cubes). Think about the face of the tetrahedron that is not aligned with any 
 ! axes.
-subroutine polytope_tree_create( this, number_dimensions, topology )
+subroutine polytope_create( this, number_dimensions, topology )
   implicit none
-  class(polytope_tree_t), intent(inout) :: this
+  class(polytope_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: number_dimensions
   integer(ip)        , intent(in)    :: topology
   integer(ip) :: c, i, d, j, current
@@ -208,14 +208,14 @@ subroutine polytope_tree_create( this, number_dimensions, topology )
   do i =1,this%number_n_faces
      this%ijk_to_index( this%n_face_array(i) ) = i
   end do
-end subroutine polytope_tree_create
+end subroutine polytope_create
 
 
 !=================================================================================================
 ! Sort faces first by n_face dimension, next by anchor vertex
  subroutine sort_n_faces( this, num_cols )
   implicit none
-  class(polytope_tree_t), intent(inout) :: this
+  class(polytope_t), intent(inout) :: this
   integer(ip), intent(in)            :: num_cols
   ! locals
   integer(ip) :: l1(2), l2(2), aux_sort(2,num_cols),i
@@ -228,17 +228,19 @@ end subroutine polytope_tree_create
 
  !=================================================================================================
  ! Recursive function that extrudes an object for a given polytope topology and extrusion
+ ! It follows the bitmap implementation of the n-face generation and oriented set extrusion in
+ ! the FEMPAR article.
  recursive subroutine fill_polytope_chain( this, current, extrusion, is_anchor )
     implicit none
-    class(polytope_tree_t), intent(inout) :: this
+    class(polytope_t), intent(inout) :: this
     integer(ip)        , intent(inout)    :: current
     integer(ip)        , intent(inout)    :: extrusion
     logical, intent(in) :: is_anchor
     integer(ip) :: i,j,n_face_1,n_face_2,extrusion_1,extrusion_2,number_dimensions
     number_dimensions = this%number_dimensions
-    ! Increase one position current n-face in polytope_tree
+    ! Increase one position current n-face in polytope
     this%number_n_faces = this%number_n_faces + 1
-    ! Put root as new n-face in polytope_tree
+    ! Put root as new n-face in polytope
     this%n_face_array(this%number_n_faces) = current
     do i = 0,number_dimensions-1
        if ( IBITS(extrusion,i+number_dimensions,1 )== 1) then      ! Extrusion to be performed  
@@ -247,6 +249,7 @@ end subroutine polytope_tree_create
        ! Same type, new coordinate
        if (IBITS(this%topology,i,1) == 1 ) then    ! Quad-type
           n_face_1 = IBSET( current, i )
+          ! Insert and extrude the object polytope + e_i (see oriented set extrusion notation in art)
           call this%fill_polytope_chain(  n_face_1, extrusion_1, .false. )
        else if (is_anchor) then
           n_face_1 = current
@@ -254,19 +257,21 @@ end subroutine polytope_tree_create
              n_face_1 = IBCLR( n_face_1, j )
           end do
           n_face_1 = IBSET( n_face_1, i )
+          ! Insert and extrude the new vertex e_i for simplices (see oriented set extrusion notation in art)
           call this%fill_polytope_chain(  n_face_1, extrusion_1, .false. )
        end if
        ! New type, same anchor
        n_face_2 = IBSET( current, i+number_dimensions )
+       ! Insert and extrude the polytope extruded in i direction (see oriented set extrusion notation in art)
        call this%fill_polytope_chain(  n_face_2, extrusion_2, .false. )
        end if
     end do
   end subroutine fill_polytope_chain
   
  !================================================================================================= 
-  subroutine polytope_tree_print( this )
+  subroutine polytope_print( this )
   implicit none
-  class(polytope_tree_t), intent(inout) :: this
+  class(polytope_t), intent(inout) :: this
   integer(ip) :: i
   write(*,*) '************POLYTOPE***********'
   write(*,*) 'number of dimensions = ', this%number_dimensions
@@ -279,110 +284,110 @@ end subroutine polytope_tree_create
      write(*,'(B32)') this%n_face_array(i)
   end do
   write(*,*) 'ijk_to_index: ',this%ijk_to_index
-end subroutine polytope_tree_print
+end subroutine polytope_print
 
 !=================================================================================================
-subroutine polytope_tree_free( this )
+subroutine polytope_free( this )
   implicit none
-  class(polytope_tree_t), intent(inout) :: this
+  class(polytope_t), intent(inout) :: this
   if (allocated(this%n_face_array)) call memfree ( this%n_face_array, __FILE__, __LINE__ )
   if (allocated(this%ijk_to_index)) call memfree ( this%ijk_to_index, __FILE__, __LINE__ )
-end subroutine polytope_tree_free
+end subroutine polytope_free
 
 !=================================================================================================
-function polytope_tree_create_facet_iterator(this, parent)
+function polytope_create_facet_iterator(this, parent)
   implicit none
-  class(polytope_tree_t), intent(in) :: this
+  class(polytope_t), intent(in) :: this
   integer(ip)         , intent(in) :: parent
-  type(facet_iterator_t) :: polytope_tree_create_facet_iterator
-  call polytope_tree_create_facet_iterator%create(this, parent)
-end function polytope_tree_create_facet_iterator
+  type(facet_iterator_t) :: polytope_create_facet_iterator
+  call polytope_create_facet_iterator%create(this, parent)
+end function polytope_create_facet_iterator
 
 !=================================================================================================
-function polytope_tree_get_number_n_faces(this) 
+function polytope_get_number_n_faces(this) 
   implicit none
-  class(polytope_tree_t), intent(in) :: this
-  integer(ip)                          :: polytope_tree_get_number_n_faces
-  polytope_tree_get_number_n_faces = this%number_n_faces     
-end function polytope_tree_get_number_n_faces
+  class(polytope_t), intent(in) :: this
+  integer(ip)                          :: polytope_get_number_n_faces
+  polytope_get_number_n_faces = this%number_n_faces     
+end function polytope_get_number_n_faces
 
 !=================================================================================================
-function polytope_tree_get_ijk_to_index(this,ijk) 
+function polytope_get_ijk_to_index(this,ijk) 
   implicit none
-  class(polytope_tree_t), intent(in) :: this
+  class(polytope_t), intent(in) :: this
   integer(ip)           , intent(in) :: ijk
-  integer(ip)                        :: polytope_tree_get_ijk_to_index
-  polytope_tree_get_ijk_to_index = this%ijk_to_index(ijk)
-end function polytope_tree_get_ijk_to_index
+  integer(ip)                        :: polytope_get_ijk_to_index
+  polytope_get_ijk_to_index = this%ijk_to_index(ijk)
+end function polytope_get_ijk_to_index
 
 !=================================================================================================
-function polytope_tree_get_n_face(this, n_face_index) 
+function polytope_get_n_face(this, n_face_index) 
   implicit none
-  class(polytope_tree_t), intent(in) :: this
+  class(polytope_t), intent(in) :: this
   integer(ip)         , intent(in) :: n_face_index
-  integer(ip)                          :: polytope_tree_get_n_face
-  polytope_tree_get_n_face = this%n_face_array(n_face_index)     
-end function polytope_tree_get_n_face
+  integer(ip)                          :: polytope_get_n_face
+  polytope_get_n_face = this%n_face_array(n_face_index)     
+end function polytope_get_n_face
 
 !=================================================================================================
-function polytope_tree_get_n_face_dimension(this, n_face_index) 
+function polytope_get_n_face_dimension(this, n_face_index) 
   implicit none
-  class(polytope_tree_t), intent(in) :: this
+  class(polytope_t), intent(in) :: this
   integer(ip)         , intent(in) :: n_face_index
-  integer(ip)                          :: polytope_tree_get_n_face_dimension
-  polytope_tree_get_n_face_dimension = n_face_dimension( this%n_face_array(n_face_index), this%number_dimensions )     
-end function polytope_tree_get_n_face_dimension
+  integer(ip)                          :: polytope_get_n_face_dimension
+  polytope_get_n_face_dimension = n_face_dimension( this%n_face_array(n_face_index), this%number_dimensions )     
+end function polytope_get_n_face_dimension
 
 !=================================================================================================
-function polytope_tree_n_face_dir_is_fixed(this, n_face_index, dir) 
+function polytope_n_face_dir_is_fixed(this, n_face_index, dir) 
   implicit none
-  class(polytope_tree_t), intent(in) :: this
+  class(polytope_t), intent(in) :: this
   integer(ip)           , intent(in) :: n_face_index
   integer(ip)           , intent(in) :: dir
-  integer(ip)                        :: polytope_tree_n_face_dir_is_fixed
-  polytope_tree_n_face_dir_is_fixed = IBITS( this%n_face_array(n_face_index), this%number_dimensions + dir, 1 )
-end function polytope_tree_n_face_dir_is_fixed
+  integer(ip)                        :: polytope_n_face_dir_is_fixed
+  polytope_n_face_dir_is_fixed = IBITS( this%n_face_array(n_face_index), this%number_dimensions + dir, 1 )
+end function polytope_n_face_dir_is_fixed
 
 !=================================================================================================
-function polytope_tree_n_face_dir_coordinate(this, n_face_index, dir) 
+function polytope_n_face_dir_coordinate(this, n_face_index, dir) 
   implicit none
-  class(polytope_tree_t), intent(in) :: this
+  class(polytope_t), intent(in) :: this
   integer(ip)           , intent(in) :: n_face_index
   integer(ip)           , intent(in) :: dir
-  integer(ip)                        :: polytope_tree_n_face_dir_coordinate
-  polytope_tree_n_face_dir_coordinate = IBITS( this%n_face_array(n_face_index), dir, 1 )
-end function polytope_tree_n_face_dir_coordinate
+  integer(ip)                        :: polytope_n_face_dir_coordinate
+  polytope_n_face_dir_coordinate = IBITS( this%n_face_array(n_face_index), dir, 1 )
+end function polytope_n_face_dir_coordinate
 
 !=================================================================================================
-function polytope_tree_n_face_type(this, n_face_index) 
+function polytope_n_face_type(this, n_face_index) 
   implicit none
-  class(polytope_tree_t), intent(in) :: this
+  class(polytope_t), intent(in) :: this
   integer(ip)           , intent(in) :: n_face_index
-  integer(ip)                        :: polytope_tree_n_face_type
-  polytope_tree_n_face_type = IBITS( this%n_face_array(n_face_index), this%number_dimensions, this%number_dimensions )
-end function polytope_tree_n_face_type
+  integer(ip)                        :: polytope_n_face_type
+  polytope_n_face_type = IBITS( this%n_face_array(n_face_index), this%number_dimensions, this%number_dimensions )
+end function polytope_n_face_type
 
 !=================================================================================================
-function polytope_tree_n_face_coordinate(this, n_face_index) 
+function polytope_n_face_coordinate(this, n_face_index) 
   implicit none
-  class(polytope_tree_t), intent(in) :: this
+  class(polytope_t), intent(in) :: this
   integer(ip)           , intent(in) :: n_face_index
-  integer(ip)                        :: polytope_tree_n_face_coordinate
-  polytope_tree_n_face_coordinate = IBITS( this%n_face_array(n_face_index), 0, this%number_dimensions )
-end function polytope_tree_n_face_coordinate
+  integer(ip)                        :: polytope_n_face_coordinate
+  polytope_n_face_coordinate = IBITS( this%n_face_array(n_face_index), 0, this%number_dimensions )
+end function polytope_n_face_coordinate
 
 !=================================================================================================
 !     NODE_ARRAY_T TBPS
 !=================================================================================================
 
 !=================================================================================================
-subroutine node_array_create ( this, polytope_tree, order )
+subroutine node_array_create ( this, polytope, order )
   implicit none
   class(node_array_t)        , intent(inout) :: this
-  type(polytope_tree_t), target, intent(in)    :: polytope_tree
+  type(polytope_t), target, intent(in)    :: polytope
   integer(ip)                , intent(in)    :: order(SPACE_DIM)
   call this%free()
-  this%polytope_tree => polytope_tree
+  this%polytope => polytope
   this%order = order
   call this%fill()
 end subroutine node_array_create
@@ -393,7 +398,9 @@ subroutine node_array_fill ( this )
   class(node_array_t), intent(inout) :: this
   type(node_iterator_t) :: node_iterator 
   integer(ip) :: i, c, m_ijk, current
-  current = ISHFT(ISHFT(1_ip,this%polytope_tree%number_dimensions)-1,this%polytope_tree%number_dimensions)
+  ! The base polytope (volume or d-face) (1 1 1 | 0 0 0) = current
+  current = ISHFT(ISHFT(1_ip,this%polytope%number_dimensions)-1,this%polytope%number_dimensions)
+  ! Create node iterator for the d-face
   node_iterator = this%create_node_iterator( current, own_boundary = .true. )
   call node_iterator%init()
   c = 0
@@ -433,7 +440,7 @@ subroutine node_array_print( this )
   write(*,*) '************NODE ARRAY***********'
   write(*,*) 'number of nodes = ', this%number_nodes
   write(*,*) 'cell_tree_topology = '
-  write(*,'(B32)') this%polytope_tree%topology
+  write(*,'(B32)') this%polytope%topology
   write(*,*) 'nodes'
   do i = 1, this%number_nodes
      write(*,*) 'NODE: ',this%node_array(i)
@@ -465,13 +472,13 @@ end function  node_array_get_number_nodes
 !=================================================================================================
 
 !=================================================================================================
-subroutine facet_iterator_create ( this, polytope_tree, parent )
+subroutine facet_iterator_create ( this, polytope, parent )
   implicit none
   class(facet_iterator_t)        , intent(inout) :: this
-  type(polytope_tree_t)       , target, intent(in)    :: polytope_tree
+  type(polytope_t)       , target, intent(in)    :: polytope
   integer(ip)                       , intent(in)    :: parent
   !call this%free()
-  this%polytope_tree => polytope_tree
+  this%polytope => polytope
   this%root = parent
   call this%init()
 end subroutine facet_iterator_create
@@ -521,7 +528,7 @@ function facet_iterator_has_finished ( this )
   implicit none
   class(facet_iterator_t), intent(in) :: this
   logical :: facet_iterator_has_finished
-  facet_iterator_has_finished = ( this%component >= this%polytope_tree%number_dimensions )
+  facet_iterator_has_finished = ( this%component >= this%polytope%number_dimensions )
 end function facet_iterator_has_finished
 
 !=================================================================================================
@@ -531,9 +538,9 @@ function facet_iterator_current_ijk ( this )
   integer(ip) :: facet_iterator_current_ijk, j
   assert ( .not. this%has_finished() )
   facet_iterator_current_ijk = this%root
-  facet_iterator_current_ijk = IBCLR( facet_iterator_current_ijk, this%polytope_tree%number_dimensions + this%component )
+  facet_iterator_current_ijk = IBCLR( facet_iterator_current_ijk, this%polytope%number_dimensions + this%component )
   if ( this%coordinate == 1 ) then
-     if ( IBITS( this%polytope_tree%topology, this%component, 1 )  == 0 ) then
+     if ( IBITS( this%polytope%topology, this%component, 1 )  == 0 ) then
         do j = 0,this%component-1
            facet_iterator_current_ijk = IBCLR( facet_iterator_current_ijk, j )
         end do
@@ -547,20 +554,70 @@ function facet_iterator_current ( this )
   implicit none
   class(facet_iterator_t), intent(inout) :: this
   integer(ip) :: facet_iterator_current
-  facet_iterator_current = this%polytope_tree%ijk_to_index( this%current_ijk() )
+  facet_iterator_current = this%polytope%ijk_to_index( this%current_ijk() )
 end function facet_iterator_current
 
+
+
+! N-FACES
+! =======
+!
+! Now, given an object defined by its d-bits topology, we can represent any n-face as follows. Let us start with the polytope itself. 
+! The polytope is a d-dimensional object, and thus, there is no restriction among the d space coordinates of its nodes. Thus, we 
+! say that all coordinates are free. It is represented by d-bits, where 1 means that the coordinate is free and 0 means that it is fixed.
+! As a result, the polytope itself is 111. 
+
+! Now, we can consider its (d-1)-faces (facets). In any face, there is one and only one constraint among coordinates. Let us consider
+! for simplicity that we have a 3-cube. In this case, we have the faces 011 (Z-faces, since its normal is aligned with the Z-axis), 
+! the faces 101 (Y-faces), and the faces 110 (X-faces). For a given type of face, we have two possible values of the fixed component,
+! 0 or 1. Thus, together with the type of n-face, we have to provide the anchor vertex (0-face). It leads, as expected, to 6 facets, 
+! two per n-face type. For any dimension, a d-cube has 2d facets. As a result, any n-face can be uniquely defined by 2d-bits, the 
+! type and the anchor node. We note that the coordinate value related to a coordinate that is free has no sense, and in this case, 
+! the coordinate value is enforced to 0. E.g., for the 3d cube we have the six faces 011|000, 011|100, 101|000, 101|010, 110|000, and
+! 110|001. All these concepts can be applied to any dimension.
+
+! The use of this ideas to define n-faces of polytopes that involve pyramid actions is slightly more complicated. Its relies on the
+! following observation. Assume that we start with a (d-1)-polytope A, and denote by S the set of its vertices. The d-polytope P(A)
+! has card(S)+1 vertices, where the new vertex has coordinate d equal to 1 and the rest equal to zero, whereas the other are the
+! ones in S (with 0 value on the d-coordinate). Based on these arguments, the set of admissible n-faces is restricted. One can not
+! have vertices such that, if the d-coordinate is equal to 1, it has some other coordinate different from 0. 
+! Thus, we cannot have an edge with a free coordinate in a position n<d and a fixed coordinate equal to 1 in position d. One of the
+! vertices of the corner would be 1 in position d and n, which is not a vertex of the object itself. Among all potential edges, 
+! we can only consider those that when the free coordinate is n \neq d, the anchor node is 0. E.g., in 2D, the edge
+! 01|10 is not admissible, because it would lead to the vertex 00|11, which is not in the object, and only 3 nodes are possible.
+!
+! We can extend this restriction to arbitrary dimensions. Let us assume that we have a polytope A, with all its edges and faces.
+! Let us assume that n-1-faces satisfy that a free coordinate in m < d implies anchor node 0. Now, let us assume
+! that we have an n-dimensional object with n<d and anchor node different from 0. It leads to n-1-faces that do not belong to the
+! polytope. We have proved it by induction.
+!
+! As a result, given an n-face, we can easily proceed as for n-cubes, but only considering those n-1-faces that are suitable, i.e.,
+! an n-dimensional object with n<d must have anchor node 0. This check is easy to implement
+!
+! do i = 2:dim
+!    if ( t(i) == 0. and. (  c(i) == 1 .and. f(i) == 0 ) )! Current coordinate is obtained by 1 (pyramid) and == 1
+!       do k = 1:i-1
+!          if ( (c(k) == 1 .and. f(k) == 0)  .or. f(k) == 1 ) ! Coordinate fixed to 1 or free
+!             NOT SUITABLE  break
+!          end if
+!       end do
+!    end if
+! end do
+!
+! where t is the topology, f the type of n-face, and c the anchor vertex.
 !=================================================================================================
 function facet_iterator_is_admissible( this )
   implicit none
   class(facet_iterator_t), intent(inout) :: this
   logical                          :: facet_iterator_is_admissible
   facet_iterator_is_admissible = .false. 
-  if ( IBITS( this%root, this%polytope_tree%number_dimensions + this%component, 1 ) == 1) then
-     if ( IBITS( this%polytope_tree%topology, this%component, 1 ) == 1 ) then
+  if ( IBITS( this%root, this%polytope%number_dimensions + this%component, 1 ) == 1) then ! free component
+     if ( IBITS( this%polytope%topology, this%component, 1 ) == 1 ) then                  ! cube type
         facet_iterator_is_admissible = .true.
-     else if ( this%coordinate == 0 .or. this%component == 0 & 
-          & .or. IBITS( this%root, this%polytope_tree%number_dimensions, this%component ) == 0 ) then  
+        ! In case of simplex, if the coordinate is zero OK (see the boundary of a pyramid extension in art
+        ! or an n-dimensional object with n<d must have anchor node 0 (see above).
+     else if ( this%coordinate == 0 .or. this%component == 0 &                            
+          & .or. IBITS( this%root, this%polytope%number_dimensions, this%component ) == 0 ) then  
         facet_iterator_is_admissible = .true.
      end if
   end if
@@ -592,13 +649,13 @@ subroutine node_iterator_create ( this, node_array, n_face, own_boundary )
   this%topology = 0
   this%n_face = n_face
   this%own_boundary = own_boundary
-  ! Restrict the topology of the polytope_tree to the current n-face
+  ! Restrict the topology of the polytope to the current n-face
   c = 0
   aux_order = 0
-  do i = 0, node_array%polytope_tree%number_dimensions-1
-     if ( IBITS( this%n_face, node_array%polytope_tree%number_dimensions+i, 1 ) == 1 ) then 
+  do i = 0, node_array%polytope%number_dimensions-1
+     if ( IBITS( this%n_face, node_array%polytope%number_dimensions+i, 1 ) == 1 ) then 
         aux_order(c+1) = node_array%order(i+1)
-        if ( IBITS( this%node_array%polytope_tree%topology, i, 1 ) == 1 ) this%topology = IBSET( this%topology, c )
+        if ( IBITS( this%node_array%polytope%topology, i, 1 ) == 1 ) this%topology = IBSET( this%topology, c )
         c = c+1
      end if
   end do
@@ -622,23 +679,30 @@ subroutine node_iterator_init ( this )
   this%coordinate = 0
   this%overflow = .false.
   c = 0
-  do i = 0, this%node_array%polytope_tree%number_dimensions-1
-     if ( IBITS( this%n_face, this%node_array%polytope_tree%number_dimensions+i, 1 ) == 0 ) then  ! if is fixed component in n-face
-	 if ( this%node_array%order(i+1) > 0) then ! order >= 1 otherwise no sense coordinate
-        if ( IBITS( this%n_face, i, 1 ) == 0 ) then   ! if coordinate of anchor node == 0
-           this%coordinate(i) = 0                     ! fixed coordinate = min value
+  do i = 0, this%node_array%polytope%number_dimensions-1
+     if ( IBITS( this%n_face, this%node_array%polytope%number_dimensions+i, 1 ) == 0 ) then  ! if is fixed component in n-face
+	       if ( this%node_array%order(i+1) > 0) then ! order >= 1 otherwise no sense coordinate
+           if ( IBITS( this%n_face, i, 1 ) == 0 ) then   ! if coordinate of anchor node == 0
+              this%coordinate(i) = 0                     ! fixed coordinate = min value
+           else
+              this%coordinate(i) = this%node_array%order(i+1) ! fixed coordinate = max value   
+           end if
         else
-           this%coordinate(i) = this%node_array%order(i+1) ! fixed coordinate = max value   
+	          this%overflow = .true.
         end if
-     else
-	    this%overflow = .true.
-     end if
      else 
         this%displacement(c) = this%min_value
         c = c+1
      end if
   end do
-  if ( .not.this%overflow .and. n_face_dimension(this%n_face, this%node_array%polytope_tree%number_dimensions) > 0 ) then
+  ! No overflow means that we have a fixed component in the nface and order > 0
+  ! Otherwise, we have no nodes on the n-face, i.e., there is no fixed component with order > 0. in this case
+  ! we just leave the subroutine with overflow = true and thus the node iterator is "empty"
+  ! In any case, it happens for vertices that we can have zero order and we want the method to give us the 
+  ! vertex (even though it is not a node). It has motivated the second part BUT I DON'T KNOW WHY WE NEED IT. CHECK IT!!!!
+  ! When we have nodes in our n-face, what we do is to take the displacement = 0 (=1 if own boundary false) in all positions
+  ! and we take displacement(0) = 0/1 - 1 because we are going to call %next and it will be added therein
+  if ( .not.this%overflow .and. n_face_dimension(this%n_face, this%node_array%polytope%number_dimensions) > 0 ) then
      this%displacement(0) = this%displacement(0)-1
      call this%next()
   end if
@@ -662,14 +726,18 @@ subroutine node_iterator_next ( this )
   integer(ip) :: comp, end_comp, i
   if ( this%has_finished() ) return 
   comp = 0 
-  end_comp = n_face_dimension(this%n_face, this%node_array%polytope_tree%number_dimensions)-1
+  ! n-face dimension - 1
+  end_comp = n_face_dimension(this%n_face, this%node_array%polytope%number_dimensions)-1
   this%overflow = .true.
-  do while( comp <= end_comp)
+  do while( comp <= end_comp) ! 0 : n_face_dim-1
      if ( this%overflow ) then 
+        ! We add comp-th position of ijk (remember the -1 in init)
         this%displacement(comp) = this%displacement(comp)+1
+        ! Check whether the new ijk is in the node set of the polytope
         if ( this%in_bound(comp, end_comp) ) then
            this%overflow = .false.
            do i = comp-1,0,-1
+              ! Check that all the previous coordinates are also in the bound
               if ( .not. this%in_bound( i, end_comp ) ) then
                  this%overflow = .true.
               end if
@@ -691,10 +759,12 @@ function node_iterator_in_bound( this, comp, end_comp )
   logical :: node_iterator_in_bound
   integer(ip) :: bound, i
   node_iterator_in_bound = .true.
+  ! order or order - 1 (of comp)
   bound = this%max_value(comp)
   do i = 0,end_comp
      if (i.ne.comp) then
      if ( IBITS( this%topology, i, 1 ) == 0 ) then
+        ! Here we check that the node is in the node set (see paper) 
         bound = bound - this%displacement(i)
      end if
      end if
@@ -715,28 +785,28 @@ function node_iterator_current_ijk ( this )
   implicit none
   class(node_iterator_t), intent(inout) :: this
   integer(ip) :: node_iterator_current_ijk
-  integer(ip) :: coord(0:this%node_array%polytope_tree%number_dimensions-1), c, comp, j
+  integer(ip) :: coord(0:this%node_array%polytope%number_dimensions-1), c, comp, j
   assert ( .not. this%has_finished() )
   ! First put free coordinates as such (fixed ones introduced when initializing)
   c = 0
-  do comp =0,this%node_array%polytope_tree%number_dimensions-1
-     if ( IBITS ( this%n_face, comp+this%node_array%polytope_tree%number_dimensions, 1 ) == 1 ) then
+  do comp =0,this%node_array%polytope%number_dimensions-1
+     if ( IBITS ( this%n_face, comp+this%node_array%polytope%number_dimensions, 1 ) == 1 ) then
         this%coordinate(comp) = this%displacement(c)
         c = c+1
      end if
   end do
   ! Next, translate fixed coordinates if needed
-  do comp =0,this%node_array%polytope_tree%number_dimensions-1
-     if ( IBITS ( this%n_face, comp+this%node_array%polytope_tree%number_dimensions, 1 ) == 0 .and. IBITS( this%n_face, comp, 1 ) == 1 ) then
+  do comp =0,this%node_array%polytope%number_dimensions-1
+     if ( IBITS ( this%n_face, comp+this%node_array%polytope%number_dimensions, 1 ) == 0 .and. IBITS( this%n_face, comp, 1 ) == 1 ) then
         this%coordinate(comp) = this%node_array%order(comp+1)
-        do j = comp+1,this%node_array%polytope_tree%number_dimensions-1
-           if ( IBITS ( this%node_array%polytope_tree%topology, j, 1 ) == 0 .and. IBITS ( this%n_face, j+this%node_array%polytope_tree%number_dimensions, 1 ) == 1 ) then
+        do j = comp+1,this%node_array%polytope%number_dimensions-1
+           if ( IBITS ( this%node_array%polytope%topology, j, 1 ) == 0 .and. IBITS ( this%n_face, j+this%node_array%polytope%number_dimensions, 1 ) == 1 ) then
               this%coordinate(comp) = this%coordinate(comp) - this%coordinate(j)
            end if
         end do
      end if
   end do
-  node_iterator_current_ijk = ijk_to_index( this%coordinate, this%node_array%order, this%node_array%polytope_tree%number_dimensions )
+  node_iterator_current_ijk = ijk_to_index( this%coordinate, this%node_array%order, this%node_array%polytope%number_dimensions )
 end function node_iterator_current_ijk
 
 !=================================================================================================
@@ -997,15 +1067,14 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
   implicit none
   integer(ip)                  , intent(in)    :: order
   integer(ip)                  , intent(in)    :: idime
-  type(polytope_tree_t)        , intent(in)    :: base_polytope
+  type(polytope_t)        , intent(in)    :: base_polytope
   type(allocatable_array_ip2_t), intent(inout) :: own_node_permutations
-  type(polytope_tree_t) :: n_face
+  type(polytope_t) :: n_face
   type(node_array_t)    :: nodes_n_face, vertices_n_face
   integer(ip)           :: n_face_type, topology_n_face, c, iorie, j
   type(node_iterator_t) :: node_iterator, vertex_iterator
-  integer(ip)           :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM), sq_index
+  integer(ip)           :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM)
   integer(ip)           :: ijk_rot(SPACE_DIM), ijk_perm(SPACE_DIM), order_vector(SPACE_DIM),aux, ones(SPACE_DIM)
-  integer(ip), allocatable :: sq_index_2_index(:)
   order_vector = order
   ones = 1
   if ( order > 1 ) then 
@@ -1020,20 +1089,21 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
      ! based on node continuity, since they require that all n-faces will be oriented to 
      ! have sense
      call n_face%create( idime, topology_n_face )
+     ! Interior nodes array
      call nodes_n_face%create( n_face, order_vector )
+     ! Vertices array
      call vertices_n_face%create( n_face, order = ones )
      node_iterator = nodes_n_face%create_node_iterator( n_face_type, own_boundary = .false. )
      vertex_iterator = vertices_n_face%create_node_iterator( n_face_type, own_boundary = .true. )
+     ! Count number of nodes in the n-face (c)
      c = 0
-     allocate( sq_index_2_index(0:product(order_vector(1:idime)-1)-1))
      call node_iterator%init()
      do while (.not. node_iterator%has_finished() )
         c = c+1
-        aux =  node_iterator%current_ijk()
-        ijk_node = node_iterator%coordinate
-        sq_index_2_index(ijk_to_index(ijk_node-1, order_vector-2,idime)) = c
         call node_iterator%next() 
      end do
+     ! idime comes from the fact that we have idime orientations,
+     ! and vertices_n_face%number_nodes is the number of vertices in the nface (i.e., possible anchor positions)
      call own_node_permutations%create(c, idime * vertices_n_face%number_nodes )
      c = 0
      do iorie = 1,idime
@@ -1058,10 +1128,11 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
               ! If the anchor node is in the original position (0) perm = Id
               if (base_polytope%topology.eq.(2**base_polytope%number_dimensions-1)) then
                  ijk_rot =  rotate(ijk_node,ijk_anchor_node,idime, order )
-              elseif (base_polytope%topology.eq.0) then
-                 ijk_rot =  rotate_tet(ijk_node,ijk_anchor_node,idime, order )
               else
-                 ! Pyramid or prisms permutations are not implemented yet
+                 ! Tet, Pyramid or prisms permutations are not implemented yet
+                 ! One should refiere to the changes introduced in commit
+                 ! dc86d3bf5d190b13fc971b2332e37c542bba573c for a previous
+                 ! implementation of Tet permutations.
                  assert (.false.)
               end if
               ! Next, consider the possible orientations
@@ -1072,8 +1143,11 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
               !write(*,*) '***final node:***', ijk_to_index(ijk_perm-1, order_vector-2,idime)+1
               !write(*,*) 'ROTATED + ORIENTED node OLD ARRAY:', nodes_n_face%ijk_to_index(ijk_to_index(ijk_perm,this%order,idime))
               !write(*,*) 'node iterator number:', ijk_to_index(ijk_node-1,this%order-2,idime)+1
-              sq_index = ijk_to_index(ijk_node-1, order_vector-2,idime)
-              own_node_permutations%a(sq_index_2_index(sq_index),c) = sq_index_2_index(ijk_to_index(ijk_perm-1, order_vector-2,idime))
+              ! The ijk to 1-integer node numbering requires ijkXXX-1 since the function ijk_to_index assumes that the i,j,k start from 0,
+              ! whereas here it starts from 1. order-vector-2 because we do not include the boundaries of the n-face. 
+              ! In own_node_permutations we have in the first colums the permutations for same orientation and all rotations, and 
+              ! next different orientation and all rotations
+              own_node_permutations%a(ijk_to_index(ijk_node-1, order_vector-2,idime)+1,c) =  ijk_to_index(ijk_perm-1, order_vector-2,idime)+1
               !nodes_n_face%ijk_to_index(ijk_to_index(ijk_perm,this%order,idime))
               ! Be careful, ijk_perm is not contiguous for TETs, etc.
               call node_iterator%next() 
@@ -1084,7 +1158,6 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
      call n_face%free()
      call nodes_n_face%free()
      call vertices_n_face%free()
-     deallocate(sq_index_2_index)
   else 
      call own_node_permutations%create(nd1=0, nd2=0)
   end if
@@ -1093,10 +1166,10 @@ end subroutine node_array_fill_permutations
 subroutine node_array_compute_num_rot_and_perm( idime, base_polytope, num_rot, num_perm)
   implicit none
   integer(ip)                  , intent(in)    :: idime
-  type(polytope_tree_t)        , intent(in)    :: base_polytope
+  type(polytope_t)        , intent(in)    :: base_polytope
   integer(ip)                  , intent(inout) :: num_rot, num_perm
   
-  type(polytope_tree_t) :: n_face
+  type(polytope_t) :: n_face
   type(node_array_t)    :: vertices_n_face
   integer(ip)           :: n_face_type, topology_n_face, j
   integer(ip)           :: ones(SPACE_DIM)
@@ -1143,28 +1216,6 @@ function rotate( ijk_node, ijk_anchor_node, face_dim, order )
      rot_vertex(face_dim) = 1 - aux2
   end do
 end function rotate
-!
-! Here we compute (x,y) -> (y,1-x) rotations (with respect to 1/2,1/2). Given the position of 
-! the anchor node in the master face, we consider the permutations of this type till the anchor node 
-! of the slave node (origin) coincides. In 2D, x -> 1-x.
-!=================================================================================================
-function rotate_tet( ijk_node, ijk_anchor_node, face_dim, order )
-  implicit none
-  integer(ip), intent(in) :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM), face_dim, order
-  integer(ip) :: i, rotate_tet(SPACE_DIM), aux1, aux2, rot_vertex(SPACE_DIM)
-  rot_vertex = ijk_anchor_node
-  rotate_tet = ijk_node
-  do while ( sum(rot_vertex(1:face_dim)) /= 0 )
-     aux1 = sum(rotate_tet(1:face_dim))
-     aux2 = sum(rot_vertex(1:face_dim))
-     do i = 1,face_dim-1
-        rotate_tet(i) = rotate_tet(i+1)
-        rot_vertex(i) = rot_vertex(i+1)
-     end do
-     rotate_tet(face_dim) = order - aux1
-     rot_vertex(face_dim) = 1 - aux2
-  end do
-end function rotate_tet
 !
 ! The change of orientation in 3D is ij -> ij or ji. In 2D, i -> i.
 !=================================================================================================

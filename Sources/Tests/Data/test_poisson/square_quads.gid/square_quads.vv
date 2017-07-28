@@ -1,7 +1,7 @@
-BeginZE /home/amartin/git-repos/fempar/gid-projects/square_quads.gid/square_quads.vv
-   x -0.966513752937316895 1.96651375293731689
-   y 1.37973880767822266 -0.379738867282867432
-   z -0.726483166217803955 0.726483166217803955
+BeginZE /home/jbonilla/Progs/fempar/Sources/Tests/Data/test_poisson/square_quads.gid/square_quads.vv
+   x -0.912359118461608887 1.84972929954528809
+   y 1.11880004405975342 -0.229503855109214783
+   z -1.43358993530273438 1.43358993530273438
    e 0.726483166217803955
    v 0 0 0
    r 1
@@ -29,7 +29,7 @@ BeginZE /home/amartin/git-repos/fempar/gid-projects/square_quads.gid/square_quad
    OGLStereo(EyeDistance) 0.075
    OGLStereo(LeftEyeDistance) 1 0 0 1
    OGLStereo(RightEyeDistance) 0 1 1 1
-EndZE /home/amartin/git-repos/fempar/gid-projects/square_quads.gid/square_quads.vv
+EndZE /home/jbonilla/Progs/fempar/Sources/Tests/Data/test_poisson/square_quads.gid/square_quads.vv
 
 BeginMirror
    Mirror 0 Angle 0.0 AngleFake -15.0 SizeFactor 2.0 HeightOffset 0.25 Color #d9e5f24d Backlight Off EdgeStyle No Type Scene DrawMode Mirror

@@ -36,7 +36,7 @@ module vector_poisson_discrete_integration_names
      class(vector_function_t), pointer :: source_term
    contains
      procedure :: set_source_term
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type vector_poisson_discrete_integration_t
   
   public :: vector_poisson_discrete_integration_t
@@ -50,7 +50,7 @@ contains
     this%source_term => vector_function
   end subroutine set_source_term
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(vector_poisson_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
@@ -63,7 +63,7 @@ contains
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int
+    type(cell_integrator_t), pointer :: cell_int
     type(vector_field_t), allocatable  :: shape_values(:,:)
     type(tensor_field_t), allocatable  :: shape_gradients(:,:)
 
@@ -73,7 +73,7 @@ contains
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs
+    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     real(rp)     :: factor, source_term_value
     
     type(vector_field_t) :: source_term
@@ -92,22 +92,24 @@ contains
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
     
-    call fe_space%create_fe_iterator(fe)
-    
-    num_dofs = fe%get_number_dofs()
-    call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
-    call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
+    max_num_dofs = fe_space%get_max_number_dofs_on_a_cell()
+    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
+    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
     call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
-    fe_map          => fe%get_fe_map()
-    vol_int         => fe%get_volume_integrator(1)
-    
+
+    call fe_space%create_fe_iterator(fe)
     do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
        call fe%update_integration()
+       
+       ! Very important: this has to be inside the loop, as different FEs can be present!
+       quad            => fe%get_quadrature()
+       num_quad_points = quad%get_number_quadrature_points()
+       fe_map          => fe%get_fe_map()
+       cell_int         => fe%get_cell_integrator(1)
+       num_dofs = fe%get_number_dofs()
+       call fe%get_number_dofs_per_field(num_dofs_per_field)
        
        ! Get DoF numbering within current FE
        call fe%get_elem2dof(elem2dof)
@@ -118,8 +120,8 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call vol_int%get_gradients(shape_gradients)
-       call vol_int%get_values(shape_values)
+       call cell_int%get_gradients(shape_gradients)
+       call cell_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
        
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
@@ -152,6 +154,6 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module vector_poisson_discrete_integration_names

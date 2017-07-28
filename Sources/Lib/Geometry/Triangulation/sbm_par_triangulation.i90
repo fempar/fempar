@@ -204,6 +204,11 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         ! Generate edges and faces
         call this%allocate_and_fill_cells_around()
+        call this%fill_reference_fe_geo_list(geometry_interpolation_order)
+        ! IMPORTANT NOTE: Both lst_vefs_gids_ghost_extended and cell_coordinates_ghost_extended are inconsistent
+        ! after renumbering the local nodes in procedure this%orient_tet_mesh. If any of these two arrays has to
+        ! be used, it must be done before the call to this%orient_tet_mesh.
+        if (this%is_tet_mesh()) call this%orient_tet_mesh(lst_vefs_gids_ghost_extended)
         call this%generate_vefs(geometry_interpolation_order)
         call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
 
@@ -267,7 +272,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
               lst_vefs_gids(i) = this%vefs_gid(lst_vefs_lids(i))
            end do
         else
-           lst_vefs_gids = this%lst_vefs_lids
+           lst_vefs_gids = lst_vefs_lids
         end if
         call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended)
         call this%allocate_and_fill_lst_vefs_lids(lst_vefs_lids,lst_vefs_gids_ghost_extended, this%vefs_gid)
@@ -279,13 +284,13 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
            reference_fe_geo_list(1) = &
                 &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
                 &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
-                &                        field_type = field_type_scalar, continuity = .true. )
+                &                        field_type = field_type_scalar, conformity = .true. )
         else
            call this%reference_fe_geo_index%put(key=26,val=1,stat=istat)
            reference_fe_geo_list(1) = &
                 &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
                 &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
-                &                        field_type = field_type_scalar, continuity = .true. )
+                &                        field_type = field_type_scalar, conformity = .true. )
         end if
         ! Transfer allocated target from local variable to member variable of base_static_triangulation
         select type(reference_fe => reference_fe_geo_list(1)%p)
@@ -303,7 +308,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
      call this%compute_vefs_dimension()
      call this%find_vefs_at_boundary()
      call this%find_and_list_vefs_at_interfaces()
-     call this%allocate_and_fill_face_orientation_rotation()
+     call this%allocate_and_fill_face_permutation_index()
      call this%allocate_and_fill_nodes()
      call this%allocate_and_fill_coordinates(coordinates)     
 

@@ -161,6 +161,25 @@ subroutine cell_iterator_set_coordinates (this, cell_coordinates)
   
 end subroutine cell_iterator_set_coordinates
 
+subroutine cell_iterator_get_coordinates_ref_space (this, cell_coordinates)
+
+  implicit none
+  class(cell_iterator_t), intent(in)    :: this
+  type(point_t),          intent(inout) :: cell_coordinates(:)
+
+  integer(ip)                               :: inode
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(quadrature_t),               pointer :: nodal_quadrature
+
+  assert ( this%lid >= 1 .and. .not. this%has_finished() )
+  reference_fe_geo => this%get_reference_fe_geo()
+  nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
+  assert( size(cell_coordinates) == nodal_quadrature%get_number_quadrature_points() )
+  
+  call nodal_quadrature%get_coordinates_as_points( cell_coordinates ) 
+
+ end subroutine cell_iterator_get_coordinates_ref_space
+
 pure function cell_iterator_get_lid (this)
   implicit none
   class(cell_iterator_t), intent(in) :: this
@@ -359,6 +378,116 @@ end function cell_iterator_get_scan_sum_number_vefs
 !  cell_iterator_get_num_vertices = reference_fe%get_number_n_faces_of_dimension(0)
 !end function cell_iterator_get_num_vertices
 
+subroutine cell_iterator_update_sub_triangulation( this )
+  implicit none
+  class(cell_iterator_t), intent(inout) :: this
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine cell_iterator_update_sub_triangulation
+
+function cell_iterator_get_mc_case( this ) result ( mc_case )
+  implicit none
+  class(cell_iterator_t), intent(in)    :: this
+  integer(ip) :: mc_case
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_get_mc_case
+
+function cell_iterator_get_number_of_subcells( this ) result ( num_subcells )
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip) :: num_subcells
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_get_number_of_subcells
+
+function cell_iterator_get_number_of_subcell_nodes( this ) result ( num_nodes_subcell )
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip) :: num_nodes_subcell
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_get_number_of_subcell_nodes
+
+subroutine cell_iterator_get_phys_coords_of_subcell( this, subcell, points)
+  implicit none
+  class(cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine cell_iterator_get_phys_coords_of_subcell
+
+subroutine cell_iterator_get_ref_coords_of_subcell( this, subcell, points)
+  implicit none
+  class(cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine cell_iterator_get_ref_coords_of_subcell
+
+function cell_iterator_get_number_of_subfaces( this ) result ( num_subfaces )
+  implicit none
+  class(cell_iterator_t), intent(in)    :: this
+  integer(ip) :: num_subfaces
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_get_number_of_subfaces
+
+function cell_iterator_get_number_of_subface_nodes( this ) result ( num_nodes_subface )
+  implicit none
+  class(cell_iterator_t), intent(in)    :: this
+  integer(ip) :: num_nodes_subface
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_get_number_of_subface_nodes
+
+subroutine cell_iterator_get_phys_coords_of_subface( this, subface, points )
+  implicit none
+  class(cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subface
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine cell_iterator_get_phys_coords_of_subface
+
+subroutine cell_iterator_get_ref_coords_of_subface( this, subface, points )
+  implicit none
+  class(cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subface
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine cell_iterator_get_ref_coords_of_subface
+ 
+function cell_iterator_is_cut(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  logical :: cell_iterator_is_cut
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_cut
+
+function cell_iterator_is_interior(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  logical :: cell_iterator_is_interior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_interior
+
+function cell_iterator_is_exterior(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  logical :: cell_iterator_is_exterior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_exterior
+
+function cell_iterator_is_interior_subcell( this, subcell ) result ( is_in )
+  implicit none
+  class(cell_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_in
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_interior_subcell
+
+function cell_iterator_is_exterior_subcell( this, subcell ) result ( is_out )
+  implicit none
+  class(cell_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_out
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function cell_iterator_is_exterior_subcell
+
 subroutine cell_iterator_fill_nodes_on_vertices (this)
   implicit none
   class(cell_iterator_t), intent(inout) :: this
@@ -367,8 +496,8 @@ subroutine cell_iterator_fill_nodes_on_vertices (this)
 
   reference_fe => this%get_reference_fe_geo()
   do ivef=1,reference_fe%get_number_n_faces_of_dimension(0)
-     assert(reference_fe%get_number_own_nodes_n_face(ivef)==1)
-     inode = reference_fe%get_own_node_n_face(1,ivef)
+     assert(reference_fe%get_number_own_dofs_n_face(ivef)==1)
+     inode = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(1,ivef)
      lnode = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid) + ivef - 1 )
      this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid) + inode - 1 ) = lnode
   end do
@@ -386,8 +515,8 @@ subroutine cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
   reference_fe => this%get_reference_fe_geo()
   ivef_pos_in_cell = this%find_lpos_vef_lid(ivef)
 
-  do inode = 1,reference_fe%get_number_own_nodes_n_face(ivef_pos_in_cell)
-    l_node = reference_fe%get_own_node_n_face(inode,ivef_pos_in_cell)
+  do inode = 1,reference_fe%get_number_own_dofs_n_face(ivef_pos_in_cell)
+    l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef_pos_in_cell)
     assert(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+l_node-1)<=0)
     if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+l_node-1)==0) then
        node_count = node_count + 1
@@ -406,14 +535,15 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   class(lagrangian_reference_fe_t) , pointer  :: source_ref_fe, target_ref_fe
   integer(ip)          :: source_vef_lid, target_vef_lid
   integer(ip), pointer :: source_vefs(:), target_vefs(:), source_node_list(:), target_node_list(:)
-  integer(ip) :: own_inode, l_node, own_nnode, inode_source, inode_target
-  integer(ip) :: relative_orientation, relative_rotation
+  integer(ip) :: source_node_LID_vef, l_node, own_nnode, source_node_LID_cell
+  integer(ip) :: permutation_index, target_vef_dimension, target_node_LID_cell, target_node_LID_vef
 
   source_ref_fe => this%get_reference_fe_geo()
   source_vef_lid = this%find_lpos_vef_lid(ivef)
 
   target_ref_fe => cell%get_reference_fe_geo()
   target_vef_lid = cell%find_lpos_vef_lid(ivef)
+  target_vef_dimension = target_ref_fe%get_n_face_dimension(target_vef_lid)
  
   source_vefs => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid): &
                                                           &   this%base_static_triangulation%ptr_vefs_per_cell(this%lid+1)-1)
@@ -428,28 +558,23 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   assert(size(source_vefs)==source_ref_fe%get_number_n_faces())
   assert(size(target_vefs)==target_ref_fe%get_number_n_faces())
 
-  own_nnode = source_ref_fe%get_number_own_nodes_n_face(source_vef_lid)
+  own_nnode = source_ref_fe%get_number_own_dofs_n_face(source_vef_lid)
 
   if ( own_nnode > 0 ) then
-
      check (target_ref_fe%check_compatibility_of_n_faces(source_ref_fe,source_vef_lid,target_vef_lid))
-     relative_rotation = target_ref_fe%compute_relative_rotation( source_ref_fe, &
-          &                                                      source_vef_lid, &
-          &                                                      target_vef_lid, &
-          &                                                      source_vefs,    &
-          &                                                      target_vefs)
-
-     relative_orientation = target_ref_fe%compute_relative_orientation( source_ref_fe,            &
-          &                                           source_vef_lid,                             &
-          &                                           target_vef_lid)
+     permutation_index = source_ref_fe%compute_permutation_index( target_ref_fe, &
+          &                                                       source_vef_lid, &
+          &                                                       target_vef_lid, &
+          &                                                       source_vefs,    &
+          &                                                       target_vefs)
      
-     do own_inode = 1, own_nnode
-        inode_source = source_ref_fe%get_own_node_n_face(own_inode,source_vef_lid)
-        inode_target = target_ref_fe%get_permuted_own_node_n_face(own_inode,               &
-             &                          target_vef_lid, relative_orientation,relative_rotation)
-        assert ( target_node_list(inode_target) <= 0 )
-        if ( target_node_list(inode_target) == 0 ) then
-          target_node_list(inode_target) = source_node_list(inode_source)
+     do source_node_LID_vef = 1, own_nnode
+        source_node_LID_cell = source_ref_fe%translate_dof_lid_n_face_to_dof_lid_cell(source_node_LID_vef,source_vef_lid)
+        target_node_LID_vef = target_ref_fe%permute_dof_LID_n_face(source_node_LID_vef,target_vef_dimension, permutation_index)
+        target_node_LID_cell = target_ref_fe%translate_dof_lid_n_face_to_dof_lid_cell(target_node_LID_vef, target_vef_lid)
+        assert ( target_node_list(target_node_LID_cell) <= 0 )
+        if ( target_node_list(target_node_LID_cell) == 0 ) then
+          target_node_list(target_node_LID_cell) = source_node_list(source_node_LID_cell)
         end if
     end do 
  end if
@@ -466,10 +591,12 @@ subroutine cell_iterator_fill_internal_nodes_new(this,node_count)
   reference_fe => this%get_reference_fe_geo()  
   
   ivef = reference_fe%get_number_n_faces()+1 ! volume
-  do inode = 1, reference_fe%get_number_own_nodes_n_face(ivef)
-     l_node = reference_fe%get_own_node_n_face(inode,ivef)
+  do inode = 1, reference_fe%get_number_own_dofs_n_face(ivef)
+     l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef)
      node_count = node_count +1
      this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)-1+l_node) = node_count
   end do
 
 end subroutine cell_iterator_fill_internal_nodes_new
+
+

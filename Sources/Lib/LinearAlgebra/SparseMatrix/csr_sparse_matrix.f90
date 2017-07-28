@@ -1759,7 +1759,7 @@ contains
 
         total_rows = this%get_num_rows()
         total_cols = this%get_num_cols()
-        assert(num_row>=0 .and. num_row<total_rows .and. num_col>=0 .and. num_col<total_cols)
+        assert(num_row>=0 .and. num_row<=total_rows .and. num_col>=0 .and. num_col<=total_cols)
 
         call A_II%set_num_rows(num_row); call A_II%set_num_cols(num_col)
         call A_IG%set_num_rows(num_row); call A_IG%set_num_cols(total_cols-num_col)
@@ -2985,6 +2985,13 @@ contains
 
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
+
+        if(C_T_num_cols == 0) then
+             call this%copy_to_fmt(to)
+             call to%set_state_assembled()
+             return
+        endif
+
         assert(C_T_num_rows == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
 
         allocate(C_irp(C_T_num_cols))
@@ -3782,6 +3789,13 @@ contains
 
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
+
+        if(C_T_num_cols == 0) then
+             call this%copy_to_fmt(to)
+             call to%set_state_assembled_symbolic()
+             return
+        endif
+
         assert(C_T_num_rows == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
 
         allocate(C_irp(C_T_num_cols))
@@ -4177,7 +4191,11 @@ contains
         end if
 
         write (lunou,'(a)') '%%MatrixMarket matrix coordinate real general'
-            write (lunou,*) nr,nc,this%irp(this%get_num_rows()+1)-1
+        if (this%get_symmetric_storage()) then
+              write (lunou,*) nr,nc,2*(this%irp(this%get_num_rows()+1)-1)-nr
+        else 
+              write (lunou,*) nr,nc,this%irp(this%get_num_rows()+1)-1
+            end if
             do i=1,this%get_num_rows()
                 do j=this%irp(i),this%irp(i+1)-1
                     if (present(l2g)) then
@@ -4185,10 +4203,12 @@ contains
                     else
                         write(lunou,'(i12, i12, e32.25)') i, this%ja(j), this%val(j)
                     end if
+                    
+                    if (this%get_symmetric_storage() .and. i/= this%ja(j)) then
+                       write(lunou,'(i12, i12, e32.25)') this%ja(j), i, this%val(j)
+                    end if            
                 end do
             end do
-
-
     end subroutine csr_sparse_matrix_print_matrix_market_body
 
     subroutine csr_sparse_matrix_create_iterator(this,iterator)

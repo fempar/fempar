@@ -61,51 +61,63 @@ contains
 
     subroutine hsl_ma87_direct_solver_initialize(this)
         class(hsl_ma87_direct_solver_t),      intent(inout) :: this
+        check(.false.)
     end subroutine hsl_ma87_direct_solver_initialize
 
     subroutine hsl_ma87_direct_solver_set_defaults(this)
         class(hsl_ma87_direct_solver_t),      intent(inout) :: this
+        check(.false.)
     end subroutine hsl_ma87_direct_solver_set_defaults
 
     subroutine hsl_ma87_direct_solver_set_parameters_from_pl(this, parameter_list)
         class(hsl_ma87_direct_solver_t),  intent(inout) :: this
         type(ParameterList_t),            intent(in)    :: parameter_list
+        check(.false.)
     end subroutine hsl_ma87_direct_solver_set_parameters_from_pl
 
-    subroutine hsl_ma87_direct_solver_symbolic_setup_body(this)
+    function hsl_ma87_direct_solver_symbolic_setup_body(this)
         class(hsl_ma87_direct_solver_t), intent(inout) :: this
-    end subroutine hsl_ma87_direct_solver_symbolic_setup_body
+        logical :: hsl_ma87_direct_solver_symbolic_setup_body
+        check(.false.)
+    end function hsl_ma87_direct_solver_symbolic_setup_body
 
     subroutine hsl_ma87_direct_solver_numerical_setup_body(this)
         class(hsl_ma87_direct_solver_t), intent(inout) :: this
+        check(.false.)
     end subroutine hsl_ma87_direct_solver_numerical_setup_body
 
     function hsl_ma87_direct_solver_is_linear(this) result(is_linear)
         class(hsl_ma87_direct_solver_t), intent(inout) :: this
         logical                                 :: is_linear
+        check(.false.)
     end function hsl_ma87_direct_solver_is_linear
 
     subroutine hsl_ma87_direct_solver_solve_single_rhs_body(op, x, y)
         class(hsl_ma87_direct_solver_t), intent(inout) :: op
         type(serial_scalar_array_t),     intent(in)    :: x
         type(serial_scalar_array_t),     intent(inout) :: y
+        check(.false.)
     end subroutine hsl_ma87_direct_solver_solve_single_rhs_body
 
     subroutine hsl_ma87_direct_solver_solve_several_rhs_body(op, x, y)
         class(hsl_ma87_direct_solver_t), intent(inout) :: op
         real(rp),                        intent(inout) :: x(:, :)
         real(rp),                        intent(inout) :: y(:, :)
+        check(.false.)
     end subroutine hsl_ma87_direct_solver_solve_several_rhs_body
 
     subroutine hsl_ma87_direct_solver_free_clean_body(this)
         class(hsl_ma87_direct_solver_t), intent(inout) :: this
+        check(.false.)
     end subroutine hsl_ma87_direct_solver_free_clean_body
 
     subroutine hsl_ma87_direct_solver_free_symbolic_body(this)
         class(hsl_ma87_direct_solver_t), intent(inout) :: this
+        check(.false.)
     end subroutine hsl_ma87_direct_solver_free_symbolic_body
 
     subroutine hsl_ma87_direct_solver_free_numerical_body(this)
         class(hsl_ma87_direct_solver_t), intent(inout) :: this
+        check(.false.)
     end subroutine hsl_ma87_direct_solver_free_numerical_body
 end module hsl_ma87_direct_solver_names

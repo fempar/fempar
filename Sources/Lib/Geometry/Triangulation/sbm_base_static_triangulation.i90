@@ -251,6 +251,35 @@ subroutine bst_free_cells_set (this)
   if (allocated (this%cells_set)) call memfree ( this%cells_set, __FILE__, __LINE__ )
 end subroutine bst_free_cells_set
 
+subroutine bst_orient_tet_mesh(this,lst_vefs_gids_ghost_extended)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(igp)            , optional, intent(in)    :: lst_vefs_gids_ghost_extended(:)
+  integer(ip)  :: icell, spos, epos, nnode, i
+  integer(igp), allocatable :: gids(:)
+  integer(ip) , allocatable :: perm(:)
+  
+  nnode = this%ptr_vefs_per_cell(2) - this%ptr_vefs_per_cell(1)
+  call memalloc(nnode, gids,__FILE__,__LINE__)
+  call memalloc(nnode, perm,__FILE__,__LINE__)
+  
+  do icell = 1, this%num_local_cells + this%num_ghost_cells
+     spos = this%ptr_vefs_per_cell(icell)
+     epos = this%ptr_vefs_per_cell(icell+1)-1
+     if ( present(lst_vefs_gids_ghost_extended) ) then
+       gids = lst_vefs_gids_ghost_extended(spos:epos)
+       perm = (/(i, i=1,nnode, 1)/)
+       call sort(nnode, gids, index=perm)
+       this%lst_vefs_lids(spos:epos) = this%lst_vefs_lids(spos+perm(1:nnode)-1)
+     else
+       call sort(nnode, this%lst_vefs_lids(spos:epos))
+     end if
+  end do
+  
+  call memfree(gids,__FILE__,__LINE__)
+  call memfree(perm,__FILE__,__LINE__)
+end subroutine bst_orient_tet_mesh
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Private methods to perform nearest neighbor exchange
@@ -801,7 +830,7 @@ subroutine bst_free_lst_itfc_vefs( this )
   if (allocated(this%lst_itfc_vefs)) call memfree(this%lst_itfc_vefs,__FILE__,__LINE__)
 end subroutine bst_free_lst_itfc_vefs
  
-subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
+subroutine bst_allocate_and_fill_face_permutation_index ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   
@@ -811,15 +840,12 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
   class(cell_iterator_t), allocatable :: second_cell
   class(lagrangian_reference_fe_t), pointer :: first_reference_fe_geo
   class(lagrangian_reference_fe_t), pointer :: second_reference_fe_geo
-  integer(ip)                    :: face_orientation
-  integer(ip)                    :: face_rotation
+  integer(ip)                    :: face_permutation_index
   
   
-  call memalloc(this%num_faces, this%face_orientation, __FILE__, __LINE__)
-  this%face_orientation = -1 
-  call memalloc(this%num_faces, this%face_rotation, __FILE__, __LINE__)
-  this%face_rotation = -1
-  
+  call memalloc(this%num_faces, this%face_permutation_index, __FILE__, __LINE__)
+  this%face_permutation_index = -1 
+
   call this%create_cell_iterator(first_cell)
   call this%create_cell_iterator(second_cell)
   call this%create_face_iterator(face)
@@ -831,33 +857,27 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
       call face%get_cell_around(2, second_cell)
       second_reference_fe_geo => second_cell%get_reference_fe_geo()
     
-      face_orientation = &
-        second_reference_fe_geo%compute_relative_orientation (first_reference_fe_geo, &
-                                                              first_cell%find_lpos_vef_lid(face%lid), &
-                                                              second_cell%find_lpos_vef_lid(face%lid))
-      face_rotation = &
-        first_reference_fe_geo%compute_relative_rotation( second_reference_fe_geo, &
-                                                          second_cell%find_lpos_vef_lid(face%lid), &
-                                                          first_cell%find_lpos_vef_lid(face%lid),  &
-                                                          second_cell%get_vef_lids(), &
-                                                          first_cell%get_vef_lids() )
+      face_permutation_index = &
+        first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo, &
+                                                          first_cell%find_lpos_vef_lid(face%lid), &
+                                                          second_cell%find_lpos_vef_lid(face%lid),  &
+                                                          first_cell%get_vef_lids(), &
+                                                          second_cell%get_vef_lids() )
         
-      call face%set_face_orientation(face_orientation)
-      call face%set_face_rotation(face_rotation)
+      call face%set_face_permutation_index(face_permutation_index)
     end if
     call face%next()
   end do
   call this%free_vef_iterator(face)
   call this%free_cell_iterator(first_cell)
   call this%free_cell_iterator(second_cell)
-end subroutine bst_allocate_and_fill_face_orientation_rotation
+end subroutine bst_allocate_and_fill_face_permutation_index
 
-subroutine bst_free_face_orientation_rotation ( this )
+subroutine bst_free_face_permutation_index ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
-  if ( allocated(this%face_orientation) ) call memfree(this%face_orientation,__FILE__,__LINE__)
-  if ( allocated(this%face_rotation) ) call memfree(this%face_rotation,__FILE__,__LINE__)
-end subroutine bst_free_face_orientation_rotation
+  if ( allocated(this%face_permutation_index) ) call memfree(this%face_permutation_index,__FILE__,__LINE__)
+end subroutine bst_free_face_permutation_index
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -979,17 +999,13 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call this%g2l_subparts%init()
 
     call this%create_cell_iterator(cell)
-    call this%create_itfc_vef_iterator(itfc_vef)
-    do while(.not. itfc_vef%has_finished() )
-       do icell=1, itfc_vef%get_num_cells_around()
-         call itfc_vef%get_cell_around(icell,cell)
-         subpart_gid = cell%get_my_subpart()
-         call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
-         if (istat == now_stored) then
-           cur_subpart_lid = cur_subpart_lid + 1
-         end if
-       end do
-       call itfc_vef%next()
+    do while(.not. cell%has_finished() )
+       subpart_gid = cell%get_my_subpart()
+       call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
+       if (istat == now_stored) then
+         cur_subpart_lid = cur_subpart_lid + 1
+       end if
+       call cell%next()
     end do
     
     num_subparts = cur_subpart_lid-1
@@ -1001,7 +1017,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memalloc ( num_rows_subparts_itfc_vefs, this%num_itfc_vefs, subparts_itfc_vefs, __FILE__, __LINE__ )
     subparts_itfc_vefs = 0
     
-
+    call this%create_itfc_vef_iterator(itfc_vef)
     ivef_itfc = 1
     call itfc_vef%first()
     do while(.not. itfc_vef%has_finished() )
@@ -1201,7 +1217,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     this%number_objects = 0
     do while ( ivef_itfc <= this%num_itfc_vefs ) 
       if ( ivef_itfc < this%num_itfc_vefs ) then
-        do while (icomp(num_rows_parts_itfc_vefs,parts_itfc_vefs(:,ivef_itfc),parts_itfc_vefs(:,ivef_itfc+1)) == 0)
+        do while (all(parts_itfc_vefs(:,ivef_itfc)==parts_itfc_vefs(:,ivef_itfc+1)))
           ivef_itfc = ivef_itfc + 1
           if ( ivef_itfc == this%num_itfc_vefs  ) exit
         end do
@@ -1218,7 +1234,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     do while ( ivef_itfc <= this%num_itfc_vefs ) 
       init_vef = ivef_itfc
       if ( ivef_itfc < this%num_itfc_vefs ) then
-        do while (icomp(num_rows_parts_itfc_vefs,parts_itfc_vefs(:,ivef_itfc),parts_itfc_vefs(:,ivef_itfc+1)) == 0)
+        do while (all(parts_itfc_vefs(:,ivef_itfc)==parts_itfc_vefs(:,ivef_itfc+1)))
           ivef_itfc = ivef_itfc + 1
           if ( ivef_itfc == this%num_itfc_vefs  ) exit
         end do
@@ -2149,7 +2165,7 @@ subroutine bst_print ( this )
         this%num_itfc_vefs = -1
         
         ! Free face integration-related data
-        call this%free_face_orientation_rotation()
+        call this%free_face_permutation_index()
         
         ! Free coarse objects-related data
         call this%free_objects_gids_and_dim()
@@ -2197,3 +2213,104 @@ subroutine bst_print ( this )
        endif
      enddo
    end function bst_get_max_number_shape_functions
+
+   function bst_is_tet_mesh ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     integer(ip) :: dum, istat
+     logical :: bst_is_tet_mesh
+     
+     bst_is_tet_mesh = .false.
+     if (this%num_dimensions == 2) then
+        call this%reference_fe_geo_index%get(key=6,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_tet_mesh = .true.
+        elseif (istat == key_not_found) then
+           bst_is_tet_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=8,val=dum,stat=istat)
+        if (istat == key_found) bst_is_tet_mesh = .false.
+     elseif (this%num_dimensions == 3) then
+        call this%reference_fe_geo_index%get(key=14,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_tet_mesh = .true.
+        elseif (istat == key_not_found) then
+           bst_is_tet_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=20,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_tet_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=26,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_tet_mesh = .false.
+           return
+        end if
+     end if
+     
+   end function bst_is_tet_mesh
+
+   function bst_is_hex_mesh ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     integer(ip) :: dum, istat
+     logical :: bst_is_hex_mesh     
+     
+     bst_is_hex_mesh = .false.
+     if (this%num_dimensions == 2) then
+        call this%reference_fe_geo_index%get(key=8,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_hex_mesh = .true.
+        elseif (istat == key_not_found) then
+           bst_is_hex_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=6,val=dum,stat=istat)
+        if (istat == key_found) bst_is_hex_mesh = .false.
+     elseif (this%num_dimensions == 3) then
+        call this%reference_fe_geo_index%get(key=26,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_hex_mesh = .true.
+        elseif (istat == key_not_found) then
+           bst_is_hex_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=20,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_hex_mesh = .false.
+           return
+        end if
+        call this%reference_fe_geo_index%get(key=14,val=dum,stat=istat)
+        if (istat == key_found) then
+           bst_is_hex_mesh = .false.
+           return
+        end if
+     end if
+     
+   end function bst_is_hex_mesh
+
+   function bst_is_mix_mesh ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     integer(ip) :: dum, istat, ntypes     
+     logical :: bst_is_mix_mesh
+     
+     ntypes = 0
+     if (this%num_dimensions == 2) then
+        call this%reference_fe_geo_index%get(key=8,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+        call this%reference_fe_geo_index%get(key=6,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+     elseif (this%num_dimensions == 3) then
+        call this%reference_fe_geo_index%get(key=26,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+        call this%reference_fe_geo_index%get(key=20,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+        call this%reference_fe_geo_index%get(key=14,val=dum,stat=istat)
+        if (istat == key_found) ntypes = ntypes + 1
+     end if
+     bst_is_mix_mesh = ntypes > 1
+   end function bst_is_mix_mesh

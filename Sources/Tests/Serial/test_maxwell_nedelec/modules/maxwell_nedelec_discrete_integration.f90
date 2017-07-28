@@ -36,7 +36,7 @@ module maxwell_nedelec_discrete_integration_names
      class(vector_function_t), pointer :: source_term        => NULL()
    contains
      procedure :: set_source_term
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type maxwell_nedelec_discrete_integration_t
   
   public :: maxwell_nedelec_discrete_integration_t
@@ -50,7 +50,7 @@ contains
     this%source_term => vector_function
   end subroutine set_source_term
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(maxwell_nedelec_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
@@ -63,7 +63,7 @@ contains
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int_H
+    type(cell_integrator_t), pointer :: cell_int_H
     type(vector_field_t), allocatable  :: H_shape_values(:,:)
     type(vector_field_t), allocatable  :: H_shape_curls(:,:)
     
@@ -102,7 +102,7 @@ contains
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
-    vol_int_H => fe%get_volume_integrator(1)
+    cell_int_H => fe%get_cell_integrator(1)
     allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
 
     do while ( .not. fe%has_finished())
@@ -122,8 +122,8 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call vol_int_H%get_values(H_shape_values)
-       call vol_int_H%get_curls(H_shape_curls)
+       call cell_int_H%get_values(H_shape_values)
+       call cell_int_H%get_curls(H_shape_curls)
        do qpoint = 1, num_quad_points
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           ! \int_(curl(v).curl(u))
@@ -151,6 +151,6 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module maxwell_nedelec_discrete_integration_names

@@ -264,10 +264,9 @@ contains
             call memalloc(  number_nodes, this%Y,              __FILE__, __LINE__)
         endif
         if(allocated(this%Z)) then
-            call memrealloc(number_nodes, this%Z,              __FILE__, __LINE__)
+            call memrealloc(number_nodes, this%Z,              __FILE__, __LINE__,0.0_rp)
         else
-            call memalloc(  number_nodes, this%Z,              __FILE__, __LINE__)
-            this%Z = 0_rp
+            call memalloc(  number_nodes, this%Z,              __FILE__, __LINE__,0.0_rp)
         endif
         if(allocated(this%Offset)) then
             call memrealloc(number_cells, this%Offset,         __FILE__, __LINE__)
@@ -287,9 +286,11 @@ contains
         do i=1, this%get_number_fields()
             field => this%get_fe_field(i)
             call this%FieldValues(i)%create(field%get_number_components(), this%get_number_nodes())
+            call this%FieldValues(i)%init(0.0_rp)
         end do
         do i=1, this%get_number_cell_vectors()
             call this%CellValues(i)%create(1, this%get_number_cells())
+            call this%CellValues(i)%init(0.0_rp)
         enddo
     end subroutine vtk_output_handler_allocate_cell_and_nodal_arrays
 

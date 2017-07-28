@@ -91,6 +91,7 @@ module environment_names
      procedure :: print                          => environment_print
      procedure :: created                        => environment_created
      ! Getters
+     procedure :: get_num_levels                 => environment_get_num_levels
      procedure :: get_num_tasks                  => environment_get_num_tasks
      procedure :: get_next_level                 => environment_get_next_level
      procedure :: get_w_context                  => environment_get_w_context
@@ -123,13 +124,19 @@ module environment_names
           environment_l1_neighbours_exchange_wo_pack_unpack_ieep
 
      procedure, private :: environment_l1_scatter_scalar_ip
-     generic   :: l1_scatter => environment_l1_scatter_scalar_ip                                                 
+     procedure, private :: environment_l1_scatter_scalar_igp
+     generic   :: l1_scatter => environment_l1_scatter_scalar_ip, &
+                                environment_l1_scatter_scalar_igp
 
      procedure, private :: environment_l1_gather_scalar_ip
-     generic   :: l1_gather => environment_l1_gather_scalar_ip 
+     procedure, private :: environment_l1_gather_scalar_igp
+     generic   :: l1_gather => environment_l1_gather_scalar_ip, &
+                               environment_l1_gather_scalar_igp
 
      procedure, private :: environment_l1_bcast_scalar_ip
-     generic   :: l1_bcast => environment_l1_bcast_scalar_ip 
+     procedure, private :: environment_l1_bcast_scalar_igp
+     generic   :: l1_bcast => environment_l1_bcast_scalar_ip, &
+                              environment_l1_bcast_scalar_igp 
 
      procedure, private :: environment_l2_from_l1_gather_ip
      procedure, private :: environment_l2_from_l1_gather_igp
@@ -152,9 +159,12 @@ module environment_names
 
      procedure, private :: environment_l1_to_l2_transfer_ip
      procedure, private :: environment_l1_to_l2_transfer_ip_1D_array
+     procedure, private :: environment_l1_to_l2_transfer_rp
+     procedure, private :: environment_l1_to_l2_transfer_rp_1D_array
      generic  :: l1_to_l2_transfer => environment_l1_to_l2_transfer_ip, &
-          environment_l1_to_l2_transfer_ip_1D_array             
-
+          environment_l1_to_l2_transfer_ip_1D_array, &
+          environment_l1_to_l2_transfer_rp, &
+          environment_l1_to_l2_transfer_rp_1D_array
 
      ! Deferred TBPs inherited from class(environment_t)
      !procedure :: info                        => environment_info
@@ -475,7 +485,14 @@ contains
   end function environment_created
 
   !=============================================================================
+  function environment_get_num_levels (this)
+    implicit none 
+    class(environment_t), intent(in) :: this
+    integer(ip) :: environment_get_num_levels
+    environment_get_num_levels = this%num_levels 
+  end function environment_get_num_levels
 
+  !=============================================================================
   function environment_get_num_tasks (this)
     implicit none 
     class(environment_t), intent(in) :: this
@@ -737,7 +754,7 @@ contains
   subroutine environment_l1_neighbours_exchange_igp ( this, & 
        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        num_snd, list_snd, snd_ptrs, pack_idx,   &
-       x, chunk_size)
+       x, chunk_size, mask)
     implicit none
     class(environment_t), intent(in)    :: this
     ! Control info to receive
@@ -749,12 +766,13 @@ contains
     ! Raw data to be exchanged
     integer(igp)            , intent(inout) :: x(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
+    integer(igp)  , optional, intent(in)    :: mask
 
     assert( this%am_i_l1_task() )
 
     call this%l1_context%neighbours_exchange ( num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
          &                                     num_snd, list_snd, snd_ptrs, pack_idx,   &
-         &                                     x, chunk_size)
+         &                                     x, chunk_size, mask)
 
   end subroutine environment_l1_neighbours_exchange_igp
 
@@ -816,7 +834,18 @@ contains
     assert ( this%am_i_l1_task() )
     call this%l1_context%gather ( input_data, output_data )
   end subroutine environment_l1_gather_scalar_ip
-
+  
+  !=============================================================================
+  subroutine environment_l1_gather_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)   :: this
+    integer(igp)             , intent(in)   :: input_data
+    integer(igp)             , intent(out)  :: output_data(:) ! ( this%l1_context%get_num_tasks())
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%gather ( input_data, output_data )
+  end subroutine environment_l1_gather_scalar_igp
+  
+  !=============================================================================
   subroutine environment_l1_scatter_scalar_ip ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
@@ -825,17 +854,33 @@ contains
     assert( this%am_i_l1_task() )
     call this%l1_context%scatter ( input_data, output_data )
   end subroutine environment_l1_scatter_scalar_ip
-
+  
+  !=============================================================================
+  subroutine environment_l1_scatter_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)   :: this
+    integer(igp)        , intent(in)   :: input_data(:) ! ( this%l1_context%get_num_tasks())
+    integer(igp)        , intent(out)  :: output_data
+    assert( this%am_i_l1_task() )
+    call this%l1_context%scatter ( input_data, output_data )
+  end subroutine environment_l1_scatter_scalar_igp
+  
   subroutine environment_l1_bcast_scalar_ip ( this, data )
     implicit none
     class(environment_t), intent(in)    :: this
     integer(ip)             , intent(inout) :: data
-    integer(ip) :: icontxt
     assert ( this%am_i_l1_task() )
     call this%l1_context%bcast ( data )
   end subroutine environment_l1_bcast_scalar_ip
+  
+  subroutine environment_l1_bcast_scalar_igp ( this, data )
+    implicit none
+    class(environment_t), intent(in)    :: this
+    integer(igp)             , intent(inout) :: data
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%bcast ( data )
+  end subroutine environment_l1_bcast_scalar_igp
 
-  !=============================================================================
   !=============================================================================
   subroutine environment_l1_to_l2_transfer_ip ( this, input_data, output_data )
     implicit none
@@ -856,6 +901,26 @@ contains
     call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
   end subroutine environment_l1_to_l2_transfer_ip_1D_array
 
+  !=============================================================================
+  subroutine environment_l1_to_l2_transfer_rp ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)      :: this
+    real(rp)                , intent(in)      :: input_data
+    real(rp)                , intent(inout)   :: output_data
+    assert ( this%am_i_l1_to_l2_task() )
+    call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
+  end subroutine environment_l1_to_l2_transfer_rp
+
+  !=============================================================================
+  subroutine environment_l1_to_l2_transfer_rp_1D_array ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)      :: this  
+    real(rp)                , intent(in)      :: input_data(:)
+    real(rp)                , intent(inout)   :: output_data(:)
+    assert ( this%am_i_l1_to_l2_task() )
+    call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
+  end subroutine environment_l1_to_l2_transfer_rp_1D_array
+  
   !=============================================================================
   subroutine environment_l2_from_l1_gather_ip ( this, input_data, output_data )
     implicit none

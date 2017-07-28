@@ -558,11 +558,12 @@ contains
    class(par_scalar_array_t), intent(in) :: this
    class(vector_t)             , intent(in) :: vector
    logical :: par_scalar_array_same_vector_space
-   par_scalar_array_same_vector_space = .true.
+   par_scalar_array_same_vector_space = .false.
    select type(vector)
    class is (par_scalar_array_t)
+     par_scalar_array_same_vector_space = (associated(this%p_env,vector%p_env)) 
      if(this%p_env%am_i_l1_task()) then
-        par_scalar_array_same_vector_space = (this%dof_import%get_number_dofs() == vector%dof_import%get_number_dofs())
+        par_scalar_array_same_vector_space = par_scalar_array_same_vector_space .and. (associated(this%dof_import,vector%dof_import))
      end if   
    end select
   end function par_scalar_array_same_vector_space

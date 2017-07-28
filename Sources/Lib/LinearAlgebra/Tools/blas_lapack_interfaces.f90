@@ -382,6 +382,30 @@ module lapack77_interfaces_names
         REAL(DP), INTENT(INOUT) :: A( LDA, * )                
 
      END SUBROUTINE DGESVD
+
+     SUBROUTINE DSYGV( ITYPE, JOBZ, UPLO, N, A, LDA, B, LDB, W, WORK, LWORK, INFO )
+       use blas77_precision_names
+       !.. Scalar Arguments ..
+       CHARACTER, INTENT(IN)  :: JOBZ, UPLO
+       INTEGER,   INTENT(OUT) :: INFO
+       INTEGER,   INTENT(IN)  :: ITYPE, LDA, LDB, LWORK, N
+       !.. Array Arguments ..
+       REAL(DP), INTENT(INOUT) :: A( LDA, * ), B( LDB, * ), W( * ), WORK( * )
+     END SUBROUTINE DSYGV
+
+     SUBROUTINE DGGEV( JOBVL, JOBVR, N, A, LDA, B, LDB, ALPHAR, ALPHAI, BETA, VL, LDVL,&
+                       VR, LDVR, WORK, LWORK, INFO )
+      use blas77_precision_names
+      !.. Scalar Arguments ..
+      CHARACTER, INTENT(IN)  :: JOBVL, JOBVR
+      INTEGER,   INTENT(IN)  :: LDA, LDB, LDVL, LDVR, LWORK, N
+      INTEGER,   INTENT(OUT) :: INFO
+      !.. Array Arguments ..
+      REAL(DP), INTENT(INOUT) :: A( LDA, * ), ALPHAI( * ), ALPHAR( * ),&
+                                 B( LDB, * ), BETA( * ), VL( LDVL, * ),&
+                                 VR( LDVR, * ), WORK( * )
+     END SUBROUTINE DGGEV
+
   end interface
 
 end module lapack77_interfaces_names
