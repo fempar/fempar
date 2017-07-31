@@ -829,55 +829,6 @@ subroutine bst_free_lst_itfc_vefs( this )
   class(base_static_triangulation_t), intent(inout) :: this
   if (allocated(this%lst_itfc_vefs)) call memfree(this%lst_itfc_vefs,__FILE__,__LINE__)
 end subroutine bst_free_lst_itfc_vefs
- 
-subroutine bst_allocate_and_fill_face_permutation_index ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(inout) :: this
-  
-  type(face_iterator_t) :: face
-  
-  class(cell_iterator_t), allocatable :: first_cell
-  class(cell_iterator_t), allocatable :: second_cell
-  class(lagrangian_reference_fe_t), pointer :: first_reference_fe_geo
-  class(lagrangian_reference_fe_t), pointer :: second_reference_fe_geo
-  integer(ip)                    :: face_permutation_index
-  
-  
-  call memalloc(this%num_faces, this%face_permutation_index, __FILE__, __LINE__)
-  this%face_permutation_index = -1 
-
-  call this%create_cell_iterator(first_cell)
-  call this%create_cell_iterator(second_cell)
-  call this%create_face_iterator(face)
-  do while ( .not. face%has_finished() )
-    if ( .not. face%is_ghost() .and. face%get_num_cells_around() == 2 ) then
-      call face%get_cell_around(1, first_cell)
-      first_reference_fe_geo => first_cell%get_reference_fe_geo()
-      
-      call face%get_cell_around(2, second_cell)
-      second_reference_fe_geo => second_cell%get_reference_fe_geo()
-    
-      face_permutation_index = &
-        first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo, &
-                                                          first_cell%find_lpos_vef_lid(face%lid), &
-                                                          second_cell%find_lpos_vef_lid(face%lid),  &
-                                                          first_cell%get_vef_lids(), &
-                                                          second_cell%get_vef_lids() )
-        
-      call face%set_face_permutation_index(face_permutation_index)
-    end if
-    call face%next()
-  end do
-  call this%free_vef_iterator(face)
-  call this%free_cell_iterator(first_cell)
-  call this%free_cell_iterator(second_cell)
-end subroutine bst_allocate_and_fill_face_permutation_index
-
-subroutine bst_free_face_permutation_index ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(inout) :: this
-  if ( allocated(this%face_permutation_index) ) call memfree(this%face_permutation_index,__FILE__,__LINE__)
-end subroutine bst_free_face_permutation_index
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -1272,46 +1223,6 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end do
   end subroutine bst_compute_vefs_and_parts_object_body
   
-  subroutine bst_compute_faces_object(this)
-    implicit none
-    class(base_static_triangulation_t), intent(inout) :: this
-    integer(ip) :: iobj
-    type(vef_iterator_t)  :: vef
-    type(list_iterator_t) :: vefs_object_iterator, faces_object_iterator   
-    
-    call this%faces_object%create(n=this%number_objects)
-    
-    call this%create_vef_iterator(vef)
-    do iobj=1,this%number_objects
-      vefs_object_iterator = this%vefs_object%create_iterator(iobj)
-      do while ( .not. vefs_object_iterator%is_upper_bound() ) 
-        call vef%set_lid(vefs_object_iterator%get_current())
-        if ( vef%get_dimension() == this%get_num_dimensions()-1 ) then
-            call this%faces_object%sum_to_pointer_index(iobj, 1)
-         end if
-        call vefs_object_iterator%next()
-      end do
-    end do
-    
-    call this%faces_object%calculate_header()
-    call this%faces_object%allocate_list_from_pointer()
-    do iobj=1,this%number_objects
-      vefs_object_iterator = this%vefs_object%create_iterator(iobj)
-      faces_object_iterator = this%faces_object%create_iterator(iobj)
-      do while ( .not. vefs_object_iterator%is_upper_bound() ) 
-        call vef%set_lid(vefs_object_iterator%get_current())
-        if ( vef%get_dimension() == this%get_num_dimensions()-1 ) then
-            call faces_object_iterator%set_current(vef%get_lid())
-            call faces_object_iterator%next() 
-         end if
-        call vefs_object_iterator%next()
-      end do
-    end do
-    
-    call this%free_vef_iterator(vef)
-  end subroutine bst_compute_faces_object
-  
-  
   subroutine bst_compute_objects_dimension(this)
     implicit none
     class(base_static_triangulation_t), intent(inout) :: this
@@ -1609,7 +1520,6 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
     if ( this%p_env%am_i_l1_task() ) then
       call this%compute_vefs_and_parts_object()
-      call this%compute_faces_object()
       call this%compute_objects_dimension()
       call this%compute_number_global_objects_and_their_gids()
     end if  
@@ -2033,30 +1943,6 @@ subroutine bst_create_itfc_vef_iterator ( this, itfc_vef )
   call itfc_vef%create(this)
 end subroutine bst_create_itfc_vef_iterator
 
-subroutine bst_create_vertex_iterator ( this, vertex )
-  implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(vertex_iterator_t)          , intent(inout) :: vertex
-  call this%free_vef_iterator(vertex)
-  call vertex%create(this)
-end subroutine bst_create_vertex_iterator
-
-subroutine bst_create_edge_iterator ( this, edge )
-  implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(edge_iterator_t)          , intent(inout) :: edge
-  call this%free_vef_iterator(edge)
-  call edge%create(this)
-end subroutine bst_create_edge_iterator
-
-subroutine bst_create_face_iterator ( this, face )
-  implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(face_iterator_t)          , intent(inout) :: face
-  call this%free_vef_iterator(face)
-  call face%create(this)
-end subroutine bst_create_face_iterator
-
 subroutine bst_free_vef_iterator ( this, vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
@@ -2164,13 +2050,9 @@ subroutine bst_print ( this )
         call this%free_lst_itfc_vefs()
         this%num_itfc_vefs = -1
         
-        ! Free face integration-related data
-        call this%free_face_permutation_index()
-        
         ! Free coarse objects-related data
         call this%free_objects_gids_and_dim()
         call this%vefs_object%free()
-        call this%faces_object%free()
         call this%parts_object%free()
         call this%subparts_object%free()
         call this%g2l_subparts%free()
