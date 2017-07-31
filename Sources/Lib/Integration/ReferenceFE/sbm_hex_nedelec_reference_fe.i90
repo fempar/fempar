@@ -994,12 +994,11 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  
  
  if ( this%number_dimensions == 2 ) then
-   ! Qk-2,k-1 x Qk-1,k-2
-   !reduced_order_vector = this%order_vector-1
+   ! Q_{k-1,k-2} x Q_{k-2,k-1}
    reduced_order_vector(1)   = this%order_vector(1)
-   reduced_order_vector(2:3) = this%order_vector(2:3)-2
+   reduced_order_vector(2)   = this%order_vector(2)-2
  else if ( this%number_dimensions == 3 ) then
-   ! Qk-1,k-2,k-2 x Qk-2,k-1,k-2 x Qk-2,k-2,k-1
+   ! Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}
    reduced_order_vector(1)   = this%order_vector(1)
    reduced_order_vector(2:3) = this%order_vector(2:3)-2
  end if
@@ -1035,7 +1034,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  end do
  call cell_map%update(cell_quadrature)
 
- ! ! Integration of interior moments int_K (u.q), q \in Qk-1,k,k x Qk,k-1,k x Qk,k,k-1     
+ ! ! Integration of interior moments int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}     
  do qpoint = 1, cell_quadrature%number_quadrature_points
     factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
     do ishape=1, reduced_order_cell_interpolation%number_shape_functions
@@ -1052,40 +1051,53 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   call this%invert_change_basis_matrix()
   
  ! Transform type(list_t) member variables of this to reflect change of basis
- call this%own_dofs_n_face%create( this%number_n_faces + 1 )
- 
- 
- do edge_id = this%get_first_n_face_id_of_dimension(1), & 
-               this%get_first_n_face_id_of_dimension(1) + this%get_number_n_faces_of_dimension(1)-1
-    call this%own_dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%number_shape_functions )           
- end do
- 
- if (this%number_dimensions == 3 .and. this%order > 1) then
-    do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
-      call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%number_shape_functions )
-    end do
- end if
- 
- call this%own_dofs_n_face%sum_to_pointer_index(this%number_n_faces + 1, num_interior_moments)
- call this%own_dofs_n_face%calculate_header()
- call this%own_dofs_n_face%allocate_list_from_pointer()
+  call this%own_dofs_n_face%create( this%number_n_faces + 1 )
 
- c=1
- do idime=1, this%number_dimensions
-   do n_face_id = this%get_first_n_face_id_of_dimension(idime), & 
-                this%get_first_n_face_id_of_dimension(idime) + this%get_number_n_faces_of_dimension(idime)-1
-    own_dofs_iterator = this%own_dofs_n_face%create_iterator(n_face_id)
-    do while ( .not. own_dofs_iterator%is_upper_bound() )
-       call own_dofs_iterator%set_current(c)
-       c = c + 1
-       call own_dofs_iterator%next()
-    end do
-    call own_dofs_iterator%next()
-   end do 
- end do
- 
-  
- this%dofs_n_face      = this%own_dofs_n_face
+  if ( this%conformity .and. this%continuity ) then
+     do edge_id = this%get_first_n_face_id_of_dimension(1), & 
+          this%get_first_n_face_id_of_dimension(1) + this%get_number_n_faces_of_dimension(1)-1
+        call this%own_dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%number_shape_functions )           
+     end do
+
+     if (this%number_dimensions == 3 .and. this%order > 1) then
+        do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
+           call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%number_shape_functions )
+        end do
+     end if
+
+     call this%own_dofs_n_face%sum_to_pointer_index(this%number_n_faces + 1, num_interior_moments)
+     call this%own_dofs_n_face%calculate_header()
+     call this%own_dofs_n_face%allocate_list_from_pointer()
+
+     c=1
+     do idime=1, this%number_dimensions
+        do n_face_id = this%get_first_n_face_id_of_dimension(idime), & 
+             this%get_first_n_face_id_of_dimension(idime) + this%get_number_n_faces_of_dimension(idime)-1
+           own_dofs_iterator = this%own_dofs_n_face%create_iterator(n_face_id)
+           do while ( .not. own_dofs_iterator%is_upper_bound() )
+              call own_dofs_iterator%set_current(c)
+              c = c + 1
+              call own_dofs_iterator%next()
+           end do
+           call own_dofs_iterator%next()
+        end do
+     end do
+
+  else 
+
+     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%number_shape_functions)
+     call this%own_dofs_n_face%calculate_header()
+     call this%own_dofs_n_face%allocate_list_from_pointer()
+     own_dofs_iterator = this%own_dofs_n_face%create_iterator()
+     i=1
+     do while(.not. own_dofs_iterator%is_upper_bound())
+        call own_dofs_iterator%set_current(i)
+        call own_dofs_iterator%next()
+        i = i + 1 
+     enddo
+
+  end if
+  this%dofs_n_face      = this%own_dofs_n_face
  
   
   ! Re-define own_node_permutations-related stuff

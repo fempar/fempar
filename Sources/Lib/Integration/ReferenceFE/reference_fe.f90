@@ -1381,8 +1381,6 @@ procedure, private :: fill_face_interpolation                            &
 & => tet_nedelec_reference_fe_fill_face_interpolation
 procedure, private :: compute_number_quadrature_points                   &
 &  => tet_nedelec_reference_fe_compute_number_quadrature_points
-procedure, private :: set_permutation_2D                                 &
-& => tet_nedelec_reference_fe_set_permutation_2D
 procedure, private :: compute_number_nodes_scalar                        &
  & => tet_nedelec_reference_fe_compute_number_nodes_scalar
 procedure, private :: get_node_local_id                                  &
