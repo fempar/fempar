@@ -134,36 +134,32 @@ contains
     integer(ip) :: num_dime
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
+    type(level_set_function_factory_t) :: level_set_factory
 
     ! Get number of dimensions form input
     massert( this%parameter_list%isPresent    (key = number_of_dimensions_key), 'Use -tt structured' )
     assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
     istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
 
-    !TODO we assume it is a sphere
-    select case ('sphere')
-      case ('sphere')
-        allocate( level_set_sphere_t:: this%level_set_function, stat= istat ); check(istat==0)
-      case ('cylinder')
-        allocate( level_set_cylinder_t:: this%level_set_function, stat= istat ); check(istat==0)
-      case ('cheese_block')
-        allocate( level_set_cheese_block_t:: this%level_set_function, stat= istat ); check(istat==0)
-      case default
-        check(.false.)
-    end select
-
+    ! Create the desired type of level set function
+    call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
 
     ! Set options of the base class
     call this%level_set_function%set_num_dimensions(num_dime)
-    call this%level_set_function%set_tolerance(1.0e-6)
+    call this%level_set_function%set_tolerance(this%test_params%get_levelset_tolerance())
+    if (this%test_params%get_domain_limits() == '[-1,1]') then
+      call this%level_set_function%set_domain([-1.0_rp,1.0_rp,-1.0_rp,1.0_rp,-1.0_rp,1.0_rp])
+    else if (.not. this%test_params%get_domain_limits() == '[0,1]') then
+      mcheck(.false.,'Wrong domain limits: '//this%test_params%get_domain_limits())
+    end if
+
 
     ! Set options of the derived classes
+    ! TODO a parameter list would be better to define the level set function together with its parameters
     levset => this%level_set_function
     select type ( levset )
       class is (level_set_sphere_t)
-        call levset%set_radius(0.9)!0.625_rp)
-      class default
-        check(.false.)
+        call levset%set_radius(0.9)
     end select
 
   end subroutine setup_levelset
@@ -640,7 +636,7 @@ contains
       write(iounit,'(a,e32.25)') 'error_h1_semi_norm_boundary    ;', error_h1_semi_norm_boundary    
       write(iounit,'(a,e32.25)') 'rel_error_l2_norm_boundary     ;', error_l2_norm_boundary      /l2_norm_boundary
       write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary;', error_h1_semi_norm_boundary /h1_semi_norm_boundary
-      write(iounit,'(a,i32)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
+      write(iounit,'(a,e32.25)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
       call io_close(iounit)
     end if
 

@@ -58,6 +58,9 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_unfitted_boundary_is_dirichlet
      character(len=:), allocatable :: default_is_constant_nitches_beta
      character(len=:), allocatable :: default_use_constraints
+     character(len=:), allocatable :: default_levelset_function_type
+     character(len=:), allocatable :: default_levelset_tolerance
+     character(len=:), allocatable :: default_domain_limits
 
      type(Command_Line_Interface):: cli 
 
@@ -82,6 +85,9 @@ module test_poisson_params_names
      logical :: unfitted_boundary_is_dirichlet
      logical :: is_constant_nitches_beta
      logical :: use_constraints
+     character(len=str_cla_len)    :: levelset_function_type
+     real(rp) :: levelset_tolerance
+     character(len=str_cla_len)    :: domain_limits
 
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -105,6 +111,9 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_unfitted_boundary_is_dirichlet
      procedure, non_overridable             :: get_is_constant_nitches_beta
      procedure, non_overridable             :: get_use_constraints
+     procedure, non_overridable             :: get_levelset_function_type
+     procedure, non_overridable             :: get_levelset_tolerance
+     procedure, non_overridable             :: get_domain_limits
   end type test_poisson_params_t  
 
   ! Types
@@ -158,6 +167,9 @@ contains
     this%default_unfitted_boundary_is_dirichlet = '.true.'
     this%default_is_constant_nitches_beta       = '.false.'
     this%default_use_constraints = '.true.'
+    this%default_levelset_function_type = 'sphere'
+    this%default_levelset_tolerance = '1.0e-6'
+    this%default_domain_limits = '[0,1]'
     
   end subroutine test_poisson_set_default
   
@@ -237,6 +249,15 @@ contains
     call this%cli%add(switch='--use_constraints',switch_ab='-uconstraints',help='Use or not the constraints provided by the cut cell aggregation',&
          &            required=.false.,act='store',def=trim(this%default_use_constraints),error=error) 
     check(error==0) 
+    call this%cli%add(switch='--levelset-type',switch_ab='-lstype',help='Name of the levelset function',&
+         &            required=.false.,act='store',def=trim(this%default_levelset_function_type),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--levelset-tol',switch_ab='-lstol',help='Tolerance for the levelset function',&
+         &            required=.false.,act='store',def=trim(this%default_levelset_tolerance),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--domain-limits',switch_ab='-dom',help='String with info about the domain limits',&
+         &            required=.false.,act='store',def=trim(this%default_domain_limits),error=error) 
+    check(error==0) 
   end subroutine test_poisson_add_to_cli
   
   subroutine test_poisson_parse(this,parameter_list)
@@ -270,6 +291,9 @@ contains
     call this%cli%get(switch='-is_diri',val=this%unfitted_boundary_is_dirichlet,error=istat); check(istat==0)
     call this%cli%get(switch='-is_bconst',val=this%is_constant_nitches_beta,error=istat); check(istat==0)
     call this%cli%get(switch='-uconstraints',val=this%use_constraints,error=istat); check(istat==0)
+    call this%cli%get(switch='-lstype',val=this%levelset_function_type,error=istat); check(istat==0)
+    call this%cli%get(switch='-lstol',val=this%levelset_tolerance,error=istat); check(istat==0)
+    call this%cli%get(switch='-dom',val=this%domain_limits,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -306,6 +330,9 @@ contains
     if(allocated(this%default_unfitted_boundary_is_dirichlet)) deallocate(this%default_unfitted_boundary_is_dirichlet)
     if(allocated(this%default_is_constant_nitches_beta)) deallocate(this%default_is_constant_nitches_beta)
     if(allocated(this%default_use_constraints)) deallocate(this%default_use_constraints)
+    if(allocated(this%default_levelset_function_type)) deallocate(this%default_levelset_function_type)
+    if(allocated(this%default_levelset_tolerance)) deallocate(this%default_levelset_tolerance)
+    if(allocated(this%default_domain_limits)) deallocate(this%default_domain_limits)
     call this%cli%free()
   end subroutine test_poisson_free
 
@@ -436,5 +463,29 @@ contains
     logical :: get_use_constraints
     get_use_constraints = this%use_constraints
   end function get_use_constraints
+
+  !==================================================================================================
+  function get_levelset_function_type(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable :: get_levelset_function_type
+    get_levelset_function_type = trim(this%levelset_function_type)
+  end function get_levelset_function_type 
+
+  !==================================================================================================
+  function get_levelset_tolerance(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    real(rp) :: get_levelset_tolerance
+    get_levelset_tolerance = this%levelset_tolerance
+  end function get_levelset_tolerance
+
+  !==================================================================================================
+  function get_domain_limits(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable :: get_domain_limits
+    get_domain_limits = trim(this%domain_limits)
+  end function get_domain_limits 
 
 end module test_poisson_params_names
