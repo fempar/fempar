@@ -172,7 +172,9 @@ module fe_space_names
   
   type, extends(base_fe_iterator_t) :: fe_iterator_t
     private
-    class(serial_fe_space_t), pointer    :: fe_space => NULL()
+    class(serial_fe_space_t), pointer     :: fe_space => NULL()
+    integer(ip)             , allocatable :: number_dofs_per_field(:)
+    type(i1p_t)             , allocatable :: elem2dof(:)
   contains
     procedure                           :: create                                     => fe_iterator_create
     procedure                           :: free                                       => fe_iterator_free
@@ -186,6 +188,8 @@ module fe_space_names
     procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_iterator_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_iterator_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_iterator_renumber_dofs_field
+    procedure, non_overridable, private :: update_number_dofs_per_field               => fe_iterator_update_number_dofs_per_field
+    procedure, non_overridable, private :: update_elem2dof                            => fe_iterator_update_elem2dof
     procedure                           :: update_integration                         => fe_iterator_update_integration
 
     procedure, non_overridable          :: get_fe_space                               => fe_iterator_get_fe_space

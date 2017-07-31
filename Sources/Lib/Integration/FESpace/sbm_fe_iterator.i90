@@ -38,12 +38,19 @@ end subroutine fe_iterator_create
 subroutine fe_iterator_free (this)
   implicit none
   class(fe_iterator_t), intent(inout) :: this
+  integer(ip) :: istat
   if ( associated(this%fe_space) ) then
     if ( associated(this%fe_space%triangulation) ) then
       call this%fe_space%triangulation%free_cell_iterator(this%cell)
     end if
   end if
   nullify(this%fe_space)
+  if ( allocated(this%number_dofs_per_field) ) then
+    call memfree ( this%number_dofs_per_field, __FILE__, __LINE__ )
+  end if
+  if ( allocated(this%elem2dof) ) then
+    deallocate ( this%elem2dof, stat=istat ); check(istat==0);
+  end if
 end subroutine fe_iterator_free
 
 subroutine fe_iterator_free_final(this)
@@ -348,6 +355,45 @@ subroutine fe_iterator_renumber_dofs_field ( this, field_id, perm_old2new )
   end do
 end subroutine fe_iterator_renumber_dofs_field
 
+subroutine fe_iterator_update_number_dofs_per_field( this )
+  implicit none
+  class(fe_iterator_t), intent(inout) :: this 
+  integer(ip) :: field_id
+  
+  if ( .not. allocated(this%number_dofs_per_field) ) then
+    call memalloc ( this%fe_space%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
+  end if
+  
+  do field_id = 1, this%get_number_fields()-1
+    this%number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())- &
+                                           this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
+  end do
+  this%number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
+                                         this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
+  
+end subroutine fe_iterator_update_number_dofs_per_field
+
+subroutine fe_iterator_update_elem2dof( this )
+  implicit none
+  class(fe_iterator_t), intent(inout) :: this 
+  integer(ip) :: field_id, j, spos, epos, istat
+  
+  if ( .not. allocated(this%elem2dof) ) then
+    allocate( this%elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
+  end if
+  
+  assert ( size(this%elem2dof) == this%fe_space%number_fields )
+  do field_id = 1, this%get_number_fields()-1
+    spos = this%fe_space%ptr_dofs_per_fe(field_id  ,this%get_lid())
+    epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
+    this%elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
+  end do
+  spos = this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
+  epos = this%fe_space%ptr_dofs_per_fe(1         , this%get_lid()+1)-1
+  this%elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
+  
+end subroutine fe_iterator_update_elem2dof
+
 subroutine fe_iterator_update_integration( this )
   implicit none
   class(fe_iterator_t), intent(inout) :: this 
@@ -425,6 +471,39 @@ function fe_iterator_get_number_dofs(this)
   fe_iterator_get_number_dofs = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
                                 this%fe_space%ptr_dofs_per_fe(1, this%get_lid())
 end function fe_iterator_get_number_dofs
+
+!function fe_iterator_get_number_dofs_per_field ( this )
+!  implicit none
+!  class(fe_iterator_t), intent(in)    :: this
+!  integer(ip), pointer :: fe_iterator_get_number_dofs_per_field(:)
+!  call this%update_number_dofs_per_field()
+!  fe_iterator_get_number_dofs_per_field => this%number_dofs_per_field
+!end function fe_iterator_get_number_dofs_per_field
+
+!subroutine fe_iterator_get_field_elem2dof( this, field_id, elem2dof )
+!  implicit none
+!  class(fe_iterator_t), intent(in)    :: this
+!  integer(ip)         , intent(in)    :: field_id
+!  integer(ip), pointer, intent(inout) :: elem2dof(:)
+!  integer(ip) :: spos, epos
+! 
+!  spos = this%fe_space%ptr_dofs_per_fe(field_id  ,this%get_lid())
+!  if ( field_id == this%fe_space%get_number_fields() ) then
+!     epos = this%fe_space%ptr_dofs_per_fe(1,this%get_lid()+1)-1
+!  else
+!     epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
+!  end if
+!  elem2dof => this%fe_space%lst_dofs_lids(spos:epos)
+!end subroutine fe_iterator_get_field_elem2dof
+
+!function fe_iterator_get_elem2dof ( this )
+!  implicit none
+!  class(fe_iterator_t), intent(in)    :: this
+!  type(i1p_t), pointer :: fe_iterator_get_elem2dof
+!  integer(ip) :: field_id, j, spos, epos
+!  call this%update_elem2dof()
+!  fe_iterator_get_elem2dof => this%elem2dof
+!end function fe_iterator_get_elem2dof
 
 subroutine fe_iterator_get_number_dofs_per_field (this, number_dofs_per_field )
   implicit none
