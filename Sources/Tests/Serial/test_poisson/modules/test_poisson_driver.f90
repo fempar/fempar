@@ -385,14 +385,14 @@ contains
   subroutine setup_fe_face_quadratures_degree (this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    type(fe_face_iterator_t) :: fe_face
+    class(fe_face_iterator_t), allocatable :: fe_face
     call this%fe_space%create_fe_face_iterator(fe_face)
     ! Set first FE face is enough for testing. Leaving loop as snippet for user-customization
     do while ( .not. fe_face%has_finished() )
        call fe_face%set_quadrature_degree(fe_face%get_default_quadrature_degree())
        call fe_face%next()
     end do
-    call this%fe_space%free_fe_vef_iterator(fe_face)
+    call this%fe_space%free_fe_face_iterator(fe_face)
   end subroutine setup_fe_face_quadratures_degree
   
   subroutine setup_system (this)

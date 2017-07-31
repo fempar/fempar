@@ -81,6 +81,7 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
      do field_id=1, this%get_number_fields()
        call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
      end do  
+     call this%compute_faces_object()
   else
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
      ! tasks also know how many fields there are
@@ -128,6 +129,7 @@ subroutine par_fe_space_create_different_between_cells( this,                   
      do field_id=1, this%get_number_fields()
        call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
      end do  
+     call this%compute_faces_object()
   else
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
      ! tasks also know how many fields there are
@@ -157,6 +159,7 @@ subroutine par_fe_space_free( this )
         deallocate(this%blocks_dof_import,stat=istat)
         check (istat==0)
         call this%serial_fe_space_t%free()
+        call this%free_faces_object()
         call this%free_coarse_dofs()
         nullify(this%coarse_fe_space)
      else
@@ -184,6 +187,60 @@ subroutine par_fe_space_free( this )
   end if
 
 end subroutine par_fe_space_free
+
+subroutine par_fe_space_compute_faces_object(this)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  type(fe_object_iterator_t) :: fe_object
+  type(fe_vef_iterator_t)    :: fe_vef
+  integer(ip)                :: ivef_within_fe_object
+  type(list_iterator_t)      :: faces_object_iterator
+  integer(ip)                :: face_lid
+  
+  call this%faces_object%create(n=this%triangulation%get_number_objects())
+  
+  call this%create_fe_object_iterator(fe_object)
+  call this%create_fe_vef_iterator(fe_vef)
+  
+  do while ( .not. fe_object%has_finished() )
+    do ivef_within_fe_object = 1,fe_object%get_num_vefs()
+      call fe_object%get_vef(ivef_within_fe_object,fe_vef)
+      if ( fe_vef%is_face() ) then 
+        call this%faces_object%sum_to_pointer_index(fe_object%get_lid(), 1)
+      end if
+    end do
+    call fe_object%next()
+  end do
+  
+  call this%faces_object%calculate_header()
+  call this%faces_object%allocate_list_from_pointer()
+  
+  call fe_object%first()
+  do while ( .not. fe_object%has_finished() )
+    faces_object_iterator = fe_object%create_faces_object_iterator()
+    do ivef_within_fe_object = 1,fe_object%get_num_vefs()
+      call fe_object%get_vef(ivef_within_fe_object,fe_vef)
+      if ( fe_vef%is_face() ) then
+        face_lid = fe_vef%get_lid() - this%triangulation%get_num_vefs() & 
+                                    + this%triangulation%get_num_faces()
+        call faces_object_iterator%set_current(face_lid)
+        call faces_object_iterator%next() 
+      end if
+    end do
+    call fe_object%next()
+  end do
+  
+  call faces_object_iterator%free()
+  call this%free_fe_vef_iterator(fe_vef)
+  call this%free_fe_object_iterator(fe_object)
+  
+end subroutine par_fe_space_compute_faces_object
+
+subroutine par_fe_space_free_faces_object(this)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  call this%faces_object%free()
+end subroutine par_fe_space_free_faces_object
 
 ! Required (at least) by type(mlbddc_t)
 function par_fe_space_get_par_environment(this)
@@ -1548,8 +1605,8 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
-  type(fe_face_iterator_t)          :: fe_face
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_face_iterator_t), allocatable :: fe_face
+  class(fe_iterator_t)     , allocatable :: fe
   
   type(i1p_t), allocatable :: elem2dof(:)
 
@@ -1700,6 +1757,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
         call fe_face%next()
      end do
      call this%free_fe_iterator(fe) 
+     call this%free_fe_face_iterator(fe_face)
      call matrix%convert(csr_format)
 
      call parameter_list%init()
