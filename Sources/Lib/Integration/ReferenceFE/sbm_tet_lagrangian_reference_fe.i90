@@ -411,20 +411,6 @@ function tet_lagrangian_reference_fe_compute_number_quadrature_points( this, deg
   
 end function tet_lagrangian_reference_fe_compute_number_quadrature_points
 
-!=================================================================================================
-function get_quadratures_from_hex(quadrature)
-  implicit none
-  type(quadrature_t), intent(in) :: quadrature
-  logical :: get_quadratures_from_hex
-  
-  get_quadratures_from_hex = .true.
-  if ((quadrature%number_dimensions.eq.2).and.(quadrature%number_quadrature_points.lt.29)) then
-     get_quadratures_from_hex = .false.
-  elseif ((quadrature%number_dimensions.eq.3).and.(quadrature%number_quadrature_points.lt.12)) then
-     get_quadratures_from_hex = .false.
-  end if
-end function
-
 !==================================================================================================
 function tet_lagrangian_reference_fe_get_node_local_id (this, local_coordinates, & 
      & number_of_dimensions, order)

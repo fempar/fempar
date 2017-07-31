@@ -1382,22 +1382,7 @@ procedure, private :: fill_face_interpolation                            &
 & => tet_nedelec_reference_fe_fill_face_interpolation
 procedure, private :: compute_number_quadrature_points                   &
 &  => tet_nedelec_reference_fe_compute_number_quadrature_points
-procedure, private :: compute_number_nodes_scalar                        &
- & => tet_nedelec_reference_fe_compute_number_nodes_scalar
-procedure, private :: get_node_local_id                                  &
-& => tet_nedelec_reference_fe_get_node_local_id
-
-procedure, private, non_overridable :: fill_nodes_n_face                            &
-& => tet_nedelec_reference_fe_fill_nodes_n_face
-procedure, private, non_overridable :: fill_n_face_dimension_and_vertices           &
-& => tet_nedelec_reference_fe_fill_n_face_dimension_and_vertices
-procedure, private, non_overridable :: compute_number_interior_nodes                &
-& => tet_nedelec_reference_fe_compute_number_interior_nodes
-procedure, private, non_overridable :: compute_sum_of_nodes_in_simplices            &
-& => tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices
-procedure, private, non_overridable :: nedelec_get_n_face_orientation               &
-& => tet_nedelec_reference_fe_get_n_face_orientation
-procedure, private :: change_basis                                                  &
+procedure, private :: change_basis                                       &
 & => tet_nedelec_reference_fe_change_basis
 end type tet_nedelec_reference_fe_t
 
