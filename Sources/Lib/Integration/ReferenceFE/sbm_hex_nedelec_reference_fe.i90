@@ -784,7 +784,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   type(hex_lagrangian_reference_fe_t) :: fe_1D
   type(quadrature_t)                  :: edge_quadrature
   type(interpolation_t)               :: interpolation_1D, edge_interpolation
-  type(fe_map_t)                      :: edge_map
+  type(edge_map_t)                    :: edge_map
   type(point_t), pointer              :: edge_map_coordinates(:)
   real(rp)                            :: shape_test
   type(vector_field_t)                :: tangent
@@ -793,7 +793,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   type(hex_nedelec_reference_fe_t)    :: fe_2D
   type(quadrature_t)                  :: face_quadrature
   type(interpolation_t)               :: interpolation_2D, face_interpolation
-  type(fe_map_t)                      :: face_map
+  type(face_map_t)                    :: face_map
   type(point_t), pointer              :: face_map_coordinates(:)
   type(vector_field_t)                :: normal
   type(vector_field_t)                :: cross_product_v_shape_trial_normal

@@ -44,7 +44,7 @@ module piecewise_fe_map_names
 
     private
 
-    type(fe_map_t)     :: fe_sub_map
+    type(face_map_t)   :: fe_sub_map
     integer(ip)        :: number_sub_maps
     integer(ip)        :: number_quadrature_points_sub_map
     integer(ip)        :: number_nodes_sub_map

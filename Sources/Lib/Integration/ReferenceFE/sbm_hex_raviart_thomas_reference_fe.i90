@@ -755,7 +755,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   type(hex_lagrangian_reference_fe_t) :: d_1_fe
   type(quadrature_t)                  :: d_1_quadrature
   type(interpolation_t)               :: d_1_interpolation, face_interpolation
-  type(fe_map_t)                      :: face_map
+  type(face_map_t)                    :: face_map
   type(point_t), pointer              :: face_map_coordinates(:)
   real(rp)                            :: shape_test
   type(vector_field_t)                :: normal

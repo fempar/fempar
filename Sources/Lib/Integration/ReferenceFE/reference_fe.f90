@@ -127,67 +127,93 @@ module reference_fe_names
 
   public :: interpolation_t
 
+  type base_map_t
+    private
+    ! Number of dimensions
+    integer(ip)                 :: number_dimensions
+    
+    ! Number of quadrature points
+    integer(ip)                 :: number_quadrature_points
+    
+    ! Map's Jacobian (number_dimensions,number_dimensions,number_quadrature_points)
+    real(rp), allocatable       :: jacobian(:,:,:)
+
+    ! Map's Jacobian det (number_quadrature_points)  
+    real(rp), allocatable       :: det_jacobian(:) 
+
+    ! Coordinates of git points (number_dimensions,number_quadrature_points)       
+    type(point_t), allocatable  :: coordinates_quadrature(:)  
+    
+    ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
+    type(point_t), allocatable  :: coordinates_nodes(:) 
+    
+    ! Geometry interpolation_t in the reference element domain    
+    type(interpolation_t)       :: interpolation_geometry   
+    
+    ! Characteristic length of the reference element
+    real(rp)                    :: reference_fe_characteristic_length
+  contains
+    procedure                  :: free                              => base_map_free
+    procedure, non_overridable :: update_interpolation              => base_map_update_interpolation
+    procedure, non_overridable :: get_coordinates                   => base_map_get_coordinates
+    procedure, non_overridable :: get_quadrature_points_coordinates => base_map_get_quadrature_points_coordinates
+    procedure, non_overridable :: get_quadrature_coordinates        => base_map_get_quadrature_coordinates
+    procedure, non_overridable :: compute_quadrature_coordinates    => base_map_compute_quadrature_coordinates
+    procedure, non_overridable :: get_det_jacobian                  => base_map_get_det_jacobian
+    procedure, non_overridable :: get_det_jacobians                 => base_map_get_det_jacobians
+    procedure, non_overridable :: get_jacobian_normalized_column    => base_map_get_jacobian_normalized_column
+    procedure, non_overridable :: get_reference_h                   => base_map_get_reference_h
+  end type base_map_t
+  
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type fe_map_t
+  type, extends(base_map_t) ::  fe_map_t
      private
-     ! Map's Jacobian (number_dimensions,number_dimensions,number_quadrature_points)
-     real(rp), allocatable    :: jacobian(:,:,:)    
      ! Map's Jacobian inverse (number_dimensions,number_dimensions,number_quadrature_points)       
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
-     ! Map's Jacobian det (number_quadrature_points)  
-     real(rp), allocatable    :: det_jacobian(:)  
+ 
      ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_quadrature_points)         
-     real(rp), allocatable    :: d2sdx(:,:,:,:)     
-     ! Coordinates of git  points (number_dimensions,number_quadrature_points)       
-     type(point_t), allocatable    :: coordinates_quadrature(:)  
-     ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
-     type(point_t), allocatable    :: coordinates_nodes(:)  
-     ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
-     real(rp), allocatable    :: normals(:,:)  
-     ! Vector tangents to edges (only allocated when using fe_map to integrate on edges)
-     ! Vector tangents to edges are required e.g. by type(hex_nedelec_reference_fe_t) on 
-     ! the reference cell.
-     real(rp), allocatable    :: tangents(:,:)  
-     ! Geometry interpolation_t in the reference element domain    
-     type(interpolation_t) :: interpolation_geometry   
-     ! Characteristic length of the reference element
-     real(rp)                 :: reference_fe_characteristic_length
-     ! Number of dimensions
-     integer(ip)              :: number_dimensions
-     ! Number of quadrature points
-     integer(ip)              :: number_quadrature_points
+     real(rp), allocatable    :: d2sdx(:,:,:,:)
+     
      ! Map's Jacobian sign
      logical                  :: det_jacobian_positiveness
    contains
      procedure, non_overridable :: create                            => fe_map_create
      procedure, non_overridable :: create_on_face                    => fe_map_create_on_face
-     procedure, non_overridable :: create_face_map                   => fe_map_create_face_map
-     procedure, non_overridable :: create_edge_map                   => fe_map_create_edge_map
      procedure, non_overridable :: update                            => fe_map_update
-     procedure, non_overridable :: update_face_map                   => fe_map_update_face_map
-     procedure, non_overridable :: update_edge_map                   => fe_map_update_edge_map
-     procedure, non_overridable :: update_interpolation              => fe_map_update_interpolation
-     procedure, non_overridable :: free                              => fe_map_free
      procedure, non_overridable :: print                             => fe_map_print
-     procedure, non_overridable :: get_det_jacobian                  => fe_map_get_det_jacobian
-     procedure, non_overridable :: get_det_jacobians                 => fe_map_get_det_jacobians
      procedure, non_overridable :: compute_h                         => fe_map_compute_h
      procedure, non_overridable :: compute_h_min                     => fe_map_compute_h_min
      procedure, non_overridable :: compute_h_max                     => fe_map_compute_h_max
-     procedure, non_overridable :: get_coordinates                   => fe_map_get_coordinates
-     procedure, non_overridable :: get_quadrature_points_coordinates => fe_map_get_quadrature_points_coordinates
      procedure, non_overridable :: get_inv_jacobian_tensor           => fe_map_get_inv_jacobian_tensor
-     procedure, non_overridable :: get_reference_h                   => fe_map_get_reference_h
      procedure, non_overridable :: apply_inv_jacobian                => fe_map_apply_inv_jacobian
-     procedure, non_overridable :: compute_quadrature_coordinates    => fe_map_compute_quadrature_coordinates
-     procedure, non_overridable :: get_quadrature_coordinates        => fe_map_get_quadrature_coordinates
-     procedure, non_overridable :: get_normal                        => fe_map_get_normal
-     procedure, non_overridable :: get_normals                       => fe_map_get_normals
-     procedure, non_overridable :: get_tangent                       => fe_map_get_tangent
-     procedure, non_overridable :: get_jacobian_normalized_column    => fe_map_get_jacobian_normalized_column
      procedure, non_overridable :: is_det_jacobian_positive          => fe_map_is_det_jacobian_positive
   end type fe_map_t
-
+  
+  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(base_map_t) ::  face_map_t
+     private
+     ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
+     real(rp), allocatable    :: normals(:,:)
+   contains
+     procedure, non_overridable :: create_face_map   => face_map_create_face_map
+     procedure, non_overridable :: update_face_map   => face_map_update_face_map
+     procedure, non_overridable :: free_face_map     => face_map_update_face_map
+     procedure, non_overridable :: get_normal        => face_map_get_normal
+     procedure, non_overridable :: get_normals       => face_map_get_normals
+  end type face_map_t
+  
+  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(base_map_t) ::  edge_map_t
+     private
+     ! Vector tangents to edges. Vector tangents to edges are required e.g. 
+     ! by type(hex_nedelec_reference_fe_t) on the reference cell.
+     real(rp), allocatable    :: tangents(:,:) 
+   contains
+     procedure, non_overridable :: create_edge_map   => edge_map_create_edge_map
+     procedure, non_overridable :: update_edge_map   => edge_map_update_edge_map
+     procedure, non_overridable :: get_tangent       => edge_map_get_tangent
+  end type edge_map_t
+  
   type p_fe_map_t
      class(fe_map_t), pointer :: p => NULL()   
    contains
@@ -195,7 +221,7 @@ module reference_fe_names
      procedure :: free     => p_fe_map_free
   end type p_fe_map_t
 
-  public :: fe_map_t, p_fe_map_t
+  public :: fe_map_t, face_map_t, edge_map_t, p_fe_map_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -1504,30 +1530,30 @@ public :: cell_integrator_t, p_cell_integrator_t
   public :: cell_integrator_face_restriction_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-type face_map_t
+type face_maps_t
   private
   logical                         :: is_boundary
-  type(fe_map_t)                  :: face_map
+  type(face_map_t)                :: face_map
   type(fe_map_face_restriction_t) :: fe_maps(2)
   integer(ip)                     :: number_dimensions
 contains
-  procedure, non_overridable :: create               => face_map_create
-  procedure, non_overridable :: free                 => face_map_free
-  procedure, non_overridable :: update               => face_map_update
+  procedure, non_overridable :: create               => face_maps_create
+  procedure, non_overridable :: free                 => face_maps_free
+  procedure, non_overridable :: update               => face_maps_update
   procedure, non_overridable :: compute_characteristic_length                                      &
-  &                                             => face_map_compute_characteristic_length
+  &                                             => face_maps_compute_characteristic_length
   procedure, non_overridable :: get_quadrature_coordinates                                         &
-  &                                             => face_map_get_quadrature_coordinates
-  procedure, non_overridable :: get_face_coordinates => face_map_get_face_coordinates
+  &                                             => face_maps_get_quadrature_coordinates
+  procedure, non_overridable :: get_face_coordinates => face_maps_get_face_coordinates
   procedure, non_overridable :: get_coordinates_neighbour                                          &
-  &                                             => face_map_get_coordinates_neighbour
-  procedure, non_overridable :: get_neighbour_fe_map => face_map_get_neighbour_fe_map
-  procedure, non_overridable :: get_normals          => face_map_get_normals
-  procedure, non_overridable :: get_det_jacobian     => face_map_get_det_jacobian
-  procedure, non_overridable :: get_face_map         => face_map_get_face_map
-end type face_map_t
+  &                                             => face_maps_get_coordinates_neighbour
+  procedure, non_overridable :: get_neighbour_fe_map => face_maps_get_neighbour_fe_map
+  procedure, non_overridable :: get_normals          => face_maps_get_normals
+  procedure, non_overridable :: get_det_jacobian     => face_maps_get_det_jacobian
+  procedure, non_overridable :: get_face_map         => face_maps_get_face_map
+end type face_maps_t
 
-public :: face_map_t
+public :: face_maps_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type face_integrator_t
@@ -1608,6 +1634,14 @@ contains
 #include "sbm_hex_nedelec_reference_fe.i90"
 
 #include "sbm_polytope_topology.i90"
+
+#include "sbm_base_map.i90"
+
+#include "sbm_fe_map.i90"
+
+#include "sbm_face_map.i90"
+
+#include "sbm_edge_map.i90"
 
 #include "sbm_cell_integrator.i90"
 
