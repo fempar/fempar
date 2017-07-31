@@ -671,9 +671,9 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   
   ! Create linear system 
   call matrix%create(num_rows_and_cols=number_subset_strong_dirichlet_dofs, &
-                     symmetric_storage=.false.,       &
-                     is_symmetric=.false.,            &
-                     sign=SPARSE_MATRIX_SIGN_UNKNOWN )
+                     symmetric_storage=.true.,       &
+                     is_symmetric=.true.,            &
+                     sign=SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
 
   call rhs%create_and_allocate(number_subset_strong_dirichlet_dofs) 
   call rhs%init(0.0_rp)
@@ -751,7 +751,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call parameter_list%init()
 #ifdef ENABLE_MKL
   FPLError = parameter_list%set(key = direct_solver_type                  ,  value = pardiso_mkl)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_uns)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_spd)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level,  value = 0)
   iparm = 0
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
