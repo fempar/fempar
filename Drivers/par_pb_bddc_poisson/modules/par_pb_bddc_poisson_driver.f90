@@ -434,7 +434,7 @@ contains
          end do
       else if ( inclusion == 8 ) then
          i = mod(mod(l1_rank,nparts(1)),2)
-         j = mod(mod(l1_rank,nparts(1)*nparts(2))/nparts(2),2)
+         j = mod(mod(l1_rank,nparts(1)*nparts(2))/nparts(1),2)
          k = mod(l1_rank/(nparts(1)*nparts(2)),2)
          if (((i==0) .and. (j==0) .and. (k==0)).or.&
              (i==0 .and. j==1 .and. k==0).or.&
