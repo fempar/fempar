@@ -298,7 +298,7 @@ contains
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
-    type(face_map_t)         , pointer     :: face_map 
+    type(face_maps_t)         , pointer     :: face_map 
     type(vector_field_t)                   :: rot_test_vector
     integer(ip)                            :: qpoin, number_qpoints, idof 
     type(i1p_t)              , pointer     :: elem2dof(:)
@@ -393,7 +393,7 @@ contains
        call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
        quad            => fe_face%get_quadrature()
        number_qpoints  =  quad%get_number_quadrature_points()
-       face_map        => fe_face%get_face_map()
+       face_map        => fe_face%get_face_maps()
        face_int_H      => fe_face%get_face_integrator(1)
 
        do while ( .not. fe_face%has_finished() )

@@ -1127,7 +1127,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   type(tet_lagrangian_reference_fe_t)     :: fe_1D
   type(quadrature_t)                      :: edge_quadrature
   type(interpolation_t)                   :: interpolation_1D, edge_interpolation
-  type(fe_map_t)                          :: edge_map
+  type(edge_map_t)                        :: edge_map
   type(point_t), pointer                  :: edge_map_coordinates(:)
   real(rp)                                :: shape_test
   type(vector_field_t)                    :: tangent
@@ -1137,7 +1137,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   type(quadrature_t)                  :: face_quadrature
   type(interpolation_t)               :: interpolation_2D, face_interpolation
   integer(ip)                         :: local_face_id
-  type(fe_map_t)                      :: face_map
+  type(face_map_t)                    :: face_map
   type(point_t), pointer              :: face_map_coordinates(:)
   real(rp)                            :: v_scalar_shape_test, face_area  
   integer(ip)                         :: direction  
@@ -1206,7 +1206,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
   call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
 
-  call edge_map%create_edge_map( edge_quadrature, d_fe_geo )
+  call edge_map%create( edge_quadrature, d_fe_geo )
 
   ! Initialize change of basis matrix
   this%change_basis_matrix = 0.0_rp
@@ -1229,9 +1229,9 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      end do
 
      ! Update edge_map on current edge
-     call edge_map%update_edge_map(local_edge_id = edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
-                                   reference_fe  = d_fe_geo, &
-                                   quadrature    = edge_quadrature ) 
+     call edge_map%update(local_edge_id = edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
+                          reference_fe  = d_fe_geo, &
+                          quadrature    = edge_quadrature ) 
 
      ! Edge quadrature is updated to every edge of the reference_fe 
      call this%create_edge_interpolation (edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
@@ -1243,13 +1243,14 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
         factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
 
         call edge_map%get_tangent(qpoint, tangent)
+		tangent = tangent * (1.0_rp/tangent%nrm2() )
 
         do ishape=1, interpolation_1D%number_shape_functions
            call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
            do jshape=1, edge_interpolation%number_shape_functions
               call this%get_value(edge_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
-                   + shape_test * v_shape_trial * tangent * factor
+                                                         + shape_test * v_shape_trial * tangent * factor
            end do
         end do
      end do
@@ -1266,7 +1267,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
      call this%create_face_quadrature( face_quadrature )
      call fe_2D%create_interpolation( face_quadrature, interpolation_2D )
-     call face_map%create_face_map( face_quadrature, d_fe_geo )
+     call face_map%create( face_quadrature, d_fe_geo )
 
      do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
 
@@ -1285,8 +1286,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
        ! Update face_map on current face
        local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
-       call face_map%update_face_map(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
-                                     quadrature             = face_quadrature ) 
+       call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+                            quadrature             = face_quadrature ) 
 
         call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
                                              face_quadrature,                           &

@@ -971,7 +971,7 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   integer(ip)                    :: icomp
   class(reference_fe_t), pointer :: reference_fe
   type(quadrature_t)   , pointer :: quadrature
-  type(face_map_t)     , pointer :: face_map
+  type(face_maps_t)     , pointer :: face_map
   type(point_t)        , pointer :: quad_coords(:)
                    
   real(rp)                       :: time_(1)
@@ -979,7 +979,7 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   
   call fe_face%get_cell_around(1,fe)
   reference_fe => fe%get_reference_fe(field_id)
-  face_map     => fe_face%get_face_map()   
+  face_map     => fe_face%get_face_maps()   
   quad_coords  => face_map%get_quadrature_coordinates()
   
   assert ( reference_fe%get_number_field_components() <= size(function_scalar_components) )
@@ -1031,8 +1031,8 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   class(reference_fe_t)  , pointer :: reference_fe
   type(quadrature_t)     , pointer :: quadrature
   integer(ip)                      :: qpoint, n_q_points
-  type(face_map_t)       , pointer :: face_map
-  type(fe_map_t)         , pointer :: face_map_face_map
+  type(face_maps_t)       , pointer :: face_maps
+  type(face_map_t)        , pointer :: face_map
   type(face_integrator_t), pointer :: face_int
   integer(ip)                      :: ishape, jshape
   real(rp)                         :: factor
@@ -1042,8 +1042,8 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   call fe_face%get_cell_around(1,fe)
   reference_fe      => fe%get_reference_fe(field_id)
   quadrature        => fe_face%get_quadrature()
-  face_map          => fe_face%get_face_map()   
-  face_map_face_map => face_map%get_face_map()
+  face_maps         => fe_face%get_face_maps()   
+  face_map => face_maps%get_face_map()
   n_q_points        = quadrature%get_number_quadrature_points()
   face_int          => fe_face%get_face_integrator(field_id)
   select case(reference_fe%get_field_type())
@@ -1054,8 +1054,8 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
      elmat = 0.0_rp
      elvec = 0.0_rp
      do qpoint = 1, n_q_points
-        factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-        call face_map_face_map%get_normal(qpoint, normal)
+        factor = face_maps%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+        call face_map%get_normal(qpoint, normal)
         do ishape = 1, reference_fe%get_number_shape_functions() 
            call face_int%get_value(ishape,qpoint,1,vector_shape_test)
            do jshape = 1, reference_fe%get_number_shape_functions()

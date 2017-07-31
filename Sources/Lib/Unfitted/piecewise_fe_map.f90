@@ -44,7 +44,7 @@ module piecewise_fe_map_names
 
     private
 
-    type(fe_map_t)     :: fe_sub_map
+    type(face_map_t)   :: fe_sub_map
     integer(ip)        :: number_sub_maps
     integer(ip)        :: number_quadrature_points_sub_map
     integer(ip)        :: number_nodes_sub_map
@@ -98,7 +98,7 @@ contains
     this%number_quadrature_points         = quadrature%get_number_quadrature_points() * num_sub_maps
     this%number_dimensions                = reference_fe_geometry%get_number_dimensions()
 
-    call this%fe_sub_map%create_face_map( quadrature, reference_fe_geometry )
+    call this%fe_sub_map%create( quadrature, reference_fe_geometry )
 
     nod_coords => this%fe_sub_map%get_coordinates()
     this%number_nodes_sub_map = size(nod_coords)
@@ -159,7 +159,7 @@ contains
       nod_coords(:) = this%coordinates_nodes(nini:nend)
 
       ! Compute the info of the sub map
-      call this%fe_sub_map%update_face_map(reorientation_factor,quadrature)
+      call this%fe_sub_map%update(reorientation_factor,quadrature)
 
       ! Recover the computed quantities in the sub map, and put them in the arrays
       quad_coords => this%fe_sub_map%get_quadrature_points_coordinates()
