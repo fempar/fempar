@@ -162,7 +162,7 @@ module unfitted_fe_spaces_names
       class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
       type(unfitted_integration_manager_t) :: unfitted_integration
       integer(ip), allocatable :: aggregate_ids(:)
-      integer(ip) :: max_separation_from_root = -1
+      real(rp) :: max_separation_from_root = -1.0_rp
       logical :: use_constraints = .true.
 
     contains

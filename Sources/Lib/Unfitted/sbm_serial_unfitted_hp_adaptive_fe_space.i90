@@ -78,7 +78,7 @@ subroutine suhpafs_free(this)
   if (allocated(this%aggregate_ids)) then
     call memfree(this%aggregate_ids,__FILE__,__LINE__)
   end if
-  this%max_separation_from_root = -1
+  this%max_separation_from_root = -1.0_rp
 end subroutine suhpafs_free
 
 !========================================================================================
@@ -355,7 +355,7 @@ end function suhpafs_get_aggregate_ids
 function suhpafs_get_max_separation_from_root(this)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
-  integer(ip) :: suhpafs_get_max_separation_from_root
+  real(rp) :: suhpafs_get_max_separation_from_root
   suhpafs_get_max_separation_from_root = this%max_separation_from_root
 end function suhpafs_get_max_separation_from_root
 
@@ -402,7 +402,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     mcheck(.false.,'Only for 3D and 2D')
   end if
 
-  this%max_separation_from_root = 0
+  this%max_separation_from_root = 0.0_rp
 
   call memalloc(triangulation%get_num_local_cells(),triangulation%get_num_dimensions(),distance,__FILE__,__LINE__)
   call memalloc(triangulation%get_num_dimensions(),tent_distance,__FILE__,__LINE__)
@@ -453,13 +453,14 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
             ifacet = ifacet + 1
             do icell_arround = 1,vef%get_num_cells_around()
               call vef%get_cell_around(icell_arround,cell_arround)
+              if ( (isweep == 1) .and. (.not. cell_arround%is_interior()) ) cycle
               if ( this%aggregate_ids(cell_arround%get_lid()) > 0 ) then
 
                 ! Compute the movement to reach the root element
                 tent_distance = distance(cell_arround%get_lid(),:) + face2dir(ifacet,:)
 
                 ! Find which is the best neighbor to glue into
-                if ( maxval(abs(tent_distance)) < maxval(abs(min_distance)) ) then
+                if ( norm2(real(tent_distance,kind=rp)) < norm2(real(min_distance,kind=rp)) ) then
                   min_distance =  tent_distance
                   min_distance_aggr_id = this%aggregate_ids(cell_arround%get_lid())
                 end if
@@ -468,12 +469,12 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
             end do
           end do
 
-          this%aggregate_ids(cell%get_lid()) = min_distance_aggr_id
-          distance(cell%get_lid(),:) = min_distance
-          this%max_separation_from_root = max(this%max_separation_from_root,maxval(abs(min_distance)))
-
-          if (this%aggregate_ids(cell%get_lid()) == 0) then
+          if (min_distance_aggr_id == 0) then
             is_needed = .true.
+          else
+            this%aggregate_ids(cell%get_lid()) = min_distance_aggr_id
+            distance(cell%get_lid(),:) = min_distance
+            this%max_separation_from_root = max(this%max_separation_from_root,norm2(real(min_distance,kind=rp)))
           end if
 
         end if
