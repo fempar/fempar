@@ -231,7 +231,7 @@ contains
   
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
-    class(serial_unfitted_triangulation_t), intent(in)    :: triangulation
+    class(base_static_triangulation_t), intent(in)    :: triangulation
   
     integer(ip) :: num_subfaces, num_subface_nodes, num_dime
     integer(ip) :: istat, iface, inode, ino, isubface
@@ -248,8 +248,20 @@ contains
 
   
     num_dime = triangulation%get_num_dimensions()
-    num_subfaces = triangulation%get_total_num_of_subfaces()
-    num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
+    select type (triangulation)
+    class is (serial_unfitted_triangulation_t)
+      num_subfaces = triangulation%get_total_num_of_subfaces()
+      num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
+    class is (unfitted_p4est_serial_triangulation_t)
+      num_subfaces = triangulation%get_total_num_of_subfaces()
+      num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
+    class is (par_unfitted_triangulation_t)
+      num_subfaces = triangulation%get_total_num_of_subfaces()
+      num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
+    class default
+      check(.false.)
+    end select
+    
     this%Ne = num_subfaces
     this%Nn = num_subface_nodes*num_subfaces
   
