@@ -822,7 +822,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   
   call d_1_fe%create_interpolation( d_1_quadrature, d_1_interpolation )
   
-  call face_map%create_face_map( d_1_quadrature, d_fe_geo )
+  call face_map%create( d_1_quadrature, d_fe_geo )
 
   ! Initialize change of basis matrix
   this%change_basis_matrix = 0.0_rp
@@ -845,7 +845,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
 
      ! Update face_map on current face (only being used to compute the faceet normal)
      local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
-     call face_map%update_face_map(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+     call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
                                    quadrature             = d_1_quadrature ) 
      
      call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &

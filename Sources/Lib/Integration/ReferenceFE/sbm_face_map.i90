@@ -28,7 +28,7 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! face_map_t type procedures
 !==================================================================================================
-subroutine face_map_create_face_map(this,quadrature,reference_fe_geo)
+subroutine face_map_create(this,quadrature,reference_fe_geo)
   implicit none
   ! Parameters
   class(face_map_t)                , intent(inout) :: this
@@ -68,10 +68,10 @@ subroutine face_map_create_face_map(this,quadrature,reference_fe_geo)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
-end subroutine face_map_create_face_map
+end subroutine face_map_create
 
 !==================================================================================================
-subroutine face_map_update_face_map(this,reorientation_factor,quadrature)
+subroutine face_map_update(this,reorientation_factor,quadrature)
   implicit none    
   class(face_map_t)      , intent(inout) :: this
   real(rp)             , intent(in)    :: reorientation_factor
@@ -135,7 +135,7 @@ subroutine face_map_update_face_map(this,reorientation_factor,quadrature)
      this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
           &                                                             real(reorientation_factor) 
   end do
-end subroutine face_map_update_face_map
+end subroutine face_map_update
 
 !==================================================================================================
 subroutine face_map_free( this )

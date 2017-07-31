@@ -28,7 +28,7 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! edge_map_t type procedures
 !==================================================================================================
-subroutine edge_map_create_edge_map(this, quadrature, reference_fe_geo)
+subroutine edge_map_create(this, quadrature, reference_fe_geo)
   implicit none
   ! Parameters
   class(edge_map_t)                , intent(inout) :: this
@@ -68,10 +68,10 @@ subroutine edge_map_create_edge_map(this, quadrature, reference_fe_geo)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
-end subroutine edge_map_create_edge_map
+end subroutine edge_map_create
 
 !==================================================================================================
-subroutine edge_map_update_edge_map(this,local_edge_id,reference_fe,quadrature)
+subroutine edge_map_update(this,local_edge_id,reference_fe,quadrature)
   implicit none    
   class(edge_map_t)      , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_edge_id
@@ -115,14 +115,14 @@ subroutine edge_map_update_edge_map(this,local_edge_id,reference_fe,quadrature)
      ! @amartin: How can we make the tangent to point in the right direction? 
      this%tangents (:,evaluation_point_id) = this%tangents (:,evaluation_point_id) * this%det_jacobian(evaluation_point_id) 
   end do
-end subroutine edge_map_update_edge_map
+end subroutine edge_map_update
 
 !==================================================================================================
 subroutine edge_map_free( this )
   implicit none
   class(edge_map_t), intent(inout) :: this
-
-  
+  call this%base_map_t%free()
+  if (allocated(this%tangents)) call memfree ( this%tangents, __FILE__, __LINE__ )
 end subroutine edge_map_free
 
 !==================================================================================================

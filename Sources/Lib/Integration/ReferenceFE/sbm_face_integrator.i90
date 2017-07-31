@@ -109,7 +109,7 @@ subroutine face_maps_create(this, quadrature, left_geo_reference_fe, right_geo_r
   this%is_boundary = (.not. associated(right_geo_reference_fe))
 
   this%number_dimensions = left_geo_reference_fe%get_number_dimensions()
-  call this%face_map%create_face_map(quadrature,left_geo_reference_fe)
+  call this%face_map%create(quadrature,left_geo_reference_fe)
   call this%fe_maps(1)%create(quadrature,left_geo_reference_fe)
   if (associated(right_geo_reference_fe)) then
      call this%fe_maps(2)%create(quadrature,right_geo_reference_fe)
@@ -148,7 +148,7 @@ subroutine face_maps_update(this,face_lid,face_quadrature,left_reference_fe_geo)
   ! Compute normals reorientation factors from |J|'s original sign and face orientation
   reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(face_lid(1),this%fe_maps(1)%fe_map(face_lid(1)))
   ! Update face_map
-  call this%face_map%update_face_map(reorientation_factor,face_quadrature)
+  call this%face_map%update(reorientation_factor,face_quadrature)
 end subroutine face_maps_update
 
 !==================================================================================================

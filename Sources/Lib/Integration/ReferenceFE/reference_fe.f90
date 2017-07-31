@@ -179,6 +179,7 @@ module reference_fe_names
    contains
      procedure, non_overridable :: create                            => fe_map_create
      procedure, non_overridable :: create_on_face                    => fe_map_create_on_face
+     procedure                  :: free                              => fe_map_free
      procedure, non_overridable :: update                            => fe_map_update
      procedure, non_overridable :: print                             => fe_map_print
      procedure, non_overridable :: compute_h                         => fe_map_compute_h
@@ -195,9 +196,9 @@ module reference_fe_names
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)
    contains
-     procedure, non_overridable :: create_face_map   => face_map_create_face_map
-     procedure, non_overridable :: update_face_map   => face_map_update_face_map
-     procedure, non_overridable :: free_face_map     => face_map_update_face_map
+     procedure, non_overridable :: create            => face_map_create
+     procedure, non_overridable :: update            => face_map_update
+     procedure                  :: free              => face_map_free
      procedure, non_overridable :: get_normal        => face_map_get_normal
      procedure, non_overridable :: get_normals       => face_map_get_normals
   end type face_map_t
@@ -209,9 +210,10 @@ module reference_fe_names
      ! by type(hex_nedelec_reference_fe_t) on the reference cell.
      real(rp), allocatable    :: tangents(:,:) 
    contains
-     procedure, non_overridable :: create_edge_map   => edge_map_create_edge_map
-     procedure, non_overridable :: update_edge_map   => edge_map_update_edge_map
-     procedure, non_overridable :: get_tangent       => edge_map_get_tangent
+     procedure, non_overridable :: create       => edge_map_create
+     procedure, non_overridable :: update       => edge_map_update
+     procedure                  :: free         => edge_map_free
+     procedure, non_overridable :: get_tangent  => edge_map_get_tangent
   end type edge_map_t
   
   type p_fe_map_t

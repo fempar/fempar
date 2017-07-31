@@ -110,6 +110,15 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
 end subroutine fe_map_create_on_face
 
 !==================================================================================================
+subroutine fe_map_free( this )
+  implicit none
+  class(fe_map_t), intent(inout) :: this
+  call this%base_map_t%free()
+  if ( allocated(this%inv_jacobian) ) call memfree(this%inv_jacobian,__FILE__,__LINE__)
+  if ( allocated(this%d2sdx) ) call memfree(this%d2sdx,__FILE__,__LINE__)
+end subroutine fe_map_free
+
+!==================================================================================================
 subroutine fe_map_update( this, quadrature)
   !-----------------------------------------------------------------------
   ! A map obtained from the (usually isoparametric) interpolation of the geometry
@@ -230,19 +239,6 @@ subroutine fe_map_update_interpolation( this, quadrature, reference_fe_geometry 
   class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
   call reference_fe_geometry%create_interpolation( quadrature, this%interpolation_geometry )
 end subroutine fe_map_update_interpolation
-
-!==================================================================================================
-subroutine fe_map_free( this )
-  implicit none
-  class(fe_map_t), intent(inout) :: this
-  if(allocated(this%jacobian)) call memfree(this%jacobian,__FILE__,__LINE__)
-  if(allocated(this%inv_jacobian)) call memfree(this%inv_jacobian,__FILE__,__LINE__)
-  if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
-  if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
-  if(allocated(this%coordinates_quadrature)) deallocate(this%coordinates_quadrature)
-  if(allocated(this%coordinates_nodes)) deallocate(this%coordinates_nodes)
-  call this%interpolation_geometry%free()
-end subroutine fe_map_free
 
 subroutine fe_map_print( this )
   implicit none
