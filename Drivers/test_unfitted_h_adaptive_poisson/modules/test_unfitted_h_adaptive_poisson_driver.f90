@@ -46,6 +46,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
   use vector_poisson_analytical_functions_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO ! VTK_IO
+  use plot_aggregates_utils_names
     
 # include "debug.i90"
 
@@ -135,7 +136,7 @@ contains
     class(level_set_function_t), pointer :: levset
 
     ! Get number of dimensions form input
-    assert( this%parameter_list%isPresent    (key = number_of_dimensions_key) )
+    massert( this%parameter_list%isPresent    (key = number_of_dimensions_key), 'Use -tt structured' )
     assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
     istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
 
@@ -749,7 +750,9 @@ contains
     class(cell_iterator_t), allocatable :: cell
     
     real(rp),allocatable :: aggrs_ids(:)
+    real(rp),allocatable :: aggrs_ids_color(:)
     integer(ip), pointer :: aggregate_ids(:)
+    integer(ip), allocatable :: aggregate_ids_color(:)
     
     type(unfitted_vtk_writer_t) :: vtk_writer
 
@@ -763,9 +766,15 @@ contains
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),cell_vector_set_ids,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),aggrs_ids_color,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),aggregate_ids_color,__FILE__,__LINE__)
         
         aggregate_ids => this%fe_space%get_aggregate_ids()
         aggrs_ids(:) = real(aggregate_ids,kind=rp)
+
+        aggregate_ids_color(:) = aggregate_ids
+        call colorize_aggregate_ids(this%triangulation,aggregate_ids_color)
+        aggrs_ids_color(:) = real(aggregate_ids_color,kind=rp)
         
         N=this%triangulation%get_num_cells()
         P=6
@@ -792,6 +801,7 @@ contains
         call oh%add_cell_vector(cell_vector_set_ids,'cell_set_ids')
         
         call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
+        call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
 
         call oh%open(path, prefix)
         call oh%write()
@@ -800,10 +810,17 @@ contains
         call memfree(cell_vector,__FILE__,__LINE__)
         call memfree(cell_vector_set_ids,__FILE__,__LINE__)
         call memfree(aggrs_ids,__FILE__,__LINE__)
+        call memfree(aggrs_ids_color,__FILE__,__LINE__)
+        call memfree(aggregate_ids_color,__FILE__,__LINE__)
 
         ! Write the unfitted mesh
         call vtk_writer%attach_triangulation(this%triangulation)
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh.vtu')
+        call vtk_writer%free()
+
+        ! Write the unfitted mesh
+        call vtk_writer%attach_boundary_faces(this%triangulation)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
         call vtk_writer%free()
         
         ! Write the solution
