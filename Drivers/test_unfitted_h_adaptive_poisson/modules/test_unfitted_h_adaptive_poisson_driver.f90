@@ -640,6 +640,7 @@ contains
       write(iounit,'(a,e32.25)') 'error_h1_semi_norm_boundary    ;', error_h1_semi_norm_boundary    
       write(iounit,'(a,e32.25)') 'rel_error_l2_norm_boundary     ;', error_l2_norm_boundary      /l2_norm_boundary
       write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary;', error_h1_semi_norm_boundary /h1_semi_norm_boundary
+      write(iounit,'(a,i32)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
       call io_close(iounit)
     end if
 

@@ -78,6 +78,7 @@ subroutine suhpafs_free(this)
   if (allocated(this%aggregate_ids)) then
     call memfree(this%aggregate_ids,__FILE__,__LINE__)
   end if
+  this%max_separation_from_root = -1
 end subroutine suhpafs_free
 
 !========================================================================================
@@ -351,6 +352,14 @@ function suhpafs_get_aggregate_ids(this)
 end function suhpafs_get_aggregate_ids
 
 !========================================================================================
+function suhpafs_get_max_separation_from_root(this)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
+  integer(ip) :: suhpafs_get_max_separation_from_root
+  suhpafs_get_max_separation_from_root = this%max_separation_from_root
+end function suhpafs_get_max_separation_from_root
+
+!========================================================================================
 subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
@@ -366,8 +375,8 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   class(vef_iterator_t), allocatable :: vef
   integer(ip) :: ivef
   integer(ip) :: ifacet
-  integer(ip), allocatable :: tent_distance(:) ! TODO make it also for 3D
-  integer(ip), allocatable :: min_distance(:)  ! TODO make it also for 3D
+  integer(ip), allocatable :: tent_distance(:)
+  integer(ip), allocatable :: min_distance(:)
   integer(ip) :: min_distance_aggr_id
 
   integer(ip), allocatable :: distance(:,:)
@@ -393,6 +402,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     mcheck(.false.,'Only for 3D and 2D')
   end if
 
+  this%max_separation_from_root = 0
 
   call memalloc(triangulation%get_num_local_cells(),triangulation%get_num_dimensions(),distance,__FILE__,__LINE__)
   call memalloc(triangulation%get_num_dimensions(),tent_distance,__FILE__,__LINE__)
@@ -460,6 +470,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
 
           this%aggregate_ids(cell%get_lid()) = min_distance_aggr_id
           distance(cell%get_lid(),:) = min_distance
+          this%max_separation_from_root = max(this%max_separation_from_root,maxval(abs(min_distance)))
 
           if (this%aggregate_ids(cell%get_lid()) == 0) then
             is_needed = .true.
