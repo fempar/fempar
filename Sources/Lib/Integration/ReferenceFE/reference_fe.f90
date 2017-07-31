@@ -1105,8 +1105,6 @@ procedure :: evaluate_fe_function_tensor          &
     & => nedelec_evaluate_fe_function_tensor
 procedure, private :: apply_femap_to_interpolation & 
     & => nedelec_apply_femap_to_interpolation
-procedure, private :: fill                         & 
-    & => nedelec_fill
 procedure, private :: fill_vector                         & 
     & => nedelec_fill_vector    
 procedure, private :: fill_nodal_quadrature &
@@ -1120,6 +1118,7 @@ procedure          :: apply_change_basis_matrix_to_nodal_values &
 end type nedelec_reference_fe_t 
 
 abstract interface
+
   subroutine nedelec_change_basis_interface ( this )
     import :: nedelec_reference_fe_t 
     implicit none 
@@ -1325,6 +1324,8 @@ procedure :: check_compatibility_of_n_faces                              &
 &   => hex_nedelec_reference_fe_check_compatibility_of_n_faces
 procedure :: get_characteristic_length                                   &
 &   => hex_nedelec_reference_fe_get_characteristic_length
+procedure, private :: fill                                               &
+& => hex_nedelec_reference_fe_fill 
 
 ! Deferred TBP implementors from nedelec_reference_fe_t
 procedure, private :: fill_quadrature                                    &
@@ -1359,12 +1360,12 @@ procedure :: check_compatibility_of_n_faces                              &
 &   => tet_nedelec_reference_fe_check_compatibility_of_n_faces
 procedure :: get_characteristic_length                                   &
 &   => tet_nedelec_reference_fe_get_characteristic_length
-procedure, private :: fill                                               & 
-&   => tet_nedelec_reference_fe_fill 
 procedure :: fill_own_dof_permutations                                   &
 &  => tet_nedelec_reference_fe_fill_own_dof_permutations
 procedure :: fill_qpoints_permutations                                   &
 &  => tet_nedelec_reference_fe_fill_qpoints_permutations
+procedure, private :: fill                                               & 
+&   => tet_nedelec_reference_fe_fill 
 
 ! Deferred TBP implementors from nedelec_reference_fe_t
 procedure, private :: fill_quadrature                                    &
@@ -1385,7 +1386,7 @@ procedure, private :: compute_number_nodes_scalar                        &
  & => tet_nedelec_reference_fe_compute_number_nodes_scalar
 procedure, private :: get_node_local_id                                  &
 & => tet_nedelec_reference_fe_get_node_local_id
-! Concrete TBPs of this derived data type
+
 procedure, private, non_overridable :: fill_nodes_n_face                            &
 & => tet_nedelec_reference_fe_fill_nodes_n_face
 procedure, private, non_overridable :: fill_n_face_dimension_and_vertices           &

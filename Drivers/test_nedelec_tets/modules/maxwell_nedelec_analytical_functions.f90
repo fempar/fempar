@@ -122,9 +122,12 @@ contains
 	!call result%set(3, 1.0_rp+x+y+z+x*x+x*z+y*z+x*y+y*y - 6.0_rp ) 
 	!end if 
 
+	 ! 0-order 
+	 call result%set(1, 1.0_rp ) 
+	 call result%set(2, 1.0_rp ) 
 	 ! First order 
-	 call result%set(1, -y ) 
-	 call result%set(2,  x ) 
+	 !call result%set(1, -y ) 
+	 !call result%set(2,  x ) 
 	 ! Second order 
 	 !call result%set(1, -y*y + 3.0_rp ) 
 	 !call result%set(2,  x*y ) 
@@ -160,9 +163,12 @@ contains
 	!call result%set(3, 1.0_rp+x+y+z+x*x+x*z+y*z+x*y+y*y ) 
 	!end if 
 
+	 ! 0-order 
+	 call result%set(1, 1.0_rp ) 
+	 call result%set(2, 1.0_rp ) 
 	 ! First order 
-	 call result%set(1, -y ) 
-	 call result%set(2,  x ) 
+	 !call result%set(1, -y ) 
+	 !call result%set(2,  x ) 
 	 ! Second order 
 	 !call result%set(1, -y*y ) 
 	 !call result%set(2,  x*y ) 
@@ -180,9 +186,10 @@ contains
 	x = point%get(1); y=point%get(2); z=point%get(3)
 
 	call result%init(0.0_rp) 
+	! Zero order 
 	! First order 
-	call result%set(2,1, -1.0_rp)
-	call result%set(1,2,  1.0_rp)
+	!call result%set(2,1, -1.0_rp)
+	!call result%set(1,2,  1.0_rp)
 	! Second order 
 	!call result%set(2,1, -2.0_rp*y)
 	!call result%set(1,2, y )
@@ -198,8 +205,10 @@ contains
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
 	!result = 1.0_rp+x+y+z-y**2-x*z-x*y-z**2-y*z-y*z
+	! Zero order 
+	result = 1.0_rp
 	! First order 
-	result = -y 
+	!result = -y 
 	! Second order 
 	!result = -y*y
 
@@ -214,8 +223,10 @@ contains
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
    ! result = 1.0_rp+x+y+z+x*y+x*x-z*z+x*z-y*z   
+	! Zero order 
+	result = 1.0_rp 
 	! First order 
-	result = x
+	! result = x
 	! Second order 
     ! result = x*y
 

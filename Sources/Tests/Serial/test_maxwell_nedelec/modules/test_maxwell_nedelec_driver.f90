@@ -106,17 +106,24 @@ contains
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat
     type(vef_iterator_t)  :: vef
+    class(cell_iterator_t), allocatable       :: cell
+    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
 
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
-                                                 fe_type = fe_type_nedelec, &
+    call this%triangulation%create_cell_iterator(cell)
+    reference_fe_geo => cell%get_reference_fe_geo()
+	
+    this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
+                                                 fe_type = fe_type_nedelec,                                   &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = this%test_params%get_reference_fe_order(), &
-                                                 field_type = field_type_vector, &
+                                                 order = this%test_params%get_reference_fe_order(),           &
+                                                 field_type = field_type_vector,                              &
                                                  conformity = .true. ) 
     
+    call this%triangulation%free_cell_iterator(cell)
+		
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
@@ -138,15 +145,15 @@ contains
 
     call this%maxwell_nedelec_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%fe_space%create( triangulation       = this%triangulation, &
-                               reference_fes       = this%reference_fes, &
-                               conditions          = this%maxwell_nedelec_conditions )
+         reference_fes       = this%reference_fes, &
+         conditions          = this%maxwell_nedelec_conditions )
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration() 
-	   call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
-	   call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
-	   if ( this%triangulation%get_num_dimensions() == 3) then 
-	     call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
-	   end if 
+    call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
+    call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
+    if ( this%triangulation%get_num_dimensions() == 3) then 
+       call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
+    end if
     call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
   end subroutine setup_fe_space
 
@@ -268,7 +275,7 @@ contains
     linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
     h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
     h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
-	hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_seminorm) 
+    hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_seminorm) 
     w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
     w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
     w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
@@ -287,7 +294,7 @@ contains
     write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
     write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
     write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-	write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
+    write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
     write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
     write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
@@ -324,7 +331,7 @@ contains
     call this%setup_solver()
     call this%solution%create(this%fe_space) 
     call this%solve_system()
-	call this%write_solution()
+    call this%write_solution()
     call this%check_solution()
     !call this%show_H()
     call this%free()

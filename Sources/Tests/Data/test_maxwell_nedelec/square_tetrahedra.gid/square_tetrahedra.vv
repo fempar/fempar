@@ -1,7 +1,7 @@
-BeginZE square_quads.gid/square_quads.vv
-   x -0.906493663787841797 1.843863844871521
-   y 1.16103088855743408 -0.271734714508056641
-   z -1.43358993530273438 1.43358993530273438
+BeginZE square_tetrahedra.gid/square_tetrahedra.vv
+   x -1.29454827308654785 2.29454827308654785
+   y 1.43484818935394287 -0.434848278760910034
+   z -0.726483166217803955 0.726483166217803955
    e 0.726483166217803955
    v 0 0 0
    r 1
@@ -29,7 +29,7 @@ BeginZE square_quads.gid/square_quads.vv
    OGLStereo(EyeDistance) 0.075
    OGLStereo(LeftEyeDistance) 1 0 0 1
    OGLStereo(RightEyeDistance) 0 1 1 1
-EndZE square_quads.gid/square_quads.vv
+EndZE square_tetrahedra.gid/square_tetrahedra.vv
 
 BeginMirror
    Mirror 0 Angle 0.0 AngleFake -15.0 SizeFactor 2.0 HeightOffset 0.25 Color #d9e5f24d Backlight Off EdgeStyle No Type Scene DrawMode Mirror

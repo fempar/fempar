@@ -126,7 +126,7 @@ contains
        do qpoint = 1, num_quad_points
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
 
-          ! \int_(curl(v).curl(u))
+          ! \int_(v.u) + \int_(curl(v).curl(u)) 
           do idof=1, num_dofs_per_field(1)
             do jdof=1, num_dofs_per_field(1) 
               elmat(idof,jdof) = elmat(idof,jdof) + &

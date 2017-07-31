@@ -70,6 +70,36 @@ end function hex_nedelec_reference_fe_get_characteristic_length
 !**************************************************************************************************
 ! Deferred TBP implementors from nedelec_reference_fe_t
 !**************************************************************************************************
+subroutine hex_nedelec_reference_fe_fill (this)
+  implicit none
+  class(hex_nedelec_reference_fe_t), intent(inout) :: this
+  integer(ip) :: c, i, j, dimension
+  integer(ip) :: column, inode, idime, inode_scalar, num_columns
+  ! Here we put a k-1,k,k order_vector, which is the one for the x-component.
+  ! In fill_vector, we use order_vector (and other arrays) using a permutation 
+  this%order_vector = this%order
+  this%order_vector(1) = this%order-1
+  call this%fill_vector()
+  
+  call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
+  
+  call memalloc( this%node_array_vector(1)%number_nodes,     & 
+       &         this%number_field_components, & 
+       &         this%node_array_component,    & 
+       &         __FILE__, __LINE__ )
+
+  c = 1
+  do i = 1, this%number_field_components
+    assert(this%node_array_vector(i)%number_nodes == this%node_array_vector(1)%number_nodes)
+    do j = 1, this%node_array_vector(i)%number_nodes
+        this%node_component_array(c,1) = j
+        this%node_component_array(c,2) = i   
+        this%node_array_component(j,i) = c
+        c = c+1
+     end do
+  end do
+  
+end subroutine hex_nedelec_reference_fe_fill
 
 ! @sbadia: Think about an automatic generation of gauss points for an arbitrary order
 !==================================================================================================

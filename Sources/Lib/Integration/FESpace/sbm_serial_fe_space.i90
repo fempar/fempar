@@ -747,7 +747,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call fe_face%free()
   call this%free_fe_iterator(fe)
   call matrix%convert(csr_format)
-
+  				
   call parameter_list%init()
 #ifdef ENABLE_MKL
   FPLError = parameter_list%set(key = direct_solver_type                  ,  value = pardiso_mkl)
