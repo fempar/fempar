@@ -87,9 +87,9 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
      ! tasks also know how many fields there are
      this%number_fields = size(reference_fes)
      
-     ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
-     ! requires that strong_dirichlet_values is created and allocated
-     call this%strong_dirichlet_values%create_and_allocate(0)
+     ! This is a little bit DIRTY. fe_function%create(fe_space)
+     ! requires that number_strong_dirichlet_dofs is initialize
+     this%number_strong_dirichlet_dofs = 0
   end if
  
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
@@ -135,9 +135,9 @@ subroutine par_fe_space_create_different_between_cells( this,                   
      ! tasks also know how many fields there are
      this%number_fields = size(set_ids_to_reference_fes,1)
 
-     ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
-     ! requires that strong_dirichlet_values is created and allocated
-     call this%strong_dirichlet_values%create_and_allocate(0)
+     ! This is a little bit DIRTY. fe_function%create(fe_space)
+     ! requires that number_strong_dirichlet_dofs is initialize
+     this%number_strong_dirichlet_dofs = 0
   end if
 
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
@@ -167,9 +167,9 @@ subroutine par_fe_space_free( this )
         ! fields is also set on coarse-grid tasks
         this%number_fields = 0
         
-        ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
-        ! requires that strong_dirichlet_values is created and allocated
-        call this%serial_fe_space_t%strong_dirichlet_values%free()
+        ! This is a little bit DIRTY. fe_function%create(fe_space)
+        ! requires that number_strong_dirichlet_dofs is initialize
+        this%number_strong_dirichlet_dofs = 0
         
         if ( associated(this%coarse_fe_space) ) then
           call this%coarse_fe_space%free()

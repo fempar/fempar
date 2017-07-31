@@ -93,6 +93,7 @@ subroutine serial_fe_space_free (this)
   call this%free_at_strong_dirichlet_bound()
   nullify(this%conditions)
   call this%strong_dirichlet_values%free()
+  this%number_strong_dirichlet_dofs = 0
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
   call this%free_fe_face_integration()
