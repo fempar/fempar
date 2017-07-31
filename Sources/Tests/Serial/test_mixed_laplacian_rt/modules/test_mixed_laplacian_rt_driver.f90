@@ -149,6 +149,7 @@ contains
                                           discrete_integration              = this%mixed_laplacian_rt_integration )
     call this%solution%create(this%fe_space) 
     call this%fe_space%interpolate_dirichlet_values(this%solution)
+    call this%mixed_laplacian_rt_integration%set_fe_function(this%solution)
   end subroutine setup_system
 
   subroutine setup_solver (this)

@@ -34,21 +34,30 @@ module maxwell_nedelec_discrete_integration_names
   type, extends(discrete_integration_t) :: maxwell_nedelec_discrete_integration_t
      private
      class(vector_function_t), pointer :: source_term        => NULL()
+     type(fe_function_t)     , pointer :: fe_function        => NULL()
    contains
      procedure :: set_source_term
+     procedure :: set_fe_function
      procedure :: integrate_galerkin
   end type maxwell_nedelec_discrete_integration_t
   
   public :: maxwell_nedelec_discrete_integration_t
   
 contains
-   
+
   subroutine set_source_term (this, vector_function)
     implicit none
     class(maxwell_nedelec_discrete_integration_t), intent(inout) :: this
     class(vector_function_t), target, intent(in)    :: vector_function
     this%source_term => vector_function
   end subroutine set_source_term
+
+  subroutine set_fe_function (this, fe_function)
+    implicit none
+    class(maxwell_nedelec_discrete_integration_t), intent(inout) :: this
+    type(fe_function_t)                  , target, intent(in)    :: fe_function
+    this%fe_function => fe_function
+  end subroutine set_fe_function
 
   subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
@@ -138,7 +147,7 @@ contains
        end do
        
        ! Apply boundary conditions
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
+       call fe%impose_strong_dirichlet_bcs( this%fe_function, elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe%next()
     end do

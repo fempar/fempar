@@ -811,30 +811,77 @@ function fe_iterator_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) re
   list_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
 end function fe_iterator_create_own_dofs_on_vef_iterator
 
-subroutine fe_iterator_impose_strong_dirichlet_bcs ( this, elmat, elvec )
- implicit none
- class(fe_iterator_t), intent(in)    :: this
- real(rp)            , intent(in)    :: elmat(:,:)
- real(rp)            , intent(inout) :: elvec(:)  
- integer(ip)                         :: idof, elmat_col, field_id, spos
- 
- class(reference_fe_t), pointer :: reference_fe
- real(rp)             , pointer :: strong_dirichlet_values_entries(:)
- 
- strong_dirichlet_values_entries => this%fe_space%strong_dirichlet_values%get_entries()
- elmat_col = 0
- do field_id = 1, this%fe_space%get_number_fields()
-   reference_fe => this%get_reference_fe(field_id)
-   spos = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
-   do idof = 1, reference_fe%get_number_shape_functions()
-       elmat_col = elmat_col + 1
-       if ( this%fe_space%lst_dofs_lids(spos+idof-1) < 0 ) then
+subroutine fe_iterator_impose_strong_dirichlet_bcs ( this, fe_function, elmat, elvec )
+  implicit none
+  class(fe_iterator_t), intent(in)    :: this
+  type(fe_function_t) , intent(in)    :: fe_function
+  real(rp)            , intent(in)    :: elmat(:,:)
+  real(rp)            , intent(inout) :: elvec(:)
+  
+  integer(ip) :: idof, elmat_col, field_id, spos
+  
+  class(reference_fe_t)      , pointer :: reference_fe
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
+  
+  strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
+  strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+  
+  elmat_col = 0
+  do field_id = 1, this%fe_space%get_number_fields()
+    if ( this%at_strong_dirichlet_boundary(field_id) ) then
+      reference_fe => this%get_reference_fe(field_id)
+      spos = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
+      do idof = 1, reference_fe%get_number_shape_functions()
+        elmat_col = elmat_col + 1
+        if ( this%fe_space%lst_dofs_lids(spos+idof-1) < 0 ) then
           elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(-this%fe_space%lst_dofs_lids(spos+idof-1))
-       end if
-   end do
- end do
- 
+        end if
+      end do
+    end if
+  end do
+  
 end subroutine fe_iterator_impose_strong_dirichlet_bcs
+
+subroutine fe_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs ( this,  &
+                                                                  elmat, &
+                                                                  elvec, &
+                                                                  matrix_array_assembler )
+  implicit none
+  class(fe_iterator_t)           , intent(inout) :: this
+  real(rp)                       , intent(in)    :: elmat(:,:)
+  real(rp)                       , intent(in)    :: elvec(:)
+  class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
+  
+  call this%update_number_dofs_per_field()
+  call this%update_elem2dof()
+  
+  call matrix_array_assembler%assembly( this%fe_space%number_fields,        &
+                                        this%number_dofs_per_field,         &
+                                        this%elem2dof,                      &
+                                        this%fe_space%get_field_blocks(),   &
+                                        this%fe_space%get_field_coupling(), &
+                                        elmat,                              &
+                                        elvec )
+  
+end subroutine fe_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
+
+subroutine fe_iterator_assemble_mat_vec_with_strong_dirichlet_bcs ( this,        &
+                                                                    fe_function, &
+                                                                    elmat,       &
+                                                                    elvec,       &
+                                                                    matrix_array_assembler )
+  implicit none
+  class(fe_iterator_t)           , intent(inout) :: this
+  type(fe_function_t)            , intent(in)    :: fe_function
+  real(rp)                       , intent(in)    :: elmat(:,:)
+  real(rp)                       , intent(inout) :: elvec(:)
+  class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
+  
+  call this%impose_strong_dirichlet_bcs(fe_function,elmat,elvec)
+  call this%assemble(elmat,elvec,matrix_array_assembler)
+  
+end subroutine fe_iterator_assemble_mat_vec_with_strong_dirichlet_bcs
 
 subroutine fe_iterator_first_local_non_void(this,field_id)
  implicit none

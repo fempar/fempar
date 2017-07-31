@@ -433,6 +433,7 @@ end subroutine free_timers
 
     call this%solution%create(this%fe_space) 
     call this%fe_space%interpolate_dirichlet_values(this%solution)    
+    call this%poisson_unfitted_integration%set_fe_function(this%solution)
 
   end subroutine setup_system
 

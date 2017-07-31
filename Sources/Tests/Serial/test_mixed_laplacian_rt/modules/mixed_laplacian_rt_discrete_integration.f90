@@ -35,9 +35,11 @@ module mixed_laplacian_rt_discrete_integration_names
      private
      class(scalar_function_t), pointer :: pressure_source_term        => NULL()
      class(scalar_function_t), pointer :: pressure_boundary_function  => NULL()
+     type(fe_function_t)     , pointer :: fe_function                 => NULL()
    contains
      procedure :: set_pressure_source_term
      procedure :: set_pressure_boundary_function
+     procedure :: set_fe_function
      procedure :: integrate_galerkin
   end type mixed_laplacian_rt_discrete_integration_t
   
@@ -58,6 +60,13 @@ contains
     class(scalar_function_t), target, intent(in)    :: scalar_function
     this%pressure_boundary_function => scalar_function
   end subroutine set_pressure_boundary_function
+  
+  subroutine set_fe_function (this, fe_function)
+    implicit none
+    class(mixed_laplacian_rt_discrete_integration_t), intent(inout) :: this
+    type(fe_function_t)                     , target, intent(in)    :: fe_function
+    this%fe_function => fe_function
+  end subroutine set_fe_function
 
   subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
@@ -176,7 +185,7 @@ contains
        end do
        
        ! Apply boundary conditions (IMPLEMENTATION PENDING)
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
+       call fe%impose_strong_dirichlet_bcs( this%fe_function, elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe%next()
     end do

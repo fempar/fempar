@@ -232,6 +232,12 @@ module fe_space_names
     procedure, non_overridable          :: is_void                                    => fe_iterator_is_void
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
+    procedure, non_overridable, private :: fe_iterator_assemble_mat_vec_with_strong_dirichlet_bcs
+    procedure, non_overridable, private :: fe_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
+    !procedure, non_overridable          :: fe_iterator_assemble_vec
+    generic                             :: assemble                                   => fe_iterator_assemble_mat_vec_with_strong_dirichlet_bcs, &
+                                                                                         fe_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs!,   &
+                                                                                         !fe_iterator_assemble_vec
     procedure, non_overridable          :: first_local_non_void                       => fe_iterator_first_local_non_void
 
     ! Added by unfitted_fe_iterator

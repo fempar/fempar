@@ -403,7 +403,8 @@ end subroutine free_timers
                                           discrete_integration              = this%poisson_integration )
     
     call this%solution%create(this%fe_space) 
-    call this%fe_space%interpolate_dirichlet_values(this%solution)    
+    call this%fe_space%interpolate_dirichlet_values(this%solution)
+    call this%poisson_integration%set_fe_function(this%solution)
     
   end subroutine setup_system
   

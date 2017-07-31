@@ -428,6 +428,11 @@ contains
     call this%solution%create(this%fe_space) 
     if ( this%test_params%get_fe_formulation() == 'cG' ) then
       call this%fe_space%interpolate_dirichlet_values(this%solution)
+      if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+        call this%poisson_cG_integration%set_fe_function(this%solution)
+      else
+        call this%vector_poisson_integration%set_fe_function(this%solution)
+      end if
     end if
   end subroutine setup_system
   
