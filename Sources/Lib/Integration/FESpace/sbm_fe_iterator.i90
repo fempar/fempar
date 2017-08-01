@@ -30,9 +30,16 @@ subroutine fe_iterator_create ( this, fe_space )
   implicit none
   class(fe_iterator_t)            , intent(inout) :: this
   class(serial_fe_space_t), target, intent(in)    :: fe_space
+  integer(ip) :: istat
   call this%free()
   this%fe_space => fe_space
   call this%fe_space%triangulation%create_cell_iterator(this%cell)
+  if ( .not. allocated(this%number_dofs_per_field) ) then
+    call memalloc ( this%fe_space%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
+  end if
+  if ( .not. allocated(this%elem2dof) ) then
+    allocate( this%elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
+  end if
 end subroutine fe_iterator_create
 
 subroutine fe_iterator_free (this)
@@ -355,42 +362,36 @@ subroutine fe_iterator_renumber_dofs_field ( this, field_id, perm_old2new )
   end do
 end subroutine fe_iterator_renumber_dofs_field
 
-subroutine fe_iterator_update_number_dofs_per_field( this )
+subroutine fe_iterator_update_number_dofs_per_field( this, number_dofs_per_field )
   implicit none
-  class(fe_iterator_t), intent(inout) :: this 
+  class(fe_iterator_t), intent(in)    :: this 
+  integer(ip)         , intent(inout) :: number_dofs_per_field(:)
   integer(ip) :: field_id
   
-  if ( .not. allocated(this%number_dofs_per_field) ) then
-    call memalloc ( this%fe_space%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
-  end if
-  
   do field_id = 1, this%get_number_fields()-1
-    this%number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())- &
-                                           this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
+    number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())- &
+                                      this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
   end do
-  this%number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
-                                         this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
+  number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
+                                    this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
   
 end subroutine fe_iterator_update_number_dofs_per_field
 
-subroutine fe_iterator_update_elem2dof( this )
+subroutine fe_iterator_update_elem2dof( this, elem2dof )
   implicit none
-  class(fe_iterator_t), intent(inout) :: this 
-  integer(ip) :: field_id, j, spos, epos, istat
+  class(fe_iterator_t), intent(in)    :: this 
+  type(i1p_t)         , intent(inout) :: elem2dof(:)
+  integer(ip) :: field_id, j, spos, epos
   
-  if ( .not. allocated(this%elem2dof) ) then
-    allocate( this%elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
-  end if
-  
-  assert ( size(this%elem2dof) == this%fe_space%number_fields )
+  assert ( size(elem2dof) == this%fe_space%number_fields )
   do field_id = 1, this%get_number_fields()-1
     spos = this%fe_space%ptr_dofs_per_fe(field_id  ,this%get_lid())
     epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
-    this%elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
+    elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
   end do
   spos = this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
   epos = this%fe_space%ptr_dofs_per_fe(1         , this%get_lid()+1)-1
-  this%elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
+  elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
   
 end subroutine fe_iterator_update_elem2dof
 
@@ -853,8 +854,8 @@ subroutine fe_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs ( this,  &
   real(rp)                       , intent(in)    :: elvec(:)
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
-  call this%update_number_dofs_per_field()
-  call this%update_elem2dof()
+  call this%update_number_dofs_per_field(this%number_dofs_per_field)
+  call this%update_elem2dof(this%elem2dof)
   
   call matrix_array_assembler%assembly( this%fe_space%number_fields,        &
                                         this%number_dofs_per_field,         &

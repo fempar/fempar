@@ -231,7 +231,7 @@ module fe_space_names
     procedure, non_overridable          :: get_reference_fe_id                        => fe_iterator_get_reference_fe_id
     procedure, non_overridable          :: is_void                                    => fe_iterator_is_void
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
-    procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
+    procedure, non_overridable, private :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
     procedure, non_overridable, private :: fe_iterator_assemble_mat_vec_with_strong_dirichlet_bcs
     procedure, non_overridable, private :: fe_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
     !procedure, non_overridable          :: fe_iterator_assemble_vec
@@ -287,8 +287,12 @@ module fe_space_names
     
   type, extends(fe_vef_iterator_t) :: fe_face_iterator_t
     private
-    integer(ip)                         :: face_lid
-    class(fe_iterator_t)  , allocatable :: fe
+    integer(ip)                       :: face_lid
+    class(fe_iterator_t), allocatable :: fe
+    integer(ip)         , allocatable :: test_number_dofs_per_field(:)
+    integer(ip)         , allocatable :: trial_number_dofs_per_field(:)
+    type(i1p_t)         , allocatable :: test_elem2dof(:)
+    type(i1p_t)         , allocatable :: trial_elem2dof(:)
    contains
     procedure                 , private :: create                        => fe_face_iterator_create
     procedure                 , private :: free                          => fe_face_iterator_free
@@ -297,7 +301,11 @@ module fe_space_names
     procedure                           :: has_finished                  => fe_face_iterator_has_finished
     procedure, non_overridable          :: set_lid                       => fe_face_iterator_set_lid
     procedure, non_overridable          :: get_lid                       => fe_face_iterator_get_lid
+    procedure, non_overridable, private :: update_number_dofs_per_field  => fe_face_iterator_update_number_dofs_per_field
+    procedure, non_overridable, private :: update_elem2dof               => fe_face_iterator_update_elem2dof
     procedure, non_overridable          :: update_integration            => fe_face_iterator_update_integration
+    procedure, non_overridable, private :: fe_face_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
+    generic                             :: assemble                      => fe_face_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
     procedure, non_overridable          :: get_fe_space                  => fe_face_iterator_get_fe_space
     procedure, non_overridable          :: get_elem2dof                  => fe_face_iterator_get_elem2dof
     procedure, non_overridable          :: get_default_quadrature_degree => fe_face_iterator_get_default_quadrature_degree

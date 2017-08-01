@@ -31,10 +31,23 @@ subroutine fe_face_iterator_create ( this, fe_space, vef )
   class(fe_face_iterator_t), target, intent(inout) :: this
   class(serial_fe_space_t) , target, intent(in)    :: fe_space
   class(vef_iterator_t)    , intent(in)            :: vef
+  integer(ip) :: istat
   call this%free()
   call this%fe_vef_iterator_t%create(fe_space,vef)
   call this%fe_space%create_fe_iterator(this%fe)
   call this%first()
+  if ( .not. allocated(this%test_number_dofs_per_field) ) then
+    call memalloc ( this%fe_space%number_fields, this%test_number_dofs_per_field, __FILE__, __LINE__ )
+  end if
+  if ( .not. allocated(this%test_elem2dof) ) then
+    allocate( this%test_elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
+  end if
+  if ( .not. allocated(this%trial_number_dofs_per_field) ) then
+    call memalloc ( this%fe_space%number_fields, this%trial_number_dofs_per_field, __FILE__, __LINE__ )
+  end if
+  if ( .not. allocated(this%trial_elem2dof) ) then
+    allocate( this%trial_elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
+  end if
 end subroutine fe_face_iterator_create
 
 subroutine fe_face_iterator_free ( this )
@@ -47,6 +60,18 @@ subroutine fe_face_iterator_free ( this )
     deallocate(this%fe, stat=istat); check(istat==0);
   end if
   this%face_lid = -1
+  if ( allocated(this%test_number_dofs_per_field) ) then
+    call memfree ( this%test_number_dofs_per_field, __FILE__, __LINE__ )
+  end if
+  if ( allocated(this%test_elem2dof) ) then
+    deallocate ( this%test_elem2dof, stat=istat ); check(istat==0);
+  end if
+  if ( allocated(this%trial_number_dofs_per_field) ) then
+    call memfree ( this%trial_number_dofs_per_field, __FILE__, __LINE__ )
+  end if
+  if ( allocated(this%trial_elem2dof) ) then
+    deallocate ( this%trial_elem2dof, stat=istat ); check(istat==0);
+  end if
 end subroutine fe_face_iterator_free
 
 subroutine fe_face_iterator_first ( this )
@@ -92,6 +117,24 @@ function fe_face_iterator_get_lid (this) result(face_lid)
   face_lid = this%face_lid
 end function fe_face_iterator_get_lid
 
+subroutine fe_face_iterator_update_number_dofs_per_field( this, icell_around, number_dofs_per_field )
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this 
+  integer(ip)              , intent(in)    :: icell_around
+  integer(ip)              , intent(inout) :: number_dofs_per_field(:)
+  call this%get_cell_around(icell_around, this%fe)
+  call this%fe%update_number_dofs_per_field(number_dofs_per_field)
+end subroutine fe_face_iterator_update_number_dofs_per_field
+
+subroutine fe_face_iterator_update_elem2dof( this, icell_around, elem2dof )
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this 
+  integer(ip)              , intent(in)    :: icell_around
+  type(i1p_t)              , intent(inout) :: elem2dof(:)
+  call this%get_cell_around(icell_around, this%fe)
+  call this%fe%update_elem2dof(elem2dof)
+end subroutine fe_face_iterator_update_elem2dof
+
 subroutine fe_face_iterator_update_integration( this )
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this 
@@ -134,6 +177,39 @@ subroutine fe_face_iterator_update_integration( this )
                                  this%get_face_permutation_index())
   end do
 end subroutine fe_face_iterator_update_integration
+
+subroutine fe_face_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs ( this,    &
+                                                                       facemat, &
+                                                                       facevec, &
+                                                                       matrix_array_assembler )
+  implicit none
+  class(fe_face_iterator_t)      , intent(inout) :: this
+  real(rp)                       , intent(in)    :: facemat(:,:,:,:)
+  real(rp)                       , intent(in)    :: facevec(:,:)
+  class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
+  
+  integer(ip)              :: istat
+  integer(ip)              :: ineigh, jneigh
+  
+  do ineigh = 1, this%get_num_cells_around()
+     call this%update_elem2dof(ineigh,this%test_elem2dof)
+     call this%update_number_dofs_per_field(ineigh,this%test_number_dofs_per_field)
+     do jneigh = 1, this%get_num_cells_around()
+        call this%update_elem2dof(jneigh,this%trial_elem2dof)
+        call this%update_number_dofs_per_field(jneigh,this%trial_number_dofs_per_field)
+        call matrix_array_assembler%face_assembly( this%fe_space%number_fields,        &
+                                                   this%test_number_dofs_per_field,    &
+                                                   this%trial_number_dofs_per_field,   &
+                                                   this%test_elem2dof,                 &
+                                                   this%trial_elem2dof,                &
+                                                   this%fe_space%get_field_blocks(),   &
+                                                   this%fe_space%get_field_coupling(), &
+                                                   facemat(:,:,ineigh,jneigh),         &
+                                                   facevec(:,ineigh) )   
+     end do
+  end do
+  
+end subroutine fe_face_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
 
 function fe_face_iterator_get_fe_space(this)
   implicit none
