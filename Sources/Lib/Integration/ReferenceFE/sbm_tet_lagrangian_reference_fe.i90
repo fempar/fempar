@@ -313,8 +313,13 @@ subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)                  , intent(inout) :: quadrature
   integer(ip) :: i
+
   do i=1,this%number_dimensions
+     if ( this%order_vector(i) .gt. 0 ) then 
      quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(1.0_rp/this%order_vector(i))
+	 else 
+	 quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)
+	 end if 
   end do
   quadrature%weight = 1.0_rp
 end subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature
