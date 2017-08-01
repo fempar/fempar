@@ -1043,6 +1043,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  end do
  num_interior_moments = num_interior_moments*this%number_dimensions
   
+ if ( num_interior_moments > 0 ) then 
  ! create cell quadrature
  call this%create_quadrature(cell_quadrature)
   
@@ -1077,7 +1078,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
                                                      v_shape_test * v_shape_trial * factor
         end do
      end do
-   end do
+   end do   
+   end if 
    
   ! Invert change_basis_matrix
   call this%invert_change_basis_matrix()
