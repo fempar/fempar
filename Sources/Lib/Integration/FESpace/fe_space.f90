@@ -306,7 +306,6 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature                => fe_face_iterator_get_quadrature
     procedure, non_overridable          :: get_face_map                  => fe_face_iterator_get_face_map
     procedure, non_overridable          :: get_face_integrator           => fe_face_iterator_get_face_integrator
-    procedure, non_overridable          :: impose_strong_dirichlet_bcs   => fe_face_iterator_impose_strong_dirichlet_bcs
     procedure, non_overridable          :: compute_surface               => fe_face_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_face_permutation_index    => fe_face_iterator_get_face_permutation_index
@@ -363,7 +362,6 @@ module fe_space_names
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
      integer(ip)                                 :: number_strong_dirichlet_dofs
-     type(serial_scalar_array_t)                 :: strong_dirichlet_values
      logical                       , allocatable :: at_strong_dirichlet_boundary_per_fe(:,:)
      
      ! Descriptor of the block layout selected for the PDE system at hand
@@ -465,7 +463,6 @@ module fe_space_names
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure                           :: get_number_strong_dirichlet_dofs             => serial_fe_space_get_number_strong_dirichlet_dofs
-     procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      procedure                           :: get_number_blocks                            => serial_fe_space_get_number_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
@@ -884,7 +881,6 @@ module fe_space_names
    type(serial_scalar_array_t)   :: strong_dirichlet_values
   contains
      procedure, non_overridable          :: create                         => fe_function_create
-     procedure, non_overridable          :: update_strong_dirichlet_values => fe_function_update_strong_dirichlet_values
      procedure, non_overridable          :: gather_nodal_values            => fe_function_gather_nodal_values
      procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
      procedure, private, non_overridable :: interpolate_scalar_function    => fe_function_interpolate_scalar_function

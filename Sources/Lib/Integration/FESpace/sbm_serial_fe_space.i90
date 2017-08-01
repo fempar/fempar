@@ -92,7 +92,6 @@ subroutine serial_fe_space_free (this)
   call this%free_ptr_lst_dofs()
   call this%free_at_strong_dirichlet_bound()
   nullify(this%conditions)
-  call this%strong_dirichlet_values%free()
   this%number_strong_dirichlet_dofs = 0
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
@@ -107,7 +106,6 @@ subroutine serial_fe_space_print ( this )
   integer(ip)                      :: field_id, istat
 
   if (allocated(this%number_dofs_per_field)) write(*,'(a,i10,a)') '********* number_dofs_per_field ',this%number_dofs_per_field,'********'
-  write(*,'(a,i10,a)') '********* number_strong_dirichlet_dofs',this%strong_dirichlet_values%get_size(),'********'
 
   allocate ( elem2dof(this%get_number_fields()), stat=istat)
   check(istat==0)
@@ -123,9 +121,7 @@ subroutine serial_fe_space_print ( this )
      end do
      call fe%next()
   end do
-  call this%free_fe_iterator(fe) 
-
-  call this%strong_dirichlet_values%print(6)
+  call this%free_fe_iterator(fe)
 
   deallocate ( elem2dof, stat=istat)
   check(istat==0)
@@ -571,10 +567,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
         call values(component_id, reference_fe_id)%free()
      end do
   end do
-
-  ! TEMPORARY instructions for dev & testing
-  call this%strong_dirichlet_values%clone(strong_dirichlet_values)
-  call this%strong_dirichlet_values%copy(strong_dirichlet_values)
   
   call memfree(offset_component, __FILE__, __LINE__) 
   deallocate(elem2dof, stat=istat ) 
@@ -781,9 +773,6 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
                                                 size_indices=number_subset_strong_dirichlet_dofs, &
                                                 indices=subset2global_dirichlet_dofs,             &
                                                 values=projected_nodal_values%get_entries())
-  ! TEMPORARY instructions for dev & testing
-  call this%strong_dirichlet_values%clone(strong_dirichlet_values)
-  call this%strong_dirichlet_values%copy(strong_dirichlet_values)
 
   call matrix%free()
   call rhs%free()
@@ -2225,13 +2214,6 @@ function serial_fe_space_get_number_strong_dirichlet_dofs(this) result(number_st
   integer(ip) :: number_strong_dirichlet_dofs
   number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs
 end function serial_fe_space_get_number_strong_dirichlet_dofs
-
-function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichlet_values)
-  implicit none
-  class(serial_fe_space_t), target, intent(in)    :: this 
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
-  strong_dirichlet_values => this%strong_dirichlet_values
-end function serial_fe_space_get_strong_dirichlet_values
 
 function serial_fe_space_get_number_blocks( this)
   implicit none
