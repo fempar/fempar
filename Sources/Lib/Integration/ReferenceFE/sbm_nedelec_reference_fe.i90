@@ -223,7 +223,7 @@ subroutine nedelec_fill_vector (this)
      offset(idime+1) = offset(idime) + this%node_array_vector(idime)%get_number_nodes()
   end do 
 
-  ! Add nodes corresponding to homogeneous polynomials S_k basis 
+  ! Add Shape functions corresponding to homogeneous polynomials S_k basis in the tetrahedral case 
   if ( this%topology == topology_tet ) then  
   if (this%number_dimensions == 2) then 
   this%number_shape_functions = this%number_shape_functions + this%order 
@@ -245,32 +245,7 @@ subroutine nedelec_fill_vector (this)
   do i = 1,this%number_dimensions+1
      this%number_n_faces_per_dimension(i+1) = this%number_n_faces_per_dimension(i+1) + this%number_n_faces_per_dimension(i)
   end do
-
-  ! nodes_n-face
-  call this%dofs_n_face%create(num_n_faces)
-  do i = 1,num_n_faces
-     do idime = 1,this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
-        do while (.not. node_iterator%has_finished() )
-           call this%dofs_n_face%sum_to_pointer_index(i,1)
-           call node_iterator%next()
-        end do
-     end do
-  end do
-  call this%dofs_n_face%calculate_header()
-  call this%dofs_n_face%allocate_list_from_pointer()  
-  list_iterator = this%dofs_n_face%create_iterator()
-  do i = 1,num_n_faces
-     do idime = 1,this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
-        do while (.not. node_iterator%has_finished() )
-           node = node_iterator%current() + offset(idime)
-           call list_iterator%set_current(node)
-           call node_iterator%next()
-           call list_iterator%next()
-        end do
-     end do
-  end do
+  
   ! vertices_n-face
   call this%vertices_n_face%create(num_n_faces)
   ones_dim = 1

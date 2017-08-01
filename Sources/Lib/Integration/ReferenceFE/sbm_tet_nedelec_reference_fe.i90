@@ -35,8 +35,8 @@ subroutine tet_nedelec_reference_fe_free ( this )
   if ( allocated(this%change_basis_matrix) ) &
      call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
 	 
-  if ( allocated(this%basis_Sk) ) &
-     call memfree ( this%basis_Sk, __FILE__, __LINE__ )  
+  if ( allocated(this%basis_Sk_indices) ) &
+     call memfree ( this%basis_Sk_indices, __FILE__, __LINE__ )  
      
   this%basis_changed  = .false. 
   do i=1, size(this%node_array_vector)
@@ -133,7 +133,7 @@ subroutine tet_nedelec_reference_fe_fill (this)
   call this%fill_vector()  
   
   ! Allocate and fill Sk prebase polynomials indices  
-  if ( allocated(this%basis_Sk) ) call memfree(this%basis_Sk, __FILE__, __LINE__ )  
+  if ( allocated(this%basis_Sk_indices) ) call memfree(this%basis_Sk_indices, __FILE__, __LINE__ )  
   call this%create_and_fill_basis_Sk_indices()
   
   ! Now we assign an order vector equal to the order of the element for quadratures set up 
@@ -141,10 +141,10 @@ subroutine tet_nedelec_reference_fe_fill (this)
   
     call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
   
-  call memalloc( this%node_array_vector(1)%number_nodes,     & 
-       &         this%number_field_components, & 
-       &         this%node_array_component,    & 
-       &         __FILE__, __LINE__ )
+  call memalloc( this%node_array_vector(1)%number_nodes,  & 
+                 this%number_field_components,            & 
+                 this%node_array_component,               & 
+                 __FILE__, __LINE__ )
 
   c = 1
   do i = 1, this%number_field_components
@@ -239,8 +239,8 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this )
   ! Basis Sk indices [ dim(Sk), num_poynomials(k)*D ]  
   basis_dimension = this%order*(this%order+2)**(this%number_dimensions-2) 
   call memalloc(basis_dimension, k_order_node_array%number_nodes*this%number_dimensions, &
-			    this%basis_Sk, __FILE__, __LINE__ )
-  this%basis_Sk = 0
+			    this%basis_Sk_indices, __FILE__, __LINE__ )
+  this%basis_Sk_indices = 0
 	
   coord = 0  
   c     = 1 
@@ -250,12 +250,12 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this )
      coord(0) = i-1
      coord(1) = k - i + 1
      ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-     this%basis_Sk( c, ijk ) = -1.0_rp  
+     this%basis_Sk_indices( c, ijk ) = -1.0_rp  
 
      coord(0) = coord(0) + 1
      coord(1) = coord(1) - 1
      ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-     this%basis_Sk( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp  
+     this%basis_Sk_indices( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp  
      c = c + 1
     end do
   
@@ -269,12 +269,12 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this )
         coord(1) = k - i - j + 2
         coord(2) = j - 1
         ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-        this%basis_Sk( c, ijk ) = -1.0_rp 
+        this%basis_Sk_indices( c, ijk ) = -1.0_rp 
 
         coord(0) = coord(0) + 1
         coord(1) = coord(1) - 1
         ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-        this%basis_Sk( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp 
+        this%basis_Sk_indices( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp 
 
         c = c + 1
   	! Fill second subset of functions 
@@ -282,12 +282,12 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this )
         coord(1) = j - 1
         coord(2) = i
         ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-        this%basis_Sk( c, ijk ) = -1.0_rp 
+        this%basis_Sk_indices( c, ijk ) = -1.0_rp 
 
         coord(0) = coord(0) + 1
         coord(2) = coord(2) - 1
         ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-        this%basis_Sk( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp 
+        this%basis_Sk_indices( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp 
 
         c = c + 1
      end do
@@ -297,12 +297,12 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this )
      coord(1) = j - 1
      coord(2) = k - j + 1
      ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-     this%basis_Sk( c, k_order_node_array%number_nodes + ijk ) = -1.0_rp  
+     this%basis_Sk_indices( c, k_order_node_array%number_nodes + ijk ) = -1.0_rp  
 
      coord(1) = coord(1) + 1
      coord(2) = coord(2) - 1
      ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-     this%basis_Sk( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp  
+     this%basis_Sk_indices( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp  
      c = c + 1
   end do
   
@@ -421,10 +421,10 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 		   	 offcomponent = (idime-1)*tet_polynomial_prebase_2%get_number_polynomials()
 		     do ivalu=1, tet_polynomial_prebase_2%get_number_polynomials()
 			     interpolation%shape_functions(idime,c+ipoly,q_point) =  &	
-				 interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk(ipoly, offcomponent + ivalu)*values(ivalu)	
+				 interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*values(ivalu)	
                  do jdime=1, interpolation%number_dimensions
                  interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) = & 
-				 interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk(ipoly, offcomponent + ivalu)*gradients(jdime,ivalu)
+				 interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*gradients(jdime,ivalu)
                  end do
               end do
            end do
@@ -1241,7 +1241,6 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      ! Integrate edge boundary moments int_edge(u.t q), q \in P_k-1
      do qpoint = 1, edge_quadrature%number_quadrature_points
         factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
-
         call edge_map%get_tangent(qpoint, tangent)
 		tangent = tangent * (1.0_rp/tangent%nrm2() )
 

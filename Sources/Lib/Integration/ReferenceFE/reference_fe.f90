@@ -1379,7 +1379,7 @@ public :: hex_nedelec_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(nedelec_reference_fe_t) :: tet_nedelec_reference_fe_t
 private
-real(rp), allocatable :: basis_Sk(:,:)
+real(rp), allocatable :: basis_Sk_indices(:,:)
 contains 
 procedure :: free => tet_nedelec_reference_fe_free 
   ! Deferred TBP implementors from reference_fe_t
