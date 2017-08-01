@@ -286,7 +286,7 @@ contains
     type(face_integrator_t), pointer       :: face_int_H
     integer(ip)                            :: i, inode, vector_size
     integer(ip)                            :: num_dofs, number_fields 
-    integer(ip)              , allocatable :: number_dofs_per_field(:) 
+    integer(ip)              , pointer     :: number_dofs_per_field(:) 
     real(rp)                 , allocatable :: elvec(:), facevec(:) 
     real(rp)                               :: factor 
     integer(ip)  :: istat 
@@ -315,8 +315,7 @@ contains
     
     number_fields         =  this%fe_space%get_number_fields()
     num_dofs              =  fe%get_number_dofs()
-    call memalloc ( number_fields, number_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field( number_dofs_per_field )
+    number_dofs_per_field => call fe%get_number_dofs_per_field()
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     
@@ -415,7 +414,6 @@ contains
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 
     ! =============================================================================================
-    call memfree ( number_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     deallocate (elem2dof, stat=istat); check(istat==0)
 

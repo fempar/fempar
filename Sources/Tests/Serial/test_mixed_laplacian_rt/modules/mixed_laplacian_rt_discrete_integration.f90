@@ -103,15 +103,10 @@ contains
     real(rp), allocatable :: pressure_source_term_values(:)
     real(rp), allocatable :: pressure_boundary_function_values(:)
 
-    integer(ip)  :: number_fields
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:) 
+    integer(ip), pointer :: num_dofs_per_field(:) 
     
     assert ( associated(this%pressure_source_term) )
     assert ( associated(this%pressure_boundary_function) )
-    
-    number_fields = fe_space%get_number_fields()
     
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)
@@ -119,8 +114,7 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
+    num_dofs_per_field => call fe%get_number_dofs_per_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()

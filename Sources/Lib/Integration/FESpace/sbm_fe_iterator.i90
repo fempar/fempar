@@ -506,19 +506,13 @@ end function fe_iterator_get_number_dofs
 !  fe_iterator_get_elem2dof => this%elem2dof
 !end function fe_iterator_get_elem2dof
 
-subroutine fe_iterator_get_number_dofs_per_field (this, number_dofs_per_field )
+function fe_iterator_get_number_dofs_per_field (this) result (number_dofs_per_field)
   implicit none
-  class(fe_iterator_t), intent(in)    :: this
-  integer(ip)         , intent(inout) :: number_dofs_per_field(this%fe_space%number_fields)
-  
-  integer(ip) :: field_id
-  do field_id = 1, this%get_number_fields()-1
-    number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())- &
-                                      this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
-  end do
-  number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
-                                    this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
-end subroutine fe_iterator_get_number_dofs_per_field
+  class(fe_iterator_t), target , intent(inout) :: this
+  integer(ip), pointer :: number_dofs_per_field(:)
+  call this%update_number_dofs_per_field(this%number_dofs_per_field)
+  number_dofs_per_field => this%number_dofs_per_field
+end function fe_iterator_get_number_dofs_per_field
 
 subroutine fe_iterator_get_field_elem2dof( this, field_id, elem2dof )
   implicit none

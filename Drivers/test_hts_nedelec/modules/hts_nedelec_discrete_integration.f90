@@ -126,8 +126,7 @@ contains
     type(vector_field_t), allocatable :: source_term_values(:,:)
     real(rp), allocatable             :: current_time(:)
 
-    integer(ip)  :: number_fields
-    integer(ip), allocatable :: num_dofs_per_field(:)
+    integer(ip), pointer :: num_dofs_per_field(:)
     
     assert ( associated(this%source_term) )
     assert ( associated(this%H_current) )
@@ -143,8 +142,7 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
+    num_dofs_per_field => fe%get_number_dofs_per_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
@@ -244,7 +242,6 @@ contains
 
     deallocate (source_term_values, stat=istat); check(istat==0)
     deallocate (H_current_curl_values, stat=istat); check(istat==0)
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine hts_nedelec_discrete_integration_integrate
