@@ -114,7 +114,7 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    num_dofs_per_field => call fe%get_number_dofs_per_field()
+    num_dofs_per_field => fe%get_number_dofs_per_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
@@ -193,6 +193,7 @@ contains
     num_quad_points    = quad%get_number_quadrature_points()
     face_map           => fe_face%get_face_map()
     face_int_velocity  => fe_face%get_face_integrator(1)
+    num_dofs_per_field => fe_face%get_number_dofs_per_field(1)
     
     facemat = 0.0_rp
     call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
@@ -221,7 +222,6 @@ contains
     deallocate(velocity_shape_values, stat=istat); check(istat==0);
     call memfree(velocity_shape_divs, __FILE__, __LINE__)
     call memfree(pressure_shape_values, __FILE__, __LINE__)
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( facemat, __FILE__, __LINE__ )

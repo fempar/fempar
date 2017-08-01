@@ -315,7 +315,7 @@ contains
     
     number_fields         =  this%fe_space%get_number_fields()
     num_dofs              =  fe%get_number_dofs()
-    number_dofs_per_field => call fe%get_number_dofs_per_field()
+    number_dofs_per_field => fe%get_number_dofs_per_field()
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     
@@ -369,6 +369,7 @@ contains
        end do
 
        num_dofs              =  fe%get_number_dofs() 
+       number_dofs_per_field => fe_face%get_number_dofs_per_field(1)
        call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
        quad            => fe_face%get_quadrature()
        number_qpoints  =  quad%get_number_quadrature_points()

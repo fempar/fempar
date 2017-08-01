@@ -173,6 +173,7 @@ module fe_space_names
   type, extends(base_fe_iterator_t) :: fe_iterator_t
     private
     class(serial_fe_space_t), pointer     :: fe_space => NULL()
+    ! Scratch data to support FE integration
     integer(ip)             , allocatable :: number_dofs_per_field(:)
     type(i1p_t)             , allocatable :: elem2dof(:)
   contains
@@ -188,8 +189,7 @@ module fe_space_names
     procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_iterator_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_iterator_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_iterator_renumber_dofs_field
-    procedure, non_overridable, private :: update_number_dofs_per_field               => fe_iterator_update_number_dofs_per_field
-    procedure, non_overridable, private :: update_elem2dof                            => fe_iterator_update_elem2dof
+    procedure, non_overridable          :: update_number_dofs_per_field               => fe_iterator_update_number_dofs_per_field
     procedure                           :: update_integration                         => fe_iterator_update_integration
 
     procedure, non_overridable          :: get_fe_space                               => fe_iterator_get_fe_space
@@ -289,10 +289,9 @@ module fe_space_names
     private
     integer(ip)                       :: face_lid
     class(fe_iterator_t), allocatable :: fe
-    integer(ip)         , allocatable :: test_number_dofs_per_field(:)
-    integer(ip)         , allocatable :: trial_number_dofs_per_field(:)
-    type(i1p_t)         , allocatable :: test_elem2dof(:)
-    type(i1p_t)         , allocatable :: trial_elem2dof(:)
+    ! Scratch data to support FE face integration
+    integer(ip)         , allocatable :: number_dofs_per_cell_and_field(:,:)
+    type(i1p_t)         , allocatable :: elem2dof_per_cell(:,:)
    contains
     procedure                 , private :: create                        => fe_face_iterator_create
     procedure                 , private :: free                          => fe_face_iterator_free
@@ -302,11 +301,12 @@ module fe_space_names
     procedure, non_overridable          :: set_lid                       => fe_face_iterator_set_lid
     procedure, non_overridable          :: get_lid                       => fe_face_iterator_get_lid
     procedure, non_overridable, private :: update_number_dofs_per_field  => fe_face_iterator_update_number_dofs_per_field
-    procedure, non_overridable, private :: update_elem2dof               => fe_face_iterator_update_elem2dof
+    procedure, non_overridable, private :: update_elem2dof_per_cell      => fe_face_iterator_update_elem2dof_per_cell
     procedure, non_overridable          :: update_integration            => fe_face_iterator_update_integration
     procedure, non_overridable, private :: fe_face_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
     generic                             :: assemble                      => fe_face_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
     procedure, non_overridable          :: get_fe_space                  => fe_face_iterator_get_fe_space
+    procedure, non_overridable          :: get_number_dofs_per_field     => fe_face_iterator_get_number_dofs_per_field
     procedure, non_overridable          :: get_elem2dof                  => fe_face_iterator_get_elem2dof
     procedure, non_overridable          :: get_default_quadrature_degree => fe_face_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree         => fe_face_iterator_get_quadrature_degree

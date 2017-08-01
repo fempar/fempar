@@ -34,12 +34,8 @@ subroutine fe_iterator_create ( this, fe_space )
   call this%free()
   this%fe_space => fe_space
   call this%fe_space%triangulation%create_cell_iterator(this%cell)
-  if ( .not. allocated(this%number_dofs_per_field) ) then
-    call memalloc ( this%fe_space%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
-  end if
-  if ( .not. allocated(this%elem2dof) ) then
-    allocate( this%elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
-  end if
+  call memalloc ( this%fe_space%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
+  allocate( this%elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
 end subroutine fe_iterator_create
 
 subroutine fe_iterator_free (this)
@@ -377,24 +373,6 @@ subroutine fe_iterator_update_number_dofs_per_field( this, number_dofs_per_field
   
 end subroutine fe_iterator_update_number_dofs_per_field
 
-subroutine fe_iterator_update_elem2dof( this, elem2dof )
-  implicit none
-  class(fe_iterator_t), intent(in)    :: this 
-  type(i1p_t)         , intent(inout) :: elem2dof(:)
-  integer(ip) :: field_id, j, spos, epos
-  
-  assert ( size(elem2dof) == this%fe_space%number_fields )
-  do field_id = 1, this%get_number_fields()-1
-    spos = this%fe_space%ptr_dofs_per_fe(field_id  ,this%get_lid())
-    epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
-    elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
-  end do
-  spos = this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
-  epos = this%fe_space%ptr_dofs_per_fe(1         , this%get_lid()+1)-1
-  elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
-  
-end subroutine fe_iterator_update_elem2dof
-
 subroutine fe_iterator_update_integration( this )
   implicit none
   class(fe_iterator_t), intent(inout) :: this 
@@ -403,6 +381,8 @@ subroutine fe_iterator_update_integration( this )
   type(fe_map_t)           , pointer :: fe_map
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
+  
+  integer(ip) :: istat
 
   fe_map      => this%get_fe_map()
   coordinates => fe_map%get_coordinates()
@@ -414,6 +394,8 @@ subroutine fe_iterator_update_integration( this )
      cell_integrator => this%get_cell_integrator(field_id) 
      call cell_integrator%update(fe_map)
   end do
+  
+  call this%update_number_dofs_per_field(this%number_dofs_per_field)
   
 end subroutine fe_iterator_update_integration
 
@@ -473,44 +455,10 @@ function fe_iterator_get_number_dofs(this)
                                 this%fe_space%ptr_dofs_per_fe(1, this%get_lid())
 end function fe_iterator_get_number_dofs
 
-!function fe_iterator_get_number_dofs_per_field ( this )
-!  implicit none
-!  class(fe_iterator_t), intent(in)    :: this
-!  integer(ip), pointer :: fe_iterator_get_number_dofs_per_field(:)
-!  call this%update_number_dofs_per_field()
-!  fe_iterator_get_number_dofs_per_field => this%number_dofs_per_field
-!end function fe_iterator_get_number_dofs_per_field
-
-!subroutine fe_iterator_get_field_elem2dof( this, field_id, elem2dof )
-!  implicit none
-!  class(fe_iterator_t), intent(in)    :: this
-!  integer(ip)         , intent(in)    :: field_id
-!  integer(ip), pointer, intent(inout) :: elem2dof(:)
-!  integer(ip) :: spos, epos
-! 
-!  spos = this%fe_space%ptr_dofs_per_fe(field_id  ,this%get_lid())
-!  if ( field_id == this%fe_space%get_number_fields() ) then
-!     epos = this%fe_space%ptr_dofs_per_fe(1,this%get_lid()+1)-1
-!  else
-!     epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
-!  end if
-!  elem2dof => this%fe_space%lst_dofs_lids(spos:epos)
-!end subroutine fe_iterator_get_field_elem2dof
-
-!function fe_iterator_get_elem2dof ( this )
-!  implicit none
-!  class(fe_iterator_t), intent(in)    :: this
-!  type(i1p_t), pointer :: fe_iterator_get_elem2dof
-!  integer(ip) :: field_id, j, spos, epos
-!  call this%update_elem2dof()
-!  fe_iterator_get_elem2dof => this%elem2dof
-!end function fe_iterator_get_elem2dof
-
 function fe_iterator_get_number_dofs_per_field (this) result (number_dofs_per_field)
   implicit none
-  class(fe_iterator_t), target , intent(inout) :: this
+  class(fe_iterator_t), target, intent(in) :: this
   integer(ip), pointer :: number_dofs_per_field(:)
-  call this%update_number_dofs_per_field(this%number_dofs_per_field)
   number_dofs_per_field => this%number_dofs_per_field
 end function fe_iterator_get_number_dofs_per_field
 
@@ -545,6 +493,7 @@ subroutine fe_iterator_get_elem2dof( this, elem2dof )
   spos = this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
   epos = this%fe_space%ptr_dofs_per_fe(1         , this%get_lid()+1)-1
   elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
+  
 end subroutine fe_iterator_get_elem2dof
 
 function fe_iterator_get_order( this, field_id )
@@ -848,9 +797,7 @@ subroutine fe_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs ( this,  &
   real(rp)                       , intent(in)    :: elvec(:)
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
-  call this%update_number_dofs_per_field(this%number_dofs_per_field)
-  call this%update_elem2dof(this%elem2dof)
-  
+  call this%get_elem2dof(this%elem2dof)
   call matrix_array_assembler%assembly( this%fe_space%number_fields,        &
                                         this%number_dofs_per_field,         &
                                         this%elem2dof,                      &
