@@ -272,12 +272,12 @@ subroutine tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
 
   if (get_quadratures_from_hex(quadrature)) then
      call hex_lagrangian_rfe%fill_quadrature ( quadrature ) 
-     if (quadrature%number_dimensions.eq.1) then
+     if (quadrature%number_dimensions==1) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp        
         ! w' = w/2
         quadrature%weight = quadrature%weight / 2.0_rp
-     elseif (quadrature%number_dimensions.eq.2) then
+     elseif (quadrature%number_dimensions==2) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
         ! y' = (1-x')(y+1)/2
@@ -287,7 +287,7 @@ subroutine tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
         quadrature%weight = (1.0_rp - quadrature%coordinates(1,:)) /4.0_rp * &
                             quadrature%weight
         
-     elseif (quadrature%number_dimensions.eq.3) then
+     elseif (quadrature%number_dimensions==3) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
         ! y' = (1-x')(y+1)/2
@@ -315,7 +315,7 @@ subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
   integer(ip) :: i
 
   do i=1,this%number_dimensions
-     if ( this%order_vector(i) .gt. 0 ) then 
+     if ( this%order_vector(i) > 0 ) then 
      quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(1.0_rp/this%order_vector(i))
 	 else 
 	 quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)
@@ -384,30 +384,30 @@ function tet_lagrangian_reference_fe_compute_number_quadrature_points( this, deg
   integer(ip)                             , intent(in)    :: dimension
   integer(ip) :: tet_lagrangian_reference_fe_compute_number_quadrature_points
   
-  if( dimension .eq. 1 ) then
+  if( dimension == 1 ) then
      tet_lagrangian_reference_fe_compute_number_quadrature_points = int(ceiling(real(degree,rp)/2.0_rp),ip)+1
-  elseif( dimension .eq. 2 ) then
+  elseif( dimension == 2 ) then
      !*************************************************************************
      ! Using efficent symmetrical gaussian quadrature rules (when available). 
-     if( degree .le. 2 ) then
+     if( degree <= 2 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 3
-     elseif( degree .le. 4 ) then
+     elseif( degree <= 4 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 6
-     elseif( degree .le. 6 ) then
+     elseif( degree <= 6 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 13
-     elseif( degree .le. 8 ) then
+     elseif( degree <= 8 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 19
-     elseif( degree .le. 10 ) then
+     elseif( degree <= 10 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 28
      else ! Quadratures based on brick quadratures transformation
        tet_lagrangian_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 1.0_rp )**2.0_rp,ip)
      end if
-  elseif( dimension .eq. 3 ) then
+  elseif( dimension == 3 ) then
      !*************************************************************************
      ! Using efficent symmetrical gaussian quadrature rules (when available). 
-     if( degree .le. 2 ) then
+     if( degree <= 2 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 4
-     elseif( degree .le. 4) then
+     elseif( degree <= 4) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 11
      else ! Quadratures based on brick quadratures transformation
         tet_lagrangian_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 2.0_rp )**3.0_rp,ip)
@@ -694,7 +694,7 @@ subroutine tet_lagrangian_reference_fe_fill_symmetric_quadrature ( this, quadrat
         quadrature%weight(11) = w4
         quadrature%weight(12) = w4
         quadrature%weight(13) = w4
-     else if(ngaus.eq.19) then
+     else if(ngaus==19) then
         a = 1.0_rp / 3.0_rp
         b = 0.02063496160252593_rp
         c = 0.4896825191987370_rp
@@ -774,7 +774,7 @@ subroutine tet_lagrangian_reference_fe_fill_symmetric_quadrature ( this, quadrat
         quadrature%weight(17) = w6
         quadrature%weight(18) = w6
         quadrature%weight(19) = w6
-     else if(ngaus.eq.28) then
+     else if(ngaus==28) then
         a = 1.0_rp / 3.0_rp
         b = 0.9480217181434233_rp
         c = 0.02598914092828833_rp

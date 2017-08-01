@@ -157,7 +157,7 @@ subroutine polynomial_allocatable_array_copy (lhs, rhs)
   class(polynomial_allocatable_array_t), intent(inout) :: lhs
   type(polynomial_allocatable_array_t) , intent(in)    :: rhs
   integer(ip)                                          :: idx
-  class(polynomial_t), allocatable                     :: mold_polynomial
+  type(lagrange_polynomial_t)                          :: mold_polynomial
   call lhs%free()
   if(allocated(rhs%polynomials)) then
      if (size(rhs%polynomials) > 0) then

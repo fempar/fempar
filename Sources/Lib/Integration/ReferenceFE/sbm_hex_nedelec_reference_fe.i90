@@ -1044,42 +1044,42 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  num_interior_moments = num_interior_moments*this%number_dimensions
   
  if ( num_interior_moments > 0 ) then 
- ! create cell quadrature
- call this%create_quadrature(cell_quadrature)
-  
- ! create reduced order interpolation
- call reduced_order_cell_interpolation%create( this%number_dimensions, &
-                                               num_interior_moments, &
-                                               cell_quadrature%number_quadrature_points, &
-                                               number_entries_symmetric_tensor=0, &
-                                               compute_hessian = .false. )
-  
- call this%fill_interpolation_pre_basis( cell_quadrature, reduced_order_cell_interpolation, reduced_order_vector)
-  
- ! Create PRE-BASIS cell-interpolation from this RT REF FE 
- call this%create_interpolation( cell_quadrature, cell_interpolation )
-  
- ! Create + Update cell map 
- call cell_map%create(cell_quadrature, d_fe_geo )
- cell_map_coordinates => cell_map%get_coordinates()
- do vertex_within_cell_id=1,d_fe_geo%get_number_vertices()
-    call cell_map_coordinates(vertex_within_cell_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
- end do
- call cell_map%update(cell_quadrature)
+    ! create cell quadrature
+    call this%create_quadrature(cell_quadrature)
 
- ! ! Integration of interior moments int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}     
- do qpoint = 1, cell_quadrature%number_quadrature_points
-    factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
-    do ishape=1, reduced_order_cell_interpolation%number_shape_functions
-       call this%get_value(reduced_order_cell_interpolation, ishape, qpoint, v_shape_test)
-       do jshape=1, cell_interpolation%number_shape_functions
-        call this%get_value(cell_interpolation, jshape, qpoint, v_shape_trial)
-         this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) + &
-                                                     v_shape_test * v_shape_trial * factor
-        end do
-     end do
-   end do   
-   end if 
+    ! create reduced order interpolation
+    call reduced_order_cell_interpolation%create( this%number_dimensions, &
+         num_interior_moments, &
+         cell_quadrature%number_quadrature_points, &
+         number_entries_symmetric_tensor=0, &
+         compute_hessian = .false. )
+
+    call this%fill_interpolation_pre_basis( cell_quadrature, reduced_order_cell_interpolation, reduced_order_vector)
+
+    ! Create PRE-BASIS cell-interpolation from this RT REF FE 
+    call this%create_interpolation( cell_quadrature, cell_interpolation )
+
+    ! Create + Update cell map 
+    call cell_map%create(cell_quadrature, d_fe_geo )
+    cell_map_coordinates => cell_map%get_coordinates()
+    do vertex_within_cell_id=1,d_fe_geo%get_number_vertices()
+       call cell_map_coordinates(vertex_within_cell_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
+    end do
+    call cell_map%update(cell_quadrature)
+
+    ! ! Integration of interior moments int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}     
+    do qpoint = 1, cell_quadrature%number_quadrature_points
+       factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
+       do ishape=1, reduced_order_cell_interpolation%number_shape_functions
+          call this%get_value(reduced_order_cell_interpolation, ishape, qpoint, v_shape_test)
+          do jshape=1, cell_interpolation%number_shape_functions
+             call this%get_value(cell_interpolation, jshape, qpoint, v_shape_trial)
+             this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) + &
+                  v_shape_test * v_shape_trial * factor
+          end do
+       end do
+    end do
+ end if
    
   ! Invert change_basis_matrix
   call this%invert_change_basis_matrix()
