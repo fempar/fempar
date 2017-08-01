@@ -101,13 +101,6 @@ contains
     real(rp)     :: dV, dS
     real(rp)     :: source_term_value
 
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:)
     class(scalar_function_t), pointer :: source_term
     class(scalar_function_t), pointer :: exact_sol
 
@@ -132,11 +125,6 @@ contains
     source_term => this%analytical_functions%get_source_term()
     exact_sol   => this%analytical_functions%get_solution_function()
 
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
-
     ! Find the first non-void FE
     ! TODO use a function in fe_space istead
     do while ( .not. fe%has_finished() )
@@ -150,8 +138,6 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
 
     !This is for the Nitsche's BCs
     ! TODO  We assume same ref element for all cells, and for all fields
@@ -180,10 +166,6 @@ contains
        fe_map          => fe%get_fe_map()
        cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_number_dofs()
-       call fe%get_number_dofs_per_field(num_dofs_per_field)
-
-       ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
 
        ! Get quadrature coordinates to evaluate source_term
        quad_coords => fe_map%get_quadrature_coordinates()
@@ -339,8 +321,6 @@ contains
     deallocate (shape_gradients, stat=istat); check(istat==0);
     deallocate (boundary_shape_gradients, stat=istat); check(istat==0);
 
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( elmatB_pre, __FILE__, __LINE__ )

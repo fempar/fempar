@@ -81,19 +81,11 @@ contains
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
 
-    integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs
     real(rp)     :: factor
     real(rp)     :: source_term_value
 
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:)  
     class(scalar_function_t), pointer :: source_term
 
     real(rp) :: viscosity
@@ -102,19 +94,12 @@ contains
 
     source_term => this%analytical_functions%get_source_term()
 
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
-
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)
     
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
     fe_map          => fe%get_fe_map()
@@ -123,9 +108,6 @@ contains
        if ( fe%is_local() ) then
           ! Update FE-integration related data structures
           call fe%update_integration()
-       
-          ! Get DoF numbering within current FE
-          call fe%get_elem2dof(elem2dof)
           
           ! Get quadrature coordinates to evaluate source_term
           quad_coords => fe_map%get_quadrature_coordinates()
@@ -166,8 +148,6 @@ contains
        call fe%next()
     end do
     call fe_space%free_fe_iterator(fe)
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
