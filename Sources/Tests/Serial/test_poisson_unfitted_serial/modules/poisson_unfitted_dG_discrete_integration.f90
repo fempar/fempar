@@ -183,7 +183,7 @@ contains
             end do  
          end do        
          
-         call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+         call fe%assemble( elmat, elvec, matrix_array_assembler )
        end if
        
        call fe%next()

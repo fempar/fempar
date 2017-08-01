@@ -148,9 +148,7 @@ contains
           end do 
        end do
        
-       ! Apply boundary conditions
-       call fe%impose_strong_dirichlet_bcs( this%fe_function, elmat, elvec )
-       call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       call fe%assemble( this%fe_function, elmat, elvec, matrix_array_assembler )
        call fe%next()
     end do
     call fe_space%free_fe_iterator(fe)
