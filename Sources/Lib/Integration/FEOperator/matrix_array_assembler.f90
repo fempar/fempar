@@ -41,8 +41,6 @@ module matrix_array_assembler_names
    contains
      procedure (assembly_array_interface)  , deferred :: assemble_array
      procedure (assembly_matrix_interface) , deferred :: assemble_matrix
-     procedure (assembly_interface)        , deferred :: assembly
-     procedure (face_assembly_interface)   , deferred :: face_assembly
      procedure (compress_storage_interface), deferred :: compress_storage
      procedure                                        :: set_matrix       => matrix_array_assembler_set_matrix
      procedure                                        :: set_array        => matrix_array_assembler_set_array
@@ -96,52 +94,6 @@ module matrix_array_assembler_names
        type(i1p_t)                    , intent(in)    :: cell2col_dofs(number_fields)
        real(rp)                       , intent(in)    :: elmat(:,:) 
      end subroutine assembly_matrix_interface
-     
-     subroutine assembly_interface( this,             & 
-                                    number_fields,    &
-                                    number_dofs,     &
-                                    elem2dof,         &
-                                    field_blocks,     &
-                                    field_coupling,   &
-                                    elmat,            &
-                                    elvec )
-       import :: matrix_array_assembler_t, rp, ip, i1p_t
-       implicit none
-       class(matrix_array_assembler_t) , intent(inout) :: this
-       integer(ip)           , intent(in)    :: number_fields
-       integer(ip)           , intent(in)    :: number_dofs(number_fields)
-       type(i1p_t)           , intent(in)    :: elem2dof(number_fields)
-       integer(ip)           , intent(in)    :: field_blocks(number_fields)
-       logical               , intent(in)    :: field_coupling(number_fields,number_fields)
-       ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fields} number_dofs(i)
-       real(rp)              , intent(in)    :: elmat(:,:) 
-       ! elvec MUST have as many entries as \sum_{i=1}^{number_fields} number_dofs(i)
-       real(rp)              , intent(in)    :: elvec(:)   
-     end subroutine assembly_interface
-
-     subroutine face_assembly_interface(this, &
-                                        number_fields, &
-                                        test_number_dofs, &
-                                        trial_number_dofs, &
-                                        test_elem2dof, &
-                                        trial_elem2dof, &
-                                        field_blocks, &
-                                        field_coupling, &
-                                        facemat, &
-                                        facevec) 
-       import :: matrix_array_assembler_t, rp, ip, i1p_t
-       implicit none
-       class(matrix_array_assembler_t), intent(inout) :: this
-       integer(ip)                    , intent(in)    :: number_fields
-       integer(ip)                    , intent(in)    :: test_number_dofs(number_fields)
-       integer(ip)                    , intent(in)    :: trial_number_dofs(number_fields)
-       type(i1p_t)                    , intent(in)    :: test_elem2dof(number_fields)
-       type(i1p_t)                    , intent(in)    :: trial_elem2dof(number_fields)
-       integer(ip)                    , intent(in)    :: field_blocks(number_fields)
-       logical                        , intent(in)    :: field_coupling(number_fields,number_fields)
-       real(rp)                       , intent(in)    :: facemat(:,:) 
-       real(rp)                       , intent(in)    :: facevec(:)  
-     end subroutine face_assembly_interface
 
      subroutine compress_storage_interface( this, & 
           &                                 sparse_matrix_storage_format )
@@ -150,6 +102,7 @@ module matrix_array_assembler_names
        class(matrix_array_assembler_t) , intent(inout) :: this
        character(*)          , intent(in)    :: sparse_matrix_storage_format
      end subroutine compress_storage_interface
+     
     end interface
     
   ! Data types

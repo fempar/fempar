@@ -48,8 +48,6 @@ module block_sparse_matrix_array_assembler_names
 contains
   procedure :: assemble_array   => block_sparse_matrix_array_assembler_assemble_array
   procedure :: assemble_matrix  => block_sparse_matrix_array_assembler_assemble_matrix
-  procedure :: assembly         => block_sparse_matrix_array_assembler_assembly
-  procedure :: face_assembly    => block_sparse_matrix_array_assembler_face_assembly
   procedure :: compress_storage => block_sparse_matrix_array_assembler_compress_storage
   procedure :: allocate         => block_sparse_matrix_array_assembler_allocate
 end type
@@ -117,258 +115,112 @@ contains
     matrix => this%get_matrix()
     select type(matrix)
       class is(block_sparse_matrix_t)
-      call element_block_sparse_matrix_face_assembly( matrix,          &
-                                                      number_fields,   &
-                                                      number_row_dofs, &
-                                                      number_col_dofs, &
-                                                      cell2row_dofs,   &
-                                                      cell2col_dofs,   &
-                                                      field_blocks,    &
-                                                      field_coupling,  &
-                                                      elmat )
+      call element_block_sparse_matrix_assembly( matrix,          &
+                                                 number_fields,   &
+                                                 number_row_dofs, &
+                                                 number_col_dofs, &
+                                                 cell2row_dofs,   &
+                                                 cell2col_dofs,   &
+                                                 field_blocks,    &
+                                                 field_coupling,  &
+                                                 elmat )
       class default
       check(.false.)
     end select
 
   end subroutine block_sparse_matrix_array_assembler_assemble_matrix
 
-subroutine block_sparse_matrix_array_assembler_assembly( this,             & 
-                                                         number_fields,    &
-                                                         number_dofs,     &
-                                                         elem2dof,         &
-                                                         field_blocks,     &
-                                                         field_coupling,   &
-                                                         elmat,            &
-                                                         elvec )
- implicit none
- class(block_sparse_matrix_array_assembler_t) , intent(inout) :: this
- integer(ip)                                  , intent(in)    :: number_fields
- integer(ip)                                  , intent(in)    :: number_dofs(number_fields)
- type(i1p_t)                                  , intent(in)    :: elem2dof(number_fields)
- integer(ip)                                  , intent(in)    :: field_blocks(number_fields)
- logical                                      , intent(in)    :: field_coupling(number_fields,number_fields)
- ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fields} number_dofs(i)
- real(rp)                                     , intent(in)    :: elmat(:,:) 
- ! elvec MUST have as many entries as \sum_{i=1}^{number_fields} number_dofs(i)
- real(rp)                                     , intent(in)    :: elvec(:)   
+  subroutine block_sparse_matrix_array_assembler_compress_storage(this,sparse_matrix_storage_format)
+    implicit none
+    class(block_sparse_matrix_array_assembler_t), intent(inout) :: this
+    character(*)                                , intent(in)    :: sparse_matrix_storage_format
+    class(matrix_t), pointer :: matrix
+    matrix=>this%get_matrix() 
+    select type(matrix)
+      class is(block_sparse_matrix_t)
+      call matrix%compress_storage(sparse_matrix_storage_format)
+      class default
+      check(.false.)
+    end select
+  end subroutine block_sparse_matrix_array_assembler_compress_storage
 
- class(matrix_t), pointer :: matrix
- class(array_t) , pointer :: array
+  subroutine block_sparse_matrix_array_assembler_allocate(this)
+    implicit none
+    class(block_sparse_matrix_array_assembler_t), intent(inout) :: this
+    class(array_t), pointer :: array
+    array=>this%get_array()
+    call array%allocate()
+  end subroutine block_sparse_matrix_array_assembler_allocate
 
- matrix => this%get_matrix()
- array  => this%get_array()
+  subroutine element_serial_block_array_assembly( array,         &
+                                                  number_fields, &
+                                                  number_dofs,   &
+                                                  cell2dof,      &
+                                                  field_blocks,  &
+                                                  elvec )
+    implicit none
+    ! Parameters
+    type(serial_block_array_t), intent(inout) :: array
+    integer(ip)               , intent(in)    :: number_fields
+    integer(ip)               , intent(in)    :: number_dofs(number_fields)
+    type(i1p_t)               , intent(in)    :: cell2dof(number_fields)
+    integer(ip)               , intent(in)    :: field_blocks(number_fields)
+    real(rp)                  , intent(in)    :: elvec(:)
+    
+    integer(ip)                           :: ielvec, ife_space, iblock, inode, idof
+    type(serial_scalar_array_t), pointer  :: block
 
- select type(matrix)
-    class is(block_sparse_matrix_t)
-       call element_block_sparse_matrix_assembly( matrix, &
-            &                                     number_fields, & 
-            &                                     number_dofs, &
-            &                                     elem2dof, &
-            &                                     field_blocks, &
-            &                                     field_coupling, &
-            &                                     elmat )
-    class default
-    check(.false.)
- end select
+    ielvec = 0
+    do ife_space = 1, number_fields
+       iblock = field_blocks(ife_space)
+       block => array%get_block(iblock)
+       call block%add( number_dofs(ife_space), &
+                       cell2dof(ife_space)%p,  &
+                       ielvec,                 &
+                       elvec )
+       ielvec = ielvec + number_dofs(ife_space)
+    end do
 
- select type(array)
-    class is(serial_block_array_t)
-    call element_serial_block_array_assembly( array, &
-         &                                    number_fields, & 
-         &                                    number_dofs, &
-         &                                    elem2dof, &
-         &                                    field_blocks, & 
-         &                                    elvec )
-    class default
-    check(.false.)
- end select
-end subroutine block_sparse_matrix_array_assembler_assembly
+  end subroutine element_serial_block_array_assembly
 
+  subroutine element_block_sparse_matrix_assembly( matrix, number_fields, number_row_dofs,        &
+       &                                           number_col_dofs, cell2row_dofs, cell2col_dofs, &
+       &                                           field_blocks, field_coupling, elmat )
+    implicit none
+    ! Parameters
+    type(block_sparse_matrix_t), intent(inout) :: matrix
+    integer(ip)                , intent(in)    :: number_fields
+    integer(ip)                , intent(in)    :: number_row_dofs(number_fields)
+    integer(ip)                , intent(in)    :: number_col_dofs(number_fields)
+    type(i1p_t)                , intent(in)    :: cell2row_dofs(number_fields)
+    type(i1p_t)                , intent(in)    :: cell2col_dofs(number_fields)
+    integer(ip)                , intent(in)    :: field_blocks(number_fields)
+    logical                    , intent(in)    :: field_coupling(number_fields,number_fields)
+    real(rp)                   , intent(in)    :: elmat(:,:) 
 
-subroutine block_sparse_matrix_array_assembler_compress_storage(this,sparse_matrix_storage_format)
-  implicit none
-  class(block_sparse_matrix_array_assembler_t), intent(inout) :: this
-  character(*)                                   , intent(in)    :: sparse_matrix_storage_format
-		class(matrix_t), pointer :: matrix
-		matrix=>this%get_matrix() 
-   select type(matrix)
-    class is(block_sparse_matrix_t)
-    call matrix%compress_storage(sparse_matrix_storage_format)
-    class default
-    check(.false.)
- end select
-end subroutine block_sparse_matrix_array_assembler_compress_storage
+    integer(ip) :: ife_space, jfe_space
+    integer(ip) :: idof, jdof 
+    integer(ip) :: inode, jnode
+    integer(ip) :: ielmat, jelmat
+    integer(ip) :: iblock, jblock
+    type(sparse_matrix_t), pointer :: mat  
+    ielmat=0
+    do ife_space=1, number_fields
+       iblock = field_blocks(ife_space)
+       jelmat=0
+       do jfe_space=1, number_fields
+          jblock = field_blocks(jfe_space)
+          if ((field_coupling(ife_space,jfe_space))) then
+             mat => matrix%get_block(iblock,jblock)
+             call mat%insert(number_row_dofs(ife_space),number_col_dofs(jfe_space),                  &
+                  &             cell2row_dofs(ife_space)%p,cell2col_dofs(jfe_space)%p,ielmat,jelmat, &
+                  &             elmat)
+          end if
+          jelmat=jelmat+number_col_dofs(jfe_space)
+       end do
+       ielmat=ielmat+number_row_dofs(ife_space)
+    end do
 
-subroutine block_sparse_matrix_array_assembler_allocate(this)
-  implicit none
-  class(block_sparse_matrix_array_assembler_t), intent(inout) :: this
-		class(array_t), pointer :: array
-  array=>this%get_array()
-  call array%allocate()
-end subroutine block_sparse_matrix_array_assembler_allocate
-
-subroutine element_block_sparse_matrix_assembly( matrix, & 
-                                                 number_fe_spaces, &
-                                                 number_nodes, &
-                                                 elem2dof, &
-                                                 field_blocks, &
-                                                 field_coupling, &
-                                                 elmat )
-  implicit none
-  ! Parameters
-  type(block_sparse_matrix_t), intent(inout) :: matrix
-  integer(ip)                , intent(in)    :: number_fe_spaces
-  integer(ip)                , intent(in)    :: number_nodes(number_fe_spaces)
-  type(i1p_t)                , intent(in)    :: elem2dof(number_fe_spaces)
-  integer(ip)                , intent(in)    :: field_blocks(number_fe_spaces) 
-  logical                    , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
-  real(rp)                   , intent(in)    :: elmat(:,:) 
+  end subroutine element_block_sparse_matrix_assembly
   
-  integer(ip) :: ielmat, ife_space, iblock, inode, idof
-  integer(ip) :: jelmat, jfe_space, jblock, jnode, jdof
-  type(sparse_matrix_t), pointer :: mat
-  
- ielmat=0
- do ife_space=1, number_fe_spaces
-   iblock = field_blocks(ife_space)
-   jelmat=0
-   do jfe_space=1, number_fe_spaces
-     jblock = field_blocks(jfe_space)
-     if ((field_coupling(ife_space,jfe_space))) then
-         mat => matrix%get_block(iblock,jblock)
-         call mat%insert(number_nodes(ife_space), &
-                         number_nodes(jfe_space), &
-                         elem2dof(ife_space)%p, &
-                         elem2dof(jfe_space)%p, &
-                         ielmat, &
-                         jelmat, &
-                         elmat)
-     end if
-     jelmat=jelmat+number_nodes(jfe_space)
-   end do
-   ielmat=ielmat+number_nodes(ife_space)
- end do
-end subroutine element_block_sparse_matrix_assembly
-
-subroutine element_serial_block_array_assembly( array, &
-                                                number_fe_spaces, &
-                                                number_nodes, &
-                                                elem2dof, &
-                                                field_blocks, &
-                                                elvec )
-  implicit none
-  ! Parameters
-  type(serial_block_array_t), intent(inout) :: array
-  integer(ip)               , intent(in)    :: number_fe_spaces
-  integer(ip)               , intent(in)    :: number_nodes(number_fe_spaces)
-  type(i1p_t)               , intent(in)    :: elem2dof(number_fe_spaces)
-  integer(ip)               , intent(in)    :: field_blocks(number_fe_spaces)
-  real(rp)                  , intent(in)    :: elvec(:)
-  
-  integer(ip)                           :: ielvec, ife_space, iblock, inode, idof
-  type(serial_scalar_array_t), pointer  :: block
-
-  ielvec = 0
-  do ife_space = 1, number_fe_spaces
-     iblock = field_blocks(ife_space)
-     block => array%get_block(iblock)
-     call block%add( number_nodes(ife_space), &
-                     elem2dof(ife_space)%p, &
-                     ielvec, &
-                     elvec )
-     ielvec = ielvec + number_nodes(ife_space)
-  end do
-
-end subroutine element_serial_block_array_assembly
-
-
-!====================================================================================================
-subroutine block_sparse_matrix_array_assembler_face_assembly(this, &
-                                                             number_fields, &
-                                                             test_number_dofs, &
-                                                             trial_number_dofs, &
-                                                             test_elem2dof, &
-                                                             trial_elem2dof, &
-                                                             field_blocks, &
-                                                             field_coupling, &
-                                                             facemat, &
-                                                             facevec) 
-  implicit none
-  class(block_sparse_matrix_array_assembler_t), intent(inout) :: this
-  integer(ip)                    , intent(in)    :: number_fields
-  integer(ip)                    , intent(in)    :: test_number_dofs(number_fields)
-  integer(ip)                    , intent(in)    :: trial_number_dofs(number_fields)
-  type(i1p_t)                    , intent(in)    :: test_elem2dof(number_fields)
-  type(i1p_t)                    , intent(in)    :: trial_elem2dof(number_fields)
-  integer(ip)                    , intent(in)    :: field_blocks(number_fields)
-  logical                        , intent(in)    :: field_coupling(number_fields,number_fields)
-  real(rp)                       , intent(in)    :: facemat(:,:) 
-  real(rp)                       , intent(in)    :: facevec(:)
-
-  class(matrix_t), pointer :: matrix
-  class(array_t) , pointer :: array
-
-  matrix => this%get_matrix()
-  array  => this%get_array()
-
-  select type(matrix)
-     class is(block_sparse_matrix_t)
-     call element_block_sparse_matrix_face_assembly(matrix,number_fields,test_number_dofs,      &
-          &                              trial_number_dofs,test_elem2dof,trial_elem2dof,           &
-          &                              field_blocks,field_coupling,facemat )
-     class default
-     check(.false.)
-  end select
-
-  select type(array)
-     class is(serial_block_array_t)
-     call element_serial_block_array_assembly( array,number_fields,test_number_dofs,            &
-          &                                     test_elem2dof,field_blocks,facevec )
-     class default
-     check(.false.)
-  end select
-end subroutine block_sparse_matrix_array_assembler_face_assembly
-
-!====================================================================================================
-subroutine element_block_sparse_matrix_face_assembly(matrix, number_fe_spaces, test_number_nodes,   &
-     &                                          trial_number_nodes, test_elem2dof, trial_elem2dof,  &
-     &                                          field_blocks, field_coupling, facemat )
-  implicit none
-  ! Parameters
-  type(block_sparse_matrix_t), intent(inout) :: matrix
-  integer(ip)                , intent(in)    :: number_fe_spaces
-  integer(ip)                , intent(in)    :: test_number_nodes(number_fe_spaces)
-  integer(ip)                , intent(in)    :: trial_number_nodes(number_fe_spaces)
-  type(i1p_t)                , intent(in)    :: test_elem2dof(number_fe_spaces)
-  type(i1p_t)                , intent(in)    :: trial_elem2dof(number_fe_spaces)
-
-  integer(ip)                , intent(in)    :: field_blocks(number_fe_spaces)
-  logical                    , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
-  real(rp)                   , intent(in)    :: facemat(:,:) 
-
-  integer(ip) :: ife_space, jfe_space
-  integer(ip) :: idof, jdof 
-  integer(ip) :: inode, jnode
-  integer(ip) :: ielmat, jelmat
-  integer(ip) :: iblock, jblock
-  type(sparse_matrix_t), pointer :: mat  
-  ielmat=0
-  do ife_space=1, number_fe_spaces
-     iblock = field_blocks(ife_space)
-     jelmat=0
-     do jfe_space=1, number_fe_spaces
-        jblock = field_blocks(jfe_space)
-        if ((field_coupling(ife_space,jfe_space))) then
-           mat => matrix%get_block(iblock,jblock)
-           call mat%insert(test_number_nodes(ife_space),trial_number_nodes(jfe_space),                &
-                &             test_elem2dof(ife_space)%p,trial_elem2dof(jfe_space)%p,ielmat,jelmat,   &
-                &             facemat)
-        end if
-        jelmat=jelmat+trial_number_nodes(jfe_space)
-     end do
-     ielmat=ielmat+test_number_nodes(ife_space)
-  end do
-
-end subroutine element_block_sparse_matrix_face_assembly
-   
 end module block_sparse_matrix_array_assembler_names
