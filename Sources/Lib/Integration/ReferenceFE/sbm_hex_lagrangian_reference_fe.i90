@@ -914,7 +914,7 @@ subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation ( this )
   type(quadrature_t) :: h_refined_quadrature
   integer(ip)        :: num_refinements
   num_refinements = 1
-  call this%create_data_out_quadrature( (num_refinements+1)*this%order-1, h_refined_quadrature )
+  call this%create_data_out_quadrature( max((num_refinements+1)*this%order-1,0), h_refined_quadrature )
   call this%create_interpolation( h_refined_quadrature, this%h_refinement_interpolation )
   call h_refined_quadrature%free()
 end subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation
