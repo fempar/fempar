@@ -94,7 +94,7 @@ contains
     real(rp), allocatable              :: elmat(:,:), elvec(:)
     
     ! FACE matrix and vector, i.e., A_F + f_F
-    real(rp), allocatable              :: facemat(:,:,:,:), facevec(:,:)
+    real(rp), allocatable              :: facevec(:,:)
     
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
@@ -181,7 +181,6 @@ contains
     
     call fe_space%initialize_fe_face_integration()
 
-    call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
     call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
     
     ! Search for the first boundary face
@@ -196,7 +195,6 @@ contains
     face_int_velocity  => fe_face%get_face_integrator(1)
     num_dofs_per_field => fe_face%get_number_dofs_per_field(1)
     
-    facemat = 0.0_rp
     call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
     do while ( .not. fe_face%has_finished() )
        if ( fe_face%is_at_boundary() ) then
@@ -214,7 +212,7 @@ contains
                                 pressure_boundary_function_values(qpoint)*velocity_shape_values(idof,qpoint)*normals(1)*factor
             end do   
          end do
-         call fe_face%assemble( facemat, facevec, matrix_array_assembler )
+         call fe_face%assemble( facevec, matrix_array_assembler )
        end if
        call fe_face%next()
     end do
@@ -225,7 +223,6 @@ contains
     call memfree(pressure_shape_values, __FILE__, __LINE__)
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-    call memfree ( facemat, __FILE__, __LINE__ )
     call memfree ( facevec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   

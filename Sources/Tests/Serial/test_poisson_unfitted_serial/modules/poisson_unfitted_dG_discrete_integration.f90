@@ -192,7 +192,6 @@ contains
        
        if ( .not. fe_face%is_at_boundary() ) then
          facemat = 0.0_rp
-         facevec = 0.0_rp
          call fe_face%update_integration()    
          
          call face_int%get_values(1,shape_values_first)
@@ -240,7 +239,7 @@ contains
                end do
             end do
          end do
-         call fe_face%assemble( facemat, facevec, matrix_array_assembler )
+         call fe_face%assemble( facemat, matrix_array_assembler )
        end if
          
        call fe_face%next()

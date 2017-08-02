@@ -232,12 +232,14 @@ module fe_space_names
     procedure, non_overridable          :: is_void                                    => fe_iterator_is_void
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable, private :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
-    procedure, non_overridable, private :: fe_iterator_assemble_mat_vec_with_strong_dirichlet_bcs
-    procedure, non_overridable, private :: fe_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
-    !procedure, non_overridable          :: fe_iterator_assemble_vec
-    generic                             :: assemble                                   => fe_iterator_assemble_mat_vec_with_strong_dirichlet_bcs, &
-                                                                                         fe_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs!,   &
-                                                                                         !fe_iterator_assemble_vec
+    procedure, non_overridable, private :: fe_iterator_assemble_array
+    procedure, non_overridable, private :: fe_iterator_assemble_matrix
+    procedure, non_overridable, private :: fe_iterator_assemble_matrix_array
+    procedure, non_overridable, private :: fe_iterator_assemble_matrix_array_with_strong_bcs
+    generic                             :: assemble                                   => fe_iterator_assemble_array,        &
+                                                                                         fe_iterator_assemble_matrix,       &
+                                                                                         fe_iterator_assemble_matrix_array, &
+                                                                                         fe_iterator_assemble_matrix_array_with_strong_bcs
     procedure, non_overridable          :: first_local_non_void                       => fe_iterator_first_local_non_void
 
     ! Added by unfitted_fe_iterator
@@ -303,8 +305,12 @@ module fe_space_names
     procedure, non_overridable, private :: update_number_dofs_per_field  => fe_face_iterator_update_number_dofs_per_field
     procedure, non_overridable, private :: update_elem2dof_per_cell      => fe_face_iterator_update_elem2dof_per_cell
     procedure, non_overridable          :: update_integration            => fe_face_iterator_update_integration
-    procedure, non_overridable, private :: fe_face_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
-    generic                             :: assemble                      => fe_face_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs
+    procedure, non_overridable, private :: fe_face_iterator_assemble_array
+    procedure, non_overridable, private :: fe_face_iterator_assemble_matrix
+    procedure, non_overridable, private :: fe_face_iterator_assemble_matrix_array
+    generic                             :: assemble                      => fe_face_iterator_assemble_array,  &
+                                                                            fe_face_iterator_assemble_matrix, &
+                                                                            fe_face_iterator_assemble_matrix_array
     procedure, non_overridable          :: get_fe_space                  => fe_face_iterator_get_fe_space
     procedure, non_overridable          :: get_number_dofs_per_field     => fe_face_iterator_get_number_dofs_per_field
     procedure, non_overridable          :: get_elem2dof                  => fe_face_iterator_get_elem2dof
