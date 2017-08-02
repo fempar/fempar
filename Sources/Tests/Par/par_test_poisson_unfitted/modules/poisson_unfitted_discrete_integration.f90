@@ -45,7 +45,7 @@ module poisson_unfitted_discrete_integration_names
    contains
      procedure :: set_analytical_functions
      procedure :: set_test_params
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type poisson_unfitted_cG_discrete_integration_t
   
   public :: poisson_unfitted_cG_discrete_integration_t
@@ -66,7 +66,7 @@ contains
      this%test_params => test_params
   end subroutine set_test_params
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
@@ -158,7 +158,7 @@ contains
     ref_fe => fe%get_reference_fe(1)
     nodal_quad => ref_fe%get_nodal_quadrature()
     call memalloc ( num_dofs, num_dofs  , shape2mono, __FILE__, __LINE__ )
-    call evaluate_monomials(nodal_quad,shape2mono)
+    call evaluate_monomials(nodal_quad,shape2mono,degree=this%analytical_functions%get_degree())
     ! TODO  We assume that the constant monomial is the first
     shape2mono_fixed => shape2mono(:,2:)
     ! Allocate the eigenvalue solver
@@ -285,16 +285,16 @@ contains
              if (istat .ne. 0) then
                write(*,*) 'istat = ', istat
                write(*,*) 'lid   = ', fe%get_lid()
-               write(*,*) 'elmatB = '
-               do idof = 1,size(elmatB,1)
-                 write(*,*) elmatB(idof,:)
-               end do
-               write(*,*) 'elmatV = '
-               do idof = 1,size(elmatV,1)
-                 write(*,*) elmatV(idof,:)
-               end do
+               !write(*,*) 'elmatB = '
+               !do idof = 1,size(elmatB,1)
+               !  write(*,*) elmatB(idof,:)
+               !end do
+               !write(*,*) 'elmatV = '
+               !do idof = 1,size(elmatV,1)
+               !  write(*,*) elmatV(idof,:)
+               !end do
              end if
-             check(istat == 0)
+             mcheck(istat == 0,'Failed to solve the generalized eigenvalue problem')
 
              ! The eigenvalue should be real. Thus, it is save to take only the real part.
              beta = beta_coef*maxval(lambdas(:,1))
@@ -367,6 +367,6 @@ contains
     call eigs%free()
     call fe_space%free_fe_iterator(fe)
 
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module poisson_unfitted_discrete_integration_names

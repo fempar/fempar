@@ -75,7 +75,7 @@
 ! two per n-face type. For any dimension, a d-cube has 2d facets. As a result, any n-face can be uniquely defined by 2d-bits, the 
 ! type and the anchor node. We note that the coordinate value related to a coordinate that is free has no sense, and in this case, 
 ! the coordinate value is enforced to 0. E.g., for the 3d cube we have the six faces 011|000, 011|100, 101|000, 101|010, 110|000, and
-! 110|001. Everything applies verbatim for edges and vertices. Further, all these concepts can be applied to any dimension.
+! 110|001. All these concepts can be applied to any dimension.
 
 ! The use of this ideas to define n-faces of polytopes that involve pyramid actions is slightly more complicated. Its relies on the
 ! following observation. Assume that we start with a (d-1)-polytope A, and denote by S the set of its vertices. The d-polytope P(A)
@@ -228,6 +228,8 @@ end subroutine polytope_create
 
  !=================================================================================================
  ! Recursive function that extrudes an object for a given polytope topology and extrusion
+ ! It follows the bitmap implementation of the n-face generation and oriented set extrusion in
+ ! the FEMPAR article.
  recursive subroutine fill_polytope_chain( this, current, extrusion, is_anchor )
     implicit none
     class(polytope_t), intent(inout) :: this
@@ -247,6 +249,7 @@ end subroutine polytope_create
        ! Same type, new coordinate
        if (IBITS(this%topology,i,1) == 1 ) then    ! Quad-type
           n_face_1 = IBSET( current, i )
+          ! Insert and extrude the object polytope + e_i (see oriented set extrusion notation in art)
           call this%fill_polytope_chain(  n_face_1, extrusion_1, .false. )
        else if (is_anchor) then
           n_face_1 = current
@@ -254,10 +257,12 @@ end subroutine polytope_create
              n_face_1 = IBCLR( n_face_1, j )
           end do
           n_face_1 = IBSET( n_face_1, i )
+          ! Insert and extrude the new vertex e_i for simplices (see oriented set extrusion notation in art)
           call this%fill_polytope_chain(  n_face_1, extrusion_1, .false. )
        end if
        ! New type, same anchor
        n_face_2 = IBSET( current, i+number_dimensions )
+       ! Insert and extrude the polytope extruded in i direction (see oriented set extrusion notation in art)
        call this%fill_polytope_chain(  n_face_2, extrusion_2, .false. )
        end if
     end do
@@ -552,16 +557,66 @@ function facet_iterator_current ( this )
   facet_iterator_current = this%polytope%ijk_to_index( this%current_ijk() )
 end function facet_iterator_current
 
+
+
+! N-FACES
+! =======
+!
+! Now, given an object defined by its d-bits topology, we can represent any n-face as follows. Let us start with the polytope itself. 
+! The polytope is a d-dimensional object, and thus, there is no restriction among the d space coordinates of its nodes. Thus, we 
+! say that all coordinates are free. It is represented by d-bits, where 1 means that the coordinate is free and 0 means that it is fixed.
+! As a result, the polytope itself is 111. 
+
+! Now, we can consider its (d-1)-faces (facets). In any face, there is one and only one constraint among coordinates. Let us consider
+! for simplicity that we have a 3-cube. In this case, we have the faces 011 (Z-faces, since its normal is aligned with the Z-axis), 
+! the faces 101 (Y-faces), and the faces 110 (X-faces). For a given type of face, we have two possible values of the fixed component,
+! 0 or 1. Thus, together with the type of n-face, we have to provide the anchor vertex (0-face). It leads, as expected, to 6 facets, 
+! two per n-face type. For any dimension, a d-cube has 2d facets. As a result, any n-face can be uniquely defined by 2d-bits, the 
+! type and the anchor node. We note that the coordinate value related to a coordinate that is free has no sense, and in this case, 
+! the coordinate value is enforced to 0. E.g., for the 3d cube we have the six faces 011|000, 011|100, 101|000, 101|010, 110|000, and
+! 110|001. All these concepts can be applied to any dimension.
+
+! The use of this ideas to define n-faces of polytopes that involve pyramid actions is slightly more complicated. Its relies on the
+! following observation. Assume that we start with a (d-1)-polytope A, and denote by S the set of its vertices. The d-polytope P(A)
+! has card(S)+1 vertices, where the new vertex has coordinate d equal to 1 and the rest equal to zero, whereas the other are the
+! ones in S (with 0 value on the d-coordinate). Based on these arguments, the set of admissible n-faces is restricted. One can not
+! have vertices such that, if the d-coordinate is equal to 1, it has some other coordinate different from 0. 
+! Thus, we cannot have an edge with a free coordinate in a position n<d and a fixed coordinate equal to 1 in position d. One of the
+! vertices of the corner would be 1 in position d and n, which is not a vertex of the object itself. Among all potential edges, 
+! we can only consider those that when the free coordinate is n \neq d, the anchor node is 0. E.g., in 2D, the edge
+! 01|10 is not admissible, because it would lead to the vertex 00|11, which is not in the object, and only 3 nodes are possible.
+!
+! We can extend this restriction to arbitrary dimensions. Let us assume that we have a polytope A, with all its edges and faces.
+! Let us assume that n-1-faces satisfy that a free coordinate in m < d implies anchor node 0. Now, let us assume
+! that we have an n-dimensional object with n<d and anchor node different from 0. It leads to n-1-faces that do not belong to the
+! polytope. We have proved it by induction.
+!
+! As a result, given an n-face, we can easily proceed as for n-cubes, but only considering those n-1-faces that are suitable, i.e.,
+! an n-dimensional object with n<d must have anchor node 0. This check is easy to implement
+!
+! do i = 2:dim
+!    if ( t(i) == 0. and. (  c(i) == 1 .and. f(i) == 0 ) )! Current coordinate is obtained by 1 (pyramid) and == 1
+!       do k = 1:i-1
+!          if ( (c(k) == 1 .and. f(k) == 0)  .or. f(k) == 1 ) ! Coordinate fixed to 1 or free
+!             NOT SUITABLE  break
+!          end if
+!       end do
+!    end if
+! end do
+!
+! where t is the topology, f the type of n-face, and c the anchor vertex.
 !=================================================================================================
 function facet_iterator_is_admissible( this )
   implicit none
   class(facet_iterator_t), intent(inout) :: this
   logical                          :: facet_iterator_is_admissible
   facet_iterator_is_admissible = .false. 
-  if ( IBITS( this%root, this%polytope%number_dimensions + this%component, 1 ) == 1) then
-     if ( IBITS( this%polytope%topology, this%component, 1 ) == 1 ) then
+  if ( IBITS( this%root, this%polytope%number_dimensions + this%component, 1 ) == 1) then ! free component
+     if ( IBITS( this%polytope%topology, this%component, 1 ) == 1 ) then                  ! cube type
         facet_iterator_is_admissible = .true.
-     else if ( this%coordinate == 0 .or. this%component == 0 & 
+        ! In case of simplex, if the coordinate is zero OK (see the boundary of a pyramid extension in art
+        ! or an n-dimensional object with n<d must have anchor node 0 (see above).
+     else if ( this%coordinate == 0 .or. this%component == 0 &                            
           & .or. IBITS( this%root, this%polytope%number_dimensions, this%component ) == 0 ) then  
         facet_iterator_is_admissible = .true.
      end if

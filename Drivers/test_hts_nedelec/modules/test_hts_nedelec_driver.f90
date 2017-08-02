@@ -118,12 +118,15 @@ contains
     type(point_t), allocatable                :: cell_coordinates(:)
     integer(ip)                               :: inode
     integer(ip)       :: icell, icoord 
-    real(rp)          :: cx, cy
+    real(rp)          :: cx, cy, cz 
     integer(ip)       :: istat 
+	real(rp)          :: R, h, x0, y0, z0
 
     istat = 0
     call this%triangulation%create(this%test_params%get_values())
 
+	if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+	
     ! Assign subset_id to different cells for the created structured mesh 
     allocate(cells_set(this%triangulation%get_num_cells() ), stat=istat); check(istat==0)
     call this%triangulation%create_cell_iterator(cell)
@@ -134,15 +137,30 @@ contains
        ! Compute center of the element coordinates 
        cx = 0.0_rp
        cy = 0.0_rp 
+	   cz = 0.0_rp 
        do inode=1,cell%get_num_nodes()  
           cx = cx + cell_coordinates(inode)%get(1)
           cy = cy + cell_coordinates(inode)%get(2)
+		  cz = cz + cell_coordinates(inode)%get(3)
        end do
        cx = cx/real(cell%get_num_nodes(),rp)
        cy = cy/real(cell%get_num_nodes(),rp)
+	   cz = cz/real(cell%get_num_nodes(),rp)
 
-       ! Select material case
-       if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then
+       !! Select material case: HTS TAPE in the center 
+       !if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then
+       !   cells_set( cell%get_lid() ) = hts 
+       !else 
+       !   cells_set( cell%get_lid() ) = air
+       !end if
+	   
+	   !! Select material case: HTS CABLE in the center benchamark 
+	   R = 12.5e-3_rp 
+	   h = 10e-3_rp 
+	   x0 = 25e-3_rp
+	   y0 = 25e-3_rp 
+	   z0 = 25e-3_rp 
+	     if ( ( ( (cx-x0)**2.0_rp + (cy-y0)**2.0_rp) .lt. R**2.0_rp) .and. ( z0-0.5_rp*h < cz .and. cz < z0 + 0.5_rp*h )) then
           cells_set( cell%get_lid() ) = hts 
        else 
           cells_set( cell%get_lid() ) = air
@@ -154,6 +172,9 @@ contains
     deallocate(cells_set, stat=istat); check(istat==0) 
     deallocate(cell_coordinates, stat=istat); check(istat==0) 
     call this%triangulation%free_cell_iterator(cell)
+	
+	end if 
+
   end subroutine setup_triangulation
 
   ! -----------------------------------------------------------------------------------------------
@@ -166,14 +187,14 @@ contains
     allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                          &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,                                          &
                                                  fe_type = fe_type_nedelec,                                        &
                                                  number_dimensions = this%triangulation%get_num_dimensions(),      &
                                                  order = this%test_params%get_magnetic_field_reference_fe_order(), &
                                                  field_type = field_type_vector,                                   &
                                                  conformity = .true. ) 
     
-    this%reference_fes(2) =  make_reference_fe ( topology = topology_hex,                                             &
+    this%reference_fes(2) =  make_reference_fe ( topology = topology_tet,                                             &
                                                  fe_type = fe_type_lagrangian,                                        &
                                                  number_dimensions = this%triangulation%get_num_dimensions(),         &
                                                  order = this%test_params%get_magnetic_pressure_reference_fe_order(), &
@@ -184,8 +205,9 @@ contains
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           ! In the 3D case, vefs asociated to faces 21,22 are Neumann boundary (2D case set_id <= 9)
-         if ( vef%is_at_boundary() .and. ( vef%get_set_id() .ne. 21 .and. vef%get_set_id() .ne. 22) ) then 
-             call vef%set_set_id(1)
+       !  if ( vef%is_at_boundary() .and. ( vef%get_set_id() .ne. 21 .and. vef%get_set_id() .ne. 22) ) then 
+          if ( vef%is_at_boundary() ) then 
+		     call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
@@ -271,12 +293,12 @@ contains
     type(sparse_matrix_t), pointer :: coefficient_matrix
 
     ! Integration loop 
-    class(fe_iterator_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face 
+    class(fe_iterator_t)     , allocatable :: fe
+    class(fe_face_iterator_t), allocatable :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
-    type(face_map_t)         , pointer     :: face_map 
+    type(face_maps_t)         , pointer     :: face_map 
     type(vector_field_t)                   :: rot_test_vector
     integer(ip)                            :: qpoin, number_qpoints, idof 
     type(i1p_t)              , pointer     :: elem2dof(:)
@@ -362,7 +384,7 @@ contains
        call this%fe_space%initialize_fe_face_integration()
 
        ! Search for the first boundary face
-       call fe_space%create_fe_face_iterator(fe_face)
+       call this%fe_space%create_fe_face_iterator(fe_face)
        do while ( .not. fe_face%is_at_boundary() ) 
           call fe_face%next()
        end do
@@ -371,7 +393,7 @@ contains
        call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
        quad            => fe_face%get_quadrature()
        number_qpoints  =  quad%get_number_quadrature_points()
-       face_map        => fe_face%get_face_map()
+       face_map        => fe_face%get_face_maps()
        face_int_H      => fe_face%get_face_integrator(1)
 
        do while ( .not. fe_face%has_finished() )
@@ -408,6 +430,7 @@ contains
        call memfree ( facevec, __FILE__, __LINE__ )
     end if 
     call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_face_iterator(fe_face)
     ! Sum duplicates, re-order by rows, and leave the matrix in a final state
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 

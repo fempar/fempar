@@ -36,7 +36,7 @@ module vector_poisson_unfitted_discrete_integration_names
      class(vector_function_t), pointer :: source_term
    contains
      procedure :: set_source_term
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type vector_poisson_unfitted_discrete_integration_t
   
   public :: vector_poisson_unfitted_discrete_integration_t
@@ -50,7 +50,7 @@ contains
     this%source_term => vector_function
   end subroutine set_source_term
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(vector_poisson_unfitted_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
@@ -154,6 +154,6 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module vector_poisson_unfitted_discrete_integration_names

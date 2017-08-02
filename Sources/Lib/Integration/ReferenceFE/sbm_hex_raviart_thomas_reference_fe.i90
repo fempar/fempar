@@ -755,7 +755,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   type(hex_lagrangian_reference_fe_t) :: d_1_fe
   type(quadrature_t)                  :: d_1_quadrature
   type(interpolation_t)               :: d_1_interpolation, face_interpolation
-  type(fe_map_t)                      :: face_map
+  type(face_map_t)                    :: face_map
   type(point_t), pointer              :: face_map_coordinates(:)
   real(rp)                            :: shape_test
   type(vector_field_t)                :: normal
@@ -763,8 +763,6 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   ! Local variables required by interior moments integration
   type(quadrature_t)                  :: cell_quadrature
   type(interpolation_t)               :: reduced_order_cell_interpolation, cell_interpolation
-  type(point_t), pointer              :: cell_map_coordinates(:)
-  type(fe_map_t)                      :: cell_map
   integer(ip)                         :: reduced_order_vector(SPACE_DIM)
   integer(ip)                         :: num_interior_moments
   type(vector_field_t)                :: v_shape_test
@@ -824,7 +822,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   
   call d_1_fe%create_interpolation( d_1_quadrature, d_1_interpolation )
   
-  call face_map%create_face_map( d_1_quadrature, d_fe_geo )
+  call face_map%create( d_1_quadrature, d_fe_geo )
 
   ! Initialize change of basis matrix
   this%change_basis_matrix = 0.0_rp
@@ -845,9 +843,9 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
         vertex_within_face_id = vertex_within_face_id + 1
      end do
 
-     ! Update face_map on current face
+     ! Update face_map on current face (only being used to compute the faceet normal)
      local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
-     call face_map%update_face_map(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+     call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
                                    quadrature             = d_1_quadrature ) 
      
      call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
@@ -856,18 +854,15 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
      
      ! Integrate boundary moments int_Face(u.n q), q \in Q_k
      do qpoint = 1, d_1_quadrature%number_quadrature_points
-        factor = face_map%get_det_jacobian(qpoint) * d_1_quadrature%get_weight(qpoint)
+        !factor = face_map%get_det_jacobian(qpoint) * d_1_quadrature%get_weight(qpoint)
+        factor = d_1_quadrature%get_weight(qpoint) / ( d_1_fe%get_characteristic_length() ** d_1_fe%get_number_dimensions() ) 
         call face_map%get_normal(qpoint, normal)
-        
-        !!!!!!!!!!!
-        !! IMPORTANT NOTE: trick to have normals associated to each pair of faces pointing
-        !!                 to the same direction. This only works provided we have an "oriented"
-        !!                 triangulation.
-        !!!!!!!!!!!
+        ! Compute normal such that (for oriented meshes) two elements sharing a face have a
+        ! moment determined with the same normal, in order to have conformity
         normal = (-1.0_rp)**(this%orientation%a(facet_id)) * normal
-        do i=1, SPACE_DIM
-          call normal%set(i, abs(normal%get(i)))
-        end do
+        !do i=1, SPACE_DIM
+        !   call normal%set(i, abs(normal%get(i)))
+        !end do
         
         do ishape=1, d_1_interpolation%number_shape_functions
            call d_1_fe%get_value(d_1_interpolation, ishape, qpoint, shape_test)
@@ -909,17 +904,9 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   ! Create PRE-BASIS cell-interpolation from this RT REF FE 
   call this%create_interpolation( cell_quadrature, cell_interpolation )
   
-  ! Create + Update cell map 
-  call cell_map%create(cell_quadrature, d_fe_geo )
-  cell_map_coordinates => cell_map%get_coordinates()
-  do vertex_within_cell_id=1,d_fe_geo%get_number_vertices()
-     call cell_map_coordinates(vertex_within_cell_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
-  end do
-  call cell_map%update(cell_quadrature)
-
   ! Integration of interior moments int_K (u.q), q \in Qk-1,k,k x Qk,k-1,k x Qk,k,k-1     
   do qpoint = 1, cell_quadrature%number_quadrature_points
-     factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
+     factor = ( this%get_characteristic_length() ** this%get_number_dimensions() )  * cell_quadrature%get_weight(qpoint)
      do ishape=1, reduced_order_cell_interpolation%number_shape_functions
         call this%get_value(reduced_order_cell_interpolation, ishape, qpoint, v_shape_test)
         do jshape=1, cell_interpolation%number_shape_functions
@@ -1021,7 +1008,6 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   call cell_quadrature%free()
   call reduced_order_cell_interpolation%free()
   call cell_interpolation%free()
-  call cell_map%free()
   
   end subroutine hex_raviart_thomas_reference_fe_change_basis 
 

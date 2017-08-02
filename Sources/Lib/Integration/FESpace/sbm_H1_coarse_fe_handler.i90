@@ -41,16 +41,17 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   integer(ip)                            :: off
   integer(ip) :: num_rows, num_cols
   integer(ip) :: num_fine_dofs_on_coarse_dof
-  integer(ip) :: iface_within_object, ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
+  integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
 
   class(base_static_triangulation_t), pointer :: triangulation
 
   ! FE space traversal-related data types
-  type(fe_face_iterator_t)            :: fe_face
+  type(list_iterator_t)                  :: faces_object_iterator
+  class(fe_face_iterator_t), allocatable :: fe_face
 
   ! Face integration-related data types
   type(quadrature_t)     , pointer :: quad
-  type(face_map_t)       , pointer :: face_map
+  type(face_maps_t)       , pointer :: face_map
   type(face_integrator_t), pointer :: face_int
   real(rp)                         :: shape_trial
   integer(ip)            , pointer :: elem2dof(:)
@@ -88,11 +89,12 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
 
         ! Face coarse DoF
         if ( object%get_dimension () == triangulation%get_num_dimensions()-1) then
-           do iface_within_object=1, object%get_num_faces()
-              call object%get_face(iface_within_object,fe_face)
+           faces_object_iterator = object%create_faces_object_iterator()
+           do while ( .not. faces_object_iterator%is_upper_bound() )
+              call object%get_face(faces_object_iterator%get_current(),fe_face)
               quad     => fe_face%get_quadrature()
               face_int => fe_face%get_face_integrator(1)
-              face_map => fe_face%get_face_map()
+              face_map => fe_face%get_face_maps()
 
               call fe_face%get_cell_around(1,fe)
               facevec = 0.0_rp
@@ -110,6 +112,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
                                             test_elem2dof(1)%p, &
                                             coarse_dof_lid, &
                                             facevec)
+              call faces_object_iterator%next()
            end do
         else    
            ! Either corner or edge coarse DoF
@@ -150,9 +153,10 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
      end if
      call object%next()
   end do
+  call faces_object_iterator%free()
   call par_fe_space%free_fe_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
-  call par_fe_space%free_fe_vef_iterator(fe_face)
+  call par_fe_space%free_fe_face_iterator(fe_face)
   call par_fe_space%free_fe_vef_iterator(vef)
   deallocate (test_elem2dof, stat=istat); check(istat==0);
   call memfree(facevec, __FILE__, __LINE__ )

@@ -38,7 +38,7 @@ module mixed_laplacian_rt_discrete_integration_names
    contains
      procedure :: set_pressure_source_term
      procedure :: set_pressure_boundary_function
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type mixed_laplacian_rt_discrete_integration_t
   
   public :: mixed_laplacian_rt_discrete_integration_t
@@ -59,19 +59,19 @@ contains
     this%pressure_boundary_function => scalar_function
   end subroutine set_pressure_boundary_function
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(mixed_laplacian_rt_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
     class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face
+    class(fe_iterator_t)     , allocatable :: fe
+    class(fe_face_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
-    type(face_map_t)         , pointer :: face_map
+    type(face_maps_t)         , pointer :: face_map
     type(face_integrator_t)  , pointer :: face_int_velocity
     type(vector_field_t)               :: normals(2)
     type(quadrature_t)       , pointer :: quad
@@ -193,7 +193,7 @@ contains
 
     quad               => fe_face%get_quadrature()
     num_quad_points    = quad%get_number_quadrature_points()
-    face_map           => fe_face%get_face_map()
+    face_map           => fe_face%get_face_maps()
     face_int_velocity  => fe_face%get_face_integrator(1)
     
     elmat = 0.0_rp
@@ -227,7 +227,7 @@ contains
        end if
        call fe_face%next()
     end do
-    call fe_space%free_fe_vef_iterator(fe_face)
+    call fe_space%free_fe_face_iterator(fe_face)
     call memfree ( pressure_boundary_function_values, __FILE__, __LINE__ )
     deallocate(velocity_shape_values, stat=istat); check(istat==0);
     call memfree(velocity_shape_divs, __FILE__, __LINE__)
@@ -236,6 +236,6 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module mixed_laplacian_rt_discrete_integration_names

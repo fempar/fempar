@@ -705,7 +705,11 @@ subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
   type(quadrature_t)                  , intent(inout) :: quadrature
   integer(ip) :: i
   do i=1,this%number_dimensions
+     if (this%order_vector(i) > 0 ) then 
      quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(2.0_rp/this%order_vector(i))-1.0_rp
+	 else 
+	 quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)
+	 end if 
   end do
   quadrature%weight = 1.0_rp
 end subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature

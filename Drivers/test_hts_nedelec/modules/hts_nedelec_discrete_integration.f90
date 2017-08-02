@@ -56,7 +56,7 @@ module hts_nedelec_discrete_integration_names
      class(vector_function_t), pointer :: source_term        => NULL()
    contains
      procedure :: create                => hts_nedelec_discrete_integration_create
-     procedure :: integrate             => hts_nedelec_discrete_integration_integrate 
+     procedure :: integrate_galerkin    => hts_nedelec_discrete_integration_integrate 
      procedure :: set_integration_type 
      procedure :: compute_resistivity
      procedure :: compute_tangent_resistivity 
@@ -276,7 +276,7 @@ contains
   Ec = this%critical_electric_field 
   Jc = this%critical_current 
   n  = this%nonlinear_exponent 
-  
+
   if ( material == hts ) then ! HTS DOMAIN: Nonlinear resistivity = Ec/Jc*|| curl(H) / Jc ||**n 
      if (this%nonlinear_exponent .ge. 1 ) then 
         resistivity = Ec/Jc*(curl_H%nrm2()/Jc)**n + 1e-16_rp
@@ -288,7 +288,7 @@ contains
   else 
      assert(.false.) 
   end if
-  
+
   end function compute_resistivity
   
   ! -----------------------------------------------------------------------------------------------
