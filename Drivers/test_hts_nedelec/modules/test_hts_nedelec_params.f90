@@ -62,7 +62,7 @@ module hts_nedelec_params_names
        procedure, non_overridable             :: get_magnetic_field_reference_fe_order
        procedure, non_overridable             :: get_magnetic_pressure_reference_fe_order
        procedure, non_overridable             :: get_external_magnetic_field_amplitude
-       procedure, non_overridable             :: get_external_magnetic_field_frequencys
+       procedure, non_overridable             :: get_external_magnetic_field_frequency
        procedure, non_overridable             :: get_external_current_amplitude
        procedure, non_overridable             :: get_external_current_frequency
        procedure, non_overridable             :: get_apply_current_density_constraint

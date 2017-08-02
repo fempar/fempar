@@ -132,8 +132,6 @@ contains
     assert ( associated(this%H_current) )
     assert ( associated(this%H_previous) )
     
-    number_fields = fe_space%get_number_fields()
-    
     call fe_space%initialize_fe_integration()
     call cell_fe_function_previous%create(fe_space, 1) 
     call cell_fe_function_current%create(fe_space,  1) 
