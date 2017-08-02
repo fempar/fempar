@@ -126,6 +126,7 @@ contains
 
     assert (associated(this%analytical_functions))
     assert (associated(this%test_params))
+    assert (associated(this%fe_function))
     beta_coef = this%test_params%get_nitsche_beta_factor()
 
     ! TODO We will delete this once implemented the fake methods in the father class

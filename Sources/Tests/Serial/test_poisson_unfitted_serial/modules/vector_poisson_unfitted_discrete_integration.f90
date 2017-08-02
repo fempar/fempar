@@ -87,6 +87,8 @@ contains
     
     type(vector_field_t) :: source_term
 
+    assert (associated(this%fe_function)) 
+
     max_num_dofs = fe_space%get_max_number_dofs_on_a_cell()
     call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )

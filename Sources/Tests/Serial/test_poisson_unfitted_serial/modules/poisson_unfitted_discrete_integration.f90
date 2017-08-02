@@ -117,7 +117,7 @@ contains
     type(gen_eigenvalue_solver_t) :: eigs
 
     assert (associated(this%analytical_functions))
-
+    assert (associated(this%fe_function)) 
 
     ! TODO We will delete this once implemented the fake methods in the father class
     call fe_space%create_fe_iterator(fe)

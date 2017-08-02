@@ -107,6 +107,7 @@ contains
     
     assert ( associated(this%pressure_source_term) )
     assert ( associated(this%pressure_boundary_function) )
+    assert ( associated(this%fe_function) ) 
     
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)

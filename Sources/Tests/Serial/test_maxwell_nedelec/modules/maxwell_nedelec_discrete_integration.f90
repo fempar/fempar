@@ -86,6 +86,7 @@ contains
     type(vector_field_t), allocatable :: source_term_values(:)
     
     assert ( associated(this%source_term) )
+    assert ( associated(this%fe_function) ) 
     
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)

@@ -88,6 +88,7 @@ contains
     class(scalar_function_t), pointer :: source_term
     
     assert (associated(this%analytical_functions)) 
+    assert (associated(this%fe_function)) 
 
     source_term => this%analytical_functions%get_source_term()
 
