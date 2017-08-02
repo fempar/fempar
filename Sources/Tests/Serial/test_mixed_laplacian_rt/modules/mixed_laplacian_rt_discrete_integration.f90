@@ -80,7 +80,7 @@ contains
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
-    type(face_map_t)         , pointer :: face_map
+    type(face_maps_t)         , pointer :: face_map
     type(face_integrator_t)  , pointer :: face_int_velocity
     type(vector_field_t)               :: normals(2)
     type(quadrature_t)       , pointer :: quad
@@ -192,7 +192,7 @@ contains
 
     quad               => fe_face%get_quadrature()
     num_quad_points    = quad%get_number_quadrature_points()
-    face_map           => fe_face%get_face_map()
+    face_map           => fe_face%get_face_maps()
     face_int_velocity  => fe_face%get_face_integrator(1)
     num_dofs_per_field => fe_face%get_number_dofs_per_field(1)
     

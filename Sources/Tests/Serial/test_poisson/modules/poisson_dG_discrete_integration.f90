@@ -82,7 +82,7 @@ contains
     real(rp)                 , pointer     :: shape_values_ineigh(:,:),shape_values_jneigh(:,:)
     
     ! Face integration-related data types
-    type(face_map_t)       , pointer :: face_map
+    type(face_maps_t)       , pointer :: face_map
     type(face_integrator_t), pointer :: face_int
     type(vector_field_t)             :: normals(2)
     real(rp)                         :: shape_test, shape_trial
@@ -183,7 +183,7 @@ contains
     
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
-    face_map        => fe_face%get_face_map()
+    face_map        => fe_face%get_face_maps()
     face_int        => fe_face%get_face_integrator(1)
     
     do while ( .not. fe_face%has_finished() ) 
@@ -252,7 +252,7 @@ contains
 
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
-    face_map        => fe_face%get_face_map()
+    face_map        => fe_face%get_face_maps()
     face_int        => fe_face%get_face_integrator(1)
    
     do while ( .not. fe_face%has_finished() )

@@ -312,7 +312,7 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature_degree         => fe_face_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree         => fe_face_iterator_set_quadrature_degree
     procedure, non_overridable          :: get_quadrature                => fe_face_iterator_get_quadrature
-    procedure, non_overridable          :: get_face_map                  => fe_face_iterator_get_face_map
+    procedure, non_overridable          :: get_face_maps                 => fe_face_iterator_get_face_map
     procedure, non_overridable          :: get_face_integrator           => fe_face_iterator_get_face_integrator
     procedure, non_overridable          :: compute_surface               => fe_face_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
@@ -345,7 +345,7 @@ module fe_space_names
      
      ! Finite Face-related integration containers
      type(quadrature_t)            , allocatable :: fe_face_quadratures(:)
-     type(face_map_t)              , allocatable :: fe_face_maps(:)
+     type(face_maps_t)              , allocatable :: fe_face_maps(:)
      type(face_integrator_t)       , allocatable :: fe_face_integrators(:)
      integer(ip)                   , allocatable :: fe_face_quadratures_degree(:)
      

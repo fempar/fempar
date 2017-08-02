@@ -51,7 +51,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
 
   ! Face integration-related data types
   type(quadrature_t)     , pointer :: quad
-  type(face_map_t)       , pointer :: face_map
+  type(face_maps_t)       , pointer :: face_map
   type(face_integrator_t), pointer :: face_int
   real(rp)                         :: shape_trial
   integer(ip)            , pointer :: elem2dof(:)
@@ -94,7 +94,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
               call object%get_face(faces_object_iterator%get_current(),fe_face)
               quad     => fe_face%get_quadrature()
               face_int => fe_face%get_face_integrator(1)
-              face_map => fe_face%get_face_map()
+              face_map => fe_face%get_face_maps()
 
               call fe_face%get_cell_around(1,fe)
               facevec = 0.0_rp

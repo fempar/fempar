@@ -784,7 +784,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   type(hex_lagrangian_reference_fe_t) :: fe_1D
   type(quadrature_t)                  :: edge_quadrature
   type(interpolation_t)               :: interpolation_1D, edge_interpolation
-  type(fe_map_t)                      :: edge_map
+  type(edge_map_t)                    :: edge_map
   type(point_t), pointer              :: edge_map_coordinates(:)
   real(rp)                            :: shape_test
   type(vector_field_t)                :: tangent
@@ -793,7 +793,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   type(hex_nedelec_reference_fe_t)    :: fe_2D
   type(quadrature_t)                  :: face_quadrature
   type(interpolation_t)               :: interpolation_2D, face_interpolation
-  type(fe_map_t)                      :: face_map
+  type(face_map_t)                    :: face_map
   type(point_t), pointer              :: face_map_coordinates(:)
   type(vector_field_t)                :: normal
   type(vector_field_t)                :: cross_product_v_shape_trial_normal
@@ -863,7 +863,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  call this%create_edge_quadrature( edge_quadrature )
  call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
  
- call edge_map%create_edge_map( edge_quadrature, d_fe_geo )
+ call edge_map%create( edge_quadrature, d_fe_geo )
 
  ! Initialize change of basis matrix
  this%change_basis_matrix = 0.0_rp
@@ -886,7 +886,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      end do
 
      ! Update edge_map on current edge
-     call edge_map%update_edge_map(local_edge_id = edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
+     call edge_map%update(local_edge_id = edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
                                    reference_fe  = d_fe_geo, &
                                    quadrature    = edge_quadrature ) 
      
@@ -925,7 +925,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
     
     call this%create_face_quadrature( face_quadrature )
     call fe_2D%create_interpolation( face_quadrature, interpolation_2D )
-    call face_map%create_face_map( face_quadrature, d_fe_geo )
+    call face_map%create( face_quadrature, d_fe_geo )
  
     do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
   
@@ -944,7 +944,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
 
      ! Update face_map on current face
      local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
-     call face_map%update_face_map(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+     call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
                                    quadrature             = face_quadrature ) 
      
      call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
