@@ -103,13 +103,12 @@ function fe_face_iterator_get_lid (this) result(face_lid)
   face_lid = this%face_lid
 end function fe_face_iterator_get_lid
 
-subroutine fe_face_iterator_update_number_dofs_per_field( this, icell_around, number_dofs_per_field )
+subroutine fe_face_iterator_update_number_dofs_per_field( this, icell_around )
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this 
   integer(ip)              , intent(in)    :: icell_around
-  integer(ip)              , intent(inout) :: number_dofs_per_field(:)
   call this%get_cell_around(icell_around, this%fe)
-  call this%fe%update_number_dofs_per_field(number_dofs_per_field)
+  call this%fe%update_number_dofs_per_field(this%number_dofs_per_cell_and_field(icell_around,:))
 end subroutine fe_face_iterator_update_number_dofs_per_field
 
 subroutine fe_face_iterator_update_elem2dof_per_cell( this )
@@ -148,7 +147,7 @@ subroutine fe_face_iterator_update_integration( this )
     coords => face_map%get_coordinates_neighbour(icell_around, &
                                                  face_lpos_within_cells_around(icell_around))
     call this%fe%get_coordinates(coords)
-    call this%update_number_dofs_per_field(icell_around,this%number_dofs_per_cell_and_field(icell_around,:))
+    call this%update_number_dofs_per_field(icell_around)
   end do
 
   call this%get_cell_around(1, this%fe)
