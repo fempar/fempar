@@ -182,15 +182,20 @@ subroutine fe_face_iterator_assemble_mat_vec_wo_strong_dirichlet_bcs ( this,    
   call this%update_elem2dof_per_cell()
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
-      call matrix_array_assembler%face_assembly( this%fe_space%number_fields,        &
-                                                 this%number_dofs_per_cell_and_field(ineigh,:), &
-                                                 this%number_dofs_per_cell_and_field(jneigh,:), &
-                                                 this%elem2dof_per_cell(ineigh,:),   &
-                                                 this%elem2dof_per_cell(jneigh,:),   &
-                                                 this%fe_space%get_field_blocks(),   &
-                                                 this%fe_space%get_field_coupling(), &
-                                                 facemat(:,:,ineigh,jneigh),         &
-                                                 facevec(:,ineigh) )   
+      call matrix_array_assembler%assemble_matrix( this%fe_space%number_fields,                   &
+                                                   this%fe_space%get_field_blocks(),              &
+                                                   this%fe_space%get_field_coupling(),            &
+                                                   this%number_dofs_per_cell_and_field(ineigh,:), &
+                                                   this%number_dofs_per_cell_and_field(jneigh,:), &
+                                                   this%elem2dof_per_cell(ineigh,:),              &
+                                                   this%elem2dof_per_cell(jneigh,:),              &
+                                                   facemat(:,:,ineigh,jneigh) )
+      call matrix_array_assembler%assemble_array( this%fe_space%number_fields,                    &
+                                                  this%fe_space%get_field_blocks(),               &
+                                                  this%fe_space%get_field_coupling(),             &
+                                                  this%number_dofs_per_cell_and_field(ineigh,:),  &
+                                                  this%elem2dof_per_cell(ineigh,:),               &
+                                                  facevec(:,ineigh) )
     end do
   end do
   
