@@ -60,10 +60,8 @@
        if ( topology == topology_hex ) then
           allocate ( hex_nedelec_reference_fe_t :: make_reference_fe%p )
        elseif ( topology == topology_tet ) then
-          !allocate ( tet_nedelec_reference_fe_t :: make_reference_fe%p )
-          ! Not implemented !
-          check(.false.)
-       end if 
+          allocate ( tet_nedelec_reference_fe_t :: make_reference_fe%p )
+       end if   
     else if ( fe_type == fe_type_void ) then
        allocate ( void_reference_fe_t :: make_reference_fe%p )
     end if

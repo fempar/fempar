@@ -47,7 +47,6 @@ module maxwell_nedelec_analytical_functions_names
    contains
      procedure :: get_value_space    => solution_get_value_space
      procedure :: get_gradient_space => solution_get_gradient_space
-	 procedure :: get_curl_space     => solution_get_curl_space
   end type solution_t
   
     type, extends(scalar_function_t) :: base_scalar_function_t
@@ -110,8 +109,8 @@ contains
     type(vector_field_t)    , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
 
-    call result%set(1, point%get(2) )
-    call result%set(2, 0.0_rp)
+    call result%set(1, -point%get(2) )
+    call result%set(2,  point%get(1))
     if ( this%num_dimensions == 3 ) then
        call result%set(3, 0.0_rp) 
     end if
@@ -134,8 +133,8 @@ contains
     type(vector_field_t)    , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
 
-    call result%set(1, point%get(2))
-    call result%set(2, 0.0_rp)  
+    call result%set(1, -point%get(2))
+    call result%set(2,  point%get(1))  
     if ( this%num_dimensions == 3 ) then
        call result%set(3, 0.0_rp)
     end if
@@ -147,25 +146,17 @@ contains
     class(solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(tensor_field_t), intent(inout) :: result
-    call result%set(2, 1, 1.0_rp)
+    call result%set(2,1, -1.0_rp)
+	call result%set(1,2,  1.0_rp)
   end subroutine solution_get_gradient_space
   
-   !===============================================================================================
-  subroutine solution_get_curl_space ( this, point, result )
-    implicit none
-    class(solution_t), intent(in)    :: this
-    type(point_t)           , intent(in)    :: point
-    type(vector_field_t)    , intent(inout) :: result
-    call result%set(3, -1.0_rp)
-  end subroutine solution_get_curl_space
-
   !===============================================================================================
   subroutine boundary_function_Hx_get_value_space( this, point, result )
     implicit none 
     class(boundary_function_Hx_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    result = point%get(2)
+    result = -point%get(2)
   end subroutine boundary_function_Hx_get_value_space
 
   !===============================================================================================
@@ -174,7 +165,7 @@ contains
     class(boundary_function_Hy_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    result = 0.0_rp          
+    result = point%get(1)           
   end subroutine boundary_function_Hy_get_value_space
 
   !===============================================================================================

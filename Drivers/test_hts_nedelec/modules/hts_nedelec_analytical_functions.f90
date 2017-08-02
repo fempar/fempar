@@ -290,11 +290,7 @@ contains
     class(boundary_function_Hx_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    ! Locals 
-    real(rp)  :: x, y, z
-    x = point%get(1)
-    y = point%get(2) 
-    z = point%get(3) 
+
     result = 0.0_rp
     
   end subroutine boundary_function_Hx_get_value_space
@@ -306,13 +302,8 @@ contains
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(in)    :: time
     real(rp)                       , intent(inout) :: result 
-   
-    ! Locals 
-    real(rp)  :: x, y, z
-    x = point%get(1)
-    y = point%get(2) 
-    z = point%get(3) 
-    result = 0.0_rp
+
+    result = this%amplitude*sin(2.0_rp*this%frequency*pi*time)
 
   end subroutine boundary_function_Hx_get_value_space_time 
 
@@ -322,12 +313,8 @@ contains
     class(boundary_function_Hy_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result    
-    ! Locals 
-    real(rp)  :: x, y, z 
-    x = point%get(1)
-    y = point%get(2) 
-    z = point%get(3)
-     result = 0.0_rp 
+
+     result = 0.0_rp  
 
   end subroutine boundary_function_Hy_get_value_space
   
@@ -338,13 +325,6 @@ contains
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(in)    :: time
     real(rp)                       , intent(inout) :: result  
-    
-    ! Locals 
-    real(rp)  :: x, y, z 
-    x = point%get(1)
-    y = point%get(2) 
-    z = point%get(3)
-    !result = time*x*x*x 
 
     result = this%amplitude*sin(2.0_rp*this%frequency*pi*time) 
     
@@ -357,7 +337,7 @@ contains
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result    
 
-    result = 0.0_rp 
+    result = 0.0_rp
     
   end subroutine boundary_function_Hz_get_value_space
   
@@ -369,7 +349,18 @@ contains
     real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result    
 
-    result = 0.0_rp 
+    result = this%amplitude*sin(2.0_rp*this%frequency*pi*time) 
+ 
+	! Benchmark ramp 
+	if ( time .le. 5 ) then 
+	result = this%amplitude*(time/5.0_rp) 
+	elseif ( time .le. 10 ) then 
+	result = this%amplitude 
+	elseif ( time .le. 15 ) then 
+	result = this%amplitude*(15.0_rp-time)/(5.0_rp)
+	else 
+	result = 0.0_rp
+	end if 
     
   end subroutine boundary_function_Hz_get_value_space_time
   

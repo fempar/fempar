@@ -250,7 +250,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
      do q_point=1, n_q_points
         values_cell_contribution = values_cell_contribution + & 
              (this%work_array_values(q_point,1)*this%work_array_values(q_point,1))*&
-             fe_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+              fe_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (lp_norm,w1p_norm)
      do q_point=1, n_q_points
