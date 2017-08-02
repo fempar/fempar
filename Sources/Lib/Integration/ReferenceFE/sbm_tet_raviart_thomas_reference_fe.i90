@@ -291,7 +291,7 @@ subroutine tet_raviart_thomas_fill_quadrature ( this, quadrature )
         quadrature%weight(11) = w4
         quadrature%weight(12) = w4
         quadrature%weight(13) = w4
-     else if(ngaus.eq.19) then
+     else if(ngaus==19) then
         a = 1.0_rp / 3.0_rp
         b = 0.02063496160252593_rp
         c = 0.4896825191987370_rp
@@ -371,7 +371,7 @@ subroutine tet_raviart_thomas_fill_quadrature ( this, quadrature )
         quadrature%weight(17) = w6
         quadrature%weight(18) = w6
         quadrature%weight(19) = w6
-     else if(ngaus.eq.28) then
+     else if(ngaus==28) then
         a = 1.0_rp / 3.0_rp
         b = 0.9480217181434233_rp
         c = 0.02598914092828833_rp
@@ -737,11 +737,11 @@ subroutine tet_raviart_thomas_fill_face_interpolation (this, local_quadrature, l
   else
      do iquad = 1,scalar_interpolation%number_quadrature_points
         ! Transform face local coordinates to element global coordinates
-        if (local_face_id .le. scalar_interpolation%number_dimensions ) then 
+        if (local_face_id <= scalar_interpolation%number_dimensions ) then 
            ! Orthogonal face in the reference element
            p_local_coordinate = 1
            do idime = 1, scalar_interpolation%number_dimensions
-              if (idime .eq. scalar_interpolation%number_dimensions + 1 - local_face_id ) then
+              if (idime == scalar_interpolation%number_dimensions + 1 - local_face_id ) then
                  global_coordinates(idime) = 0.0_rp
               else
                  global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
@@ -857,12 +857,12 @@ function tet_raviart_thomas_compute_number_quadrature_points( this, degree, dime
   integer(ip) :: tet_raviart_thomas_compute_number_quadrature_points
   !tet_raviart_thomas_set_number_quadrature_points = & 
   ! & this%compute_number_nodes_scalar( order, dimension )
-  !if( dimension .eq. 2 ) then
-  !   if( order .eq. 3 ) then
+  !if( dimension == 2 ) then
+  !   if( order == 3 ) then
   !      tet_raviart_thomas_set_number_quadrature_points = 13
   !   end if
-  !elseif( dimension .eq. 3 ) then
-  !   if( order .eq. 2) then
+  !elseif( dimension == 3 ) then
+  !   if( order == 2) then
   !      tet_raviart_thomas_set_number_quadrature_points = 11
   !   end if
   !end if
@@ -904,7 +904,7 @@ function tet_raviart_thomas_get_number_interior_points_x_dim(this,              
   integer(ip)                         , intent(in)    :: number_interior_points
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: tet_raviart_thomas_get_number_interior_points_x_dim 
-  if (dimension .eq. 1) then
+  if (dimension == 1) then
      tet_raviart_thomas_get_number_interior_points_x_dim = number_interior_points
   else
      tet_raviart_thomas_get_number_interior_points_x_dim = & 

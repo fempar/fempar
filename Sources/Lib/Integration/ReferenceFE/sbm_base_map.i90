@@ -105,21 +105,21 @@ function base_map_get_det_jacobians ( this )
 end function base_map_get_det_jacobians
 
 !==================================================================================================
-subroutine base_map_get_jacobian_normalized_column ( this, column_id, qpoint, normalized_column )
+subroutine base_map_get_jacobian_column ( this, column_id, qpoint, column )
   implicit none
   class(base_map_t)   , intent(in)    :: this
   integer(ip)         , intent(in)    :: column_id
   integer(ip)         , intent(in)    :: qpoint
-  type(vector_field_t), intent(out)   :: normalized_column 
+  type(vector_field_t), intent(out)   :: column 
   
   integer(ip) :: idime
   
-  call normalized_column%init(0.0_rp)
+  call column%init(0.0_rp)
   do idime=1, this%number_dimensions
-    call normalized_column%set(idime, this%jacobian(idime, column_id, qpoint))
+    call column%set(idime, this%jacobian(idime, column_id, qpoint))
   end do
-  normalized_column = normalized_column * (1.0_rp/normalized_column%nrm2())
-end subroutine base_map_get_jacobian_normalized_column
+
+end subroutine base_map_get_jacobian_column
 
 !==================================================================================================
 function base_map_get_reference_h ( this )

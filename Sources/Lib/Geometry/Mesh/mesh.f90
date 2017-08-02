@@ -28,6 +28,7 @@
 module mesh_names
   use types_names
   use memor_names
+  use sort_names
   use list_types_names
   use hash_table_names
   use stdio_names
@@ -305,6 +306,7 @@ contains
     character(6)   :: dum6
     character(1000) :: tel
     integer(ip), allocatable :: lnods_aux(:)
+	integer(ip), allocatable :: sorted_nodes(:) 
     integer(ip), allocatable :: bound_list_aux(:)
     type(list_iterator_t)    :: bound_iterator
     integer(ip), pointer     :: permu(:)

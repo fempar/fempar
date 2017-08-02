@@ -35,13 +35,13 @@ subroutine tet_lagrangian_reference_fe_free(this)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(inout) ::  this
   integer(ip) :: i
-  
+
   ! Free member variables of raviart_thomas_reference_fe_t
   if ( allocated(this%change_basis_matrix) ) &
-     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
-     
+       call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
+
   this%basis_changed = .false. 
-  
+
   ! Free member variables of lagrangian_reference_fe_t
   ! (and those of its ancestors)
   call lagrangian_reference_fe_free ( this )  
@@ -58,7 +58,7 @@ subroutine tet_lagrangian_reference_fe_create( this, topology, number_dimensions
   character(*)                            , intent(in)    :: field_type
   logical                                 , intent(in)    :: conformity
   logical                      , optional , intent(in)    :: continuity
-  
+
   assert ( order >= 0 )
 
   call this%free()
@@ -68,7 +68,7 @@ subroutine tet_lagrangian_reference_fe_create( this, topology, number_dimensions
   call this%fill()
   call this%create_nodal_quadrature()
   call this%change_basis()
-  
+
 end subroutine tet_lagrangian_reference_fe_create
 
 !==================================================================================================
@@ -134,9 +134,9 @@ subroutine tet_lagrangian_reference_fe_get_subcells_connectivity(this, num_refin
   integer(ip) :: ones_dim(this%number_dimensions)
 
   if(num_refinements > 0) then
-      ! this subroutine is not implemented for tet_lagrangrian
-      ! but magically wors for order 1 tets
-      check(.false.) !Not working
+     ! this subroutine is not implemented for tet_lagrangrian
+     ! but magically wors for order 1 tets
+     check(.false.) !Not working
   endif
   ones_dim = 1
   num_subelems = this%get_number_subcells(num_refinements=num_refinements)
@@ -202,7 +202,7 @@ subroutine tet_lagrangian_reference_fe_fill_own_dof_permutations (this)
   do idime=1,this%number_dimensions-1
      this%own_dof_permutations(idime)%nd1 = 0
      this%own_dof_permutations(idime)%nd2 = 0
-  end do  
+  end do
 end subroutine tet_lagrangian_reference_fe_fill_own_dof_permutations
 
 !==================================================================================================
@@ -212,15 +212,15 @@ subroutine tet_lagrangian_reference_fe_fill_qpoints_permutations (this, quadratu
   type(quadrature_t)                  , intent(in)    :: quadrature
   type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
   integer(ip)    :: ndime, n_q_points, i
-  
+
   ndime      = quadrature%get_number_dimensions()
   n_q_points = quadrature%get_number_quadrature_points()
-  
-  
+
+
   call qpoints_perm%create(n_q_points, &    !> Number of quadrature points
-          &                ndime*2**ndime)  !> Number of possible permutations x possible rotations
+       &                ndime*2**ndime)  !> Number of possible permutations x possible rotations
   forall (i = 1:qpoints_perm%nd1) qpoints_perm%a(i,:) = i
-  
+
 end subroutine tet_lagrangian_reference_fe_fill_qpoints_permutations
 
 !**************************************************************************************************
@@ -238,14 +238,14 @@ subroutine tet_lagrangian_create_data_out_quadrature ( this, num_refinements, qu
   integer(ip)                                         :: i
 
   if(num_refinements > 0) then
-      ! this subroutine is not tested yet for tet_lagrangrian
-      check(.false.) !Not working
+     ! this subroutine is not tested yet for tet_lagrangrian
+     check(.false.) !Not working
   endif
-  
+
   assert ( num_refinements >= 0 )
 
   call quadrature%free()
-  
+
   order_vector = num_refinements+1
   call node_array%create( this%polytope, order_vector ) 
   call quadrature%create( this%number_dimensions, node_array%number_nodes )
@@ -272,41 +272,40 @@ subroutine tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
 
   if (get_quadratures_from_hex(quadrature)) then
      call hex_lagrangian_rfe%fill_quadrature ( quadrature ) 
-     if (quadrature%number_dimensions.eq.1) then
+     if (quadrature%number_dimensions==1) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp        
         ! w' = w/2
         quadrature%weight = quadrature%weight / 2.0_rp
-     elseif (quadrature%number_dimensions.eq.2) then
+     elseif (quadrature%number_dimensions==2) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
         ! y' = (1-x')(y+1)/2
         quadrature%coordinates(2,:) = (1.0_rp - quadrature%coordinates(1,:)) * &
-                                     ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
+             ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
         ! w' = (1-x')/4
         quadrature%weight = (1.0_rp - quadrature%coordinates(1,:)) /4.0_rp * &
-                            quadrature%weight
-        
-     elseif (quadrature%number_dimensions.eq.3) then
+             quadrature%weight
+
+     elseif (quadrature%number_dimensions==3) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
         ! y' = (1-x')(y+1)/2
         quadrature%coordinates(2,:) = (1.0_rp - quadrature%coordinates(1,:)) * &
-                                     ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
+             ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
         ! z' = (1-x'-y')(z+1)/2
         quadrature%coordinates(3,:) = (1.0_rp - quadrature%coordinates(1,:)    &
-                                              - quadrature%coordinates(2,:)) * &
-                                     ((1.0_rp + quadrature%coordinates(3,:)) / 2.0_rp)
+             - quadrature%coordinates(2,:)) * &
+             ((1.0_rp + quadrature%coordinates(3,:)) / 2.0_rp)
         ! w' = ((1-x')^2+y'(x'-1))/8
         quadrature%weight = ((1.0_rp - quadrature%coordinates(1,:))**2.0_rp + &
-                        quadrature%coordinates(2,:)*(quadrature%coordinates(1,:) - 1.0_rp)) / 8.0_rp * &
-                        quadrature%weight
+             quadrature%coordinates(2,:)*(quadrature%coordinates(1,:) - 1.0_rp)) / 8.0_rp * &
+             quadrature%weight
      end if
   else 
      call tet_lagrangian_reference_fe_fill_symmetric_quadrature ( this, quadrature ) 
   end if
 end subroutine tet_lagrangian_reference_fe_fill_quadrature
-
 
 !==================================================================================================
 subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
@@ -314,8 +313,13 @@ subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)                  , intent(inout) :: quadrature
   integer(ip) :: i
+
   do i=1,this%number_dimensions
-     quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(1.0_rp/this%order_vector(i))
+     if ( this%order_vector(i) > 0 ) then 
+        quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(1.0_rp/this%order_vector(i))
+     else 
+        quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)
+     end if
   end do
   quadrature%weight = 1.0_rp
 end subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature
@@ -327,16 +331,16 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
   type(quadrature_t)                      , intent(in)         :: quadrature
   type(interpolation_t)                   , intent(inout)      :: interpolation    
   integer(ip)                  , optional , intent(in)         :: order_vector(SPACE_DIM)
-  
+
   type(interpolation_t) :: interpolation_pre_basis
-  
+
   if ( .not. this%basis_changed ) then
-    call this%fill_interpolation_pre_basis ( quadrature, interpolation, order_vector )
+     call this%fill_interpolation_pre_basis ( quadrature, interpolation, order_vector )
   else
-    call interpolation_pre_basis%clone(interpolation)
-    call this%fill_interpolation_pre_basis ( quadrature, interpolation_pre_basis, order_vector ) 
-    call this%apply_change_basis_matrix_to_interpolation ( interpolation_pre_basis, interpolation )
-    call interpolation_pre_basis%free()
+     call interpolation_pre_basis%clone(interpolation)
+     call this%fill_interpolation_pre_basis ( quadrature, interpolation_pre_basis, order_vector ) 
+     call this%apply_change_basis_matrix_to_interpolation ( interpolation_pre_basis, interpolation )
+     call interpolation_pre_basis%free()
   end if
 end subroutine tet_lagrangian_reference_fe_fill_interpolation
 
@@ -351,7 +355,7 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, local_quad
   integer(ip) :: c,idime,iface,n_face_index
   ! Add offset to have same numbering as in polytope
   n_face_index = local_face_id+this%get_first_face_id()-1
-  
+
   ! Create a d-dimensional quadrature as follows
   call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
   c = 0
@@ -365,11 +369,11 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, local_quad
         aux_quadrature%coordinates(idime+1,:) = 1 - sum(local_quadrature%coordinates(:,:),1)
      end if
   end do
-  
+
   !if ( .not. this%basis_changed ) call this%fill_interpolation_pre_basis ( aux_quadrature, face_interpolation ) !( aux_quadrature, face_interpolation ) 
   call this%fill_interpolation( aux_quadrature, face_interpolation ) 
   call aux_quadrature%free()
-  
+
 end subroutine tet_lagrangian_reference_fe_fill_face_interpolation
 
 !=================================================================================================
@@ -379,52 +383,38 @@ function tet_lagrangian_reference_fe_compute_number_quadrature_points( this, deg
   integer(ip)                             , intent(in)    :: degree
   integer(ip)                             , intent(in)    :: dimension
   integer(ip) :: tet_lagrangian_reference_fe_compute_number_quadrature_points
-  
-  if( dimension .eq. 1 ) then
+
+  if( dimension == 1 ) then
      tet_lagrangian_reference_fe_compute_number_quadrature_points = int(ceiling(real(degree,rp)/2.0_rp),ip)+1
-  elseif( dimension .eq. 2 ) then
+  elseif( dimension == 2 ) then
      !*************************************************************************
      ! Using efficent symmetrical gaussian quadrature rules (when available). 
-     if( degree .le. 2 ) then
+     if( degree <= 2 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 3
-     elseif( degree .le. 4 ) then
+     elseif( degree <= 4 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 6
-     elseif( degree .le. 6 ) then
+     elseif( degree <= 6 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 13
-     elseif( degree .le. 8 ) then
+     elseif( degree <= 8 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 19
-     elseif( degree .le. 10 ) then
+     elseif( degree <= 10 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 28
      else ! Quadratures based on brick quadratures transformation
-       tet_lagrangian_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 1.0_rp )**2.0_rp,ip)
+        tet_lagrangian_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 1.0_rp )**2.0_rp,ip)
      end if
-  elseif( dimension .eq. 3 ) then
+  elseif( dimension == 3 ) then
      !*************************************************************************
      ! Using efficent symmetrical gaussian quadrature rules (when available). 
-     if( degree .le. 2 ) then
+     if( degree <= 2 ) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 4
-     elseif( degree .le. 4) then
+     elseif( degree <= 4) then
         tet_lagrangian_reference_fe_compute_number_quadrature_points = 11
      else ! Quadratures based on brick quadratures transformation
         tet_lagrangian_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 2.0_rp )**3.0_rp,ip)
      end if
   end if
-  
-end function tet_lagrangian_reference_fe_compute_number_quadrature_points
 
-!=================================================================================================
-function get_quadratures_from_hex(quadrature)
-  implicit none
-  type(quadrature_t), intent(in) :: quadrature
-  logical :: get_quadratures_from_hex
-  
-  get_quadratures_from_hex = .true.
-  if ((quadrature%number_dimensions.eq.2).and.(quadrature%number_quadrature_points.lt.29)) then
-     get_quadratures_from_hex = .false.
-  elseif ((quadrature%number_dimensions.eq.3).and.(quadrature%number_quadrature_points.lt.12)) then
-     get_quadratures_from_hex = .false.
-  end if
-end function
+end function tet_lagrangian_reference_fe_compute_number_quadrature_points
 
 !==================================================================================================
 function tet_lagrangian_reference_fe_get_node_local_id (this, local_coordinates, & 
@@ -704,7 +694,7 @@ subroutine tet_lagrangian_reference_fe_fill_symmetric_quadrature ( this, quadrat
         quadrature%weight(11) = w4
         quadrature%weight(12) = w4
         quadrature%weight(13) = w4
-     else if(ngaus.eq.19) then
+     else if(ngaus==19) then
         a = 1.0_rp / 3.0_rp
         b = 0.02063496160252593_rp
         c = 0.4896825191987370_rp
@@ -784,7 +774,7 @@ subroutine tet_lagrangian_reference_fe_fill_symmetric_quadrature ( this, quadrat
         quadrature%weight(17) = w6
         quadrature%weight(18) = w6
         quadrature%weight(19) = w6
-     else if(ngaus.eq.28) then
+     else if(ngaus==28) then
         a = 1.0_rp / 3.0_rp
         b = 0.9480217181434233_rp
         c = 0.02598914092828833_rp
@@ -1233,31 +1223,31 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation_pre_basis ( this, quad
   type(truncated_tensor_product_polynomial_space_t)        :: tet_polynomial_prebase
   type(polynomial_allocatable_array_t)  :: monomial_1D_basis(SPACE_DIM)
   type(monomial_t)                      :: monomial_1D
-  
+
   real(rp), allocatable :: values(:)
   real(rp), allocatable :: gradients(:,:)
   integer(ip) :: idime, q_point
-  
+
   do idime=1,interpolation%number_dimensions
      call monomial_1D%generate_basis(this%order_vector(idime), monomial_1D_basis(idime) )
   end do
-  
+
   call tet_polynomial_prebase%create(interpolation%number_dimensions,monomial_1D_basis)
   call tet_polynomial_prebase%fill( quadrature%get_coordinates() )
-    
+
   call memalloc(tet_polynomial_prebase%get_number_polynomials(),values,__FILE__,__LINE__)
   call memalloc(SPACE_DIM,tet_polynomial_prebase%get_number_polynomials(),gradients,__FILE__,__LINE__)
-  
+
   do q_point=1, quadrature%get_number_quadrature_points()
      call tet_polynomial_prebase%evaluate(q_point, values, gradients)
      interpolation%shape_functions(1,:,q_point) = values(:)
      interpolation%shape_derivatives(1,:,:,q_point) = gradients(:,:)
   end do
-  
+
   ! Free auxiliary memory
   if(allocated(values))    call memfree(values,__FILE__,__LINE__)
   if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
-  
+
   do idime=1,interpolation%number_dimensions
      call monomial_1D_basis(idime)%free()
   end do
@@ -1269,10 +1259,10 @@ end subroutine tet_lagrangian_reference_fe_fill_interpolation_pre_basis
 subroutine tet_lagrangian_reference_fe_change_basis(this) 
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(inout) ::  this
-  
+
   type(interpolation_t)   :: interpolation
   integer(ip)             :: i, j, number_shape_functions_per_component
-  
+
   number_shape_functions_per_component = this%number_shape_functions/this%number_field_components
   call memalloc(number_shape_functions_per_component,number_shape_functions_per_component,this%change_basis_matrix,__FILE__,__LINE__)
   call this%create_interpolation(this%nodal_quadrature,interpolation)
@@ -1292,61 +1282,61 @@ end subroutine tet_lagrangian_reference_fe_change_basis
 subroutine tet_lagrangian_reference_fe_invert_change_basis_matrix(this)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(inout) :: this 
-  
+
   integer(ip) :: error
   integer(ip), allocatable :: ipiv(:)
   real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
   integer(ip) :: i, number_shape_functions_per_component
-  
+
   number_shape_functions_per_component = this%number_shape_functions/this%number_field_components
   assert ( allocated(this%change_basis_matrix) )
   assert ( size(this%change_basis_matrix,1) == number_shape_functions_per_component )
   assert ( size(this%change_basis_matrix,2) == number_shape_functions_per_component )
-  
+
   ! Solve linear system with several RHS
   ! Compute LU factorization of this%change_basis_matrix
 #ifdef ENABLE_LAPACK
   call memalloc ( number_shape_functions_per_component, ipiv, __FILE__,__LINE__ )
-   
+
   call memalloc ( number_shape_functions_per_component, & 
-                  number_shape_functions_per_component, &
-                  inverse_change_basis_matrix, &
-                   __FILE__,__LINE__ )
+       number_shape_functions_per_component, &
+       inverse_change_basis_matrix, &
+       __FILE__,__LINE__ )
 
   call DGETRF( number_shape_functions_per_component, & 
-               number_shape_functions_per_component, &
-               this%change_basis_matrix, &
-               number_shape_functions_per_component, &
-               ipiv, &
-               error )
+       number_shape_functions_per_component, &
+       this%change_basis_matrix, &
+       number_shape_functions_per_component, &
+       ipiv, &
+       error )
   check ( error == 0 )
-  
+
   inverse_change_basis_matrix = 0.0_rp
   do i=1, number_shape_functions_per_component
-    inverse_change_basis_matrix(i,i) = 1.0_rp
-  end do  
- 
+     inverse_change_basis_matrix(i,i) = 1.0_rp
+  end do
+
   call DGETRS( 'N', & 
-               number_shape_functions_per_component, &
-               number_shape_functions_per_component, &
-               this%change_basis_matrix, &
-               number_shape_functions_per_component, &
-               ipiv, &
-               inverse_change_basis_matrix, &
-               number_shape_functions_per_component, &
-               error )
+       number_shape_functions_per_component, &
+       number_shape_functions_per_component, &
+       this%change_basis_matrix, &
+       number_shape_functions_per_component, &
+       ipiv, &
+       inverse_change_basis_matrix, &
+       number_shape_functions_per_component, &
+       error )
   check ( error == 0 )
-  
+
   !do i=1, this%number_shape_functions
   !   this%change_basis_matrix(i,:) = 0.0_rp!inverse_change_basis_matrix(:,i)
   !end do
-  
+
   !call memfree (  inverse_change_basis_matrix, __FILE__, __LINE__  )
-  
+
   if ( allocated(this%change_basis_matrix) ) call memfree (  this%change_basis_matrix, __FILE__, __LINE__  )
-   
+
   call memmovealloc(inverse_change_basis_matrix, &
-                    this%change_basis_matrix, __FILE__, __LINE__ )
+       this%change_basis_matrix, __FILE__, __LINE__ )
   !write(*,*) this%change_basis_matrix(1,:)
   !write(*,*) this%change_basis_matrix(2,:)
   !write(*,*) this%change_basis_matrix(3,:)
@@ -1356,7 +1346,7 @@ subroutine tet_lagrangian_reference_fe_invert_change_basis_matrix(this)
   write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
   check(.false.)
 #endif 
-   
+
 end subroutine tet_lagrangian_reference_fe_invert_change_basis_matrix
 
 !==================================================================================================
@@ -1365,14 +1355,14 @@ subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, inter
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)                   , intent(in)    :: interpolation_pre_basis
   type(interpolation_t)                   , intent(inout) :: interpolation
-  
+
   integer(ip)           :: i, j, jdime, qpoint, number_shape_functions_per_component
 
   ! Initialize both shape functions and derivatives to zero.
   interpolation%shape_functions   = 0.0_rp
   interpolation%shape_derivatives = 0.0_rp
   number_shape_functions_per_component = this%number_shape_functions/this%number_field_components
-  
+
   ! Compute shape functions
   do qpoint = 1, interpolation%number_quadrature_points
      do i=1, number_shape_functions_per_component
@@ -1382,7 +1372,7 @@ subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, inter
         end do
      end do
   end do
-  
+
   ! Compute shape derivatives
   do qpoint = 1, interpolation%number_quadrature_points
      do i=1, number_shape_functions_per_component
@@ -1396,6 +1386,20 @@ subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, inter
   end do
 end subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation
 
+!==================================================================================================
+function tet_lagrangian_reference_fe_compute_permutation_index(source_reference_fe, target_reference_fe,          &
+     &                                                         source_n_face_id, target_n_face_id,         &
+     &                                                         source_n_faces, target_n_faces)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)  :: source_reference_fe
+  class(reference_fe_t)               , intent(in)  :: target_reference_fe
+  integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
+  integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
+  integer(ip)                         , intent(in)  :: source_n_faces(source_reference_fe%number_n_faces)
+  integer(ip)                         , intent(in)  :: target_n_faces(target_reference_fe%number_n_faces) 
+  integer(ip) :: tet_lagrangian_reference_fe_compute_permutation_index
+  tet_lagrangian_reference_fe_compute_permutation_index = 1
+end function tet_lagrangian_reference_fe_compute_permutation_index
 
 !==================================================================================================
 function tet_lagrangian_reference_fe_permute_dof_LID_n_face(this,source_dof_lid_n_face,n_face_dimension,permutation_index)
@@ -1407,3 +1411,4 @@ function tet_lagrangian_reference_fe_permute_dof_LID_n_face(this,source_dof_lid_
   integer(ip) :: tet_lagrangian_reference_fe_permute_dof_LID_n_face
   tet_lagrangian_reference_fe_permute_dof_LID_n_face = source_dof_lid_n_face
 end function tet_lagrangian_reference_fe_permute_dof_LID_n_face
+

@@ -276,7 +276,7 @@ contains
   Ec = this%critical_electric_field 
   Jc = this%critical_current 
   n  = this%nonlinear_exponent 
-  
+
   if ( material == hts ) then ! HTS DOMAIN: Nonlinear resistivity = Ec/Jc*|| curl(H) / Jc ||**n 
      if (this%nonlinear_exponent .ge. 1 ) then 
         resistivity = Ec/Jc*(curl_H%nrm2()/Jc)**n + 1e-16_rp
@@ -288,7 +288,7 @@ contains
   else 
      assert(.false.) 
   end if
-  
+
   end function compute_resistivity
   
   ! -----------------------------------------------------------------------------------------------

@@ -44,6 +44,26 @@ subroutine nedelec_get_subcells_connectivity(this, num_refinements, connectivity
   check(.false.)
 end subroutine nedelec_get_subcells_connectivity
 
+
+!==================================================================================================
+function nedelec_reference_fe_get_component_node( this, node )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: node
+  integer(ip) :: nedelec_reference_fe_get_component_node
+  check(.false.)
+end function nedelec_reference_fe_get_component_node
+
+!==================================================================================================
+function nedelec_reference_fe_get_scalar_from_vector_node( this, node )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: node
+  integer(ip) :: nedelec_reference_fe_get_scalar_from_vector_node
+  check(.false.)
+end function nedelec_reference_fe_get_scalar_from_vector_node
+
+
 !**************************************************************************************************
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
@@ -116,7 +136,6 @@ subroutine nedelec_create_edge_interpolation( this, local_edge_id, local_quadrat
                                     edge_interpolation)
 
 end subroutine nedelec_create_edge_interpolation
-
 
 !==================================================================================================
 subroutine nedelec_create_edge_quadrature ( this, quadrature, degree )
@@ -194,38 +213,6 @@ subroutine nedelec_free ( this )
 end subroutine nedelec_free
 
 !==================================================================================================
-subroutine nedelec_fill (this)
-  implicit none
-  class(nedelec_reference_fe_t), intent(inout) :: this
-  integer(ip) :: c, i, j, dimension
-  integer(ip) :: column, inode, idime, inode_scalar, num_columns
-  ! Here we put a k,k+1,k+1 order_vector, which is the one for the x-component.
-  ! In fill_vector, we use order_vector (and other arrays) using a permutation 
-  this%order_vector = this%order
-  this%order_vector(1) = this%order-1
-  call this%fill_vector()
-  
-  
-  call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
-  
-  call memalloc( this%node_array_vector(1)%number_nodes,     & 
-       &         this%number_field_components, & 
-       &         this%node_array_component,    & 
-       &         __FILE__, __LINE__ )
-
-  c = 1
-  do i = 1, this%number_field_components
-    assert(this%node_array_vector(i)%number_nodes == this%node_array_vector(1)%number_nodes)
-    do j = 1, this%node_array_vector(i)%number_nodes
-        this%node_component_array(c,1) = j
-        this%node_component_array(c,2) = i   
-        this%node_array_component(j,i) = c
-        c = c+1
-     end do
-  end do
-  
-end subroutine nedelec_fill
-
 
 subroutine nedelec_fill_vector (this)
   implicit none
@@ -240,8 +227,8 @@ subroutine nedelec_fill_vector (this)
      topology = 2**this%number_dimensions-1
   elseif ( this%topology == topology_tet ) then
      topology = 0
-  end if
-
+  end if 
+	 
   call this%polytope%create( this%number_dimensions, topology )  
 
   this%number_shape_functions = 0
@@ -256,6 +243,15 @@ subroutine nedelec_fill_vector (this)
      offset(idime+1) = offset(idime) + this%node_array_vector(idime)%get_number_nodes()
   end do 
 
+  ! Add Shape functions corresponding to homogeneous polynomials S_k basis in the tetrahedral case 
+  if ( this%topology == topology_tet ) then  
+    if (this%number_dimensions == 2) then 
+      this%number_shape_functions = this%number_shape_functions + this%order 
+    else 
+      this%number_shape_functions = this%number_shape_functions + this%order*(this%order+2)
+    end if 
+  end if
+  
   num_n_faces = this%polytope%get_number_n_faces()
   ! Number n-faces ( I don't like it, not volume included...)
   this%number_n_faces = num_n_faces-1
@@ -269,57 +265,7 @@ subroutine nedelec_fill_vector (this)
   do i = 1,this%number_dimensions+1
      this%number_n_faces_per_dimension(i+1) = this%number_n_faces_per_dimension(i+1) + this%number_n_faces_per_dimension(i)
   end do
-
-  ! own_dofs_n-face  
-  call this%own_dofs_n_face%create( num_n_faces )
-  do i = 1,num_n_faces
-     do idime = 1, this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
-        do while (.not. node_iterator%has_finished() )
-           call this%own_dofs_n_face%sum_to_pointer_index(i,1)
-           call node_iterator%next()
-        end do
-     end do
-  end do
-  call this%own_dofs_n_face%calculate_header()
-  call this%own_dofs_n_face%allocate_list_from_pointer()
-  list_iterator = this%own_dofs_n_face%create_iterator()
-  do i = 1,num_n_faces
-     do idime = 1, this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
-        do while (.not. node_iterator%has_finished() )
-           node = node_iterator%current() + offset(idime)
-           call list_iterator%set_current(node)
-           call node_iterator%next()
-           call list_iterator%next()
-        end do
-     end do
-  end do
-  ! nodes_n-face
-  call this%dofs_n_face%create(num_n_faces)
-  do i = 1,num_n_faces
-     do idime = 1,this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
-        do while (.not. node_iterator%has_finished() )
-           call this%dofs_n_face%sum_to_pointer_index(i,1)
-           call node_iterator%next()
-        end do
-     end do
-  end do
-  call this%dofs_n_face%calculate_header()
-  call this%dofs_n_face%allocate_list_from_pointer()  
-  list_iterator = this%dofs_n_face%create_iterator()
-  do i = 1,num_n_faces
-     do idime = 1,this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
-        do while (.not. node_iterator%has_finished() )
-           node = node_iterator%current() + offset(idime)
-           call list_iterator%set_current(node)
-           call node_iterator%next()
-           call list_iterator%next()
-        end do
-     end do
-  end do
+  
   ! vertices_n-face
   call this%vertices_n_face%create(num_n_faces)
   ones_dim = 1
@@ -371,22 +317,7 @@ subroutine nedelec_fill_vector (this)
         this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%number_dimensions )
      end if
   end do
-  ! own_nodes_n-face and face_integration_coupling_nodes_n-face
-  if ( this%conformity .and. this%continuity ) then
-     this%own_dofs_n_face = this%own_dofs_n_face
-  else
-     call this%own_dofs_n_face%create(n=num_n_faces )
-     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%number_shape_functions)
-     call this%own_dofs_n_face%calculate_header()
-     call this%own_dofs_n_face%allocate_list_from_pointer()
-     list_iterator = this%own_dofs_n_face%create_iterator()
-     i=1
-     do while(.not. list_iterator%is_upper_bound())
-        call list_iterator%set_current(i)
-        call list_iterator%next()
-        i = i + 1 
-     enddo
-  end if
+
 end subroutine nedelec_fill_vector
 
 subroutine nedelec_create_face_local_interpolation ( this, quadrature, &
@@ -842,18 +773,15 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
   type(interpolation_t)           , intent(inout) :: phy
   real(rp), allocatable :: wmat1(:,:,:)
   real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
-  integer(ip) :: ndime,nnode,nlocs,ntens
+  integer(ip) :: ndime,nlocs,ntens
   integer(ip) :: ilocs,inode,idime,jdime,kdime,ldime
 
   ndime = ref%number_dimensions
   ntens = ref%number_entries_symmetric_tensor
   nlocs = ref%number_quadrature_points
-  !nnode = ref%number_shape_functions
-  nnode = size(ref%shape_functions,2)
 
-  
   ! Contra-Piola map for shape functions
-  ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J \phi(X_g)
+  ! \phi(x_g) = \phi(F(X_g))= inv(J^t)* \phi(X_g)
   phy%shape_functions=0.0_rp
   do ilocs=1,phy%number_quadrature_points
      do inode=1,this%number_shape_functions
@@ -865,9 +793,9 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
         end do
      end do
   end do
-  
+    
   ! Contra-Piola map for shape derivatives
-  ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J grad(phi(X_g)) J^{-1}
+  ! \phi(x_g) = \phi(F(X_g))=  inv(J)^t (phi(X_g)) inv(J)
   phy%shape_derivatives=0.0_rp
   do ilocs=1,phy%number_quadrature_points
      do inode=1,this%number_shape_functions
@@ -876,7 +804,7 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
               do kdime=1,this%number_dimensions
                  do ldime=1,this%number_dimensions
                     phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
-                       + map%inv_jacobian(kdime,idime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(jdime,ldime,ilocs)
+					   + map%inv_jacobian(ldime,jdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(kdime,idime,ilocs)
                  end do
               end do
         end do
@@ -884,20 +812,6 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
      end do
   end do 
   
-    !! @sbadia: put Piola here
-  !phy%shape_derivatives=0.0_rp
-  !do ilocs=1,phy%number_quadrature_points
-  !   do inode=1,this%number_shape_functions
-  !      do idime=1,this%number_dimensions
-  !         do jdime=1,this%number_dimensions
-  !           do kdime=1,this%number_dimensions
-  !             phy%shape_derivatives(idime,jdime,inode,ilocs) = phy%shape_derivatives(idime,jdime,inode,ilocs) &
-  !                  + map%inv_jacobian(kdime,jdime,ilocs)*ref%shape_derivatives(idime,kdime,inode,ilocs)
-  !           end do
-  !         end do
-  !      end do
-  !   end do
-  !end do
 end subroutine nedelec_apply_femap_to_interpolation
 
 subroutine nedelec_invert_change_basis_matrix(this)
@@ -1005,7 +919,7 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
   ! Initialize both shape functions and derivatives to zero.
   interpolation%shape_functions   = 0.0_rp
   interpolation%shape_derivatives = 0.0_rp
-  
+    
   ! Compute shape functions
   do qpoint = 1, interpolation%number_quadrature_points
      do i=1, this%number_shape_functions
@@ -1017,7 +931,7 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
         end do
      end do
   end do
-  
+   
   ! Compute shape derivatives
   do qpoint = 1, interpolation%number_quadrature_points
      do i=1, this%number_shape_functions
@@ -1031,4 +945,5 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
         end do
      end do
   end do
+  
 end subroutine nedelec_apply_change_basis_matrix_to_interpolation

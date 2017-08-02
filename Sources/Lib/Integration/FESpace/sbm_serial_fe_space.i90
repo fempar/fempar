@@ -671,9 +671,9 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   
   ! Create linear system 
   call matrix%create(num_rows_and_cols=number_subset_strong_dirichlet_dofs, &
-                     symmetric_storage=.false.,       &
-                     is_symmetric=.false.,            &
-                     sign=SPARSE_MATRIX_SIGN_UNKNOWN )
+                     symmetric_storage=.true.,       &
+                     is_symmetric=.true.,            &
+                     sign=SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
 
   call rhs%create_and_allocate(number_subset_strong_dirichlet_dofs) 
   call rhs%init(0.0_rp)
@@ -747,11 +747,11 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call this%free_fe_face_iterator(fe_face)
   call this%free_fe_iterator(fe)
   call matrix%convert(csr_format)
-
+  				
   call parameter_list%init()
 #ifdef ENABLE_MKL
   FPLError = parameter_list%set(key = direct_solver_type                  ,  value = pardiso_mkl)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_uns)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_spd)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level,  value = 0)
   iparm = 0
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
@@ -904,11 +904,11 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   call this%free_fe_iterator(fe)
   ! Allocate + compute subset2global_dirichlet_dofs from subset2global_dirichlet_dofs
   call memalloc ( num_subset_strong_dirichlet_dofs, subset2global, __FILE__, __LINE__ ) 
+
   idof_subset=1
   do idof_global=1, this%strong_dirichlet_values%get_size()
      if (global2subset(idof_global) /= 0) then
-        subset2global(idof_subset) = global2subset(idof_global) 
-        idof_subset=idof_subset+1
+        subset2global(global2subset(idof_global)) = idof_global
      end if
   end do  
   deallocate(elem2dof, stat=istat ); check (istat==0)
@@ -1040,7 +1040,7 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   type(vector_field_t) :: vector_shape_test, vector_shape_trial
   
   call fe_face%get_cell_around(1,fe)
-  reference_fe => fe%get_reference_fe(field_id)
+  reference_fe      => fe%get_reference_fe(field_id)
   quadrature        => fe_face%get_quadrature()
   face_maps         => fe_face%get_face_maps()   
   face_map => face_maps%get_face_map()

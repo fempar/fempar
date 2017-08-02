@@ -161,7 +161,7 @@ module reference_fe_names
     procedure, non_overridable :: compute_quadrature_coordinates    => base_map_compute_quadrature_coordinates
     procedure, non_overridable :: get_det_jacobian                  => base_map_get_det_jacobian
     procedure, non_overridable :: get_det_jacobians                 => base_map_get_det_jacobians
-    procedure, non_overridable :: get_jacobian_normalized_column    => base_map_get_jacobian_normalized_column
+    procedure, non_overridable :: get_jacobian_column               => base_map_get_jacobian_column
     procedure, non_overridable :: get_reference_h                   => base_map_get_reference_h
   end type base_map_t
   
@@ -375,7 +375,6 @@ module reference_fe_names
      type(polytope_t)              :: polytope
      type(node_array_t)            :: node_array
      type(node_array_t)            :: vertex_array
-
      type(allocatable_array_ip1_t)  :: orientation      ! orientation of the n-faces 
      type(list_t)                   :: vertices_n_face  ! vertices per n-face
      type(list_t)                   :: n_faces_n_face   ! all n-faces per n-face
@@ -517,6 +516,7 @@ module reference_fe_names
 
      procedure :: has_nodal_quadrature => reference_fe_has_nodal_quadrature
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
+
      procedure :: compute_permutation_index => reference_fe_compute_permutation_index
      procedure :: permute_dof_LID_n_face  => reference_fe_permute_dof_LID_n_face
 
@@ -1132,8 +1132,6 @@ procedure :: evaluate_fe_function_tensor          &
     & => nedelec_evaluate_fe_function_tensor
 procedure, private :: apply_femap_to_interpolation & 
     & => nedelec_apply_femap_to_interpolation
-procedure, private :: fill                         & 
-    & => nedelec_fill
 procedure, private :: fill_vector                         & 
     & => nedelec_fill_vector    
 procedure, private :: fill_nodal_quadrature &
@@ -1144,9 +1142,12 @@ procedure, private :: apply_change_basis_matrix_to_interpolation &
     & => nedelec_apply_change_basis_matrix_to_interpolation 
 procedure          :: apply_change_basis_matrix_to_nodal_values &
     & => nedelec_apply_change_basis_matrix_to_nodal_values
+  procedure :: get_component_node           => nedelec_reference_fe_get_component_node
+  procedure :: get_scalar_from_vector_node  => nedelec_reference_fe_get_scalar_from_vector_node
 end type nedelec_reference_fe_t 
 
 abstract interface
+
   subroutine nedelec_change_basis_interface ( this )
     import :: nedelec_reference_fe_t 
     implicit none 
@@ -1230,7 +1231,9 @@ contains
              & => tet_lagrangian_reference_fe_invert_change_basis_matrix
    procedure, private :: apply_change_basis_matrix_to_interpolation                     &
              & => tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
-   procedure :: permute_dof_LID_n_face                                            &
+   procedure :: compute_permutation_index                                               &
+             & => tet_lagrangian_reference_fe_compute_permutation_index
+   procedure :: permute_dof_LID_n_face                                                  &
              & => tet_lagrangian_reference_fe_permute_dof_LID_n_face
 end type tet_lagrangian_reference_fe_t
 
@@ -1348,10 +1351,12 @@ type, extends(nedelec_reference_fe_t) :: hex_nedelec_reference_fe_t
 private
 contains 
   ! Deferred TBP implementors from reference_fe_t
-procedure :: check_compatibility_of_n_faces                                 &
+procedure :: check_compatibility_of_n_faces                              &
 &   => hex_nedelec_reference_fe_check_compatibility_of_n_faces
 procedure :: get_characteristic_length                                   &
 &   => hex_nedelec_reference_fe_get_characteristic_length
+procedure, private :: fill                                               &
+& => hex_nedelec_reference_fe_fill 
 
 ! Deferred TBP implementors from nedelec_reference_fe_t
 procedure, private :: fill_quadrature                                    &
@@ -1374,6 +1379,49 @@ procedure :: fill_qpoints_permutations           &
 end type hex_nedelec_reference_fe_t
 
 public :: hex_nedelec_reference_fe_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+type, extends(nedelec_reference_fe_t) :: tet_nedelec_reference_fe_t
+private
+real(rp), allocatable :: basis_Sk_indices(:,:)
+contains 
+procedure :: free => tet_nedelec_reference_fe_free 
+  ! Deferred TBP implementors from reference_fe_t
+procedure :: check_compatibility_of_n_faces                              &
+&   => tet_nedelec_reference_fe_check_compatibility_of_n_faces
+procedure :: get_characteristic_length                                   &
+&   => tet_nedelec_reference_fe_get_characteristic_length
+procedure :: fill_own_dof_permutations                                   &
+&  => tet_nedelec_reference_fe_fill_own_dof_permutations
+procedure :: fill_qpoints_permutations                                   &
+&  => tet_nedelec_reference_fe_fill_qpoints_permutations
+procedure, private :: fill                                               & 
+&   => tet_nedelec_reference_fe_fill 
+
+! Deferred TBP implementors from nedelec_reference_fe_t
+procedure, private :: fill_quadrature                                    &
+& => tet_nedelec_reference_fe_fill_quadrature
+procedure, private :: create_and_fill_basis_Sk_indices                   & 
+& => tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices
+procedure, private :: fill_interpolation                                 &
+& => tet_nedelec_reference_fe_fill_interpolation
+procedure, private :: fill_interpolation_pre_basis                       &
+& => tet_nedelec_reference_fe_fill_interpolation_pre_basis   
+procedure, private :: fill_edge_interpolation                            &
+& => tet_nedelec_reference_fe_fill_edge_interpolation
+procedure, private :: fill_face_interpolation                            &
+& => tet_nedelec_reference_fe_fill_face_interpolation
+procedure, private :: compute_number_quadrature_points                   &
+&  => tet_nedelec_reference_fe_compute_number_quadrature_points
+procedure, private :: change_basis                                       &
+& => tet_nedelec_reference_fe_change_basis
+procedure :: compute_permutation_index                                   &
+& => tet_nedelec_reference_fe_compute_permutation_index
+procedure :: permute_dof_LID_n_face                                      &
+& => tet_nedelec_reference_fe_permute_dof_LID_n_face
+end type tet_nedelec_reference_fe_t
+
+public :: tet_nedelec_reference_fe_t
 
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(reference_fe_t) :: void_reference_fe_t
@@ -1421,6 +1469,7 @@ public :: void_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type cell_integrator_t 
+
 private
 integer(ip)                    :: number_shape_functions
 integer(ip)                    :: number_quadrature_points
@@ -1634,6 +1683,8 @@ contains
 #include "sbm_tet_raviart_thomas_reference_fe.i90"
 
 #include "sbm_hex_nedelec_reference_fe.i90"
+
+#include "sbm_tet_nedelec_reference_fe.i90"
 
 #include "sbm_polytope_topology.i90"
 
