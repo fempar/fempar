@@ -44,6 +44,8 @@ module sparse_matrix_array_assembler_names
 
   type, extends(matrix_array_assembler_t) :: sparse_matrix_array_assembler_t
   contains
+    procedure :: assemble_array   => sparse_matrix_array_assembler_assemble_array
+    procedure :: assemble_matrix  => sparse_matrix_array_assembler_assemble_matrix
     procedure :: assembly         => sparse_matrix_array_assembler_assembly
     procedure :: face_assembly    => sparse_matrix_array_assembler_face_assembly
     procedure :: allocate         => sparse_matrix_array_assembler_allocate
@@ -55,6 +57,47 @@ public :: sparse_matrix_array_assembler_t
 public :: element_sparse_matrix_assembly, element_serial_scalar_array_assembly
 
 contains
+
+  subroutine sparse_matrix_array_assembler_assemble_array( this,           & 
+                                                           number_fields,  &
+                                                           field_blocks,   &
+                                                           field_coupling, &
+                                                           number_dofs,    &
+                                                           cell2dof,       &
+                                                           elvec )
+    implicit none
+    class(sparse_matrix_array_assembler_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: number_fields
+    integer(ip)                           , intent(in)    :: field_blocks(number_fields)
+    logical                               , intent(in)    :: field_coupling(number_fields,number_fields)
+    integer(ip)                           , intent(in)    :: number_dofs(number_fields)
+    type(i1p_t)                           , intent(in)    :: cell2dof(number_fields)
+    real(rp)                              , intent(in)    :: elvec(:)
+    check(.false.)
+  end subroutine sparse_matrix_array_assembler_assemble_array
+  
+  subroutine sparse_matrix_array_assembler_assemble_matrix( this,            &
+                                                            number_fields,   &
+                                                            field_blocks,    &
+                                                            field_coupling,  &
+                                                            number_row_dofs, &
+                                                            number_col_dofs, &
+                                                            cell2row_dofs,   &
+                                                            cell2col_dofs,   &
+                                                            elmat )
+    implicit none
+    class(sparse_matrix_array_assembler_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: number_fields
+    integer(ip)                           , intent(in)    :: field_blocks(number_fields)
+    logical                               , intent(in)    :: field_coupling(number_fields,number_fields)
+    integer(ip)                           , intent(in)    :: number_row_dofs(number_fields)
+    integer(ip)                           , intent(in)    :: number_col_dofs(number_fields)
+    type(i1p_t)                           , intent(in)    :: cell2row_dofs(number_fields)
+    type(i1p_t)                           , intent(in)    :: cell2col_dofs(number_fields)
+    real(rp)                              , intent(in)    :: elmat(:,:) 
+    check(.false.)
+  end subroutine sparse_matrix_array_assembler_assemble_matrix
+
 subroutine sparse_matrix_array_assembler_assembly( this, & 
                                                    number_fields,    &
                                                    number_dofs,     &
