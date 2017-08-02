@@ -44,6 +44,26 @@ subroutine nedelec_get_subcells_connectivity(this, num_refinements, connectivity
   check(.false.)
 end subroutine nedelec_get_subcells_connectivity
 
+
+!==================================================================================================
+function nedelec_reference_fe_get_component_node( this, node )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: node
+  integer(ip) :: nedelec_reference_fe_get_component_node
+  check(.false.)
+end function nedelec_reference_fe_get_component_node
+
+!==================================================================================================
+function nedelec_reference_fe_get_scalar_from_vector_node( this, node )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: node
+  integer(ip) :: nedelec_reference_fe_get_scalar_from_vector_node
+  check(.false.)
+end function nedelec_reference_fe_get_scalar_from_vector_node
+
+
 !**************************************************************************************************
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
@@ -225,11 +245,11 @@ subroutine nedelec_fill_vector (this)
 
   ! Add Shape functions corresponding to homogeneous polynomials S_k basis in the tetrahedral case 
   if ( this%topology == topology_tet ) then  
-  if (this%number_dimensions == 2) then 
-  this%number_shape_functions = this%number_shape_functions + this%order 
-  else 
-  this%number_shape_functions = this%number_shape_functions + this%order*(this%order+2)
-  end if 
+    if (this%number_dimensions == 2) then 
+      this%number_shape_functions = this%number_shape_functions + this%order 
+    else 
+      this%number_shape_functions = this%number_shape_functions + this%order*(this%order+2)
+    end if 
   end if
   
   num_n_faces = this%polytope%get_number_n_faces()

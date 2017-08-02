@@ -1142,6 +1142,8 @@ procedure, private :: apply_change_basis_matrix_to_interpolation &
     & => nedelec_apply_change_basis_matrix_to_interpolation 
 procedure          :: apply_change_basis_matrix_to_nodal_values &
     & => nedelec_apply_change_basis_matrix_to_nodal_values
+  procedure :: get_component_node           => nedelec_reference_fe_get_component_node
+  procedure :: get_scalar_from_vector_node  => nedelec_reference_fe_get_scalar_from_vector_node
 end type nedelec_reference_fe_t 
 
 abstract interface
@@ -1229,7 +1231,9 @@ contains
              & => tet_lagrangian_reference_fe_invert_change_basis_matrix
    procedure, private :: apply_change_basis_matrix_to_interpolation                     &
              & => tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
-   procedure :: permute_dof_LID_n_face                                            &
+   procedure :: compute_permutation_index                                               &
+             & => tet_lagrangian_reference_fe_compute_permutation_index
+   procedure :: permute_dof_LID_n_face                                                  &
              & => tet_lagrangian_reference_fe_permute_dof_LID_n_face
 end type tet_lagrangian_reference_fe_t
 
@@ -1411,6 +1415,10 @@ procedure, private :: compute_number_quadrature_points                   &
 &  => tet_nedelec_reference_fe_compute_number_quadrature_points
 procedure, private :: change_basis                                       &
 & => tet_nedelec_reference_fe_change_basis
+procedure :: compute_permutation_index                                   &
+& => tet_nedelec_reference_fe_compute_permutation_index
+procedure :: permute_dof_LID_n_face                                      &
+& => tet_nedelec_reference_fe_permute_dof_LID_n_face
 end type tet_nedelec_reference_fe_t
 
 public :: tet_nedelec_reference_fe_t
