@@ -74,7 +74,22 @@ contains
     integer(ip)                                  , intent(in)    :: number_dofs(number_fields)
     type(i1p_t)                                  , intent(in)    :: cell2dof(number_fields)
     real(rp)                                     , intent(in)    :: elvec(:)
-    check(.false.)
+
+    class(array_t) , pointer :: array
+
+    array  => this%get_array()
+    select type(array)
+      class is(serial_block_array_t)
+      call element_serial_block_array_assembly( array,         &
+                                                number_fields, & 
+                                                number_dofs,   &
+                                                cell2dof,      &
+                                                field_blocks,  & 
+                                                elvec )
+      class default
+      check(.false.)
+    end select
+    
   end subroutine block_sparse_matrix_array_assembler_assemble_array
   
   subroutine block_sparse_matrix_array_assembler_assemble_matrix( this,            &
@@ -96,7 +111,25 @@ contains
     type(i1p_t)                                  , intent(in)    :: cell2row_dofs(number_fields)
     type(i1p_t)                                  , intent(in)    :: cell2col_dofs(number_fields)
     real(rp)                                     , intent(in)    :: elmat(:,:) 
-    check(.false.)
+
+    class(matrix_t), pointer :: matrix
+
+    matrix => this%get_matrix()
+    select type(matrix)
+      class is(block_sparse_matrix_t)
+      call element_block_sparse_matrix_face_assembly( matrix,          &
+                                                      number_fields,   &
+                                                      number_row_dofs, &
+                                                      number_col_dofs, &
+                                                      cell2row_dofs,   &
+                                                      cell2col_dofs,   &
+                                                      field_blocks,    &
+                                                      field_coupling,  &
+                                                      elmat )
+      class default
+      check(.false.)
+    end select
+
   end subroutine block_sparse_matrix_array_assembler_assemble_matrix
 
 subroutine block_sparse_matrix_array_assembler_assembly( this,             & 
