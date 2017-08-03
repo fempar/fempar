@@ -419,7 +419,8 @@ contains
       end if
     end if
     
-    call this%fe_space%initialize_fe_integration()    
+    call this%fe_space%initialize_fe_integration()
+    call this%fe_space%initialize_fe_face_integration()
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
     else
@@ -446,6 +447,7 @@ contains
        call this%fe_space%refine_and_coarsen( fe_function = this%solution ) 
        
        call this%fe_space%initialize_fe_integration()
+       call this%fe_space%initialize_fe_face_integration()
        
        if ( this%test_params%get_laplacian_type() == 'scalar' ) then
          call this%check_solution()
@@ -802,7 +804,7 @@ contains
     else
       call this%check_solution_vector()
     end if
-    !call this%refine_and_coarsen()
+    call this%refine_and_coarsen()
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()

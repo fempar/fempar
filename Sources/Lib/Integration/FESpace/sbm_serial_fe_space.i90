@@ -1558,13 +1558,6 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face ( this 
   call this%free_fe_iterator(fe)
 end subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face  
 
-subroutine serial_fe_space_resize_vef_lids_of_fe_faces ( this, number_fe_faces )
-  implicit none
-  class(serial_fe_space_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: number_fe_faces
-  call this%vef_lids_of_fe_faces%resize(number_fe_faces)
-end subroutine serial_fe_space_resize_vef_lids_of_fe_faces
-
 subroutine serial_fe_space_allocate_and_fill_vef_lids_of_fe_faces ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
@@ -2311,9 +2304,16 @@ function serial_fe_space_get_number_strong_dirichlet_dofs(this)
   serial_fe_space_get_number_strong_dirichlet_dofs = this%strong_dirichlet_values%get_size()
 end function serial_fe_space_get_number_strong_dirichlet_dofs
 
+function serial_fe_space_get_vef_lids_of_fe_faces( this) result(vef_lids_of_fe_faces)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this 
+  type(std_vector_integer_ip_t), pointer :: vef_lids_of_fe_faces
+  vef_lids_of_fe_faces => this%vef_lids_of_fe_faces
+end function serial_fe_space_get_vef_lids_of_fe_faces
+
 function serial_fe_space_get_conditions( this) result(conditions)
   implicit none
-  class(serial_fe_space_t), intent(in) :: this 
+  class(serial_fe_space_t), target, intent(in) :: this 
   class(conditions_t), pointer :: conditions
   assert ( associated(this%conditions) )
   conditions => this%conditions

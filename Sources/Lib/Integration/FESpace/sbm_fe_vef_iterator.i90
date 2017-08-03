@@ -62,6 +62,12 @@ subroutine fe_vef_iterator_set_vef_lid_of_fe_face ( this, face_lid )
   call this%fe_space%vef_lids_of_fe_faces%set(face_lid,this%get_lid())
 end subroutine fe_vef_iterator_set_vef_lid_of_fe_face
 
+subroutine fe_vef_iterator_push_back_vef_lid_of_fe_face ( this )
+  implicit none
+  class(fe_vef_iterator_t), intent(inout) :: this
+  call this%fe_space%vef_lids_of_fe_faces%push_back(this%get_lid())
+end subroutine fe_vef_iterator_push_back_vef_lid_of_fe_face
+
 function fe_vef_iterator_is_proper ( this ) 
   implicit none
   class(fe_vef_iterator_t), intent(in) :: this

@@ -285,6 +285,7 @@ module fe_space_names
      final                               :: fe_vef_iterator_final
      
      procedure, non_overridable          :: set_vef_lid_of_fe_face            => fe_vef_iterator_set_vef_lid_of_fe_face
+     procedure, non_overridable          :: push_back_vef_lid_of_fe_face      => fe_vef_iterator_push_back_vef_lid_of_fe_face
      
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
      
@@ -445,7 +446,6 @@ module fe_space_names
      procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe_face     => serial_fe_space_free_max_order_reference_fe_id_per_fe_face
      procedure, non_overridable          :: compute_max_order_reference_fe_id_per_fe_face  => serial_fe_space_compute_max_order_reference_fe_id_per_fe_face   
      
-     procedure, non_overridable          :: resize_vef_lids_of_fe_faces                  => serial_fe_space_resize_vef_lids_of_fe_faces
      procedure                 , private :: allocate_and_fill_vef_lids_of_fe_faces       => serial_fe_space_allocate_and_fill_vef_lids_of_fe_faces
      procedure, non_overridable, private :: free_vef_lids_of_fe_faces                    => serial_fe_space_free_vef_lids_of_fe_faces
      
@@ -481,6 +481,7 @@ module fe_space_names
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
      procedure                           :: get_number_strong_dirichlet_dofs             => serial_fe_space_get_number_strong_dirichlet_dofs
+     procedure, non_overridable          :: get_vef_lids_of_fe_faces                     => serial_fe_space_get_vef_lids_of_fe_faces
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
