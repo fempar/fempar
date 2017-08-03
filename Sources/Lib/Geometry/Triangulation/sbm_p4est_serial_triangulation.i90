@@ -61,6 +61,13 @@ function p4est_serial_triangulation_get_num_improper_vefs(this)
   p4est_serial_triangulation_get_num_improper_vefs = this%num_improper_vefs
 end function p4est_serial_triangulation_get_num_improper_vefs
 
+function p4est_serial_triangulation_get_num_faces(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_serial_triangulation_get_num_faces
+  p4est_serial_triangulation_get_num_faces = this%p4est_num_faces
+end function p4est_serial_triangulation_get_num_faces
+
 function p4est_st_get_p4est_refinement_and_coarsening_flags(this)
   implicit none
   class(p4est_serial_triangulation_t), target, intent(in) :: this
@@ -187,6 +194,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   integer(ip) :: improper_cell_around_ivef
   integer(ip) :: improper_cell_around_subvef
   integer(ip) :: i
+  integer(ip) :: num_corners
   
 #ifdef ENABLE_P4EST  
   if ( this%p4est_num_dimensions == 2 ) then
@@ -368,6 +376,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
        end if
      end do ! icorner
      
+     num_corners = this%num_proper_vefs + this%num_improper_vefs
+     
      do iedge=1, num_edges_per_cell
      end do ! iedge
      
@@ -459,7 +469,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
        end if
      end do ! iface
   end do
-  this%p4est_num_vefs = this%num_proper_vefs + this%num_improper_vefs
+  this%p4est_num_vefs  = this%num_proper_vefs + this%num_improper_vefs
+  this%p4est_num_faces = this%p4est_num_vefs - num_corners
   call this%std_vector_transform_length_to_header(this%p4est_ptr_cells_around_proper_vefs)
   call this%std_vector_transform_length_to_header(this%p4est_ptr_cells_around_improper_vefs)
   call this%std_vector_transform_length_to_header(this%p4est_ptr_improper_cells_around)
@@ -878,6 +889,7 @@ subroutine p4est_serial_triangulation_free ( this)
   this%p4est_num_vefs = -1
   this%num_proper_vefs = -1
   this%num_improper_vefs = -1
+  this%p4est_num_faces = -1
   
   call this%reference_fe_geo%free()
   call this%environment_free_or_nullify()

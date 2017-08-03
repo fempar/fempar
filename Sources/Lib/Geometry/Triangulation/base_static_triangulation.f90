@@ -345,7 +345,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_coarse_triangulation            => bst_get_coarse_triangulation
      procedure                           :: get_num_dimensions                  => bst_get_num_dimensions
      procedure                           :: get_num_vefs                        => bst_get_num_vefs 
-     procedure, non_overridable          :: get_num_faces                       => bst_get_num_faces
+     procedure                           :: get_num_faces                       => bst_get_num_faces
      procedure                           :: get_num_cells                       => bst_get_num_cells
      procedure, non_overridable          :: get_num_local_cells                 => bst_get_num_local_cells
      procedure, non_overridable          :: get_num_ghost_cells                 => bst_get_num_ghost_cells

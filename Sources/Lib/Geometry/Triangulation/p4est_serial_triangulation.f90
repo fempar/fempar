@@ -181,8 +181,9 @@ module p4est_serial_triangulation_names
     integer(ip) :: p4est_num_cells          = -1
     integer(ip) :: p4est_num_dimensions     = -1
     integer(ip) :: p4est_num_vefs           = -1
-    integer(ip) :: num_proper_vefs          = -1 
-    integer(ip) :: num_improper_vefs        = -1 
+    integer(ip) :: num_proper_vefs          = -1
+    integer(ip) :: num_improper_vefs        = -1
+    integer(ip) :: p4est_num_faces          = -1
     
     type(hex_lagrangian_reference_fe_t) :: reference_fe_geo
     type(point_t), allocatable          :: per_cell_vertex_coordinates(:)
@@ -234,6 +235,7 @@ module p4est_serial_triangulation_names
     procedure                                   :: get_num_vefs                                  => p4est_serial_triangulation_get_num_vefs
     procedure                                   :: get_num_proper_vefs                           => p4est_serial_triangulation_get_num_proper_vefs
     procedure                                   :: get_num_improper_vefs                         => p4est_serial_triangulation_get_num_improper_vefs
+    procedure                                   :: get_num_faces                                 => p4est_serial_triangulation_get_num_faces
     procedure                                   :: get_p4est_refinement_and_coarsening_flags     => p4est_st_get_p4est_refinement_and_coarsening_flags
     
     ! Set up related methods
