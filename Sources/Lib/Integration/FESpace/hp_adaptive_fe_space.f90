@@ -91,6 +91,8 @@ module hp_adaptive_fe_space_names
      procedure          :: update_fixed_dof_values                                => shpafs_update_fixed_dof_values
      procedure          :: interpolate_dirichlet_values                           => shpafs_interpolate_dirichlet_values
      
+     procedure, private :: allocate_and_fill_vef_lids_of_fe_faces                 => shpafs_allocate_and_fill_vef_lids_of_fe_faces
+     
      procedure          :: project_ref_fe_id_per_fe                               => shpafs_project_ref_fe_id_per_fe
      procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
      procedure          :: project_fe_face_integration_arrays                     => shpafs_project_fe_face_integration_arrays
@@ -382,6 +384,7 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   call this%fill_ref_fe_id_per_fe_same_on_all_cells()
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
+  call this%allocate_and_fill_vef_lids_of_fe_faces()
   call this%allocate_and_init_ptr_lst_dofs()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
@@ -421,6 +424,7 @@ subroutine shpafs_create_different_between_cells( this,          &
   call this%fill_ref_fe_id_per_fe_different_between_cells(set_ids_to_reference_fes)
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
+  call this%allocate_and_fill_vef_lids_of_fe_faces()
   call this%allocate_and_init_ptr_lst_dofs()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
@@ -538,6 +542,38 @@ subroutine shpafs_interpolate_dirichlet_values (this, conditions, time, fields_t
   call serial_fe_space_interpolate_dirichlet_values(this, conditions, time, fields_to_interpolate)
   call this%transfer_dirichlet_to_constraint_dof_coefficients()
 end subroutine shpafs_interpolate_dirichlet_values 
+
+subroutine shpafs_allocate_and_fill_vef_lids_of_fe_faces ( this )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  class(base_static_triangulation_t), pointer     :: triangulation
+  type(fe_vef_iterator_t)                         :: fe_vef
+  integer(ip)                                     :: face_lid
+  face_lid = 0
+  triangulation => this%get_triangulation()
+  call this%resize_vef_lids_of_fe_faces(triangulation%get_num_vefs())
+  call this%create_fe_vef_iterator(fe_vef)
+  do while ( .not. fe_vef%has_finished() )
+    if ( is_fe_face() ) then
+      face_lid = face_lid + 1
+      call fe_vef%set_vef_lid_of_fe_face(face_lid)
+    end if
+    call fe_vef%next()
+  end do
+  call this%resize_vef_lids_of_fe_faces(face_lid)
+  call this%free_fe_vef_iterator(fe_vef)
+  
+  contains
+  
+    function is_fe_face()
+      implicit none
+      logical :: is_fe_face
+      is_fe_face = fe_vef%is_face() .and. ( ( .not. fe_vef%is_proper() ) .or.                         &
+                                            ( fe_vef%is_proper() .and. ( fe_vef%is_at_boundary() .or. &
+                                                                         fe_vef%get_num_cells_around() > 1 ) ) )
+    end function is_fe_face
+  
+end subroutine shpafs_allocate_and_fill_vef_lids_of_fe_faces
 
 subroutine serial_hp_adaptive_fe_space_fill_dof_info( this, block_layout )
   implicit none
