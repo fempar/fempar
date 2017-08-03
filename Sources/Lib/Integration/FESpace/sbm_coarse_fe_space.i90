@@ -56,7 +56,6 @@ subroutine coarse_fe_space_create (this, &
   par_environment => this%get_par_environment()
   if(par_environment%am_i_l1_task()) then
      this%number_fields = number_fields
-     assert ( number_fields == 1 )
      call this%allocate_and_fill_field_blocks_and_coupling(field_blocks,field_coupling)
      this%number_blocks = maxval(this%field_blocks)
      call this%allocate_and_fill_fe_space_type_per_field(fe_space_type_per_field)
@@ -550,6 +549,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   
   ! List DoFs on each vef of each cell
   if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+
      call memalloc ( this%coarse_triangulation%get_num_vefs(), num_assigned_dofs_per_vef, __FILE__, __LINE__  )
      num_assigned_dofs_per_vef(:) = 0
      ! In the case of DG coarse FE spaces, the boundary vefs do not have own coarse DoFs, i.e.,
@@ -557,8 +557,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
      base_pointer = 1
      i = field_id
      do while ( .not. coarse_fe%has_finished() )
-	 
-	 ! Re-init to zero work array only on those positions we are interested in
+       ! Re-init to zero work array only on those positions we are interested in
        do ivef=1, coarse_fe%get_num_vefs()
           num_assigned_dofs_per_vef(coarse_fe%get_vef_lid(ivef)) = 0
        end do
@@ -569,19 +568,19 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
           vef_gid = lst_vefs_gids_dofs_objects_ghost_extended(j)
           
           ! Retrieve position of vef_gid in current cell
-          ivef = coarse_fe%find_lpos_vef_gid(vef_gid)
-		  vef_lid = coarse_fe%get_vef_lid(ivef) 
+          ivef    = coarse_fe%find_lpos_vef_gid(vef_gid)
+          vef_lid = coarse_fe%get_vef_lid(ivef)
           assert ( ivef /= -1 )
           ! Associate dof to vef
           list_iterator = this%own_dofs_vef_per_fe(field_id)%create_iterator(base_pointer+ivef-1)
-		  call list_iterator%set_from_current(num_assigned_dofs_per_vef(vef_lid), j-this%ptr_dofs_per_fe_and_field(i)+1)
-		  num_assigned_dofs_per_vef(vef_lid) = num_assigned_dofs_per_vef(vef_lid) + 1
+          call list_iterator%set_from_current(num_assigned_dofs_per_vef(vef_lid), j-this%ptr_dofs_per_fe_and_field(i)+1)
+          num_assigned_dofs_per_vef(vef_lid) = num_assigned_dofs_per_vef(vef_lid) + 1 
        end do  
        i = i + this%number_fields
        base_pointer = base_pointer + coarse_fe%get_num_vefs() + 1
        call coarse_fe%next()
      end do
-	   call memfree( num_assigned_dofs_per_vef, __FILE__, __LINE__ )
+     call memfree ( num_assigned_dofs_per_vef, __FILE__, __LINE__  )
   else
      check ( .false. )
      !! Not completely implemented yet. The code below compiles, but was not tested. It is just
@@ -610,6 +609,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   end if
   call this%free_coarse_fe_iterator(coarse_fe)
 end subroutine coarse_fe_space_fill_own_dofs_per_fe_field
+
 
 subroutine coarse_fe_space_free_free_own_dofs_vef_per_fe (this)
   implicit none
@@ -670,13 +670,13 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   ! Local variables
   integer(ip)                         :: ivef, vef_lid, ielem
   integer(ip)                         :: iblock, init_dof_block, current_dof_block
-  integer(ip)                         :: previous_dof_block 
+  integer(ip)                         :: previous_dof_block
   integer(ip), allocatable            :: visited_vef_to_coarse_fe_map(:,:)
   type(coarse_fe_iterator_t)          :: coarse_fe
   type(coarse_fe_iterator_t)          :: source_fe
-  integer(ip) :: source_ivef
-  type(coarse_fe_vef_iterator_t)          :: vef
-  type(list_iterator_t) :: own_dofs_on_vef_iterator_source
+  integer(ip)                         :: source_ivef
+  type(coarse_fe_vef_iterator_t)      :: vef
+  type(list_iterator_t)               :: own_dofs_on_vef_iterator_source
   
   iblock            = this%field_blocks(field_id)
   init_dof_block    = this%number_dofs_per_block(iblock)
@@ -696,13 +696,16 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
            do ivef = 1, coarse_fe%get_num_vefs()
               vef_lid = coarse_fe%get_vef_lid(ivef)
               if ( visited_vef_to_coarse_fe_map ( 1, vef_lid ) == -1 ) then
-			  previous_dof_block = current_dof_block
-			  call coarse_fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block  ) 
-			  	 ! Only mark as visited if we have assigned at least one dof
+
+                 previous_dof_block = current_dof_block
+                 call coarse_fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block  ) 
+
+                 ! Only mark as visited if we have assigned at least one dof
                  if (previous_dof_block < current_dof_block) then
                    visited_vef_to_coarse_fe_map ( 1, vef_lid ) = coarse_fe%get_lid()
                    visited_vef_to_coarse_fe_map ( 2, vef_lid ) = ivef
-                 end if                 
+                 end if
+
               else 
                  call source_fe%set_lid(visited_vef_to_coarse_fe_map(1,vef_lid))
                  call coarse_fe%fill_own_dofs_on_vef_from_source_coarse_fe ( ivef, &
@@ -724,14 +727,17 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
                do ielem=1, vef%get_num_cells_around()
                  call vef%get_cell_around(ielem,source_fe)
                  if ( source_fe%is_local() ) then
+
                     source_ivef = source_fe%find_lpos_vef_lid(vef%get_lid())
-					own_dofs_on_vef_iterator_source = source_fe%create_own_dofs_on_vef_iterator(source_ivef,field_id)
-					if (own_dofs_on_vef_iterator_source%get_size()>0) then
-                    call coarse_fe%fill_own_dofs_on_vef_from_source_coarse_fe ( ivef, &
-                                                                                source_fe, &
-                                                                                source_ivef, &
-                                                                                field_id) 
-					end if 
+                    own_dofs_on_vef_iterator_source = source_fe%create_own_dofs_on_vef_iterator(source_ivef,field_id)
+
+                    ! Check that the source fe has at least one dof on this vef
+                    if (own_dofs_on_vef_iterator_source%get_size()>0) then
+                      call coarse_fe%fill_own_dofs_on_vef_from_source_coarse_fe ( ivef, &
+                                                                                  source_fe, &
+                                                                                  source_ivef, &
+                                                                                  field_id) 
+                    end if
                  end if
                end do
             end if
@@ -1226,7 +1232,6 @@ subroutine coarse_fe_space_setup_coarse_dofs ( this )
   integer(ip), allocatable             :: num_coarse_dofs(:,:)
   integer(ip)                          :: current_coarse_dof
 
-  assert ( this%number_fields == 1 )
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_task() )   
   
@@ -2072,5 +2077,3 @@ end function coarse_fe_space_get_number_coarse_fe_objects
     type(coarse_fe_space_t), pointer :: coarse_fe_space_get_coarse_fe_space
     coarse_fe_space_get_coarse_fe_space => this%coarse_fe_space
   end function coarse_fe_space_get_coarse_fe_space
-  
-  

@@ -37,7 +37,7 @@ module pb_bddc_poisson_cG_discrete_integration_names
      real(rp), public :: diffusion_inclusion
    contains
      procedure :: set_analytical_functions
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type poisson_cG_discrete_integration_t
   
   public :: poisson_cG_discrete_integration_t
@@ -52,7 +52,7 @@ contains
   end subroutine set_analytical_functions
 
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
@@ -65,7 +65,7 @@ contains
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int
+    type(cell_integrator_t), pointer :: cell_int
     type(vector_field_t)               :: grad_test, grad_trial
     real(rp)                           :: shape_trial
 
@@ -110,7 +110,7 @@ contains
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
     fe_map          => fe%get_fe_map()
-    vol_int         => fe%get_volume_integrator(1)
+    cell_int         => fe%get_cell_integrator(1)
     do while ( .not. fe%has_finished())
        if ( fe%is_local() ) then
           ! Update FE-integration related data structures
@@ -137,9 +137,9 @@ contains
           do qpoint = 1, num_quad_points
              factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
              do idof = 1, num_dofs
-                call vol_int%get_gradient(idof, qpoint, grad_trial)
+                call cell_int%get_gradient(idof, qpoint, grad_trial)
                 do jdof = 1, num_dofs
-                   call vol_int%get_gradient(jdof, qpoint, grad_test)
+                   call cell_int%get_gradient(jdof, qpoint, grad_test)
                    ! A_K(i,j) = (grad(phi_i),grad(phi_j))
                    elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial * viscosity
                 end do
@@ -148,7 +148,7 @@ contains
              ! Source term
              call source_term%get_value(quad_coords(qpoint),source_term_value)
              do idof = 1, num_dofs
-                call vol_int%get_value(idof, qpoint, shape_trial)
+                call cell_int%get_value(idof, qpoint, shape_trial)
                 elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial !* viscosity
              end do
           end do
@@ -164,6 +164,6 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module pb_bddc_poisson_cG_discrete_integration_names

@@ -39,7 +39,7 @@ module poisson_dG_discrete_integration_names
    contains
      procedure :: set_analytical_functions
      procedure :: set_poisson_conditions
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type poisson_dG_discrete_integration_t
   
   public :: poisson_dG_discrete_integration_t
@@ -61,21 +61,21 @@ contains
   end subroutine set_poisson_conditions
   
   
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_dG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                , intent(inout) :: fe_space
     class(matrix_array_assembler_t)         , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face
+    class(fe_iterator_t)     , allocatable :: fe
+    class(fe_face_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer     :: fe_map
     type(quadrature_t)       , pointer     :: quad
     type(point_t)            , pointer     :: quad_coords(:)
-    type(volume_integrator_t), pointer     :: vol_int
+    type(cell_integrator_t), pointer     :: cell_int
     type(vector_field_t)     , allocatable, target :: shape_gradients_first(:,:), shape_gradients_second(:,:)
     type(vector_field_t)     , pointer     :: shape_gradients_ineigh(:,:),shape_gradients_jneigh(:,:)
     real(rp)                 , allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
@@ -83,7 +83,7 @@ contains
     type(i1p_t)              , allocatable :: elem2dof(:)
     
     ! Face integration-related data types
-    type(face_map_t)       , pointer :: face_map
+    type(face_maps_t)       , pointer :: face_map
     type(face_integrator_t), pointer :: face_int
     type(vector_field_t)             :: normals(2)
     real(rp)                         :: shape_test, shape_trial
@@ -144,7 +144,7 @@ contains
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
     fe_map          => fe%get_fe_map()
-    vol_int         => fe%get_volume_integrator(1)
+    cell_int         => fe%get_cell_integrator(1)
     
     viscosity = 1.0_rp
     C_IP      = 10.0_rp * fe%get_order(1)**2
@@ -165,8 +165,8 @@ contains
          ! Compute element matrix and vector
          elmat = 0.0_rp
          elvec = 0.0_rp
-         call vol_int%get_gradients(shape_gradients_first)
-         call vol_int%get_values(shape_values_first)
+         call cell_int%get_gradients(shape_gradients_first)
+         call cell_int%get_values(shape_values_first)
          do qpoint = 1, num_quad_points
             factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do idof = 1, num_dofs
@@ -205,7 +205,7 @@ contains
     
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
-    face_map        => fe_face%get_face_map()
+    face_map        => fe_face%get_face_maps()
     face_int        => fe_face%get_face_integrator(1)
     
     do while ( .not. fe_face%has_finished() ) 
@@ -288,7 +288,7 @@ contains
 
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
-    face_map        => fe_face%get_face_map()
+    face_map        => fe_face%get_face_maps()
     face_int        => fe_face%get_face_integrator(1)
    
     do while ( .not. fe_face%has_finished() )
@@ -339,7 +339,7 @@ contains
        end if
        call fe_face%next()
     end do
-    call fe_space%free_fe_vef_iterator(fe_face)
+    call fe_space%free_fe_face_iterator(fe_face)
     call boundary_fe_function%free()
     call boundary_face_fe_function%free()
     call memfree(shape_values_first, __FILE__, __LINE__) 
@@ -354,6 +354,6 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( facemat, __FILE__, __LINE__ )
     call memfree ( facevec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module poisson_dG_discrete_integration_names

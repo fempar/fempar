@@ -25,15 +25,17 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!****************************************************************************************************
-program test_maxwell_nedelec
+module par_poisson_unfitted_static_parameters_names
   use fempar_names
-  use test_maxwell_nedelec_driver_names  
+
+# include "debug.i90"
+
   implicit none
-  type(test_maxwell_nedelec_driver_t) :: test_driver
-  call fempar_init()
-  call test_driver%run_simulation()
-  call fempar_finalize()
-contains
-end program test_maxwell_nedelec
+  public
+
+  integer(ip), parameter :: PAR_POISSON_UNFITTED_SET_ID_FULL = 1
+  integer(ip), parameter :: PAR_POISSON_UNFITTED_SET_ID_VOID = 2
+  integer(ip), parameter :: PAR_POISSON_UNFITTED_SET_ID_FREE = 0
+  integer(ip), parameter :: PAR_POISSON_UNFITTED_SET_ID_DIRI = 1
+
+end module par_poisson_unfitted_static_parameters_names

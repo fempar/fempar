@@ -102,7 +102,8 @@ module fempar_names
   use function_names
   use function_library_names
   use error_norms_names
-
+  use block_layout_names
+  
 contains
 
   subroutine FEMPAR_INIT()

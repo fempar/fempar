@@ -96,8 +96,8 @@ module base_static_triangulation_names
     ! extends type(cell_iterator_t), requires to call these TBPs and cannot be placed
     ! either within this module or within a submodule of base_static_triangulation_names
     ! due to module dependencies cycle
-    procedure                 , private  :: create                  => cell_iterator_create
-    procedure                 , private  :: free                    => cell_iterator_free
+    procedure                            :: create                  => cell_iterator_create
+    procedure                            :: free                    => cell_iterator_free
     final                                ::                            cell_iterator_free_final
     procedure, non_overridable           :: next                    => cell_iterator_next
     procedure, non_overridable           :: first                   => cell_iterator_first
@@ -112,6 +112,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_reference_fe_geo_id => cell_iterator_get_reference_fe_geo_id
     procedure, non_overridable           :: get_coordinates         => cell_iterator_get_coordinates
     procedure, non_overridable           :: set_coordinates         => cell_iterator_set_coordinates
+    procedure, non_overridable           :: get_coordinates_ref_space => cell_iterator_get_coordinates_ref_space
     procedure, non_overridable           :: get_lid                 => cell_iterator_get_lid
     procedure, non_overridable           :: get_gid                 => cell_iterator_get_gid
     procedure, non_overridable           :: get_my_part             => cell_iterator_get_mypart
@@ -131,6 +132,23 @@ module base_static_triangulation_names
     procedure, non_overridable           :: is_ghost                => cell_iterator_is_ghost
     procedure, non_overridable           :: scan_sum_number_vefs    => cell_iterator_get_scan_sum_number_vefs
 
+    ! Declare dummy procedures to be implemented in the corresponding derived classes 
+    procedure :: update_sub_triangulation    => cell_iterator_update_sub_triangulation
+    procedure :: get_mc_case                 => cell_iterator_get_mc_case
+    procedure :: get_number_of_subcells      => cell_iterator_get_number_of_subcells
+    procedure :: get_number_of_subcell_nodes => cell_iterator_get_number_of_subcell_nodes
+    procedure :: get_phys_coords_of_subcell  => cell_iterator_get_phys_coords_of_subcell
+    procedure :: get_ref_coords_of_subcell   => cell_iterator_get_ref_coords_of_subcell
+    procedure :: get_number_of_subfaces      => cell_iterator_get_number_of_subfaces
+    procedure :: get_number_of_subface_nodes => cell_iterator_get_number_of_subface_nodes
+    procedure :: get_phys_coords_of_subface  => cell_iterator_get_phys_coords_of_subface
+    procedure :: get_ref_coords_of_subface   => cell_iterator_get_ref_coords_of_subface
+    procedure :: is_cut                      => cell_iterator_is_cut
+    procedure :: is_interior                 => cell_iterator_is_interior
+    procedure :: is_exterior                 => cell_iterator_is_exterior
+    procedure :: is_interior_subcell         => cell_iterator_is_interior_subcell
+    procedure :: is_exterior_subcell         => cell_iterator_is_exterior_subcell
+
     procedure, non_overridable, private  :: fill_nodes_on_vertices        => cell_iterator_fill_nodes_on_vertices
     procedure, non_overridable, private  :: fill_nodes_on_vef_new         => cell_iterator_fill_nodes_on_vef_new
     procedure, non_overridable, private  :: fill_nodes_on_vef_from_source => cell_iterator_fill_nodes_on_vef_from_source
@@ -149,6 +167,7 @@ module base_static_triangulation_names
      procedure                           :: next                      => vef_iterator_next
      procedure, non_overridable          :: set_lid                   => vef_iterator_set_lid
      procedure                           :: has_finished              => vef_iterator_has_finished
+     procedure, non_overridable          :: get_coordinates           => vef_iterator_get_coordinates
      procedure, non_overridable          :: get_triangulation         => vef_iterator_get_triangulation
      procedure, non_overridable          :: get_lid                   => vef_iterator_get_lid
      procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
@@ -176,38 +195,6 @@ module base_static_triangulation_names
      generic                             :: get_cell_around           => vef_iterator_get_cell_around
   end type vef_iterator_t
 
-  type, extends(vef_iterator_t) :: vertex_iterator_t
-    private
-    contains
-     procedure          :: first                     => vertex_iterator_first
-     procedure          :: has_finished              => vertex_iterator_has_finished
-  end type vertex_iterator_t
-
-  type, extends(vef_iterator_t) :: edge_iterator_t
-    private
-    contains
-     procedure          :: first                     => edge_iterator_first
-     procedure          :: has_finished              => edge_iterator_has_finished
-  end type edge_iterator_t
-  
-  type, extends(vef_iterator_t) :: face_iterator_t
-    private
-    class(cell_iterator_t), allocatable :: cell
-  contains
-    procedure                           :: create                           => face_iterator_create
-    procedure                           :: free                             => face_iterator_free
-    final                               ::                                     face_iterator_free_final
-    procedure                           :: first                            => face_iterator_first
-    procedure                           :: has_finished                     => face_iterator_has_finished
-    procedure                           :: get_coordinates                  => face_iterator_get_coordinates
-    procedure                           :: get_face_lid                     => face_iterator_get_face_lid
-    procedure                           :: get_face_lpos_within_cell_around => face_iterator_get_face_lpos_within_cell_around
-    procedure                           :: get_face_orientation             => face_iterator_get_face_orientation
-    procedure                           :: get_face_rotation                => face_iterator_get_face_rotation
-    procedure, non_overridable, private :: set_face_orientation             => face_iterator_set_face_orientation
-    procedure, non_overridable, private :: set_face_rotation                => face_iterator_set_face_rotation
-  end type face_iterator_t
-
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
     private
     integer(ip)  :: itfc_lid = -1
@@ -222,14 +209,12 @@ module base_static_triangulation_names
     private
     integer(ip)                                 :: lid = -1
     type(list_iterator_t)                       :: vefs_object_iterator
-    type(list_iterator_t)                       :: faces_object_iterator
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
     procedure                           :: create                          => object_iterator_create
     procedure                           :: free                            => object_iterator_free
     final                               ::                                    object_iterator_free_final
     procedure, non_overridable, private :: update_vefs_object_iterator     => object_iterator_update_vefs_object_iterator
-    procedure, non_overridable, private :: update_faces_object_iterator    => object_iterator_update_faces_object_iterator
     procedure                           :: first                           => object_iterator_first
     procedure                           :: next                            => object_iterator_next
     procedure                           :: set_lid                         => object_iterator_set_lid
@@ -243,8 +228,6 @@ module base_static_triangulation_names
     procedure, non_overridable          :: create_subparts_around_iterator => object_iterator_create_subparts_around_iterator
     procedure, non_overridable          :: get_num_vefs                    => object_iterator_get_num_vefs
     procedure, non_overridable          :: get_vef                         => object_iterator_get_vef
-    procedure, non_overridable          :: get_num_faces                   => object_iterator_get_num_faces
-    procedure, non_overridable          :: get_face                        => object_iterator_get_face
   end type object_iterator_t
        
    ! JP-TODO: implement states: discuss with Alberto and Victor.
@@ -311,10 +294,6 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: lst_itfc_vefs(:)
      integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
-     
-     ! Data structures related to face integration
-     integer(ip), allocatable              :: face_orientation(:)
-     integer(ip), allocatable              :: face_rotation(:)
 
      ! Data structures to create objects (coarse cell info)
      integer(ip)                             :: number_global_objects = 0
@@ -361,9 +340,6 @@ module base_static_triangulation_names
      ! Vef traversals-related TBPs
      procedure                           :: create_vef_iterator              => bst_create_vef_iterator
      procedure                           :: create_itfc_vef_iterator         => bst_create_itfc_vef_iterator
-     procedure                           :: create_vertex_iterator           => bst_create_vertex_iterator
-     procedure                           :: create_edge_iterator             => bst_create_edge_iterator
-     procedure                           :: create_face_iterator             => bst_create_face_iterator
      procedure                           :: free_vef_iterator                => bst_free_vef_iterator
      
      ! Objects-related traversals
@@ -422,10 +398,6 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_cells_around                   => bst_free_cells_around
      procedure, non_overridable, private :: find_and_list_vefs_at_interfaces    => bst_find_and_list_vefs_at_interfaces
      procedure, non_overridable, private :: free_lst_itfc_vefs                  => bst_free_lst_itfc_vefs
-     
-     ! Private methods for creating face-related data (for face integration)
-     procedure, non_overridable, private :: allocate_and_fill_face_orientation_rotation => bst_allocate_and_fill_face_orientation_rotation
-     procedure, non_overridable, private :: free_face_orientation_rotation              => bst_free_face_orientation_rotation
 
      ! Private methods to compute objects
      procedure, non_overridable          :: get_number_subparts                            => bst_get_number_subparts
@@ -436,7 +408,6 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: compute_subparts_itfc_vefs                     => bst_compute_subparts_itfc_vefs
      procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => bst_compute_parts_object_from_subparts_object
      procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => bst_compute_part_id_from_subpart_gid
-     procedure, non_overridable, private :: compute_faces_object                           => bst_compute_faces_object
      procedure, non_overridable, private :: compute_objects_dimension                      => bst_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
      procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids
@@ -477,14 +448,16 @@ module base_static_triangulation_names
 
   type, extends(fine_triangulation_t) :: serial_triangulation_t
   contains
-     procedure, non_overridable          :: create                              => serial_triangulation_create
+     procedure                 , private :: serial_triangulation_create
+     generic                             :: create                              => serial_triangulation_create
   end type serial_triangulation_t
   
   type, extends(fine_triangulation_t) :: par_triangulation_t
   contains
-     procedure, non_overridable          :: create                            => par_triangulation_create
-     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids   => par_triangulation_allocate_and_fill_lst_vefs_lids 
-	 procedure, nopass, non_overridable  :: generate_non_consecutive_vef_gid  => par_triangulation_generate_non_consecutive_vef_gid
+     generic                             :: create                              => par_triangulation_create
+     procedure, private                  :: par_triangulation_create
+     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => par_triangulation_allocate_and_fill_lst_vefs_lids 
+	 procedure, nopass, non_overridable  :: generate_non_consecutive_vef_gid    => par_triangulation_generate_non_consecutive_vef_gid
   end type par_triangulation_t
 
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
@@ -509,7 +482,7 @@ module base_static_triangulation_names
   public :: par_triangulation_t
   public :: cell_iterator_t
   public :: vef_iterator_t
-  public :: itfc_vef_iterator_t, face_iterator_t, object_iterator_t
+  public :: itfc_vef_iterator_t, object_iterator_t
   
 contains
 

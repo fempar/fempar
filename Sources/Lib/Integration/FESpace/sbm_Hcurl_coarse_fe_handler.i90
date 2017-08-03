@@ -43,14 +43,14 @@ subroutine Hcurl_l1_free( this )
 
 end subroutine Hcurl_l1_free
 
-subroutine Hcurl_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_coarse_dofs)
+subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id 
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
 
-  integer(ip)                            :: field_id
   type(environment_t), pointer           :: par_environment
   type(fe_object_iterator_t)             :: object
   integer(ip)                            :: coarse_edge 
@@ -64,9 +64,6 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_
   assert ( par_environment%am_i_l1_task() )
   assert ( size(num_coarse_dofs) == par_fe_space%get_number_fe_objects() )
 
-  ! To think where field_id should come from? Temporarily let us assume that we have
-  ! a single-field PDE problem
-  field_id = 1
   num_coarse_dofs = 0
   call par_fe_space%create_fe_object_iterator(object)
 
@@ -105,9 +102,10 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, par_fe_space, parameter_list, num_
   call par_fe_space%free_fe_object_iterator(object)
 end subroutine Hcurl_l1_get_num_coarse_dofs
 
-subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, constraint_matrix) 
+subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id 
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
@@ -117,7 +115,6 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   class(fe_iterator_t), allocatable      :: fe
   type(list_iterator_t)                  :: own_coarse_dofs_iterator
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
-  integer(ip) :: field_id
   integer(ip) :: num_rows, num_cols
   integer(ip) ::  ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
   integer(ip)            , pointer     :: elem2dof(:)
@@ -137,10 +134,6 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, par_fe_space, parameter_list, 
   par_environment => par_fe_space%get_par_environment()
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
-
-  ! To-think where field_id should come from? Temporarily let us assume that we have
-  ! a single-field PDE problem
-  field_id = 1
 
   call this%get_BDDC_edge_continuity_algorithm_case( parameter_list, edge_continuity_algorithm ) 
   if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then 
@@ -343,21 +336,21 @@ subroutine Hcurl_l1_compute_edge_discrete_gradient_elmat(this, par_fe_space, elm
                     number_dimensions = 1,                     &
                     order             = ref_fe%get_order(),    &
                     field_type        = field_type_scalar,     &
-                    continuity        = .true. )
+                    conformity        = .true. )
 
   ! Create a 1D scalar lagrangian reference FE of order k-1
   call fe_1D_reduced_order%create(topology          = topology_hex,           &
                                   number_dimensions = 1,                      &
                                   order             = ref_fe%get_order()-1,   &
                                   field_type        = field_type_scalar,      &
-                                  continuity        = .true. )
+                                  conformity        = .true. )
 
   ! Create a dim-D scalar hex lagrangian reference FE of order k
   call fe%create(topology          = topology_hex,                     &
                  number_dimensions = ref_fe%get_number_dimensions() ,  &
                  order             = ref_fe%get_order(),               &
                  field_type        = field_type_scalar,                &
-                 continuity        = .false. )
+                 conformity        = .false. )
 
   call fe%create_edge_quadrature( edge_quadrature )
   call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
@@ -662,7 +655,7 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
   class(reference_fe_t), pointer         :: ref_fe 
   type(fe_vef_iterator_t)                :: vef
   class(fe_iterator_t), allocatable      :: fe
-  type(fe_face_iterator_t)               :: fe_face 
+  class(fe_face_iterator_t), allocatable :: fe_face 
   integer(ip)            , pointer       :: elem2dof(:)
   type(list_t), pointer                  :: nodes_in_edge
   type(list_iterator_t)                  :: nodes_in_edge_iterator
@@ -690,7 +683,7 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
   integer(ip)  :: face_id 
   logical      :: vefs_are_coupled 
 
-  field_id = 1
+  field_id = 1 
   call par_fe_space%initialize_fe_face_integration()
   call par_fe_space%create_fe_face_iterator(fe_face)
   call par_fe_space%create_fe_iterator(fe) 
@@ -702,18 +695,18 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                             number_dimensions = 2,                     &
                             order             = this%order-1,          &
                             field_type        = field_type_vector,     &
-                            continuity        = .false. )
+                            conformity        = .false. )
 
   call Lagrangian_fe_3D%create(topology          = topology_hex,         &
                                number_dimensions = 3,                    &
                                order             = this%order,           &
                                field_type        = field_type_scalar,    &
-                               continuity        = .true. )
+                               conformity        = .true. )
 
   call memalloc( number_nedelec_dofs_per_face, this%order+1, elmat, __FILE__, __LINE__ )	   	 
   call Nedelec_fe_2D%create_interpolation( fe_face%get_quadrature(), Nedelec_interpolation )
 
-  nodes_n_face           => Lagrangian_fe_3D%get_nodes_n_face() 	
+  nodes_n_face           => Lagrangian_fe_3D%get_dofs_n_face() 	
   facets_n_face          => Lagrangian_fe_3D%get_n_faces_n_face() 
 					
   coarse_subedge_iterator = this%subedges_per_coarse_edge%create_iterator() 
@@ -802,7 +795,7 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
   class(reference_fe_t), pointer         :: ref_fe 
   type(fe_vef_iterator_t)                :: vef, vertex
   class(fe_iterator_t), allocatable      :: fe
-  type(fe_face_iterator_t)               :: fe_face 
+  class(fe_face_iterator_t), allocatable :: fe_face
   integer(ip)            , pointer       :: elem2dof(:)
   type(list_t), pointer                  :: nodes_n_face
   type(list_t), pointer                  :: faces_n_face 
@@ -840,13 +833,13 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                         number_dimensions = 2,                     &
                         order             = this%order-2,          &
                         field_type        = field_type_scalar,     &
-                        continuity        = .true. )
+                        conformity        = .true. )
 	
   call Lagrangian_fe_3D%create(topology          = topology_tet,          &
                                number_dimensions = 3,                     &
                                order             = this%order,            &
                                field_type        = field_type_scalar,     &
-                               continuity        = .true. )
+                               conformity        = .true. )
 
   call memalloc( this%order*(this%order-1), this%order+1, elmat, __FILE__, __LINE__ )	   	 
   call ref_fe_2D%create_interpolation( fe_face%get_quadrature(), ref_fe_interpolation )
@@ -866,7 +859,7 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
               ivef_within_fe = fe%find_lpos_vef_lid( vef%get_lid() )				
 
 			  do face_id = ref_fe%get_first_face_id(), ref_fe%get_first_face_id() + ref_fe%get_number_faces()-1
-                    nodes_n_face          => Lagrangian_fe_3D%get_nodes_n_face() 	
+                    nodes_n_face          => Lagrangian_fe_3D%get_dofs_n_face() 	
 					faces_n_face          => Lagrangian_fe_3D%get_n_faces_n_face() 
 					
                     call fe_face%set_lid( fe%get_vef_lid( face_id ) )					
@@ -920,7 +913,7 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
               ivef_within_fe = fe%find_lpos_vef_lid( vertex%get_lid() )				
 
 			  do face_id = ref_fe%get_first_face_id(), ref_fe%get_first_face_id() + ref_fe%get_number_faces()-1	
-					nodes_n_face          => Lagrangian_fe_3D%get_nodes_n_face() 
+					nodes_n_face          => Lagrangian_fe_3D%get_dofs_n_face() 
 					
                     call fe_face%set_lid( fe%get_vef_lid( face_id ) )					
 					if ( fe_face%is_at_interface() ) then 
@@ -1006,8 +999,8 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
   integer(ip) :: ielem 
   type(quadrature_t)       , pointer     :: quad
   type(fe_map_t)           , pointer     :: fe_map
+  type(face_maps_t)        , pointer     :: face_maps
   type(face_map_t)         , pointer     :: face_map
-  type(fe_map_t)           , pointer     :: face_map_face_map
   type(interpolation_t)                  :: Lagrangian_interpolation_phy 
   type(vector_field_t)                   :: cross_product_gradv_shape_trial_normal
   type(vector_field_t)                   :: cross_product_gradv_shape_trial_normal_proj
@@ -1019,7 +1012,7 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
   integer(ip)                            :: ishape, jshape, qpoint
   integer(ip)                            :: number_nedelec_dofs_per_face 
   
-  type(volume_integrator_t), pointer     :: vol_int
+  type(cell_integrator_t), pointer       :: vol_int
   type(face_integrator_t), pointer       :: face_int
   type(vector_field_t)                   :: shape_trial
   real(rp), allocatable                  :: elm(:,:) 
@@ -1029,8 +1022,8 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
 
   quad              => fe_face%get_quadrature()
   number_qpoints    =  quad%get_number_quadrature_points()
-  face_map          => fe_face%get_face_map()
-  face_map_face_map => face_map%get_face_map()
+  face_maps         => fe_face%get_face_maps() 
+  face_map          => face_maps%get_face_map()
 
   elmat = 0.0_rp 
   call cross_product_gradv_shape_trial_normal_proj%init(0.0_rp)
@@ -1041,11 +1034,12 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
                                               Lagrangian_interpolation_phy )
 
   number_nedelec_dofs_per_face = 2*this%order*(this%order-1)
-  face_area = face_map_face_map%compute_measure(quad) 
   do qpoint = 1, number_qpoints
+     face_area = face_map%get_det_jacobian(qpoint)  
      factor    = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-     call face_map_face_map%get_normal(qpoint, normal)
+     call face_map%get_normal(qpoint, normal)
      ! Trick to have normals pointing to the same direction in different faces 
+	 ! normal = (-1.0_rp)**(this%orientation%a(facet_id)) * normal
      do i=1, SPACE_DIM
         call normal%set(i, abs(normal%get(i)))
      end do
@@ -1054,7 +1048,7 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
         call ref_fe_2D%get_value(ref_fe_interpolation, ishape, qpoint, v_shape_test)
         ! WARNING: Update 2D interpolation for the Nedelec test functions ( J**{-T} will only work in HEX structured meshes! )
         do i=1, Lagrangian_fe_3D%get_number_dimensions()-1
-           call face_map_face_map%get_jacobian_column(i,qpoint,col_jacobian)
+           call face_map%get_jacobian_column(i,qpoint,col_jacobian)
            call v_shape_test%set(i, v_shape_test%get(i)/col_jacobian%nrm2() )
         end do
 
@@ -1065,7 +1059,8 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
            ! Multiply the transpose of the jacobian with normalized columns by u^n
            ! This is required to transform u^n in a vector contained within the face
            do i=1,Lagrangian_fe_3D%get_number_dimensions()-1
-              call face_map_face_map%get_jacobian_normalized_column(i,qpoint,col_jacobian)
+              call face_map%get_jacobian_column(i,qpoint,col_jacobian)
+			  col_jacobian = col_jacobian * (1.0_rp/col_jacobian%nrm2())
               call cross_product_gradv_shape_trial_normal_proj%set(i, col_jacobian*cross_product_gradv_shape_trial_normal)
            end do
            elmat(ishape,jshape) = elmat(ishape, jshape) + factor*cross_product_gradv_shape_trial_normal_proj*v_shape_test
@@ -1093,8 +1088,8 @@ subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
   integer(ip) :: ielem 
   type(quadrature_t)       , pointer     :: quad
   type(fe_map_t)           , pointer     :: fe_map
+  type(face_maps_t)        , pointer     :: face_maps
   type(face_map_t)         , pointer     :: face_map
-  type(fe_map_t)           , pointer     :: face_map_face_map
   type(interpolation_t)                  :: Lagrangian_interpolation_phy 
 
   integer(ip)                            :: number_qpoints, idof
@@ -1107,7 +1102,7 @@ subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
   integer(ip) :: direction, c, number_scalar_test_functions 
   real(rp)    :: face_area 
   
-  type(volume_integrator_t), pointer     :: vol_int
+  type(cell_integrator_t), pointer     :: vol_int
   type(face_integrator_t), pointer       :: face_int
   type(vector_field_t)                   :: shape_trial
   real(rp), allocatable                  :: elm(:,:) 
@@ -1117,9 +1112,9 @@ subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
 
   quad              => fe_face%get_quadrature()
   number_qpoints    =  quad%get_number_quadrature_points()
-  face_map          => fe_face%get_face_map()
-  face_map_face_map => face_map%get_face_map()
-  fe_map => fe%get_fe_map() 
+  face_maps          => fe_face%get_face_maps()
+  face_map           => face_maps%get_face_map()
+  fe_map             => fe%get_fe_map() 
         
   elmat = 0.0_rp 
   call Lagrangian_interpolation_phy%copy(Lagrangian_interpolation_ref) 
@@ -1134,8 +1129,8 @@ subroutine tet_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
 	 
 	 do direction=1,2
 	 c = (direction-1)*number_scalar_test_functions 
-	 face_area = 0.5_rp*face_map_face_map%get_det_jacobian(qpoint)
-	 call face_map_face_map%get_jacobian_column(direction,qpoint,tangent)
+	 face_area = 0.5_rp*face_map%get_det_jacobian(qpoint)
+	 call face_map%get_jacobian_column(direction,qpoint,tangent)
      do ishape = 1, number_scalar_test_functions 
         call ref_fe_2D%get_value(ref_fe_interpolation, ishape, qpoint, v_shape_test)
         call nodes_in_edge_iterator%begin() 
@@ -1378,13 +1373,13 @@ subroutine Hcurl_l1_compute_edge_lagrangian_average_elvec(this, par_fe_space, el
                     number_dimensions = 1,                              &
                     order             = ref_fe%get_order(),             &
                     field_type        = field_type_scalar,              &
-                    continuity        = .true. )
+                    conformity        = .true. )
 
   call fe%create(topology          = topology_hex,                   &
                  number_dimensions = 1,                              &
                  order             = ref_fe%get_order(),             &
                  field_type        = field_type_scalar,              &
-                 continuity        = .false. )
+                 conformity        = .false. )
 
   call fe%create_edge_quadrature( edge_quadrature )
   call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
@@ -1588,6 +1583,14 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_lo
   integer(ip)               :: offcomponent_coarse_edge
 
   iparm      = 0 ! Init all entries to zero	
+  iparm(1)   = 1 ! no solver default
+  iparm(2)   = 2 ! fill-in reordering from METIS
+  iparm(8)   = 2 ! numbers of iterative refinement steps
+  iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+  iparm(11)  = 1 ! use scaling 
+  iparm(13)  = 1 ! use maximum weighted matching algorithm 
+  iparm(21)  = 1 ! 1x1 + 2x2 pivots
+  
   ! Create direct solver to update iterates 
   call parameter_list%init()
   FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
@@ -1721,17 +1724,17 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local
      number_fine_edges_in_subedge = this%sorted_fine_edges_in_coarse_subedge%get_sublist_size( coarse_subedge_iterator%get_current() )
 
      call x_old_local%create_view(offcomponent_coarse_edge + 1,                                       & 
-          offcomponent_coarse_edge + this%order*number_fine_edges_in_subedge, &
-          x_old_local_edge )
+                                  offcomponent_coarse_edge + this%order*number_fine_edges_in_subedge, &
+                                  x_old_local_edge )
 
      call x_new_local%create_view(offcomponent_coarse_edge + 1,                                       & 
-          offcomponent_coarse_edge + this%order*number_fine_edges_in_subedge, &
-          x_new_local_edge )
+                                  offcomponent_coarse_edge + this%order*number_fine_edges_in_subedge, &
+                                  x_new_local_edge )
 
      call inv_Gt_application%create_and_allocate(this%order*number_fine_edges_in_subedge) 
      call inv_Gt_application%init(0.0_rp) 
 
-     call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_subedge_iterator%get_current()), same_nonzero_pattern=.false.) 
+     call direct_solver%update_matrix( this%change_basis_matrix%G(coarse_subedge_iterator%get_current()), same_nonzero_pattern=.false.) 	
      call direct_solver%solve( x_new_local_edge, inv_Gt_application )
 	 
 	 call x_old_local_edge%copy(inv_Gt_application)
@@ -1843,7 +1846,7 @@ subroutine Hcurl_l1_renumber_interface_dofs_first_E_then_Ec(this, par_fe_space, 
   integer(ip)                            :: idof, current_dof  
   integer(ip)         , allocatable      :: perm_new2wire(:)
 
-  field_id = par_fe_space%field_blocks(iblock)  
+  field_id = par_fe_space%block_layout%get_block_id(iblock)  
   call par_fe_space%create_fe_iterator(fe)
   reference_fe => fe%get_reference_fe(field_id)
   this%order = fe%get_order(field_id) 
@@ -1853,7 +1856,7 @@ subroutine Hcurl_l1_renumber_interface_dofs_first_E_then_Ec(this, par_fe_space, 
      return 
   end if
 
-  call memalloc ( par_fe_space%number_dofs_per_block(iblock), perm_new2wire, __FILE__, __LINE__ ) 
+  call memalloc ( par_fe_space%block_layout%get_block_num_dofs(iblock), perm_new2wire, __FILE__, __LINE__ ) 
   perm_new2wire = 0
 
   current_dof = 1
@@ -1911,7 +1914,7 @@ subroutine Hcurl_l1_fill_dofs_in_coarse_edges_renumbering( this, current_dof, ib
   
   call par_fe_space%create_fe_iterator(fe) 
   call par_fe_space%create_fe_vef_iterator(vef) 
-  field_id = par_fe_space%field_blocks(iblock)
+  field_id = par_fe_space%block_layout%get_block_id(iblock)
 
   fine_edges_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator() 
   do while ( .not. fine_edges_iterator%is_upper_bound() )
@@ -1972,7 +1975,7 @@ subroutine Hcurl_l1_fill_dofs_coupled_to_coarse_edges_renumbering( this, current
   integer(ip) :: ivef_within_object, ivef_within_cell 
   integer(ip) :: ivef_within_edge_adjacent_cell 
 
-  field_id = par_fe_space%field_blocks(iblock)  
+  field_id = par_fe_space%block_layout%get_block_id(iblock)
   call par_fe_space%create_fe_iterator(fe)
   call par_fe_space%create_fe_object_iterator(object)
   call par_fe_space%create_fe_vef_iterator(vef_within_object)

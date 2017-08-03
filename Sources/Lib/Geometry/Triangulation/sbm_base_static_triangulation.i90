@@ -829,64 +829,6 @@ subroutine bst_free_lst_itfc_vefs( this )
   class(base_static_triangulation_t), intent(inout) :: this
   if (allocated(this%lst_itfc_vefs)) call memfree(this%lst_itfc_vefs,__FILE__,__LINE__)
 end subroutine bst_free_lst_itfc_vefs
- 
-subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(inout) :: this
-  
-  type(face_iterator_t) :: face
-  
-  class(cell_iterator_t), allocatable :: first_cell
-  class(cell_iterator_t), allocatable :: second_cell
-  class(lagrangian_reference_fe_t), pointer :: first_reference_fe_geo
-  class(lagrangian_reference_fe_t), pointer :: second_reference_fe_geo
-  integer(ip)                    :: face_orientation
-  integer(ip)                    :: face_rotation
-  
-  
-  call memalloc(this%num_faces, this%face_orientation, __FILE__, __LINE__)
-  this%face_orientation = -1 
-  call memalloc(this%num_faces, this%face_rotation, __FILE__, __LINE__)
-  this%face_rotation = -1
-  
-  call this%create_cell_iterator(first_cell)
-  call this%create_cell_iterator(second_cell)
-  call this%create_face_iterator(face)
-  do while ( .not. face%has_finished() )
-    if ( .not. face%is_ghost() .and. face%get_num_cells_around() == 2 ) then
-      call face%get_cell_around(1, first_cell)
-      first_reference_fe_geo => first_cell%get_reference_fe_geo()
-      
-      call face%get_cell_around(2, second_cell)
-      second_reference_fe_geo => second_cell%get_reference_fe_geo()
-    
-      face_orientation = &
-        second_reference_fe_geo%compute_relative_orientation (first_reference_fe_geo, &
-                                                              first_cell%find_lpos_vef_lid(face%lid), &
-                                                              second_cell%find_lpos_vef_lid(face%lid))
-      face_rotation = &
-        first_reference_fe_geo%compute_relative_rotation( second_reference_fe_geo, &
-                                                          second_cell%find_lpos_vef_lid(face%lid), &
-                                                          first_cell%find_lpos_vef_lid(face%lid),  &
-                                                          second_cell%get_vef_lids(), &
-                                                          first_cell%get_vef_lids() )
-        
-      call face%set_face_orientation(face_orientation)
-      call face%set_face_rotation(face_rotation)
-    end if
-    call face%next()
-  end do
-  call this%free_vef_iterator(face)
-  call this%free_cell_iterator(first_cell)
-  call this%free_cell_iterator(second_cell)
-end subroutine bst_allocate_and_fill_face_orientation_rotation
-
-subroutine bst_free_face_orientation_rotation ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(inout) :: this
-  if ( allocated(this%face_orientation) ) call memfree(this%face_orientation,__FILE__,__LINE__)
-  if ( allocated(this%face_rotation) ) call memfree(this%face_rotation,__FILE__,__LINE__)
-end subroutine bst_free_face_orientation_rotation
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -1008,17 +950,13 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call this%g2l_subparts%init()
 
     call this%create_cell_iterator(cell)
-    call this%create_itfc_vef_iterator(itfc_vef)
-    do while(.not. itfc_vef%has_finished() )
-       do icell=1, itfc_vef%get_num_cells_around()
-         call itfc_vef%get_cell_around(icell,cell)
-         subpart_gid = cell%get_my_subpart()
-         call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
-         if (istat == now_stored) then
-           cur_subpart_lid = cur_subpart_lid + 1
-         end if
-       end do
-       call itfc_vef%next()
+    do while(.not. cell%has_finished() )
+       subpart_gid = cell%get_my_subpart()
+       call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
+       if (istat == now_stored) then
+         cur_subpart_lid = cur_subpart_lid + 1
+       end if
+       call cell%next()
     end do
     
     num_subparts = cur_subpart_lid-1
@@ -1030,7 +968,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memalloc ( num_rows_subparts_itfc_vefs, this%num_itfc_vefs, subparts_itfc_vefs, __FILE__, __LINE__ )
     subparts_itfc_vefs = 0
     
-
+    call this%create_itfc_vef_iterator(itfc_vef)
     ivef_itfc = 1
     call itfc_vef%first()
     do while(.not. itfc_vef%has_finished() )
@@ -1284,46 +1222,6 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
        end do
     end do
   end subroutine bst_compute_vefs_and_parts_object_body
-  
-  subroutine bst_compute_faces_object(this)
-    implicit none
-    class(base_static_triangulation_t), intent(inout) :: this
-    integer(ip) :: iobj
-    type(vef_iterator_t)  :: vef
-    type(list_iterator_t) :: vefs_object_iterator, faces_object_iterator   
-    
-    call this%faces_object%create(n=this%number_objects)
-    
-    call this%create_vef_iterator(vef)
-    do iobj=1,this%number_objects
-      vefs_object_iterator = this%vefs_object%create_iterator(iobj)
-      do while ( .not. vefs_object_iterator%is_upper_bound() ) 
-        call vef%set_lid(vefs_object_iterator%get_current())
-        if ( vef%get_dimension() == this%get_num_dimensions()-1 ) then
-            call this%faces_object%sum_to_pointer_index(iobj, 1)
-         end if
-        call vefs_object_iterator%next()
-      end do
-    end do
-    
-    call this%faces_object%calculate_header()
-    call this%faces_object%allocate_list_from_pointer()
-    do iobj=1,this%number_objects
-      vefs_object_iterator = this%vefs_object%create_iterator(iobj)
-      faces_object_iterator = this%faces_object%create_iterator(iobj)
-      do while ( .not. vefs_object_iterator%is_upper_bound() ) 
-        call vef%set_lid(vefs_object_iterator%get_current())
-        if ( vef%get_dimension() == this%get_num_dimensions()-1 ) then
-            call faces_object_iterator%set_current(vef%get_lid())
-            call faces_object_iterator%next() 
-         end if
-        call vefs_object_iterator%next()
-      end do
-    end do
-    
-    call this%free_vef_iterator(vef)
-  end subroutine bst_compute_faces_object
-  
   
   subroutine bst_compute_objects_dimension(this)
     implicit none
@@ -1622,7 +1520,6 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
     if ( this%p_env%am_i_l1_task() ) then
       call this%compute_vefs_and_parts_object()
-      call this%compute_faces_object()
       call this%compute_objects_dimension()
       call this%compute_number_global_objects_and_their_gids()
     end if  
@@ -2046,30 +1943,6 @@ subroutine bst_create_itfc_vef_iterator ( this, itfc_vef )
   call itfc_vef%create(this)
 end subroutine bst_create_itfc_vef_iterator
 
-subroutine bst_create_vertex_iterator ( this, vertex )
-  implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(vertex_iterator_t)          , intent(inout) :: vertex
-  call this%free_vef_iterator(vertex)
-  call vertex%create(this)
-end subroutine bst_create_vertex_iterator
-
-subroutine bst_create_edge_iterator ( this, edge )
-  implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(edge_iterator_t)          , intent(inout) :: edge
-  call this%free_vef_iterator(edge)
-  call edge%create(this)
-end subroutine bst_create_edge_iterator
-
-subroutine bst_create_face_iterator ( this, face )
-  implicit none
-  class(base_static_triangulation_t) , intent(in)    :: this
-  type(face_iterator_t)          , intent(inout) :: face
-  call this%free_vef_iterator(face)
-  call face%create(this)
-end subroutine bst_create_face_iterator
-
 subroutine bst_free_vef_iterator ( this, vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
@@ -2177,13 +2050,9 @@ subroutine bst_print ( this )
         call this%free_lst_itfc_vefs()
         this%num_itfc_vefs = -1
         
-        ! Free face integration-related data
-        call this%free_face_orientation_rotation()
-        
         ! Free coarse objects-related data
         call this%free_objects_gids_and_dim()
         call this%vefs_object%free()
-        call this%faces_object%free()
         call this%parts_object%free()
         call this%subparts_object%free()
         call this%g2l_subparts%free()

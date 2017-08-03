@@ -51,7 +51,7 @@ function hex_lagrangian_reference_fe_check_compatibility_of_n_faces             
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
      assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-     assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+     assert (target_reference_fe%get_number_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_number_own_dofs_n_face(source_n_face_id))
      hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
      class default
      hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
@@ -684,7 +684,11 @@ subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
   type(quadrature_t)                  , intent(inout) :: quadrature
   integer(ip) :: i
   do i=1,this%number_dimensions
+     if (this%order_vector(i) > 0 ) then 
      quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(2.0_rp/this%order_vector(i))-1.0_rp
+	 else 
+	 quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)
+	 end if 
   end do
   quadrature%weight = 1.0_rp
 end subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature
@@ -699,7 +703,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
   integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
   type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
   type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
-  type(polynomial_t)           :: polynomial_1D
+  type(lagrange_polynomial_t)             :: polynomial_1D
 
   real(rp), allocatable :: tensor_product_values(:)
   real(rp), allocatable :: tensor_product_gradients(:,:)
@@ -789,14 +793,34 @@ end subroutine index_to_ijk
 
 ! @sbadia: It could be replaced by an anisotropic quadrature
 !==================================================================================================
-function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
+function hex_lagrangian_reference_fe_compute_number_quadrature_points( this, degree, dimension )
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: order
+  integer(ip)                         , intent(in)    :: degree
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: hex_lagrangian_reference_fe_set_number_quadrature_points
-  hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
-end function hex_lagrangian_reference_fe_set_number_quadrature_points
+  integer(ip) :: hex_lagrangian_reference_fe_compute_number_quadrature_points
+  hex_lagrangian_reference_fe_compute_number_quadrature_points = int(ceiling(real(degree + 1,rp)/2.0_rp)**real(dimension,rp),ip)
+end function hex_lagrangian_reference_fe_compute_number_quadrature_points
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations(this, quadrature, qpoints_perm)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                  , intent(in)    :: quadrature
+  type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
+  integer(ip)    :: ndime, n_q_points, order
+  
+  ndime      = quadrature%get_number_dimensions()
+  n_q_points = quadrature%get_number_quadrature_points()
+  order      = int(real(n_q_points,rp)**(1.0_rp/real(ndime,rp)),ip)+1
+  
+  call this%node_array%fill_permutations( order, &
+                                          ndime, &
+                                          this%polytope, &
+                                          qpoints_perm )
+  
+end subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations
+
 
 ! Subroutine to deal with high order parametrizations of the boundary
 !==================================================================================================
@@ -879,4 +903,3 @@ subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
        & + ( 0.5_rp * (1+r)) * x8
 
 end subroutine blend_2D
-

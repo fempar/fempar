@@ -36,7 +36,7 @@ module poisson_discrete_integration_names
      type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
    contains
      procedure :: set_analytical_functions
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type poisson_cG_discrete_integration_t
   
   public :: poisson_cG_discrete_integration_t
@@ -51,7 +51,7 @@ contains
   end subroutine set_analytical_functions
 
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
@@ -64,7 +64,7 @@ contains
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int
+    type(cell_integrator_t), pointer :: cell_int
     type(vector_field_t), allocatable  :: shape_gradients(:,:)
     real(rp)            , allocatable  :: shape_values(:,:)
 
@@ -111,7 +111,7 @@ contains
           quad            => fe%get_quadrature()
           num_quad_points = quad%get_number_quadrature_points()
           fe_map          => fe%get_fe_map()
-          vol_int         => fe%get_volume_integrator(1)
+          cell_int         => fe%get_cell_integrator(1)
           num_dofs = fe%get_number_dofs()
           call fe%get_number_dofs_per_field(num_dofs_per_field)
        
@@ -124,8 +124,8 @@ contains
           ! Compute element matrix and vector
           elmat = 0.0_rp
           elvec = 0.0_rp
-          call vol_int%get_gradients(shape_gradients)
-          call vol_int%get_values(shape_values)
+          call cell_int%get_gradients(shape_gradients)
+          call cell_int%get_values(shape_values)
           do qpoint = 1, num_quad_points
              factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
              do idof = 1, num_dofs
@@ -155,6 +155,6 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module poisson_discrete_integration_names

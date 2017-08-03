@@ -114,14 +114,14 @@ contains
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_vector, &
-                                                 continuity = .true. ) 
+                                                 conformity = .true. ) 
     
     this%reference_fes(2) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_scalar, &
-                                                 continuity = .false. ) 
+                                                 conformity = .false. ) 
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
@@ -129,12 +129,10 @@ contains
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
 
     call this%mixed_laplacian_rt_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%fe_space%create( triangulation       = this%triangulation,      &
-                               conditions          = this%mixed_laplacian_rt_conditions, &
-                               reference_fes       = this%reference_fes)
-    call this%fe_space%fill_dof_info() 
+    call this%fe_space%create( triangulation       = this%triangulation, &
+                               reference_fes       = this%reference_fes, &
+                               conditions          = this%mixed_laplacian_rt_conditions )
     call this%fe_space%interpolate_dirichlet_values(this%mixed_laplacian_rt_conditions)
-    ! call this%fe_space%print()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)

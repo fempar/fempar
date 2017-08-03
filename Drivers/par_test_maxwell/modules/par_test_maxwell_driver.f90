@@ -47,10 +47,10 @@ module par_test_maxwell_driver_names
      type(par_triangulation_t)             :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
-     type(par_fe_space_t)                        :: fe_space 
-     type(p_reference_fe_t), allocatable         :: reference_fes(:) 
-   !  class(standard_l1_coarse_fe_handler_t), allocatable  :: coarse_fe_handler
+     type(par_fe_space_t)                          :: fe_space 
+     type(p_reference_fe_t), allocatable           :: reference_fes(:) 
      class(l1_coarse_fe_handler_t), pointer        :: coarse_fe_handler 
+	 type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
 	 type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
      type(maxwell_conditions_t)                    :: maxwell_conditions
      type(maxwell_analytical_functions_t)          :: maxwell_analytical_functions
@@ -88,6 +88,7 @@ module par_test_maxwell_driver_names
      procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
+	 procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
@@ -203,55 +204,23 @@ end subroutine free_timers
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe_geo()
-      this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_nedelec, &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                   order = this%test_params%get_reference_fe_order(), &
-                                                   field_type = field_type_vector, &
-                                                   continuity = .true. )
+      this%reference_fes(1) =  make_reference_fe ( topology          = reference_fe_geo%get_topology(),           &
+                                                   fe_type           = fe_type_nedelec,                           &
+                                                   number_dimensions = this%triangulation%get_num_dimensions(),   &
+                                                   order             = this%test_params%get_reference_fe_order(), &
+                                                   field_type        = field_type_vector,                         &
+                                                   conformity        = .true. )
       call this%triangulation%free_cell_iterator(cell)
     end if  
 		 
   end subroutine setup_reference_fes
-
-  subroutine setup_fe_space(this)
+  
+  subroutine setup_coarse_fe_handlers(this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-	
-	call allocate_Hcurl_coarse_fe_handler_type() 
-	    
-	call this%maxwell_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%fe_space%create( triangulation       = this%triangulation, &
-                               conditions          = this%maxwell_conditions, &
-                               reference_fes       = this%reference_fes, &
-                               coarse_fe_handler   = this%coarse_fe_handler)
-    
-    call this%fe_space%fill_dof_info()  
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-    call this%fe_space%initialize_fe_integration()
-	call this%fe_space%initialize_fe_face_integration() 
-    
-	! Set-up fe_space with Dirichlet boundary conditions  
-    call this%maxwell_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-	call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
-	call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
-	if ( this%triangulation%get_num_dimensions() == 3) then 
-	call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
-	end if 
-	
-	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) 
-
-	! Setup alternative fe space in 3D Hcurl problems 	
-	select type ( ch=> this%coarse_fe_handler ) 
-	class is ( Hcurl_l1_coarse_fe_handler_t ) 
-	call this%coarse_fe_handler%compute_change_basis_matrix( this%fe_space ) 
-	end select 
-	
-	contains 
-	
-	subroutine allocate_Hcurl_coarse_fe_handler_type() 	
-    class(cell_iterator_t), allocatable       :: cell
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+	class(cell_iterator_t), allocatable        :: cell
+    class(lagrangian_reference_fe_t), pointer  :: reference_fe_geo
+	integer(ip) :: istat 
 	
 	if ( this%par_environment%am_i_l1_task() ) then
 	call this%triangulation%create_cell_iterator(cell)
@@ -268,9 +237,34 @@ end subroutine free_timers
 	  allocate ( standard_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
 	 end if 
 	 end if 
-		
-	 end subroutine allocate_Hcurl_coarse_fe_handler_type
 	 
+    allocate(this%coarse_fe_handlers(1), stat=istat); check(istat==0)
+    this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
+  end subroutine setup_coarse_fe_handlers
+
+  subroutine setup_fe_space(this)
+    implicit none
+    class(par_test_maxwell_fe_driver_t), intent(inout) :: this
+		    
+	call this%maxwell_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%fe_space%create( triangulation       = this%triangulation,      &
+                               reference_fes       = this%reference_fes,      &
+                               coarse_fe_handlers  = this%coarse_fe_handlers, & 
+							   conditions          = this%maxwell_conditions  )
+    
+    call this%fe_space%initialize_fe_integration()
+	call this%fe_space%initialize_fe_face_integration() 
+    
+	! Set-up fe_space with Dirichlet boundary conditions  
+    call this%maxwell_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+	call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
+	call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
+	if ( this%triangulation%get_num_dimensions() == 3) then 
+	call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
+	end if 
+	
+	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) 
+
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
@@ -341,6 +335,12 @@ end subroutine free_timers
 
 !#ifdef ENABLE_MKL   
     ! Set-up MLBDDC preconditioner
+	call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+	select type ( ch=> this%coarse_fe_handler ) 
+	class is ( Hcurl_l1_coarse_fe_handler_t ) 
+	call this%coarse_fe_handler%compute_change_basis_matrix( this%fe_space ) 
+	end select 
+
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
@@ -493,6 +493,7 @@ end subroutine free_timers
 
     call this%timer_fe_space%start()
     call this%setup_reference_fes()
+	call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
     call this%timer_fe_space%stop()
 
@@ -530,11 +531,14 @@ end subroutine free_timers
     call this%fe_affine_operator%free()
 	
 	if ( this%par_environment%am_i_l1_task() ) then 
+	if (allocated(this%coarse_fe_handlers) ) then 
 	select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
 	class is ( Hcurl_l1_coarse_fe_handler_t )
 	call this%coarse_fe_handler%free() 
 	deallocate( this%coarse_fe_handler ) 
 	end select 
+	deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
+	end if 
 	end if 
 	
     call this%fe_space%free()

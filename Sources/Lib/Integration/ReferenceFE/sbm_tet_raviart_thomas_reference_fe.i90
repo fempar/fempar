@@ -51,7 +51,7 @@ function tet_raviart_thomas_check_compatibility_of_n_faces                   &
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) ==  source_reference_fe%get_n_face_dimension(source_n_face_id))
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
      assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-     assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+     assert (target_reference_fe%get_number_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_number_own_dofs_n_face(source_n_face_id))
      tet_raviart_thomas_check_compatibility_of_n_faces = .true.
      class default
      tet_raviart_thomas_check_compatibility_of_n_faces = .false.
@@ -291,7 +291,7 @@ subroutine tet_raviart_thomas_fill_quadrature ( this, quadrature )
         quadrature%weight(11) = w4
         quadrature%weight(12) = w4
         quadrature%weight(13) = w4
-     else if(ngaus.eq.19) then
+     else if(ngaus==19) then
         a = 1.0_rp / 3.0_rp
         b = 0.02063496160252593_rp
         c = 0.4896825191987370_rp
@@ -371,7 +371,7 @@ subroutine tet_raviart_thomas_fill_quadrature ( this, quadrature )
         quadrature%weight(17) = w6
         quadrature%weight(18) = w6
         quadrature%weight(19) = w6
-     else if(ngaus.eq.28) then
+     else if(ngaus==28) then
         a = 1.0_rp / 3.0_rp
         b = 0.9480217181434233_rp
         c = 0.02598914092828833_rp
@@ -737,11 +737,11 @@ subroutine tet_raviart_thomas_fill_face_interpolation (this, local_quadrature, l
   else
      do iquad = 1,scalar_interpolation%number_quadrature_points
         ! Transform face local coordinates to element global coordinates
-        if (local_face_id .le. scalar_interpolation%number_dimensions ) then 
+        if (local_face_id <= scalar_interpolation%number_dimensions ) then 
            ! Orthogonal face in the reference element
            p_local_coordinate = 1
            do idime = 1, scalar_interpolation%number_dimensions
-              if (idime .eq. scalar_interpolation%number_dimensions + 1 - local_face_id ) then
+              if (idime == scalar_interpolation%number_dimensions + 1 - local_face_id ) then
                  global_coordinates(idime) = 0.0_rp
               else
                  global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
@@ -811,11 +811,11 @@ function tet_raviart_thomas_get_node_local_id (this, local_coordinates, &
      q = order-local_coordinates(k+1)
      tet_raviart_thomas_get_node_local_id =   & 
           & tet_raviart_thomas_get_node_local_id + & 
-          & this%raviart_thomas_compute_sum_of_nodes_in_simplices(k,q-local_coordinates(k)+1,q)
+          & this%raviart_thomas_compute_sum_of_dofs_in_simplices(k,q-local_coordinates(k)+1,q)
   end do
   tet_raviart_thomas_get_node_local_id =   & 
        & tet_raviart_thomas_get_node_local_id + & 
-       & this%raviart_thomas_compute_sum_of_nodes_in_simplices(k,order-local_coordinates(number_of_dimensions)+1,order)
+       & this%raviart_thomas_compute_sum_of_dofs_in_simplices(k,order-local_coordinates(number_of_dimensions)+1,order)
 
 end function tet_raviart_thomas_get_node_local_id
 
@@ -849,24 +849,24 @@ subroutine tet_raviart_thomas_set_permutation_2D( this, permutation, number_node
 end subroutine tet_raviart_thomas_set_permutation_2D
 
 !=================================================================================================
-function tet_raviart_thomas_set_number_quadrature_points( this, order, dimension )
+function tet_raviart_thomas_compute_number_quadrature_points( this, degree, dimension )
   implicit none
   class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: order
+  integer(ip)                         , intent(in)    :: degree
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: tet_raviart_thomas_set_number_quadrature_points
+  integer(ip) :: tet_raviart_thomas_compute_number_quadrature_points
   !tet_raviart_thomas_set_number_quadrature_points = & 
   ! & this%compute_number_nodes_scalar( order, dimension )
-  !if( dimension .eq. 2 ) then
-  !   if( order .eq. 3 ) then
+  !if( dimension == 2 ) then
+  !   if( order == 3 ) then
   !      tet_raviart_thomas_set_number_quadrature_points = 13
   !   end if
-  !elseif( dimension .eq. 3 ) then
-  !   if( order .eq. 2) then
+  !elseif( dimension == 3 ) then
+  !   if( order == 2) then
   !      tet_raviart_thomas_set_number_quadrature_points = 11
   !   end if
   !end if
-end function tet_raviart_thomas_set_number_quadrature_points
+end function tet_raviart_thomas_compute_number_quadrature_points
 
 !=================================================================================================
 recursive function tet_raviart_thomas_compute_number_nodes_scalar(this, order, dimension)
@@ -904,7 +904,7 @@ function tet_raviart_thomas_get_number_interior_points_x_dim(this,              
   integer(ip)                         , intent(in)    :: number_interior_points
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: tet_raviart_thomas_get_number_interior_points_x_dim 
-  if (dimension .eq. 1) then
+  if (dimension == 1) then
      tet_raviart_thomas_get_number_interior_points_x_dim = number_interior_points
   else
      tet_raviart_thomas_get_number_interior_points_x_dim = & 
@@ -996,38 +996,38 @@ recursive subroutine tet_raviart_thomas_fill_n_face_dimension_and_vertices (this
 end subroutine tet_raviart_thomas_fill_n_face_dimension_and_vertices
 
 !=================================================================================================
-recursive function tet_raviart_thomas_compute_number_interior_nodes(this,dimension,order)
+recursive function tet_raviart_thomas_compute_number_interior_dofs(this,dimension,order)
   implicit none
   class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this  
   integer(ip)                         , intent(in)    :: dimension, order
-  integer(ip) :: tet_raviart_thomas_compute_number_interior_nodes
+  integer(ip) :: tet_raviart_thomas_compute_number_interior_dofs
   integer(ip) :: q
   if (dimension == 0) then
-     tet_raviart_thomas_compute_number_interior_nodes = 1
+     tet_raviart_thomas_compute_number_interior_dofs = 1
   elseif (order == 1) then
-     tet_raviart_thomas_compute_number_interior_nodes = 0
+     tet_raviart_thomas_compute_number_interior_dofs = 0
   elseif (dimension == 1) then
-     tet_raviart_thomas_compute_number_interior_nodes = order-1
+     tet_raviart_thomas_compute_number_interior_dofs = order-1
   elseif (dimension == 2) then
-     tet_raviart_thomas_compute_number_interior_nodes = int((order-2)*(order-1)/2)
+     tet_raviart_thomas_compute_number_interior_dofs = int((order-2)*(order-1)/2)
   else
-     tet_raviart_thomas_compute_number_interior_nodes = & 
-          & this%compute_number_interior_nodes(dimension-1,1)
+     tet_raviart_thomas_compute_number_interior_dofs = & 
+          & this%compute_number_interior_dofs(dimension-1,1)
      do q=2,order-1
-        tet_raviart_thomas_compute_number_interior_nodes =    & 
-             & tet_raviart_thomas_compute_number_interior_nodes + & 
-             & this%compute_number_interior_nodes(dimension-1,q)
+        tet_raviart_thomas_compute_number_interior_dofs =    & 
+             & tet_raviart_thomas_compute_number_interior_dofs + & 
+             & this%compute_number_interior_dofs(dimension-1,q)
      end do
   end if
-end function tet_raviart_thomas_compute_number_interior_nodes
+end function tet_raviart_thomas_compute_number_interior_dofs
 
 !=================================================================================================
-function tet_raviart_thomas_compute_sum_of_nodes_in_simplices(this,dimension, & 
+function tet_raviart_thomas_compute_sum_of_dofs_in_simplices(this,dimension, & 
      & ini_order,end_order)
   implicit none
   class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: dimension, ini_order, end_order
-  integer(ip) :: tet_raviart_thomas_compute_sum_of_nodes_in_simplices
+  integer(ip) :: tet_raviart_thomas_compute_sum_of_dofs_in_simplices
   integer(ip) :: q
   !if (dimension == 0) then
   !   tet_raviart_thomas_compute_sum_of_nodes_in_simplices = 1
@@ -1042,7 +1042,7 @@ function tet_raviart_thomas_compute_sum_of_nodes_in_simplices(this,dimension, &
   !      & this%compute_number_nodes_scalar(dimension-1,q)
   !   end do
   !end if
-end function tet_raviart_thomas_compute_sum_of_nodes_in_simplices
+end function tet_raviart_thomas_compute_sum_of_dofs_in_simplices
 
 !==================================================================================================
 subroutine tet_raviart_thomas_evaluate_interpolation(this,coord,ndime,nnode, & 

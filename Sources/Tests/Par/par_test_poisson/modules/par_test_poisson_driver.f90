@@ -53,7 +53,8 @@ module par_test_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
+     type(standard_l1_coarse_fe_handler_t)       :: coarse_fe_handler
+     type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -91,6 +92,7 @@ module par_test_poisson_driver_names
      procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
+     procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
@@ -336,18 +338,27 @@ end subroutine free_timers
                                                    number_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
-                                                   continuity = .true. )
+                                                   conformity = .true. )
       if (this%test_params%get_use_void_fes()) then
         this%reference_fes(PAR_TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_void, &
                                                    number_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = -1, &
                                                    field_type = field_type_scalar, &
-                                                   continuity = .true. )
+                                                   conformity = .true. )
       end if
       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine setup_reference_fes
+  
+  subroutine setup_coarse_fe_handlers(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), target, intent(inout) :: this
+    integer(ip) :: istat
+    allocate(this%coarse_fe_handlers(1), stat=istat)
+    check(istat==0)
+    this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
+  end subroutine setup_coarse_fe_handlers
 
   subroutine setup_fe_space(this)
     implicit none
@@ -359,20 +370,18 @@ end subroutine free_timers
     if (this%test_params%get_use_void_fes()) then
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_FULL) = PAR_TEST_POISSON_FULL
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_VOID) = PAR_TEST_POISSON_VOID
-      call this%fe_space%create( triangulation            = this%triangulation, &
-                                 conditions               = this%poisson_conditions, &
-                                 reference_fes            = this%reference_fes, &
+      call this%fe_space%create( triangulation            = this%triangulation,       &
+                                 reference_fes            = this%reference_fes,       &
                                  set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                                 coarse_fe_handler        = this%l1_coarse_fe_handler)
+                                 coarse_fe_handlers       = this%coarse_fe_handlers,  &
+                                 conditions               = this%poisson_conditions )
     else
-      call this%fe_space%create( triangulation       = this%triangulation, &
-                                 conditions          = this%poisson_conditions, &
-                                 reference_fes       = this%reference_fes, &
-                                 coarse_fe_handler   = this%l1_coarse_fe_handler)
+      call this%fe_space%create( triangulation       = this%triangulation,      &
+                                 reference_fes       = this%reference_fes,      &
+                                 coarse_fe_handlers  = this%coarse_fe_handlers, &
+                                 conditions          = this%poisson_conditions )
     end if
     
-    call this%fe_space%fill_dof_info() 
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%initialize_fe_integration()
     
     call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
@@ -449,6 +458,7 @@ end subroutine free_timers
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
     ! Set-up MLBDDC preconditioner
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
@@ -567,6 +577,7 @@ end subroutine free_timers
     type(output_handler_t)                          :: oh
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: mypart_vector(:)
+
     if(this%test_params%get_write_solution()) then
       if (this%par_environment%am_i_l1_task()) then
 
@@ -607,6 +618,7 @@ end subroutine free_timers
 
     call this%timer_fe_space%start()
     call this%setup_reference_fes()
+    call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
     call this%timer_fe_space%stop()
 

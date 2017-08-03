@@ -103,7 +103,7 @@ subroutine cell_fe_function_scalar_update ( this, fe_iterator, fe_function )
   integer(ip)                        :: number_nodes_field, number_quadrature_points
   class(reference_fe_t)      , pointer :: reference_fe
   type(quadrature_t)         , pointer :: quadrature
-  type(volume_integrator_t)  , pointer :: volume_integrator
+  type(cell_integrator_t)  , pointer :: cell_integrator
   class(environment_t)       , pointer :: environment
   class(serial_fe_space_t)   , pointer :: serial_fe_space  
   
@@ -114,7 +114,7 @@ subroutine cell_fe_function_scalar_update ( this, fe_iterator, fe_function )
      field_id                 =  this%get_field_id()
      reference_fe             => fe_iterator%get_reference_fe(field_id)
      quadrature               => fe_iterator%get_quadrature()
-     volume_integrator        => fe_iterator%get_volume_integrator(field_id)
+     cell_integrator        => fe_iterator%get_cell_integrator(field_id)
      number_nodes_field       =  reference_fe%get_number_shape_functions()
      number_quadrature_points =  quadrature%get_number_quadrature_points()
 
@@ -125,10 +125,10 @@ subroutine cell_fe_function_scalar_update ( this, fe_iterator, fe_function )
      call fe_function%gather_nodal_values(fe_iterator, field_id, this%nodal_values)
      
      ! Evaluate values and gradients at quadrature points
-     call volume_integrator%evaluate_fe_function ( this%nodal_values, & 
+     call cell_integrator%evaluate_fe_function ( this%nodal_values, & 
                                                    this%quadrature_points_values )
 
-     call volume_integrator%evaluate_gradient_fe_function ( this%nodal_values, & 
+     call cell_integrator%evaluate_gradient_fe_function ( this%nodal_values, & 
                                                             this%quadrature_points_gradients )
   end if
 end subroutine cell_fe_function_scalar_update
@@ -259,7 +259,7 @@ subroutine cell_fe_function_vector_update ( this, fe_iterator, fe_function)
   integer(ip)                        :: number_nodes_field, number_quadrature_points
   class(reference_fe_t)      , pointer :: reference_fe
   type(quadrature_t)         , pointer :: quadrature
-  type(volume_integrator_t)  , pointer :: volume_integrator
+  type(cell_integrator_t)  , pointer :: cell_integrator
   class(environment_t)       , pointer :: environment
   class(serial_fe_space_t)   , pointer :: serial_fe_space  
   
@@ -269,7 +269,7 @@ subroutine cell_fe_function_vector_update ( this, fe_iterator, fe_function)
      field_id                 =  this%get_field_id()
      reference_fe             => fe_iterator%get_reference_fe(field_id)
      quadrature               => fe_iterator%get_quadrature()
-     volume_integrator        => fe_iterator%get_volume_integrator(field_id)
+     cell_integrator        => fe_iterator%get_cell_integrator(field_id)
      number_nodes_field       =  reference_fe%get_number_shape_functions()
      number_quadrature_points =  quadrature%get_number_quadrature_points()
 
@@ -280,10 +280,10 @@ subroutine cell_fe_function_vector_update ( this, fe_iterator, fe_function)
      call fe_function%gather_nodal_values(fe_iterator, field_id, this%nodal_values)
 
      ! Evaluate values, gradients at quadrature points
-     call volume_integrator%evaluate_fe_function ( this%nodal_values, & 
+     call cell_integrator%evaluate_fe_function ( this%nodal_values, & 
                                                    this%quadrature_points_values )
 
-     call volume_integrator%evaluate_gradient_fe_function ( this%nodal_values, & 
+     call cell_integrator%evaluate_gradient_fe_function ( this%nodal_values, & 
                                                             this%quadrature_points_gradients )
 
   end if
@@ -496,7 +496,7 @@ subroutine cell_fe_function_tensor_update ( this, fe_iterator, fe_function )
   integer(ip)                        :: number_nodes_field, number_quadrature_points
   class(reference_fe_t)    , pointer :: reference_fe
   type(quadrature_t)       , pointer :: quadrature
-  type(volume_integrator_t), pointer :: volume_integrator
+  type(cell_integrator_t), pointer :: cell_integrator
   class(environment_t)       , pointer :: environment
   class(serial_fe_space_t)   , pointer :: serial_fe_space  
   
@@ -507,7 +507,7 @@ subroutine cell_fe_function_tensor_update ( this, fe_iterator, fe_function )
      field_id                 =  this%get_field_id()
      reference_fe             => fe_iterator%get_reference_fe(field_id)
      quadrature               => fe_iterator%get_quadrature()
-     volume_integrator        => fe_iterator%get_volume_integrator(field_id)
+     cell_integrator        => fe_iterator%get_cell_integrator(field_id)
      number_nodes_field       =  reference_fe%get_number_shape_functions()
      number_quadrature_points =  quadrature%get_number_quadrature_points()
 
@@ -518,7 +518,7 @@ subroutine cell_fe_function_tensor_update ( this, fe_iterator, fe_function )
      call fe_function%gather_nodal_values(fe_iterator, field_id, this%nodal_values)
      
      ! Interpolate nodal values at quadrature points
-     call volume_integrator%evaluate_fe_function ( this%nodal_values, & 
+     call cell_integrator%evaluate_fe_function ( this%nodal_values, & 
                                                    this%quadrature_points_values )
   end if
 

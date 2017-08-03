@@ -129,13 +129,13 @@ subroutine serial_triangulation_create ( this, parameters)
         reference_fe_geo_list(1) = &
              &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
              &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
-             &                        field_type = field_type_scalar, continuity = .true. )
+             &                        field_type = field_type_scalar, conformity = .true. )
      else
         call this%reference_fe_geo_index%put(key=26,val=1,stat=istat)
         reference_fe_geo_list(1) = &
              &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
              &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
-             &                        field_type = field_type_scalar, continuity = .true. )
+             &                        field_type = field_type_scalar, conformity = .true. )
      end if
      ! Transfer allocated target from local variable to member variable of base_static_triangulation
      select type(reference_fe => reference_fe_geo_list(1)%p)
@@ -154,7 +154,6 @@ subroutine serial_triangulation_create ( this, parameters)
   call this%compute_vefs_dimension()
   call this%find_vefs_at_boundary()
   call this%find_and_list_vefs_at_interfaces()
-  call this%allocate_and_fill_face_orientation_rotation()
   call this%allocate_and_fill_nodes()
   call this%allocate_and_fill_coordinates(coordinates)
   call memfree(cells_set, __FILE__, __LINE__)

@@ -30,19 +30,19 @@ subroutine tet_nedelec_reference_fe_free ( this )
   implicit none 
   class(tet_nedelec_reference_fe_t), intent(inout) :: this
   integer(ip) :: i
-  
+
   ! Free member variables of nedelec_reference_fe_t
   if ( allocated(this%change_basis_matrix) ) &
-     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
-	 
-  if ( allocated(this%basis_Sk) ) &
-     call memfree ( this%basis_Sk, __FILE__, __LINE__ )  
-     
+       call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
+
+  if ( allocated(this%basis_Sk_indices) ) &
+       call memfree ( this%basis_Sk_indices, __FILE__, __LINE__ )  
+
   this%basis_changed  = .false. 
   do i=1, size(this%node_array_vector)
-    call this%node_array_vector(i)%free()
+     call this%node_array_vector(i)%free()
   end do
-  
+
   ! Free member variables of lagrangian_reference_fe_t
   ! (and those of its ancestors)
   call lagrangian_reference_fe_free ( this )  
@@ -51,6 +51,7 @@ end subroutine tet_nedelec_reference_fe_free
 !**************************************************************************************************
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
+
 !==================================================================================================
 function tet_nedelec_reference_fe_check_compatibility_of_n_faces                   &
      &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
@@ -72,7 +73,7 @@ function tet_nedelec_reference_fe_check_compatibility_of_n_faces                
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
      assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-     assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+     assert (target_reference_fe%get_number_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_number_own_dofs_n_face(source_n_face_id))
      tet_nedelec_reference_fe_check_compatibility_of_n_faces = .true.
      class default
      tet_nedelec_reference_fe_check_compatibility_of_n_faces = .false.
@@ -90,220 +91,51 @@ function tet_nedelec_reference_fe_get_characteristic_length ( this )
 end function tet_nedelec_reference_fe_get_characteristic_length
 
 !==================================================================================================
+subroutine tet_nedelec_reference_fe_fill_own_dof_permutations (this)
+  implicit none
+  class(tet_nedelec_reference_fe_t), intent(inout) :: this
+end subroutine tet_nedelec_reference_fe_fill_own_dof_permutations
+
+!==================================================================================================
+subroutine tet_nedelec_reference_fe_fill_qpoints_permutations (this, quadrature, qpoints_perm)
+  implicit none
+  class(tet_nedelec_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                  , intent(in)    :: quadrature
+  type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
+  integer(ip)    :: ndime, n_q_points, i
+
+  ndime      = quadrature%get_number_dimensions()
+  n_q_points = quadrature%get_number_quadrature_points()
+
+  call qpoints_perm%create(n_q_points, &    !> Number of quadrature points
+       &                ndime*2**ndime)  !> Number of possible permutations x possible rotations
+  forall (i = 1:qpoints_perm%nd1) qpoints_perm%a(i,:) = i
+
+end subroutine tet_nedelec_reference_fe_fill_qpoints_permutations
+
+!=================================================================================================
 subroutine tet_nedelec_reference_fe_fill (this)
   implicit none
   class(tet_nedelec_reference_fe_t), intent(inout) :: this
   integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
   integer(ip) :: column, inode, idime, inode_scalar, num_columns
+
   ! Here we put a k-1,k-1,k-1 order_vector to fill the node array of [P_{k-1,k-1,k-1}]**d
   this%order_vector = this%order-1
-  call this%fill_vector()  
+  call this%fill_vector()
+
+  ! Allocate and fill Sk prebase polynomials indices  
+  if ( allocated(this%basis_Sk_indices) ) call memfree(this%basis_Sk_indices, __FILE__, __LINE__ )  
+  call this%create_and_fill_basis_Sk_indices()
+
   ! Now we assign an order vector equal to the order of the element for quadratures set up 
   this%order_vector = this%order
 end subroutine tet_nedelec_reference_fe_fill
 
-subroutine tet_nedelec_reference_fe_fill_vector (this)
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(inout)    :: this 
-  type(node_iterator_t) :: node_iterator
-  type(facet_iterator_t) :: facet_iterator
-  type(list_iterator_t) :: list_iterator
-  integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM), idime, offset(SPACE_DIM+1)
+!**************************************************************************************************
+! Deferred TBP implementors from nedelec_reference_fe_t
+!**************************************************************************************************
 
-  ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
-  if ( this%topology == topology_hex) then
-     topology = 2**this%number_dimensions-1
-  elseif ( this%topology == topology_tet ) then
-     topology = 0
-  end if
-
-  call this%polytope%create( this%number_dimensions, topology )  
-
-  this%number_shape_functions = 0
-  offset(1) = 0
-  do idime = 1,this%number_dimensions
-     call this%node_array_vector(idime)%create( this%polytope, this%order_vector ) 
-     ! Number nodes
-     this%number_shape_functions = this%number_shape_functions + this%node_array_vector(idime)%get_number_nodes()
-     offset(idime+1) = offset(idime) + this%node_array_vector(idime)%get_number_nodes()
-  end do 
-
-  ! Add homogeneous polynomials s.t p(x)*x=0 shape functions, S_k basis  
-  if (this%number_dimensions == 2) then 
-  this%number_shape_functions = this%number_shape_functions + this%order 
-  else 
-  this%number_shape_functions = this%number_shape_functions + this%order*(this%order+2)
-  end if 
- 
-  num_n_faces = this%polytope%get_number_n_faces()
-  ! Number n-faces ( I don't like it, not volume included...)
-  this%number_n_faces = num_n_faces-1
-  ! number_n-faces_dimension
-  this%number_n_faces_per_dimension = 0
-  this%number_n_faces_per_dimension(1) = 1
-  do i = 1,num_n_faces
-     n_face_dim = this%polytope%get_n_face_dimension(i)
-     this%number_n_faces_per_dimension( n_face_dim+2 ) = this%number_n_faces_per_dimension( n_face_dim+2 ) + 1
-  end do
-  do i = 1,this%number_dimensions+1
-     this%number_n_faces_per_dimension(i+1) = this%number_n_faces_per_dimension(i+1) + this%number_n_faces_per_dimension(i)
-  end do
-    ! interior_nodes_n-face  
-  call this%interior_nodes_n_face%create( num_n_faces )
-  do i = 1,num_n_faces
-     do idime = 1, this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
-        do while (.not. node_iterator%has_finished() )
-           call this%interior_nodes_n_face%sum_to_pointer_index(i,1)
-           call node_iterator%next()
-        end do
-     end do
-  end do
-  call this%interior_nodes_n_face%calculate_header()
-  call this%interior_nodes_n_face%allocate_list_from_pointer()
-  list_iterator = this%interior_nodes_n_face%create_iterator()
-  do i = 1,num_n_faces
-     do idime = 1, this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
-        do while (.not. node_iterator%has_finished() )
-           node = node_iterator%current() + offset(idime)
-           call list_iterator%set_current(node)
-           call node_iterator%next()
-           call list_iterator%next()
-        end do
-     end do
-  end do
-  ! nodes_n-face
-  call this%nodes_n_face%create(num_n_faces)
-  do i = 1,num_n_faces
-     do idime = 1,this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
-        do while (.not. node_iterator%has_finished() )
-           call this%nodes_n_face%sum_to_pointer_index(i,1)
-           call node_iterator%next()
-        end do
-     end do
-  end do
-  call this%nodes_n_face%calculate_header()
-  call this%nodes_n_face%allocate_list_from_pointer()  
-  list_iterator = this%nodes_n_face%create_iterator()
-  do i = 1,num_n_faces
-     do idime = 1,this%number_dimensions
-        node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
-        do while (.not. node_iterator%has_finished() )
-           node = node_iterator%current() + offset(idime)
-           call list_iterator%set_current(node)
-           call node_iterator%next()
-           call list_iterator%next()
-        end do
-     end do
-  end do
-  ! vertices_n-face
-  call this%vertices_n_face%create(num_n_faces)
-  ones_dim = 1
-  call this%vertex_array%create( this%polytope, order = ones_dim )
-  do i = 1,num_n_faces
-     node_iterator = this%vertex_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
-     do while (.not. node_iterator%has_finished() )
-        call this%vertices_n_face%sum_to_pointer_index(i,1)
-        call node_iterator%next()
-     end do
-  end do
-  call this%vertices_n_face%calculate_header()
-  call this%vertices_n_face%allocate_list_from_pointer()
-  list_iterator = this%vertices_n_face%create_iterator()
-  do i = 1,num_n_faces
-     node_iterator = this%vertex_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
-     do while (.not. node_iterator%has_finished() )
-        node = node_iterator%current()
-        call list_iterator%set_current(node)
-        call node_iterator%next()
-        call list_iterator%next()
-     end do
-  end do
- ! n-faces_n-face (NEW DEFINITION; now only n_faces of inferior dimension
-  call this%n_faces_n_face%create(num_n_faces)
-  do i = 1,num_n_faces
-     facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
-     do while (.not. facet_iterator%has_finished() )
-        call this%n_faces_n_face%sum_to_pointer_index(i,1)
-        call facet_iterator%next()
-     end do
-  end do
-  call this%n_faces_n_face%calculate_header()
-  call this%n_faces_n_face%allocate_list_from_pointer()
-  list_iterator = this%n_faces_n_face%create_iterator()
-  do i = 1,num_n_faces
-     facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
-     do while (.not. facet_iterator%has_finished() )
-        children = facet_iterator%current()
-        call list_iterator%set_current(children)
-        call facet_iterator%next()
-        call list_iterator%next()
-     end do
-  end do
-  ! orientation
-  call this%orientation%create(num_n_faces)
-  do i = 1,num_n_faces
-     if ( n_face_dimension( this%polytope%get_n_face(i), this%number_dimensions ) == this%number_dimensions-1 ) then
-        this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%number_dimensions )
-     end if
-  end do
-  ! own_nodes_n-face and face_integration_coupling_nodes_n-face
-  if ( this%continuity ) then
-     this%own_nodes_n_faces = this%interior_nodes_n_face
-     ! Create a void face_integration_coupling_nodes_face type(list_t)
-     call this%face_integration_coupling_nodes_facet%create(n=num_n_faces )
-     call this%face_integration_coupling_nodes_facet%calculate_header()
-     call this%face_integration_coupling_nodes_facet%allocate_list_from_pointer()
-  else
-     call this%own_nodes_n_faces%create(n=num_n_faces )
-     call this%own_nodes_n_faces%sum_to_pointer_index( this%own_nodes_n_faces%get_num_pointers(), this%number_shape_functions)
-     call this%own_nodes_n_faces%calculate_header()
-     call this%own_nodes_n_faces%allocate_list_from_pointer()
-     list_iterator = this%own_nodes_n_faces%create_iterator()
-     i=1
-     do while(.not. list_iterator%is_upper_bound())
-        call list_iterator%set_current(i)
-        call list_iterator%next()
-        i = i + 1 
-     enddo
-     if ( this%conformity ) then
-        ! Create a void face_integration_coupling_nodes_face type(list_t)
-        call this%face_integration_coupling_nodes_facet%create(n=num_n_faces)
-        call this%face_integration_coupling_nodes_facet%calculate_header()
-        call this%face_integration_coupling_nodes_facet%allocate_list_from_pointer()
-     else
-        this%face_integration_coupling_nodes_facet = this%nodes_n_face
-     end if
-  end if
-end subroutine tet_nedelec_reference_fe_fill_vector
-
-!=================================================================================================
-function tet_nedelec_reference_fe_set_number_quadrature_points( this, order, dimension )
-  !-----------------------------------------------------------------------
-  ! 
-  !     This routine sets up the number of quadrature points in tetrahedra for 
-  !     with reference hexahedra and a latter Duffy transformation 
-  !
-  !-----------------------------------------------------------------------
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  integer(ip)                             , intent(in)    :: order
-  integer(ip)                             , intent(in)    :: dimension
-  integer(ip) :: tet_nedelec_reference_fe_set_number_quadrature_points
-
-  if( dimension .eq. 1 ) then
-        tet_nedelec_reference_fe_set_number_quadrature_points = order + 1
-  elseif( dimension .eq. 2 ) then
-        tet_nedelec_reference_fe_set_number_quadrature_points = (order+1)**2
-  elseif( dimension .eq. 3 ) then
-        tet_nedelec_reference_fe_set_number_quadrature_points = (order+2)**3
-  end if
-  
-end function tet_nedelec_reference_fe_set_number_quadrature_points
-
-!==================================================================================================
 subroutine tet_nedelec_reference_fe_fill_quadrature( this, quadrature )
   !-----------------------------------------------------------------------
   ! 
@@ -314,165 +146,141 @@ subroutine tet_nedelec_reference_fe_fill_quadrature( this, quadrature )
   implicit none
   class(tet_nedelec_reference_fe_t)       , intent(in)     :: this
   type(quadrature_t)                      , intent(inout)  :: quadrature
-  type(hex_lagrangian_reference_fe_t)                      :: hex_lagrangian_rfe
-  
-  ! Fill quadrature corresponding to a hex element 
-  call hex_lagrangian_rfe%fill_quadrature ( quadrature ) 
-  
-  ! Transform quadrature to the tet element 
-     if (quadrature%number_dimensions.eq.1) then
+  type(hex_nedelec_reference_fe_t)                         :: hex_nedelec_rfe
+
+
+  if (get_quadratures_from_hex(quadrature)) then
+     ! Fill quadrature corresponding to a hex element 
+     call hex_nedelec_rfe%fill_quadrature ( quadrature ) 
+
+     ! Transform quadrature to the tet element 
+     if (quadrature%number_dimensions==1) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp        
         ! w' = w/2
         quadrature%weight = quadrature%weight / 2.0_rp
-     elseif (quadrature%number_dimensions.eq.2) then
+     elseif (quadrature%number_dimensions==2) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
         ! y' = (1-x')(y+1)/2
         quadrature%coordinates(2,:) = (1.0_rp - quadrature%coordinates(1,:)) * &
-                                     ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
+             ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
         ! w' = (1-x')/4
         quadrature%weight = (1.0_rp - quadrature%coordinates(1,:)) /4.0_rp * &
-                            quadrature%weight
-        
-     elseif (quadrature%number_dimensions.eq.3) then
+             quadrature%weight
+
+     elseif (quadrature%number_dimensions==3) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
         ! y' = (1-x')(y+1)/2
         quadrature%coordinates(2,:) = (1.0_rp - quadrature%coordinates(1,:)) * &
-                                     ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
+             ((1.0_rp + quadrature%coordinates(2,:)) / 2.0_rp)
         ! z' = (1-x'-y')(z+1)/2
         quadrature%coordinates(3,:) = (1.0_rp - quadrature%coordinates(1,:)    &
-                                              - quadrature%coordinates(2,:)) * &
-                                     ((1.0_rp + quadrature%coordinates(3,:)) / 2.0_rp)
+             - quadrature%coordinates(2,:)) * &
+             ((1.0_rp + quadrature%coordinates(3,:)) / 2.0_rp)
         ! w' = ((1-x')^2+y'(x'-1))/8
         quadrature%weight = ((1.0_rp - quadrature%coordinates(1,:))**2.0_rp + &
-                        quadrature%coordinates(2,:)*(quadrature%coordinates(1,:) - 1.0_rp)) / 8.0_rp * &
-                        quadrature%weight
+             quadrature%coordinates(2,:)*(quadrature%coordinates(1,:) - 1.0_rp)) / 8.0_rp * &
+             quadrature%weight
      end if
-
-end subroutine tet_nedelec_reference_fe_fill_quadrature 
-
-!==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_own_node_permutations (this)
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(inout) :: this
-  integer(ip) :: idime
-  ! Create emtpy permutation table, we do not want to fill own node permutations for tets since 
-  ! meshes are ordered.
-  do idime=1,this%number_dimensions-1
-     this%own_node_permutations(idime)%nd1 = 0
-     this%own_node_permutations(idime)%nd2 = 0
-  end do  
-end subroutine tet_nedelec_reference_fe_fill_own_node_permutations
-
-!==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_qpoints_permutations (this, ndime, qpoints_perm, max_order)
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  integer(ip)                             , intent(in)    :: ndime
-  type(allocatable_array_ip2_t)           , intent(inout) :: qpoints_perm
-  integer(ip)                  , optional , intent(in)    :: max_order
-  integer(ip)    :: i, order
-  
-  if (present(max_order)) then
-     order = max_order
-  else
-     order = this%get_max_order()+2
+  else 
+     call tet_nedelec_reference_fe_fill_symmetric_quadrature ( this, quadrature ) 
   end if
-  
-  call qpoints_perm%create((order+1)**ndime, &  !> Number of quadrature points
-          &                ndime*2**ndime)      !> Number of possible permutations x possible rotations
-  forall (i = 1:qpoints_perm%nd1) qpoints_perm%a(i,:) = i
-  
-end subroutine tet_nedelec_reference_fe_fill_qpoints_permutations
+
+end subroutine tet_nedelec_reference_fe_fill_quadrature
 
 ! =================================================================================================
 subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this ) 
+  ! -----------------------------------------------------------------------------------------------
+  !
+  ! Prebasis functions are written with analytical expressions, see [M.Olm, S.Badia, A.F.Martin: 
+  ! Simulation of High temperature superconductors and experimental validation, sec.3 ].
+  !
+  ! ------------------------------------------------------------------------------------------------
   class(tet_nedelec_reference_fe_t),  intent(inout) :: this 
-  
+
   integer(ip)            :: k, ijk, basis_dimension, coord(0:SPACE_DIM-1) 
   type(node_array_t)     :: k_order_node_array
   integer(ip)            :: k_order_vector(1:SPACE_DIM)
   integer(ip)            :: c, offcomponent
   integer(ip)            :: i, j
-  
+
   k               = this%order
   k_order_vector  = this%order   
-  call k_order_node_array%create( this%node_array_vector(1)%polytope_tree, k_order_vector ) 
-  
+  call k_order_node_array%create( this%polytope, k_order_vector ) 
+
   ! Basis Sk indices [ dim(Sk), num_poynomials(k)*D ]  
   basis_dimension = this%order*(this%order+2)**(this%number_dimensions-2) 
   call memalloc(basis_dimension, k_order_node_array%number_nodes*this%number_dimensions, &
-			    this%basis_Sk, __FILE__, __LINE__ )
-  this%basis_Sk = 0
-	
-  ! Prebasis functions are written with analytical expressions
+       this%basis_Sk_indices, __FILE__, __LINE__ )
+  this%basis_Sk_indices = 0.0_rp
+
   coord = 0  
   c     = 1 
   if (this%number_dimensions == 2) then 
-  
-    do i = 1, k
-     coord(0) = i-1
-     coord(1) = k - i + 1
-     ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, k_order_node_array%polytope_tree%number_dimensions )) 
-     this%basis_Sk( c, ijk ) = -1.0_rp  
 
-     coord(0) = coord(0) + 1
-     coord(1) = coord(1) - 1
-     ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, k_order_node_array%polytope_tree%number_dimensions )) 
-     this%basis_Sk( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp  
-     c = c + 1
-    end do
-  
-  elseif (this%number_dimensions == 3) then 
-
-  do j = 1, k
-     do i = 1, k+1-j 
-
-	! Fill first subset of functions 
-        coord(0) = i - 1
-        coord(1) = k - i - j + 2
-        coord(2) = j - 1
-        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, k_order_node_array%polytope_tree%number_dimensions )) 
-        this%basis_Sk( c, ijk ) = -1.0_rp 
+     do i = 1, k
+        coord(0) = i-1
+        coord(1) = k - i + 1
+        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+        this%basis_Sk_indices( c, ijk ) = -1.0_rp  
 
         coord(0) = coord(0) + 1
         coord(1) = coord(1) - 1
-        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, k_order_node_array%polytope_tree%number_dimensions )) 
-        this%basis_Sk( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp 
-
-        c = c + 1
-  	! Fill second subset of functions 
-        coord(0) = k - i - j + 1
-        coord(1) = j - 1
-        coord(2) = i
-        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, k_order_node_array%polytope_tree%number_dimensions )) 
-        this%basis_Sk( c, ijk ) = -1.0_rp 
-
-        coord(0) = coord(0) + 1
-        coord(2) = coord(2) - 1
-        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, k_order_node_array%polytope_tree%number_dimensions )) 
-        this%basis_Sk( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp 
-
+        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+        this%basis_Sk_indices( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp  
         c = c + 1
      end do
 
-     ! Fill third subset of functions  
-     coord(0) = 0
-     coord(1) = j - 1
-     coord(2) = k - j + 1
-     ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, k_order_node_array%polytope_tree%number_dimensions )) 
-     this%basis_Sk( c, k_order_node_array%number_nodes + ijk ) = -1.0_rp  
+  elseif (this%number_dimensions == 3) then 
 
-     coord(1) = coord(1) + 1
-     coord(2) = coord(2) - 1
-     ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, k_order_node_array%polytope_tree%number_dimensions )) 
-     this%basis_Sk( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp  
-     c = c + 1
-  end do
-  
-  end if 
+     do j = 1, k
+        do i = 1, k+1-j 
+
+           ! Fill first subset of functions 
+           coord(0) = i - 1
+           coord(1) = k - i - j + 2
+           coord(2) = j - 1
+           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+           this%basis_Sk_indices( c, ijk ) = -1.0_rp 
+
+           coord(0) = coord(0) + 1
+           coord(1) = coord(1) - 1
+           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+           this%basis_Sk_indices( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp 
+
+           c = c + 1
+           ! Fill second subset of functions 
+           coord(0) = k - i - j + 1
+           coord(1) = j - 1
+           coord(2) = i
+           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+           this%basis_Sk_indices( c, ijk ) = -1.0_rp 
+
+           coord(0) = coord(0) + 1
+           coord(2) = coord(2) - 1
+           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+           this%basis_Sk_indices( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp 
+
+           c = c + 1
+        end do
+
+        ! Fill third subset of functions  
+        coord(0) = 0
+        coord(1) = j - 1
+        coord(2) = k - j + 1
+        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+        this%basis_Sk_indices( c, k_order_node_array%number_nodes + ijk ) = -1.0_rp  
+
+        coord(1) = coord(1) + 1
+        coord(2) = coord(2) - 1
+        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+        this%basis_Sk_indices( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp  
+        c = c + 1
+     end do
+
+  end if
   call k_order_node_array%free() 
 
 end subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices
@@ -484,16 +292,16 @@ subroutine tet_nedelec_reference_fe_fill_interpolation( this, quadrature, interp
   type(quadrature_t)                      , intent(in)         :: quadrature
   type(interpolation_t)                   , intent(inout)      :: interpolation    
   integer(ip)                  , optional , intent(in)         :: order_vector(SPACE_DIM)
-  
+
   type(interpolation_t) :: interpolation_pre_basis
-  
+
   if ( .not. this%basis_changed ) then
-    call this%fill_interpolation_pre_basis ( quadrature, interpolation, order_vector )
+     call this%fill_interpolation_pre_basis ( quadrature, interpolation, order_vector )
   else
-    call interpolation_pre_basis%clone(interpolation)
-    call this%fill_interpolation_pre_basis ( quadrature, interpolation_pre_basis, order_vector ) 
-    call this%apply_change_basis_matrix_to_interpolation ( interpolation_pre_basis, interpolation )
-    call interpolation_pre_basis%free()
+     call interpolation_pre_basis%clone(interpolation)
+     call this%fill_interpolation_pre_basis ( quadrature, interpolation_pre_basis, order_vector ) 
+     call this%apply_change_basis_matrix_to_interpolation ( interpolation_pre_basis, interpolation )
+     call interpolation_pre_basis%free()
   end if
 end subroutine tet_nedelec_reference_fe_fill_interpolation
 
@@ -505,8 +313,8 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   type(interpolation_t)            , intent(inout) :: interpolation
   integer(ip) , optional           , intent(in)    :: order_vector(SPACE_DIM)
 
-  type(tet_polynomial_prebase_t)        :: tet_polynomial_prebase_1
-  type(tet_polynomial_prebase_t)        :: tet_polynomial_prebase_2
+  type(truncated_tensor_product_polynomial_space_t)  :: tet_polynomial_prebase_1
+  type(truncated_tensor_product_polynomial_space_t)  :: tet_polynomial_prebase_2
   type(polynomial_allocatable_array_t)  :: monomial_1D_basis(SPACE_DIM)
   type(monomial_t)                      :: monomial_1D
 
@@ -519,7 +327,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 
   interpolation%shape_functions   = 0.0_rp
   interpolation%shape_derivatives = 0.0_rp
-  
+
   ! The Nedelec tet prebasis ND_k is built as a direct sum of two prebasis, so they are built and added:  
   ! prebasis_1: [P_{k-1}]^d
   ! prebasis_2: S_k = {p in [homog(P_k)]^d | p·x = 0}
@@ -548,13 +356,13 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
         do ipoly=1,number_polynomials_prebase_1
            c=c+1
            interpolation%shape_functions(idime,c,q_point) = values(ipoly)
-		   do jdime=1, interpolation%number_dimensions
-            interpolation%shape_derivatives(idime,jdime,c,q_point) = gradients(jdime,ipoly)
+           do jdime=1, interpolation%number_dimensions
+              interpolation%shape_derivatives(idime,jdime,c,q_point) = gradients(jdime,ipoly)
            end do
         end do
      end do
   end do
-  
+
   ! Free auxiliary memory
   if(allocated(values))    call memfree(values,__FILE__,__LINE__)
   if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
@@ -576,24 +384,24 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   call memalloc(tet_polynomial_prebase_2%get_number_polynomials(),values,__FILE__,__LINE__)
   call memalloc(SPACE_DIM,tet_polynomial_prebase_2%get_number_polynomials(),gradients,__FILE__,__LINE__)
 
-   ! Fill second set of prebasis functions with order k prebase and Sk( homogeneous polynomials basis indices )  
+  ! Fill second set of prebasis functions with order k prebase and Sk( homogeneous polynomials basis indices )  
   N_k = tet_polynomial_prebase_2%get_number_polynomials()
   Sk_basis_dimension = this%order * (this%order+2)**(this%number_dimensions-2)
   c   = interpolation%number_dimensions*number_polynomials_prebase_1 
   do q_point=1, quadrature%get_number_quadrature_points()
      call tet_polynomial_prebase_2%evaluate(q_point, values, gradients)
      do ipoly=1, Sk_basis_dimension 
-           do idime=1, interpolation%number_dimensions	
-		     do ivalu=1, tet_polynomial_prebase_2%get_number_polynomials()
-			     offcomponent = (idime-1)*tet_polynomial_prebase_2%get_number_polynomials()
-			     interpolation%shape_functions(idime,c+ipoly,q_point) =  &	
-				 interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk(ipoly, offcomponent + ivalu)*values(ivalu)	
-                 do jdime=1, interpolation%number_dimensions
+        do idime=1, interpolation%number_dimensions	
+           offcomponent = (idime-1)*tet_polynomial_prebase_2%get_number_polynomials()
+           do ivalu=1, tet_polynomial_prebase_2%get_number_polynomials()
+              interpolation%shape_functions(idime,c+ipoly,q_point) =  &	
+                   interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*values(ivalu)	
+              do jdime=1, interpolation%number_dimensions
                  interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) = & 
-				 interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk(ipoly, offcomponent + ivalu)*gradients(jdime,ivalu)
-                 end do
+                      interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*gradients(jdime,ivalu)
               end do
            end do
+        end do
      end do
   end do
 
@@ -618,14 +426,14 @@ subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id
   type(interpolation_t)                   , intent(inout) :: edge_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: c, idime, n_face_index, qpoin
-  
+
   ! Add offset to have same numbering as in polytope
   n_face_index = local_edge_id+this%get_first_n_face_id_of_dimension(1)-1
 
   ! Create a d-dimensional quadrature as follows: 
   ! Non-orthogonal directions are taken into account with the (1-d) factor for the free and anchor node dimension 
   call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
- 
+
   do idime = 0,this%number_dimensions-1
      if ( (this%polytope%n_face_dir_is_fixed( n_face_index, idime )==1) .and. (this%polytope%n_face_dir_coordinate( n_face_index, idime )==0) ) then
         aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(1,:)	 
@@ -637,7 +445,7 @@ subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id
         aux_quadrature%coordinates(idime+1,:) = 0.0_rp
      end if
   end do
-    
+
   call this%fill_interpolation( aux_quadrature, edge_interpolation ) 
   call aux_quadrature%free()
 
@@ -652,299 +460,662 @@ subroutine tet_nedelec_reference_fe_fill_face_interpolation( this, local_quadrat
   type(interpolation_t)                   , intent(inout) :: face_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: idime,iface,n_face_index, qpoin,p_local_coordinate
-  
+
   ! Add offset to have same numbering as in polytope
   n_face_index = local_face_id+this%get_first_face_id()-1
-  
+
   ! Create a d-dimensional quadrature as follows
   call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
-       do qpoin = 1,face_interpolation%number_quadrature_points
-        ! Transform face local coordinates to element global coordinates
-        if (local_face_id .le. face_interpolation%number_dimensions ) then 
-           ! Orthogonal face in the reference element
-           p_local_coordinate = 1
-           do idime = 1, face_interpolation%number_dimensions
-              if (idime .eq. face_interpolation%number_dimensions + 1 - local_face_id ) then
-                 aux_quadrature%coordinates(idime,qpoin) = 0.0_rp
-              else
-                 aux_quadrature%coordinates(idime,qpoin) = local_quadrature%coordinates(p_local_coordinate, qpoin)
-                 p_local_coordinate = p_local_coordinate + 1
-              end if
-           end do
-        else 
-           ! Non-orthogonal face in the reference element
-           aux_quadrature%coordinates(1,qpoin) = 1 - sum(local_quadrature%coordinates(:,qpoin))
-           aux_quadrature%coordinates(2:face_interpolation%number_dimensions, qpoin) = & 
-                & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,qpoin)
-        end if	
-     end do
+  do qpoin = 1,face_interpolation%number_quadrature_points
+     ! Transform face local coordinates to element global coordinates
+     if (local_face_id <= face_interpolation%number_dimensions ) then 
+        ! Orthogonal face in the reference element
+        p_local_coordinate = 1
+        do idime = 1, face_interpolation%number_dimensions
+           if (idime == face_interpolation%number_dimensions + 1 - local_face_id ) then
+              aux_quadrature%coordinates(idime,qpoin) = 0.0_rp
+           else
+              aux_quadrature%coordinates(idime,qpoin) = local_quadrature%coordinates(p_local_coordinate, qpoin)
+              p_local_coordinate = p_local_coordinate + 1
+           end if
+        end do
+     else 
+        ! Non-orthogonal face in the reference element
+        aux_quadrature%coordinates(1,qpoin) = 1 - sum(local_quadrature%coordinates(:,qpoin))
+        aux_quadrature%coordinates(2:face_interpolation%number_dimensions, qpoin) = & 
+             & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,qpoin)
+     end if
+  end do
 
   call this%fill_interpolation( aux_quadrature, face_interpolation ) 
   call aux_quadrature%free()
 end subroutine tet_nedelec_reference_fe_fill_face_interpolation
 
 !=================================================================================================
-subroutine tet_nedelec_reference_fe_set_permutation_2D( this, permutation, number_nodes_x_dim, &
-     & orientation, rotation )
+function tet_nedelec_reference_fe_compute_number_quadrature_points( this, degree, dimension )
   implicit none
   class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(inout) :: permutation(:)
-  integer(ip)                         , intent(in)    :: number_nodes_x_dim,orientation,rotation
-  integer(ip) :: o_r,i,j,ij_t(3)     ! ij_t = (i,j,p-i-j)
-  integer(ip) :: ij_n(2),go,gn
-  integer(ip) :: ij_perm_tet(2,6) = reshape((/ 1, 2, 2, 3, 3, 1, 2, 1, 3, 2, 1, 3/), (/2,6/) )
+  integer(ip)                             , intent(in)    :: degree
+  integer(ip)                             , intent(in)    :: dimension
+  integer(ip) :: tet_nedelec_reference_fe_compute_number_quadrature_points
 
-  ! Generic loop+rotation identifier  
-  !o_r = 3*(orientation-1)+rotation
-  !do j = 0,number_nodes_x_dim-1
-  !   ij_t(2) = j
-  !   do i = 0,number_nodes_x_dim-j-1
-  !      ij_t(1) = i
-  !      ij_t(3) = number_nodes_x_dim-i-j-1
-  !      ! Get the global numbering of node (i,j)
-  !      go = this%get_node_local_id(ij_t(1:2),2,number_nodes_x_dim-1)
-  !      ! i,j coordinates for the o_r permutation
-  !      ij_n(1:2) = ij_t(ij_perm_tet(1:2,o_r)) 
-  !      ! Store the global numbering of node ij_n 
-  !      permutation(go) = this%get_node_local_id(ij_n,2,number_nodes_x_dim-1)
-  !   end do
-  !end do
-
-end subroutine tet_nedelec_reference_fe_set_permutation_2D
-
-!=================================================================================================
-recursive function tet_nedelec_reference_fe_compute_number_nodes_scalar(this, order, dimension)
-  implicit none
-  class(tet_nedelec_reference_fe_t)   , intent(in)       :: this 
-  integer(ip)                         , intent(in)       :: dimension
-  integer(ip)                         , intent(in)       :: order
-  integer(ip) :: tet_nedelec_reference_fe_compute_number_nodes_scalar
-  integer(ip) :: q
- 
-  if (dimension == 0) then
-     tet_nedelec_reference_fe_compute_number_nodes_scalar = 1
-  elseif (order == 0) then
-     tet_nedelec_reference_fe_compute_number_nodes_scalar = 1
-  elseif (dimension == 1) then
-     tet_nedelec_reference_fe_compute_number_nodes_scalar = order+1
-  elseif (dimension == 2) then
-     tet_nedelec_reference_fe_compute_number_nodes_scalar = int((order+1)*(order+2)/2)
-  else
-     tet_nedelec_reference_fe_compute_number_nodes_scalar = & 
-          & this%compute_number_nodes_scalar(dimension-1,0)
-     do q=1,order
-        tet_nedelec_reference_fe_compute_number_nodes_scalar = & 
-             & tet_nedelec_reference_fe_compute_number_nodes_scalar + & 
-             & this%compute_number_nodes_scalar(dimension-1,q)
-     end do
-  end if
-
-end function tet_nedelec_reference_fe_compute_number_nodes_scalar
-
-!==================================================================================================
-function tet_nedelec_reference_fe_get_node_local_id (this, local_coordinates, & 
-     & number_of_dimensions, order)
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: local_coordinates(:)
-  integer(ip)                         , intent(in)    :: number_of_dimensions
-  integer(ip)                         , intent(in)    :: order
-  integer(ip) :: tet_nedelec_reference_fe_get_node_local_id
-  integer(ip) :: k,q
-
-  if (sum(local_coordinates)>order) then
-     write(*,*) 'ijk', local_coordinates
-     write(*,*) 'tets_setting:: gijk:: ERROR i+j+k<=p'
-     check(.false.)
-  end if
-
-  tet_nedelec_reference_fe_get_node_local_id = 1
-  do k =1,number_of_dimensions-1
-     q = order-local_coordinates(k+1)
-     tet_nedelec_reference_fe_get_node_local_id =   & 
-          & tet_nedelec_reference_fe_get_node_local_id + & 
-          & this%compute_sum_of_nodes_in_simplices(k,q-local_coordinates(k)+1,q)
-  end do
-  tet_nedelec_reference_fe_get_node_local_id =   & 
-       & tet_nedelec_reference_fe_get_node_local_id + & 
-       & this%compute_sum_of_nodes_in_simplices(k,order-local_coordinates(number_of_dimensions)+1,order)
-
-end function tet_nedelec_reference_fe_get_node_local_id
-
-!**************************************************************************************************
-! Concrete TBPs of this derived data type
-!**************************************************************************************************
-
-!==================================================================================================
-recursive subroutine tet_nedelec_reference_fe_fill_nodes_n_face(this,ntxob,c3,ini,end, &
-     & i,idm,nd,k,p,objec,nt)
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: ini,end,nd,k,p,objec(nd,nd+1),nt,i
-  integer(ip)                         , intent(inout) :: ntxob(nt),c3,idm(nd)
-  integer(ip) :: j,ijk(nd),m
-
-  if (k==0) then
-     ! Dimension 0: objec gives the coordinates of the corner
-     ijk = p*objec(:,1)
-     ntxob(c3) = this%get_node_local_id(ijk,nd,p)
-     c3 = c3 + 1
-  else
-     ! Loop over the possible values of the i-th factor
-     do j=ini,end
-        ! Assign value of the i-th factor
-        idm(i) = j
-        if (i<k) then
-           ! Assign values of the i+1-th factor
-           call this%fill_nodes_n_face(ntxob,c3,ini,end-j,i+1,idm,nd,k,p,objec,nt)
-        else
-           ! Compute the coordinate of the c3-th node: objec(:,1)+idm*objec(:,2:k)
-           ijk = p*objec(:,1)
-           do m=1,k
-              ijk = ijk+idm(k-m+1)*objec(:,m+1)
-           end do
-           ! Store in ntxob the corresponding identifier of the node
-           ntxob(c3) = this%get_node_local_id(ijk,nd,p)
-           c3 = c3 + 1
-        end if
-     end do
-  end if
-
-end subroutine tet_nedelec_reference_fe_fill_nodes_n_face
-
-!==================================================================================================
-recursive subroutine tet_nedelec_reference_fe_fill_n_face_dimension_and_vertices (this,       &
-     n_face_dimension,        &
-     vertex_position,      &
-     number_of_dimensions, &
-     initial_vertex,       &
-     number_of_n_faces,       &
-     n_face_id,               &
-     vertices_of_n_faces,      &
-     n_face_dimension_and_vertices)
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: n_face_dimension
-  integer(ip)                         , intent(in)    :: vertex_position
-  integer(ip)                         , intent(in)    :: number_of_dimensions
-  integer(ip)                         , intent(in)    :: initial_vertex
-  integer(ip)                         , intent(in)    :: number_of_n_faces
-  integer(ip)                         , intent(inout) :: n_face_dimension_and_vertices(:,:)
-  integer(ip)                         , intent(inout) :: vertices_of_n_faces(:)
-  integer(ip)                         , intent(inout) :: n_face_id
-  integer(ip) :: vertex_id
-
-  do vertex_id=initial_vertex,number_of_dimensions+1
-     vertices_of_n_faces(vertex_position) = vertex_id
-     if(vertex_position+1<n_face_dimension+2) then
-        call this%fill_n_face_dimension_and_vertices(n_face_dimension,                      &
-             vertex_position+1,                  &
-             number_of_dimensions,               &
-             vertices_of_n_faces(vertex_position)+1, &
-             number_of_n_faces,                     &
-             n_face_id,                             &
-             vertices_of_n_faces,                    &
-             n_face_dimension_and_vertices)
-     else
-        n_face_dimension_and_vertices(1,n_face_id) = n_face_dimension
-        n_face_dimension_and_vertices(2:n_face_dimension+2,n_face_id) = vertices_of_n_faces(1:n_face_dimension+1)
-        n_face_id = n_face_id + 1
+  if( dimension == 1 ) then
+     tet_nedelec_reference_fe_compute_number_quadrature_points = int(ceiling(real(degree,rp)/2.0_rp),ip)+1
+  elseif( dimension == 2 ) then
+     !*************************************************************************
+     ! Using efficent symmetrical gaussian quadrature rules (when available). 
+     if( degree <= 2 ) then
+        tet_nedelec_reference_fe_compute_number_quadrature_points = 3
+     elseif( degree <= 4 ) then
+        tet_nedelec_reference_fe_compute_number_quadrature_points = 6
+     elseif( degree <= 6 ) then
+        tet_nedelec_reference_fe_compute_number_quadrature_points = 13
+     elseif( degree <= 8 ) then
+        tet_nedelec_reference_fe_compute_number_quadrature_points = 19
+     elseif( degree <= 10 ) then
+        tet_nedelec_reference_fe_compute_number_quadrature_points = 28
+     else ! Quadratures based on brick quadratures transformation
+        tet_nedelec_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 1.0_rp )**2.0_rp,ip)
      end if
-  end do
-
-end subroutine tet_nedelec_reference_fe_fill_n_face_dimension_and_vertices
-
-!=================================================================================================
-recursive function tet_nedelec_reference_fe_compute_number_interior_nodes(this,dimension,order)
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this  
-  integer(ip)                         , intent(in)    :: dimension, order
-  integer(ip) :: tet_nedelec_reference_fe_compute_number_interior_nodes
-  integer(ip) :: q
-  if (dimension == 0) then
-     tet_nedelec_reference_fe_compute_number_interior_nodes = 1
-  elseif (order == 1) then
-     tet_nedelec_reference_fe_compute_number_interior_nodes = 0
-  elseif (dimension == 1) then
-     tet_nedelec_reference_fe_compute_number_interior_nodes = order-1
-  elseif (dimension == 2) then
-     tet_nedelec_reference_fe_compute_number_interior_nodes = int((order-2)*(order-1)/2)
-  else
-     tet_nedelec_reference_fe_compute_number_interior_nodes = & 
-          & this%compute_number_interior_nodes(dimension-1,1)
-     do q=2,order-1
-        tet_nedelec_reference_fe_compute_number_interior_nodes =    & 
-             & tet_nedelec_reference_fe_compute_number_interior_nodes + & 
-             & this%compute_number_interior_nodes(dimension-1,q)
-     end do
+  elseif( dimension == 3 ) then
+     !*************************************************************************
+     ! Using efficent symmetrical gaussian quadrature rules (when available). 
+     if( degree <= 2 ) then
+        tet_nedelec_reference_fe_compute_number_quadrature_points = 4
+     elseif( degree <= 4) then
+        tet_nedelec_reference_fe_compute_number_quadrature_points = 11
+     else ! Quadratures based on brick quadratures transformation
+        tet_nedelec_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 2.0_rp )**3.0_rp,ip)
+     end if
   end if
 
-end function tet_nedelec_reference_fe_compute_number_interior_nodes
-
-!=================================================================================================
-function tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices(this,dimension, & 
-     & ini_order,end_order)
-  implicit none
-  class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: dimension, ini_order, end_order
-  integer(ip) :: tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices
-  integer(ip) :: q
-  if (dimension == 0) then
-     tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices = 1
-  elseif (ini_order > end_order) then
-     tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices = 0
-  else
-     tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices = & 
-          & this%compute_number_nodes_scalar(dimension-1,ini_order)
-     do q = ini_order+1,end_order
-        tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices =   & 
-             & tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices + &
-             & this%compute_number_nodes_scalar(dimension-1,q)
-     end do
-  end if
-end function tet_nedelec_reference_fe_compute_sum_of_nodes_in_simplices
+end function tet_nedelec_reference_fe_compute_number_quadrature_points
 
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_get_n_face_orientation(this,o,od,nd,io)
+subroutine tet_nedelec_reference_fe_fill_symmetric_quadrature ( this, quadrature ) 
+  !-----------------------------------------------------------------------
+  ! 
+  !     This routine sets up the integration constants of open rules for
+  !     triangles and tetrahedra
+  ! 
+  !             NDIME = 2             NDIME = 3
+  ! 
+  !          NGAUS  EXACT POL.     NGAUS  EXACT POL. 
+  !          -----  ----------     -----  ----------
+  !            1       p1            1       p1
+  !            3       p2            4       p2
+  !            4       p3            5       p3
+  !            6       p4           11       p4
+  !            7       p5           14       p5
+  !           13       p7
+  !           19       p9
+  !           28       p11
+  !
+  !-----------------------------------------------------------------------
   implicit none
   class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(inout) :: o
-  integer(ip)                         , intent(in)    :: od
-  integer(ip)                         , intent(in)    :: nd
-  integer(ip)                         , intent(in)    :: io  ! io=numbering of the n-face in the od dimension
-  if (nd == 3 .and. od == 2) then
-     o = modulo(io+1,2)
-  elseif (nd>3) then
-     write(*,*) __FILE__,__LINE__,'WARNING!! the orientation is not defined for dimension >3'
-  else
-     o = 0
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  real(rp)    :: a,b,c,d,e,f,g,h,p,q,r,s,t,u,v,w,x,y,z
+  real(rp)    :: w1,w2,w3,w4,w5,w6,w7,w8
+  real(rp)    :: ex1,et1,ez1,ex2,et2,ez2
+  integer(ip) :: ndime,ngaus
+
+  ndime = quadrature%number_dimensions
+  ngaus = quadrature%number_quadrature_points
+
+  ! Line integral (the same as for brick elements)
+  if(ndime==1) then
+     if(ngaus==1) then
+        quadrature%coordinates(1,1)=0.5_rp
+        quadrature%weight(  1)=1.0_rp
+     else if(ngaus==2) then
+        quadrature%coordinates(1,1)= 0.211324865405187_rp
+        quadrature%coordinates(1,2)= 0.788675134594813_rp
+        quadrature%weight(  1)= 0.5_rp
+        quadrature%weight(  2)= 0.5_rp
+     else if(ngaus==3) then
+        quadrature%coordinates(1,1)= 0.112701665379258_rp
+        quadrature%coordinates(1,2)= 0.5_rp
+        quadrature%coordinates(1,3)= 0.887298334620742_rp
+        quadrature%weight(  1)= 0.277777777777778_rp
+        quadrature%weight(  2)= 0.444444444444444_rp
+        quadrature%weight(  3)= 0.277777777777778_rp
+     else
+        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
+        check(.false.)
+     end if
+
+     ! Area integral (triangles)
+  else if(ndime==2) then
+     if(ngaus==1) then
+        quadrature%coordinates(1,1)= 1.0_rp/3.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/3.0_rp
+        quadrature%weight(  1)= 1.0_rp/2.0_rp
+     else if(ngaus==3) then
+        quadrature%coordinates(1,2)= 2.0_rp/3.0_rp
+        quadrature%coordinates(2,2)= 1.0_rp/6.0_rp
+        quadrature%coordinates(1,3)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,3)= 2.0_rp/3.0_rp
+        quadrature%coordinates(1,1)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/6.0_rp
+        quadrature%weight(  2)= 1.0_rp/6.0_rp
+        quadrature%weight(  3)= 1.0_rp/6.0_rp
+        quadrature%weight(  1)= 1.0_rp/6.0_rp
+     else if(ngaus==4) then
+        quadrature%coordinates(1,1)= 1.0_rp/3.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/3.0_rp
+        quadrature%coordinates(1,2)= 1.0_rp/5.0_rp
+        quadrature%coordinates(2,2)= 1.0_rp/5.0_rp
+        quadrature%coordinates(1,3)= 3.0_rp/5.0_rp
+        quadrature%coordinates(2,3)= 1.0_rp/5.0_rp
+        quadrature%coordinates(1,4)= 1.0_rp/5.0_rp
+        quadrature%coordinates(2,4)= 3.0_rp/5.0_rp
+        quadrature%weight(  1)=-27.0_rp/96.0_rp
+        quadrature%weight(  2)= 25.0_rp/96.0_rp
+        quadrature%weight(  3)= 25.0_rp/96.0_rp
+        quadrature%weight(  4)= 25.0_rp/96.0_rp 
+     else if(ngaus==6) then
+        ex1 = 0.816847572980459_rp
+        et1 = 0.091576213509771_rp
+        ez1 = 0.091576213509771_rp
+        ex2 = 0.108103018168070_rp
+        et2 = 0.445948490915965_rp
+        ez2 = 0.445948490915965_rp
+        quadrature%coordinates(1,3)= ex1
+        quadrature%coordinates(2,3)= et1
+        quadrature%coordinates(1,1)= et1
+        quadrature%coordinates(2,1)= ez1
+        quadrature%coordinates(1,6)= ez1
+        quadrature%coordinates(2,6)= ex1
+        quadrature%coordinates(1,4)= ex2
+        quadrature%coordinates(2,4)= et2
+        quadrature%coordinates(1,5)= et2
+        quadrature%coordinates(2,5)= ez2
+        quadrature%coordinates(1,2)= ez2
+        quadrature%coordinates(2,2)= ex2
+        a = 0.054975870996713638_rp
+        b = 0.1116907969117165_rp    
+        quadrature%weight(3)  = a
+        quadrature%weight(1)  = a
+        quadrature%weight(6)  = a
+        quadrature%weight(4)  = b
+        quadrature%weight(5)  = b
+        quadrature%weight(2)  = b
+     else if(ngaus==7) then
+        a = 1.0_rp / 3.0_rp
+        b = ( 9.0_rp + 2.0_rp * sqrt ( 15.0_rp ) ) / 21.0_rp
+        c = ( 6.0_rp -          sqrt ( 15.0_rp ) ) / 21.0_rp
+        d = ( 9.0_rp - 2.0_rp * sqrt ( 15.0_rp ) ) / 21.0_rp
+        e = ( 6.0_rp +          sqrt ( 15.0_rp ) ) / 21.0_rp
+        w1 = 0.1125_rp
+        w2 = ( 155.0_rp - sqrt ( 15.0_rp ) ) / 2400.0_rp
+        w3 = ( 155.0_rp + sqrt ( 15.0_rp ) ) / 2400.0_rp
+        quadrature%coordinates(1,1)= a
+        quadrature%coordinates(2,1)= a
+        quadrature%coordinates(1,2)= b
+        quadrature%coordinates(2,2)= c
+        quadrature%coordinates(1,3)= c
+        quadrature%coordinates(2,3)= b
+        quadrature%coordinates(1,4)= c
+        quadrature%coordinates(2,4)= c
+        quadrature%coordinates(1,5)= d
+        quadrature%coordinates(2,5)= e
+        quadrature%coordinates(1,6)= e
+        quadrature%coordinates(2,6)= d
+        quadrature%coordinates(1,7)= e
+        quadrature%coordinates(2,7)= e
+        quadrature%weight(  1)= w1
+        quadrature%weight(  2)= w2
+        quadrature%weight(  3)= w2
+        quadrature%weight(  4)= w2
+        quadrature%weight(  5)= w3
+        quadrature%weight(  6)= w3
+        quadrature%weight(  7)= w3
+     else if(ngaus==13) then
+        a = 0.333333333333333_rp
+        b = 0.479308067841923_rp
+        c = 0.869739794195568_rp
+        d = 0.638444188569809_rp
+        e = 0.260345966079038_rp
+        f = 0.065130102902216_rp
+        g = 0.312865496004875_rp
+        h = 0.048690315425316_rp
+        w1=-0.149570044467670_rp/2.0_rp
+        w2= 0.175615257433204_rp/2.0_rp
+        w3= 0.053347235608839_rp/2.0_rp
+        w4= 0.077113760890257_rp/2.0_rp
+        quadrature%coordinates(1, 1)= a
+        quadrature%coordinates(2, 1)= a         
+        quadrature%coordinates(1, 2)= e
+        quadrature%coordinates(2, 2)= e
+        quadrature%coordinates(1, 3)= b
+        quadrature%coordinates(2, 3)= e        
+        quadrature%coordinates(1, 4)= e
+        quadrature%coordinates(2, 4)= b        
+        quadrature%coordinates(1, 5)= f
+        quadrature%coordinates(2, 5)= f        
+        quadrature%coordinates(1, 6)= c
+        quadrature%coordinates(2, 6)= f        
+        quadrature%coordinates(1, 7)= f
+        quadrature%coordinates(2, 7)= c        
+        quadrature%coordinates(1, 8)= d
+        quadrature%coordinates(2, 8)= g        
+        quadrature%coordinates(1, 9)= d
+        quadrature%coordinates(2, 9)= h        
+        quadrature%coordinates(1,10)= g
+        quadrature%coordinates(2,10)= d        
+        quadrature%coordinates(1,11)= g
+        quadrature%coordinates(2,11)= h        
+        quadrature%coordinates(1,12)= h
+        quadrature%coordinates(2,12)= d        
+        quadrature%coordinates(1,13)= h
+        quadrature%coordinates(2,13)= g
+        quadrature%weight( 1) = w1
+        quadrature%weight( 2) = w2
+        quadrature%weight( 3) = w2
+        quadrature%weight( 4) = w2
+        quadrature%weight( 5) = w3
+        quadrature%weight( 6) = w3
+        quadrature%weight( 7) = w3
+        quadrature%weight( 8) = w4
+        quadrature%weight( 9) = w4
+        quadrature%weight(10) = w4
+        quadrature%weight(11) = w4
+        quadrature%weight(12) = w4
+        quadrature%weight(13) = w4
+     else if(ngaus==19) then
+        a = 1.0_rp / 3.0_rp
+        b = 0.02063496160252593_rp
+        c = 0.4896825191987370_rp
+        d = 0.1258208170141290_rp
+        e = 0.4370895914929355_rp
+        f = 0.6235929287619356_rp
+        g = 0.1882035356190322_rp
+        r = 0.9105409732110941_rp
+        s = 0.04472951339445297_rp
+        t = 0.7411985987844980_rp
+        u = 0.03683841205473626_rp
+        v = 0.22196298916076573_rp
+
+        w1 = 0.09713579628279610_rp/2.0_rp
+        w2 = 0.03133470022713983_rp/2.0_rp
+        w3 = 0.07782754100477543_rp/2.0_rp
+        w4 = 0.07964773892720910_rp/2.0_rp
+        w5 = 0.02557767565869810_rp/2.0_rp
+        w6 = 0.04328353937728940_rp/2.0_rp
+
+        quadrature%coordinates(1, 1) = a 
+        quadrature%coordinates(1, 2) = b
+        quadrature%coordinates(1, 3) = c 
+        quadrature%coordinates(1, 4) = c 
+        quadrature%coordinates(1, 5) = d 
+        quadrature%coordinates(1, 6) = e
+        quadrature%coordinates(1, 7) = e
+        quadrature%coordinates(1, 8) = f 
+        quadrature%coordinates(1, 9) = g 
+        quadrature%coordinates(1,10) = g
+        quadrature%coordinates(1,11) = r
+        quadrature%coordinates(1,12) = s
+        quadrature%coordinates(1,13) = s
+        quadrature%coordinates(1,14) = t
+        quadrature%coordinates(1,15) = t
+        quadrature%coordinates(1,16) = u
+        quadrature%coordinates(1,17) = u
+        quadrature%coordinates(1,18) = v
+        quadrature%coordinates(1,19) = v
+
+        quadrature%coordinates(2, 1) = a
+        quadrature%coordinates(2, 2) = c
+        quadrature%coordinates(2, 3) = b
+        quadrature%coordinates(2, 4) = c
+        quadrature%coordinates(2, 5) = e
+        quadrature%coordinates(2, 6) = d
+        quadrature%coordinates(2, 7) = e
+        quadrature%coordinates(2, 8) = g
+        quadrature%coordinates(2, 9) = f
+        quadrature%coordinates(2,10) = g
+        quadrature%coordinates(2,11) = s
+        quadrature%coordinates(2,12) = r
+        quadrature%coordinates(2,13) = s
+        quadrature%coordinates(2,14) = u
+        quadrature%coordinates(2,15) = v
+        quadrature%coordinates(2,16) = t
+        quadrature%coordinates(2,17) = v
+        quadrature%coordinates(2,18) = t
+        quadrature%coordinates(2,19) = u
+
+        quadrature%weight( 1) = w1
+        quadrature%weight( 2) = w2
+        quadrature%weight( 3) = w2
+        quadrature%weight( 4) = w2
+        quadrature%weight( 5) = w3
+        quadrature%weight( 6) = w3
+        quadrature%weight( 7) = w3
+        quadrature%weight( 8) = w4
+        quadrature%weight( 9) = w4
+        quadrature%weight(10) = w4
+        quadrature%weight(11) = w5
+        quadrature%weight(12) = w5
+        quadrature%weight(13) = w5
+        quadrature%weight(14) = w6
+        quadrature%weight(15) = w6
+        quadrature%weight(16) = w6
+        quadrature%weight(17) = w6
+        quadrature%weight(18) = w6
+        quadrature%weight(19) = w6
+     else if(ngaus==28) then
+        a = 1.0_rp / 3.0_rp
+        b = 0.9480217181434233_rp
+        c = 0.02598914092828833_rp
+        d = 0.8114249947041546_rp
+        e = 0.09428750264792270_rp
+        f = 0.01072644996557060_rp
+        g = 0.4946367750172147_rp
+        p = 0.5853132347709715_rp
+        q = 0.2073433826145142_rp
+        r = 0.1221843885990187_rp
+        s = 0.4389078057004907_rp
+        t = 0.6779376548825902_rp
+        u = 0.04484167758913055_rp
+        v = 0.27722066752827925_rp
+        w = 0.8588702812826364_rp
+        x = 0.0_rp
+        y = 0.1411297187173636_rp
+
+        w1 = 0.08797730116222190_rp/2.0_rp
+        w2 = 0.008744311553736190_rp/2.0_rp
+        w3 = 0.03808157199393533_rp/2.0_rp
+        w4 = 0.01885544805613125_rp/2.0_rp
+        w5 = 0.07215969754474100_rp/2.0_rp
+        w6 = 0.06932913870553720_rp/2.0_rp
+        w7 = 0.04105631542928860_rp/2.0_rp
+        w8 = 0.007362383783300573_rp/2.0_rp
+
+        quadrature%coordinates(1, 1) = a  
+        quadrature%coordinates(1, 2) = b  
+        quadrature%coordinates(1, 3) = c  
+        quadrature%coordinates(1, 4) = c  
+        quadrature%coordinates(1, 5) = d  
+        quadrature%coordinates(1, 6) = e  
+        quadrature%coordinates(1, 7) = e  
+        quadrature%coordinates(1, 8) = f  
+        quadrature%coordinates(1, 9) = g
+        quadrature%coordinates(1,10) = g
+        quadrature%coordinates(1,11) = p 
+        quadrature%coordinates(1,12) = q 
+        quadrature%coordinates(1,13) = q
+        quadrature%coordinates(1,14) = r 
+        quadrature%coordinates(1,15) = s 
+        quadrature%coordinates(1,16) = s 
+        quadrature%coordinates(1,17) = t 
+        quadrature%coordinates(1,18) = t 
+        quadrature%coordinates(1,19) = u 
+        quadrature%coordinates(1,20) = u 
+        quadrature%coordinates(1,21) = v 
+        quadrature%coordinates(1,22) = v 
+        quadrature%coordinates(1,23) = w 
+        quadrature%coordinates(1,24) = w 
+        quadrature%coordinates(1,25) = x 
+        quadrature%coordinates(1,26) = x 
+        quadrature%coordinates(1,27) = y 
+        quadrature%coordinates(1,28) = y
+
+        quadrature%coordinates(2, 1) = a  
+        quadrature%coordinates(2, 2) = c  
+        quadrature%coordinates(2, 3) = b  
+        quadrature%coordinates(2, 4) = c  
+        quadrature%coordinates(2, 5) = e  
+        quadrature%coordinates(2, 6) = d  
+        quadrature%coordinates(2, 7) = e  
+        quadrature%coordinates(2, 8) = g  
+        quadrature%coordinates(2, 9) = f  
+        quadrature%coordinates(2,10) = g  
+        quadrature%coordinates(2,11) = q  
+        quadrature%coordinates(2,12) = p  
+        quadrature%coordinates(2,13) = q
+        quadrature%coordinates(2,14) = s  
+        quadrature%coordinates(2,15) = r  
+        quadrature%coordinates(2,16) = s  
+        quadrature%coordinates(2,17) = u  
+        quadrature%coordinates(2,18) = v  
+        quadrature%coordinates(2,19) = t  
+        quadrature%coordinates(2,20) = v  
+        quadrature%coordinates(2,21) = t  
+        quadrature%coordinates(2,22) = u  
+        quadrature%coordinates(2,23) = x  
+        quadrature%coordinates(2,24) = y  
+        quadrature%coordinates(2,25) = w  
+        quadrature%coordinates(2,26) = y  
+        quadrature%coordinates(2,27) = w  
+        quadrature%coordinates(2,28) = x
+
+        quadrature%weight( 1) = w1 
+        quadrature%weight( 2) = w2
+        quadrature%weight( 3) = w2 
+        quadrature%weight( 4) = w2 
+        quadrature%weight( 5) = w3 
+        quadrature%weight( 6) = w3 
+        quadrature%weight( 7) = w3 
+        quadrature%weight( 8) = w4 
+        quadrature%weight( 9) = w4 
+        quadrature%weight(10) = w4 
+        quadrature%weight(11) = w5 
+        quadrature%weight(12) = w5 
+        quadrature%weight(13) = w5
+        quadrature%weight(14) = w6 
+        quadrature%weight(15) = w6 
+        quadrature%weight(16) = w6 
+        quadrature%weight(17) = w7 
+        quadrature%weight(18) = w7 
+        quadrature%weight(19) = w7 
+        quadrature%weight(20) = w7 
+        quadrature%weight(21) = w7 
+        quadrature%weight(22) = w7 
+        quadrature%weight(23) = w8 
+        quadrature%weight(24) = w8 
+        quadrature%weight(25) = w8 
+        quadrature%weight(26) = w8 
+        quadrature%weight(27) = w8 
+        quadrature%weight(28) = w8
+     else
+        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
+        check(.false.)
+     end if
+
+     ! Volume integral ( tetrahedra )
+  else if(ndime==3) then
+     if(ngaus==1) then
+        quadrature%coordinates(1,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(3,1)= 1.0_rp/4.0_rp
+        quadrature%weight(1)  = 1.0_rp/6.0_rp
+     else if(ngaus==4) then
+        a=0.5854101966249685_rp
+        b=0.1381966011250105_rp
+        quadrature%coordinates(1,1)= b
+        quadrature%coordinates(2,1)= b
+        quadrature%coordinates(3,1)= b
+        quadrature%coordinates(1,2)= a
+        quadrature%coordinates(2,2)= b
+        quadrature%coordinates(3,2)= b
+        quadrature%coordinates(1,3)= b
+        quadrature%coordinates(2,3)= a
+        quadrature%coordinates(3,3)= b
+        quadrature%coordinates(1,4)= b
+        quadrature%coordinates(2,4)= b
+        quadrature%coordinates(3,4)= a
+        quadrature%weight(  1)= 1.0_rp/24.0_rp
+        quadrature%weight(  2)= 1.0_rp/24.0_rp
+        quadrature%weight(  3)= 1.0_rp/24.0_rp
+        quadrature%weight(  4)= 1.0_rp/24.0_rp
+     else if(ngaus==5) then
+        quadrature%coordinates(1,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(3,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(1,2)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,2)= 1.0_rp/6.0_rp
+        quadrature%coordinates(3,2)= 1.0_rp/6.0_rp
+        quadrature%coordinates(1,3)= 1.0_rp/2.0_rp
+        quadrature%coordinates(2,3)= 1.0_rp/6.0_rp
+        quadrature%coordinates(3,3)= 1.0_rp/6.0_rp
+        quadrature%coordinates(1,4)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,4)= 1.0_rp/2.0_rp
+        quadrature%coordinates(3,4)= 1.0_rp/6.0_rp
+        quadrature%coordinates(1,5)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,5)= 1.0_rp/6.0_rp
+        quadrature%coordinates(3,5)= 1.0_rp/2.0_rp
+        quadrature%weight(  1)=-2.0_rp/15.0_rp
+        quadrature%weight(  2)= 1.5_rp/20.0_rp
+        quadrature%weight(  3)= 1.5_rp/20.0_rp
+        quadrature%weight(  4)= 1.5_rp/20.0_rp
+        quadrature%weight(  5)= 1.5_rp/20.0_rp
+     else if(ngaus==11) then
+        a=0.3994035761667992_rp
+        b=0.1005964238332008_rp
+        c=343.0_rp/7500.0_rp/6.0_rp
+        d=56.0_rp/375.0_rp/6.0_rp
+        quadrature%coordinates(1,1) = 1.0_rp/4.0_rp
+        quadrature%coordinates(2,1) = 1.0_rp/4.0_rp
+        quadrature%coordinates(3,1) = 1.0_rp/4.0_rp
+        quadrature%coordinates(1,2) = 11.0_rp/14.0_rp
+        quadrature%coordinates(2,2) = 1.0_rp/14.0_rp
+        quadrature%coordinates(3,2) = 1.0_rp/14.0_rp
+        quadrature%coordinates(1,3) = 1.0_rp/14.0_rp
+        quadrature%coordinates(2,3) = 11.0_rp/14.0_rp
+        quadrature%coordinates(3,3) = 1.0_rp/14.0_rp
+        quadrature%coordinates(1,4) = 1.0_rp/14.0_rp
+        quadrature%coordinates(2,4) = 1.0_rp/14.0_rp
+        quadrature%coordinates(3,4) = 11.0_rp/14.0_rp
+        quadrature%coordinates(1,5) = 1.0_rp/14.0_rp
+        quadrature%coordinates(2,5) = 1.0_rp/14.0_rp
+        quadrature%coordinates(3,5) = 1.0_rp/14.0_rp
+        quadrature%coordinates(1,6) = a
+        quadrature%coordinates(2,6) = a
+        quadrature%coordinates(3,6) = b
+        quadrature%coordinates(1,7) = a
+        quadrature%coordinates(2,7) = b
+        quadrature%coordinates(3,7) = a
+        quadrature%coordinates(1,8) = a
+        quadrature%coordinates(2,8) = b
+        quadrature%coordinates(3,8) = b
+        quadrature%coordinates(1,9) = b
+        quadrature%coordinates(2,9) = a
+        quadrature%coordinates(3,9) = a
+        quadrature%coordinates(1,10)= b
+        quadrature%coordinates(2,10)= a
+        quadrature%coordinates(3,10)= b
+        quadrature%coordinates(1,11)= b
+        quadrature%coordinates(2,11)= b
+        quadrature%coordinates(3,11)= a
+        quadrature%weight(1)   =-148.0_rp/1875.0_rp/6.0_rp
+        quadrature%weight(2)   = c
+        quadrature%weight(3)   = c
+        quadrature%weight(4)   = c
+        quadrature%weight(5)   = c
+        quadrature%weight(6)   = d
+        quadrature%weight(7)   = d
+        quadrature%weight(8)   = d
+        quadrature%weight(9)   = d
+        quadrature%weight(10)  = d
+        quadrature%weight(11)  = d
+     else if(ngaus==14) then
+        a=0.0673422422100983_rp
+        b=0.3108859192633005_rp
+        c=0.7217942490673264_rp
+        d=0.0927352503108912_rp
+        e=0.4544962958743506_rp
+        f=0.0455037041256494_rp
+        p=0.1126879257180162_rp/6.0_rp
+        q=0.0734930431163619_rp/6.0_rp
+        r=0.0425460207770812_rp/6.0_rp
+        quadrature%coordinates(1,1) = a
+        quadrature%coordinates(2,1) = b
+        quadrature%coordinates(3,1) = b
+        quadrature%coordinates(1,2) = b
+        quadrature%coordinates(2,2) = a
+        quadrature%coordinates(3,2) = b
+        quadrature%coordinates(1,3) = b
+        quadrature%coordinates(2,3) = b
+        quadrature%coordinates(3,3) = a
+        quadrature%coordinates(1,4) = b
+        quadrature%coordinates(2,4) = b
+        quadrature%coordinates(3,4) = b
+        quadrature%coordinates(1,5) = c
+        quadrature%coordinates(2,5) = d
+        quadrature%coordinates(3,5) = d
+        quadrature%coordinates(1,6) = d
+        quadrature%coordinates(2,6) = c
+        quadrature%coordinates(3,6) = d
+        quadrature%coordinates(1,7) = d
+        quadrature%coordinates(2,7) = d
+        quadrature%coordinates(3,7) = c
+        quadrature%coordinates(1,8) = d
+        quadrature%coordinates(2,8) = d
+        quadrature%coordinates(3,8) = d
+        quadrature%coordinates(1,9) = e
+        quadrature%coordinates(2,9) = e
+        quadrature%coordinates(3,9) = f
+        quadrature%coordinates(1,10)= e
+        quadrature%coordinates(2,10)= f
+        quadrature%coordinates(3,10)= e
+        quadrature%coordinates(1,11)= e
+        quadrature%coordinates(2,11)= f
+        quadrature%coordinates(3,11)= f
+        quadrature%coordinates(1,12)= f
+        quadrature%coordinates(2,12)= e
+        quadrature%coordinates(3,12)= e
+        quadrature%coordinates(1,13)= f
+        quadrature%coordinates(2,13)= e
+        quadrature%coordinates(3,13)= f
+        quadrature%coordinates(1,14)= f
+        quadrature%coordinates(2,14)= f
+        quadrature%coordinates(3,14)= e
+        quadrature%weight(1)   = p
+        quadrature%weight(2)   = p
+        quadrature%weight(3)   = p
+        quadrature%weight(4)   = p
+        quadrature%weight(5)   = q
+        quadrature%weight(6)   = q
+        quadrature%weight(7)   = q
+        quadrature%weight(8)   = q
+        quadrature%weight(9)   = r
+        quadrature%weight(10)  = r
+        quadrature%weight(11)  = r
+        quadrature%weight(12)  = r
+        quadrature%weight(13)  = r
+        quadrature%weight(14)  = r
+     else
+        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
+        check(.false.)
+     end if
   end if
-end subroutine tet_nedelec_reference_fe_get_n_face_orientation
+
+end subroutine tet_nedelec_reference_fe_fill_symmetric_quadrature
 
 ! ==============================================================================
 subroutine tet_nedelec_reference_fe_change_basis(this) 
   implicit none
   class(tet_nedelec_reference_fe_t), intent(inout) ::  this
-  
+
   ! Local variables required by edge boundary moments integration
-  type(tet_lagrangian_reference_fe_t) :: fe_1D
+  type(tet_lagrangian_reference_fe_t)     :: fe_1D
   type(quadrature_t)                      :: edge_quadrature
   type(interpolation_t)                   :: interpolation_1D, edge_interpolation
-  type(fe_map_t)                          :: edge_map
+  type(edge_map_t)                        :: edge_map
   type(point_t), pointer                  :: edge_map_coordinates(:)
-  real(rp)                                :: shape_test, edge_length 
+  real(rp)                                :: shape_test
   type(vector_field_t)                    :: tangent
-  
+
   ! Local variables required by face boundary moments integration
   type(tet_lagrangian_reference_fe_t) :: fe_2D
   type(quadrature_t)                  :: face_quadrature
   type(interpolation_t)               :: interpolation_2D, face_interpolation
   integer(ip)                         :: local_face_id
-  type(fe_map_t)                      :: face_map
+  type(face_map_t)                    :: face_map
   type(point_t), pointer              :: face_map_coordinates(:)
   real(rp)                            :: v_scalar_shape_test, face_area  
   integer(ip)                         :: direction  
-  
+
   ! Local variables required by interior moments integration
   type(tet_lagrangian_reference_fe_t) :: fe
   type(quadrature_t)                  :: cell_quadrature
@@ -954,33 +1125,33 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   integer(ip)                         :: reduced_order_vector(SPACE_DIM)
   integer(ip)                         :: num_interior_moments
   type(vector_field_t)                :: v_shape_test
-  
+
   ! Local variables requires for both boundary/interior moments integration
   type(tet_lagrangian_reference_fe_t) :: d_fe_geo
   type(vector_field_t)                :: v_shape_trial
   integer(ip)                         :: ishape, jshape, qpoint
   real(rp)                            :: factor
   integer(ip)                         :: idime
-  
+
   ! Rest of local variables
   integer(ip)                         :: c, d, i, j, istat
   integer(ip)                         :: num_rows_own_node_permutations
   integer(ip)                         :: num_cols_own_node_permutations
-  type(list_iterator_t)               :: interior_nodes_iterator
-  
+  type(list_iterator_t)               :: own_dofs_iterator
+
   ! Facets and vertices within reference cell traversal-related data structures
   type(list_iterator_t)               :: vertex_iterator
   integer(ip)                         :: vertex_within_cell_id
   integer(ip)                         :: vertex_within_edge_id
   integer(ip)                         :: vertex_within_face_id
   integer(ip)                         :: edge_id, facet_id, n_face_id
-  
+
   type(allocatable_array_ip2_t), allocatable :: own_node_permutations(:)
   integer(ip) :: icomp, orient, offcomponent 
-  
+
   assert ( .not. this%basis_changed )
-  assert ( this%continuity )
- 
+  assert ( this%conformity .and. this%continuity )
+
   ! Allocate change_basis_matrix
   if ( allocated(this%change_basis_matrix) ) & 
        call memfree(this%change_basis_matrix, __FILE__, __LINE__)    
@@ -991,29 +1162,25 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
        __FILE__, &
        __LINE__)
 
-  ! Allocate and fill Sk prebase polynomials indices  
-  if ( allocated(this%basis_Sk) ) call memfree(this%basis_Sk, __FILE__, __LINE__ )  
-  call this%create_and_fill_basis_Sk_indices()
-
-  ! Create a 1D scalar lagrangian reference FE of order k-1,     ! P_{k-1}
+  ! Create a 1D scalar lagrangian reference FE of order k-1,  ! P_{k-1}
   call fe_1D%create(topology          = this%get_topology(), &
-                    number_dimensions = 1,                   &
-                    order             = this%order-1,        & 
-                    field_type        = field_type_scalar,   &
-                    continuity        = .true. )
+       number_dimensions = 1,                   &
+       order             = this%order-1,        & 
+       field_type        = field_type_scalar,   &
+       conformity        = .true. )
 
   ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
   call d_fe_geo%create(topology          = this%get_topology(), &
-                       number_dimensions = this%number_dimensions, &
-                       order             = 1, &
-                       field_type        = field_type_scalar, &
-                       continuity        = .true. )
+       number_dimensions = this%number_dimensions, &
+       order             = 1, &
+       field_type        = field_type_scalar, &
+       conformity        = .true. )
 
   call this%create_edge_quadrature( edge_quadrature )
 
   call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
 
-  call edge_map%create_edge_map( edge_quadrature, d_fe_geo )
+  call edge_map%create( edge_quadrature, d_fe_geo )
 
   ! Initialize change of basis matrix
   this%change_basis_matrix = 0.0_rp
@@ -1036,19 +1203,21 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      end do
 
      ! Update edge_map on current edge
-     call edge_map%update_edge_map(local_edge_id = edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
-                                   reference_fe  = d_fe_geo, &
-                                   quadrature    = edge_quadrature ) 
+     call edge_map%update(local_edge_id = edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
+          reference_fe  = d_fe_geo, &
+          quadrature    = edge_quadrature ) 
 
      ! Edge quadrature is updated to every edge of the reference_fe 
      call this%create_edge_interpolation (edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
-                                          edge_quadrature,                                          &
-                                          edge_interpolation )
+          edge_quadrature,                                          &
+          edge_interpolation )
 
      ! Integrate edge boundary moments int_edge(u.t q), q \in P_k-1
      do qpoint = 1, edge_quadrature%number_quadrature_points
         factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
-        call edge_map%get_tangent(qpoint, tangent) 
+        call edge_map%get_tangent(qpoint, tangent)
+        tangent = tangent * (1.0_rp/tangent%nrm2() )
+
         do ishape=1, interpolation_1D%number_shape_functions
            call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
            do jshape=1, edge_interpolation%number_shape_functions
@@ -1064,14 +1233,14 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   if ( this%number_dimensions == 3 .and. this%order > 1 ) then 
      ! Create a 2D scalar reference_fe of order P_{k-2,k-2} x P_{k-2,k-2}
      call fe_2D%create(topology          = this%get_topology(), &
-                       number_dimensions = 2,                   &
-                       order             = this%order-2,        &
-                       field_type        = field_type_scalar,   &
-                       continuity        = .true. )
+          number_dimensions = 2,                   &
+          order             = this%order-2,        &
+          field_type        = field_type_scalar,   &
+          conformity        = .true. )
 
      call this%create_face_quadrature( face_quadrature )
      call fe_2D%create_interpolation( face_quadrature, interpolation_2D )
-     call face_map%create_face_map( face_quadrature, d_fe_geo )
+     call face_map%create( face_quadrature, d_fe_geo )
 
      do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
 
@@ -1088,22 +1257,23 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
            vertex_within_face_id = vertex_within_face_id + 1
         end do
 
-       ! Update face_map on current face
-       local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
-       call face_map%update_face_map(number_cell_dimensions = d_fe_geo%number_dimensions,                            &
-                                   reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
-                                   quadrature             = face_quadrature ) 
+        ! Update face_map on current face
+        local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
+        call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+                             quadrature             = face_quadrature ) 
 
         call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
-                                             face_quadrature,                           &
-                                             face_interpolation )
-					
-        ! Integrate face boundary moments int_Face(u^n q), q \in P_k-2,k-2 x P_k-2,k-2
+             face_quadrature,                           &
+             face_interpolation )
+
+        ! Integrate face boundary moments int_Face(u^n q), q \in P_{k-2,k-2} P_{k-2,k-2}
         do qpoint = 1, face_quadrature%number_quadrature_points
            factor = face_map%get_det_jacobian(qpoint) * face_quadrature%get_weight(qpoint)		   
-           face_area = 0.5_rp*face_map%get_det_jacobian(qpoint)  
-		! Each scalar test function is endowed with vector field type  
-		! through v_scalar_shape_test * tangent vectors to the face 
+
+           face_area = 0.5_rp*face_map%get_det_jacobian(qpoint) 
+           ! Each scalar test function is endowed with vector field type  
+           ! through v_scalar_shape_test * tangent vectors to the face 
+
            do direction=1,2
               c = (direction-1)*interpolation_2D%number_shape_functions
               call face_map%get_jacobian_column(direction,qpoint,tangent) ! x_i - x^0_i (not normalized)
@@ -1113,6 +1283,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
                     call this%get_value(face_interpolation, jshape, qpoint, v_shape_trial)   	
                     this%change_basis_matrix(d+ishape+c,jshape) = this%change_basis_matrix(d+ishape+c,jshape) &
                                          + 1.0_rp/face_area * v_shape_trial * v_scalar_shape_test * tangent * factor
+
                  end do
               end do
            end do
@@ -1122,23 +1293,20 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   end if
 
   ! Compute number interior shape functions shape functions
-  if ( this%number_dimensions .eq. 2) then 
+  if ( this%number_dimensions == 2) then 
      num_interior_moments = this%order_vector(1)*(this%order_vector(1)-1) ! k(k-1)
-  elseif (this%number_dimensions .eq. 3) then 
+  elseif (this%number_dimensions == 3) then 
      num_interior_moments = this%order_vector(1)*(this%order_vector(1)-1)*(this%order_vector(1)-2)/2 ! k(k-1)(k-2)/2
   end if
 
-  if ( num_interior_moments .gt. 0 ) then 
+  if ( num_interior_moments > 0 ) then 
 
-     ! Create dim-D Lagrangian polynomial of order k-D 
-     ! VOL in 2D: P_{k-2,k-2} x P_{k-2,k-2}
-     ! VOL in 3D: P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}
-
+     ! Create dim-D Lagrangian polynomial of order k-d 
      call fe%create(topology           = this%get_topology(),               &
                     number_dimensions  = this%number_dimensions,            &
                     order              = this%order-this%number_dimensions, &
                     field_type         = field_type_vector,                 &
-                    continuity         = .true.                            )
+                    conformity         = .true.                            )
 
      call this%create_quadrature( cell_quadrature )
      call fe%create_interpolation( cell_quadrature, interpolation )
@@ -1155,8 +1323,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      call cell_map%update(cell_quadrature)
 
      ! Integration of interior moments 
-     ! 2D CASE: int_K (u·q), q \in Pk-2,k-2 x Qk-2,k-2 
-     ! 3D CASE: int_K (u·q), q \in Pk-3,k-3,k-3 x Qk-3,k-3,k-3 x Qk-3,k-3,k-3     
+     ! 2D CASE: int_K (u·q), q \in P_{k-2,k-2} x Q_{k-2,k-2} 
+     ! 3D CASE: int_K (u·q), q \in P_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3}     
      do qpoint = 1, cell_quadrature%number_quadrature_points
         factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
         do ishape=1, interpolation%number_shape_functions*fe%number_dimensions
@@ -1174,89 +1342,56 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   call this%invert_change_basis_matrix()
 
   ! Transform type(list_t) member variables of this to reflect change of basis
-  call this%interior_nodes_n_face%create( this%number_n_faces + 1 )
+  call this%own_dofs_n_face%create( this%number_n_faces + 1 )
 
-  do edge_id = this%get_first_n_face_id_of_dimension(1), & 
-       this%get_first_n_face_id_of_dimension(1) + this%get_number_n_faces_of_dimension(1)-1
-     call this%interior_nodes_n_face%sum_to_pointer_index(edge_id, interpolation_1D%number_shape_functions )           
-  end do
-
-  if (this%number_dimensions == 3 .and. this%order > 1) then
-     do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
-        call this%interior_nodes_n_face%sum_to_pointer_index(facet_id, interpolation_2D%number_shape_functions*fe_2D%number_dimensions)
+  if ( this%conformity .and. this%continuity ) then
+     do edge_id = this%get_first_n_face_id_of_dimension(1), & 
+          this%get_first_n_face_id_of_dimension(1) + this%get_number_n_faces_of_dimension(1)-1
+        call this%own_dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%number_shape_functions )           
      end do
-  end if
 
-  call this%interior_nodes_n_face%sum_to_pointer_index(this%number_n_faces + 1, num_interior_moments)
-  call this%interior_nodes_n_face%calculate_header()
-  call this%interior_nodes_n_face%allocate_list_from_pointer()
-
-  c=1
-  do idime=1, this%number_dimensions
-     do n_face_id = this%get_first_n_face_id_of_dimension(idime), & 
-          this%get_first_n_face_id_of_dimension(idime) + this%get_number_n_faces_of_dimension(idime)-1
-        interior_nodes_iterator = this%interior_nodes_n_face%create_iterator(n_face_id)
-        do while ( .not. interior_nodes_iterator%is_upper_bound() )
-           call interior_nodes_iterator%set_current(c)
-           c = c + 1
-           call interior_nodes_iterator%next()
+     if (this%number_dimensions == 3 .and. this%order > 1) then
+        do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
+           call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%number_shape_functions*fe_2D%number_dimensions )
         end do
-        call interior_nodes_iterator%next()
-     end do
-  end do
-
-  this%nodes_n_face      = this%interior_nodes_n_face
-  this%own_nodes_n_faces = this%interior_nodes_n_face
-
-  ! Re-define own_node_permutations-related stuff
-  if ( allocated(this%number_rotations_per_dimension) )    call memfree (this%number_rotations_per_dimension,__FILE__,__LINE__)
-  if ( allocated(this%number_orientations_per_dimension) ) call memfree (this%number_orientations_per_dimension,__FILE__,__LINE__)
-  if (allocated(this%own_node_permutations)) then
-     do i = 1, this%number_dimensions-1
-        call this%own_node_permutations(i)%free()
-     end do
-     deallocate(this%own_node_permutations, stat=istat)
-     check(istat==0)
-  end if
-
-  call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
-  call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
-
-  do idime = 1, this%number_dimensions-1
-     call this%node_array_vector(1)%compute_num_rot_and_perm( idime,                                        &
-                                                              this%polytope,                                &
-                                                              this%number_rotations_per_dimension(idime),   &
-                                                              this%number_orientations_per_dimension(idime) )
-  end do
-
-  allocate(this%own_node_permutations(this%number_dimensions-1)) 
-  do idime = 1, this%number_dimensions-1
-     num_cols_own_node_permutations = this%number_rotations_per_dimension(idime)*this%number_orientations_per_dimension(idime)
-     if ( idime == 1 ) then
-        num_rows_own_node_permutations = interpolation_1D%number_shape_functions
-     else if ( idime == 2 ) then
-	    if ( this%order == 1 ) then 
-		num_rows_own_node_permutations = 0
-		else
-        num_rows_own_node_permutations = interpolation_2D%number_shape_functions*fe_2D%number_dimensions     
-		end if 
      end if
 
-     call this%own_node_permutations(idime)%create(num_rows_own_node_permutations, &
-                                                   num_cols_own_node_permutations)		
-	 
-	 ! Set own_node_permutation array to the identity since the tet mesh is oriented 
-     do j=1, num_cols_own_node_permutations
-       do i=1, num_rows_own_node_permutations
-         this%own_node_permutations(idime)%a(i,j) = i
-       end do
+     call this%own_dofs_n_face%sum_to_pointer_index(this%number_n_faces + 1, num_interior_moments)
+     call this%own_dofs_n_face%calculate_header()
+     call this%own_dofs_n_face%allocate_list_from_pointer()
+
+     c=1
+     do idime=1, this%number_dimensions
+        do n_face_id = this%get_first_n_face_id_of_dimension(idime), & 
+             this%get_first_n_face_id_of_dimension(idime) + this%get_number_n_faces_of_dimension(idime)-1
+           own_dofs_iterator = this%own_dofs_n_face%create_iterator(n_face_id)
+           do while ( .not. own_dofs_iterator%is_upper_bound() )
+              call own_dofs_iterator%set_current(c)
+              c = c + 1
+              call own_dofs_iterator%next()
+           end do
+           call own_dofs_iterator%next()
+        end do
      end do
-     	 
-  end do
+  else 
+
+     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%number_shape_functions)
+     call this%own_dofs_n_face%calculate_header()
+     call this%own_dofs_n_face%allocate_list_from_pointer()
+     own_dofs_iterator = this%own_dofs_n_face%create_iterator()
+     i=1
+     do while(.not. own_dofs_iterator%is_upper_bound())
+        call own_dofs_iterator%set_current(i)
+        call own_dofs_iterator%next()
+        i = i + 1 
+     enddo
+
+  end if
+  this%dofs_n_face = this%own_dofs_n_face
 
   ! Flag change of basis
   this%basis_changed = .true.
-  
+
   ! Free all local data structures required for edge moments integration
   call d_fe_geo%free()
   call fe_1D%free()
@@ -1278,5 +1413,32 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   call cell_quadrature%free()
   call cell_interpolation%free()
   call cell_map%free()
- 
+
 end subroutine tet_nedelec_reference_fe_change_basis
+
+!==================================================================================================
+function tet_nedelec_reference_fe_compute_permutation_index(source_reference_fe, target_reference_fe,          &
+     &                                          source_n_face_id, target_n_face_id,         &
+     &                                          source_n_faces, target_n_faces)
+  implicit none
+  class(tet_nedelec_reference_fe_t), intent(in)  :: source_reference_fe
+  class(reference_fe_t), intent(in)  :: target_reference_fe
+  integer(ip)          , intent(in)  :: source_n_face_id ! Local n-face ID
+  integer(ip)          , intent(in)  :: target_n_face_id ! Local n-face ID
+  integer(ip)          , intent(in)  :: source_n_faces(:)
+  integer(ip)          , intent(in)  :: target_n_faces(:)  
+  integer(ip) :: tet_nedelec_reference_fe_compute_permutation_index
+  tet_nedelec_reference_fe_compute_permutation_index = 1
+end function tet_nedelec_reference_fe_compute_permutation_index
+
+!==================================================================================================
+function tet_nedelec_reference_fe_permute_dof_LID_n_face(this,source_dof_lid_n_face,n_face_dimension,permutation_index)
+  implicit none
+  class(tet_nedelec_reference_fe_t), intent(in)  :: this
+  integer(ip)                         , intent(in)  :: source_dof_lid_n_face
+  integer(ip)                         , intent(in)  :: n_face_dimension
+  integer(ip)                         , intent(in)  :: permutation_index
+  integer(ip) :: tet_nedelec_reference_fe_permute_dof_LID_n_face
+  tet_nedelec_reference_fe_permute_dof_LID_n_face = source_dof_lid_n_face
+end function tet_nedelec_reference_fe_permute_dof_LID_n_face
+

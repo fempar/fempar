@@ -192,14 +192,14 @@ contains
                                                  number_dimensions = this%triangulation%get_num_dimensions(),      &
                                                  order = this%test_params%get_magnetic_field_reference_fe_order(), &
                                                  field_type = field_type_vector,                                   &
-                                                 continuity = .true. ) 
+                                                 conformity = .true. ) 
     
     this%reference_fes(2) =  make_reference_fe ( topology = topology_tet,                                             &
                                                  fe_type = fe_type_lagrangian,                                        &
                                                  number_dimensions = this%triangulation%get_num_dimensions(),         &
                                                  order = this%test_params%get_magnetic_pressure_reference_fe_order(), &
                                                  field_type = field_type_scalar,                                      &
-                                                 continuity = .true. ) 
+                                                 conformity = .true. ) 
     
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
@@ -229,9 +229,9 @@ contains
                                             J  = this%test_params%get_external_current_amplitude(),         &
                                             wJ = this%test_params%get_external_current_frequency()  )  
     
-    call this%fe_space%create( triangulation       = this%triangulation,          &
-                               conditions          = this%hts_nedelec_conditions, &
-                               reference_fes       = this%reference_fes           )
+    call this%fe_space%create( triangulation = this%triangulation, &
+                               reference_fes = this%reference_fes, &
+                               conditions    = this%hts_nedelec_conditions )
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration() 
@@ -293,16 +293,16 @@ contains
     type(sparse_matrix_t), pointer :: coefficient_matrix
 
     ! Integration loop 
-    class(fe_iterator_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face 
+    class(fe_iterator_t)     , allocatable :: fe
+    class(fe_face_iterator_t), allocatable :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
-    type(face_map_t)         , pointer     :: face_map 
+    type(face_maps_t)         , pointer     :: face_map 
     type(vector_field_t)                   :: rot_test_vector
     integer(ip)                            :: qpoin, number_qpoints, idof 
     type(i1p_t)              , pointer     :: elem2dof(:)
-    type(volume_integrator_t), pointer     :: vol_int_H
+    type(cell_integrator_t), pointer     :: cell_int_H
     type(face_integrator_t), pointer       :: face_int_H
     integer(ip)                            :: i, inode, vector_size
     integer(ip)                            :: num_dofs, number_fields 
@@ -345,7 +345,7 @@ contains
     
     quad           => fe%get_quadrature()
     fe_map         => fe%get_fe_map() 
-    vol_int_H      => fe%get_volume_integrator(1)
+    cell_int_H      => fe%get_cell_integrator(1)
     number_qpoints =  quad%get_number_quadrature_points()
     
     ! Loop over elements
@@ -361,7 +361,7 @@ contains
           do qpoin=1, number_qpoints
              factor = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						
              do inode = 1, number_dofs_per_field(1)  
-                call vol_int_H%get_curl(inode, qpoin, rot_test_vector)
+                call cell_int_H%get_curl(inode, qpoin, rot_test_vector)
                 elvec(inode) = elvec(inode) + factor * rot_test_vector%get(3) 
              end do
           end do
@@ -393,7 +393,7 @@ contains
        call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
        quad            => fe_face%get_quadrature()
        number_qpoints  =  quad%get_number_quadrature_points()
-       face_map        => fe_face%get_face_map()
+       face_map        => fe_face%get_face_maps()
        face_int_H      => fe_face%get_face_integrator(1)
 
        do while ( .not. fe_face%has_finished() )
@@ -430,6 +430,7 @@ contains
        call memfree ( facevec, __FILE__, __LINE__ )
     end if 
     call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_face_iterator(fe_face)
     ! Sum duplicates, re-order by rows, and leave the matrix in a final state
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 

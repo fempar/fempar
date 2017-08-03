@@ -1,0 +1,569 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! cell_integrator_t type procedures
+subroutine cell_integrator_create( this, quadrature, reference_fe )
+  implicit none
+  ! Parameters
+  class(cell_integrator_t), intent(inout) :: this 
+  type(quadrature_t)        ,  intent(in)   :: quadrature
+  class(reference_fe_t), target,  intent(in)   :: reference_fe  
+
+  call this%free()
+  
+  this%number_quadrature_points = quadrature%number_quadrature_points
+  this%number_shape_functions   = reference_fe%number_shape_functions
+  this%reference_fe             => reference_fe
+
+  call reference_fe%create_interpolation( quadrature, this%interpolation )
+  call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
+end subroutine cell_integrator_create
+
+subroutine cell_integrator_create_on_face( this, quadrature, reference_fe, face_lid )
+  implicit none
+  ! Parameters
+  class(cell_integrator_t)    , intent(inout) :: this 
+  type(quadrature_t)            , intent(in)    :: quadrature
+  class(reference_fe_t), target , intent(in)    :: reference_fe  
+  integer(ip)                   , intent(in)    :: face_lid
+  call this%free()
+  this%number_quadrature_points = quadrature%number_quadrature_points
+  this%number_shape_functions   = reference_fe%number_shape_functions
+  this%reference_fe             => reference_fe
+  call reference_fe%create_face_interpolation( face_lid, quadrature, this%interpolation )
+  call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
+end subroutine cell_integrator_create_on_face
+
+subroutine cell_integrator_free( this )
+  implicit none
+  class(cell_integrator_t), intent(inout) :: this
+  call this%interpolation%free()
+  call this%interpolation_o_map%free()
+  nullify(this%reference_fe)
+  this%number_quadrature_points = 0
+  this%number_shape_functions = 0
+end subroutine cell_integrator_free
+
+!==================================================================================================
+subroutine cell_integrator_update( this, fe_map )
+  implicit none
+  class(cell_integrator_t), intent(inout) :: this
+  type(fe_map_t)               , intent(in)    :: fe_map
+
+  call this%reference_fe%update_interpolation(fe_map, this%interpolation,this%interpolation_o_map)
+  end subroutine cell_integrator_update
+
+!==================================================================================================
+subroutine cell_integrator_print( this )
+  implicit none
+  class(cell_integrator_t), intent(in) :: this
+  write(*,*) 'PRINT VOLUME INTEGRATOR: '
+  write(*,*) '%%%%%%%%%%%%%%%% interpolation: %%%%%%%%%%%%%%%%'
+  call this%interpolation%print()
+  write(*,*) '%%%%%%%%%%%%%%%% interpolation_o_map: %%%%%%%%%%%%%%%%'
+  call this%interpolation_o_map%print()
+end subroutine cell_integrator_print
+
+!==================================================================================================
+subroutine cell_integrator_update_interpolation( this, quadrature )
+  implicit none
+  ! Parameters
+  class(cell_integrator_t), intent(inout) :: this 
+  type(quadrature_t)        ,  intent(in)   :: quadrature
+  call this%reference_fe%create_interpolation( quadrature, this%interpolation )
+  call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
+end subroutine cell_integrator_update_interpolation
+
+!==================================================================================================
+function cell_integrator_get_interpolation_reference_cell(this)
+  implicit none
+  class(cell_integrator_t), target, intent(in):: this
+  type(interpolation_t), pointer ::  cell_integrator_get_interpolation_reference_cell
+
+  cell_integrator_get_interpolation_reference_cell => this%interpolation
+end function cell_integrator_get_interpolation_reference_cell
+
+!==================================================================================================
+function cell_integrator_get_interpolation_real_cell(this)
+  implicit none
+  class(cell_integrator_t), target, intent(in) :: this
+  type(interpolation_t), pointer ::  cell_integrator_get_interpolation_real_cell
+
+  cell_integrator_get_interpolation_real_cell => this%interpolation_o_map
+end function cell_integrator_get_interpolation_real_cell
+
+!==================================================================================================
+subroutine cell_integrator_get_value_scalar (this, ishape, qpoint, scalar_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  real(rp)                     , intent(out)   :: scalar_field
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_value(this%interpolation_o_map,ishape,qpoint,scalar_field)
+end subroutine cell_integrator_get_value_scalar
+
+subroutine cell_integrator_get_value_vector (this, ishape, qpoint, vector_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_value(this%interpolation_o_map,ishape,qpoint,vector_field)
+end subroutine cell_integrator_get_value_vector
+
+subroutine cell_integrator_get_value_tensor (this, ishape, qpoint, tensor_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(tensor_field_t)         , intent(out)   :: tensor_field
+  assert( this%reference_fe%field_type == field_type_tensor )
+  check(.false.)
+end subroutine cell_integrator_get_value_tensor
+
+subroutine cell_integrator_get_value_symmetric_tensor (this, ishape, qpoint, symmetric_tensor_field)
+  implicit none
+  class(cell_integrator_t)  , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: ishape
+  integer(ip)                    , intent(in)    :: qpoint
+  type(symmetric_tensor_field_t) , intent(out)   :: symmetric_tensor_field
+  assert( this%reference_fe%field_type == field_type_tensor )
+  check(.false.)
+end subroutine cell_integrator_get_value_symmetric_tensor
+
+subroutine cell_integrator_get_values_scalar (this, values, qpoints_perm)
+  implicit none
+  class(cell_integrator_t)   , intent(in)    :: this
+  real(rp), allocatable        , intent(inout) :: values(:,:)
+  integer(ip)     , optional   , intent(in)    :: qpoints_perm(:)
+
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_values(this%interpolation_o_map,values,qpoints_perm)
+end subroutine cell_integrator_get_values_scalar
+
+subroutine cell_integrator_get_values_vector (this, values, qpoints_perm)
+  implicit none
+  class(cell_integrator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: values(:,:)
+  integer(ip)     , optional       , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_values(this%interpolation_o_map,values,qpoints_perm)
+end subroutine cell_integrator_get_values_vector
+
+subroutine cell_integrator_get_gradient_scalar (this, ishape, qpoint, vector_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_gradient(this%interpolation_o_map,ishape,qpoint,vector_field)
+end subroutine cell_integrator_get_gradient_scalar
+
+subroutine cell_integrator_get_gradient_vector (this, ishape, qpoint, tensor_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(tensor_field_t)         , intent(out)   :: tensor_field
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_gradient(this%interpolation_o_map,ishape,qpoint,tensor_field)
+end subroutine cell_integrator_get_gradient_vector
+
+subroutine cell_integrator_get_gradients_scalar (this, gradients, qpoints_perm)
+  implicit none
+  class(cell_integrator_t)              , intent(in)    :: this
+  type(vector_field_t),        allocatable, intent(inout) :: gradients(:,:)
+  integer(ip)     , optional              , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_gradients(this%interpolation_o_map,gradients,qpoints_perm)
+end subroutine cell_integrator_get_gradients_scalar
+
+subroutine cell_integrator_get_gradients_vector (this, gradients, qpoints_perm)
+  implicit none
+  class(cell_integrator_t)           , intent(in)     :: this
+  type(tensor_field_t),     allocatable, intent(inout)  :: gradients(:,:)
+  integer(ip)     , optional           , intent(in)     :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_gradients(this%interpolation_o_map,gradients,qpoints_perm)
+end subroutine cell_integrator_get_gradients_vector
+
+subroutine cell_integrator_get_symmetric_gradient_vector (this, ishape, qpoint, tensor_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: tensor_field
+  assert( this%reference_fe%field_type == field_type_vector )  
+  check(.false.)
+end subroutine cell_integrator_get_symmetric_gradient_vector
+
+subroutine cell_integrator_get_divergence_vector (this, ishape, qpoint, scalar_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  real(rp)                     , intent(out)   :: scalar_field
+  assert( this%reference_fe%field_type == field_type_vector ) 
+  call this%reference_fe%get_divergence(this%interpolation_o_map,ishape,qpoint,scalar_field)
+end subroutine cell_integrator_get_divergence_vector
+
+subroutine cell_integrator_get_divergence_tensor (this, ishape, qpoint, vector_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_tensor .or. this%reference_fe%field_type == field_type_symmetric_tensor  )
+  check(.false.)
+end subroutine cell_integrator_get_divergence_tensor
+
+subroutine cell_integrator_get_divergences_vector (this, divergences, qpoints_perm)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  real(rp), allocatable     , intent(inout) :: divergences(:,:)
+  integer(ip)  , optional   , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector ) 
+  call this%reference_fe%get_divergences(this%interpolation_o_map,divergences,qpoints_perm)
+end subroutine cell_integrator_get_divergences_vector
+
+subroutine cell_integrator_get_curl_vector (this, ishape, qpoint, vector_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_vector ) 
+  call this%reference_fe%get_curl(this%interpolation_o_map,ishape,qpoint,vector_field)
+end subroutine cell_integrator_get_curl_vector
+
+subroutine cell_integrator_get_curls_vector (this, curls, qpoints_perm)
+  implicit none
+  class(cell_integrator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: curls(:,:)
+  integer(ip)     , optional       , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_curls(this%interpolation_o_map,curls,qpoints_perm)
+end subroutine cell_integrator_get_curls_vector
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! procedures to evaluate the fe_function at the quadrature points
+
+subroutine cell_integrator_evaluate_fe_function_scalar ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  real(rp)                  , intent(in)    :: nodal_values(:)
+  real(rp), allocatable     , intent(inout) :: quadrature_points_values(:)
+  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+end subroutine cell_integrator_evaluate_fe_function_scalar
+
+subroutine cell_integrator_evaluate_fe_function_vector ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(cell_integrator_t)       , intent(in)    :: this
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+end subroutine cell_integrator_evaluate_fe_function_vector
+
+subroutine cell_integrator_evaluate_fe_function_tensor ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(cell_integrator_t)       , intent(in)    :: this
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+end subroutine cell_integrator_evaluate_fe_function_tensor
+
+subroutine cell_integrator_evaluate_gradient_fe_function_scalar ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(cell_integrator_t)       , intent(in)    :: this
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+end subroutine cell_integrator_evaluate_gradient_fe_function_scalar
+
+subroutine cell_integrator_evaluate_gradient_fe_function_vector ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(cell_integrator_t)       , intent(in)    :: this
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+end subroutine cell_integrator_evaluate_gradient_fe_function_vector
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! p_cell_integrator_t type procedures
+subroutine p_cell_integrator_allocate( this )
+  implicit none
+  class(p_cell_integrator_t), intent(inout) :: this
+  allocate(this%p)
+end subroutine p_cell_integrator_allocate
+
+subroutine p_cell_integrator_free( this )
+  implicit none
+  class(p_cell_integrator_t), intent(inout) :: this
+  call this%p%free()
+  deallocate(this%p)
+end subroutine p_cell_integrator_free
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!Auxiliar routines
+subroutine vecpro(v1,v2,v3,n)
+  !-----------------------------------------------------------------------
+  !
+  ! Two and three-dimensional vectorial product of two vectors  v3 = v1 x v2.
+  ! The same pointer as for v1 or v2 may be used for v3. If N = 2, it is
+  !  assumed that v1 = (0,0,v1_3) and v2 = (v2_1,v2_2,0).      
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: n
+  real(rp),    intent(in)  :: v2(n),v1(3)
+  real(rp),    intent(out) :: v3(n)
+  real(rp)                 :: c1,c2,c3
+
+  if(n==2) then
+     c1=-v1(3)*v2(2)
+     c2= v1(3)*v2(1)
+     v3(1)=c1
+     v3(2)=c2
+  else if(n==3) then
+     c1=v1(2)*v2(3)-v1(3)*v2(2)
+     c2=v1(3)*v2(1)-v1(1)*v2(3)
+     c3=v1(1)*v2(2)-v1(2)*v2(1)
+     v3(1)=c1
+     v3(2)=c2
+     v3(3)=c3
+  end if
+
+end subroutine vecpro
+
+subroutine invmtx(a,b,deter,nsize)
+  !-----------------------------------------------------------------------
+  !
+  ! This routine inverts a square matrix A -> Mat(nsize,nsize). The
+  ! inverse is stored in B. Its determinant is DETER
+  !    
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: nsize
+  real(rp),    intent(in)  :: a(nsize,nsize)
+  real(rp),    intent(out) :: b(nsize,nsize),deter
+  integer(ip)              :: isize,jsize
+  real(rp)                 :: denom,t1,t2,t3,t4
+
+  select case (nsize)
+
+  case(1)
+     deter=a(1,1)
+     if(deter==0.0_rp) return
+     b(1,1) = 1.0_rp/a(1,1)
+
+  case(2)
+     deter=a(1,1)*a(2,2)-a(2,1)*a(1,2)
+     if(deter/=0.0_rp) then
+        denom=1.0_rp/deter
+        b(1,1) = a(2,2)*denom
+        b(2,2) = a(1,1)*denom
+        b(2,1) =-a(2,1)*denom
+        b(1,2) =-a(1,2)*denom 
+     end if
+
+  case(3)
+     t1  = a(2,2)*a(3,3) - a(3,2)*a(2,3)
+     t2  =-a(2,1)*a(3,3) + a(3,1)*a(2,3)
+     t3  = a(2,1)*a(3,2) - a(3,1)*a(2,2)
+     deter = a(1,1)*t1 + a(1,2)*t2 + a(1,3)*t3
+     if(deter==0.0_rp) return
+     denom = 1.0_rp/deter
+     b(1,1) = t1*denom
+     b(2,1) = t2*denom
+     b(3,1) = t3*denom
+     b(2,2) = ( a(1,1)*a(3,3) - a(3,1)*a(1,3))*denom
+     b(3,2) = (-a(1,1)*a(3,2) + a(1,2)*a(3,1))*denom
+     b(3,3) = ( a(1,1)*a(2,2) - a(2,1)*a(1,2))*denom
+     b(1,2) = (-a(1,2)*a(3,3) + a(3,2)*a(1,3))*denom
+     b(1,3) = ( a(1,2)*a(2,3) - a(2,2)*a(1,3))*denom
+     b(2,3) = (-a(1,1)*a(2,3) + a(2,1)*a(1,3))*denom
+
+  case(4)
+     t1= a(2,2)*a(3,3)*a(4,4) + a(2,3)*a(3,4)*a(4,2)&
+          + a(2,4)*a(3,2)*a(4,3) - a(2,3)*a(3,2)*a(4,4)&
+          - a(2,2)*a(3,4)*a(4,3) - a(2,4)*a(3,3)*a(4,2)
+     t2=-a(2,1)*a(3,3)*a(4,4) - a(2,3)*a(3,4)*a(4,1)&
+          - a(2,4)*a(3,1)*a(4,3) + a(2,4)*a(3,3)*a(4,1)&
+          + a(2,3)*a(3,1)*a(4,4) + a(2,1)*a(3,4)*a(4,3)
+     t3=+a(2,1)*a(3,2)*a(4,4) + a(2,2)*a(3,4)*a(4,1)&
+          + a(2,4)*a(3,1)*a(4,2) - a(2,4)*a(3,2)*a(4,1)&
+          - a(2,2)*a(3,1)*a(4,4) - a(2,1)*a(3,4)*a(4,2)
+     t4=-a(2,1)*a(3,2)*a(4,3) - a(2,2)*a(3,3)*a(4,1)&
+          - a(2,3)*a(3,1)*a(4,2) + a(2,3)*a(3,2)*a(4,1)&
+          + a(2,2)*a(3,1)*a(4,3) + a(2,1)*a(3,3)*a(4,2)
+     deter= a(1,1)*t1 + a(1,2)*t2 + a(1,3)*t3 + a(1,4)*t4
+     if(deter==0.0_rp) return
+     denom=1.0_rp/deter
+     b(1,1) = t1*denom
+     b(2,1) = t2*denom
+     b(3,1) = t3*denom
+     b(4,1) = t4*denom
+     b(1,2) =(- a(1,2)*a(3,3)*a(4,4) - a(1,3)*a(3,4)*a(4,2)&
+          - a(1,4)*a(3,2)*a(4,3) + a(1,3)*a(3,2)*a(4,4)&
+          + a(1,2)*a(3,4)*a(4,3) + a(1,4)*a(3,3)*a(4,2))*denom
+     b(2,2) =(  a(1,1)*a(3,3)*a(4,4) + a(1,3)*a(3,4)*a(4,1)&
+          + a(1,4)*a(3,1)*a(4,3) - a(1,4)*a(3,3)*a(4,1)&
+          - a(1,3)*a(3,1)*a(4,4) - a(1,1)*a(3,4)*a(4,3))*denom
+     b(3,2) =(- a(1,1)*a(3,2)*a(4,4) - a(1,2)*a(3,4)*a(4,1)&
+          - a(1,4)*a(3,1)*a(4,2) + a(1,4)*a(3,2)*a(4,1)&
+          + a(1,2)*a(3,1)*a(4,4) + a(1,1)*a(3,4)*a(4,2))*denom
+     b(4,2) =(  a(1,1)*a(3,2)*a(4,3) + a(1,2)*a(3,3)*a(4,1)&
+          + a(1,3)*a(3,1)*a(4,2) - a(1,3)*a(3,2)*a(4,1)&
+          - a(1,2)*a(3,1)*a(4,3) - a(1,1)*a(3,3)*a(4,2))*denom
+     b(1,3) =(  a(1,2)*a(2,3)*a(4,4) + a(1,3)*a(2,4)*a(4,2)&
+          + a(1,4)*a(2,2)*a(4,3) - a(1,3)*a(2,2)*a(4,4)&
+          - a(1,2)*a(2,4)*a(4,3) - a(1,4)*a(2,3)*a(4,2))*denom
+     b(2,3) =(- a(1,1)*a(2,3)*a(4,4) - a(1,3)*a(2,4)*a(4,1)&
+          - a(1,4)*a(2,1)*a(4,3) + a(1,4)*a(2,3)*a(4,1)&
+          + a(1,3)*a(2,1)*a(4,4) + a(1,1)*a(2,4)*a(4,3))*denom
+     b(3,3) =(  a(1,1)*a(2,2)*a(4,4) + a(1,2)*a(2,4)*a(4,1)&
+          + a(1,4)*a(2,1)*a(4,2) - a(1,4)*a(2,2)*a(4,1)&
+          - a(1,2)*a(2,1)*a(4,4) - a(1,1)*a(2,4)*a(4,2))*denom
+     b(4,3) =(- a(1,1)*a(2,2)*a(4,3) - a(1,2)*a(2,3)*a(4,1)&
+          - a(1,3)*a(2,1)*a(4,2) + a(1,3)*a(2,2)*a(4,1)&
+          + a(1,2)*a(2,1)*a(4,3) + a(1,1)*a(2,3)*a(4,2))*denom
+     b(1,4) =(- a(1,2)*a(2,3)*a(3,4) - a(1,3)*a(2,4)*a(3,2)&
+          - a(1,4)*a(2,2)*a(3,3) + a(1,4)*a(2,3)*a(3,2)&
+          + a(1,3)*a(2,2)*a(3,4) + a(1,2)*a(2,4)*a(3,3))*denom
+     b(2,4) =(  a(1,1)*a(2,3)*a(3,4) + a(1,3)*a(2,4)*a(3,1)&
+          + a(1,4)*a(2,1)*a(3,3) - a(1,4)*a(2,3)*a(3,1)&
+          - a(1,3)*a(2,1)*a(3,4) - a(1,1)*a(2,4)*a(3,3))*denom
+     b(3,4) =(- a(1,1)*a(2,2)*a(3,4) - a(1,2)*a(2,4)*a(3,1)&
+          - a(1,4)*a(2,1)*a(3,2) + a(1,4)*a(2,2)*a(3,1)&
+          + a(1,2)*a(2,1)*a(3,4) + a(1,1)*a(2,4)*a(3,2))*denom
+     b(4,4) =(  a(1,1)*a(2,2)*a(3,3) + a(1,2)*a(2,3)*a(3,1)&
+          + a(1,3)*a(2,1)*a(3,2) - a(1,3)*a(2,2)*a(3,1)&
+          - a(1,2)*a(2,1)*a(3,3) - a(1,1)*a(2,3)*a(3,2))*denom
+
+  case default
+     b=a
+     call invert(b,nsize,nsize)
+  end select
+
+end subroutine invmtx
+
+!-----------------------------------------------------------------------
+subroutine invert(a,nmax,ndm)
+  !-----------------------------------------------------------------------
+  !
+  ! This routine performs the inversion of a ndm*ndm square matrix 
+  ! or just part of it (nmax*nmax)
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)    :: ndm,nmax
+  real(rp),    intent(inout) :: a(ndm,ndm)
+  real(rp)                   :: d
+  integer(ip)                :: n,j,i
+
+  do n = 1,nmax
+     d = a(n,n)
+     do j = 1,nmax
+        a(n,j) = -a(n,j)/d
+     end do
+     do i = 1,nmax
+        if(n/=i) then
+           do j = 1,nmax
+              if(n/=j) a(i,j) = a(i,j) +a(i,n)*a(n,j)
+           end do
+        end if
+        a(i,n) = a(i,n)/d
+     end do
+     a(n,n) = 1.0_rp/d
+  end do
+
+end subroutine invert
+
+
+!-----------------------------------------------------------------------
+subroutine vetoma(vecto,xmatr,ndime,ntens)
+  !-----------------------------------------------------------------------
+  !                                      
+  ! This routine stores a vector VECTO as a symmetric matrix XMATR
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: ndime,ntens
+  real(rp)   , intent(in)  :: vecto(ntens)
+  real(rp)   , intent(out) :: xmatr(ndime,ndime)
+
+  if(ndime.eq.2) then
+     xmatr(1,1)=vecto(1)
+     xmatr(1,2)=vecto(3)
+     xmatr(2,1)=vecto(3)
+     xmatr(2,2)=vecto(2)
+  else
+     xmatr(1,1)=vecto(1)
+     xmatr(1,2)=vecto(4)
+     xmatr(1,3)=vecto(5)
+     xmatr(2,1)=vecto(4)
+     xmatr(2,2)=vecto(2)
+     xmatr(2,3)=vecto(6)
+     xmatr(3,1)=vecto(5)
+     xmatr(3,2)=vecto(6)
+     xmatr(3,3)=vecto(3)
+  end if
+
+end subroutine vetoma
+
+!-----------------------------------------------------------------------
+subroutine btdbma(aglob,aloca,bmatr,n1,n2)
+  !-----------------------------------------------------------------------
+  !                                      
+  ! This routine computes Ag = Bt Al B  when Ag and Al are stored as full
+  ! matrices (Ag := aglob, Al := aloca, B := bmatr). The dimensions are
+  ! Al -> Mat(n1,n1), Ag -> Mat(n2,n2), B -> Mat(n2,n1) 
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: n1,n2
+  real(rp)   , intent(in)  :: aloca(n1,n1), bmatr(n1,n2)
+  real(rp)   , intent(out) :: aglob(n2,n2)
+  integer(ip)              :: i,j,k,l
+
+  do i=1,n2
+     do j=1,n2
+        aglob(i,j)=0.0
+        do k=1,n1
+           do l=1,n1
+              aglob(i,j)=aglob(i,j)+bmatr(k,i)*aloca(k,l)*bmatr(l,j)
+           end do
+        end do
+     end do
+  end do
+
+end subroutine btdbma
