@@ -886,9 +886,10 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
                           reference_fe  = this,                                                 &
                           quadrature    = edge_quadrature )
 	
-	 ! Get first qpoint tangent ( Assume straight edges )
+	 ! It returns unit tangents!!!!!!!!!! 
 	 call edge_map%get_tangent(1, tangent) 	
-	 edge_measure = tangent%nrm2() 
+	 ! Trick to have edge measure
+	 edge_measure = edge_map%get_det_jacobian(1) 
 
     interior_nodes_iterator = this%own_dofs_n_face%create_iterator(edge_id)
     do while ( .not. interior_nodes_iterator%is_upper_bound() )

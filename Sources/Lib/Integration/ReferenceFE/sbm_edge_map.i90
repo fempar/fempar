@@ -110,10 +110,8 @@ subroutine edge_map_update(this,local_edge_id,reference_fe,quadrature)
      this%det_jacobian(evaluation_point_id) = &
           &                         sqrt(dot_product(this%tangents(:,evaluation_point_id), &
           &                                          this%tangents(:,evaluation_point_id)))
-
-     ! Normalize the tangent vector 
-     ! @amartin: How can we make the tangent to point in the right direction? 
-    ! this%tangents (:,evaluation_point_id) = this%tangents (:,evaluation_point_id) * this%det_jacobian(evaluation_point_id) 
+ 
+      this%tangents (:, evaluation_point_id) = this%tangents (:, evaluation_point_id)/this%det_jacobian(evaluation_point_id)
   end do
 end subroutine edge_map_update
 
