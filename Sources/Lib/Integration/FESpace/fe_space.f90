@@ -498,7 +498,7 @@ module fe_space_names
      procedure                           :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
      procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator     
      procedure, non_overridable          :: free_fe_vef_iterator                         => serial_fe_space_free_fe_vef_iterator
-     procedure, non_overridable          :: create_fe_face_iterator                      => serial_fe_space_create_fe_face_iterator
+     procedure                           :: create_fe_face_iterator                      => serial_fe_space_create_fe_face_iterator
      procedure, non_overridable          :: free_fe_face_iterator                        => serial_fe_space_free_fe_face_iterator
  end type serial_fe_space_t  
  

@@ -68,14 +68,13 @@ module hp_adaptive_fe_space_names
      
      type(p4est_serial_triangulation_t), pointer :: p4est_triangulation =>  NULL()
    contains
-     procedure                            :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
-     procedure                            :: create_fe_iterator                                     => serial_hp_adaptive_fe_space_create_fe_iterator
-     
+     procedure          :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
+     procedure          :: create_fe_iterator                                     => serial_hp_adaptive_fe_space_create_fe_iterator
+     procedure          :: create_fe_face_iterator                                => serial_hp_adaptive_fe_space_create_fe_face_iterator
      
      procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
      procedure          :: serial_fe_space_create_different_between_cells         => shpafs_create_different_between_cells
      procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
-     
      
      procedure          :: fill_dof_info                                          => serial_hp_adaptive_fe_space_fill_dof_info
      procedure, private :: fill_elem2dof_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
@@ -108,6 +107,11 @@ module hp_adaptive_fe_space_names
    procedure, private :: recursive_matrix_assembly  => hp_adaptive_fe_iterator_recursive_matrix_assembly
    procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_iterator_recursive_vector_assembly
  end type hp_adaptive_fe_iterator_t
+ 
+ type, extends(fe_face_iterator_t) :: hp_adaptive_fe_face_iterator_t
+   private 
+ contains
+ end type hp_adaptive_fe_face_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t
  
@@ -338,6 +342,17 @@ subroutine serial_hp_adaptive_fe_space_create_fe_iterator ( this, fe )
   allocate(hp_adaptive_fe_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
 end subroutine serial_hp_adaptive_fe_space_create_fe_iterator
+
+subroutine serial_hp_adaptive_fe_space_create_fe_face_iterator ( this, fe_face )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), target     , intent(in)    :: this
+  class(fe_face_iterator_t)           , allocatable, intent(inout) :: fe_face
+  type(p4est_vef_iterator_t) :: vef
+  integer(ip)                :: istat
+  call this%free_fe_face_iterator(fe_face)
+  allocate(hp_adaptive_fe_face_iterator_t :: fe_face, stat=istat); check(istat==0)
+  call fe_face%create(this,vef)
+end subroutine serial_hp_adaptive_fe_space_create_fe_face_iterator
 
 subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
                                                            triangulation, &

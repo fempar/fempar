@@ -1570,6 +1570,7 @@ subroutine serial_fe_space_fill_vef_lids_of_fe_faces ( this )
     end if
     call fe_vef%next()
   end do
+  assert( face_lid == this%triangulation%get_num_faces() )
   call this%free_fe_vef_iterator(fe_vef)
 end subroutine serial_fe_space_fill_vef_lids_of_fe_faces
 
