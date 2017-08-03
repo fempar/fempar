@@ -46,6 +46,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%fill_ref_fe_id_per_fe_same_on_all_cells()
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
+  call this%allocate_and_fill_vef_lids_of_fe_faces()
   call this%allocate_and_init_ptr_lst_dofs()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
@@ -76,6 +77,7 @@ subroutine serial_fe_space_create_different_between_cells( this,                
   call this%fill_ref_fe_id_per_fe_different_between_cells(set_ids_to_reference_fes)
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_per_field()
+  call this%allocate_and_fill_vef_lids_of_fe_faces()
   call this%allocate_and_init_ptr_lst_dofs()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
@@ -91,6 +93,7 @@ subroutine serial_fe_space_free (this)
   call this%free_reference_fes()
   call this%free_ref_fe_id_per_fe()
   call this%free_fe_space_type_per_field()
+  call this%free_vef_lids_of_fe_faces()
   call this%free_ptr_lst_dofs()
   call this%free_at_strong_dirichlet_bound()
   call this%free_has_fixed_dofs()
@@ -1496,7 +1499,7 @@ subroutine serial_fe_space_allocate_fe_face_quadratures_degree ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   call this%free_fe_face_quadratures_degree()
-  call memalloc ( this%triangulation%get_num_faces(), this%fe_face_quadratures_degree, __FILE__, __LINE__ )
+  call memalloc ( this%vef_lids_of_fe_faces%size(), this%fe_face_quadratures_degree, __FILE__, __LINE__ )
 end subroutine serial_fe_space_allocate_fe_face_quadratures_degree 
 
 subroutine serial_fe_space_clear_fe_face_quadratures_degree ( this ) 
@@ -1516,7 +1519,7 @@ subroutine serial_fe_space_allocate_max_order_reference_fe_id_per_fe_face ( this
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   call this%free_max_order_reference_fe_id_per_fe_face()
-  call memalloc ( this%triangulation%get_num_faces(), this%max_order_reference_fe_id_per_fe_face , __FILE__, __LINE__ )
+  call memalloc ( this%vef_lids_of_fe_faces%size(), this%max_order_reference_fe_id_per_fe_face , __FILE__, __LINE__ )
 end subroutine serial_fe_space_allocate_max_order_reference_fe_id_per_fe_face  
 
 subroutine serial_fe_space_free_max_order_reference_fe_id_per_fe_face  ( this )
@@ -1555,7 +1558,14 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face ( this 
   call this%free_fe_iterator(fe)
 end subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face  
 
-subroutine serial_fe_space_fill_vef_lids_of_fe_faces ( this )
+subroutine serial_fe_space_allocate_vef_lids_of_fe_faces ( this, number_fe_faces )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: number_fe_faces
+  call this%vef_lids_of_fe_faces%resize(number_fe_faces)
+end subroutine serial_fe_space_allocate_vef_lids_of_fe_faces
+
+subroutine serial_fe_space_allocate_and_fill_vef_lids_of_fe_faces ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   type(fe_vef_iterator_t) :: fe_vef
@@ -1566,13 +1576,13 @@ subroutine serial_fe_space_fill_vef_lids_of_fe_faces ( this )
   do while ( .not. fe_vef%has_finished() )
     if ( fe_vef%is_face() ) then
       face_lid = face_lid + 1
-      call this%vef_lids_of_fe_faces%set(face_lid,fe_vef%get_lid())
+      call fe_vef%set_vef_lid_of_fe_face(face_lid)
     end if
     call fe_vef%next()
   end do
   assert( face_lid == this%triangulation%get_num_faces() )
   call this%free_fe_vef_iterator(fe_vef)
-end subroutine serial_fe_space_fill_vef_lids_of_fe_faces
+end subroutine serial_fe_space_allocate_and_fill_vef_lids_of_fe_faces
 
 subroutine serial_fe_space_free_vef_lids_of_fe_faces ( this )
   implicit none
@@ -1590,7 +1600,7 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
   class(lagrangian_reference_fe_t), pointer     :: second_reference_fe_geo
   integer(ip)                                   :: fe_face_permutation_index
   
-  call this%face_permutation_indices%resize(this%triangulation%get_num_faces(),-1)
+  call this%face_permutation_indices%resize(this%vef_lids_of_fe_faces%size(),-1)
   call this%create_fe_iterator(first_fe)
   call this%create_fe_iterator(second_fe)
   call this%create_fe_face_iterator(fe_face)
@@ -1598,7 +1608,7 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
     if ( .not. fe_face%is_ghost() .and. fe_face%get_num_cells_around() == 2 ) then
       call fe_face%get_cell_around(1,first_fe)
       first_reference_fe_geo => first_fe%get_reference_fe_geo()
-      call fe_face%get_cell_around(2, second_fe)
+      call fe_face%get_cell_around(2,second_fe)
       second_reference_fe_geo => second_fe%get_reference_fe_geo()
       fe_face_permutation_index = &
         first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,                &
@@ -1649,8 +1659,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   class(reference_fe_t), pointer :: reference_fe
 
   call this%free_fe_face_integration()
-
-  call this%fill_vef_lids_of_fe_faces()
+  
   call this%compute_face_permutation_indices()
   
   call this%allocate_max_order_reference_fe_id_per_fe_face()
@@ -1820,7 +1829,6 @@ subroutine serial_fe_space_free_fe_face_integration ( this )
   call this%free_fe_face_quadratures_degree()
   call this%free_max_order_reference_fe_id_per_fe_face()
   
-  call this%free_vef_lids_of_fe_faces()
   call this%free_face_permutation_indices()
   
 end subroutine serial_fe_space_free_fe_face_integration

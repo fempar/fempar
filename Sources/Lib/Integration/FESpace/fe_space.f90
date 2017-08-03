@@ -284,6 +284,8 @@ module fe_space_names
      procedure                           :: free                              => fe_vef_iterator_free
      final                               :: fe_vef_iterator_final
      
+     procedure, non_overridable          :: set_vef_lid_of_fe_face            => fe_vef_iterator_set_vef_lid_of_fe_face
+     
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
      
      procedure, non_overridable, private :: fe_vef_iterator_get_fe_around
@@ -443,7 +445,8 @@ module fe_space_names
      procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe_face     => serial_fe_space_free_max_order_reference_fe_id_per_fe_face
      procedure, non_overridable          :: compute_max_order_reference_fe_id_per_fe_face  => serial_fe_space_compute_max_order_reference_fe_id_per_fe_face   
      
-     procedure                 , private :: fill_vef_lids_of_fe_faces                    => serial_fe_space_fill_vef_lids_of_fe_faces
+     procedure, non_overridable, private :: allocate_vef_lids_of_fe_faces                => serial_fe_space_allocate_vef_lids_of_fe_faces
+     procedure                 , private :: allocate_and_fill_vef_lids_of_fe_faces       => serial_fe_space_allocate_and_fill_vef_lids_of_fe_faces
      procedure, non_overridable, private :: free_vef_lids_of_fe_faces                    => serial_fe_space_free_vef_lids_of_fe_faces
      
      procedure, non_overridable, private :: compute_face_permutation_indices             => serial_fe_space_compute_face_permutation_indices
