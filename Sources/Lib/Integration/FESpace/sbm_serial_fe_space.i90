@@ -1558,12 +1558,12 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face ( this 
   call this%free_fe_iterator(fe)
 end subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face  
 
-subroutine serial_fe_space_allocate_vef_lids_of_fe_faces ( this, number_fe_faces )
+subroutine serial_fe_space_resize_vef_lids_of_fe_faces ( this, number_fe_faces )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: number_fe_faces
   call this%vef_lids_of_fe_faces%resize(number_fe_faces)
-end subroutine serial_fe_space_allocate_vef_lids_of_fe_faces
+end subroutine serial_fe_space_resize_vef_lids_of_fe_faces
 
 subroutine serial_fe_space_allocate_and_fill_vef_lids_of_fe_faces ( this )
   implicit none
