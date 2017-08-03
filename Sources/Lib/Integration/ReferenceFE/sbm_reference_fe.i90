@@ -403,8 +403,8 @@ function reference_fe_compute_permutation_index(source_reference_fe, target_refe
   class(reference_fe_t), intent(in)  :: target_reference_fe
   integer(ip)          , intent(in)  :: source_n_face_id ! Local n-face ID
   integer(ip)          , intent(in)  :: target_n_face_id ! Local n-face ID
-  integer(ip)          , intent(in)  :: source_n_faces(source_reference_fe%number_n_faces)
-  integer(ip)          , intent(in)  :: target_n_faces(target_reference_fe%number_n_faces) 
+  integer(ip)          , intent(in)  :: source_n_faces(:)
+  integer(ip)          , intent(in)  :: target_n_faces(:) 
   integer(ip) :: reference_fe_compute_permutation_index
   integer(ip)                        :: relative_orientation, relative_rotation 
   type(list_iterator_t)              :: source_n_faces_iterator
