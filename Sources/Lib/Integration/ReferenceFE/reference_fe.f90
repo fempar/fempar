@@ -940,6 +940,8 @@ contains
        & => lagrangian_reference_fe_apply_femap_to_interpolation
   procedure  :: get_default_quadrature_degree &
        & => lagrangian_reference_fe_get_default_quadrature_degree
+  procedure, private :: get_h_refinement_number_subfaces &
+       & => lagrangian_reference_fe_get_h_refinement_number_subfaces
 end type lagrangian_reference_fe_t
 
 abstract interface
@@ -1293,13 +1295,13 @@ public :: tet_raviart_thomas_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
 private
+integer(ip)              :: h_refinement_number_subfaces
 type(interpolation_t)    :: h_refinement_interpolation
 integer(ip), allocatable :: h_refinement_subface_permutation(:,:,:)
 integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
 contains 
 
-procedure :: create                    => hex_lagrangian_reference_fe_create
-
+procedure :: create => hex_lagrangian_reference_fe_create
 
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                                 &
@@ -1348,7 +1350,9 @@ procedure          :: get_h_refinement_subface_permutation               &
 procedure, private :: compute_number_quadrature_points                   &
 & => hex_lagrangian_reference_fe_compute_number_quadrature_points
 procedure :: fill_qpoints_permutations                                   &
-       & => hex_lagrangian_reference_fe_fill_qpoints_permutations
+& => hex_lagrangian_reference_fe_fill_qpoints_permutations
+procedure, private :: get_h_refinement_number_subfaces &
+& => hex_lagrangian_reference_fe_get_h_refinement_number_subfaces
 end type hex_lagrangian_reference_fe_t
 
 public :: hex_lagrangian_reference_fe_t
