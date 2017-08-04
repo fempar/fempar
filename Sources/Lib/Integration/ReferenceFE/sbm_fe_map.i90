@@ -78,13 +78,16 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
 
   integer(ip) :: number_nodes
   integer(ip) :: istat
+  integer(ip) :: local_subface_id
 
   call this%free()
   this%number_dimensions        = reference_fe_geometry%number_dimensions
   this%number_quadrature_points = quadrature%number_quadrature_points
 
-  call reference_fe_geometry%create_face_interpolation( local_face_id, quadrature,                &
-       &                                                this%interpolation_geometry )
+  call reference_fe_geometry%create_face_interpolation( local_face_id,    &
+                                                        local_subface_id, &
+                                                        quadrature,       &
+                                                        this%interpolation_geometry )
 
   call memalloc(this%number_dimensions, &
                 this%number_dimensions, &

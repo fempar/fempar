@@ -56,7 +56,7 @@ subroutine cell_integrator_create_on_face( this, quadrature, reference_fe, face_
   this%number_quadrature_points = quadrature%number_quadrature_points
   this%number_shape_functions   = reference_fe%number_shape_functions
   this%reference_fe             => reference_fe
-  call reference_fe%create_face_interpolation( face_lid, quadrature, this%interpolation )
+  call reference_fe%create_face_interpolation( face_lid, 0, quadrature, this%interpolation )
   call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
 end subroutine cell_integrator_create_on_face
 

@@ -572,12 +572,13 @@ module reference_fe_names
        logical    , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
 
-     subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature,       &
-          &                                           face_interpolation)
+     subroutine create_face_interpolation_interface ( this, local_face_id , local_subface_id, &
+                                                      local_quadrature, face_interpolation )
        import :: reference_fe_t, ip, quadrature_t, interpolation_t
        implicit none 
        class(reference_fe_t), intent(in)    :: this
        integer(ip)          , intent(in)    :: local_face_id
+       integer(ip)          , intent(in)    :: local_subface_id
        type(quadrature_t)   , intent(in)    :: local_quadrature
        type(interpolation_t), intent(inout) :: face_interpolation
      end subroutine create_face_interpolation_interface
@@ -996,15 +997,17 @@ abstract interface
     integer(ip)           , optional, intent(in)    :: order_vector(SPACE_DIM)
   end subroutine fill_interpolation_interface
 
-  subroutine fill_face_interpolation_interface ( this,               &
-       local_quadrature, &
-       local_face_id,   &
-       face_interpolation )
+  subroutine fill_face_interpolation_interface ( this,             &
+                                                 local_quadrature, &
+                                                 local_face_id,    &
+                                                 local_subface_id, &
+                                                 face_interpolation )
     import :: lagrangian_reference_fe_t, interpolation_t, quadrature_t, ip
     implicit none 
     class(lagrangian_reference_fe_t), intent(in)    :: this
     type(quadrature_t)              , intent(in)    :: local_quadrature
     integer(ip)                     , intent(in)    :: local_face_id
+    integer(ip)                     , intent(in)    :: local_subface_id
     type(interpolation_t)           , intent(inout) :: face_interpolation
   end subroutine fill_face_interpolation_interface
 
