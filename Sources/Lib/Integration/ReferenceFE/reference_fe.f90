@@ -230,7 +230,9 @@ module reference_fe_names
   type fe_map_face_restriction_t
      private
      integer(ip)                 :: number_faces = 0
+     integer(ip)                 :: number_subfaces = 0
      integer(ip)                 :: active_face_lid
+     integer(ip)                 :: active_subface_lid
      type(fe_map_t), allocatable :: fe_map(:)
    contains
      procedure, non_overridable :: create            => fe_map_face_restriction_create

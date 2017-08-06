@@ -31,17 +31,24 @@ subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geomet
   implicit none
   ! Parameters
   class(fe_map_face_restriction_t), intent(inout) :: this
-  type(quadrature_t)           , intent(in)    :: quadrature
-  class(lagrangian_reference_fe_t)           , intent(in)    :: reference_fe_geometry
+  type(quadrature_t)              , intent(in)    :: quadrature
+  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
 
-  integer(ip)           :: face_lid, istat
+  integer(ip)           :: face_lid, subface_lid, istat, fe_map_index
 
   call this%free()
   this%number_faces = reference_fe_geometry%get_number_faces()
-  allocate(this%fe_map(this%number_faces),stat = istat)
+  this%number_subfaces = reference_fe_geometry%get_h_refinement_number_subfaces()
+  allocate(this%fe_map(this%number_faces*(this%number_subfaces+1)),stat = istat)
   check(istat == 0)
-  do face_lid = 1,  this%number_faces
-     call this%fe_map(face_lid)%create_on_face(face_lid,quadrature,reference_fe_geometry)
+  do face_lid = 1,this%number_faces
+    do subface_lid = 0,this%number_subfaces
+      fe_map_index = face_lid + subface_lid*this%number_faces
+      call this%fe_map(fe_map_index)%create_on_face( face_lid,      &
+                                                     subface_lid-1, &
+                                                     quadrature,    &
+                                                     reference_fe_geometry )
+    end do
   end do
 end subroutine fe_map_face_restriction_create
 
@@ -64,7 +71,7 @@ subroutine fe_map_face_restriction_free( this)
   ! Parameters
   class(fe_map_face_restriction_t), intent(inout) :: this
   integer(ip) :: face_lid , istat
-  do face_lid = 1, this%number_faces
+  do face_lid = 1, this%number_faces*(this%number_subfaces+1)
      call this%fe_map(face_lid)%free()
   end do
   if (allocated(this%fe_map)) then
@@ -72,7 +79,9 @@ subroutine fe_map_face_restriction_free( this)
      check(istat == 0)
   end if
   this%number_faces = 0
+  this%number_subfaces = 0
   this%active_face_lid = 0
+  this%active_subface_lid = 0
 end subroutine fe_map_face_restriction_free
 
 !==================================================================================================

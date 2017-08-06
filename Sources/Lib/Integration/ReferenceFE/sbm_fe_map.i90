@@ -68,17 +68,17 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
 end subroutine fe_map_create
 
 !==================================================================================================
-subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_geometry )
+subroutine fe_map_create_on_face( this, local_face_id, local_subface_id, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(fe_map_t)      , intent(inout) :: this
-  integer(ip)          , intent(in)    :: local_face_id
-  type(quadrature_t), intent(in)    :: quadrature
+  class(fe_map_t)                 , intent(inout) :: this
+  integer(ip)                     , intent(in)    :: local_face_id
+  integer(ip)                     , intent(in)    :: local_subface_id
+  type(quadrature_t)              , intent(in)    :: quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: number_nodes
   integer(ip) :: istat
-  integer(ip) :: local_subface_id
 
   call this%free()
   this%number_dimensions        = reference_fe_geometry%number_dimensions
