@@ -561,6 +561,13 @@ function void_reference_fe_get_default_quadrature_degree ( this )
   void_reference_fe_get_default_quadrature_degree = -1
 end function void_reference_fe_get_default_quadrature_degree
 
+!==================================================================================================
+function void_reference_fe_get_h_refinement_number_subfaces(this)
+  class(void_reference_fe_t), intent(in)    :: this
+  integer(ip) :: void_reference_fe_get_h_refinement_number_subfaces
+  void_reference_fe_get_h_refinement_number_subfaces = 0
+end function void_reference_fe_get_h_refinement_number_subfaces
+
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************

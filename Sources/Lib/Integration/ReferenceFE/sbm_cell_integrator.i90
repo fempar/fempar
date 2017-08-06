@@ -45,18 +45,19 @@ subroutine cell_integrator_create( this, quadrature, reference_fe )
   call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
 end subroutine cell_integrator_create
 
-subroutine cell_integrator_create_on_face( this, quadrature, reference_fe, face_lid )
+subroutine cell_integrator_create_on_face( this, quadrature, reference_fe, face_lid, subface_lid )
   implicit none
   ! Parameters
-  class(cell_integrator_t)    , intent(inout) :: this 
+  class(cell_integrator_t)      , intent(inout) :: this 
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), target , intent(in)    :: reference_fe  
   integer(ip)                   , intent(in)    :: face_lid
+  integer(ip)                   , intent(in)    :: subface_lid
   call this%free()
   this%number_quadrature_points = quadrature%number_quadrature_points
   this%number_shape_functions   = reference_fe%number_shape_functions
   this%reference_fe             => reference_fe
-  call reference_fe%create_face_interpolation( face_lid, -1, quadrature, this%interpolation )
+  call reference_fe%create_face_interpolation( face_lid, subface_lid, quadrature, this%interpolation )
   call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
 end subroutine cell_integrator_create_on_face
 

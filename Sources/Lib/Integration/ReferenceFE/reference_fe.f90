@@ -474,6 +474,8 @@ module reference_fe_names
      procedure(fill_qpoints_permutations_interface), deferred :: fill_qpoints_permutations
      
      procedure(get_default_quadrature_degree_interface), deferred :: get_default_quadrature_degree
+     
+     procedure(get_h_refinement_number_subfaces_interface), private, deferred :: get_h_refinement_number_subfaces
 
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
@@ -851,6 +853,14 @@ module reference_fe_names
         class(reference_fe_t)        , intent(in)    :: this 
         integer(ip) :: get_default_quadrature_degree_interface
      end function get_default_quadrature_degree_interface
+     
+     function get_h_refinement_number_subfaces_interface(this)
+        import :: reference_fe_t, ip
+        implicit none
+        class(reference_fe_t)        , intent(in)    :: this 
+        integer(ip) :: get_h_refinement_number_subfaces_interface
+     end function get_h_refinement_number_subfaces_interface
+     
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -1504,6 +1514,7 @@ contains
   procedure :: fill_qpoints_permutations            => void_reference_fe_fill_qpoints_permutations     
   procedure :: free                                 => void_reference_fe_free
   procedure :: get_default_quadrature_degree        => void_reference_fe_get_default_quadrature_degree
+  procedure, private :: get_h_refinement_number_subfaces => void_reference_fe_get_h_refinement_number_subfaces
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                        => void_reference_fe_fill
 end type void_reference_fe_t
@@ -1611,8 +1622,10 @@ public :: cell_integrator_t, p_cell_integrator_t
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type cell_integrator_face_restriction_t
      private
-     integer(ip)                            :: number_faces
-     integer(ip)                            :: active_face_lid
+     integer(ip)                          :: number_faces
+     integer(ip)                          :: number_subfaces
+     integer(ip)                          :: active_face_lid
+     integer(ip)                          :: active_subface_lid
      type(cell_integrator_t), allocatable :: cell_integrator(:) 
    contains
      procedure, non_overridable :: create  => cell_integrator_face_restriction_create
@@ -1652,11 +1665,11 @@ public :: face_maps_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type face_integrator_t
   private
-  logical                                    :: is_boundary
+  logical                                  :: is_boundary
   type(cell_integrator_face_restriction_t) :: cell_integrator_face_restriction(2)
-  type(p_reference_fe_t)                     :: reference_fe(2)
-  integer(ip)                                :: current_qpoints_perm_cols(2)
-  type(allocatable_array_ip2_t)              :: qpoints_perm
+  type(p_reference_fe_t)                   :: reference_fe(2)
+  integer(ip)                              :: current_qpoints_perm_cols(2)
+  type(allocatable_array_ip2_t)            :: qpoints_perm
 contains
   procedure, non_overridable :: create            => face_integrator_create
   procedure, non_overridable :: update            => face_integrator_update
