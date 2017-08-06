@@ -740,7 +740,7 @@ subroutine hex_nedelec_reference_fe_fill_face_interpolation ( this, local_quadra
   integer(ip) :: c,idime,iface,n_face_index
   
   ! Exit if attempts to fill the interpolation of a subface
-  if ( local_subface_id > 0 ) return
+  if ( local_subface_id >= 0 ) return
   
   ! Add offset to have same numbering as in polytope
   n_face_index = local_face_id+this%get_first_face_id()-1

@@ -464,7 +464,7 @@ subroutine tet_nedelec_reference_fe_fill_face_interpolation ( this, local_quadra
   integer(ip) :: idime,iface,n_face_index, qpoin,p_local_coordinate
 
   ! Exit if attempts to fill the interpolation of a subface
-  if ( local_subface_id > 0 ) return
+  if ( local_subface_id >= 0 ) return
 
   ! Add offset to have same numbering as in polytope
   n_face_index = local_face_id+this%get_first_face_id()-1

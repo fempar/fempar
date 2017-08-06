@@ -727,7 +727,7 @@ subroutine tet_raviart_thomas_fill_face_interpolation ( this, local_quadrature, 
   type(interpolation_t)    :: scalar_interpolation
 
   ! Exit if attempts to fill the interpolation of a subface
-  if ( local_subface_id > 0 ) return
+  if ( local_subface_id >= 0 ) return
 
   ! Create an auxiliary interpolation with number_nodes_scalar shape functions (scalar one)
   call scalar_interpolation%create( face_interpolation%number_dimensions, this%node_array%number_nodes, &
