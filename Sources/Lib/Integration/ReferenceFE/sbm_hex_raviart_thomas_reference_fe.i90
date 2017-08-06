@@ -852,9 +852,8 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
      call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
                                    quadrature             = d_1_quadrature ) 
      
-     call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
-                                          0, d_1_quadrature, &
-                                          face_interpolation )
+     call this%create_face_interpolation ( facet_id - d_fe_geo%get_first_face_id()+1, &
+                                           -1, d_1_quadrature, face_interpolation )
      
      ! Integrate boundary moments int_Face(u.n q), q \in Q_k
      do qpoint = 1, d_1_quadrature%number_quadrature_points

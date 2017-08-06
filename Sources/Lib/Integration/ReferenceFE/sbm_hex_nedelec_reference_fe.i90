@@ -963,9 +963,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
                           quadrature             = face_quadrature ) 
      
-     call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
-                                          0, face_quadrature, &
-                                          face_interpolation )
+     call this%create_face_interpolation ( facet_id - d_fe_geo%get_first_face_id()+1, &
+                                           -1, face_quadrature, face_interpolation )
      
      call cross_product_v_shape_trial_normal_proj%init(0.0_rp)
      
