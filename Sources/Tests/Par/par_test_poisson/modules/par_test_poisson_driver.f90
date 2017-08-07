@@ -366,7 +366,9 @@ end subroutine free_timers
 
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
-    
+    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
+
     if (this%test_params%get_use_void_fes()) then
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_FULL) = PAR_TEST_POISSON_FULL
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_VOID) = PAR_TEST_POISSON_VOID
@@ -383,10 +385,6 @@ end subroutine free_timers
     end if
     
     call this%fe_space%initialize_fe_integration()
-    
-    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-    call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)    
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
@@ -403,6 +401,11 @@ end subroutine free_timers
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_integration )
+    
+    call this%solution%create(this%fe_space) 
+    call this%fe_space%interpolate_dirichlet_values(this%solution)
+    call this%poisson_integration%set_fe_function(this%solution)
+    
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -630,8 +633,6 @@ end subroutine free_timers
     call this%timer_solver_setup%start()
     call this%setup_solver()
     call this%timer_solver_setup%stop()
-
-    call this%solution%create(this%fe_space) 
 
     call this%timer_solver_run%start()
     call this%solve_system()

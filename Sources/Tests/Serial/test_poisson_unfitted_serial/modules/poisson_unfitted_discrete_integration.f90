@@ -40,8 +40,10 @@ module poisson_unfitted_cG_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: poisson_unfitted_cG_discrete_integration_t
      type(poisson_unfitted_analytical_functions_t), pointer :: analytical_functions => NULL()
+     type(fe_function_t)                          , pointer :: fe_function          => NULL()
    contains
      procedure :: set_analytical_functions
+     procedure :: set_fe_function
      procedure :: integrate_galerkin
   end type poisson_unfitted_cG_discrete_integration_t
 
@@ -56,6 +58,14 @@ contains
      type(poisson_unfitted_analytical_functions_t), target, intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
+
+!========================================================================================
+  subroutine set_fe_function (this, fe_function)
+     implicit none
+     class(poisson_unfitted_cG_discrete_integration_t)        , intent(inout) :: this
+     type(fe_function_t)                              , target, intent(in)    :: fe_function
+     this%fe_function => fe_function
+  end subroutine set_fe_function
 
 !========================================================================================
   subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
@@ -91,13 +101,6 @@ contains
     real(rp)     :: dV, dS
     real(rp)     :: source_term_value
 
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:)
     class(scalar_function_t), pointer :: source_term
     class(scalar_function_t), pointer :: exact_sol
 
@@ -114,18 +117,13 @@ contains
     type(gen_eigenvalue_solver_t) :: eigs
 
     assert (associated(this%analytical_functions))
-
+    assert (associated(this%fe_function)) 
 
     ! TODO We will delete this once implemented the fake methods in the father class
     call fe_space%create_fe_iterator(fe)
 
     source_term => this%analytical_functions%get_source_term()
     exact_sol   => this%analytical_functions%get_solution_function()
-
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
 
     ! Find the first non-void FE
     ! TODO use a function in fe_space istead
@@ -140,8 +138,6 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
 
     !This is for the Nitsche's BCs
     ! TODO  We assume same ref element for all cells, and for all fields
@@ -170,10 +166,6 @@ contains
        fe_map          => fe%get_fe_map()
        cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_number_dofs()
-       call fe%get_number_dofs_per_field(num_dofs_per_field)
-
-       ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
 
        ! Get quadrature coordinates to evaluate source_term
        quad_coords => fe_map%get_quadrature_coordinates()
@@ -318,9 +310,7 @@ contains
 
        end if ! Only for cut elems
 
-       ! Apply boundary conditions
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
        call fe%next()
 
     end do
@@ -331,8 +321,6 @@ contains
     deallocate (shape_gradients, stat=istat); check(istat==0);
     deallocate (boundary_shape_gradients, stat=istat); check(istat==0);
 
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( elmatB_pre, __FILE__, __LINE__ )

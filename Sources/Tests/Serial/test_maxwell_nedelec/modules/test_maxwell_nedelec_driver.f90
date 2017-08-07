@@ -148,13 +148,7 @@ contains
          reference_fes       = this%reference_fes, &
          conditions          = this%maxwell_nedelec_conditions )
     call this%fe_space%initialize_fe_integration()
-    call this%fe_space%initialize_fe_face_integration() 
-    call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
-    call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
-    if ( this%triangulation%get_num_dimensions() == 3) then 
-       call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
-    end if
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
+    call this%fe_space%initialize_fe_face_integration()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
@@ -168,6 +162,14 @@ contains
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_UNKNOWN ], &
                                           fe_space                          = this%fe_space,           &
                                           discrete_integration              = this%maxwell_nedelec_integration )
+    call this%solution%create(this%fe_space) 
+	   call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
+	   call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
+	   if ( this%triangulation%get_num_dimensions() == 3) then 
+	     call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
+	   end if 
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
+    call this%maxwell_nedelec_integration%set_fe_function(this%solution)
   end subroutine setup_system
 
   subroutine setup_solver (this)
@@ -330,7 +332,6 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%solution%create(this%fe_space) 
     call this%solve_system()
     call this%write_solution()
     call this%check_solution()

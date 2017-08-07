@@ -87,9 +87,9 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
      ! tasks also know how many fields there are
      this%number_fields = size(reference_fes)
      
-     ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
-     ! requires that strong_dirichlet_values is created and allocated
-     call this%strong_dirichlet_values%create_and_allocate(0)
+     ! This is a little bit DIRTY. fe_function%create(fe_space)
+     ! requires that number_strong_dirichlet_dofs is initialize
+     this%number_strong_dirichlet_dofs = 0
   end if
  
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
@@ -135,9 +135,9 @@ subroutine par_fe_space_create_different_between_cells( this,                   
      ! tasks also know how many fields there are
      this%number_fields = size(set_ids_to_reference_fes,1)
 
-     ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
-     ! requires that strong_dirichlet_values is created and allocated
-     call this%strong_dirichlet_values%create_and_allocate(0)
+     ! This is a little bit DIRTY. fe_function%create(fe_space)
+     ! requires that number_strong_dirichlet_dofs is initialize
+     this%number_strong_dirichlet_dofs = 0
   end if
 
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
@@ -167,9 +167,9 @@ subroutine par_fe_space_free( this )
         ! fields is also set on coarse-grid tasks
         this%number_fields = 0
         
-        ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
-        ! requires that strong_dirichlet_values is created and allocated
-        call this%serial_fe_space_t%strong_dirichlet_values%free()
+        ! This is a little bit DIRTY. fe_function%create(fe_space)
+        ! requires that number_strong_dirichlet_dofs is initialize
+        this%number_strong_dirichlet_dofs = 0
         
         if ( associated(this%coarse_fe_space) ) then
           call this%coarse_fe_space%free()
@@ -884,7 +884,7 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
   type(environment_t), pointer :: par_environment
   
   assert ( size(fields_to_project) >= 1 .and. size(fields_to_project) <= this%get_number_fields() )
-  assert ( size(global2subset_strong_dirichlet_dofs) == this%strong_dirichlet_values%get_size() )
+  assert ( size(global2subset_strong_dirichlet_dofs) == this%number_strong_dirichlet_dofs )
   
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_task() )
@@ -1060,7 +1060,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
   triangulation     => this%get_triangulation()
   cell_import       => triangulation%get_cell_import()
   assert ( par_environment%am_i_l1_task() )
-  assert ( size(global2subset_strong_dirichlet_dofs) == this%strong_dirichlet_values%get_size() ) 
+  assert ( size(global2subset_strong_dirichlet_dofs) == this%number_strong_dirichlet_dofs ) 
 
   ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
   call memalloc ( number_subset_strong_dirichlet_dofs, local_idof, __FILE__, __LINE__ )
@@ -1575,25 +1575,25 @@ subroutine par_fe_space_create_dof_values(this, dof_values)
   
 end subroutine par_fe_space_create_dof_values
 
-subroutine par_fe_space_interpolate_dirichlet_values(this, conditions, time, fields_to_interpolate)
+subroutine par_fe_space_interpolate_dirichlet_values(this, fe_function, time, fields_to_interpolate)
   implicit none
-  class(par_fe_space_t)     , intent(inout) :: this
-  class(conditions_t)       , intent(in)    :: conditions 
-  real(rp), optional        , intent(in)    :: time
-  integer(ip), optional     , intent(in)    :: fields_to_interpolate(:)
+  class(par_fe_space_t)          , intent(inout) :: this
+  class(fe_function_t)           , intent(inout) :: fe_function
+  real(rp)             , optional, intent(in)    :: time
+  integer(ip)          , optional, intent(in)    :: fields_to_interpolate(:)
   type(environment_t), pointer :: par_environment
   par_environment => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
-    call this%serial_fe_space_t%interpolate_dirichlet_values(conditions,time,fields_to_interpolate)
+    call this%serial_fe_space_t%interpolate_dirichlet_values(fe_function,time,fields_to_interpolate)
   end if
 end subroutine par_fe_space_interpolate_dirichlet_values
 
-subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time, fields_to_project)
+subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_function, time, fields_to_project)
   implicit none
-  class(par_fe_space_t)       , intent(inout)  :: this
-  class(conditions_t)         , intent(in)     :: conditions
-  real(rp)       , optional   , intent(in)     :: time
-  integer(ip)    , optional   , intent(in)     :: fields_to_project(:) 
+  class(par_fe_space_t)          , intent(inout) :: this
+  class(fe_function_t)           , intent(inout) :: fe_function
+  real(rp)             , optional, intent(in)    :: time
+  integer(ip)          , optional, intent(in)    :: fields_to_project(:)
 
   !  Locals
   integer(ip)                  , allocatable :: fields_to_project_(:)  
@@ -1602,6 +1602,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
   integer(ip)                  , allocatable :: offset_component(:)
   integer(ip)                                :: number_components
   logical                      , allocatable :: components_code(:)
+  type(serial_scalar_array_t)  , pointer     :: strong_dirichlet_values
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
@@ -1641,9 +1642,8 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
   if ( par_environment%am_i_l1_task() ) then
   
   
-     number_components = this%get_number_components()
-     assert ( conditions%get_number_components() == number_components )
-     call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+     assert ( associated(this%conditions) )
+     call memalloc ( this%get_number_components(), components_code, __FILE__, __LINE__ )
 
      call this%allocate_and_fill_fields_to_project_(fields_to_project_, &
                                                     fields_to_project)
@@ -1700,7 +1700,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
               call fe_face%update_integration() 
               call fe_face%get_cell_around(1,fe)
               call fe%get_elem2dof(elem2dof)
-              call conditions%get_components_code( fe_face%get_set_id(), components_code )
+              call this%conditions%get_components_code( fe_face%get_set_id(), components_code )
               
               do ifield = 1, size(fields_to_project_)    
                  field_id = fields_to_project_(ifield) 
@@ -1711,7 +1711,6 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
                                                              fe, &
                                                              field_id, &
                                                              component_id, &
-                                                             conditions, &
                                                              function_scalar_components)
                  
                     call this%evaluate_vector_function_scalar_components(fe_face, &
@@ -1774,12 +1773,12 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, conditio
      
      projected_nodal_values_serial_scalar_array => projected_nodal_values%get_serial_scalar_array()
      
-     ! Insert projected nodal values into strong_dirichlet_values array 
-     call this%strong_dirichlet_values%insert_subvector(iblock=1, &
-                                                        size_indices=number_subset_strong_dirichlet_dofs, &
-                                                        indices=subset2global_dirichlet_dofs,             &
-                                                        values=projected_nodal_values_serial_scalar_array%get_entries())
-
+     ! Insert projected nodal values into strong_dirichlet_values array
+     strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
+     call strong_dirichlet_values%insert_subvector(iblock=1, &
+                                                   size_indices=number_subset_strong_dirichlet_dofs, &
+                                                   indices=subset2global_dirichlet_dofs,             &
+                                                   values=projected_nodal_values_serial_scalar_array%get_entries())
      call matrix%free()
      call rhs%free()
      call projected_nodal_values%free()
