@@ -420,6 +420,13 @@ module fe_space_names
      procedure, non_overridable, private :: evaluate_vector_function_scalar_components   => serial_fe_space_evaluate_vector_function_scalar_components
      procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec
      
+     procedure, private, non_overridable :: interpolate_scalar    => serial_fe_space_interpolate_scalar
+     procedure, private, non_overridable :: interpolate_vector    => serial_fe_space_interpolate_vector
+     procedure, private, non_overridable :: interpolate_tensor    => serial_fe_space_interpolate_tensor
+     generic                             :: interpolate           => interpolate_scalar, &
+                                                                     interpolate_vector, &
+                                                                     interpolate_tensor
+     
      
      procedure, non_overridable, private :: allocate_fe_quadratures_degree               => serial_fe_space_allocate_fe_quadratures_degree
      procedure, non_overridable, private :: free_fe_quadratures_degree                   => serial_fe_space_free_fe_quadratures_degree
@@ -897,12 +904,6 @@ module fe_space_names
      procedure, non_overridable          :: create                         => fe_function_create
      procedure, non_overridable          :: gather_nodal_values            => fe_function_gather_nodal_values
      procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
-     procedure, private, non_overridable :: interpolate_scalar_function    => fe_function_interpolate_scalar_function
-     procedure, private, non_overridable :: interpolate_vector_function    => fe_function_interpolate_vector_function
-     procedure, private, non_overridable :: interpolate_tensor_function    => fe_function_interpolate_tensor_function
-     generic                             :: interpolate_function           => interpolate_scalar_function , &
-                                                                              interpolate_vector_function, &
-                                                                              interpolate_tensor_function
      procedure, non_overridable          :: copy                           => fe_function_copy
      procedure, non_overridable          :: get_dof_values                 => fe_function_get_dof_values
      procedure, non_overridable          :: get_strong_dirichlet_values    => fe_function_get_strong_dirichlet_values

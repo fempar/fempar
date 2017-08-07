@@ -115,7 +115,7 @@ contains
     call this%poisson_conditions%get_function(1,1,boundary_function)
     
     call boundary_fe_function%create(fe_space)
-    call boundary_fe_function%interpolate_function(fe_space,1,boundary_function)
+    call fe_space%interpolate(1,boundary_function,boundary_fe_function)
     call boundary_face_fe_function%create(fe_space,1)
     
     call fe_space%initialize_fe_integration()

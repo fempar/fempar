@@ -595,7 +595,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
 
   ! Create the discrete levelset function
   call this%fe_levelset%create(this%fe_space)
-  call this%fe_levelset%interpolate_function(this%fe_space,1,this%level_set_function)
+  call this%fe_space%interpolate(1,this%level_set_function,this%fe_levelset)
 
   ! Apply the tolerance
   call this%discrete_levelset_fix()
