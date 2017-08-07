@@ -354,18 +354,16 @@ contains
                                    reference_fes       = this%reference_fes )
       end if
     end if
+    call this%setup_fe_quadratures_degree()
     call this%fe_space%initialize_fe_integration()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
+      call this%setup_fe_face_quadratures_degree()
       call this%fe_space%initialize_fe_face_integration()
     end if
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
     else
       call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_conditions)
-    end if
-    call this%setup_fe_quadratures_degree()
-    if ( this%test_params%get_fe_formulation() == 'dG' ) then
-      call this%setup_fe_face_quadratures_degree()
     end if
   end subroutine setup_fe_space
   
