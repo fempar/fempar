@@ -46,8 +46,8 @@ module block_sparse_matrix_array_assembler_names
 
   type, extends(matrix_array_assembler_t) :: block_sparse_matrix_array_assembler_t
 contains
-  procedure :: assemble_array   => block_sparse_matrix_array_assembler_assemble_array
-  procedure :: assemble_matrix  => block_sparse_matrix_array_assembler_assemble_matrix
+  procedure :: assembly_array   => block_sparse_matrix_array_assembler_assembly_array
+  procedure :: assembly_matrix  => block_sparse_matrix_array_assembler_assembly_matrix
   procedure :: compress_storage => block_sparse_matrix_array_assembler_compress_storage
   procedure :: allocate         => block_sparse_matrix_array_assembler_allocate
 end type
@@ -57,7 +57,7 @@ public :: block_sparse_matrix_array_assembler_t
 
 contains
 
-  subroutine block_sparse_matrix_array_assembler_assemble_array( this,           &
+  subroutine block_sparse_matrix_array_assembler_assembly_array( this,           &
                                                                  number_fields,  &
                                                                  field_blocks,   &
                                                                  field_coupling, &
@@ -88,9 +88,9 @@ contains
       check(.false.)
     end select
     
-  end subroutine block_sparse_matrix_array_assembler_assemble_array
+  end subroutine block_sparse_matrix_array_assembler_assembly_array
   
-  subroutine block_sparse_matrix_array_assembler_assemble_matrix( this,            &
+  subroutine block_sparse_matrix_array_assembler_assembly_matrix( this,            &
                                                                   number_fields,   &
                                                                   field_blocks,    &
                                                                   field_coupling,  &
@@ -128,7 +128,7 @@ contains
       check(.false.)
     end select
 
-  end subroutine block_sparse_matrix_array_assembler_assemble_matrix
+  end subroutine block_sparse_matrix_array_assembler_assembly_matrix
 
   subroutine block_sparse_matrix_array_assembler_compress_storage(this,sparse_matrix_storage_format)
     implicit none

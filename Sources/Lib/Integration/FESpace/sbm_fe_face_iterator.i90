@@ -166,7 +166,7 @@ subroutine fe_face_iterator_update_integration( this )
   
 end subroutine fe_face_iterator_update_integration
 
-subroutine fe_face_iterator_assemble_array ( this,    &
+subroutine fe_face_iterator_assembly_array ( this,    &
                                              facevec, &
                                              matrix_array_assembler )
   implicit none
@@ -174,23 +174,21 @@ subroutine fe_face_iterator_assemble_array ( this,    &
   real(rp)                       , intent(in)    :: facevec(:,:)
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
-  integer(ip) :: ineigh, jneigh
+  integer(ip) :: ineigh
   
   call this%update_elem2dof_per_cell()
   do ineigh = 1, this%get_num_cells_around()
-    do jneigh = 1, this%get_num_cells_around()
-      call matrix_array_assembler%assemble_array( this%fe_space%number_fields,                    &
-                                                  this%fe_space%get_field_blocks(),               &
-                                                  this%fe_space%get_field_coupling(),             &
-                                                  this%number_dofs_per_cell_and_field(ineigh,:),  &
-                                                  this%elem2dof_per_cell(ineigh,:),               &
-                                                  facevec(:,ineigh) )
-    end do
+    call matrix_array_assembler%assembly_array( this%fe_space%number_fields,                    &
+                                                this%fe_space%get_field_blocks(),               &
+                                                this%fe_space%get_field_coupling(),             &
+                                                this%number_dofs_per_cell_and_field(ineigh,:),  &
+                                                this%elem2dof_per_cell(ineigh,:),               &
+                                                facevec(:,ineigh) )
   end do
   
-end subroutine fe_face_iterator_assemble_array
+end subroutine fe_face_iterator_assembly_array
 
-subroutine fe_face_iterator_assemble_matrix ( this,    &
+subroutine fe_face_iterator_assembly_matrix ( this,    &
                                               facemat, &
                                               matrix_array_assembler )
   implicit none
@@ -203,7 +201,7 @@ subroutine fe_face_iterator_assemble_matrix ( this,    &
   call this%update_elem2dof_per_cell()
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
-      call matrix_array_assembler%assemble_matrix( this%fe_space%number_fields,                   &
+      call matrix_array_assembler%assembly_matrix( this%fe_space%number_fields,                   &
                                                    this%fe_space%get_field_blocks(),              &
                                                    this%fe_space%get_field_coupling(),            &
                                                    this%number_dofs_per_cell_and_field(ineigh,:), &
@@ -214,9 +212,9 @@ subroutine fe_face_iterator_assemble_matrix ( this,    &
     end do
   end do
   
-end subroutine fe_face_iterator_assemble_matrix
+end subroutine fe_face_iterator_assembly_matrix
 
-subroutine fe_face_iterator_assemble_matrix_array ( this,    &
+subroutine fe_face_iterator_assembly_matrix_array ( this,    &
                                                     facemat, &
                                                     facevec, &
                                                     matrix_array_assembler )
@@ -231,7 +229,7 @@ subroutine fe_face_iterator_assemble_matrix_array ( this,    &
   call this%update_elem2dof_per_cell()
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
-      call matrix_array_assembler%assemble_matrix( this%fe_space%number_fields,                   &
+      call matrix_array_assembler%assembly_matrix( this%fe_space%number_fields,                   &
                                                    this%fe_space%get_field_blocks(),              &
                                                    this%fe_space%get_field_coupling(),            &
                                                    this%number_dofs_per_cell_and_field(ineigh,:), &
@@ -239,16 +237,16 @@ subroutine fe_face_iterator_assemble_matrix_array ( this,    &
                                                    this%elem2dof_per_cell(ineigh,:),              &
                                                    this%elem2dof_per_cell(jneigh,:),              &
                                                    facemat(:,:,ineigh,jneigh) )
-      call matrix_array_assembler%assemble_array( this%fe_space%number_fields,                    &
+    end do
+    call matrix_array_assembler%assembly_array( this%fe_space%number_fields,                    &
                                                   this%fe_space%get_field_blocks(),               &
                                                   this%fe_space%get_field_coupling(),             &
                                                   this%number_dofs_per_cell_and_field(ineigh,:),  &
                                                   this%elem2dof_per_cell(ineigh,:),               &
                                                   facevec(:,ineigh) )
-    end do
   end do
   
-end subroutine fe_face_iterator_assemble_matrix_array
+end subroutine fe_face_iterator_assembly_matrix_array
 
 function fe_face_iterator_get_fe_space(this)
   implicit none

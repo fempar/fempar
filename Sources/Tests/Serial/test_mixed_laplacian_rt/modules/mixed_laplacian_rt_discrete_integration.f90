@@ -173,7 +173,7 @@ contains
           end do
        end do
        
-       call fe%assemble( this%fe_function, elmat, elvec, matrix_array_assembler )
+       call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
        call fe%next()
     end do
     call fe_space%free_fe_iterator(fe)
@@ -212,7 +212,7 @@ contains
                                 pressure_boundary_function_values(qpoint)*velocity_shape_values(idof,qpoint)*normals(1)*factor
             end do   
          end do
-         call fe_face%assemble( facevec, matrix_array_assembler )
+         call fe_face%assembly( facevec, matrix_array_assembler )
        end if
        call fe_face%next()
     end do

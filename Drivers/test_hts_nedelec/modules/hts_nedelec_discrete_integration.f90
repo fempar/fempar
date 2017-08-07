@@ -233,7 +233,7 @@ contains
 
       end do ! Qpoint loop 
           
-       call fe%assemble( this%H_current, elmat, elvec, matrix_array_assembler )
+       call fe%assembly( this%H_current, elmat, elvec, matrix_array_assembler )
        call fe%next()
     end do
     call fe_space%free_fe_iterator(fe)

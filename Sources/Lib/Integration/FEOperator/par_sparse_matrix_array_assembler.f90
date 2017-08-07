@@ -44,8 +44,8 @@ module par_sparse_matrix_array_assembler_names
 
   type, extends(matrix_array_assembler_t) :: par_sparse_matrix_array_assembler_t
   contains
-    procedure :: assemble_array   => par_sparse_matrix_array_assembler_assemble_array
-    procedure :: assemble_matrix  => par_sparse_matrix_array_assembler_assemble_matrix
+    procedure :: assembly_array   => par_sparse_matrix_array_assembler_assembly_array
+    procedure :: assembly_matrix  => par_sparse_matrix_array_assembler_assembly_matrix
     procedure :: allocate         => par_sparse_matrix_array_assembler_allocate
     procedure :: compress_storage => par_sparse_matrix_array_assembler_compress_storage
   end type
@@ -55,7 +55,7 @@ public :: par_sparse_matrix_array_assembler_t
 
 contains
 
-  subroutine par_sparse_matrix_array_assembler_assemble_array( this,           & 
+  subroutine par_sparse_matrix_array_assembler_assembly_array( this,           & 
                                                      number_fields,  &
                                                      field_blocks,   &
                                                      field_coupling, &
@@ -85,9 +85,9 @@ contains
        check(.false.)
     end select
 
-  end subroutine par_sparse_matrix_array_assembler_assemble_array
+  end subroutine par_sparse_matrix_array_assembler_assembly_array
   
-  subroutine par_sparse_matrix_array_assembler_assemble_matrix( this,            &
+  subroutine par_sparse_matrix_array_assembler_assembly_matrix( this,            &
                                                                 number_fields,   &
                                                                 field_blocks,    &
                                                                 field_coupling,  &
@@ -124,7 +124,7 @@ contains
        check(.false.)
     end select
 
-  end subroutine par_sparse_matrix_array_assembler_assemble_matrix
+  end subroutine par_sparse_matrix_array_assembler_assembly_matrix
 
   subroutine par_sparse_matrix_array_assembler_allocate( this )
     implicit none

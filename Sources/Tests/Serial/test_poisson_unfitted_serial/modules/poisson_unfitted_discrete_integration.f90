@@ -310,7 +310,7 @@ contains
 
        end if ! Only for cut elems
 
-       call fe%assemble( this%fe_function, elmat, elvec, matrix_array_assembler )
+       call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
        call fe%next()
 
     end do

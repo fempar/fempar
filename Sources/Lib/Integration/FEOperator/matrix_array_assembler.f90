@@ -39,8 +39,8 @@ module matrix_array_assembler_names
      class(matrix_t), pointer :: matrix
      class(array_t) , pointer :: array
    contains
-     procedure (assembly_array_interface)  , deferred :: assemble_array
-     procedure (assembly_matrix_interface) , deferred :: assemble_matrix
+     procedure (assembly_array_interface)  , deferred :: assembly_array
+     procedure (assembly_matrix_interface) , deferred :: assembly_matrix
      procedure (compress_storage_interface), deferred :: compress_storage
      procedure                                        :: set_matrix       => matrix_array_assembler_set_matrix
      procedure                                        :: set_array        => matrix_array_assembler_set_array

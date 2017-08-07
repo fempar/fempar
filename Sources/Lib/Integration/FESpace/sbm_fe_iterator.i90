@@ -787,7 +787,7 @@ subroutine fe_iterator_impose_strong_dirichlet_bcs ( this, fe_function, elmat, e
   
 end subroutine fe_iterator_impose_strong_dirichlet_bcs
 
-subroutine fe_iterator_assemble_array ( this,  &
+subroutine fe_iterator_assembly_array ( this,  &
                                         elvec, &
                                         matrix_array_assembler )
   implicit none
@@ -796,16 +796,16 @@ subroutine fe_iterator_assemble_array ( this,  &
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
   call this%get_elem2dof(this%elem2dof)
-  call matrix_array_assembler%assemble_array( this%fe_space%number_fields,         &
+  call matrix_array_assembler%assembly_array( this%fe_space%number_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
                                               this%number_dofs_per_field,          &
                                               this%elem2dof,                       &
                                               elvec )
   
-end subroutine fe_iterator_assemble_array
+end subroutine fe_iterator_assembly_array
 
-subroutine fe_iterator_assemble_matrix ( this,  &
+subroutine fe_iterator_assembly_matrix ( this,  &
                                          elmat, &
                                          matrix_array_assembler )
   implicit none
@@ -814,7 +814,7 @@ subroutine fe_iterator_assemble_matrix ( this,  &
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
   call this%get_elem2dof(this%elem2dof)
-  call matrix_array_assembler%assemble_matrix( this%fe_space%number_fields,        &
+  call matrix_array_assembler%assembly_matrix( this%fe_space%number_fields,        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
                                                this%number_dofs_per_field,         &
@@ -823,9 +823,9 @@ subroutine fe_iterator_assemble_matrix ( this,  &
                                                this%elem2dof,                      &
                                                elmat )
   
-end subroutine fe_iterator_assemble_matrix
+end subroutine fe_iterator_assembly_matrix
 
-subroutine fe_iterator_assemble_matrix_array ( this,  &
+subroutine fe_iterator_assembly_matrix_array ( this,  &
                                                elmat, &
                                                elvec, &
                                                matrix_array_assembler )
@@ -836,7 +836,7 @@ subroutine fe_iterator_assemble_matrix_array ( this,  &
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
   call this%get_elem2dof(this%elem2dof)
-  call matrix_array_assembler%assemble_matrix( this%fe_space%number_fields,        &
+  call matrix_array_assembler%assembly_matrix( this%fe_space%number_fields,        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
                                                this%number_dofs_per_field,         &
@@ -844,16 +844,16 @@ subroutine fe_iterator_assemble_matrix_array ( this,  &
                                                this%elem2dof,                      &
                                                this%elem2dof,                      &
                                                elmat )
-  call matrix_array_assembler%assemble_array( this%fe_space%number_fields,         &
+  call matrix_array_assembler%assembly_array( this%fe_space%number_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
                                               this%number_dofs_per_field,          &
                                               this%elem2dof,                       &
                                               elvec )
   
-end subroutine fe_iterator_assemble_matrix_array
+end subroutine fe_iterator_assembly_matrix_array
 
-subroutine fe_iterator_assemble_matrix_array_with_strong_bcs ( this,        &
+subroutine fe_iterator_assembly_matrix_array_with_strong_bcs ( this,        &
                                                                fe_function, &
                                                                elmat,       &
                                                                elvec,       &
@@ -866,9 +866,9 @@ subroutine fe_iterator_assemble_matrix_array_with_strong_bcs ( this,        &
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
   call this%impose_strong_dirichlet_bcs(fe_function,elmat,elvec)
-  call this%fe_iterator_assemble_matrix_array(elmat,elvec,matrix_array_assembler)
+  call this%fe_iterator_assembly_matrix_array(elmat,elvec,matrix_array_assembler)
   
-end subroutine fe_iterator_assemble_matrix_array_with_strong_bcs
+end subroutine fe_iterator_assembly_matrix_array_with_strong_bcs
 
 subroutine fe_iterator_first_local_non_void(this,field_id)
  implicit none

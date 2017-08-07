@@ -163,7 +163,7 @@ contains
             end do  
          end do        
          
-         call fe%assemble( elmat, elvec, matrix_array_assembler )
+         call fe%assembly( elmat, elvec, matrix_array_assembler )
        end if
        
        call fe%next()
@@ -237,7 +237,7 @@ contains
                end do
             end do
          end do
-         call fe_face%assemble( facemat, matrix_array_assembler )
+         call fe_face%assembly( facemat, matrix_array_assembler )
        end if
          
        call fe_face%next()
@@ -289,7 +289,7 @@ contains
                                       c_IP/h_length * boundary_value * shape_values_first(idof,qpoint) ) 
             end do   
          end do
-         call fe_face%assemble( facemat, facevec, matrix_array_assembler )
+         call fe_face%assembly( facemat, facevec, matrix_array_assembler )
        end if
        call fe_face%next()
     end do

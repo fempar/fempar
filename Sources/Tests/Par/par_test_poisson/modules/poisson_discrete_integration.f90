@@ -134,7 +134,7 @@ contains
              end do
           end do
           
-          call fe%assemble( this%fe_function, elmat, elvec, matrix_array_assembler )
+          call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
        end if
        call fe%next()
     end do
