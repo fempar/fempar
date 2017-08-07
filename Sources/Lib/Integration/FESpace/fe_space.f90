@@ -314,6 +314,7 @@ module fe_space_names
     procedure, non_overridable          :: set_lid                       => fe_face_iterator_set_lid
     procedure, non_overridable          :: get_lid                       => fe_face_iterator_get_lid
     procedure, non_overridable          :: update_integration            => fe_face_iterator_update_integration
+    procedure                           :: assemble                      => fe_face_iterator_assemble
     procedure, non_overridable          :: get_fe_space                  => fe_face_iterator_get_fe_space
     procedure, non_overridable          :: get_elem2dof                  => fe_face_iterator_get_elem2dof
     procedure, non_overridable          :: get_default_quadrature_degree => fe_face_iterator_get_default_quadrature_degree

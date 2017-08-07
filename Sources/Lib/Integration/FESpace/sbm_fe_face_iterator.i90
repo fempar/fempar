@@ -143,6 +143,16 @@ function fe_face_iterator_get_fe_space(this)
 end function fe_face_iterator_get_fe_space
 
 !==================================================================================================
+subroutine fe_face_iterator_assemble(this,facemat,facevec,matrix_array_assembler)
+  implicit none
+  class(fe_face_iterator_t)       , intent(in)    :: this
+  real(rp)                        , intent(in)    :: facemat(:,:,:,:)
+  real(rp)                        , intent(in)    :: facevec(:,:)
+  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+  check(.false.)
+end subroutine fe_face_iterator_assemble 
+
+!==================================================================================================
 subroutine fe_face_iterator_get_elem2dof(this, icell_around, elem2dof)
   implicit none
   class(fe_face_iterator_t), target, intent(inout)  :: this

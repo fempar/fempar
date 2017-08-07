@@ -112,7 +112,13 @@ module hp_adaptive_fe_space_names
  
  type, extends(fe_face_iterator_t) :: hp_adaptive_fe_face_iterator_t
    private 
+   type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
  contains
+   procedure          :: create                     => hp_adaptive_fe_face_iterator_create
+   procedure          :: free                       => hp_adaptive_fe_face_iterator_free
+   procedure          :: assemble                   => hp_adaptive_fe_face_iterator_assemble
+   procedure, private :: recursive_matrix_assembly  => hp_adaptive_fe_face_iterator_recursive_matrix_assembly
+   procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_face_iterator_recursive_vector_assembly
  end type hp_adaptive_fe_face_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t
@@ -188,7 +194,7 @@ subroutine hp_adaptive_fe_iterator_assemble(this,elmat,elvec,matrix_array_assemb
      end do
      call this%recursive_vector_assembly (elem2dof(j), elvec(j), serial_scalar_array)
   end do 
-end subroutine   hp_adaptive_fe_iterator_assemble
+end subroutine hp_adaptive_fe_iterator_assemble
 
 recursive subroutine hp_adaptive_fe_iterator_recursive_matrix_assembly(this, i, j, a_ij, matrix, array)
   implicit none
@@ -325,6 +331,175 @@ end subroutine hp_adaptive_fe_iterator_recursive_vector_assembly
 !    end if
 !  end if
 !end fe_iterator_recursive_assembly
+
+subroutine hp_adaptive_fe_face_iterator_create ( this, fe_space, vef )
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), target, intent(inout) :: this
+  class(serial_fe_space_t)             , target, intent(in)    :: fe_space
+  class(vef_iterator_t)                        , intent(in)    :: vef
+  select type(fe_space)
+  class is (serial_hp_adaptive_fe_space_t)
+    this%hp_adaptive_fe_space => fe_space
+  class default
+    assert(.false.)
+  end select
+  call this%fe_face_iterator_t%create(fe_space,vef)
+end subroutine hp_adaptive_fe_face_iterator_create
+
+subroutine hp_adaptive_fe_face_iterator_free ( this )
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), intent(inout) :: this
+  integer(ip) :: istat
+  call this%fe_face_iterator_t%free()
+  nullify(this%hp_adaptive_fe_space)
+end subroutine hp_adaptive_fe_face_iterator_free
+
+subroutine hp_adaptive_fe_face_iterator_assemble(this,facemat,facevec,matrix_array_assembler)
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  real(rp)                             , intent(in)    :: facemat(:,:,:,:)
+  real(rp)                             , intent(in)    :: facevec(:,:)
+  class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
+  
+  class(serial_fe_space_t)       , pointer     :: fe_space
+  type(hp_adaptive_fe_iterator_t)              :: test_fe, trial_fe
+  integer(ip)                                  :: ineigh, jneigh, i, j
+  integer(ip)                                  :: test_number_dofs, trial_number_dofs
+  integer(ip)                    , pointer     :: test_elem2dof(:), trial_elem2dof(:)
+  
+  class(matrix_t)            , pointer :: matrix
+  class(array_t)             , pointer :: array
+  type(sparse_matrix_t)      , pointer :: sparse_matrix
+  type(serial_scalar_array_t), pointer :: serial_scalar_array
+  
+  matrix => matrix_array_assembler%get_matrix()
+  array  => matrix_array_assembler%get_array()  
+  
+  select type(matrix)
+  class is(sparse_matrix_t)
+    sparse_matrix => matrix
+  class default
+    assert(.false.)
+  end select
+  
+  select type(array)
+  class is(serial_scalar_array_t)
+    serial_scalar_array => array
+  class default
+    assert(.false.)
+  end select
+  
+  fe_space => this%get_fe_space()
+  call test_fe%create(fe_space)
+  call trial_fe%create(fe_space)
+  
+  do ineigh = 1,this%get_num_cells_around()
+    call this%get_cell_around(ineigh,test_fe)
+    test_number_dofs = test_fe%get_number_dofs()
+    call test_fe%get_field_elem2dof(1,test_elem2dof)
+    do jneigh = 1,this%get_num_cells_around()
+      call this%get_cell_around(jneigh,trial_fe)
+      trial_number_dofs = trial_fe%get_number_dofs()
+      call trial_fe%get_field_elem2dof(1,trial_elem2dof)
+      do i = 1,test_number_dofs
+         do j = 1,trial_number_dofs
+           call this%recursive_matrix_assembly( test_fe,                    &
+                                                trial_fe,                   &
+                                                test_elem2dof(i),           &
+                                                trial_elem2dof(j),          &
+                                                facemat(i,j,ineigh,jneigh), &
+                                                sparse_matrix,              &
+                                                serial_scalar_array )
+         end do
+      end do
+    end do
+    do i = 1,test_number_dofs
+      call this%recursive_vector_assembly( test_fe,           &
+                                           test_elem2dof(i),  &
+                                           facevec(i,ineigh), &
+                                           serial_scalar_array )
+    end do
+  end do
+  
+  call trial_fe%free()
+  call test_fe%free()
+  
+end subroutine hp_adaptive_fe_face_iterator_assemble
+
+recursive subroutine hp_adaptive_fe_face_iterator_recursive_matrix_assembly(this, test_fe, trial_fe, i, j, a_ij, matrix, array)
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  type(hp_adaptive_fe_iterator_t)      , intent(in)    :: test_fe
+  type(hp_adaptive_fe_iterator_t)      , intent(in)    :: trial_fe
+  integer(ip)                          , intent(in)    :: i
+  integer(ip)                          , intent(in)    :: j
+  real(rp)                             , intent(in)    :: a_ij
+  type(sparse_matrix_t)                , intent(inout) :: matrix
+  type(serial_scalar_array_t)          , intent(inout) :: array
+  
+  integer(ip) :: k, pos, spos, epos
+  real(rp) :: weight
+  
+  if ( .not. test_fe%is_fixed_dof(i)) then    
+    if ( .not. trial_fe%is_fixed_dof(j) ) then 
+      ! Insert a_ij, v_j on matrix_array_assembler position (i,j)  
+      call matrix%insert(i,j,a_ij)
+    else ! j is a fixed DoF
+      if ( trial_fe%is_strong_dirichlet_dof(j) ) then
+        assert ( trial_fe%hp_adaptive_fe_space%constraint_dofs_dependencies%get(this%hp_adaptive_fe_space%ptr_constraint_dofs%get(abs(j))) == 0 )
+        weight  = trial_fe%hp_adaptive_fe_space%constraint_dofs_coefficients%get(this%hp_adaptive_fe_space%ptr_constraint_dofs%get(abs(j)))
+        call array%add(i,-a_ij*weight)
+      else
+        ! Traverse DoFs on which j depends on
+        spos = trial_fe%hp_adaptive_fe_space%ptr_constraint_dofs%get(abs(j))
+        epos = trial_fe%hp_adaptive_fe_space%ptr_constraint_dofs%get(abs(j)+1)-1
+        do pos=spos, epos 
+          k       = trial_fe%hp_adaptive_fe_space%constraint_dofs_dependencies%get(pos)
+          weight  = trial_fe%hp_adaptive_fe_space%constraint_dofs_coefficients%get(pos)
+          call this%recursive_matrix_assembly( test_fe, trial_fe, i, k, weight*a_ij, matrix, array)
+        end do 
+       end if 
+      end if
+   else ! i is a fixed DoF
+     if ( .not. test_fe%is_strong_dirichlet_dof(i) ) then
+        ! Traverse DoFs on which i depends on
+        spos = test_fe%hp_adaptive_fe_space%ptr_constraint_dofs%get(abs(i))
+        epos = test_fe%hp_adaptive_fe_space%ptr_constraint_dofs%get(abs(i)+1)-1
+        do pos=spos, epos 
+          k       = test_fe%hp_adaptive_fe_space%constraint_dofs_dependencies%get(pos)
+          weight  = test_fe%hp_adaptive_fe_space%constraint_dofs_coefficients%get(pos)
+          call this%recursive_matrix_assembly( test_fe, trial_fe, k, j, weight*a_ij, matrix, array)
+        end do
+      end if
+  end if
+end subroutine hp_adaptive_fe_face_iterator_recursive_matrix_assembly
+
+recursive subroutine hp_adaptive_fe_face_iterator_recursive_vector_assembly(this, test_fe, i, v_i, array)
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  type(hp_adaptive_fe_iterator_t)      , intent(in)    :: test_fe
+  integer(ip)                          , intent(in)    :: i
+  real(rp)                             , intent(in)    :: v_i
+  type(serial_scalar_array_t)          , intent(inout) :: array
+  
+  integer(ip) :: k, pos, spos, epos
+  real(rp) :: weight
+ 
+  if ( .not. test_fe%is_fixed_dof(i) ) then    
+      call array%add(i,v_i)
+  else ! i is as fixed DoF
+    if ( .not. test_fe%is_strong_dirichlet_dof(i) ) then
+        ! Traverse DoFs on which i depends on
+        spos = test_fe%hp_adaptive_fe_space%ptr_constraint_dofs%get(abs(i))
+        epos = test_fe%hp_adaptive_fe_space%ptr_constraint_dofs%get(abs(i)+1)-1
+        do pos=spos, epos 
+          k       = test_fe%hp_adaptive_fe_space%constraint_dofs_dependencies%get(pos)
+          weight  = test_fe%hp_adaptive_fe_space%constraint_dofs_coefficients%get(pos)
+          call this%recursive_vector_assembly( test_fe, k, weight*v_i, array )
+        end do
+     end if
+  end if
+end subroutine hp_adaptive_fe_face_iterator_recursive_vector_assembly
 
 subroutine serial_hp_adaptive_fe_space_create_fe_vef_iterator ( this, fe_vef )
   implicit none
