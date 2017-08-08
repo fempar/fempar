@@ -92,7 +92,16 @@ function fe_vef_iterator_get_num_improper_cells_around(this)
   fe_vef_iterator_get_num_improper_cells_around =  this%vef%get_num_improper_cells_around()
 end function fe_vef_iterator_get_num_improper_cells_around
 
-subroutine fe_vef_iterator_get_improper_cell_around (this, ife_around, fe)
+subroutine fe_vef_iterator_get_improper_cell_around (this, icell_around, cell)
+  implicit none
+  class(fe_vef_iterator_t)          , intent(in)     :: this
+  integer(ip)                       , intent(in)     :: icell_around
+  class(cell_iterator_t)            , intent(inout)  :: cell
+  assert(allocated(this%vef))
+  call this%vef%get_improper_cell_around(icell_around,cell)
+end subroutine fe_vef_iterator_get_improper_cell_around
+
+subroutine fe_vef_iterator_get_improper_fe_around (this, ife_around, fe)
   implicit none
   class(fe_vef_iterator_t)          , intent(in)     :: this
   integer(ip)                       , intent(in)     :: ife_around
@@ -100,15 +109,6 @@ subroutine fe_vef_iterator_get_improper_cell_around (this, ife_around, fe)
   assert(allocated(this%vef))
   assert(allocated(fe%cell))
   call this%vef%get_improper_cell_around(ife_around,fe%cell)
-end subroutine fe_vef_iterator_get_improper_cell_around
-
-subroutine fe_vef_iterator_get_improper_fe_around (this, icell_around, cell)
-  implicit none
-  class(fe_vef_iterator_t)          , intent(in)     :: this
-  integer(ip)                       , intent(in)     :: icell_around
-  class(cell_iterator_t)            , intent(inout)  :: cell
-  assert(allocated(this%vef))
-  call this%vef%get_improper_cell_around(icell_around,cell)
 end subroutine fe_vef_iterator_get_improper_fe_around
 
 function fe_vef_iterator_get_improper_cell_around_ivef(this)
