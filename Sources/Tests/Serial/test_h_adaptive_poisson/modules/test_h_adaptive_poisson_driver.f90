@@ -142,9 +142,6 @@ contains
     call this%set_cells_for_refinement()
     call this%triangulation%refine_and_coarsen()
     call this%triangulation%clear_refinement_and_coarsening_flags()
-    call this%set_cells_for_refinement()
-    call this%triangulation%refine_and_coarsen()
-    call this%triangulation%clear_refinement_and_coarsening_flags()
     
     if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
         call memalloc(this%triangulation%get_num_cells(),cell_set_ids)

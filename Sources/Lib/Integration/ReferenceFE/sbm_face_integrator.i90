@@ -52,15 +52,17 @@ subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geomet
 end subroutine fe_map_face_restriction_create
 
 !==================================================================================================
-subroutine fe_map_face_restriction_update( this, face_lid, quadrature)
+subroutine fe_map_face_restriction_update( this, face_lid, subface_lid, quadrature)
   implicit none
   ! Parameters
   class(fe_map_face_restriction_t), intent(inout) :: this
   integer(ip)                     , intent(in)    :: face_lid
-  type(quadrature_t)           , intent(in)    :: quadrature
+  integer(ip)                     , intent(in)    :: subface_lid
+  type(quadrature_t)              , intent(in)    :: quadrature
 
   this%active_face_lid = face_lid
-  call this%fe_map(face_lid)%update(quadrature)
+  this%active_subface_lid = subface_lid
+  call this%fe_map(face_lid+subface_lid*this%number_faces)%update(quadrature)
 
 end subroutine fe_map_face_restriction_update
 
@@ -100,7 +102,9 @@ function fe_map_face_restriction_get_active_fe_map(this)
   class(fe_map_face_restriction_t), target, intent(in) :: this
   type(fe_map_t), pointer :: fe_map_face_restriction_get_active_fe_map
   assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%number_faces )
-  fe_map_face_restriction_get_active_fe_map => this%fe_map(this%active_face_lid)
+  assert ( this%active_subface_lid >= 0 .and. this%active_subface_lid <= this%number_subfaces )
+  fe_map_face_restriction_get_active_fe_map => this%fe_map( this%active_face_lid + &
+                                         this%active_subface_lid * this%number_faces )
 end function fe_map_face_restriction_get_active_fe_map
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -140,17 +144,19 @@ end subroutine face_maps_free
 subroutine face_maps_update(this,face_lid,face_quadrature,left_reference_fe_geo)
   implicit none
   ! Parameters
-  class(face_maps_t)    , intent(inout) :: this
-  integer(ip)          , intent(in)    :: face_lid(2)
-  type(quadrature_t), intent(in)    :: face_quadrature
+  class(face_maps_t)              , intent(inout) :: this
+  integer(ip)                     , intent(in)    :: face_lid(2)
+  type(quadrature_t)              , intent(in)    :: face_quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
-  real   (rp)             :: reorientation_factor
+  real(rp) :: reorientation_factor
+  integer(ip) :: subface_lid(2)
+  subface_lid = 0
 
   ! Update fe_maps
-  call this%fe_maps(1)%update(face_lid(1),face_quadrature)
+  call this%fe_maps(1)%update(face_lid(1),subface_lid(1),face_quadrature)
   if (.not. this%is_boundary) then
      assert ( face_lid(2) >= 1 )
-     call this%fe_maps(2)%update(face_lid(2),face_quadrature)
+     call this%fe_maps(2)%update(face_lid(2),subface_lid(2),face_quadrature)
   end if
   
   ! Compute normals reorientation factors from |J|'s original sign and face orientation
@@ -167,15 +173,19 @@ function face_maps_compute_characteristic_length(this,qpoin)
   real(rp) :: face_maps_compute_characteristic_length
 
   real(rp)    :: h
-  integer(ip) :: i
+  integer(ip) :: i, fe_map_index
   type(fe_map_t), pointer :: fe_map
   
-  fe_map => this%fe_maps(1)%fe_map(this%fe_maps(1)%active_face_lid)
+  fe_map_index = this%fe_maps(1)%active_face_lid + & 
+                 this%fe_maps(1)%active_subface_lid * this%fe_maps(1)%number_faces
+  fe_map => this%fe_maps(1)%fe_map(fe_map_index)
   face_maps_compute_characteristic_length = fe_map%compute_h(qpoin)
 
   if (.not. this%is_boundary) then
      i = 2
-     fe_map => this%fe_maps(i)%fe_map(this%fe_maps(i)%active_face_lid)
+     fe_map_index = this%fe_maps(i)%active_face_lid + & 
+                    this%fe_maps(i)%active_subface_lid * this%fe_maps(i)%number_faces
+     fe_map => this%fe_maps(i)%fe_map(fe_map_index)
      h = fe_map%compute_h(qpoin) 
      face_maps_compute_characteristic_length = min(face_maps_compute_characteristic_length, h)
   end if
@@ -282,13 +292,15 @@ subroutine cell_integrator_face_restriction_create(this, quadrature, reference_f
 end subroutine cell_integrator_face_restriction_create
 
 !==================================================================================================
-subroutine cell_integrator_face_restriction_update(this, fe_map, face_lid)
+subroutine cell_integrator_face_restriction_update(this, fe_map, face_lid, subface_lid)
   implicit none
   class(cell_integrator_face_restriction_t), intent(inout) :: this
-  type(fe_map_t)                             , intent(in)    :: fe_map
-  integer(ip)                                , intent(in)    :: face_lid
+  type(fe_map_t)                           , intent(in)    :: fe_map
+  integer(ip)                              , intent(in)    :: face_lid
+  integer(ip)                              , intent(in)    :: subface_lid
   this%active_face_lid = face_lid
-  call this%cell_integrator(face_lid)%update(fe_map)
+  this%active_subface_lid = subface_lid
+  call this%cell_integrator(face_lid+subface_lid*this%number_faces)%update(fe_map)
 end subroutine cell_integrator_face_restriction_update
 
 !==================================================================================================
@@ -315,7 +327,9 @@ function cell_integrator_face_restriction_get_active_cell_integrator(this)
   class(cell_integrator_face_restriction_t), target, intent(in) :: this
   type(cell_integrator_t), pointer :: cell_integrator_face_restriction_get_active_cell_integrator
   assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%number_faces )
-  cell_integrator_face_restriction_get_active_cell_integrator => this%cell_integrator(this%active_face_lid)
+  assert ( this%active_subface_lid >= 0 .and. this%active_subface_lid <= this%number_subfaces )
+  cell_integrator_face_restriction_get_active_cell_integrator => & 
+    this%cell_integrator(this%active_face_lid+this%active_subface_lid*this%number_faces)
 end function cell_integrator_face_restriction_get_active_cell_integrator
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -364,11 +378,15 @@ subroutine face_integrator_update(this,face_lid,face_map,permutation_index)
   class(face_integrator_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: face_lid(2)
   integer(ip)             , intent(in)    :: permutation_index
-  type(face_maps_t)        , intent(in)    :: face_map
-  call this%cell_integrator_face_restriction(1)%update(face_map%fe_maps(1)%get_active_fe_map(),face_lid(1))
+  type(face_maps_t)       , intent(in)    :: face_map
+  integer(ip) :: subface_lid(2)
+  subface_lid = 0
+  call this%cell_integrator_face_restriction(1)%update( face_map%fe_maps(1)%get_active_fe_map(), &
+                                                        face_lid(1), subface_lid(1) )
   if (.not. this%is_boundary) then
      this%current_qpoints_perm_cols(2) = permutation_index
-     call this%cell_integrator_face_restriction(2)%update(face_map%fe_maps(2)%get_active_fe_map(),face_lid(2))
+     call this%cell_integrator_face_restriction(2)%update( face_map%fe_maps(2)%get_active_fe_map(), &
+                                                           face_lid(2), subface_lid(2) )
   end if
 end subroutine face_integrator_update
 

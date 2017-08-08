@@ -364,4 +364,3 @@ function fe_face_iterator_get_face_permutation_index ( this ) result(face_permut
   integer(ip)                           :: face_permutation_index
   face_permutation_index = this%fe_space%face_permutation_indices%get(this%face_lid)
 end function fe_face_iterator_get_face_permutation_index 
-
