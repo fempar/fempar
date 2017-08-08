@@ -319,7 +319,7 @@ function vef_iterator_get_improper_cell_around_subvef(this)
   class(vef_iterator_t) , intent(in)    :: this
   integer(ip) :: vef_iterator_get_improper_cell_around_subvef
   assert ( this%is_within_valid_range() )
-  assert ( .false. )
+  vef_iterator_get_improper_cell_around_subvef = 0
 end function vef_iterator_get_improper_cell_around_subvef
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

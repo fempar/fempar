@@ -141,16 +141,15 @@ subroutine face_maps_free(this)
 end subroutine face_maps_free
 
 !==================================================================================================
-subroutine face_maps_update(this,face_lid,face_quadrature,left_reference_fe_geo)
+subroutine face_maps_update(this,face_lid,subface_lid,face_quadrature,left_reference_fe_geo)
   implicit none
   ! Parameters
   class(face_maps_t)              , intent(inout) :: this
   integer(ip)                     , intent(in)    :: face_lid(2)
+  integer(ip)                     , intent(in)    :: subface_lid(2)
   type(quadrature_t)              , intent(in)    :: face_quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
   real(rp) :: reorientation_factor
-  integer(ip) :: subface_lid(2)
-  subface_lid = 0
 
   ! Update fe_maps
   call this%fe_maps(1)%update(face_lid(1),subface_lid(1),face_quadrature)
@@ -372,15 +371,14 @@ subroutine face_integrator_free(this)
 end subroutine face_integrator_free
 
 !==================================================================================================
-subroutine face_integrator_update(this,face_lid,face_map,permutation_index)
+subroutine face_integrator_update(this,face_lid,subface_lid,face_map,permutation_index)
   implicit none
   ! Parameters
   class(face_integrator_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: face_lid(2)
+  integer(ip)             , intent(in)    :: subface_lid(2)
   integer(ip)             , intent(in)    :: permutation_index
   type(face_maps_t)       , intent(in)    :: face_map
-  integer(ip) :: subface_lid(2)
-  subface_lid = 0
   call this%cell_integrator_face_restriction(1)%update( face_map%fe_maps(1)%get_active_fe_map(), &
                                                         face_lid(1), subface_lid(1) )
   if (.not. this%is_boundary) then

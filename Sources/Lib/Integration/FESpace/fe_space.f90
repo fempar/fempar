@@ -327,6 +327,7 @@ module fe_space_names
     procedure, non_overridable          :: compute_surface               => fe_face_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_face_permutation_index    => fe_face_iterator_get_face_permutation_index
+    procedure                           :: get_subface_lid_cell_around   => fe_face_iterator_get_subface_lid_cell_around
   end type fe_face_iterator_t
       
   integer(ip), parameter :: fe_space_type_cg                        = 0 ! H^1 conforming FE space
