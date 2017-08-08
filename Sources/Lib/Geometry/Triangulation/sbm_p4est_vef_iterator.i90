@@ -77,6 +77,37 @@ function p4est_vef_iterator_has_finished(this)
   p4est_vef_iterator_has_finished = (this%get_lid() < 0 .and. this%get_lid() < -this%p4est_triangulation%num_improper_vefs)
 end function p4est_vef_iterator_has_finished
 
+subroutine p4est_vef_iterator_get_coordinates (this, vef_coordinates)
+  implicit none
+  class(p4est_vef_iterator_t), intent(inout) :: this
+  type(point_t)              , intent(inout) :: vef_coordinates(:)
+  type(p4est_cell_iterator_t)                   :: cell
+  integer(ip)                                   :: inode_within_cell
+  integer(ip)                                   :: inode_within_vef
+  integer(ip)                                   :: number_vertices
+  class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
+  type(list_iterator_t)                         :: dofs_on_vef_iterator
+  
+  assert ( this%get_lid() <= this%p4est_triangulation%num_proper_vefs .and. .not. this%has_finished() )
+  assert ( allocated ( this%p4est_triangulation%per_cell_vertex_coordinates ) )
+  
+  call cell%create(this%p4est_triangulation)
+  call this%get_cell_around(1, cell)
+  reference_fe_geo => cell%get_reference_fe_geo()
+  number_vertices = reference_fe_geo%get_number_vertices()
+  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%find_lpos_vef_lid(this%get_lid()))
+  inode_within_vef = 1
+  do while (.not. dofs_on_vef_iterator%is_upper_bound())     
+    inode_within_cell = dofs_on_vef_iterator%get_current()
+    vef_coordinates(inode_within_vef) =                     &
+      this%p4est_triangulation%per_cell_vertex_coordinates( & 
+           (cell%get_lid()-1)*number_vertices+inode_within_cell)
+    call dofs_on_vef_iterator%next()
+    inode_within_vef = inode_within_vef + 1
+  end do
+  call cell%free()
+end subroutine p4est_vef_iterator_get_coordinates
+
 !function p4est_vef_iterator_get_triangulation(this)
 !  implicit none
 !  class(p4est_vef_iterator_t), intent(in) :: this

@@ -137,6 +137,7 @@ module p4est_serial_triangulation_names
      procedure                           :: next                      => p4est_vef_iterator_next
      !procedure, non_overridable          :: set_lid                   => p4est_vef_iterator_set_lid
      procedure                           :: has_finished              => p4est_vef_iterator_has_finished
+     procedure                           :: get_coordinates           => p4est_vef_iterator_get_coordinates
      !procedure, non_overridable          :: get_triangulation         => p4est_vef_iterator_get_triangulation
      !procedure, non_overridable          :: get_lid                   => p4est_vef_iterator_get_lid
      !procedure, non_overridable          :: get_gid                   => p4est_vef_iterator_get_gid
