@@ -117,8 +117,9 @@ subroutine fe_face_iterator_update_integration( this )
     face_lpos_within_cells_around(icell_around) = &
       this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_face_id() + 1
     subface_lid_within_cells_around(icell_around) = this%get_subface_lid_cell_around(icell_around)
-    coords => face_map%get_coordinates_neighbour(icell_around, &
-                                                 face_lpos_within_cells_around(icell_around))
+    coords => face_map%get_coordinates_neighbour(icell_around,                                &
+                                                 face_lpos_within_cells_around(icell_around), &
+                                                 subface_lid_within_cells_around(icell_around))
     call this%fe%get_coordinates(coords)    
   end do
 

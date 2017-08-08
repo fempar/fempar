@@ -86,13 +86,16 @@ subroutine fe_map_face_restriction_free( this)
 end subroutine fe_map_face_restriction_free
 
 !==================================================================================================
-function fe_map_face_restriction_get_coordinates(this,face_lid)
+function fe_map_face_restriction_get_coordinates(this,face_lid,subface_lid)
   implicit none
   ! Parameters
   class(fe_map_face_restriction_t), intent(in) :: this
   integer(ip)                     , intent(in) :: face_lid
+  integer(ip)                     , intent(in) :: subface_lid
   type(point_t), pointer :: fe_map_face_restriction_get_coordinates(:)
-  fe_map_face_restriction_get_coordinates => this%fe_map(face_lid)%get_coordinates()
+  integer(ip) :: fe_map_index
+  fe_map_index = face_lid + subface_lid * this%number_faces
+  fe_map_face_restriction_get_coordinates => this%fe_map(fe_map_index)%get_coordinates()
 end function fe_map_face_restriction_get_coordinates
 
 !==================================================================================================
@@ -212,15 +215,16 @@ function face_maps_get_quadrature_coordinates(this)
 end function face_maps_get_quadrature_coordinates
 
 !==================================================================================================
-function face_maps_get_coordinates_neighbour(this,neighbour_id,face_lid)
+function face_maps_get_coordinates_neighbour(this,neighbour_id,face_lid,subface_lid)
   implicit none
   ! Parameters
   class(face_maps_t), target, intent(in) :: this
-  integer(ip)              , intent(in)    :: neighbour_id
-  integer(ip)              , intent(in)    :: face_lid
+  integer(ip)               , intent(in) :: neighbour_id
+  integer(ip)               , intent(in) :: face_lid
+  integer(ip)               , intent(in) :: subface_lid
   type(point_t), pointer :: face_maps_get_coordinates_neighbour(:)
   assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_boundary)))
-  face_maps_get_coordinates_neighbour => this%fe_maps(neighbour_id)%get_coordinates(face_lid)
+  face_maps_get_coordinates_neighbour => this%fe_maps(neighbour_id)%get_coordinates(face_lid,subface_lid)
 end function face_maps_get_coordinates_neighbour
 
 !==================================================================================================
