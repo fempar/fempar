@@ -114,11 +114,15 @@ module hp_adaptive_fe_space_names
    private 
    type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
  contains
-   procedure          :: create                     => hp_adaptive_fe_face_iterator_create
-   procedure          :: free                       => hp_adaptive_fe_face_iterator_free
-   procedure          :: assemble                   => hp_adaptive_fe_face_iterator_assemble
-   procedure, private :: recursive_matrix_assembly  => hp_adaptive_fe_face_iterator_recursive_matrix_assembly
-   procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_face_iterator_recursive_vector_assembly
+   procedure          :: create                        => hp_adaptive_fe_face_iterator_create
+   procedure          :: free                          => hp_adaptive_fe_face_iterator_free
+   procedure          :: get_num_cells_around          => hp_adaptive_fe_face_iterator_get_num_cells_around
+   procedure, private :: fe_vef_iterator_get_fe_around => hp_adaptive_fe_face_iterator_get_fe_around
+   procedure          :: get_lpos_within_cell_around   => hp_adaptive_fe_face_iterator_get_lpos_within_cell_around
+   procedure, private :: get_subface_lid_cell_around   => hp_adaptive_fe_face_iterator_get_subface_lid_cell_around
+   procedure          :: assemble                      => hp_adaptive_fe_face_iterator_assemble
+   procedure, private :: recursive_matrix_assembly     => hp_adaptive_fe_face_iterator_recursive_matrix_assembly
+   procedure, private :: recursive_vector_assembly     => hp_adaptive_fe_face_iterator_recursive_vector_assembly
  end type hp_adaptive_fe_face_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t
@@ -353,6 +357,52 @@ subroutine hp_adaptive_fe_face_iterator_free ( this )
   call this%fe_face_iterator_t%free()
   nullify(this%hp_adaptive_fe_space)
 end subroutine hp_adaptive_fe_face_iterator_free
+
+function hp_adaptive_fe_face_iterator_get_num_cells_around (this) result (num_cells_around)
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  integer(ip)                                          :: num_cells_around
+  num_cells_around = this%base_fe_vef_iterator_t%get_num_cells_around()
+  if ( .not. this%is_proper() ) then
+    num_cells_around = num_cells_around + this%get_num_improper_cells_around()
+  end if 
+end function hp_adaptive_fe_face_iterator_get_num_cells_around
+
+subroutine hp_adaptive_fe_face_iterator_get_fe_around (this, ife_around, fe)
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), intent(in)     :: this
+  integer(ip)                          , intent(in)     :: ife_around
+  class(fe_iterator_t)                 , intent(inout)  :: fe
+  if ( .not. this%is_proper() .and. ife_around == 2 ) then
+    call this%fe_vef_iterator_t%get_improper_cell_around(1,fe)
+  else
+    call this%fe_vef_iterator_t%get_cell_around(ife_around,fe)
+  end if
+end subroutine hp_adaptive_fe_face_iterator_get_fe_around
+
+function hp_adaptive_fe_face_iterator_get_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), intent(inout) :: this
+  integer(ip)                          , intent(in)    :: icell_around
+  integer(ip)                                          :: face_lpos_within_cell_around
+  if ( .not. this%is_proper() .and. icell_around == 2 ) then
+    face_lpos_within_cell_around = this%get_improper_cell_around_ivef()
+  else
+    face_lpos_within_cell_around = &
+      this%fe_face_iterator_t%get_lpos_within_cell_around(icell_around)
+  end if
+end function hp_adaptive_fe_face_iterator_get_lpos_within_cell_around
+
+function hp_adaptive_fe_face_iterator_get_subface_lid_cell_around ( this, icell_around ) result( subface_lid )
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: icell_around
+  integer(ip)                                          :: subface_lid
+  subface_lid = 0
+  if ( .not. this%is_proper() .and. icell_around == 2 ) then
+    subface_lid = this%get_improper_cell_around_subvef()
+  end if 
+end function hp_adaptive_fe_face_iterator_get_subface_lid_cell_around 
 
 subroutine hp_adaptive_fe_face_iterator_assemble(this,facemat,facevec,matrix_array_assembler)
   implicit none

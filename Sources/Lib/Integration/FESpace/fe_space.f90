@@ -271,7 +271,7 @@ module fe_space_names
      procedure, non_overridable          :: is_at_interface           => base_fe_vef_iterator_is_at_interface
      procedure, non_overridable          :: is_face                   => base_fe_vef_iterator_is_face
      
-     procedure, non_overridable          :: get_num_cells_around      => base_fe_vef_iterator_get_num_cells_around
+     procedure                           :: get_num_cells_around      => base_fe_vef_iterator_get_num_cells_around
      procedure, non_overridable          :: base_fe_vef_iterator_get_cell_around
      generic                             :: get_cell_around           => base_fe_vef_iterator_get_cell_around
   end type base_fe_vef_iterator_t
@@ -289,7 +289,7 @@ module fe_space_names
      
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
      
-     procedure, non_overridable, private :: fe_vef_iterator_get_fe_around
+     procedure                 , private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around                   => fe_vef_iterator_get_fe_around
      
      procedure, non_overridable          :: get_num_improper_cells_around     => fe_vef_iterator_get_num_improper_cells_around
@@ -325,9 +325,9 @@ module fe_space_names
     procedure, non_overridable          :: get_face_integrator           => fe_face_iterator_get_face_integrator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs   => fe_face_iterator_impose_strong_dirichlet_bcs
     procedure, non_overridable          :: compute_surface               => fe_face_iterator_compute_surface
-    procedure, non_overridable          :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_face_permutation_index    => fe_face_iterator_get_face_permutation_index
-    procedure                           :: get_subface_lid_cell_around   => fe_face_iterator_get_subface_lid_cell_around
+    procedure                           :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
+    procedure                 , private :: get_subface_lid_cell_around   => fe_face_iterator_get_subface_lid_cell_around
   end type fe_face_iterator_t
       
   integer(ip), parameter :: fe_space_type_cg                        = 0 ! H^1 conforming FE space
