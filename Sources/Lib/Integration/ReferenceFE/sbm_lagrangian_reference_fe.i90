@@ -177,7 +177,7 @@ subroutine lagrangian_reference_fe_create_edge_local_interpolation (this, quadra
 end subroutine lagrangian_reference_fe_create_edge_local_interpolation
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_update_interpolation( this, fe_map,                 &
+subroutine lagrangian_reference_fe_apply_cell_map( this, fe_map,                 &
      & interpolation_reference_cell, &
      & interpolation_real_cell )
   implicit none 
@@ -185,8 +185,8 @@ subroutine lagrangian_reference_fe_update_interpolation( this, fe_map,          
   type(fe_map_t)                  , intent(in)    :: fe_map
   type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
   type(interpolation_t)           , intent(inout) :: interpolation_real_cell
-  call this%apply_femap_to_interpolation(fe_map,interpolation_reference_cell,interpolation_real_cell)
-end subroutine lagrangian_reference_fe_update_interpolation
+  call this%apply_cell_map_to_interpolation(fe_map,interpolation_reference_cell,interpolation_real_cell)
+end subroutine lagrangian_reference_fe_apply_cell_map
 
 !==================================================================================================
 function lagrangian_reference_fe_get_component_node( this, node )
@@ -952,7 +952,7 @@ subroutine lagrangian_reference_fe_extend_list_components(this, list_1d)
 end subroutine lagrangian_reference_fe_extend_list_components
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy)
+subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,phy)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this 
   type(fe_map_t)                  , intent(in)    :: map
@@ -1044,7 +1044,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
      call memfree(wmat1,__FILE__,__LINE__)
      call memfree(wmat2,__FILE__,__LINE__)
   end if
-end subroutine lagrangian_reference_fe_apply_femap_to_interpolation
+end subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation
 
 !==================================================================================================
 function lagrangian_reference_fe_get_default_quadrature_degree(this)

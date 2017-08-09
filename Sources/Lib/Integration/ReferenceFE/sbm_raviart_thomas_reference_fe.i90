@@ -773,7 +773,7 @@ end subroutine raviart_thomas_create_data_out_quadrature
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
+subroutine raviart_thomas_apply_cell_map_to_interpolation(this,map,ref,phy)
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(fe_map_t)                  , intent(in)    :: map
@@ -838,7 +838,7 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   !      end do
   !   end do
   !end do
-end subroutine raviart_thomas_apply_femap_to_interpolation
+end subroutine raviart_thomas_apply_cell_map_to_interpolation
 
 subroutine raviart_thomas_invert_change_basis_matrix(this)
   implicit none

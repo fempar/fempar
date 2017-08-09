@@ -159,7 +159,7 @@ subroutine void_reference_fe_create_edge_local_interpolation (this, quadrature, 
 end subroutine void_reference_fe_create_edge_local_interpolation
 
 !==================================================================================================
-subroutine void_reference_fe_update_interpolation( this, fe_map,                 &
+subroutine void_reference_fe_apply_cell_map( this, fe_map,                 &
      & interpolation_reference_cell, &
      & interpolation_real_cell )
   implicit none 
@@ -167,8 +167,8 @@ subroutine void_reference_fe_update_interpolation( this, fe_map,                
   type(fe_map_t)                  , intent(in)    :: fe_map
   type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
   type(interpolation_t)           , intent(inout) :: interpolation_real_cell
-  !call this%apply_femap_to_interpolation(fe_map,interpolation_reference_cell,interpolation_real_cell)
-end subroutine void_reference_fe_update_interpolation
+  !call this%apply_cell_map_to_interpolation(fe_map,interpolation_reference_cell,interpolation_real_cell)
+end subroutine void_reference_fe_apply_cell_map
 
 !==================================================================================================
 function void_reference_fe_get_component_node( this, node )

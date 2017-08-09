@@ -395,7 +395,7 @@ module reference_fe_names
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
      procedure(create_face_interpolation_interface)     , deferred :: create_face_interpolation
-     procedure(update_interpolation_interface)          , deferred :: update_interpolation
+     procedure(apply_cell_map_interface)                , deferred :: apply_cell_map
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
      
@@ -802,7 +802,7 @@ module reference_fe_names
        real(rp)  :: get_characteristic_length_interface 
      end function get_characteristic_length_interface
 
-     subroutine update_interpolation_interface ( this, fe_map, interpolation_reference_cell,        &
+     subroutine apply_cell_map_interface ( this, fe_map, interpolation_reference_cell,        &
           &                            interpolation_real_cell )
        import :: reference_fe_t, fe_map_t, interpolation_t
        implicit none 
@@ -810,7 +810,7 @@ module reference_fe_names
        type(fe_map_t)       , intent(in)    :: fe_map
        type(interpolation_t), intent(in)    :: interpolation_reference_cell
        type(interpolation_t), intent(inout) :: interpolation_real_cell
-     end subroutine update_interpolation_interface
+     end subroutine apply_cell_map_interface
 
      subroutine create_nodal_quadrature_interface ( this )
        import :: reference_fe_t
@@ -883,7 +883,7 @@ contains
   procedure :: create_face_interpolation => lagrangian_reference_fe_create_face_interpolation
   procedure :: create_face_local_interpolation  => lagrangian_reference_fe_create_face_local_interpolation
   procedure :: create_edge_local_interpolation  => lagrangian_reference_fe_create_edge_local_interpolation
-  procedure :: update_interpolation      => lagrangian_reference_fe_update_interpolation
+  procedure :: apply_cell_map      => lagrangian_reference_fe_apply_cell_map
   procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node  => lagrangian_reference_fe_get_scalar_from_vector_node
   procedure :: get_max_order             => lagrangian_reference_fe_get_max_order
@@ -929,8 +929,8 @@ contains
   !      & => lagrangian_reference_fe_get_node_coordinates_array
   procedure, private, non_overridable :: extend_list_components       & 
        & => lagrangian_reference_fe_extend_list_components
-  procedure, private :: apply_femap_to_interpolation & 
-       & => lagrangian_reference_fe_apply_femap_to_interpolation
+  procedure, private :: apply_cell_map_to_interpolation & 
+       & => lagrangian_reference_fe_apply_cell_map_to_interpolation
   procedure  :: get_default_quadrature_degree &
        & => lagrangian_reference_fe_get_default_quadrature_degree
 end type lagrangian_reference_fe_t
@@ -1059,8 +1059,8 @@ procedure :: evaluate_fe_function_vector          &
     & => raviart_thomas_evaluate_fe_function_vector
 procedure :: evaluate_fe_function_tensor          & 
     & => raviart_thomas_evaluate_fe_function_tensor
-procedure, private :: apply_femap_to_interpolation & 
-    & => raviart_thomas_apply_femap_to_interpolation
+procedure, private :: apply_cell_map_to_interpolation & 
+    & => raviart_thomas_apply_cell_map_to_interpolation
 procedure, private :: fill                         & 
     & => raviart_thomas_fill
 procedure, private :: fill_vector                         & 
@@ -1129,8 +1129,8 @@ procedure :: evaluate_fe_function_vector          &
     & => nedelec_evaluate_fe_function_vector
 procedure :: evaluate_fe_function_tensor          & 
     & => nedelec_evaluate_fe_function_tensor
-procedure, private :: apply_femap_to_interpolation & 
-    & => nedelec_apply_femap_to_interpolation
+procedure, private :: apply_cell_map_to_interpolation & 
+    & => nedelec_apply_cell_map_to_interpolation
 procedure, private :: fill_vector                         & 
     & => nedelec_fill_vector    
 procedure, private :: fill_nodal_quadrature &
@@ -1433,7 +1433,7 @@ contains
   procedure :: create_face_interpolation   => void_reference_fe_create_face_interpolation
   procedure :: create_face_local_interpolation  => void_reference_fe_create_face_local_interpolation
   procedure :: create_edge_local_interpolation  => void_reference_fe_create_edge_local_interpolation
-  procedure :: update_interpolation             => void_reference_fe_update_interpolation
+  procedure :: apply_cell_map             => void_reference_fe_apply_cell_map
   procedure :: get_component_node               => void_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node => void_reference_fe_get_scalar_from_vector_node
   procedure :: get_max_order               => void_reference_fe_get_max_order

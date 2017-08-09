@@ -764,7 +764,7 @@ end subroutine nedelec_get_subelements_connectivity
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
+subroutine nedelec_apply_cell_map_to_interpolation(this,map,ref,phy)
   implicit none
   class(nedelec_reference_fe_t), intent(in)    :: this 
   type(fe_map_t)                  , intent(in)    :: map
@@ -811,7 +811,7 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
      end do
   end do 
   
-end subroutine nedelec_apply_femap_to_interpolation
+end subroutine nedelec_apply_cell_map_to_interpolation
 
 subroutine nedelec_invert_change_basis_matrix(this)
   implicit none

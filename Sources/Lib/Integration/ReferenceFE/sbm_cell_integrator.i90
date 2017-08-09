@@ -76,7 +76,7 @@ subroutine cell_integrator_update( this, fe_map )
   class(cell_integrator_t), intent(inout) :: this
   type(fe_map_t)               , intent(in)    :: fe_map
 
-  call this%reference_fe%update_interpolation(fe_map, this%interpolation,this%interpolation_o_map)
+  call this%reference_fe%apply_cell_map(fe_map, this%interpolation,this%interpolation_o_map)
   end subroutine cell_integrator_update
 
 !==================================================================================================
