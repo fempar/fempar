@@ -39,11 +39,12 @@ module face_fe_function_names
   implicit none
 # include "debug.i90"
   private
- 
+  
   
   type face_fe_function_scalar_t
    private
    logical                           :: is_boundary
+   integer(ip)                       :: active_cell_id(2)
    type(i1p_t)                       :: quadrature_points_permutation(2)   
    type(cell_fe_function_scalar_t)   :: cell_fe_function(2)
    class(fe_iterator_t), allocatable :: fe
@@ -65,6 +66,7 @@ module face_fe_function_names
   type face_fe_function_vector_t
    private
    logical                           :: is_boundary
+   integer(ip)                       :: active_cell_id(2)
    type(i1p_t)                       :: quadrature_points_permutation(2)  
    type(cell_fe_function_vector_t)   :: cell_fe_function(2)
    class(fe_iterator_t), allocatable :: fe
@@ -86,6 +88,7 @@ module face_fe_function_names
   type face_fe_function_tensor_t
    private
    logical                           :: is_boundary
+   integer(ip)                       :: active_cell_id(2)
    type(i1p_t)                       :: quadrature_points_permutation(2)    
    type(cell_fe_function_tensor_t)   :: cell_fe_function(2)
    class(fe_iterator_t), allocatable :: fe
