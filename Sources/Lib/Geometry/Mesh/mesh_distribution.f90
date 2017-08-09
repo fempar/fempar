@@ -37,7 +37,7 @@ module mesh_distribution_names
 
   character(len=*), parameter :: num_parts_key  = 'num_parts'
   character(len=*), parameter :: num_levels_distribution_key = 'num_levels'
-  character(len=*), parameter :: num_parts_per_level_key = 'num_parts_per_level'
+  character(len=*), parameter :: num_parts_x_level_key = 'num_parts_x_level'
   character(len=*), parameter :: debug_key     = 'debug'
   character(len=*), parameter :: strategy_key  = 'strategy'
   character(len=*), parameter :: metis_option_debug_key   = 'metis_option_debug'
@@ -55,7 +55,7 @@ module mesh_distribution_names
         num_levels = 1     
 
      integer(ip), allocatable ::   &
-        num_parts_per_level(:),    &
+        num_parts_x_level(:),    &
         parts_mapping(:)
 
      integer(ip), allocatable ::   &
@@ -108,7 +108,7 @@ module mesh_distribution_names
   type mesh_distribution_params_t
      integer(ip) :: nparts         = 2    ! nparts
      integer(ip) :: num_levels     = 1    ! nlevels
-     integer(ip), allocatable :: num_parts_per_level (:)
+     integer(ip), allocatable :: num_parts_x_level (:)
 
      integer(ip) :: debug       = 1    ! Print info partition
 
@@ -141,7 +141,7 @@ module mesh_distribution_names
   ! Constants
   public :: num_parts_key
   public :: num_levels_distribution_key
-  public :: num_parts_per_level_key
+  public :: num_parts_x_level_key
   public :: debug_key
   public :: strategy_key
   public :: metis_option_debug_key
@@ -182,25 +182,25 @@ contains
        istat = parameter_list%get(key = num_levels_distribution_key  , value = this%num_levels)
        assert(istat==0)
        
-       assert(parameter_list%isPresent(key = num_parts_per_level_key ))
-       assert( parameter_list%GetDimensions(key = num_parts_per_level_key) == 1)
+       assert(parameter_list%isPresent(key = num_parts_x_level_key ))
+       assert( parameter_list%GetDimensions(key = num_parts_x_level_key) == 1)
 
        ! Get the array using the local variable
-       istat =  parameter_list%GetShape(key = num_parts_per_level_key, shape = param_size ); check(istat==0)
+       istat =  parameter_list%GetShape(key = num_parts_x_level_key, shape = param_size ); check(istat==0)
        call memalloc(param_size(1), param,__FILE__,__LINE__)
-       assert(parameter_list%isAssignable(num_parts_per_level_key, param))
-       istat = parameter_list%get(key = num_parts_per_level_key, value = param)
+       assert(parameter_list%isAssignable(num_parts_x_level_key, param))
+       istat = parameter_list%get(key = num_parts_x_level_key, value = param)
        assert(istat==0)
 
-       call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__)
-       this%num_parts_per_level = param(1:this%num_levels)
+       call memalloc(this%num_levels, this%num_parts_x_level,__FILE__,__LINE__)
+       this%num_parts_x_level = param(1:this%num_levels)
        call memfree(param,__FILE__,__LINE__)
 
-       this%nparts = this%num_parts_per_level(1)
+       this%nparts = this%num_parts_x_level(1)
     else
        this%num_levels=1
-       call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__)
-       this%num_parts_per_level(1)=this%nparts
+       call memalloc(this%num_levels, this%num_parts_x_level,__FILE__,__LINE__)
+       this%num_parts_x_level(1)=this%nparts
     end if
 
     ! Optional paramters
@@ -253,7 +253,7 @@ contains
   subroutine mesh_distribution_parameters_free(this)
     implicit none
     class(mesh_distribution_params_t), intent(inout) :: this
-    call memfree(this%num_parts_per_level,__FILE__,__LINE__)
+    call memfree(this%num_parts_x_level,__FILE__,__LINE__)
   end subroutine mesh_distribution_parameters_free
 
   !=============================================================================
@@ -309,7 +309,7 @@ contains
     if(allocated(f_msh_dist%l2g_vertices)) call memfree ( f_msh_dist%l2g_vertices, __FILE__,__LINE__)
     if(allocated(f_msh_dist%l2g_cells)) call memfree ( f_msh_dist%l2g_cells, __FILE__,__LINE__)
 
-    if(allocated(f_msh_dist%num_parts_per_level))  call memfree(f_msh_dist%num_parts_per_level,__FILE__,__LINE__)
+    if(allocated(f_msh_dist%num_parts_x_level))  call memfree(f_msh_dist%num_parts_x_level,__FILE__,__LINE__)
     if(allocated(f_msh_dist%parts_mapping))  call memfree(f_msh_dist%parts_mapping,__FILE__,__LINE__)
 
   end subroutine mesh_distribution_free

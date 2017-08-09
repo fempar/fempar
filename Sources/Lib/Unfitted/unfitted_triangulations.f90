@@ -131,16 +131,16 @@ module unfitted_triangulations_names
     integer(ip)                :: mc_table_max_num_cut_edges
     integer(ip)                :: mc_table_num_nodes_subcell
     integer(ip)                :: mc_table_num_nodes_subface
-    integer(ip),   allocatable :: mc_table_num_subcells_per_case(:)
-    integer(ip),   allocatable :: mc_table_num_subfaces_per_case(:)
-    integer(ip),   allocatable :: mc_table_num_cut_edges_per_case(:)
-    integer(ip),   allocatable :: mc_table_inout_subcells_per_case(:,:)
-    integer(ip),   allocatable :: mc_table_subcell_node_ids_per_case(:,:,:)
-    integer(ip),   allocatable :: mc_table_subface_node_ids_per_case(:,:,:)
+    integer(ip),   allocatable :: mc_table_num_subcells_x_case(:)
+    integer(ip),   allocatable :: mc_table_num_subfaces_x_case(:)
+    integer(ip),   allocatable :: mc_table_num_cut_edges_x_case(:)
+    integer(ip),   allocatable :: mc_table_inout_subcells_x_case(:,:)
+    integer(ip),   allocatable :: mc_table_subcell_node_ids_x_case(:,:,:)
+    integer(ip),   allocatable :: mc_table_subface_node_ids_x_case(:,:,:)
     logical :: mc_tables_init = .false.
 
     ! Info related to cut cells on this triangulation (this is computed at runtime)
-    integer(ip),   allocatable :: mc_case_per_cell(:)
+    integer(ip),   allocatable :: mc_case_x_cell(:)
     integer(ip),   allocatable :: mc_ptr_to_intersections(:)
     type(point_t), allocatable :: mc_intersection_points(:)
     logical :: mc_runtime_init = .false.

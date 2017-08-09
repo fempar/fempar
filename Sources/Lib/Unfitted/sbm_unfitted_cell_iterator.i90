@@ -98,18 +98,18 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   intersec_coords(:) = this%marching_cubes%mc_intersection_points(i1:i2)
 
   ! Recover connectivities of the sub-cells
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
   this%marching_cubes%subcells_nodal_connectivities(:,:) = 0
   do subcell=1,this%get_num_subcells()
     this%marching_cubes%subcells_nodal_connectivities(:,subcell) = &
-    this%marching_cubes%mc_table_subcell_node_ids_per_case(:,subcell,mc_case)
+    this%marching_cubes%mc_table_subcell_node_ids_x_case(:,subcell,mc_case)
   end do
 
   ! Recover connectivities of the sub-faces
   this%marching_cubes%subfaces_nodal_connectivities(:,:) = 0
   do subface=1,this%get_num_subfaces()
     this%marching_cubes%subfaces_nodal_connectivities(:,subface) = &
-    this%marching_cubes%mc_table_subface_node_ids_per_case(:,subface,mc_case)
+    this%marching_cubes%mc_table_subface_node_ids_x_case(:,subface,mc_case)
   end do
 
   !Fix inverted sub-cells and sub-faces (only in 3D)
@@ -165,7 +165,7 @@ function unfitted_cell_iterator_get_mc_case( this ) result ( mc_case )
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
 end function unfitted_cell_iterator_get_mc_case
 
 !========================================================================================
@@ -176,8 +176,8 @@ function unfitted_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
-  mc_case           = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  num_subcells      = this%marching_cubes%mc_table_num_subcells_per_case(mc_case)
+  mc_case           = this%marching_cubes%mc_case_x_cell(this%get_lid())
+  num_subcells      = this%marching_cubes%mc_table_num_subcells_x_case(mc_case)
 end function unfitted_cell_iterator_get_num_subcells
 
 !========================================================================================
@@ -211,7 +211,7 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subcell( this, subcell, poi
   assert(this%is_cut())
   assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells())  )
 
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
   fe_map => this%marching_cubes%subnodes_fe_maps(mc_case)
   subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
   subcell_node_ids =>  this%marching_cubes%subcells_nodal_connectivities(:,subcell)
@@ -252,8 +252,8 @@ function unfitted_cell_iterator_get_num_subfaces( this ) result ( num_subfaces )
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
-  mc_case           = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  num_subfaces      = this%marching_cubes%mc_table_num_subfaces_per_case(mc_case)
+  mc_case           = this%marching_cubes%mc_case_x_cell(this%get_lid())
+  num_subfaces      = this%marching_cubes%mc_table_num_subfaces_x_case(mc_case)
 end function unfitted_cell_iterator_get_num_subfaces
 
 !========================================================================================
@@ -287,7 +287,7 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subface( this, subface, poi
   assert(this%is_cut())
   assert( (1_ip <= subface) .and. (subface <= this%get_num_subfaces())  )
 
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
   fe_map => this%marching_cubes%subnodes_fe_maps(mc_case)
   subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
   subface_node_ids =>  this%marching_cubes%subfaces_nodal_connectivities(:,subface)
@@ -315,7 +315,7 @@ subroutine unfitted_cell_iterator_get_ref_coords_of_subface( this, subface, poin
   assert( (1_ip <= subface) .and. (subface <= this%get_num_subfaces())  )
 
   subnodes_ref_coords => this%marching_cubes%subnodes_ref_coords
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
   subface_node_ids =>  this%marching_cubes%subfaces_nodal_connectivities(:,subface)
   points(:) = subnodes_ref_coords(subface_node_ids(:))
 
@@ -329,7 +329,7 @@ function unfitted_cell_iterator_is_cut( this ) result ( is_cut )
   integer(ip) :: mc_case, num_mc_cases
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
   num_mc_cases = this%marching_cubes%mc_table_num_cases
   is_cut = (1_ip < mc_case) .and. ( mc_case < num_mc_cases)
 end function unfitted_cell_iterator_is_cut
@@ -342,7 +342,7 @@ function unfitted_cell_iterator_is_interior( this ) result ( is_interior )
   integer(ip) :: mc_case, num_mc_cases
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
   num_mc_cases = this%marching_cubes%mc_table_num_cases
   is_interior = ( mc_case == num_mc_cases )
 end function unfitted_cell_iterator_is_interior
@@ -355,7 +355,7 @@ function unfitted_cell_iterator_is_exterior( this ) result ( is_exterior )
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
   is_exterior = ( mc_case == 1_ip )
 end function unfitted_cell_iterator_is_exterior
 
@@ -371,8 +371,8 @@ function unfitted_cell_iterator_is_interior_subcell( this, subcell ) result ( is
   assert(this%is_cut())
   num_subcells = this%get_num_subcells()
   assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  pos = this%marching_cubes%mc_table_inout_subcells_per_case(subcell, mc_case)
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
+  pos = this%marching_cubes%mc_table_inout_subcells_x_case(subcell, mc_case)
   is_in = ( pos == -1_ip )
 end function unfitted_cell_iterator_is_interior_subcell
 
@@ -388,8 +388,8 @@ function unfitted_cell_iterator_is_exterior_subcell( this, subcell ) result ( is
   assert(this%is_cut())
   num_subcells = this%get_num_subcells()
   assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  pos = this%marching_cubes%mc_table_inout_subcells_per_case(subcell, mc_case)
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
+  pos = this%marching_cubes%mc_table_inout_subcells_x_case(subcell, mc_case)
   is_out = ( pos == 1_ip )
 end function unfitted_cell_iterator_is_exterior_subcell
 
@@ -401,8 +401,8 @@ function unfitted_cell_iterator_get_num_subnodes( this ) result (num_subnodes)
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
-  mc_case      = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  num_subnodes = this%get_num_nodes() + this%marching_cubes%mc_table_num_cut_edges_per_case(mc_case)
+  mc_case      = this%marching_cubes%mc_case_x_cell(this%get_lid())
+  num_subnodes = this%get_num_nodes() + this%marching_cubes%mc_table_num_cut_edges_x_case(mc_case)
 end function unfitted_cell_iterator_get_num_subnodes
 
 !========================================================================================

@@ -239,8 +239,8 @@ pure function cell_iterator_get_num_vefs (this)
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: cell_iterator_get_num_vefs
   !assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  cell_iterator_get_num_vefs = this%base_static_triangulation%ptr_vefs_per_cell(this%lid+1) - &
-       this%base_static_triangulation%ptr_vefs_per_cell(this%lid)
+  cell_iterator_get_num_vefs = this%base_static_triangulation%ptr_vefs_x_cell(this%lid+1) - &
+       this%base_static_triangulation%ptr_vefs_x_cell(this%lid)
 end function cell_iterator_get_num_vefs
 
 pure function cell_iterator_get_num_nodes (this)
@@ -248,8 +248,8 @@ pure function cell_iterator_get_num_nodes (this)
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: cell_iterator_get_num_nodes
   !assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  cell_iterator_get_num_nodes = this%base_static_triangulation%ptr_nodes_per_cell(this%lid+1) - &
-       this%base_static_triangulation%ptr_nodes_per_cell(this%lid)
+  cell_iterator_get_num_nodes = this%base_static_triangulation%ptr_nodes_x_cell(this%lid+1) - &
+       this%base_static_triangulation%ptr_nodes_x_cell(this%lid)
 end function cell_iterator_get_num_nodes
 
 function cell_iterator_get_node_lid (this, inode)
@@ -263,10 +263,10 @@ function cell_iterator_get_node_lid (this, inode)
   !reference_fe_geo => this%get_reference_fe_geo()
   !if ( reference_fe_geo%get_order() == 1 ) then
   !  assert ( inode >=1 .and. inode <= reference_fe_geo%get_num_vertices() )
-  !  cell_iterator_get_node_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid)+inode-1)
+  !  cell_iterator_get_node_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%lid)+inode-1)
   !else
   !  assert ( inode >=1 .and. inode <= reference_fe_geo%get_num_nodes() )
-    cell_iterator_get_node_lid = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+inode-1)
+    cell_iterator_get_node_lid = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)+inode-1)
   !end if
   
 end function cell_iterator_get_node_lid
@@ -277,7 +277,7 @@ function cell_iterator_get_vef_lid (this, ivef)
   integer(ip)                        :: ivef
   integer(ip)                        :: cell_iterator_get_vef_lid
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  cell_iterator_get_vef_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid)+ivef-1)
+  cell_iterator_get_vef_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%lid)+ivef-1)
 end function cell_iterator_get_vef_lid
 
 function cell_iterator_get_vef_lids (this)
@@ -285,8 +285,8 @@ function cell_iterator_get_vef_lids (this)
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: ivef
   integer(ip), pointer               :: cell_iterator_get_vef_lids(:)
-  cell_iterator_get_vef_lids => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid): &
-                                                                             this%base_static_triangulation%ptr_vefs_per_cell(this%lid+1)-1)
+  cell_iterator_get_vef_lids => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%lid): &
+                                                                             this%base_static_triangulation%ptr_vefs_x_cell(this%lid+1)-1)
 end function cell_iterator_get_vef_lids
 
 function cell_iterator_get_vef_gid (this, ivef)
@@ -366,7 +366,7 @@ function cell_iterator_get_scan_sum_num_vefs(this)
   class(cell_iterator_t), intent(in) :: this
   integer(ip) :: cell_iterator_get_scan_sum_num_vefs
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  cell_iterator_get_scan_sum_num_vefs = this%base_static_triangulation%ptr_vefs_per_cell(this%lid)-1
+  cell_iterator_get_scan_sum_num_vefs = this%base_static_triangulation%ptr_vefs_x_cell(this%lid)-1
 end function cell_iterator_get_scan_sum_num_vefs
 
 !function cell_iterator_get_num_vertices (this)
@@ -498,8 +498,8 @@ subroutine cell_iterator_fill_nodes_on_vertices (this)
   do ivef=1,reference_fe%get_num_n_faces_of_dim(0)
      assert(reference_fe%get_num_own_dofs_n_face(ivef)==1)
      inode = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(1,ivef)
-     lnode = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid) + ivef - 1 )
-     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid) + inode - 1 ) = lnode
+     lnode = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%lid) + ivef - 1 )
+     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid) + inode - 1 ) = lnode
   end do
 
 end subroutine cell_iterator_fill_nodes_on_vertices
@@ -517,10 +517,10 @@ subroutine cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
 
   do inode = 1,reference_fe%get_num_own_dofs_n_face(ivef_pos_in_cell)
     l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef_pos_in_cell)
-    assert(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+l_node-1)<=0)
-    if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+l_node-1)==0) then
+    assert(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)+l_node-1)<=0)
+    if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)+l_node-1)==0) then
        node_count = node_count + 1
-       this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+l_node-1)=node_count
+       this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)+l_node-1)=node_count
     end	if
   end do
   
@@ -545,15 +545,15 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   target_vef_lid = cell%find_lpos_vef_lid(ivef)
   target_vef_dim = target_ref_fe%get_n_face_dim(target_vef_lid)
  
-  source_vefs => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid): &
-                                                          &   this%base_static_triangulation%ptr_vefs_per_cell(this%lid+1)-1)
-  target_vefs => cell%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(cell%lid): &
-                                                          &   this%base_static_triangulation%ptr_vefs_per_cell(cell%lid+1)-1)
+  source_vefs => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%lid): &
+                                                          &   this%base_static_triangulation%ptr_vefs_x_cell(this%lid+1)-1)
+  target_vefs => cell%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(cell%lid): &
+                                                          &   this%base_static_triangulation%ptr_vefs_x_cell(cell%lid+1)-1)
   
-  source_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid): &
-                                                          &    this%base_static_triangulation%ptr_nodes_per_cell(this%lid+1)-1)
-  target_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(cell%lid): &
-                                                          &    this%base_static_triangulation%ptr_nodes_per_cell(cell%lid+1)-1)
+  source_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid): &
+                                                          &    this%base_static_triangulation%ptr_nodes_x_cell(this%lid+1)-1)
+  target_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(cell%lid): &
+                                                          &    this%base_static_triangulation%ptr_nodes_x_cell(cell%lid+1)-1)
 
   assert(size(source_vefs)==source_ref_fe%get_num_n_faces())
   assert(size(target_vefs)==target_ref_fe%get_num_n_faces())
@@ -594,7 +594,7 @@ subroutine cell_iterator_fill_internal_nodes_new(this,node_count)
   do inode = 1, reference_fe%get_num_own_dofs_n_face(ivef)
      l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef)
      node_count = node_count +1
-     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)-1+l_node) = node_count
+     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)-1+l_node) = node_count
   end do
 
 end subroutine cell_iterator_fill_internal_nodes_new

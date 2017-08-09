@@ -71,7 +71,7 @@ module environment_names
      private 
      integer(ip)                       :: state = not_created
      integer(ip)                       :: num_levels = 0         ! =0 when parts are not assigned to tasks
-     integer(ip)         , allocatable :: num_parts_per_level(:)
+     integer(ip)         , allocatable :: num_parts_x_level(:)
      integer(ip)         , allocatable :: parts_mapping(:)
      class(execution_context_t), allocatable :: world_context          ! All tasks context (=l1+lgt1 tasks)
      class(execution_context_t), allocatable :: l1_context             ! 1st lev tasks context
@@ -241,9 +241,9 @@ contains
     integer(ip)             , intent(in)    :: lunio
     call this%free()
     read ( lunio, '(10i10)' ) this%num_levels
-    call memalloc ( this%num_levels, this%num_parts_per_level,__FILE__,__LINE__  )
+    call memalloc ( this%num_levels, this%num_parts_x_level,__FILE__,__LINE__  )
     call memalloc ( this%num_levels, this%parts_mapping,__FILE__,__LINE__  )
-    read ( lunio, '(10i10)' ) this%num_parts_per_level
+    read ( lunio, '(10i10)' ) this%num_parts_x_level
     read ( lunio, '(10i10)' ) this%parts_mapping
   end subroutine environment_read_file
 
@@ -254,7 +254,7 @@ contains
     integer(ip)             , intent(in) :: lunio
     assert( this%num_levels>0)
     write ( lunio, '(10i10)' ) this%num_levels
-    write ( lunio, '(10i10)' ) this%num_parts_per_level
+    write ( lunio, '(10i10)' ) this%num_parts_x_level
     write ( lunio, '(10i10)' ) this%parts_mapping    
   end subroutine environment_write_file
 
@@ -265,7 +265,7 @@ contains
     class(environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
 
-    ! Some refactoring is needed here separating num_parts_per_level (and dir)
+    ! Some refactoring is needed here separating num_parts_x_level (and dir)
     ! from the rest of the mesh information.
     type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
@@ -278,7 +278,7 @@ contains
     character(len=:), allocatable   :: name
     integer(ip)                     :: lunio
     integer(ip)               :: num_levels
-    integer(ip) , allocatable :: num_parts_per_level(:)
+    integer(ip) , allocatable :: num_parts_x_level(:)
     integer(ip) , allocatable :: parts_mapping(:)
 
     call this%free()
@@ -350,10 +350,10 @@ contains
        ! can be executed in current context (long-lasting Alberto's concern). 
        call uniform_hex_mesh%generate_levels_and_parts(this%world_context%get_current_task(), &
             &                                          num_levels, &
-            &                                          num_parts_per_level, &
+            &                                          num_parts_x_level, &
             &                                          parts_mapping)
-       call this%assign_parts_to_tasks(num_levels, num_parts_per_level, parts_mapping)
-       call memfree(num_parts_per_level,__FILE__,__LINE__)
+       call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
+       call memfree(num_parts_x_level,__FILE__,__LINE__)
        call memfree(parts_mapping,__FILE__,__LINE__)
        check(this%get_num_tasks() <= this%world_context%get_num_tasks())
 
@@ -381,13 +381,13 @@ contains
     assert ( this%world_context%get_current_task() >= 0 )
 
     ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call this%world_context%split_by_condition ( this%world_context%get_current_task() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
+    call this%world_context%split_by_condition ( this%world_context%get_current_task() < this%num_parts_x_level(1), this%l1_context, this%lgt1_context )
 
     ! Create l1_to_l2_context, where inter-level data transfers actually occur
     if ( this%num_levels > 1 ) then
        if(this%l1_context%get_current_task() >= 0) then
           my_color = this%parts_mapping(2)
-       else if( this%lgt1_context%get_current_task() < this%num_parts_per_level(2)  ) then
+       else if( this%lgt1_context%get_current_task() < this%num_parts_x_level(2)  ) then
           my_color = this%lgt1_context%get_current_task()+1
        else
           my_color = undefined_color
@@ -403,7 +403,7 @@ contains
        allocate(next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
        this%next_level => next_level
        this%next_level%world_context = this%lgt1_context
-       call this%next_level%assign_parts_to_tasks(this%num_levels-1, this%num_parts_per_level(2:),this%parts_mapping(2:))
+       call this%next_level%assign_parts_to_tasks(this%num_levels-1, this%num_parts_x_level(2:),this%parts_mapping(2:))
        call this%next_level%fill_contexts()
     else
        nullify(this%next_level)
@@ -413,12 +413,12 @@ contains
   end subroutine environment_fill_contexts
 
   !=============================================================================
-  subroutine environment_assign_parts_to_tasks ( this, num_levels, num_parts_per_level, parts_mapping)
+  subroutine environment_assign_parts_to_tasks ( this, num_levels, num_parts_x_level, parts_mapping)
     implicit none 
     ! Parameters
     class(environment_t), intent(inout) :: this
     integer(ip)         , intent(in)    :: num_levels
-    integer(ip)         , intent(in)    :: num_parts_per_level(num_levels)
+    integer(ip)         , intent(in)    :: num_parts_x_level(num_levels)
     integer(ip)         , intent(in)    :: parts_mapping(num_levels)
     integer(ip)                         :: istat
 
@@ -426,9 +426,9 @@ contains
     call this%free()
     this%num_levels = num_levels
     call memalloc(this%num_levels, this%parts_mapping,__FILE__,__LINE__ )
-    call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__ )
+    call memalloc(this%num_levels, this%num_parts_x_level,__FILE__,__LINE__ )
     this%parts_mapping = parts_mapping
-    this%num_parts_per_level = num_parts_per_level
+    this%num_parts_x_level = num_parts_x_level
 
   end subroutine environment_assign_parts_to_tasks
 
@@ -453,7 +453,7 @@ contains
     if(this%num_levels > 0) then
        this%num_levels = 0
        call memfree(this%parts_mapping , __FILE__, __LINE__ )
-       call memfree(this%num_parts_per_level, __FILE__, __LINE__ )
+       call memfree(this%num_parts_x_level, __FILE__, __LINE__ )
     end if
 
   end subroutine environment_free
@@ -500,7 +500,7 @@ contains
     assert(this%num_levels>0)
     environment_get_num_tasks = 0
     do ilevel=1,this%num_levels
-       environment_get_num_tasks = environment_get_num_tasks + this%num_parts_per_level(ilevel)
+       environment_get_num_tasks = environment_get_num_tasks + this%num_parts_x_level(ilevel)
     end do
   end function environment_get_num_tasks
 

@@ -87,8 +87,8 @@ module fe_space_names
   type :: base_fe_space_t
     private
     integer(ip)                                 :: num_fields
-    integer(ip) , allocatable                   :: fe_space_type_per_field(:)
-    integer(ip) , allocatable                   :: num_dofs_per_field(:)
+    integer(ip) , allocatable                   :: fe_space_type_x_field(:)
+    integer(ip) , allocatable                   :: num_dofs_x_field(:)
     type(dof_import_t)            , allocatable :: blocks_dof_import(:)
     
     ! Pointer to data structure which is in charge of coarse DoF handling.
@@ -174,7 +174,7 @@ module fe_space_names
     private
     class(serial_fe_space_t), pointer     :: fe_space => NULL()
     ! Scratch data to support FE integration
-    integer(ip)             , allocatable :: num_dofs_per_field(:)
+    integer(ip)             , allocatable :: num_dofs_x_field(:)
     type(i1p_t)             , allocatable :: elem2dof(:)
   contains
     procedure                           :: create                                     => fe_iterator_create
@@ -189,7 +189,7 @@ module fe_space_names
     procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_iterator_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                        => fe_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                        => fe_iterator_renum_dofs_field
-    procedure, non_overridable          :: update_num_dofs_per_field               => fe_iterator_update_num_dofs_per_field
+    procedure, non_overridable          :: update_num_dofs_x_field               => fe_iterator_update_num_dofs_x_field
     procedure                           :: update_integration                         => fe_iterator_update_integration
 
     procedure, non_overridable          :: get_fe_space                               => fe_iterator_get_fe_space
@@ -199,7 +199,7 @@ module fe_space_names
 
     procedure, non_overridable          :: get_field_blocks                           => fe_iterator_get_field_blocks
     procedure, non_overridable          :: get_num_dofs                            => fe_iterator_get_num_dofs
-    procedure, non_overridable          :: get_num_dofs_per_field                  => fe_iterator_get_num_dofs_per_field
+    procedure, non_overridable          :: get_num_dofs_x_field                  => fe_iterator_get_num_dofs_x_field
     procedure, non_overridable          :: get_field_elem2dof                         => fe_iterator_get_field_elem2dof
     procedure, non_overridable          :: get_elem2dof                               => fe_iterator_get_elem2dof
     procedure, non_overridable          :: get_order                                  => fe_iterator_get_order
@@ -292,8 +292,8 @@ module fe_space_names
     integer(ip)                       :: face_lid
     class(fe_iterator_t), allocatable :: fe
     ! Scratch data to support FE face integration
-    integer(ip)         , allocatable :: num_dofs_per_cell_and_field(:,:)
-    type(i1p_t)         , allocatable :: elem2dof_per_cell(:,:)
+    integer(ip)         , allocatable :: num_dofs_x_cell_and_field(:,:)
+    type(i1p_t)         , allocatable :: elem2dof_x_cell(:,:)
    contains
     procedure                 , private :: create                        => fe_face_iterator_create
     procedure                 , private :: free                          => fe_face_iterator_free
@@ -302,8 +302,8 @@ module fe_space_names
     procedure                           :: has_finished                  => fe_face_iterator_has_finished
     procedure, non_overridable          :: set_lid                       => fe_face_iterator_set_lid
     procedure, non_overridable          :: get_lid                       => fe_face_iterator_get_lid
-    procedure, non_overridable, private :: update_num_dofs_per_field  => fe_face_iterator_update_num_dofs_per_field
-    procedure, non_overridable, private :: update_elem2dof_per_cell      => fe_face_iterator_update_elem2dof_per_cell
+    procedure, non_overridable, private :: update_num_dofs_x_field  => fe_face_iterator_update_num_dofs_x_field
+    procedure, non_overridable, private :: update_elem2dof_x_cell      => fe_face_iterator_update_elem2dof_x_cell
     procedure, non_overridable          :: update_integration            => fe_face_iterator_update_integration
     procedure, non_overridable, private :: fe_face_iterator_assembly_array
     procedure, non_overridable, private :: fe_face_iterator_assembly_matrix
@@ -312,7 +312,7 @@ module fe_space_names
                                                                             fe_face_iterator_assembly_matrix, &
                                                                             fe_face_iterator_assembly_matrix_array
     procedure, non_overridable          :: get_fe_space                  => fe_face_iterator_get_fe_space
-    procedure, non_overridable          :: get_num_dofs_per_field     => fe_face_iterator_get_num_dofs_per_field
+    procedure, non_overridable          :: get_num_dofs_x_field     => fe_face_iterator_get_num_dofs_x_field
     procedure, non_overridable          :: get_elem2dof                  => fe_face_iterator_get_elem2dof
     procedure, non_overridable          :: get_default_quadrature_degree => fe_face_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree         => fe_face_iterator_get_quadrature_degree
@@ -344,8 +344,8 @@ module fe_space_names
      integer(ip)                   , allocatable :: fe_quadratures_degree(:)
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
-     integer(ip)                   , allocatable :: reference_fe_id_per_fe(:,:)         ! (num_fields, num_fes)
-     integer(ip)                   , allocatable :: max_order_reference_fe_id_per_fe(:) ! Stores Key=max_order_reference_fe_id for all FEs
+     integer(ip)                   , allocatable :: reference_fe_id_x_fe(:,:)         ! (num_fields, num_fes)
+     integer(ip)                   , allocatable :: max_order_reference_fe_id_x_fe(:) ! Stores Key=max_order_reference_fe_id for all FEs
      type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
      type(hash_table_ip_ip_t)                    :: fe_cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
@@ -357,7 +357,7 @@ module fe_space_names
      
      
      ! Mapping of Finite Faces and integration containers
-     integer(ip)                   , allocatable :: max_order_reference_fe_id_per_fe_face(:) ! Stores max_order_reference_fe_id_per_fe_face for all faces
+     integer(ip)                   , allocatable :: max_order_reference_fe_id_x_fe_face(:) ! Stores max_order_reference_fe_id_x_fe_face for all faces
      type(hash_table_ip_ip_t)                    :: fe_face_quadratures_position  ! Key = [quadrature_degree, 
                                                                                   !       left_geo_reference_fe_id,
                                                                                   !       right_geo_reference_fe_id (with 0 for boundary faces)]
@@ -370,13 +370,13 @@ module fe_space_names
      type(std_vector_integer_ip_t)               :: face_permutation_indices
      
      ! DoF identifiers associated to each FE and field within FE
-     integer(ip)                   , allocatable :: ptr_dofs_per_fe(:,:) ! (num_fields, num_fes+1)
+     integer(ip)                   , allocatable :: ptr_dofs_x_fe(:,:) ! (num_fields, num_fes+1)
      integer(ip)                   , allocatable :: lst_dofs_lids(:)
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
      integer(ip)                                 :: num_strong_dirichlet_dofs
-     logical                       , allocatable :: at_strong_dirichlet_boundary_per_fe(:,:)
+     logical                       , allocatable :: at_strong_dirichlet_boundary_x_fe(:,:)
      
      ! Descriptor of the block layout selected for the PDE system at hand
      type(block_layout_t)              , pointer :: block_layout  => NULL()
@@ -394,15 +394,15 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
           
-     procedure, non_overridable, private :: allocate_ref_fe_id_per_fe                    => serial_fe_space_allocate_ref_fe_id_per_fe
-     procedure, non_overridable, private :: free_ref_fe_id_per_fe                        => serial_fe_space_free_ref_fe_id_per_fe
-     procedure, non_overridable, private :: fill_ref_fe_id_per_fe_same_on_all_cells      => serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
-     procedure, non_overridable, private :: fill_ref_fe_id_per_fe_different_between_cells=> serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells
+     procedure, non_overridable, private :: allocate_ref_fe_id_x_fe                    => serial_fe_space_allocate_ref_fe_id_x_fe
+     procedure, non_overridable, private :: free_ref_fe_id_x_fe                        => serial_fe_space_free_ref_fe_id_x_fe
+     procedure, non_overridable, private :: fill_ref_fe_id_x_fe_same_on_all_cells      => serial_fe_space_fill_ref_fe_id_x_fe_same_on_all_cells
+     procedure, non_overridable, private :: fill_ref_fe_id_x_fe_different_between_cells=> serial_fe_space_fill_ref_fe_id_x_fe_different_between_cells
      
      procedure, non_overridable, private :: check_cell_vs_fe_topology_consistency        => serial_fe_space_check_cell_vs_fe_topology_consistency
      
-     procedure, non_overridable, private :: allocate_and_fill_fe_space_type_per_field    => serial_fe_space_allocate_and_fill_fe_space_type_per_field
-     procedure, non_overridable, private :: free_fe_space_type_per_field                 => serial_fe_space_free_fe_space_type_per_field
+     procedure, non_overridable, private :: allocate_and_fill_fe_space_type_x_field    => serial_fe_space_allocate_and_fill_fe_space_type_x_field
+     procedure, non_overridable, private :: free_fe_space_type_x_field                 => serial_fe_space_free_fe_space_type_x_field
      
      procedure, non_overridable, private :: allocate_and_init_ptr_lst_dofs               => serial_fe_space_allocate_and_init_ptr_lst_dofs
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => serial_fe_space_free_ptr_lst_dofs
@@ -432,9 +432,9 @@ module fe_space_names
      procedure, non_overridable, private :: free_fe_quadratures_degree                   => serial_fe_space_free_fe_quadratures_degree
      procedure, non_overridable          :: clear_fe_quadratures_degree                  => serial_fe_space_clear_fe_quadratures_degree
      
-     procedure, non_overridable, private :: allocate_max_order_reference_fe_id_per_fe    => serial_fe_space_allocate_max_order_reference_fe_id_per_fe
-     procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe        => serial_fe_space_free_max_order_reference_fe_id_per_fe
-     procedure, non_overridable, private :: compute_max_order_reference_fe_id_per_fe     => serial_fe_space_compute_max_order_reference_fe_id_per_fe         
+     procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_fe    => serial_fe_space_allocate_max_order_reference_fe_id_x_fe
+     procedure, non_overridable, private :: free_max_order_reference_fe_id_x_fe        => serial_fe_space_free_max_order_reference_fe_id_x_fe
+     procedure, non_overridable, private :: compute_max_order_reference_fe_id_x_fe     => serial_fe_space_compute_max_order_reference_fe_id_x_fe         
      
      procedure, non_overridable          :: initialize_fe_integration                    => serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
@@ -445,9 +445,9 @@ module fe_space_names
      procedure, non_overridable, private :: free_fe_face_quadratures_degree              => serial_fe_space_free_fe_face_quadratures_degree
      procedure, non_overridable          :: clear_fe_face_quadratures_degree             => serial_fe_space_clear_fe_face_quadratures_degree
      
-     procedure, non_overridable, private :: allocate_max_order_reference_fe_id_per_fe_face => serial_fe_space_allocate_max_order_reference_fe_id_per_fe_face
-     procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe_face     => serial_fe_space_free_max_order_reference_fe_id_per_fe_face
-     procedure, non_overridable, private :: compute_max_order_reference_fe_id_per_fe_face  => serial_fe_space_compute_max_order_reference_fe_id_per_fe_face   
+     procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_fe_face => serial_fe_space_allocate_max_order_reference_fe_id_x_fe_face
+     procedure, non_overridable, private :: free_max_order_reference_fe_id_x_fe_face     => serial_fe_space_free_max_order_reference_fe_id_x_fe_face
+     procedure, non_overridable, private :: compute_max_order_reference_fe_id_x_fe_face  => serial_fe_space_compute_max_order_reference_fe_id_x_fe_face   
      
      procedure                 , private :: fill_vef_lids_of_fe_faces                    => serial_fe_space_fill_vef_lids_of_fe_faces
      procedure, non_overridable, private :: free_vef_lids_of_fe_faces                    => serial_fe_space_free_vef_lids_of_fe_faces
@@ -548,8 +548,8 @@ module fe_space_names
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
   ! See type(par_fe_space_t)%generate_non_consecutive_dof_gid()
   integer(ip), parameter :: cell_gid_shift              = 44
-  integer(ip), parameter :: dofs_per_reference_fe_shift = 14
-  integer(ip), parameter :: num_fields_shift         = igp*8-(cell_gid_shift+dofs_per_reference_fe_shift)-1
+  integer(ip), parameter :: dofs_x_reference_fe_shift = 14
+  integer(ip), parameter :: num_fields_shift         = igp*8-(cell_gid_shift+dofs_x_reference_fe_shift)-1
   
   ! These three parameter constants are thought be used as FPL keys. The corresponding pairs 
   ! <XXXkey,.true.|.false.> in FPL let the user to control whether or not coarse vertex, edge, or 
@@ -569,22 +569,22 @@ module fe_space_names
    ! Multilevel fe space   
    ! It is the equivalent to the "element_to_dof" at the finer level
    ! Pointers to the start/end of coarse DoFs LIDs of each field (lst_coarse_dofs)
-   integer(ip)                   , allocatable :: ptr_coarse_dofs_per_field(:)	
+   integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)	
    ! List of coarse DoFs LIDs
    integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
    
    ! Coarse DoFs LIDs on top of coarse n_faces per field
    ! It provides (for every field) what we get from the reference_fe_t at the
    ! finer level
-   type(list_t), allocatable                   :: own_coarse_dofs_per_field(:)
+   type(list_t), allocatable                   :: own_coarse_dofs_x_field(:)
    
    ! GIDs of the coarse DoFs. For their generation, we though to be a good idea 
    ! to take as basis the GIDs of the VEFs objects they are built from (instead of
    ! generating them from scratch, which in turn would imply further communication).
-   type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_per_field(:)
+   type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_x_field(:)
    
    ! Polymorphic data type in charge of filling some of the member variables above
-   ! (so far, lst_coarse_dofs + own_coarse_dofs_per_field)
+   ! (so far, lst_coarse_dofs + own_coarse_dofs_x_field)
    type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
 
    ! Member variables to provide support to fe_face_iterator_t 
@@ -639,7 +639,7 @@ module fe_space_names
    procedure        , non_overridable          :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
    procedure        , non_overridable, private :: transfer_num_fields                          => par_fe_space_transfer_num_fields
    procedure        , non_overridable, private :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
-   procedure        , non_overridable, private :: gather_ptr_dofs_per_fe_and_field                => par_fe_space_gather_ptr_dofs_per_fe_and_field
+   procedure        , non_overridable, private :: gather_ptr_dofs_x_fe_and_field                => par_fe_space_gather_ptr_dofs_x_fe_and_field
    procedure        , non_overridable, private :: gather_coarse_dofs_gids_rcv_counts_and_displs   => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
    procedure        , non_overridable, private :: gather_coarse_dofs_gids                         => par_fe_space_gather_coarse_dofs_gids
    procedure        , non_overridable, private :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
@@ -769,50 +769,50 @@ module fe_space_names
     integer(ip)                   , allocatable :: field_blocks(:)
     logical                       , allocatable :: field_coupling(:,:)
     logical                       , allocatable :: blocks_coupling(:,:)
-    integer(ip)                   , allocatable :: num_dofs_per_block(:)
+    integer(ip)                   , allocatable :: num_dofs_x_block(:)
     
-    integer(ip) , allocatable                   :: ptr_dofs_per_fe_and_field(:)
+    integer(ip) , allocatable                   :: ptr_dofs_x_fe_and_field(:)
     integer(ip) , allocatable                   :: lst_dofs_lids(:)
-    type(list_t), allocatable                   :: own_dofs_vef_per_fe(:)
+    type(list_t), allocatable                   :: own_dofs_vef_x_fe(:)
     	
 	   ! Pointer to coarse triangulation this coarse_fe_space has been built from
     type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
 	
     ! It is the equivalent to the "element_to_dof" at the finer level
     ! Pointers to the start/end of coarse DoFs LIDs of each field (lst_coarse_dofs)
-    integer(ip)                   , allocatable :: ptr_coarse_dofs_per_field(:)	
+    integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)	
     ! List of coarse DoFs LIDs
     integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
     
     ! Coarse DoFs LIDs on top of coarse n_faces per field
     ! It provides (for every field) what we get from the reference_fe_t at the
     ! finer level
-    type(list_t), allocatable                   :: own_coarse_dofs_per_field(:)
+    type(list_t), allocatable                   :: own_coarse_dofs_x_field(:)
    
     
     ! GIDs of the coarse DoFs. For their generation, we though to be a good idea 
     ! to take as basis the GIDs of the VEFs objects they are built from (instead of
     ! generating them from scratch, which in turn would imply further communication).
-    type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_per_field(:)
+    type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_x_field(:)
   contains
     procedure                                   :: create                                          => coarse_fe_space_create
     procedure                                   :: free                                            => coarse_fe_space_free
     procedure, non_overridable                  :: print                                           => coarse_fe_space_print
     procedure, non_overridable, private         :: allocate_and_fill_field_blocks_and_coupling     => coarse_fe_space_allocate_and_fill_field_blocks_and_coupling
     procedure, non_overridable, private         :: free_field_blocks_and_coupling                  => coarse_fe_space_free_field_blocks_and_coupling
-    procedure, non_overridable, private         :: allocate_and_fill_fe_space_type_per_field       => coarse_fe_space_allocate_and_fill_fe_space_type
-    procedure, non_overridable, private         :: free_fe_space_type_per_field                    => coarse_fe_space_free_fe_space_type
-    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_per_fe_and_field     => coarse_fe_space_allocate_and_fill_ptr_dofs_per_fe_and_field
-    procedure, non_overridable, private         :: free_ptr_dofs_per_fe_and_field                  => coarse_fe_space_free_ptr_dofs_per_fe_and_field
+    procedure, non_overridable, private         :: allocate_and_fill_fe_space_type_x_field       => coarse_fe_space_allocate_and_fill_fe_space_type
+    procedure, non_overridable, private         :: free_fe_space_type_x_field                    => coarse_fe_space_free_fe_space_type
+    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_x_fe_and_field     => coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe_and_field
+    procedure, non_overridable, private         :: free_ptr_dofs_x_fe_and_field                  => coarse_fe_space_free_ptr_dofs_x_fe_and_field
     procedure, non_overridable, private         :: fetch_ghost_fes_data                            => coarse_fe_space_fetch_ghost_fes_data
-    procedure, non_overridable, private         :: allocate_and_fill_own_dofs_vef_per_fe           => coarse_fe_space_allocate_and_fill_own_dofs_vef_per_fe
-    procedure, non_overridable, private         :: fill_own_dofs_per_fe_field                      => coarse_fe_space_fill_own_dofs_per_fe_field
-    procedure, non_overridable, private         :: free_own_dofs_vef_per_fe                        => coarse_fe_space_free_free_own_dofs_vef_per_fe
+    procedure, non_overridable, private         :: allocate_and_fill_own_dofs_vef_x_fe           => coarse_fe_space_allocate_and_fill_own_dofs_vef_x_fe
+    procedure, non_overridable, private         :: fill_own_dofs_x_fe_field                      => coarse_fe_space_fill_own_dofs_x_fe_field
+    procedure, non_overridable, private         :: free_own_dofs_vef_x_fe                        => coarse_fe_space_free_free_own_dofs_vef_x_fe
     procedure, non_overridable, private         :: allocate_lst_dofs_lids                          => coarse_fe_space_allocate_lst_dofs_lids
     procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids                => coarse_fe_space_count_dofs_and_fill_lst_dof_lids
     procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field
     procedure, non_overridable, private         :: free_lst_dofs_lids                              => coarse_fe_space_free_lst_dofs_lids
-    procedure, non_overridable, private         :: free_num_dofs_per_field_and_block            => coarse_fe_space_free_num_dofs_per_field_and_block
+    procedure, non_overridable, private         :: free_num_dofs_x_field_and_block            => coarse_fe_space_free_num_dofs_x_field_and_block
     procedure, non_overridable, private         :: free_blocks_dof_import                          => coarse_fe_space_free_blocks_dof_import
     procedure, non_overridable, nopass, private :: coarse_fe_size                                  => coarse_fe_space_coarse_fe_size
     procedure, non_overridable, nopass, private :: coarse_fe_pack                                  => coarse_fe_space_coarse_fe_pack
@@ -829,7 +829,7 @@ module fe_space_names
     procedure, non_overridable, private         :: setup_coarse_fe_space                           => coarse_fe_space_setup_coarse_fe_space
     procedure, non_overridable, private         :: transfer_num_fields                          => coarse_fe_space_transfer_num_fields
     procedure, non_overridable, private         :: transfer_fe_space_type                          => coarse_fe_space_transfer_fe_space_type
-    procedure, non_overridable, private         :: gather_ptr_dofs_per_fe_and_field                => coarse_fe_space_gather_ptr_dofs_per_fe_and_field
+    procedure, non_overridable, private         :: gather_ptr_dofs_x_fe_and_field                => coarse_fe_space_gather_ptr_dofs_x_fe_and_field
     procedure, non_overridable, private         :: gather_coarse_dofs_gids_rcv_counts_and_displs   => coarse_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
     procedure, non_overridable, private         :: gather_coarse_dofs_gids                         => coarse_fe_space_gather_coarse_dofs_gids
     procedure, non_overridable, private         :: gather_vefs_gids_dofs_objects                   => coarse_fe_space_gather_vefs_gids_dofs_objects

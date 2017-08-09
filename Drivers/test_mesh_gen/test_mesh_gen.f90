@@ -84,16 +84,16 @@ contains
     error = error + this%list%set(key = dir_path_out_key              , value = '.')
     error = error + this%list%set(key = num_dims_key      , value =  2)
     error = error + this%list%set(key = interpolation_order_key       , value =  1)
-    tmp = [4,4,0]; error = error + this%list%set(key = num_cells_per_dir_key   , value = tmp)
-    tmp = [3,1,1]; error = error + this%list%set(key = num_parts_per_dir_key   , value = tmp)
+    tmp = [4,4,0]; error = error + this%list%set(key = num_cells_x_dir_key   , value = tmp)
+    tmp = [3,1,1]; error = error + this%list%set(key = num_parts_x_dir_key   , value = tmp)
     tmp = [0,1,0]; error = error + this%list%set(key = is_dir_periodic_key           , value = tmp)
 
-    ! tmp = [4,2,0]; error = error + this%list%set(key = num_cells_per_dir_key   , value = tmp)
-    ! tmp = [1,1,1]; error = error + this%list%set(key = num_parts_per_dir_key   , value = tmp)
+    ! tmp = [4,2,0]; error = error + this%list%set(key = num_cells_x_dir_key   , value = tmp)
+    ! tmp = [1,1,1]; error = error + this%list%set(key = num_parts_x_dir_key   , value = tmp)
     ! tmp = [1,1,0]; error = error + this%list%set(key = is_dir_periodic_key           , value = tmp)
 
-    !error = error + this%list%set(key = num_cells_per_dir_key   , value =  [4,2,0])
-    !error = error + this%list%set(key = num_parts_per_dir_key   , value =  [1,1,1])
+    !error = error + this%list%set(key = num_cells_x_dir_key   , value =  [4,2,0])
+    !error = error + this%list%set(key = num_parts_x_dir_key   , value =  [1,1,1])
     !error = error + this%list%set(key = is_dir_periodic_key           , value =  [0,0,0])
     check(error==0)
 
@@ -244,8 +244,8 @@ program partitioner
   integer(ip)                  :: num_vertices
   integer(ip)                  :: num_edges
   integer(ip)                  :: num_faces
-  integer(ip) , allocatable    :: ptr_vefs_per_cell(:)            ! Size = num_local_cells + 1
-  integer(ip) , allocatable    :: lst_vefs_lids(:)                ! Size = ptr_vefs_per_cell(num_local_cells+1)-1
+  integer(ip) , allocatable    :: ptr_vefs_x_cell(:)            ! Size = num_local_cells + 1
+  integer(ip) , allocatable    :: lst_vefs_lids(:)                ! Size = ptr_vefs_x_cell(num_local_cells+1)-1
   integer(ip) , allocatable    :: boundary_id(:)                  ! Size = num_local_vefs (-1 if vef_lid is not a vertex)
   
   integer(ip)                  :: num_ghost_cells
@@ -253,7 +253,7 @@ program partitioner
   integer(igp), allocatable    :: vefs_gids(:)                    ! Size = num_local_vefs
   integer(ip)                  :: num_itfc_cells
   integer(ip) , allocatable    :: lst_itfc_cells(:)
-  integer(ip) , allocatable    :: ptr_ext_neighs_per_itfc_cell(:)
+  integer(ip) , allocatable    :: ptr_ext_neighs_x_itfc_cell(:)
   integer(igp), allocatable    :: lst_ext_neighs_gids(:)
   integer(ip) , allocatable    :: lst_ext_neighs_part_ids(:)
   real(rp)    , allocatable    :: coordinates(:,:)
@@ -265,14 +265,14 @@ program partitioner
   call input%create()
   parameters => input%get_parameters()
 
-  !error = parameters%get(key = num_cells_per_dir_key, value = n)
+  !error = parameters%get(key = num_cells_x_dir_key, value = n)
   !write(*,*) n
 
   ! call uniform_hex_mesh_generator_generate_connectivities(parameters,        &
   !      num_local_cells,       &
   !      num_local_vefs,        &
   !      num_vertices,          &
-  !      ptr_vefs_per_cell,     &
+  !      ptr_vefs_x_cell,     &
   !      lst_vefs_lids,         &
   !      boundary_id,           &
   !      coordinates,           &
@@ -281,7 +281,7 @@ program partitioner
   !      vefs_gids,             &
   !      num_itfc_cells,        &
   !      lst_itfc_cells,        &
-  !      ptr_ext_neighs_per_itfc_cell, &
+  !      ptr_ext_neighs_x_itfc_cell, &
   !      lst_ext_neighs_gids,          &
   !      lst_ext_neighs_part_ids,      &
   !      2)
@@ -295,7 +295,7 @@ program partitioner
        num_vertices,          &
        num_edges,             &
        num_faces,             &
-       ptr_vefs_per_cell,     &
+       ptr_vefs_x_cell,     &
        lst_vefs_lids,         &
        boundary_id,           &
        coordinates)
@@ -310,7 +310,7 @@ program partitioner
   write(*,*) 'CELLS'
   write(*,*) num_local_cells, num_ghost_cells
   do icell=1,num_local_cells+num_ghost_cells
-     write(*,*) icell, cell_gids(icell), lst_vefs_lids(ptr_vefs_per_cell(icell):ptr_vefs_per_cell(icell+1)-1)
+     write(*,*) icell, cell_gids(icell), lst_vefs_lids(ptr_vefs_x_cell(icell):ptr_vefs_x_cell(icell+1)-1)
   end do
 
   write(*,*) '==========================================================================='
@@ -329,12 +329,12 @@ program partitioner
   write(*,*) '==========================================================================='
   write(*,*) 'DIST'
   do icell = 1, num_itfc_cells
-     write(*,*) icell,lst_itfc_cells(icell),ptr_ext_neighs_per_itfc_cell(icell+1)-ptr_ext_neighs_per_itfc_cell(icell), &
-          &     lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_cell(icell):ptr_ext_neighs_per_itfc_cell(icell+1)-1), &
-          &     lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_cell(icell):ptr_ext_neighs_per_itfc_cell(icell+1)-1)
+     write(*,*) icell,lst_itfc_cells(icell),ptr_ext_neighs_x_itfc_cell(icell+1)-ptr_ext_neighs_x_itfc_cell(icell), &
+          &     lst_ext_neighs_gids(ptr_ext_neighs_x_itfc_cell(icell):ptr_ext_neighs_x_itfc_cell(icell+1)-1), &
+          &     lst_ext_neighs_part_ids(ptr_ext_neighs_x_itfc_cell(icell):ptr_ext_neighs_x_itfc_cell(icell+1)-1)
   end do
 
-  call memfree(ptr_vefs_per_cell,     __FILE__,__LINE__)
+  call memfree(ptr_vefs_x_cell,     __FILE__,__LINE__)
   call memfree(lst_vefs_lids,         __FILE__,__LINE__)
   !call memfree(vef_lid_to_vertex_lid, __FILE__,__LINE__)
   !call memfree(cell_gids,             __FILE__,__LINE__)

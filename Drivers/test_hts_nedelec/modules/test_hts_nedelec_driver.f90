@@ -308,7 +308,7 @@ contains
     type(face_integrator_t), pointer       :: face_int_H
     integer(ip)                            :: i, inode, vector_size
     integer(ip)                            :: num_dofs, num_fields 
-    integer(ip)              , pointer     :: num_dofs_per_field(:) 
+    integer(ip)              , pointer     :: num_dofs_x_field(:) 
     real(rp)                 , allocatable :: elvec(:), facevec(:) 
     real(rp)                               :: factor 
     integer(ip)  :: istat 
@@ -337,7 +337,7 @@ contains
     
     num_fields         =  this%fe_space%get_num_fields()
     num_dofs              =  fe%get_num_dofs()
-    num_dofs_per_field => fe%get_num_dofs_per_field()
+    num_dofs_x_field => fe%get_num_dofs_x_field()
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     allocate( elem2dof(num_fields), stat=istat); check(istat==0);
     
@@ -361,14 +361,14 @@ contains
           ! Integrate J over the hts subdomain 
           do qpoin=1, num_qpoints
              factor = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						
-             do inode = 1, num_dofs_per_field(1)  
+             do inode = 1, num_dofs_x_field(1)  
                 call cell_int_H%get_curl(inode, qpoin, rot_test_vector)
                 elvec(inode) = elvec(inode) + factor * rot_test_vector%get(3) 
              end do
           end do
 
           ! Add element contribution to matrix and vector 
-          do i = 1, num_dofs_per_field(1) 
+          do i = 1, num_dofs_x_field(1) 
              idof = elem2dof(1)%p(i) 
              if ( idof > 0 ) then 
                  call this%constraint_matrix%insert( idof, 1, elvec(i) )
@@ -391,7 +391,7 @@ contains
        end do
 
        num_dofs              =  fe%get_num_dofs() 
-       num_dofs_per_field => fe_face%get_num_dofs_per_field(1)
+       num_dofs_x_field => fe_face%get_num_dofs_x_field(1)
        call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
        quad            => fe_face%get_quadrature()
        num_qpoints  =  quad%get_num_quadrature_points()
@@ -408,7 +408,7 @@ contains
                 call fe_face%update_integration()    
                 do qpoin = 1, num_qpoints
                    factor = face_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
-                   do idof = 1, num_dofs_per_field(1) 
+                   do idof = 1, num_dofs_x_field(1) 
                       call face_int_H%get_curl(idof,qpoin,1,rot_test_vector)    
                       facevec(idof) = facevec(idof) + factor * rot_test_vector%get(3) 
                    end do
@@ -417,7 +417,7 @@ contains
                 call fe_face%get_elem2dof(1, elem2dof)
 
                 ! Add element contribution to vector 
-                do i = 1, num_dofs_per_field(1) 
+                do i = 1, num_dofs_x_field(1) 
                    idof = elem2dof(1)%p(i) 
                    if ( idof > 0 ) then 
                       call this%constraint_matrix%insert( idof, 1, facevec(i) )

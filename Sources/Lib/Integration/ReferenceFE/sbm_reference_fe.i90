@@ -35,11 +35,11 @@ subroutine reference_fe_free( this )
   if(allocated(this%fe_type)) deallocate(this%fe_type)
   if(allocated(this%field_type)) deallocate(this%field_type)
 
-  if (allocated(this%num_rotations_per_dim)) &
-       call memfree(this%num_rotations_per_dim,__FILE__,__LINE__)
+  if (allocated(this%num_rotations_x_dim)) &
+       call memfree(this%num_rotations_x_dim,__FILE__,__LINE__)
 
-  if (allocated(this%num_orientations_per_dim)) &
-       call memfree(this%num_orientations_per_dim,__FILE__,__LINE__)
+  if (allocated(this%num_orientations_x_dim)) &
+       call memfree(this%num_orientations_x_dim,__FILE__,__LINE__)
 
   if (allocated(this%own_dof_permutations)) then
      do i = 1, this%num_dims-1
@@ -52,7 +52,7 @@ subroutine reference_fe_free( this )
   call this%own_dofs_n_face%free()
   call this%dofs_n_face%free()
   call this%vertices_n_face%free()
-  call this%n_faces_n_face%free()
+  call this%facets_n_face%free()
   call this%orientation%free()
   call this%polytope%free()
   call this%node_array%free()
@@ -63,7 +63,7 @@ subroutine reference_fe_free( this )
   this%num_field_components = 0
   this%num_n_faces = 0
   this%num_shape_functions = 0
-  this%num_n_faces_per_dim  = 0
+  this%ptr_n_faces_x_dim  = 0
   this%conformity = .true.
 
 end subroutine reference_fe_free
@@ -84,7 +84,7 @@ subroutine reference_fe_print ( reference_fe )
   write(*,*) 'conformity: ',reference_fe%conformity
   write(*,*) 'num_n_faces', reference_fe%num_n_faces
   write(*,*) 'num_nodes', reference_fe%num_shape_functions
-  write(*,*) 'num_n_faces_dim', reference_fe%num_n_faces_per_dim
+  write(*,*) 'num_n_faces_dim', reference_fe%ptr_n_faces_x_dim
 
   write(*,*) 'orientation', reference_fe%orientation%a
 
@@ -96,7 +96,7 @@ subroutine reference_fe_print ( reference_fe )
   call reference_fe%vertices_n_face%print(6)
 
   write(*,*) 'n_faces_n_face'
-  call reference_fe%n_faces_n_face%print(6)
+  call reference_fe%facets_n_face%print(6)
 
   write(*,*) 'own_nodes_n_face'
   call reference_fe%own_dofs_n_face%print(6)
@@ -214,23 +214,23 @@ function reference_fe_get_num_vertices ( this )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip) :: reference_fe_get_num_vertices
-  reference_fe_get_num_vertices = this%num_n_faces_per_dim(2) -          &
-       &                             this%num_n_faces_per_dim(1)
+  reference_fe_get_num_vertices = this%ptr_n_faces_x_dim(2) -          &
+       &                             this%ptr_n_faces_x_dim(1)
 end function reference_fe_get_num_vertices
 
 function reference_fe_get_num_faces ( this )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip) :: reference_fe_get_num_faces
-  reference_fe_get_num_faces = this%num_n_faces_per_dim(this%num_dims+1) -          &
-       &                          this%num_n_faces_per_dim(this%num_dims)
+  reference_fe_get_num_faces = this%ptr_n_faces_x_dim(this%num_dims+1) -          &
+       &                          this%ptr_n_faces_x_dim(this%num_dims)
 end function reference_fe_get_num_faces
 
 function reference_fe_get_first_face_id ( this )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip) :: reference_fe_get_first_face_id
-  reference_fe_get_first_face_id = this%num_n_faces_per_dim(this%num_dims)
+  reference_fe_get_first_face_id = this%ptr_n_faces_x_dim(this%num_dims)
 end function reference_fe_get_first_face_id
 
 function reference_fe_get_num_n_faces_of_dim ( this, n_face_dim )
@@ -238,8 +238,8 @@ function reference_fe_get_num_n_faces_of_dim ( this, n_face_dim )
   class(reference_fe_t), intent(in) :: this
   integer(ip)          , intent(in) :: n_face_dim
   integer(ip) :: reference_fe_get_num_n_faces_of_dim
-  reference_fe_get_num_n_faces_of_dim = this%num_n_faces_per_dim(n_face_dim+2) -          &
-       &                                      this%num_n_faces_per_dim(n_face_dim+1)
+  reference_fe_get_num_n_faces_of_dim = this%ptr_n_faces_x_dim(n_face_dim+2) -          &
+       &                                      this%ptr_n_faces_x_dim(n_face_dim+1)
 end function reference_fe_get_num_n_faces_of_dim
 
 function reference_fe_get_first_n_face_id_of_dim ( this, n_face_dim )
@@ -247,7 +247,7 @@ function reference_fe_get_first_n_face_id_of_dim ( this, n_face_dim )
   class(reference_fe_t), intent(in) :: this
   integer(ip)          , intent(in) :: n_face_dim
   integer(ip) :: reference_fe_get_first_n_face_id_of_dim
-  reference_fe_get_first_n_face_id_of_dim = this%num_n_faces_per_dim(n_face_dim+1)
+  reference_fe_get_first_n_face_id_of_dim = this%ptr_n_faces_x_dim(n_face_dim+1)
 end function reference_fe_get_first_n_face_id_of_dim
 
 function reference_fe_get_num_shape_functions ( this )
@@ -266,7 +266,7 @@ function reference_fe_get_n_face_dim ( this, n_face_id )
   integer(ip) :: i 
   assert ( n_face_id >= 1 .and. n_face_id <= this%num_n_faces ) 
   do i = 1, this%num_dims
-     if ( n_face_id < this%num_n_faces_per_dim(i+1) ) then
+     if ( n_face_id < this%ptr_n_faces_x_dim(i+1) ) then
         reference_fe_get_n_face_dim = i - 1 
         exit
      end if
@@ -305,12 +305,12 @@ function reference_fe_create_vertices_n_face_iterator ( this, n_face_id) result(
   list_iterator = this%vertices_n_face%create_iterator(n_face_id)
 end function reference_fe_create_vertices_n_face_iterator
 
-function reference_fe_get_n_faces_n_face ( this )
+function reference_fe_get_facets_n_face ( this )
   implicit none
   class(reference_fe_t), target, intent(in) :: this
-  type(list_t), pointer :: reference_fe_get_n_faces_n_face
-  reference_fe_get_n_faces_n_face => this%n_faces_n_face
-end function reference_fe_get_n_faces_n_face
+  type(list_t), pointer :: reference_fe_get_facets_n_face
+  reference_fe_get_facets_n_face => this%facets_n_face
+end function reference_fe_get_facets_n_face
 
 function reference_fe_get_node_n_face ( this, i, j )
   implicit none
@@ -434,7 +434,7 @@ function reference_fe_compute_permutation_index(source_reference_fe, target_refe
   end do
   
   reference_fe_compute_permutation_index = relative_rotation +                                        &
-         & source_reference_fe%num_rotations_per_dim(source_reference_fe%num_dims-1) * relative_orientation
+         & source_reference_fe%num_rotations_x_dim(source_reference_fe%num_dims-1) * relative_orientation
   
 end function reference_fe_compute_permutation_index
 

@@ -199,7 +199,7 @@ subroutine unfitted_fe_iterator_update_integration( this )
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
   
-  integer(ip)            , pointer :: num_dofs_per_field(:)
+  integer(ip)            , pointer :: num_dofs_x_field(:)
 
   assert(this%is_local())
   call this%update_sub_triangulation()
@@ -219,8 +219,8 @@ subroutine unfitted_fe_iterator_update_integration( this )
      call cell_integrator%update(fe_map)
   end do
   
-  num_dofs_per_field => this%get_num_dofs_per_field()
-  call this%update_num_dofs_per_field(num_dofs_per_field)
+  num_dofs_x_field => this%get_num_dofs_x_field()
+  call this%update_num_dofs_x_field(num_dofs_x_field)
 
 end subroutine unfitted_fe_iterator_update_integration
 

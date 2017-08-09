@@ -375,9 +375,9 @@ contains
             ! Set subcell information into patch
             call patch%set_cell_type(reference_fe_geo%get_topology())
             call patch%set_num_dims(reference_fe_geo%get_num_dims())
-            call patch%set_num_vertices_per_subcell(quadrature%get_num_quadrature_points())
+            call patch%set_num_vertices_x_subcell(quadrature%get_num_quadrature_points())
             call patch%set_num_subcells(reference_fe_geo%get_num_subcells(num_refinements=max_order_within_fe-1))
-            call patch%set_num_vertices_per_subcell(reference_fe_geo%get_num_vertices())
+            call patch%set_num_vertices_x_subcell(reference_fe_geo%get_num_vertices())
 
             ! Set patch coordinates from fe_map
             call patch%set_coordinates(fe_map%get_quadrature_points_coordinates())

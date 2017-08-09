@@ -84,7 +84,7 @@ contains
                                         num_elements,                      & ! Number of local elements
                                         num_itfc_elems,                       & ! Number of (local) itfc elements
                                         lst_itfc_elems,                       & ! Local IDs of itfc elements
-                                        ptr_ext_neighs_per_itfc_elem,         & ! Ptrs to start-end of lst of external neighbours per itfc elem
+                                        ptr_ext_neighs_x_itfc_elem,         & ! Ptrs to start-end of lst of external neighbours per itfc elem
                                         lst_ext_neighs_gids,    & ! List of GIDs of external neighbours
                                         lst_ext_neighs_part_ids ) ! Part IDs the external neighbours are mapped to
     implicit none
@@ -94,31 +94,31 @@ contains
     integer(ip)              , intent(in)    :: num_elements
     integer(ip)              , intent(in)    :: num_itfc_elems
     integer(ip)              , intent(in)    :: lst_itfc_elems(num_itfc_elems)
-    integer(ip)              , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
-    integer(igp)             , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
-    integer(ip)              , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)              , intent(in)    :: ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)
+    integer(igp)             , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)              , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
     
     call this%free()    
     this%part_id = part_id
     this%num_parts  = num_parts
     call this%compute_num_neighbours( num_itfc_elems, &
-                                         ptr_ext_neighs_per_itfc_elem, &
+                                         ptr_ext_neighs_x_itfc_elem, &
                                          lst_ext_neighs_part_ids )
     
     call this%compute_neighbours_ids ( num_itfc_elems, &
-                                       ptr_ext_neighs_per_itfc_elem, &
+                                       ptr_ext_neighs_x_itfc_elem, &
                                        lst_ext_neighs_part_ids )
     
     call this%compute_snd_rcv_ptrs (num_itfc_elems, &
                                     lst_itfc_elems, &
-                                    ptr_ext_neighs_per_itfc_elem, &
+                                    ptr_ext_neighs_x_itfc_elem, &
                                     lst_ext_neighs_gids, &
                                     lst_ext_neighs_part_ids )
     
     call this%compute_snd_rcv_leids (num_elements, &
                                      num_itfc_elems, &
                                      lst_itfc_elems, &
-                                     ptr_ext_neighs_per_itfc_elem, &
+                                     ptr_ext_neighs_x_itfc_elem, &
                                      lst_ext_neighs_gids, &
                                      lst_ext_neighs_part_ids)
     
@@ -131,7 +131,7 @@ contains
                                        num_elements,                      & ! Number of local elements
                                        num_itfc_elems,                       & ! Number of (local) itfc elements
                                        lst_itfc_elems,                       & ! Local IDs of itfc elements
-                                       ptr_ext_neighs_per_itfc_elem,         & ! Ptrs to start-end of lst of external neighbours per itfc elem
+                                       ptr_ext_neighs_x_itfc_elem,         & ! Ptrs to start-end of lst of external neighbours per itfc elem
                                        lst_ext_neighs_gids,                  & ! List of GIDs of external neighbours
                                        lst_ext_neighs_part_ids )               ! Part IDs the external neighbours are mapped to
     implicit none
@@ -141,13 +141,13 @@ contains
     integer(ip)              , intent(in)    :: num_elements
     integer(ip)              , intent(in)    :: num_itfc_elems
     integer(ip)              , intent(in)    :: lst_itfc_elems(num_itfc_elems)
-    integer(ip)              , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
-    integer(ip)              , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
-    integer(ip)              , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)              , intent(in)    :: ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)
+    integer(ip)              , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)              , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
     
     integer(igp), allocatable :: lst_ext_neighs_gids_igp(:)
     
-    call memalloc ( ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1, &
+    call memalloc ( ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1, &
                     lst_ext_neighs_gids_igp, &
                     __FILE__, __LINE__ )
     
@@ -158,7 +158,7 @@ contains
                                           num_elements, & 
                                           num_itfc_elems, & 
                                           lst_itfc_elems, & 
-                                          ptr_ext_neighs_per_itfc_elem, & 
+                                          ptr_ext_neighs_x_itfc_elem, & 
                                           lst_ext_neighs_gids_igp, & 
                                           lst_ext_neighs_part_ids )
     
@@ -167,13 +167,13 @@ contains
   
   subroutine cell_import_compute_num_neighbours ( this, &
                                                         num_itfc_elems, &
-                                                        ptr_ext_neighs_per_itfc_elem, &
+                                                        ptr_ext_neighs_x_itfc_elem, &
                                                         lst_ext_neighs_part_ids)
     implicit none
     class(cell_import_t), intent(inout) :: this
     integer(ip)            , intent(in)    :: num_itfc_elems
-    integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
-    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)            , intent(in)    :: ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)
+    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
 
     ! Locals
     type(hash_table_ip_ip_t)   :: parts_visited
@@ -184,7 +184,7 @@ contains
     call parts_visited%init(20)
 
     this%num_neighbours = 0
-    do i=1, ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1
+    do i=1, ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1
        call parts_visited%put(key=lst_ext_neighs_part_ids(i),val=1,stat=istat)
        if(istat==now_stored) this%num_neighbours = this%num_neighbours + 1 
     end do
@@ -194,13 +194,13 @@ contains
 
   subroutine cell_import_compute_neighbour_ids ( this, &
                                                     num_itfc_elems, &
-                                                    ptr_ext_neighs_per_itfc_elem, &
+                                                    ptr_ext_neighs_x_itfc_elem, &
                                                     lst_ext_neighs_part_ids)
     implicit none
     class(cell_import_t), intent(inout) :: this
     integer(ip)            , intent(in)    :: num_itfc_elems
-    integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
-    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)            , intent(in)    :: ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)
+    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
 
     ! Locals
     type(hash_table_ip_ip_t)   :: parts_visited
@@ -209,7 +209,7 @@ contains
     call memalloc ( this%num_neighbours, this%neighbours_ids, __FILE__, __LINE__ )
     call parts_visited%init(this%num_neighbours)
     j = 1
-    do i=1, ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1
+    do i=1, ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1
        call parts_visited%put(key=lst_ext_neighs_part_ids(i),val=1,stat=istat)
        if(istat==now_stored) then
           this%neighbours_ids(j) = lst_ext_neighs_part_ids(i)
@@ -222,34 +222,34 @@ contains
   subroutine cell_import_compute_snd_rcv_ptrs (this, &
                                                   num_itfc_elems, &
                                                   lst_itfc_elems, &
-                                                  ptr_ext_neighs_per_itfc_elem, &
+                                                  ptr_ext_neighs_x_itfc_elem, &
                                                   lst_ext_neighs_gids, &
                                                   lst_ext_neighs_part_ids)
     implicit none
     class(cell_import_t), intent(inout) :: this
     integer(ip)            , intent(in)    :: num_itfc_elems
     integer(ip)            , intent(in)    :: lst_itfc_elems(num_itfc_elems)
-    integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
-    integer(igp)           , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
-    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)            , intent(in)    :: ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)
+    integer(igp)           , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
 
     ! Locals
     integer(ip)                            :: i, j, istat, local_neighbour_id
-    type(hash_table_ip_ip_t) , allocatable :: snd_lids_per_proc(:) 
-    type(hash_table_igp_ip_t), allocatable :: rcv_gids_per_proc(:)
+    type(hash_table_ip_ip_t) , allocatable :: snd_lids_x_proc(:) 
+    type(hash_table_igp_ip_t), allocatable :: rcv_gids_x_proc(:)
 
-    allocate(snd_lids_per_proc(this%num_neighbours))
-    allocate(rcv_gids_per_proc(this%num_neighbours))
+    allocate(snd_lids_x_proc(this%num_neighbours))
+    allocate(rcv_gids_x_proc(this%num_neighbours))
 
     do local_neighbour_id=1, this%num_neighbours
        ! Assume that nebou elements will be sent to each processor, 
        ! and take its 10% for the size of the hash table
-       call snd_lids_per_proc(local_neighbour_id)%init(max( int( real(num_itfc_elems,rp)*0.1_rp, ip), 5))
+       call snd_lids_x_proc(local_neighbour_id)%init(max( int( real(num_itfc_elems,rp)*0.1_rp, ip), 5))
 
        ! Assume that as many elements will be received from each processor
        ! as the number of remote edges communicating elements in this part
        ! and any other remote part, and take its 5%
-       call rcv_gids_per_proc(local_neighbour_id)%init( max ( int( real(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1),rp)*0.05_rp,ip), 5) )
+       call rcv_gids_x_proc(local_neighbour_id)%init( max ( int( real(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1),rp)*0.05_rp,ip), 5) )
     end do
 
     call memalloc ( this%num_neighbours+1, this%rcv_ptrs, __FILE__, __LINE__)
@@ -258,13 +258,13 @@ contains
     this%rcv_ptrs = 0
     
     do i=1, num_itfc_elems
-       do j=ptr_ext_neighs_per_itfc_elem(i), ptr_ext_neighs_per_itfc_elem(i+1)-1
+       do j=ptr_ext_neighs_x_itfc_elem(i), ptr_ext_neighs_x_itfc_elem(i+1)-1
           local_neighbour_id = this%get_local_neighbour_id(lst_ext_neighs_part_ids(j))
-          call snd_lids_per_proc(local_neighbour_id)%put(key=lst_itfc_elems(i), val=1, stat=istat)
+          call snd_lids_x_proc(local_neighbour_id)%put(key=lst_itfc_elems(i), val=1, stat=istat)
           if ( istat == now_stored ) then
              this%snd_ptrs(local_neighbour_id+1) =  this%snd_ptrs(local_neighbour_id+1) + 1
           end if 
-          call rcv_gids_per_proc(local_neighbour_id)%put(key=lst_ext_neighs_gids(j), val=1, stat=istat) 
+          call rcv_gids_x_proc(local_neighbour_id)%put(key=lst_ext_neighs_gids(j), val=1, stat=istat) 
           if ( istat == now_stored ) then
              this%rcv_ptrs(local_neighbour_id+1) =  this%rcv_ptrs(local_neighbour_id+1) + 1
           end if
@@ -274,8 +274,8 @@ contains
     this%snd_ptrs(1) = 1
     this%rcv_ptrs(1) = 1
     do local_neighbour_id=1, this%num_neighbours
-       call snd_lids_per_proc(local_neighbour_id)%free()
-       call rcv_gids_per_proc(local_neighbour_id)%free()
+       call snd_lids_x_proc(local_neighbour_id)%free()
+       call rcv_gids_x_proc(local_neighbour_id)%free()
        this%snd_ptrs(local_neighbour_id+1) = this%snd_ptrs(local_neighbour_id) + this%snd_ptrs(local_neighbour_id+1)
        this%rcv_ptrs(local_neighbour_id+1) = this%rcv_ptrs(local_neighbour_id) + this%rcv_ptrs(local_neighbour_id+1)
     end do
@@ -286,7 +286,7 @@ contains
                                                    num_elements, &
                                                    num_itfc_elems, &
                                                    lst_itfc_elems, &
-                                                   ptr_ext_neighs_per_itfc_elem, &
+                                                   ptr_ext_neighs_x_itfc_elem, &
                                                    lst_ext_neighs_gids, &
                                                    lst_ext_neighs_part_ids)
     implicit none
@@ -294,27 +294,27 @@ contains
     integer(ip)            , intent(in)    :: num_elements
     integer(ip)            , intent(in)    :: num_itfc_elems
     integer(ip)            , intent(in)    :: lst_itfc_elems(num_itfc_elems)
-    integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
-    integer(igp)           , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
-    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)            , intent(in)    :: ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)
+    integer(igp)           , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1)-1)
 
     ! Locals
     integer(ip)                            :: i, j, istat, local_neighbour_id
     integer(ip)                            :: num_elements_to_be_received
-    type(hash_table_ip_ip_t) , allocatable :: snd_lids_per_proc(:) 
-    type(hash_table_igp_ip_t), allocatable :: rcv_gids_per_proc(:)
+    type(hash_table_ip_ip_t) , allocatable :: snd_lids_x_proc(:) 
+    type(hash_table_igp_ip_t), allocatable :: rcv_gids_x_proc(:)
     
-    allocate(snd_lids_per_proc(this%num_neighbours))
-    allocate(rcv_gids_per_proc(this%num_neighbours))
+    allocate(snd_lids_x_proc(this%num_neighbours))
+    allocate(rcv_gids_x_proc(this%num_neighbours))
     do i=1, this%num_neighbours
        ! Assume that nebou elements will be sent to each processor, 
        ! and take its 10% for the size of the hash table
-       call snd_lids_per_proc(i)%init(max(int(real(num_itfc_elems,rp)*0.1_rp,ip),5))
+       call snd_lids_x_proc(i)%init(max(int(real(num_itfc_elems,rp)*0.1_rp,ip),5))
 
        ! Assume that as many elements will be received from each processor
        ! as the number of remote edges communicating elements in this part
        ! and any other remote part, and take its 5%
-       call rcv_gids_per_proc(i)%init(max(int(real(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1),rp)*0.05_rp,ip),5))
+       call rcv_gids_x_proc(i)%init(max(int(real(ptr_ext_neighs_x_itfc_elem(num_itfc_elems+1),rp)*0.05_rp,ip),5))
     end do
 
     call memalloc ( this%rcv_ptrs(this%num_neighbours+1)-1, this%rcv_leids, __FILE__, __LINE__)
@@ -322,15 +322,15 @@ contains
     
     num_elements_to_be_received = 0
     do i=1, num_itfc_elems
-       do j=ptr_ext_neighs_per_itfc_elem(i), ptr_ext_neighs_per_itfc_elem(i+1)-1
+       do j=ptr_ext_neighs_x_itfc_elem(i), ptr_ext_neighs_x_itfc_elem(i+1)-1
           local_neighbour_id = this%get_local_neighbour_id(lst_ext_neighs_part_ids(j))
-          call snd_lids_per_proc(local_neighbour_id)%put(key=lst_itfc_elems(i), val=1, stat=istat)
+          call snd_lids_x_proc(local_neighbour_id)%put(key=lst_itfc_elems(i), val=1, stat=istat)
           if ( istat == now_stored ) then
              this%snd_leids(this%snd_ptrs(local_neighbour_id)) = lst_itfc_elems(i)
              this%snd_ptrs(local_neighbour_id) = this%snd_ptrs(local_neighbour_id) + 1
           end if 
           
-          call rcv_gids_per_proc(local_neighbour_id)%put(key=lst_ext_neighs_gids(j), val=1, stat=istat) 
+          call rcv_gids_x_proc(local_neighbour_id)%put(key=lst_ext_neighs_gids(j), val=1, stat=istat) 
           if ( istat == now_stored ) then
              num_elements_to_be_received = num_elements_to_be_received + 1 
              this%rcv_leids(this%rcv_ptrs(local_neighbour_id)) = num_elements + num_elements_to_be_received
@@ -340,8 +340,8 @@ contains
     end do
 
     do i=this%num_neighbours+1, 2, -1
-       call snd_lids_per_proc(i-1)%free()
-       call rcv_gids_per_proc(i-1)%free()
+       call snd_lids_x_proc(i-1)%free()
+       call rcv_gids_x_proc(i-1)%free()
        this%snd_ptrs(i) = this%snd_ptrs(i-1)
        this%rcv_ptrs(i) = this%rcv_ptrs(i-1)
     end do

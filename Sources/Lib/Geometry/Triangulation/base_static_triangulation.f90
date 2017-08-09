@@ -268,11 +268,11 @@ module base_static_triangulation_names
      ! Data structures to store cell related information
      integer(ip)                           :: num_local_cells = 0
      integer(ip)                           :: num_ghost_cells = 0
-     integer(ip)                           :: max_vefs_per_cell = 0
+     integer(ip)                           :: max_vefs_x_cell = 0
      integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_set(:)               ! Num local cells + num ghost cells
-     integer(ip) , allocatable             :: ptr_vefs_per_cell(:)       ! Num local cells + num ghost cells + 1
+     integer(ip) , allocatable             :: ptr_vefs_x_cell(:)       ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable             :: lst_vefs_lids(:)
 
      ! Data type describing the layout in distributed-memory of the dual graph
@@ -315,7 +315,7 @@ module base_static_triangulation_names
      
      ! Geometry interpolation
      integer(ip)                             :: num_nodes
-     integer(ip) , allocatable               :: ptr_nodes_per_cell(:)       ! Num local cells + num ghost cells + 1
+     integer(ip) , allocatable               :: ptr_nodes_x_cell(:)       ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable               :: lst_nodes(:)
      type(point_t), allocatable              :: coordinates(:)
      
@@ -359,14 +359,14 @@ module base_static_triangulation_names
    
 
      ! Private methods for creating cell-related data
-     procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_per_cell => bst_allocate_and_fill_ptr_vefs_per_cell
+     procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_x_cell => bst_allocate_and_fill_ptr_vefs_x_cell
      procedure, non_overridable, private :: allocate_cells_gid                  => bst_allocate_cells_gid
      procedure, non_overridable, private :: fill_local_cells_gid                => bst_fill_local_cells_gid
      procedure, non_overridable, private :: allocate_cells_mypart               => bst_allocate_cells_mypart
      procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
-     procedure, non_overridable, private :: free_ptr_vefs_per_cell              => bst_free_ptr_vefs_per_cell
+     procedure, non_overridable, private :: free_ptr_vefs_x_cell              => bst_free_ptr_vefs_x_cell
      procedure, non_overridable, private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
      procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart

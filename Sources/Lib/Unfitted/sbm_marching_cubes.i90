@@ -287,7 +287,7 @@ function marching_cubes_get_num_subcells_mc_case(this,mc_case) result (num_subce
   class(marching_cubes_t), intent(in) :: this
   integer(ip), intent(in) :: mc_case
   integer(ip) :: num_subcells
-  num_subcells = this%mc_table_num_subcells_per_case(mc_case)
+  num_subcells = this%mc_table_num_subcells_x_case(mc_case)
 end function marching_cubes_get_num_subcells_mc_case
 
 !========================================================================================
@@ -296,7 +296,7 @@ function marching_cubes_get_num_subfaces_mc_case(this,mc_case) result (num_subfa
   class(marching_cubes_t), intent(in) :: this
   integer(ip), intent(in) :: mc_case
   integer(ip) :: num_subfaces
-  num_subfaces = this%mc_table_num_subfaces_per_case(mc_case)
+  num_subfaces = this%mc_table_num_subfaces_x_case(mc_case)
 end function marching_cubes_get_num_subfaces_mc_case
 
 !========================================================================================
@@ -439,81 +439,81 @@ subroutine marching_cubes_mc_tables_create(this)
 
   ! Now, we know the sizes and can allocate
   call memalloc (this%mc_table_num_cases, &
-                 this%mc_table_num_subcells_per_case    , __FILE__, __LINE__ )
+                 this%mc_table_num_subcells_x_case    , __FILE__, __LINE__ )
 
   call memalloc (this%mc_table_num_cases, &
-                 this%mc_table_num_subfaces_per_case    , __FILE__, __LINE__ )
+                 this%mc_table_num_subfaces_x_case    , __FILE__, __LINE__ )
 
   call memalloc (this%mc_table_num_cases, &
-                 this%mc_table_num_cut_edges_per_case   , __FILE__, __LINE__ )
+                 this%mc_table_num_cut_edges_x_case   , __FILE__, __LINE__ )
 
   call memalloc (this%mc_table_max_num_subcells, this%mc_table_num_cases, &
-                 this%mc_table_inout_subcells_per_case  , __FILE__, __LINE__ )
+                 this%mc_table_inout_subcells_x_case  , __FILE__, __LINE__ )
 
   call memalloc (this%mc_table_num_nodes_subcell, this%mc_table_max_num_subcells, this%mc_table_num_cases, &
-                 this%mc_table_subcell_node_ids_per_case, __FILE__, __LINE__ )
+                 this%mc_table_subcell_node_ids_x_case, __FILE__, __LINE__ )
 
   call memalloc (this%mc_table_num_nodes_subface, this%mc_table_max_num_subfaces, this%mc_table_num_cases, &
-                 this%mc_table_subface_node_ids_per_case, __FILE__, __LINE__ )
+                 this%mc_table_subface_node_ids_x_case, __FILE__, __LINE__ )
 
   ! Fill tables for the selected element type
   if (num_dim == 2_ip) then
-    this%mc_table_num_subcells_per_case(:)      = MC_QUA4_NUM_SUBCELLS_PER_CASE(:)
-    this%mc_table_num_subfaces_per_case(:)      = MC_QUA4_NUM_SUBFACES_PER_CASE(:)
-    this%mc_table_num_cut_edges_per_case(:)     = MC_QUA4_NUM_CUT_EDGES_PER_CASE(:)
-    this%mc_table_inout_subcells_per_case(:,:)    = MC_QUA4_INOUT_SUBCELLS_PER_CASE(:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,:)  = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,:)  = MC_QUA4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_num_subcells_x_case(:)      = MC_QUA4_NUM_SUBCELLS_PER_CASE(:)
+    this%mc_table_num_subfaces_x_case(:)      = MC_QUA4_NUM_SUBFACES_PER_CASE(:)
+    this%mc_table_num_cut_edges_x_case(:)     = MC_QUA4_NUM_CUT_EDGES_PER_CASE(:)
+    this%mc_table_inout_subcells_x_case(:,:)    = MC_QUA4_INOUT_SUBCELLS_PER_CASE(:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,:)  = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_subface_node_ids_x_case(:,:,:)  = MC_QUA4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
   else
-    this%mc_table_num_subcells_per_case(:)      = MC_HEX8_NUM_SUBCELLS_PER_CASE(:)
-    this%mc_table_num_subfaces_per_case(:)      = MC_HEX8_NUM_SUBFACES_PER_CASE(:)
-    this%mc_table_num_cut_edges_per_case(:)     = MC_HEX8_NUM_CUT_EDGES_PER_CASE(:)
-    !this%mc_table_inout_subcells_per_case(:,:)    = MC_HEX8_INOUT_SUBCELLS_PER_CASE(:,:)
-    !this%mc_table_subcell_node_ids_per_case(:,:,:)  = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
-    !this%mc_table_subface_node_ids_per_case(:,:,:)  = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,1:9) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL1(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,10:18) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL2(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,19:27) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL3(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,28:36) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL4(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,37:45) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL5(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,46:54) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL6(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,55:63) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL7(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,64:72) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL8(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,73:81) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL9(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,82:90) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL10(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,91:99) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL11(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,100:108) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL12(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,109:117) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL13(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,118:126) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL14(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,127:135) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL15(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,136:144) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL16(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,145:153) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL17(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,154:162) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL18(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,163:171) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL19(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,172:180) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL20(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,181:189) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL21(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,190:198) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL22(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,199:207) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL23(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,208:216) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL24(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,217:225) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL25(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,226:234) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL26(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,235:243) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL27(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,244:252) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL28(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,253:256) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL29(:,:,:)
-    this%mc_table_inout_subcells_per_case(:,1:36) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL1(:,:)
-    this%mc_table_inout_subcells_per_case(:,37:72) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL2(:,:)
-    this%mc_table_inout_subcells_per_case(:,73:108) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL3(:,:)
-    this%mc_table_inout_subcells_per_case(:,109:144) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL4(:,:)
-    this%mc_table_inout_subcells_per_case(:,145:180) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL5(:,:)
-    this%mc_table_inout_subcells_per_case(:,181:216) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL6(:,:)
-    this%mc_table_inout_subcells_per_case(:,217:252) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL7(:,:)
-    this%mc_table_inout_subcells_per_case(:,253:256) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL8(:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,1:45) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL1(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,46:90) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL2(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,91:135) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL3(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,136:180) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL4(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,181:225) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL5(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,226:256) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL6(:,:,:)
+    this%mc_table_num_subcells_x_case(:)      = MC_HEX8_NUM_SUBCELLS_PER_CASE(:)
+    this%mc_table_num_subfaces_x_case(:)      = MC_HEX8_NUM_SUBFACES_PER_CASE(:)
+    this%mc_table_num_cut_edges_x_case(:)     = MC_HEX8_NUM_CUT_EDGES_PER_CASE(:)
+    !this%mc_table_inout_subcells_x_case(:,:)    = MC_HEX8_INOUT_SUBCELLS_PER_CASE(:,:)
+    !this%mc_table_subcell_node_ids_x_case(:,:,:)  = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+    !this%mc_table_subface_node_ids_x_case(:,:,:)  = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,1:9) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL1(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,10:18) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL2(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,19:27) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL3(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,28:36) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL4(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,37:45) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL5(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,46:54) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL6(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,55:63) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL7(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,64:72) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL8(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,73:81) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL9(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,82:90) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL10(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,91:99) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL11(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,100:108) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL12(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,109:117) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL13(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,118:126) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL14(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,127:135) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL15(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,136:144) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL16(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,145:153) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL17(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,154:162) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL18(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,163:171) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL19(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,172:180) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL20(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,181:189) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL21(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,190:198) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL22(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,199:207) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL23(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,208:216) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL24(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,217:225) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL25(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,226:234) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL26(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,235:243) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL27(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,244:252) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL28(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,253:256) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL29(:,:,:)
+    this%mc_table_inout_subcells_x_case(:,1:36) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL1(:,:)
+    this%mc_table_inout_subcells_x_case(:,37:72) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL2(:,:)
+    this%mc_table_inout_subcells_x_case(:,73:108) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL3(:,:)
+    this%mc_table_inout_subcells_x_case(:,109:144) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL4(:,:)
+    this%mc_table_inout_subcells_x_case(:,145:180) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL5(:,:)
+    this%mc_table_inout_subcells_x_case(:,181:216) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL6(:,:)
+    this%mc_table_inout_subcells_x_case(:,217:252) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL7(:,:)
+    this%mc_table_inout_subcells_x_case(:,253:256) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL8(:,:)
+    this%mc_table_subface_node_ids_x_case(:,:,1:45) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL1(:,:,:)
+    this%mc_table_subface_node_ids_x_case(:,:,46:90) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL2(:,:,:)
+    this%mc_table_subface_node_ids_x_case(:,:,91:135) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL3(:,:,:)
+    this%mc_table_subface_node_ids_x_case(:,:,136:180) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL4(:,:,:)
+    this%mc_table_subface_node_ids_x_case(:,:,181:225) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL5(:,:,:)
+    this%mc_table_subface_node_ids_x_case(:,:,226:256) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL6(:,:,:)
   endif
 
   this%mc_tables_init = .true.
@@ -525,12 +525,12 @@ subroutine marching_cubes_mc_tables_free(this)
   implicit none
   class(marching_cubes_t), intent(inout) :: this
 
-  if (allocated (this%mc_table_num_subcells_per_case    )) call memfree (this%mc_table_num_subcells_per_case    , __FILE__, __LINE__)
-  if (allocated (this%mc_table_num_subfaces_per_case    )) call memfree (this%mc_table_num_subfaces_per_case    , __FILE__, __LINE__)
-  if (allocated (this%mc_table_num_cut_edges_per_case   )) call memfree (this%mc_table_num_cut_edges_per_case   , __FILE__, __LINE__)
-  if (allocated (this%mc_table_inout_subcells_per_case  )) call memfree (this%mc_table_inout_subcells_per_case  , __FILE__, __LINE__)
-  if (allocated (this%mc_table_subcell_node_ids_per_case)) call memfree (this%mc_table_subcell_node_ids_per_case, __FILE__, __LINE__)
-  if (allocated (this%mc_table_subface_node_ids_per_case)) call memfree (this%mc_table_subface_node_ids_per_case, __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_subcells_x_case    )) call memfree (this%mc_table_num_subcells_x_case    , __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_subfaces_x_case    )) call memfree (this%mc_table_num_subfaces_x_case    , __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_cut_edges_x_case   )) call memfree (this%mc_table_num_cut_edges_x_case   , __FILE__, __LINE__)
+  if (allocated (this%mc_table_inout_subcells_x_case  )) call memfree (this%mc_table_inout_subcells_x_case  , __FILE__, __LINE__)
+  if (allocated (this%mc_table_subcell_node_ids_x_case)) call memfree (this%mc_table_subcell_node_ids_x_case, __FILE__, __LINE__)
+  if (allocated (this%mc_table_subface_node_ids_x_case)) call memfree (this%mc_table_subface_node_ids_x_case, __FILE__, __LINE__)
 
   this%mc_tables_init = .false.
 
@@ -843,7 +843,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
 
   ! Allocate and fill marching cube cases
   num_cells = this%triangulation%get_num_local_cells()
-  call memalloc (num_cells, this%mc_case_per_cell, __FILE__, __LINE__ )
+  call memalloc (num_cells, this%mc_case_x_cell, __FILE__, __LINE__ )
   call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
   do while ( .not. fe%has_finished() )
     if (fe%is_local()) then
@@ -858,9 +858,9 @@ subroutine marching_cubes_mc_runtime_info_create(this)
       if ( num_nodes_outside == 0_ip ) then
         ! This is to avoid to set as cut an element that has negative and zero nodes 
         ! (which is in fact a full interior element)
-        this%mc_case_per_cell(fe%get_lid()) = this%mc_table_num_cases
+        this%mc_case_x_cell(fe%get_lid()) = this%mc_table_num_cases
       else
-        this%mc_case_per_cell(fe%get_lid()) = icase + 1
+        this%mc_case_x_cell(fe%get_lid()) = icase + 1
       end if
     end if
     call fe%next()
@@ -873,7 +873,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
   do while ( .not. fe%has_finished() )
       if (fe%is_local()) then
       this%mc_ptr_to_intersections(fe%get_lid() + 1) = this%mc_ptr_to_intersections(fe%get_lid()) &
-      + this%mc_table_num_cut_edges_per_case(this%mc_case_per_cell(fe%get_lid()))
+      + this%mc_table_num_cut_edges_x_case(this%mc_case_x_cell(fe%get_lid()))
     end if
     call fe%next()
   end do
@@ -888,7 +888,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
     if (fe%is_local()) then
 
       ! Only execute this loop for cut elements
-      if ( this%mc_case_per_cell(fe%get_lid())==1 .or. this%mc_case_per_cell(fe%get_lid())==this%mc_table_num_cases ) then
+      if ( this%mc_case_x_cell(fe%get_lid())==1 .or. this%mc_case_x_cell(fe%get_lid())==this%mc_table_num_cases ) then
         call fe%next()
         cycle
       end if
@@ -942,7 +942,7 @@ subroutine marching_cubes_mc_runtime_info_free(this)
   implicit none
   class(marching_cubes_t), intent(inout) :: this
   integer(ip) :: istat, i
-  if (allocated (this%mc_case_per_cell       )) call memfree ( this%mc_case_per_cell        , __FILE__, __LINE__ )
+  if (allocated (this%mc_case_x_cell       )) call memfree ( this%mc_case_x_cell        , __FILE__, __LINE__ )
   if (allocated (this%mc_ptr_to_intersections)) call memfree ( this%mc_ptr_to_intersections , __FILE__, __LINE__ )
   if (allocated (this%mc_intersection_points)) then
     deallocate(this%mc_intersection_points, stat=istat); check(istat==0)
@@ -973,7 +973,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   ! Initialize each one of the quadratures
   call this%triangulation%create_cell_iterator(cell)
   do icase=1, this%get_num_mc_cases()
-    n_subnodes =  this%mc_table_num_cut_edges_per_case(icase) + cell%get_num_nodes()
+    n_subnodes =  this%mc_table_num_cut_edges_x_case(icase) + cell%get_num_nodes()
     call this%subnodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dims(),n_subnodes)
   end do
 

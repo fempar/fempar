@@ -358,7 +358,7 @@ subroutine par_fe_space_count_and_list_dofs_on_ghosts( this )
      if ( fe%is_ghost() ) then
          do field_id = 1, this%num_fields
            if ( .not. fe%is_void(field_id)) then
-              if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+              if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
                  do ivef = 1, fe%get_num_vefs()
                    call fe%get_vef(ivef, vef)
                    if ( vef%is_at_interface() ) then          
@@ -388,7 +388,7 @@ subroutine par_fe_space_count_and_list_dofs_on_ghosts( this )
                     if ( vef%is_face() .and. vef%is_at_interface() ) then
                       call fe%fill_dofs_face_integration_coupling ( ivef, &
                                                                     field_id, &
-                                                                    this%num_dofs_per_field(field_id) )
+                                                                    this%num_dofs_x_field(field_id) )
                     end if
                  end do  
               end if
@@ -405,7 +405,7 @@ subroutine par_fe_space_count_and_list_dofs_on_ghosts( this )
   call this%block_layout%clear_num_dofs_x_block()
   do field_id=1, this%get_num_fields()
     iblock = this%block_layout%get_block_id(field_id) 
-    call this%block_layout%add_to_block_num_dofs(iblock,this%num_dofs_per_field(field_id))     
+    call this%block_layout%add_to_block_num_dofs(iblock,this%num_dofs_x_field(field_id))     
   end do 
 end subroutine par_fe_space_count_and_list_dofs_on_ghosts
 
@@ -443,7 +443,7 @@ subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
   class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t)          :: own_dofs_on_vef_iterator
   
-  if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+  if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
      call this%create_fe_iterator(fe)
      call this%create_fe_iterator(source_fe)
      call this%create_fe_vef_iterator(vef)
@@ -695,10 +695,10 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   i = 1
   do field_id = 1, this%num_fields
      if ( this%block_layout%get_block_id(field_id) == iblock ) then
-        if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+        if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
            ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
                                            this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
-        else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
+        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
            ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
                 this%compute_ubound_num_itfc_couplings_by_face_integ(field_id)
         end if
@@ -717,14 +717,14 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   i = 1
   do field_id = 1, this%num_fields
      if ( this%block_layout%get_block_id(field_id) == iblock ) then
-        if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+        if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
            total_num_itfc_couplings = &
                 this%compute_raw_interface_data_by_continuity(field_id, &
                                                               total_num_itfc_couplings, &
                                                               ubound_num_itfc_couplings(i),&
                                                               dofs_lid,&
                                                               raw_interface_data )
-        else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
+        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
            total_num_itfc_couplings = &
                 this%compute_raw_interface_data_by_face_integ(field_id, &
                                                               total_num_itfc_couplings, &
@@ -850,14 +850,14 @@ function par_fe_space_generate_non_consecutive_dof_gid (cell_gid, lpos_dof_elem2
   integer(ip) , intent(in) :: field_id
   integer(igp)             :: dof_gid
   assert ( cell_gid_shift >= 1  )
-  assert ( dofs_per_reference_fe_shift >= 1  )
+  assert ( dofs_x_reference_fe_shift >= 1  )
   assert ( num_fields_shift >= 1 )
   assert ( cell_gid < ISHFT(int(1,igp),int(cell_gid_shift,igp) ) ) 
-  assert ( lpos_dof_elem2dof < ISHFT(int(1,igp),int(dofs_per_reference_fe_shift,igp) ) )
+  assert ( lpos_dof_elem2dof < ISHFT(int(1,igp),int(dofs_x_reference_fe_shift,igp) ) )
   assert ( field_id < ISHFT(int(1,igp),int(num_fields_shift,igp) ) )
   dof_gid = (cell_gid-1) + &
             ISHFT(int(lpos_dof_elem2dof-1,igp),int(cell_gid_shift,igp)) + &
-            ISHFT(int(field_id-1,igp),int(cell_gid_shift+dofs_per_reference_fe_shift,igp))
+            ISHFT(int(field_id-1,igp),int(cell_gid_shift+dofs_x_reference_fe_shift,igp))
 end function par_fe_space_generate_non_consecutive_dof_gid
 
 
@@ -896,10 +896,10 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
   ubound_boundary_num_itfc_couplings = 0
   do ifield = 1, num_fe_spaces_in_subset
     field_id = fields_to_project(ifield)
-    if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+    if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
         ubound_boundary_num_itfc_couplings (ifield) = ubound_boundary_num_itfc_couplings (ifield) + &
                                              this%compute_ubound_boundary_num_itfc_couplings_by_continuity(field_id)
-    else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
+    else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
         check(.false.) ! Not implemented yet
         !ubound_boundary_num_itfc_couplings (ifield) = ubound_boundary_num_itfc_couplings (ifield) + &
         !        this%compute_ubound_boundary_num_itfc_couplings_by_face_integ(field_id)
@@ -916,7 +916,7 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
   total_boundary_num_itfc_couplings = 0
   do ifield = 1, num_fe_spaces_in_subset
       field_id = fields_to_project(ifield)
-        if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+        if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
            total_boundary_num_itfc_couplings = total_boundary_num_itfc_couplings + & 
                 this%compute_boundary_raw_interface_data_by_continuity(field_id, &
                                                                        total_boundary_num_itfc_couplings, &
@@ -925,7 +925,7 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
                                                                        global2subset_strong_dirichlet_dofs, &
                                                                        dofs_lid,&
                                                                        raw_interface_data )
-        else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
+        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
           check(.false.) ! Not implemented yet 
           !total_boundary_num_itfc_couplings = total_boundary_num_itfc_couplings + & 
                 ! this%compute_raw_interface_data_by_face_integ(field_id, &
@@ -1808,7 +1808,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   integer(ip)                          :: coarse_n_face_lid
   type(fe_object_iterator_t)           :: object
   type(list_iterator_t)                :: own_coarse_dofs_iterator
-  integer(ip), allocatable             :: num_coarse_dofs_per_field(:,:), max_num_coarse_dofs_per_field(:)
+  integer(ip), allocatable             :: num_coarse_dofs_x_field(:,:), max_num_coarse_dofs_x_field(:)
   integer(ip)                          :: current_coarse_dof, sum_max_num_coarse_dofs, max_max_num_coarse_dofs
 
   par_environment => this%get_par_environment()
@@ -1816,51 +1816,51 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   
   call this%free_coarse_dofs()
     
-  call memalloc ( this%get_num_fe_objects(), this%num_fields, num_coarse_dofs_per_field, __FILE__, __LINE__ )
+  call memalloc ( this%get_num_fe_objects(), this%num_fields, num_coarse_dofs_x_field, __FILE__, __LINE__ )
   
-  call memalloc ( this%num_fields, max_num_coarse_dofs_per_field, __FILE__, __LINE__ )
+  call memalloc ( this%num_fields, max_num_coarse_dofs_x_field, __FILE__, __LINE__ )
   
-  call memalloc ( this%num_fields+1, this%ptr_coarse_dofs_per_field, __FILE__, __LINE__ )
+  call memalloc ( this%num_fields+1, this%ptr_coarse_dofs_x_field, __FILE__, __LINE__ )
     
-  allocate ( this%coarse_dof_gids_per_field(this%num_fields), stat=istat )
+  allocate ( this%coarse_dof_gids_x_field(this%num_fields), stat=istat )
   check ( istat == 0 )
   
-  allocate ( this%own_coarse_dofs_per_field(this%num_fields), stat=istat )
+  allocate ( this%own_coarse_dofs_x_field(this%num_fields), stat=istat )
   check ( istat == 0 )
   
-  this%ptr_coarse_dofs_per_field(1) = 1
+  this%ptr_coarse_dofs_x_field(1) = 1
   sum_max_num_coarse_dofs = 0
   max_max_num_coarse_dofs = 0
   do field_id=1, this%num_fields
-    call this%coarse_fe_handlers(field_id)%p%get_num_coarse_dofs(field_id, this, parameter_list, num_coarse_dofs_per_field(:,field_id))
-    this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id)
+    call this%coarse_fe_handlers(field_id)%p%get_num_coarse_dofs(field_id, this, parameter_list, num_coarse_dofs_x_field(:,field_id))
+    this%ptr_coarse_dofs_x_field(field_id+1) = this%ptr_coarse_dofs_x_field(field_id)
     do i=1, this%get_num_fe_objects()
-      this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id+1) + &
-                                                   num_coarse_dofs_per_field(i, field_id)
+      this%ptr_coarse_dofs_x_field(field_id+1) = this%ptr_coarse_dofs_x_field(field_id+1) + &
+                                                   num_coarse_dofs_x_field(i, field_id)
     end do  
     
-    max_num_coarse_dofs_per_field(field_id) = maxval(num_coarse_dofs_per_field(:,field_id))
-    max_max_num_coarse_dofs = max(max_max_num_coarse_dofs,max_num_coarse_dofs_per_field(field_id))
-    sum_max_num_coarse_dofs = sum_max_num_coarse_dofs + max_num_coarse_dofs_per_field(field_id)
-    call par_environment%l1_max(max_num_coarse_dofs_per_field(field_id))
+    max_num_coarse_dofs_x_field(field_id) = maxval(num_coarse_dofs_x_field(:,field_id))
+    max_max_num_coarse_dofs = max(max_max_num_coarse_dofs,max_num_coarse_dofs_x_field(field_id))
+    sum_max_num_coarse_dofs = sum_max_num_coarse_dofs + max_num_coarse_dofs_x_field(field_id)
+    call par_environment%l1_max(max_num_coarse_dofs_x_field(field_id))
   end do
   
-  call memalloc ( this%ptr_coarse_dofs_per_field(this%num_fields+1)-1, &
+  call memalloc ( this%ptr_coarse_dofs_x_field(this%num_fields+1)-1, &
                   this%lst_coarse_dofs, __FILE__, __LINE__ )
   
   ! Enumerate coarse DoFs and map them to coarse n_faces
   current_coarse_dof = 1 
   coarse_dof_lid = 1
   do field_id=1, this%num_fields
-     call this%own_coarse_dofs_per_field(field_id)%create(this%get_num_fe_objects())
+     call this%own_coarse_dofs_x_field(field_id)%create(this%get_num_fe_objects())
      do i=1, this%get_num_fe_objects()
-       call this%own_coarse_dofs_per_field(field_id)%sum_to_pointer_index(i,num_coarse_dofs_per_field(i,field_id))
+       call this%own_coarse_dofs_x_field(field_id)%sum_to_pointer_index(i,num_coarse_dofs_x_field(i,field_id))
      end do     
-     call this%own_coarse_dofs_per_field(field_id)%calculate_header()
-     call this%own_coarse_dofs_per_field(field_id)%allocate_list_from_pointer()
+     call this%own_coarse_dofs_x_field(field_id)%calculate_header()
+     call this%own_coarse_dofs_x_field(field_id)%allocate_list_from_pointer()
      
-     do coarse_n_face_lid=1, this%own_coarse_dofs_per_field(field_id)%get_num_pointers()
-       own_coarse_dofs_iterator = this%own_coarse_dofs_per_field(field_id)%create_iterator(coarse_n_face_lid)
+     do coarse_n_face_lid=1, this%own_coarse_dofs_x_field(field_id)%get_num_pointers()
+       own_coarse_dofs_iterator = this%own_coarse_dofs_x_field(field_id)%create_iterator(coarse_n_face_lid)
        do while ( .not. own_coarse_dofs_iterator%is_upper_bound() )
          call own_coarse_dofs_iterator%set_current(coarse_dof_lid)
          call own_coarse_dofs_iterator%next()
@@ -1874,17 +1874,17 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   
   ! Generate a global numbering for the coarse DoFs
   do field_id=1, this%num_fields
-     call this%coarse_dof_gids_per_field(field_id)%create(this%ptr_coarse_dofs_per_field(field_id+1)-&
-                                                          this%ptr_coarse_dofs_per_field(field_id)) 
+     call this%coarse_dof_gids_x_field(field_id)%create(this%ptr_coarse_dofs_x_field(field_id+1)-&
+                                                          this%ptr_coarse_dofs_x_field(field_id)) 
   
      call this%create_fe_object_iterator(object)
      do while ( .not. object%has_finished() )
        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
        do while (.not. own_coarse_dofs_iterator%is_upper_bound())
-         this%coarse_dof_gids_per_field(field_id)%a(own_coarse_dofs_iterator%get_current()-this%ptr_coarse_dofs_per_field(field_id)+1) = &
+         this%coarse_dof_gids_x_field(field_id)%a(own_coarse_dofs_iterator%get_current()-this%ptr_coarse_dofs_x_field(field_id)+1) = &
                this%generate_coarse_dof_gid(object%get_gid(),field_id, &
                                             own_coarse_dofs_iterator%get_distance_to_lower_bound(), &
-                                            max_max_num_coarse_dofs, & ! max_num_coarse_dofs_per_field(field_id), &
+                                            max_max_num_coarse_dofs, & ! max_num_coarse_dofs_x_field(field_id), &
                                             sum_max_num_coarse_dofs)
          call own_coarse_dofs_iterator%next()
        end do
@@ -1893,24 +1893,24 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
      call this%free_fe_object_iterator(object)
   end do
   
-  call memfree ( num_coarse_dofs_per_field, __FILE__, __LINE__ )
-  call memfree ( max_num_coarse_dofs_per_field, __FILE__, __LINE__ )
+  call memfree ( num_coarse_dofs_x_field, __FILE__, __LINE__ )
+  call memfree ( max_num_coarse_dofs_x_field, __FILE__, __LINE__ )
 end subroutine par_fe_space_setup_coarse_dofs
 
 function par_fe_space_generate_coarse_dof_gid(object_gid, field_id, &
                                               current_coarse_dof, &
-                                              max_num_coarse_dofs_per_object_and_field, &
-                                              max_num_coarse_dofs_per_object ) result(coarse_dof_gid)
+                                              max_num_coarse_dofs_x_object_and_field, &
+                                              max_num_coarse_dofs_x_object ) result(coarse_dof_gid)
   implicit none
   integer(igp)         , intent(in) :: object_gid
   integer(ip)          , intent(in) :: field_id
   integer(ip)          , intent(in) :: current_coarse_dof
-  integer(ip)          , intent(in) :: max_num_coarse_dofs_per_object
-  integer(ip)          , intent(in) :: max_num_coarse_dofs_per_object_and_field
+  integer(ip)          , intent(in) :: max_num_coarse_dofs_x_object
+  integer(ip)          , intent(in) :: max_num_coarse_dofs_x_object_and_field
   integer(igp) :: coarse_dof_gid
-  !coarse_dof_gid = object_gid*int(max_num_coarse_dofs_per_object,igp) - (int(max_num_coarse_dofs_per_object,igp)-int(current_coarse_dof,igp))
-  coarse_dof_gid = (object_gid-1)*int(max_num_coarse_dofs_per_object,igp) &
-                 + int((field_id-1)*max_num_coarse_dofs_per_object_and_field,igp)  &
+  !coarse_dof_gid = object_gid*int(max_num_coarse_dofs_x_object,igp) - (int(max_num_coarse_dofs_x_object,igp)-int(current_coarse_dof,igp))
+  coarse_dof_gid = (object_gid-1)*int(max_num_coarse_dofs_x_object,igp) &
+                 + int((field_id-1)*max_num_coarse_dofs_x_object_and_field,igp)  &
                  + int(current_coarse_dof,igp)
 
 end function par_fe_space_generate_coarse_dof_gid
@@ -1920,27 +1920,27 @@ subroutine par_fe_space_free_coarse_dofs(this)
     class(par_fe_space_t)           , intent(inout) :: this
     integer(ip)                               :: i, istat 
         
-    if (allocated(this%ptr_coarse_dofs_per_field)) then 
-      call memfree ( this%ptr_coarse_dofs_per_field, __FILE__, __LINE__ )
+    if (allocated(this%ptr_coarse_dofs_x_field)) then 
+      call memfree ( this%ptr_coarse_dofs_x_field, __FILE__, __LINE__ )
     end if
     
     if (allocated(this%lst_coarse_dofs)) then 
       call memfree ( this%lst_coarse_dofs, __FILE__, __LINE__ )
     end if
   
-    if (allocated(this%coarse_dof_gids_per_field)) then
-      do i=1, size(this%coarse_dof_gids_per_field)
-        call this%coarse_dof_gids_per_field(i)%free()
+    if (allocated(this%coarse_dof_gids_x_field)) then
+      do i=1, size(this%coarse_dof_gids_x_field)
+        call this%coarse_dof_gids_x_field(i)%free()
       end do  
-      deallocate ( this%coarse_dof_gids_per_field, stat=istat )
+      deallocate ( this%coarse_dof_gids_x_field, stat=istat )
       check (istat == 0)  
     end if
   
-    if (allocated(this%own_coarse_dofs_per_field)) then
-      do i=1, size(this%own_coarse_dofs_per_field)
-        call this%own_coarse_dofs_per_field(i)%free()
+    if (allocated(this%own_coarse_dofs_x_field)) then
+      do i=1, size(this%own_coarse_dofs_x_field)
+        call this%own_coarse_dofs_x_field(i)%free()
       end do  
-      deallocate ( this%own_coarse_dofs_per_field, stat=istat )
+      deallocate ( this%own_coarse_dofs_x_field, stat=istat )
       check (istat == 0)  
     end if
 end subroutine par_fe_space_free_coarse_dofs
@@ -1951,8 +1951,8 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
   type(parameterlist_t) , intent(in)    :: parameter_list
   integer(ip)                           :: istat
   integer(ip)                           :: num_fields
-  integer(ip), allocatable              :: fe_space_type_per_field(:)
-  integer(ip), allocatable              :: ptr_dofs_per_fe_and_field(:)
+  integer(ip), allocatable              :: fe_space_type_x_field(:)
+  integer(ip), allocatable              :: ptr_dofs_x_fe_and_field(:)
   integer(ip), allocatable              :: coarse_dofs_gids_recv_counts(:)
   integer(ip), allocatable              :: coarse_dofs_gids_displs(:)
   integer(igp), allocatable             :: lst_dofs_gids(:)
@@ -1972,8 +1972,8 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
    ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot
    ! be passed as actual arguments of dummy arguments that do not have the allocatable attribute 
    ! Otherwise, the code crashes with a segmentation fault.
-   call memalloc (0, fe_space_type_per_field, __FILE__, __LINE__)
-   call memalloc (0, ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
+   call memalloc (0, fe_space_type_x_field, __FILE__, __LINE__)
+   call memalloc (0, ptr_dofs_x_fe_and_field, __FILE__, __LINE__)
    call memalloc (0, lst_dofs_gids, __FILE__, __LINE__)
    call memalloc (0, lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
    call memalloc (0, coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
@@ -1983,8 +1983,8 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
   ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
   if ( par_environment%am_i_l1_to_l2_task() ) then
      call this%transfer_num_fields(num_fields) 
-     call this%transfer_fe_space_type(num_fields, fe_space_type_per_field)
-     call this%gather_ptr_dofs_per_fe_and_field(num_fields, ptr_dofs_per_fe_and_field)
+     call this%transfer_fe_space_type(num_fields, fe_space_type_x_field)
+     call this%gather_ptr_dofs_x_fe_and_field(num_fields, ptr_dofs_x_fe_and_field)
      call this%gather_coarse_dofs_gids_rcv_counts_and_displs (coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs)
      call this%gather_coarse_dofs_gids(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_dofs_gids)
      call this%gather_vefs_gids_dofs_objects(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_vefs_gids_dofs_objects)
@@ -2001,8 +2001,8 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
      coarse_triangulation => triangulation%get_coarse_triangulation()
      call this%coarse_fe_space%create (coarse_triangulation, &
                                        num_fields, &
-                                       fe_space_type_per_field, &
-                                       ptr_dofs_per_fe_and_field, &
+                                       fe_space_type_x_field, &
+                                       ptr_dofs_x_fe_and_field, &
                                        lst_dofs_gids, &
                                        lst_vefs_gids_dofs_objects)
   else
@@ -2011,8 +2011,8 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
   end if
 
   ! All tasks free raw data (see actual reason on the top part of this subroutine)
-  call memfree (fe_space_type_per_field, __FILE__, __LINE__)
-  call memfree (ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
+  call memfree (fe_space_type_x_field, __FILE__, __LINE__)
+  call memfree (ptr_dofs_x_fe_and_field, __FILE__, __LINE__)
   call memfree (lst_dofs_gids, __FILE__, __LINE__)
   call memfree (lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
   call memfree (coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
@@ -2038,32 +2038,32 @@ subroutine par_fe_space_transfer_num_fields ( this, num_fields )
   end if
 end subroutine par_fe_space_transfer_num_fields
 
-subroutine par_fe_space_transfer_fe_space_type ( this, num_fields, fe_space_type_per_field )
+subroutine par_fe_space_transfer_fe_space_type ( this, num_fields, fe_space_type_x_field )
   implicit none
   class(par_fe_space_t)   , intent(in)    :: this
   integer(ip)             , intent(in)       :: num_fields
-  integer(ip), allocatable, intent(inout)    :: fe_space_type_per_field(:)
+  integer(ip), allocatable, intent(inout)    :: fe_space_type_x_field(:)
   integer(ip)                                :: dummy_integer_array_ip(0)
   type(environment_t), pointer           :: par_environment
 
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_to_l2_task() )
   if ( par_environment%am_i_l1_to_l2_root() ) then
-     if ( allocated (fe_space_type_per_field) ) call memfree ( fe_space_type_per_field, __FILE__, __LINE__ )
-     call memalloc ( num_fields, fe_space_type_per_field, __FILE__, __LINE__ )
+     if ( allocated (fe_space_type_x_field) ) call memfree ( fe_space_type_x_field, __FILE__, __LINE__ )
+     call memalloc ( num_fields, fe_space_type_x_field, __FILE__, __LINE__ )
      call par_environment%l1_to_l2_transfer(input_data=dummy_integer_array_ip, &
-                                            output_data=fe_space_type_per_field)
+                                            output_data=fe_space_type_x_field)
   else
      call par_environment%l1_to_l2_transfer(input_data=this%get_fe_space_type(), &
                                             output_data=dummy_integer_array_ip) 
   end if
 end subroutine par_fe_space_transfer_fe_space_type
 
-subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field( this, num_fields, ptr_dofs_per_fe_and_field )
+subroutine par_fe_space_gather_ptr_dofs_x_fe_and_field( this, num_fields, ptr_dofs_x_fe_and_field )
   implicit none
   class(par_fe_space_t)   , intent(inout)    :: this
   integer(ip)             , intent(in)       :: num_fields
-  integer(ip), allocatable, intent(inout)    :: ptr_dofs_per_fe_and_field(:)
+  integer(ip), allocatable, intent(inout)    :: ptr_dofs_x_fe_and_field(:)
   integer(ip)                                :: i, num_local_cells
   integer(ip)                                :: dummy_integer_array(0)
   type(environment_t), pointer           :: par_environment
@@ -2076,28 +2076,28 @@ subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field( this, num_fields, ptr_
      triangulation => this%get_triangulation()
      coarse_triangulation => triangulation%get_coarse_triangulation()
      num_local_cells = coarse_triangulation%get_num_local_cells()
-     if (allocated(ptr_dofs_per_fe_and_field)) call memfree ( ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
-     call memalloc ((num_local_cells+1)*num_fields+1, ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
+     if (allocated(ptr_dofs_x_fe_and_field)) call memfree ( ptr_dofs_x_fe_and_field, __FILE__, __LINE__ )
+     call memalloc ((num_local_cells+1)*num_fields+1, ptr_dofs_x_fe_and_field, __FILE__, __LINE__ )
      call par_environment%l2_from_l1_gather( input_data_size = num_fields, &
                                              input_data      = [((0), i=1,num_fields)], &
-                                             output_data     = ptr_dofs_per_fe_and_field(2:))
-     ptr_dofs_per_fe_and_field(1) = 1
+                                             output_data     = ptr_dofs_x_fe_and_field(2:))
+     ptr_dofs_x_fe_and_field(1) = 1
      do i=1, num_local_cells*num_fields
-       ptr_dofs_per_fe_and_field(i+1) = ptr_dofs_per_fe_and_field(i) + ptr_dofs_per_fe_and_field(i+1)
+       ptr_dofs_x_fe_and_field(i+1) = ptr_dofs_x_fe_and_field(i) + ptr_dofs_x_fe_and_field(i+1)
      end do
   else
      do i=1, this%num_fields
-       this%ptr_coarse_dofs_per_field(i) = this%ptr_coarse_dofs_per_field(i+1)-this%ptr_coarse_dofs_per_field(i) 
+       this%ptr_coarse_dofs_x_field(i) = this%ptr_coarse_dofs_x_field(i+1)-this%ptr_coarse_dofs_x_field(i) 
      end do
   
      call par_environment%l2_from_l1_gather( input_data_size = this%get_num_fields(), &
-                                             input_data      = this%ptr_coarse_dofs_per_field, &
+                                             input_data      = this%ptr_coarse_dofs_x_field, &
                                              output_data     = dummy_integer_array )
      do i=this%num_fields,1,-1
-       this%ptr_coarse_dofs_per_field(i) = this%ptr_coarse_dofs_per_field(i+1)-this%ptr_coarse_dofs_per_field(i) 
+       this%ptr_coarse_dofs_x_field(i) = this%ptr_coarse_dofs_x_field(i+1)-this%ptr_coarse_dofs_x_field(i) 
      end do
   end if
-end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
+end subroutine par_fe_space_gather_ptr_dofs_x_fe_and_field
 
   subroutine par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs( this, recv_counts, displs )
     implicit none
@@ -2124,7 +2124,7 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
         displs(i) = displs(i-1) + recv_counts(i-1)
       end do
     else
-      call par_environment%l2_from_l1_gather( input_data  = this%ptr_coarse_dofs_per_field(this%num_fields+1)-1, &
+      call par_environment%l2_from_l1_gather( input_data  = this%ptr_coarse_dofs_x_field(this%num_fields+1)-1, &
                                               output_data = dummy_integer_array ) 
     end if
   end subroutine par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
@@ -2154,12 +2154,12 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
                                               displs          = displs, &
                                               output_data     = lst_gids )
     else
-      ! Pack dofs_objects_gids_per_field(:) into plain buffer for further data exchange
-      call memalloc ( this%ptr_coarse_dofs_per_field(this%num_fields+1)-1, buffer, __FILE__, __LINE__ ) 
+      ! Pack dofs_objects_gids_x_field(:) into plain buffer for further data exchange
+      call memalloc ( this%ptr_coarse_dofs_x_field(this%num_fields+1)-1, buffer, __FILE__, __LINE__ ) 
       do i=1, this%get_num_fields()
-        spos = this%ptr_coarse_dofs_per_field(i)
-        epos = this%ptr_coarse_dofs_per_field(i+1)-1
-        buffer(spos:epos) = this%coarse_dof_gids_per_field(i)%a
+        spos = this%ptr_coarse_dofs_x_field(i)
+        epos = this%ptr_coarse_dofs_x_field(i+1)-1
+        buffer(spos:epos) = this%coarse_dof_gids_x_field(i)%a
         spos = epos +1 
       end do
     
@@ -2199,10 +2199,10 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
                                                            displs          = displs, &
                                                            output_data     = vef_gids )
     else
-      ! Pack vefs_lids_dofs_objects_per_field(:) into plain buffer for further data exchange
-      call memalloc ( this%ptr_coarse_dofs_per_field(this%num_fields+1)-1, buffer, __FILE__, __LINE__ )
+      ! Pack vefs_lids_dofs_objects_x_field(:) into plain buffer for further data exchange
+      call memalloc ( this%ptr_coarse_dofs_x_field(this%num_fields+1)-1, buffer, __FILE__, __LINE__ )
       do i=1, this%get_num_fields()
-        spos = this%ptr_coarse_dofs_per_field(i)
+        spos = this%ptr_coarse_dofs_x_field(i)
         call this%create_fe_object_iterator(object)
         do while ( .not. object%has_finished() )
           own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(i)
@@ -2234,7 +2234,7 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
     par_fe_space_get_total_num_coarse_dofs = 0
     do field_id = 1, this%get_num_fields()
        par_fe_space_get_total_num_coarse_dofs = par_fe_space_get_total_num_coarse_dofs + & 
-                                                   this%ptr_coarse_dofs_per_field(field_id+1)-this%ptr_coarse_dofs_per_field(field_id)
+                                                   this%ptr_coarse_dofs_x_field(field_id+1)-this%ptr_coarse_dofs_x_field(field_id)
     end do
   end function par_fe_space_get_total_num_coarse_dofs
   
@@ -2249,7 +2249,7 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
     do field_id = 1, this%get_num_fields()
        if ( this%block_layout%get_block_id(field_id) == block_id ) then
          par_fe_space_get_block_num_coarse_dofs = par_fe_space_get_block_num_coarse_dofs + & 
-                                                     this%ptr_coarse_dofs_per_field(field_id+1)-this%ptr_coarse_dofs_per_field(field_id)
+                                                     this%ptr_coarse_dofs_x_field(field_id+1)-this%ptr_coarse_dofs_x_field(field_id)
        end if                                      
     end do
   end function par_fe_space_get_block_num_coarse_dofs

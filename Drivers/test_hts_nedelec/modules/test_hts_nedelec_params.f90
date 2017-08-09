@@ -117,7 +117,7 @@ contains
 
     ! MESHING parameters 
     error = list%set(key = num_dims_key   , value =  2)                                 ; check(error==0)
-    error = list%set(key = num_cells_per_dir_key, value =  [2,2,2])                           ; check(error==0)
+    error = list%set(key = num_cells_x_dir_key, value =  [2,2,2])                           ; check(error==0)
     error = list%set(key = is_dir_periodic_key        , value =  [0,0,0])                           ; check(error==0)
     error = list%set(key = triangulation_generate_key , value =  triangulation_generate_structured) ; check(error==0)
     error = list%set(key = domain_length_key          , value =  [1.0,1.0,1.0])                     ; check(error==0)
@@ -171,7 +171,7 @@ contains
     
     ! MESHING parameters 
     error = switches%set(key = num_dims_key      , value = '--num_dims') ; check(error==0)
-    error = switches%set(key = num_cells_per_dir_key   , value = '--num_cells')   ; check(error==0)
+    error = switches%set(key = num_cells_x_dir_key   , value = '--num_cells')   ; check(error==0)
     error = switches%set(key = is_dir_periodic_key           , value = '--is_dir_periodic')   ; check(error==0)
     error = switches%set(key = triangulation_generate_key    , value = '--triangulation-type'); check(error==0)
     error = switches%set(key = domain_length_key             , value = '--domain_length')     ; check(error==0)
@@ -226,7 +226,7 @@ contains
     ! MESHING parameters 
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution') ; check(error==0)
     error = switches_ab%set(key = num_dims_key   , value = '-dim')       ; check(error==0)
-    error = switches_ab%set(key = num_cells_per_dir_key, value = '-nelem')     ; check(error==0)
+    error = switches_ab%set(key = num_cells_x_dir_key, value = '-nelem')     ; check(error==0)
     error = switches_ab%set(key = is_dir_periodic_key        , value = '-idp')       ; check(error==0)
     error = switches_ab%set(key = triangulation_generate_key , value = '-tt')        ; check(error==0)
     error = switches_ab%set(key = domain_length_key          , value = '-dl')        ; check(error==0)
@@ -280,7 +280,7 @@ contains
     
     ! MESHING parameters
     error = helpers%set(key = num_dims_key   , value = 'Number of dimensions')  ; check(error==0)
-    error = helpers%set(key = num_cells_per_dir_key, value = 'Number of elements in each direction'); check(error==0)
+    error = helpers%set(key = num_cells_x_dir_key, value = 'Number of elements in each direction'); check(error==0)
     error = helpers%set(key = is_dir_periodic_key        , value = 'Is periodic? in each direction'); check(error==0)
   
     msg = 'structured (*) or unstructured (*) triangulation?'
@@ -339,7 +339,7 @@ contains
     
     ! MESHING parameters
     error = required%set(key = num_dims_key   , value = .false.)  ; check(error==0)
-    error = required%set(key = num_cells_per_dir_key, value = .false.)  ; check(error==0)
+    error = required%set(key = num_cells_x_dir_key, value = .false.)  ; check(error==0)
     error = required%set(key = is_dir_periodic_key        , value = .false.)  ; check(error==0)
     error = required%set(key = triangulation_generate_key , value = .false.)  ; check(error==0)
     error = required%set(key = domain_length_key          , value = .false.)  ; check(error==0)

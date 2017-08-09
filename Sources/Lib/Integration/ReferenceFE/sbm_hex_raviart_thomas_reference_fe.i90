@@ -950,8 +950,8 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
   this%dofs_n_face      = this%own_dofs_n_face
   
   ! Re-define own_node_permutations-related stuff
-  if ( allocated(this%num_rotations_per_dim) )  call memfree (this%num_rotations_per_dim,__FILE__,__LINE__)
-  if ( allocated(this%num_orientations_per_dim) ) call memfree (this%num_orientations_per_dim,__FILE__,__LINE__)
+  if ( allocated(this%num_rotations_x_dim) )  call memfree (this%num_rotations_x_dim,__FILE__,__LINE__)
+  if ( allocated(this%num_orientations_x_dim) ) call memfree (this%num_orientations_x_dim,__FILE__,__LINE__)
   if (allocated(this%own_dof_permutations)) then
      do i = 1, this%num_dims-1
         call this%own_dof_permutations(i)%free()
@@ -960,19 +960,19 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
      check(istat==0)
   end if
   
-  call memalloc (this%num_dims-1,this%num_rotations_per_dim,__FILE__,__LINE__)
-  call memalloc (this%num_dims-1,this%num_orientations_per_dim,__FILE__,__LINE__)
+  call memalloc (this%num_dims-1,this%num_rotations_x_dim,__FILE__,__LINE__)
+  call memalloc (this%num_dims-1,this%num_orientations_x_dim,__FILE__,__LINE__)
   
   do idime = 1, this%num_dims-1
      call this%node_array_vector(1)%compute_num_rot_and_perm( idime, &
                                                               this%polytope, &
-                                                              this%num_rotations_per_dim(idime), &
-                                                              this%num_orientations_per_dim(idime))
+                                                              this%num_rotations_x_dim(idime), &
+                                                              this%num_orientations_x_dim(idime))
   end do
   
   allocate(this%own_dof_permutations(this%num_dims-1)) 
   do idime = 1, this%num_dims-1
-    num_cols_own_node_permutations = this%num_rotations_per_dim(idime)*this%num_orientations_per_dim(idime)
+    num_cols_own_node_permutations = this%num_rotations_x_dim(idime)*this%num_orientations_x_dim(idime)
     if ( idime == 1 .and. this%num_dims == 3 ) then
       num_rows_own_node_permutations = 0
     else

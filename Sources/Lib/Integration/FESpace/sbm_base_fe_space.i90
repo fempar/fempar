@@ -35,7 +35,7 @@ function base_fe_space_get_num_fields ( this )
   base_fe_space_get_num_fields = this%num_fields
 end function base_fe_space_get_num_fields
 
-! Although in principle this%fe_space_type_per_field(:) was though to be
+! Although in principle this%fe_space_type_x_field(:) was though to be
 ! private member variable, I had to make it visible to the exterior
 ! via a raw pointer it as type(mlbddc_coarse_t) requires it in order to construct 
 ! the type(par_fe_space_t) instance that it aggregrates. Perhaps there is a 
@@ -49,7 +49,7 @@ function base_fe_space_get_fe_space_type (this)
   environment => this%get_environment()
   nullify(base_fe_space_get_fe_space_type)
   if ( environment%am_i_l1_task() ) then
-     base_fe_space_get_fe_space_type => this%fe_space_type_per_field
+     base_fe_space_get_fe_space_type => this%fe_space_type_x_field
   end if
 end function base_fe_space_get_fe_space_type
 
@@ -87,7 +87,7 @@ function base_fe_space_get_total_num_dofs ( this )
   if ( environment%am_i_l1_task() ) then
     do field_id = 1, this%num_fields
        base_fe_space_get_total_num_dofs = base_fe_space_get_total_num_dofs  + &
-           this%num_dofs_per_field(field_id)
+           this%num_dofs_x_field(field_id)
     end do      
   end if
 end function base_fe_space_get_total_num_dofs
@@ -103,7 +103,7 @@ function base_fe_space_get_field_num_dofs( this, field_id )
   base_fe_space_get_field_num_dofs = 0
   if ( environment%am_i_l1_task() ) then
     assert ( field_id >=1 .and. field_id <= this%num_fields ) 
-    base_fe_space_get_field_num_dofs = this%num_dofs_per_field(field_id)
+    base_fe_space_get_field_num_dofs = this%num_dofs_x_field(field_id)
   end if
 end function base_fe_space_get_field_num_dofs
 

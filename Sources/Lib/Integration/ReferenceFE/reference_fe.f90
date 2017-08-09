@@ -370,19 +370,19 @@ module reference_fe_names
      integer(ip)              ::    &
           num_n_faces,              &        
           num_shape_functions,             &        
-          num_n_faces_per_dim(5)
+          ptr_n_faces_x_dim(SPACE_DIM+2)
 
      type(polytope_t)              :: polytope
      type(node_array_t)            :: node_array
      type(node_array_t)            :: vertex_array
      type(allocatable_array_ip1_t)  :: orientation      ! orientation of the n-faces 
      type(list_t)                   :: vertices_n_face  ! vertices per n-face
-     type(list_t)                   :: n_faces_n_face   ! all n-faces per n-face
+     type(list_t)                   :: facets_n_face   ! all facets per n-face
      type(list_t)                   :: dofs_n_face      ! all DoFs per n-face
      type(list_t)                   :: own_dofs_n_face  ! owned DoFs per n-face
 
-     integer(ip), allocatable :: num_rotations_per_dim(:)
-     integer(ip), allocatable :: num_orientations_per_dim(:)
+     integer(ip), allocatable :: num_rotations_x_dim(:)
+     integer(ip), allocatable :: num_orientations_x_dim(:)
      type(allocatable_array_ip2_t), allocatable :: own_dof_permutations(:)
    contains
      ! TBPs
@@ -390,7 +390,6 @@ module reference_fe_names
      procedure(create_interface), private, deferred :: create 
      ! TBP to create a quadrature for a reference_fe_t
      procedure(create_quadrature_interface)             , deferred :: create_quadrature
-     !procedure(create_quadrature_on_faces_interface)    , deferred :: create_quadrature_on_faces
      procedure(create_face_quadrature_interface)        , deferred :: create_face_quadrature
      ! TBP to create an interpolation from a quadrature_t and reference_fe_t, 
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
@@ -489,8 +488,8 @@ module reference_fe_names
      procedure :: get_num_n_faces => reference_fe_get_num_n_faces
      procedure :: get_num_vertices => reference_fe_get_num_vertices
      !procedure :: get_first_vertex_id => reference_fe_get_first_vertex_id
-     !procedure :: get_num_vertices_per_edge => reference_fe_get_num_vertices_per_edge
-     !procedure :: get_num_vertices_per_face => reference_fe_get_num_vertices_per_face
+     !procedure :: get_num_vertices_x_edge => reference_fe_get_num_vertices_x_edge
+     !procedure :: get_num_vertices_x_face => reference_fe_get_num_vertices_x_face
      !procedure :: get_num_edges => reference_fe_get_num_edges
      !procedure :: get_first_edge_id => reference_fe_get_first_edge_id
      procedure :: get_num_faces => reference_fe_get_num_faces
@@ -505,7 +504,7 @@ module reference_fe_names
      procedure :: create_dofs_n_face_iterator => reference_fe_create_dofs_n_face_iterator
      procedure :: get_dofs_n_face   =>   reference_fe_get_dofs_n_face
                     
-     procedure :: get_n_faces_n_face   =>   reference_fe_get_n_faces_n_face
+     procedure :: get_facets_n_face   =>   reference_fe_get_facets_n_face
      procedure :: get_num_vertices_n_face => reference_fe_get_num_vertices_n_face
      procedure :: get_num_dofs_on_n_face => reference_fe_get_num_dofs_on_n_face
      procedure :: create_dofs_on_n_face_iterator => reference_fe_create_dofs_on_n_face_iterator

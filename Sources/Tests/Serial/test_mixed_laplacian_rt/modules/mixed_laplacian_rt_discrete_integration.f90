@@ -103,7 +103,7 @@ contains
     real(rp), allocatable :: pressure_source_term_values(:)
     real(rp), allocatable :: pressure_boundary_function_values(:)
 
-    integer(ip), pointer :: num_dofs_per_field(:) 
+    integer(ip), pointer :: num_dofs_x_field(:) 
     
     assert ( associated(this%pressure_source_term) )
     assert ( associated(this%pressure_boundary_function) )
@@ -115,7 +115,7 @@ contains
     num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    num_dofs_per_field => fe%get_num_dofs_per_field()
+    num_dofs_x_field => fe%get_num_dofs_x_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
     fe_map           => fe%get_fe_map()
@@ -144,31 +144,31 @@ contains
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! \int_(v.u)
-          do idof=1, num_dofs_per_field(1)
-            do jdof=1, num_dofs_per_field(1)
+          do idof=1, num_dofs_x_field(1)
+            do jdof=1, num_dofs_x_field(1)
               elmat(idof,jdof) = elmat(idof,jdof) + &
                                  velocity_shape_values(jdof,qpoint)*velocity_shape_values(idof,qpoint)*factor
             end do
           end do
           
           ! \int_(div(v)*p)
-          do idof=1, num_dofs_per_field(1)
-            do jdof=1, num_dofs_per_field(2)
-              elmat(idof,jdof+num_dofs_per_field(1)) = elmat(idof,jdof+num_dofs_per_field(1)) &
+          do idof=1, num_dofs_x_field(1)
+            do jdof=1, num_dofs_x_field(2)
+              elmat(idof,jdof+num_dofs_x_field(1)) = elmat(idof,jdof+num_dofs_x_field(1)) &
                                                      - velocity_shape_divs(idof,qpoint)*pressure_shape_values(jdof,qpoint)*factor
             end do
           end do
           
           ! \int_(q*div(u))
-          do idof=1, num_dofs_per_field(2)
-            do jdof=1, num_dofs_per_field(1)
-              elmat(idof+num_dofs_per_field(1),jdof) = elmat(idof+num_dofs_per_field(1),jdof) &
+          do idof=1, num_dofs_x_field(2)
+            do jdof=1, num_dofs_x_field(1)
+              elmat(idof+num_dofs_x_field(1),jdof) = elmat(idof+num_dofs_x_field(1),jdof) &
                                                      - pressure_shape_values(idof,qpoint)*velocity_shape_divs(jdof,qpoint)*factor
             end do
           end do
 
-          do idof=1, num_dofs_per_field(2)
-            elvec(idof+num_dofs_per_field(1)) = elvec(idof+num_dofs_per_field(1)) - &
+          do idof=1, num_dofs_x_field(2)
+            elvec(idof+num_dofs_x_field(1)) = elvec(idof+num_dofs_x_field(1)) - &
                                                 pressure_shape_values(idof,qpoint) * pressure_source_term_values(qpoint)*factor
           end do
        end do
@@ -193,7 +193,7 @@ contains
     num_quad_points    = quad%get_num_quadrature_points()
     face_map           => fe_face%get_face_maps()
     face_int_velocity  => fe_face%get_face_integrator(1)
-    num_dofs_per_field => fe_face%get_num_dofs_per_field(1)
+    num_dofs_x_field => fe_face%get_num_dofs_x_field(1)
     
     call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
     do while ( .not. fe_face%has_finished() )
@@ -207,7 +207,7 @@ contains
          do qpoint = 1, num_quad_points
             factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call face_map%get_normals(qpoint,normals)
-            do idof = 1, num_dofs_per_field(1)
+            do idof = 1, num_dofs_x_field(1)
               facevec(idof,1) = facevec(idof,1) - &
                                 pressure_boundary_function_values(qpoint)*velocity_shape_values(idof,qpoint)*normals(1)*factor
             end do   

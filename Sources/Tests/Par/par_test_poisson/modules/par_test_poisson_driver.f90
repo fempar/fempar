@@ -275,7 +275,7 @@ end subroutine free_timers
                call vef%get_cell_around(1,cell) ! There is always one cell around
                reference_fe_geo => cell%get_reference_fe_geo()
                ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
-               vefs_of_vef => reference_fe_geo%get_n_faces_n_face()
+               vefs_of_vef => reference_fe_geo%get_facets_n_face()
                vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
                do while( .not. vefs_of_vef_iterator%is_upper_bound() )
 

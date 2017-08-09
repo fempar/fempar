@@ -147,7 +147,7 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
   
-  num_cols = par_fe_space%num_dofs_per_field(field_id)
+  num_cols = par_fe_space%num_dofs_x_field(field_id)
   call visited_dofs%init(num_cols)
              
   ! Fill constraint matrix entries (transposed)

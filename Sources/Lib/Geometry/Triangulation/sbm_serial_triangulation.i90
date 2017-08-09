@@ -82,10 +82,10 @@ subroutine serial_triangulation_create ( this, parameters)
      call mesh%read(parameters)
 
      ! Extract data from mesh
-     call mesh%get_sizes(this%num_dims,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
+     call mesh%get_sizes(this%num_dims,this%num_vertices,this%max_vefs_x_cell,this%num_local_cells)
      this%num_vefs=this%num_vertices
      this%num_ghost_cells=0
-     call mesh%move_cells(this%ptr_vefs_per_cell,this%lst_vefs_lids, cells_set)
+     call mesh%move_cells(this%ptr_vefs_x_cell,this%lst_vefs_lids, cells_set)
      call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
 
      call mesh%move_coordinates(coordinates)
@@ -114,7 +114,7 @@ subroutine serial_triangulation_create ( this, parameters)
           &                                        this%num_vertices,      & ! All dim 0 n_faces
           &                                        this%num_edges,         & ! All faces with 0<dim<n-1
           &                                        this%num_faces,         & ! All dim n-1 n_faces
-          &                                        this%ptr_vefs_per_cell, &
+          &                                        this%ptr_vefs_x_cell, &
           &                                        this%lst_vefs_lids,     &
           &                                        this%vefs_set,          &
           &                                        coordinates)

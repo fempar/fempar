@@ -119,7 +119,7 @@ private
         integer(ip)                                :: num_fields               = 0
         integer(ip)                                :: num_cell_vectors         = 0
         integer(ip)                                :: num_subcells             = 0
-        integer(ip)                                :: num_vertices_per_subcell = 0
+        integer(ip)                                :: num_vertices_x_subcell = 0
         type(point_t),                 pointer     :: coordinates(:)
         type(allocatable_array_ip2_t)              :: subcells_connectivity
         type(output_handler_patch_field_t), allocatable :: fields(:)
@@ -130,7 +130,7 @@ private
         procedure, non_overridable, public :: set_num_dims           => output_handler_patch_set_num_dims
         procedure, non_overridable, public :: set_num_points               => output_handler_patch_set_num_points
         procedure, non_overridable, public :: set_num_subcells             => output_handler_patch_set_num_subcells
-        procedure, non_overridable, public :: set_num_vertices_per_subcell => output_handler_patch_set_num_vertices_per_subcell
+        procedure, non_overridable, public :: set_num_vertices_x_subcell => output_handler_patch_set_num_vertices_x_subcell
         procedure, non_overridable, public :: set_coordinates                 => output_handler_patch_set_coordinates
         procedure, non_overridable, public :: create                          => output_handler_patch_create
         procedure, non_overridable, public :: free                            => output_handler_patch_free
@@ -140,7 +140,7 @@ private
         procedure, non_overridable, public :: get_num_fields               => output_handler_patch_get_num_fields
         procedure, non_overridable, public :: get_num_cell_vectors         => output_handler_patch_get_num_cell_vectors
         procedure, non_overridable, public :: get_num_subcells             => output_handler_patch_get_num_subcells
-        procedure, non_overridable, public :: get_num_vertices_per_subcell => output_handler_patch_get_num_vertices_per_subcell
+        procedure, non_overridable, public :: get_num_vertices_x_subcell => output_handler_patch_get_num_vertices_x_subcell
         procedure, non_overridable, public :: get_coordinates                 => output_handler_patch_get_coordinates
         procedure, non_overridable, public :: get_field                       => output_handler_patch_get_field
         procedure, non_overridable, public :: get_cell_vector                 => output_handler_patch_get_cell_vector
@@ -365,7 +365,7 @@ contains
         this%num_fields               = 0
         this%num_cell_vectors         = 0
         this%num_subcells             = 0
-        this%num_vertices_per_subcell = 0
+        this%num_vertices_x_subcell = 0
     end subroutine output_handler_patch_free
 
 
@@ -413,15 +413,15 @@ contains
     end subroutine output_handler_patch_set_num_subcells
 
 
-    subroutine output_handler_patch_set_num_vertices_per_subcell(this, num_vertices_per_subcell)
+    subroutine output_handler_patch_set_num_vertices_x_subcell(this, num_vertices_x_subcell)
     !-----------------------------------------------------------------
     !< Set the number of vertices per subcell of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(inout) :: this
-        integer(ip),                   intent(in)    :: num_vertices_per_subcell
+        integer(ip),                   intent(in)    :: num_vertices_x_subcell
     !-----------------------------------------------------------------
-        this%num_vertices_per_subcell = num_vertices_per_subcell
-    end subroutine output_handler_patch_set_num_vertices_per_subcell
+        this%num_vertices_x_subcell = num_vertices_x_subcell
+    end subroutine output_handler_patch_set_num_vertices_x_subcell
 
 
     subroutine output_handler_patch_set_coordinates(this, coordinates)
@@ -469,15 +469,15 @@ contains
     end function output_handler_patch_get_num_subcells
 
 
-    pure function output_handler_patch_get_num_vertices_per_subcell(this) result(num_vertices_per_subcell)
+    pure function output_handler_patch_get_num_vertices_x_subcell(this) result(num_vertices_x_subcell)
     !-----------------------------------------------------------------
     !< Return the number of vertices per subcell in the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(in) :: this
-        integer(ip)                               :: num_vertices_per_subcell
+        integer(ip)                               :: num_vertices_x_subcell
     !-----------------------------------------------------------------
-        num_vertices_per_subcell = this%num_vertices_per_subcell
-    end function output_handler_patch_get_num_vertices_per_subcell
+        num_vertices_x_subcell = this%num_vertices_x_subcell
+    end function output_handler_patch_get_num_vertices_x_subcell
 
 
     function output_handler_patch_get_num_fields(this) result(num_fields)
@@ -696,7 +696,7 @@ contains
         class(patch_subcell_accessor_t), intent(in)    :: this
         integer(ip)                                    :: num_vertices
     !-----------------------------------------------------------------
-        num_vertices = this%patch%get_num_vertices_per_subcell()
+        num_vertices = this%patch%get_num_vertices_x_subcell()
     end function patch_subcell_accessor_get_num_vertices
 
 
@@ -705,9 +705,9 @@ contains
     !< Return [[patch_subcell_accessor_t(type)]] coordinates
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),        intent(in)    :: this
-        real(rp),                               intent(inout) :: X(this%patch%get_num_vertices_per_subcell())
-        real(rp),                               intent(inout) :: Y(this%patch%get_num_vertices_per_subcell())
-        real(rp),                               intent(inout) :: Z(this%patch%get_num_vertices_per_subcell())
+        real(rp),                               intent(inout) :: X(this%patch%get_num_vertices_x_subcell())
+        real(rp),                               intent(inout) :: Y(this%patch%get_num_vertices_x_subcell())
+        real(rp),                               intent(inout) :: Z(this%patch%get_num_vertices_x_subcell())
         type(point_t),                 pointer                :: patch_coordinates(:)
         type(allocatable_array_ip2_t), pointer                :: subcells_connectivity
         integer(ip)                                           :: num_dims
@@ -731,7 +731,7 @@ contains
     !< Return [[patch_subcell_accessor_t(type)]] coordinates (x1,y1,z1,x2,y2,z2,...)
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),        intent(in)    :: this
-        real(rp),                               intent(inout) :: XYZ(this%patch%get_num_vertices_per_subcell()*this%patch%get_num_dims())
+        real(rp),                               intent(inout) :: XYZ(this%patch%get_num_vertices_x_subcell()*this%patch%get_num_dims())
         type(point_t),                 pointer                :: patch_coordinates(:)
         type(allocatable_array_ip2_t), pointer                :: subcells_connectivity
         integer(ip)                                           :: num_vertices
@@ -757,11 +757,11 @@ contains
     !< Return [[patch_subcell_accessor_t(type)]] connectivity
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),        intent(in)    :: this
-        integer(ip),                            intent(inout) :: connectivity(this%patch%get_num_vertices_per_subcell())
+        integer(ip),                            intent(inout) :: connectivity(this%patch%get_num_vertices_x_subcell())
         type(allocatable_array_ip2_t), pointer                :: subcells_connectivity
         integer(ip)                                           :: num_vertices
     !-----------------------------------------------------------------
-        num_vertices       =  this%patch%get_num_vertices_per_subcell()
+        num_vertices       =  this%patch%get_num_vertices_x_subcell()
         subcells_connectivity => this%patch%get_subcells_connectivity()
         connectivity(1:num_vertices) = subcells_connectivity%a(1:num_vertices, this%current_subcell)
     end subroutine patch_subcell_accessor_get_connectivity

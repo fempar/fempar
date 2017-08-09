@@ -167,7 +167,7 @@ contains
              cells_set( cell%get_lid() ) = cell_set_id( grav_center, &
                   this%triangulation%get_num_dims(), &
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
-                  this%test_params%get_nchannel_per_direction(), &
+                  this%test_params%get_nchannel_x_direction(), &
                   this%test_params%get_nparts_with_channels(), &
                   this%test_params%get_nparts())
           end if
@@ -187,13 +187,13 @@ contains
     
   contains
     
-    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_per_direction, nparts_with_channels,nparts)
+    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts)
       implicit none
       type(point_t), intent(in)  :: coord
       integer(ip)  , intent(in)  :: num_dims
       integer(ip)  , intent(in)  :: jump
       integer(ip)  , intent(in)  :: inclusion
-      integer(ip)  , intent(in)  :: nchannel_per_direction(3)
+      integer(ip)  , intent(in)  :: nchannel_x_direction(3)
       integer(ip)  , intent(in)  :: nparts_with_channels(3)
       integer(ip)  , intent(in)  :: nparts(3)
       type(point_t) :: origin, opposite
@@ -283,11 +283,11 @@ contains
          ! Number of channels can be choosen from the command line using option -nc
 
          ! defining positions of the channels
-         box_width = 1.0_rp/nchannel_per_direction(1)
+         box_width = 1.0_rp/nchannel_x_direction(1)
          half_channel_width = box_width/5
          center = box_width/2
          eps = 1e-14_rp
-         do j=1, nchannel_per_direction(1)
+         do j=1, nchannel_x_direction(1)
             p1_c(j)=center - half_channel_width 
             p2_c(j)=center + half_channel_width  
             center = center + box_width
@@ -295,8 +295,8 @@ contains
 
          nchannel = 1
          ! x edges
-         do j = 1, nchannel_per_direction(1)
-            do k = 1,nchannel_per_direction(1)
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(1)
                call origin%set(1,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(3,p1_c(k));
                call opposite%set(1,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(3,p2_c(k));
                nchannel = nchannel + 1
@@ -304,8 +304,8 @@ contains
             end do
          end do
          ! y edges
-         do j = 1, nchannel_per_direction(1)
-            do k = 1,nchannel_per_direction(1)
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(1)
                call origin%set(2,0.0_rp)  ; call origin%set(1, p1_c(j)) ; call origin%set(3,p1_c(k));
                call opposite%set(2,1.0_rp); call opposite%set(1,p2_c(j)); call opposite%set(3,p2_c(k));
                nchannel = nchannel + 1
@@ -313,8 +313,8 @@ contains
             end do
          end do
          ! z edges
-         do j = 1, nchannel_per_direction(1)
-            do k = 1,nchannel_per_direction(1)
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(1)
                call origin%set(3,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(1,p1_c(k));
                call opposite%set(3,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(1,p2_c(k));
                nchannel = nchannel + 1
@@ -324,14 +324,14 @@ contains
       else if ( inclusion == 6 ) then
          ! Number of channels can be choosen from the command line using option -nc
          ! Channels are positioned so that some will touch but not cross the interface
-         ! if the nchannel_per_direction is a multiple of the number partitions per direction 
+         ! if the nchannel_x_direction is a multiple of the number partitions per direction 
 
          ! defining positions of the channels
-         box_width = 1.0_rp/nchannel_per_direction(1)
+         box_width = 1.0_rp/nchannel_x_direction(1)
          half_channel_width = box_width/5
          center = half_channel_width
          eps = 1e-14_rp
-         do j=1, nchannel_per_direction(1)
+         do j=1, nchannel_x_direction(1)
             p1_c(j)=center - half_channel_width 
             p2_c(j)=center + half_channel_width  
             center = center + box_width
@@ -339,8 +339,8 @@ contains
 
          nchannel = 1
          ! x edges
-         do j = 1, nchannel_per_direction(1)
-            do k = 1,nchannel_per_direction(1)
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(1)
                call origin%set(1,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(3,p1_c(k));
                call opposite%set(1,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(3,p2_c(k));
                nchannel = nchannel + 1
@@ -348,8 +348,8 @@ contains
             end do
          end do
          ! y edges
-         do j = 1, nchannel_per_direction(1)
-            do k = 1,nchannel_per_direction(1)
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(1)
                call origin%set(2,0.0_rp)  ; call origin%set(1, p1_c(j)) ; call origin%set(3,p1_c(k));
                call opposite%set(2,1.0_rp); call opposite%set(1,p2_c(j)); call opposite%set(3,p2_c(k));
                nchannel = nchannel + 1
@@ -357,8 +357,8 @@ contains
             end do
          end do
          ! z edges
-         do j = 1, nchannel_per_direction(1)
-            do k = 1,nchannel_per_direction(1)
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(1)
                call origin%set(3,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(1,p1_c(k));
                call opposite%set(3,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(1,p2_c(k));
                nchannel = nchannel + 1
@@ -368,36 +368,36 @@ contains
       else if ( inclusion == 7 ) then
          ! Number of channels can be choosen from the command line using option -nc
          ! Channels are positioned so that some will touch but not cross the interface
-         ! if the nchannel_per_direction is a multiple of the number partitions per direction 
+         ! if the nchannel_x_direction is a multiple of the number partitions per direction 
 
          ! defining positions of the channels
          if (.not.(allocated(px1))) then
-            call memalloc(nchannel_per_direction(1), px1, __FILE__, __LINE__ )
-            call memalloc(nchannel_per_direction(1), px2, __FILE__, __LINE__ )
-            box_width = 1.0*nparts_with_channels(1)/(nchannel_per_direction(1)*nparts(1))
+            call memalloc(nchannel_x_direction(1), px1, __FILE__, __LINE__ )
+            call memalloc(nchannel_x_direction(1), px2, __FILE__, __LINE__ )
+            box_width = 1.0*nparts_with_channels(1)/(nchannel_x_direction(1)*nparts(1))
             half_channel_width = box_width/5
             center = half_channel_width
-            do j=1, nchannel_per_direction(1)
+            do j=1, nchannel_x_direction(1)
                px1(j)=center - half_channel_width 
                px2(j)=center + half_channel_width  
                center = center + box_width
             enddo
-            call memalloc(nchannel_per_direction(2), py1, __FILE__, __LINE__ )
-            call memalloc(nchannel_per_direction(2), py2, __FILE__, __LINE__ )
-            box_width = 1.0*nparts_with_channels(2)/(nchannel_per_direction(2)*nparts(2))
+            call memalloc(nchannel_x_direction(2), py1, __FILE__, __LINE__ )
+            call memalloc(nchannel_x_direction(2), py2, __FILE__, __LINE__ )
+            box_width = 1.0*nparts_with_channels(2)/(nchannel_x_direction(2)*nparts(2))
             half_channel_width = box_width/5
             center = half_channel_width
-            do j=1, nchannel_per_direction(2)
+            do j=1, nchannel_x_direction(2)
                py1(j)=center - half_channel_width 
                py2(j)=center + half_channel_width  
                center = center + box_width
             enddo
-            call memalloc(nchannel_per_direction(3), pz1, __FILE__, __LINE__ )
-            call memalloc(nchannel_per_direction(3), pz2, __FILE__, __LINE__ )
-            box_width = 1.0*nparts_with_channels(3)/(nchannel_per_direction(3)*nparts(3))
+            call memalloc(nchannel_x_direction(3), pz1, __FILE__, __LINE__ )
+            call memalloc(nchannel_x_direction(3), pz2, __FILE__, __LINE__ )
+            box_width = 1.0*nparts_with_channels(3)/(nchannel_x_direction(3)*nparts(3))
             half_channel_width = box_width/5
             center = half_channel_width
-            do j=1, nchannel_per_direction(3)
+            do j=1, nchannel_x_direction(3)
                pz1(j)=center - half_channel_width 
                pz2(j)=center + half_channel_width  
                center = center + box_width
@@ -406,8 +406,8 @@ contains
 
          nchannel = 1
          ! x edges
-         do j = 1, nchannel_per_direction(2)
-            do k = 1,nchannel_per_direction(3)
+         do j = 1, nchannel_x_direction(2)
+            do k = 1,nchannel_x_direction(3)
                call origin%set(1,0.0_rp)  ; call origin%set(2, py1(j)) ; call origin%set(3,pz1(k));
                call opposite%set(1,1.0_rp); call opposite%set(2,py2(j)); call opposite%set(3,pz2(k));
                nchannel = nchannel + 1
@@ -415,8 +415,8 @@ contains
             end do
          end do
          ! y edges
-         do j = 1, nchannel_per_direction(1)
-            do k = 1,nchannel_per_direction(3)
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(3)
                call origin%set(2,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(3,pz1(k));
                call opposite%set(2,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(3,pz2(k));
                nchannel = nchannel + 1
@@ -424,8 +424,8 @@ contains
             end do
          end do
          ! z edges
-         do j = 1, nchannel_per_direction(1)
-            do k = 1,nchannel_per_direction(2)
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(2)
                call origin%set(3,0.0_rp)  ; call origin%set(2, px1(j)) ; call origin%set(1,py1(k));
                call opposite%set(3,1.0_rp); call opposite%set(2,px2(j)); call opposite%set(1,py2(k));
                nchannel = nchannel + 1

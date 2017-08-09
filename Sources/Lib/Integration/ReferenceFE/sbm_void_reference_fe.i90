@@ -589,14 +589,14 @@ subroutine void_reference_fe_fill (this)
   ! Number n-faces ( I don't like it, not volume included...)
   this%num_n_faces = num_n_faces-1
   ! num_n-faces_dim
-  this%num_n_faces_per_dim = 0
-  this%num_n_faces_per_dim(1) = 1
+  this%ptr_n_faces_x_dim = 0
+  this%ptr_n_faces_x_dim(1) = 1
   do i = 1,num_n_faces
      n_face_dim = this%polytope%get_n_face_dim(i)
-     this%num_n_faces_per_dim( n_face_dim+2 ) = this%num_n_faces_per_dim( n_face_dim+2 ) + 1
+     this%ptr_n_faces_x_dim( n_face_dim+2 ) = this%ptr_n_faces_x_dim( n_face_dim+2 ) + 1
   end do
   do i = 1,this%num_dims+1
-     this%num_n_faces_per_dim(i+1) = this%num_n_faces_per_dim(i+1) + this%num_n_faces_per_dim(i)
+     this%ptr_n_faces_x_dim(i+1) = this%ptr_n_faces_x_dim(i+1) + this%ptr_n_faces_x_dim(i)
   end do
   
   ! own_dofs_n-face
@@ -633,18 +633,17 @@ subroutine void_reference_fe_fill (this)
         call list_iterator%next()
      end do
   end do
-  ! n-faces_n-face (NEW DEFINITION; now only n_faces of inferior dimension
-  call this%n_faces_n_face%create(num_n_faces)
+  call this%facets_n_face%create(num_n_faces)
   do i = 1,num_n_faces
      facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
      do while (.not. facet_iterator%has_finished() )
-        call this%n_faces_n_face%sum_to_pointer_index(i,1)
+        call this%facets_n_face%sum_to_pointer_index(i,1)
         call facet_iterator%next()
      end do
   end do
-  call this%n_faces_n_face%calculate_header()
-  call this%n_faces_n_face%allocate_list_from_pointer()
-  list_iterator = this%n_faces_n_face%create_iterator()
+  call this%facets_n_face%calculate_header()
+  call this%facets_n_face%allocate_list_from_pointer()
+  list_iterator = this%facets_n_face%create_iterator()
   do i = 1,num_n_faces
      facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
      do while (.not. facet_iterator%has_finished() )
@@ -678,11 +677,11 @@ subroutine void_reference_fe_fill (this)
   end if
 
   ! I (almost arbitrarily) decided NOT to allocate neither:
-  !  * num_rotations_per_dim(:)
-  !  * num_orientations_per_dim(:)
+  !  * num_rotations_x_dim(:)
+  !  * num_orientations_x_dim(:)
   !  * own_node_permutations(:)
   ! Up to my knowledge, they should never be queried on in case of void_reference_fe 
-  ! call memalloc (0, this%num_rotations_per_dim,__FILE__,__LINE__)
-  ! call memalloc (0, this%num_orientations_per_dim,__FILE__,__LINE__)
+  ! call memalloc (0, this%num_rotations_x_dim,__FILE__,__LINE__)
+  ! call memalloc (0, this%num_orientations_x_dim,__FILE__,__LINE__)
   ! allocate(this%own_node_permutations(0))
 end subroutine void_reference_fe_fill

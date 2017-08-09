@@ -37,9 +37,9 @@ subroutine fe_face_iterator_create ( this, fe_space, vef )
   call this%fe_space%create_fe_iterator(this%fe)
   call this%first()
   call memalloc ( 2, this%fe_space%num_fields,      &
-                  this%num_dofs_per_cell_and_field, &
+                  this%num_dofs_x_cell_and_field, &
                   __FILE__, __LINE__ )
-  allocate( this%elem2dof_per_cell(2,this%fe_space%num_fields), stat=istat); check(istat==0);
+  allocate( this%elem2dof_x_cell(2,this%fe_space%num_fields), stat=istat); check(istat==0);
 end subroutine fe_face_iterator_create
 
 subroutine fe_face_iterator_free ( this )
@@ -52,11 +52,11 @@ subroutine fe_face_iterator_free ( this )
     deallocate(this%fe, stat=istat); check(istat==0);
   end if
   this%face_lid = -1
-  if ( allocated(this%num_dofs_per_cell_and_field) ) then
-    call memfree ( this%num_dofs_per_cell_and_field, __FILE__, __LINE__ )
+  if ( allocated(this%num_dofs_x_cell_and_field) ) then
+    call memfree ( this%num_dofs_x_cell_and_field, __FILE__, __LINE__ )
   end if
-  if ( allocated(this%elem2dof_per_cell) ) then
-    deallocate ( this%elem2dof_per_cell, stat=istat ); check(istat==0);
+  if ( allocated(this%elem2dof_x_cell) ) then
+    deallocate ( this%elem2dof_x_cell, stat=istat ); check(istat==0);
   end if
 end subroutine fe_face_iterator_free
 
@@ -103,23 +103,23 @@ function fe_face_iterator_get_lid (this) result(face_lid)
   face_lid = this%face_lid
 end function fe_face_iterator_get_lid
 
-subroutine fe_face_iterator_update_num_dofs_per_field( this, icell_around )
+subroutine fe_face_iterator_update_num_dofs_x_field( this, icell_around )
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this 
   integer(ip)              , intent(in)    :: icell_around
   call this%get_cell_around(icell_around, this%fe)
-  call this%fe%update_num_dofs_per_field(this%num_dofs_per_cell_and_field(icell_around,:))
-end subroutine fe_face_iterator_update_num_dofs_per_field
+  call this%fe%update_num_dofs_x_field(this%num_dofs_x_cell_and_field(icell_around,:))
+end subroutine fe_face_iterator_update_num_dofs_x_field
 
-subroutine fe_face_iterator_update_elem2dof_per_cell( this )
+subroutine fe_face_iterator_update_elem2dof_x_cell( this )
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this 
   integer(ip) :: icell_around
   do icell_around = 1,this%get_num_cells_around()
     call this%get_cell_around(icell_around,this%fe)  
-    call this%fe%get_elem2dof(this%elem2dof_per_cell(icell_around,:))
+    call this%fe%get_elem2dof(this%elem2dof_x_cell(icell_around,:))
   end do
-end subroutine fe_face_iterator_update_elem2dof_per_cell
+end subroutine fe_face_iterator_update_elem2dof_x_cell
 
 subroutine fe_face_iterator_update_integration( this )
   implicit none
@@ -147,7 +147,7 @@ subroutine fe_face_iterator_update_integration( this )
     coords => face_map%get_coordinates_neighbour(icell_around, &
                                                  face_lpos_within_cells_around(icell_around))
     call this%fe%get_coordinates(coords)
-    call this%update_num_dofs_per_field(icell_around)
+    call this%update_num_dofs_x_field(icell_around)
   end do
 
   call this%get_cell_around(1, this%fe)
@@ -176,13 +176,13 @@ subroutine fe_face_iterator_assembly_array ( this,    &
   
   integer(ip) :: ineigh
   
-  call this%update_elem2dof_per_cell()
+  call this%update_elem2dof_x_cell()
   do ineigh = 1, this%get_num_cells_around()
     call matrix_array_assembler%assembly_array( this%fe_space%num_fields,                    &
                                                 this%fe_space%get_field_blocks(),               &
                                                 this%fe_space%get_field_coupling(),             &
-                                                this%num_dofs_per_cell_and_field(ineigh,:),  &
-                                                this%elem2dof_per_cell(ineigh,:),               &
+                                                this%num_dofs_x_cell_and_field(ineigh,:),  &
+                                                this%elem2dof_x_cell(ineigh,:),               &
                                                 facevec(:,ineigh) )
   end do
   
@@ -198,16 +198,16 @@ subroutine fe_face_iterator_assembly_matrix ( this,    &
   
   integer(ip) :: ineigh, jneigh
   
-  call this%update_elem2dof_per_cell()
+  call this%update_elem2dof_x_cell()
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
       call matrix_array_assembler%assembly_matrix( this%fe_space%num_fields,                   &
                                                    this%fe_space%get_field_blocks(),              &
                                                    this%fe_space%get_field_coupling(),            &
-                                                   this%num_dofs_per_cell_and_field(ineigh,:), &
-                                                   this%num_dofs_per_cell_and_field(jneigh,:), &
-                                                   this%elem2dof_per_cell(ineigh,:),              &
-                                                   this%elem2dof_per_cell(jneigh,:),              &
+                                                   this%num_dofs_x_cell_and_field(ineigh,:), &
+                                                   this%num_dofs_x_cell_and_field(jneigh,:), &
+                                                   this%elem2dof_x_cell(ineigh,:),              &
+                                                   this%elem2dof_x_cell(jneigh,:),              &
                                                    facemat(:,:,ineigh,jneigh) )
     end do
   end do
@@ -226,23 +226,23 @@ subroutine fe_face_iterator_assembly_matrix_array ( this,    &
   
   integer(ip) :: ineigh, jneigh
   
-  call this%update_elem2dof_per_cell()
+  call this%update_elem2dof_x_cell()
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
       call matrix_array_assembler%assembly_matrix( this%fe_space%num_fields,                   &
                                                    this%fe_space%get_field_blocks(),              &
                                                    this%fe_space%get_field_coupling(),            &
-                                                   this%num_dofs_per_cell_and_field(ineigh,:), &
-                                                   this%num_dofs_per_cell_and_field(jneigh,:), &
-                                                   this%elem2dof_per_cell(ineigh,:),              &
-                                                   this%elem2dof_per_cell(jneigh,:),              &
+                                                   this%num_dofs_x_cell_and_field(ineigh,:), &
+                                                   this%num_dofs_x_cell_and_field(jneigh,:), &
+                                                   this%elem2dof_x_cell(ineigh,:),              &
+                                                   this%elem2dof_x_cell(jneigh,:),              &
                                                    facemat(:,:,ineigh,jneigh) )
     end do
     call matrix_array_assembler%assembly_array( this%fe_space%num_fields,                    &
                                                   this%fe_space%get_field_blocks(),               &
                                                   this%fe_space%get_field_coupling(),             &
-                                                  this%num_dofs_per_cell_and_field(ineigh,:),  &
-                                                  this%elem2dof_per_cell(ineigh,:),               &
+                                                  this%num_dofs_x_cell_and_field(ineigh,:),  &
+                                                  this%elem2dof_x_cell(ineigh,:),               &
                                                   facevec(:,ineigh) )
   end do
   
@@ -256,13 +256,13 @@ function fe_face_iterator_get_fe_space(this)
 end function fe_face_iterator_get_fe_space
 
 !==================================================================================================
-function fe_face_iterator_get_num_dofs_per_field(this, icell_around) result (num_dofs_per_field)
+function fe_face_iterator_get_num_dofs_x_field(this, icell_around) result (num_dofs_x_field)
   implicit none
   class(fe_face_iterator_t), target, intent(in) :: this
   integer(ip)                      , intent(in) :: icell_around
-  integer(ip), pointer :: num_dofs_per_field(:)
-  num_dofs_per_field => this%num_dofs_per_cell_and_field(icell_around,:)
-end function fe_face_iterator_get_num_dofs_per_field
+  integer(ip), pointer :: num_dofs_x_field(:)
+  num_dofs_x_field => this%num_dofs_x_cell_and_field(icell_around,:)
+end function fe_face_iterator_get_num_dofs_x_field
 
 !==================================================================================================
 subroutine fe_face_iterator_get_elem2dof(this, icell_around, elem2dof)
@@ -294,8 +294,8 @@ function fe_face_iterator_get_default_quadrature_degree ( this )
   class(fe_face_iterator_t), intent(in) :: this
   integer(ip) :: fe_face_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
-  assert( allocated(this%fe_space%max_order_reference_fe_id_per_fe_face) )
-  reference_fe_id = this%fe_space%max_order_reference_fe_id_per_fe_face(this%face_lid)
+  assert( allocated(this%fe_space%max_order_reference_fe_id_x_fe_face) )
+  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_fe_face(this%face_lid)
   fe_face_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
 end function fe_face_iterator_get_default_quadrature_degree
@@ -386,7 +386,7 @@ function fe_face_iterator_get_face_integrator(this, field_id)
   reference_fes_id(2) = 0 
   do icell_around = 1, this%get_num_cells_around()
      call this%get_cell_around(icell_around, this%fe)
-     reference_fes_id(icell_around) = this%fe_space%reference_fe_id_per_fe(field_id, this%fe%get_lid())
+     reference_fes_id(icell_around) = this%fe_space%reference_fe_id_x_fe(field_id, this%fe%get_lid())
   end do
   
   fe_face_integrators_position_key = &

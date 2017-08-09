@@ -77,7 +77,7 @@ function fe_object_iterator_get_num_coarse_dofs(this, field_id)
   class(fe_object_iterator_t), intent(in) :: this
   integer(ip)                , intent(in) :: field_id
   integer(ip) :: fe_object_iterator_get_num_coarse_dofs
-  fe_object_iterator_get_num_coarse_dofs = this%fe_space%own_coarse_dofs_per_field(field_id)%get_sublist_size(this%get_lid())
+  fe_object_iterator_get_num_coarse_dofs = this%fe_space%own_coarse_dofs_x_field(field_id)%get_sublist_size(this%get_lid())
 end function fe_object_iterator_get_num_coarse_dofs
 
 function fe_object_iterator_create_own_coarse_dofs_iterator(this, field_id) 
@@ -85,7 +85,7 @@ function fe_object_iterator_create_own_coarse_dofs_iterator(this, field_id)
   class(fe_object_iterator_t), intent(in) :: this
   integer(ip)                , intent(in) :: field_id
   type(list_iterator_t) :: fe_object_iterator_create_own_coarse_dofs_iterator
-  fe_object_iterator_create_own_coarse_dofs_iterator = this%fe_space%own_coarse_dofs_per_field(field_id)%create_iterator(this%get_lid())
+  fe_object_iterator_create_own_coarse_dofs_iterator = this%fe_space%own_coarse_dofs_x_field(field_id)%create_iterator(this%get_lid())
 end function fe_object_iterator_create_own_coarse_dofs_iterator
 
 function fe_object_iterator_create_faces_object_iterator(this) 

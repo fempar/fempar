@@ -42,7 +42,7 @@ subroutine fine_triangulation_fill_reference_fe_geo_list(this,order)
   icell_type = 0
   do while ( .not. icell%has_finished() )
      ielem = icell%get_lid()
-     ielem_num_vertices = this%ptr_vefs_per_cell(ielem+1)-this%ptr_vefs_per_cell(ielem)
+     ielem_num_vertices = this%ptr_vefs_x_cell(ielem+1)-this%ptr_vefs_x_cell(ielem)
      ielem_num_vefs = compute_vefs_from_vertices(this%num_dims,ielem_num_vertices)
      call this%reference_fe_geo_index%get(key=ielem_num_vefs,val=icell_type,stat=istat)
      if (istat == key_not_found ) then
@@ -118,32 +118,32 @@ subroutine fine_triangulation_generate_vefs(this,order)
 
 
   ! Get vertices from triangulation
-  call memmovealloc(this%ptr_vefs_per_cell,ptr_vertices,__FILE__,__LINE__)
+  call memmovealloc(this%ptr_vefs_x_cell,ptr_vertices,__FILE__,__LINE__)
   call memmovealloc(this%lst_vefs_lids,lst_vertices,__FILE__,__LINE__)
 
 
   call this%create_cell_iterator(icell)
   call this%create_cell_iterator(jcell)
 
-  ! Compute this%ptr_vefs_per_cell and allocate this%lst_vefs_lids
-  call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_vefs_per_cell, __FILE__, __LINE__ )
-  !call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_nodes_per_cell, __FILE__, __LINE__ )
-  this%ptr_vefs_per_cell(1)=1
-  !this%ptr_nodes_per_cell(1)=1
+  ! Compute this%ptr_vefs_x_cell and allocate this%lst_vefs_lids
+  call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_vefs_x_cell, __FILE__, __LINE__ )
+  !call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_nodes_x_cell, __FILE__, __LINE__ )
+  this%ptr_vefs_x_cell(1)=1
+  !this%ptr_nodes_x_cell(1)=1
   call icell%first()
   do while ( .not. icell%has_finished() )
      ielem = icell%get_lid()
      ielem_num_vefs = compute_vefs_from_vertices(this%num_dims, ptr_vertices(ielem+1)-ptr_vertices(ielem))
      call this%reference_fe_geo_index%get(key=ielem_num_vefs,val=icell_type,stat=istat)
      assert(istat==key_found)
-     this%ptr_vefs_per_cell(ielem+1)  = this%ptr_vefs_per_cell(ielem)  + this%reference_fe_geo_list(icell_type)%p%get_num_n_faces()
-     !this%ptr_nodes_per_cell(ielem+1) = this%ptr_nodes_per_cell(ielem) + this%reference_fe_geo_list(ielem_type)%p%get_num_nodes()
+     this%ptr_vefs_x_cell(ielem+1)  = this%ptr_vefs_x_cell(ielem)  + this%reference_fe_geo_list(icell_type)%p%get_num_n_faces()
+     !this%ptr_nodes_x_cell(ielem+1) = this%ptr_nodes_x_cell(ielem) + this%reference_fe_geo_list(ielem_type)%p%get_num_nodes()
      call icell%next()
   end do
-  call memalloc(this%ptr_vefs_per_cell(this%num_local_cells + this%num_ghost_cells+1)-1, this%lst_vefs_lids , __FILE__, __LINE__ )
+  call memalloc(this%ptr_vefs_x_cell(this%num_local_cells + this%num_ghost_cells+1)-1, this%lst_vefs_lids , __FILE__, __LINE__ )
   this%lst_vefs_lids=0
-  !write(*,*) 'ptr_vefs_per_cell done'
-  !write(*,*) this%ptr_vefs_per_cell
+  !write(*,*) 'ptr_vefs_x_cell done'
+  !write(*,*) this%ptr_vefs_x_cell
   
   ! Fill vertices (dim 0 vefs)
   call icell%first()
@@ -155,7 +155,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
      call this%reference_fe_geo_index%get(key=ielem_num_vefs,val=icell_type,stat=istat)
      assert(istat==key_found)
      ! Fill vefs (only vertices)
-     this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem):this%ptr_vefs_per_cell(ielem)+ielem_num_vertices-1) = &
+     this%lst_vefs_lids(this%ptr_vefs_x_cell(ielem):this%ptr_vefs_x_cell(ielem)+ielem_num_vertices-1) = &
           & lst_vertices(ptr_vertices(ielem):ptr_vertices(ielem+1)-1)
      call icell%next()
   end do
@@ -176,10 +176,10 @@ subroutine fine_triangulation_generate_vefs(this,order)
      vertices_ivef => this%reference_fe_geo_list(icell_type)%p%get_vertices_n_face()
      !write(*,*) 'num edges, first edge',ielem_num_vefs,ielem_first_vef_id
      do ivef=1,ielem_num_vefs
-        if(this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
+        if(this%lst_vefs_lids(this%ptr_vefs_x_cell(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
            ! Fill vef
            this%num_vefs=this%num_vefs+1                                                                ! Count it
-           this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem)-1+ielem_first_vef_id-1+ivef)=this%num_vefs  ! Fill it
+           this%lst_vefs_lids(this%ptr_vefs_x_cell(ielem)-1+ielem_first_vef_id-1+ivef)=this%num_vefs  ! Fill it
            vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
            vertex_of_ivef(1) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef_iterator%get_from_current(0))
            vertex_of_ivef(2) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef_iterator%get_from_current(1))
@@ -205,7 +205,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
                     !write(*,*) 'Are equal:',equal
                     if(equal) then 
                        ! Fill vertices
-                       this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)=this%num_vefs
+                       this%lst_vefs_lids(this%ptr_vefs_x_cell(jelem)-1+jelem_first_vef_id-1+jvef)=this%num_vefs
                        exit
                     end if
                  end do
@@ -234,9 +234,9 @@ subroutine fine_triangulation_generate_vefs(this,order)
         ielem_num_vefs      = this%reference_fe_geo_list(icell_type)%p%get_num_n_faces_of_dim(2)
         ielem_first_vef_id  = this%reference_fe_geo_list(icell_type)%p%get_first_n_face_id_of_dim(2)
         do ivef=1,ielem_num_vefs
-           if(this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
+           if(this%lst_vefs_lids(this%ptr_vefs_x_cell(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
               this%num_vefs=this%num_vefs+1                                       ! Count it
-              this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem)-1+ielem_first_vef_id-1+ivef)=this%num_vefs ! Fill it
+              this%lst_vefs_lids(this%ptr_vefs_x_cell(ielem)-1+ielem_first_vef_id-1+ivef)=this%num_vefs ! Fill it
               ielem_num_vef_verts = this%reference_fe_geo_list(icell_type)%p%get_num_vertices_n_face(ielem_first_vef_id+ivef-1)
               vertices_ivef => this%reference_fe_geo_list(icell_type)%p%get_vertices_n_face()
               vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
@@ -276,7 +276,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
                           end do
                           equal=(count==ielem_num_vef_verts)
                           if(equal) then ! Fill it
-                             this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)=this%num_vefs
+                             this%lst_vefs_lids(this%ptr_vefs_x_cell(jelem)-1+jelem_first_vef_id-1+jvef)=this%num_vefs
                              exit
                           end if
                        end if
@@ -363,14 +363,14 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
                  vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
                  !vertex_of_jvef(1) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
                  !vertex_of_jvef(2) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
-                 vertex_of_jvef(1) = this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+vertices_jvef_iterator%get_from_current(0))
-                 vertex_of_jvef(2) = this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+vertices_jvef_iterator%get_from_current(1))
+                 vertex_of_jvef(1) = this%lst_vefs_lids(this%ptr_vefs_x_cell(jelem)-1+vertices_jvef_iterator%get_from_current(0))
+                 vertex_of_jvef(2) = this%lst_vefs_lids(this%ptr_vefs_x_cell(jelem)-1+vertices_jvef_iterator%get_from_current(1))
                  ! Compare, here we are using that edges have two vertices, hard coded
                  equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
                       &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
                  if(equal) then ! Fill it
-                    this%vefs_geometry( this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = vefs_geometry(iboun)
-                    this%vefs_set( this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = vefs_set(iboun)
+                    this%vefs_geometry( this%lst_vefs_lids(this%ptr_vefs_x_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = vefs_geometry(iboun)
+                    this%vefs_set( this%lst_vefs_lids(this%ptr_vefs_x_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = vefs_set(iboun)
                     exit elems1
                  end if
               end do
@@ -400,7 +400,7 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
                  if(jelem_num_vef_verts==nnodb) then
                     vertex_of_jvef = 0
                     do jvert=1,jelem_num_vef_verts
-                       vertex_of_jvef(jvert)=this%lst_vefs_lids( this%ptr_vefs_per_cell(jelem)-1+vertices_jvef_iterator%get_current())
+                       vertex_of_jvef(jvert)=this%lst_vefs_lids( this%ptr_vefs_x_cell(jelem)-1+vertices_jvef_iterator%get_current())
                        call vertices_jvef_iterator%next()
                     end do
                     count=0
@@ -414,8 +414,8 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
                     end do
                     equal=(count==ielem_num_vef_verts)
                     if(equal) then ! Fill it
-                       this%vefs_geometry( this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = vefs_geometry(iboun)
-                       this%vefs_set( this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = vefs_set(iboun)
+                       this%vefs_geometry( this%lst_vefs_lids(this%ptr_vefs_x_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = vefs_geometry(iboun)
+                       this%vefs_set( this%lst_vefs_lids(this%ptr_vefs_x_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = vefs_set(iboun)
                        exit elems2
                     end if
                  end if
@@ -470,7 +470,7 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
            
            vef_set_id = vef%get_set_id()
            !vef_geom_id = vef%get_geom_id()
-           vefs_of_vef => reference_fe_geo%get_n_faces_n_face() 
+           vefs_of_vef => reference_fe_geo%get_facets_n_face() 
            ! They are also at the boundary, regardless of the number of cells they have around
            vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
            do while( .not. vefs_of_vef_iterator%is_upper_bound() )
@@ -564,17 +564,17 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
 
   ! Compute header and allocate array
   call this%free_nodes()
-  call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_nodes_per_cell, __FILE__, __LINE__ )
+  call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_nodes_x_cell, __FILE__, __LINE__ )
 
-  this%ptr_nodes_per_cell(1)=1
+  this%ptr_nodes_x_cell(1)=1
   call this%create_cell_iterator(cell)
   do while ( .not. cell%has_finished() )
      reference_fe_geo => cell%get_reference_fe_geo()
      ielem = cell%get_lid()
-     this%ptr_nodes_per_cell(ielem+1) = this%ptr_nodes_per_cell(ielem) + reference_fe_geo%get_num_shape_functions()
+     this%ptr_nodes_x_cell(ielem+1) = this%ptr_nodes_x_cell(ielem) + reference_fe_geo%get_num_shape_functions()
      call cell%next()
   end do
-  call memalloc(this%ptr_nodes_per_cell(this%num_local_cells + this%num_ghost_cells+1)-1, this%lst_nodes , __FILE__, __LINE__ )
+  call memalloc(this%ptr_nodes_x_cell(this%num_local_cells + this%num_ghost_cells+1)-1, this%lst_nodes , __FILE__, __LINE__ )
   this%lst_nodes=0
 
   ! Set nodes on vertices (with id = id of the vertex)
@@ -627,7 +627,7 @@ end subroutine fine_triangulation_allocate_and_fill_nodes
 subroutine fine_triangulation_free_nodes (this)
   implicit none
   class(fine_triangulation_t), intent(inout) :: this
-  if (allocated (this%ptr_nodes_per_cell)) call memfree ( this%ptr_nodes_per_cell, __FILE__, __LINE__ )
+  if (allocated (this%ptr_nodes_x_cell)) call memfree ( this%ptr_nodes_x_cell, __FILE__, __LINE__ )
   if (allocated (this%lst_nodes)) call memfree ( this%lst_nodes, __FILE__, __LINE__ )
 end subroutine fine_triangulation_free_nodes
 

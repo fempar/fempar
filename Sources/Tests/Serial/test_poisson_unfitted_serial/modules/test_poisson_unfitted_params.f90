@@ -69,7 +69,7 @@ module test_poisson_unfitted_params_names
 
      character(len=str_cla_len)    :: triangulation_type
      integer(ip) :: num_dims     
-     integer(ip) :: num_cells_per_dir(0:SPACE_DIM-1)
+     integer(ip) :: num_cells_x_dir(0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
      logical :: in_fe_space
      logical :: check_sol
@@ -233,9 +233,9 @@ contains
 
     call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
     call this%cli%get(switch='-dim',val=this%num_dims,error=istat); check(istat==0)
-    call this%cli%get(switch='-nx',val=this%num_cells_per_dir(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-ny',val=this%num_cells_per_dir(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-nz',val=this%num_cells_per_dir(2),error=istat); check(istat==0)
+    call this%cli%get(switch='-nx',val=this%num_cells_x_dir(0),error=istat); check(istat==0)
+    call this%cli%get(switch='-ny',val=this%num_cells_x_dir(1),error=istat); check(istat==0)
+    call this%cli%get(switch='-nz',val=this%num_cells_x_dir(2),error=istat); check(istat==0)
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
@@ -254,7 +254,7 @@ contains
     else if(trim(this%triangulation_type)=='structured') then
        istat = parameter_list%set(key = triangulation_generate_key         , value = triangulation_generate_structured)
        istat = istat + parameter_list%set(key = num_dims_key   , value = this%num_dims)
-       istat = istat + parameter_list%set(key = num_cells_per_dir_key, value = this%num_cells_per_dir)
+       istat = istat + parameter_list%set(key = num_cells_x_dir_key, value = this%num_cells_x_dir)
        istat = istat + parameter_list%set(key = is_dir_periodic_key        , value = this%is_dir_periodic)
     end if
     check(istat==0)

@@ -30,12 +30,12 @@
                                            num_dims, &
                                            num_local_cells, &
                                            cells_gid, &
-                                           ptr_vefs_per_cell, &
+                                           ptr_vefs_x_cell, &
                                            lst_vefs_gids, &
                                            lst_vefs_dim, &
                                            num_itfc_cells, &
                                            lst_itfc_cells, &
-                                           ptr_ext_neighs_per_itfc_cell, &
+                                           ptr_ext_neighs_x_itfc_cell, &
                                            lst_ext_neighs_gids, &
                                            lst_ext_neighs_part_ids)
     implicit none
@@ -44,12 +44,12 @@
     integer(ip)                        , intent(in)    :: num_dims
     integer(ip)                        , intent(in)    :: num_local_cells
     integer(igp)                       , intent(in)    :: cells_gid(*)
-    integer(ip)                        , intent(in)    :: ptr_vefs_per_cell(*)
+    integer(ip)                        , intent(in)    :: ptr_vefs_x_cell(*)
     integer(igp)                       , intent(in)    :: lst_vefs_gids(*)
     integer(ip)                        , intent(in)    :: lst_vefs_dim(*)
     integer(ip)                        , intent(in)    :: num_itfc_cells
     integer(ip)                        , intent(in)    :: lst_itfc_cells(*)
-    integer(ip)                        , intent(in)    :: ptr_ext_neighs_per_itfc_cell(*)
+    integer(ip)                        , intent(in)    :: ptr_ext_neighs_x_itfc_cell(*)
     integer(ip)                        , intent(in)    :: lst_ext_neighs_gids(*)
     integer(ip)                        , intent(in)    :: lst_ext_neighs_part_ids(*)
   
@@ -70,15 +70,15 @@
                                          num_local_cells, &
                                          num_itfc_cells, &
                                          lst_itfc_cells(1:num_itfc_cells), & ! I was forced to provide l/u bounds to let gfortran 5.3.0 compile
-                                         ptr_ext_neighs_per_itfc_cell(1:num_itfc_cells+1), &
-                                         lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
-                                         lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
+                                         ptr_ext_neighs_x_itfc_cell(1:num_itfc_cells+1), &
+                                         lst_ext_neighs_gids(1:ptr_ext_neighs_x_itfc_cell(num_itfc_cells+1)-1), &
+                                         lst_ext_neighs_part_ids(1:ptr_ext_neighs_x_itfc_cell(num_itfc_cells+1)-1))
       this%num_dims  = num_dims      
       this%num_local_cells = num_local_cells
       this%num_ghost_cells = this%cell_import%get_num_ghost_elements()
       
       ! Allocate + fill cells-related data
-      call this%allocate_and_fill_ptr_vefs_per_cell(ptr_vefs_per_cell)
+      call this%allocate_and_fill_ptr_vefs_x_cell(ptr_vefs_x_cell)
       call this%allocate_cells_gid()
       call this%fill_local_cells_gid(cells_gid) 
       call this%allocate_cells_mypart()
@@ -122,7 +122,7 @@
                                                                     lst_vefs_gids)                                                     
     implicit none
     class(coarse_triangulation_t), intent(inout) :: this
-    integer(igp)                 , intent(in)    :: lst_vefs_gids(this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1)
+    integer(igp)                 , intent(in)    :: lst_vefs_gids(this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1)
     
     type(hash_table_igp_ip_t) :: next_vef_lid_avail
     integer(ip)               :: icell, istat, j, init_pos, end_pos              
@@ -133,12 +133,12 @@
 
     call this%free_lst_vefs_lids()
 
-    call memalloc ( this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1, this%lst_vefs_lids, __FILE__, __LINE__ )
-    call next_vef_lid_avail%init ( max(int(real(this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1,rp)*0.1_rp),5) )
+    call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, this%lst_vefs_lids, __FILE__, __LINE__ )
+    call next_vef_lid_avail%init ( max(int(real(this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1,rp)*0.1_rp),5) )
     this%num_vefs = 0
     do icell=1, this%num_local_cells + this%num_ghost_cells
-      init_pos = this%ptr_vefs_per_cell(icell)
-      end_pos  = this%ptr_vefs_per_cell(icell+1)-1
+      init_pos = this%ptr_vefs_x_cell(icell)
+      end_pos  = this%ptr_vefs_x_cell(icell+1)-1
       do j=init_pos, end_pos
         call next_vef_lid_avail%put(key=lst_vefs_gids(j), val=this%num_vefs+1, stat=istat)
         if (istat == now_stored) then

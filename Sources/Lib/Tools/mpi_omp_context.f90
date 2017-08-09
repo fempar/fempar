@@ -109,7 +109,7 @@ module mpi_omp_context_names
      integer :: root_thread    = mpi_omp_context_default_root_thread
      integer :: max_num_threads = -1
      integer :: min_num_threads = -1
-     !integer, allocatable :: threads_per_rank(:)
+     !integer, allocatable :: threads_x_rank(:)
      !integer :: master_thread  = -1
    contains
      ! These functions should be non_overridable but there is a bug in gfotran
@@ -169,7 +169,7 @@ contains
     integer :: current_task, num_tasks, istat, i
     logical :: initialized
     integer :: provided_thread_support, comm, num_ranks_with_min_threads
-    !integer, allocatable :: threads_per_rank(:)
+    !integer, allocatable :: threads_x_rank(:)
     
     call this%free(finalize=.false.)
 

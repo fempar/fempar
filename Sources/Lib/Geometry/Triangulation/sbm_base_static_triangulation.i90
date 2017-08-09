@@ -106,22 +106,22 @@ function bst_get_num_objects(this)
 ! Private methods for creating cell-related data
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine bst_allocate_and_fill_ptr_vefs_per_cell (this, ptr_vefs_per_cell)
+subroutine bst_allocate_and_fill_ptr_vefs_x_cell (this, ptr_vefs_x_cell)
     implicit none
     class(base_static_triangulation_t), intent(inout) :: this
-    integer(ip)                  , intent(in)    :: ptr_vefs_per_cell(this%num_local_cells+1)
+    integer(ip)                  , intent(in)    :: ptr_vefs_x_cell(this%num_local_cells+1)
     integer(ip) :: icell
     
     assert ( associated ( this%p_env ) )
     assert ( this%p_env%am_i_l1_task() )
     
     call memalloc ( this%num_local_cells+this%num_ghost_cells+1, &
-                    this%ptr_vefs_per_cell, &
+                    this%ptr_vefs_x_cell, &
                     __FILE__, __LINE__ )
     
-    this%ptr_vefs_per_cell = 0
+    this%ptr_vefs_x_cell = 0
     do icell = 1, this%num_local_cells
-      this%ptr_vefs_per_cell(icell+1) = ptr_vefs_per_cell(icell+1) - ptr_vefs_per_cell(icell)
+      this%ptr_vefs_x_cell(icell+1) = ptr_vefs_x_cell(icell+1) - ptr_vefs_x_cell(icell)
     end do
    
     ! write(*,*) this%element_import%get_num_neighbours()
@@ -141,12 +141,12 @@ subroutine bst_allocate_and_fill_ptr_vefs_per_cell (this, ptr_vefs_per_cell)
                                              this%cell_import%get_neighbours_ids(),&
                                              this%cell_import%get_snd_ptrs(),&
                                              this%cell_import%get_snd_leids(),&
-                                             this%ptr_vefs_per_cell(2:) )
-    this%ptr_vefs_per_cell(1) = 1
+                                             this%ptr_vefs_x_cell(2:) )
+    this%ptr_vefs_x_cell(1) = 1
     do icell = 1, this%num_local_cells+this%num_ghost_cells
-      this%ptr_vefs_per_cell(icell+1) = this%ptr_vefs_per_cell(icell+1) + this%ptr_vefs_per_cell(icell)
+      this%ptr_vefs_x_cell(icell+1) = this%ptr_vefs_x_cell(icell+1) + this%ptr_vefs_x_cell(icell)
     end do
-  end subroutine bst_allocate_and_fill_ptr_vefs_per_cell
+  end subroutine bst_allocate_and_fill_ptr_vefs_x_cell
   
 subroutine bst_allocate_cells_gid (this)
   implicit none
@@ -221,11 +221,11 @@ subroutine bst_fill_cells_set (this, cells_set)
                                              this%cells_set )
 end subroutine bst_fill_cells_set
 
-subroutine bst_free_ptr_vefs_per_cell (this)
+subroutine bst_free_ptr_vefs_x_cell (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
-  if (allocated (this%ptr_vefs_per_cell)) call memfree ( this%ptr_vefs_per_cell, __FILE__, __LINE__ )
-end subroutine bst_free_ptr_vefs_per_cell
+  if (allocated (this%ptr_vefs_x_cell)) call memfree ( this%ptr_vefs_x_cell, __FILE__, __LINE__ )
+end subroutine bst_free_ptr_vefs_x_cell
 
 subroutine bst_free_lst_vefs_lids ( this )
   implicit none
@@ -259,13 +259,13 @@ subroutine bst_orient_tet_mesh(this,lst_vefs_gids_ghost_extended)
   integer(igp), allocatable :: gids(:)
   integer(ip) , allocatable :: perm(:)
   
-  nnode = this%ptr_vefs_per_cell(2) - this%ptr_vefs_per_cell(1)
+  nnode = this%ptr_vefs_x_cell(2) - this%ptr_vefs_x_cell(1)
   call memalloc(nnode, gids,__FILE__,__LINE__)
   call memalloc(nnode, perm,__FILE__,__LINE__)
   
   do icell = 1, this%num_local_cells + this%num_ghost_cells
-     spos = this%ptr_vefs_per_cell(icell)
-     epos = this%ptr_vefs_per_cell(icell+1)-1
+     spos = this%ptr_vefs_x_cell(icell)
+     epos = this%ptr_vefs_x_cell(icell+1)-1
      if ( present(lst_vefs_gids_ghost_extended) ) then
        gids = lst_vefs_gids_ghost_extended(spos:epos)
        perm = (/(i, i=1,nnode, 1)/)
@@ -311,7 +311,7 @@ end subroutine bst_orient_tet_mesh
     integer(ip)  , pointer     :: rcv_ptrs(:)
     integer(ip)  , pointer     :: rcv_leids(:)
     class(cell_iterator_t), allocatable :: cell
-    integer(ip)                :: icell, first, last, extra_data_size_per_vef
+    integer(ip)                :: icell, first, last, extra_data_size_x_vef
     integer(ip)                :: start_buf, end_buf, current, i, j, num_neighbours
     
     assert ( associated ( this%p_env ) )
@@ -320,26 +320,26 @@ end subroutine bst_orient_tet_mesh
 
     if ( allocated (lst_vefs_gids_ghost_extended) ) &
       call memfree( lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
-    call memalloc ( this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
+    call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
                     lst_vefs_gids_ghost_extended, &
                     __FILE__, &
                     __LINE__ )
 
-    first  = this%ptr_vefs_per_cell(1)
-    last   = this%ptr_vefs_per_cell(this%num_local_cells+1)-1
+    first  = this%ptr_vefs_x_cell(1)
+    last   = this%ptr_vefs_x_cell(this%num_local_cells+1)-1
     lst_vefs_gids_ghost_extended(first:last) = lst_vefs_gids(first:last)
-    extra_data_size_per_vef = 0
+    extra_data_size_x_vef = 0
 
     if(present(lst_vefs_dim)) then
        assert(present(lst_vefs_dim_ghost_extended))
        if ( allocated (lst_vefs_dim_ghost_extended) )  &
             call memfree( lst_vefs_dim_ghost_extended, __FILE__, __LINE__)
-       call memalloc ( this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
+       call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
                        lst_vefs_dim_ghost_extended, &
                        __FILE__, &
                        __LINE__ )
        lst_vefs_dim_ghost_extended(first:last) = lst_vefs_dim(first:last)  
-       extra_data_size_per_vef = size_of_ip
+       extra_data_size_x_vef = size_of_ip
     end if
 
     ! We assume that coordinates are exchanged when the triangulation only contains vertices
@@ -347,12 +347,12 @@ end subroutine bst_orient_tet_mesh
        assert(present(coordinates_ghost_extended))
        if ( allocated (coordinates_ghost_extended) )  &
             call memfree( coordinates_ghost_extended, __FILE__, __LINE__)
-            call memalloc ( SPACE_DIM, this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
+            call memalloc ( SPACE_DIM, this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
                             coordinates_ghost_extended, &
                             __FILE__, &
                             __LINE__ )
        coordinates_ghost_extended(:,first:last) = coordinates(:,first:last)  
-       extra_data_size_per_vef = size_of_rp*SPACE_DIM
+       extra_data_size_x_vef = size_of_rp*SPACE_DIM
     end if
 
 
@@ -377,7 +377,7 @@ end subroutine bst_orient_tet_mesh
      do j=snd_ptrs(i),snd_ptrs(i+1)-1
        icell = snd_leids(j)
        call cell%set_lid(icell)
-       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_per_vef*(cell%get_num_vefs())
+       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_x_vef*(cell%get_num_vefs())
        snd_ptrs_buf(i+1) = snd_ptrs_buf(i+1) + cell_sizes(icell)
      end do
     end do
@@ -392,7 +392,7 @@ end subroutine bst_orient_tet_mesh
       do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
        icell = rcv_leids(j)
        call cell%set_lid(icell)
-       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_per_vef*(cell%get_num_vefs())
+       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_x_vef*(cell%get_num_vefs())
        rcv_ptrs_buf(i+1) = rcv_ptrs_buf(i+1) + cell_sizes(icell)
       end do
      end do
@@ -413,8 +413,8 @@ end subroutine bst_orient_tet_mesh
             do j=snd_ptrs(i),snd_ptrs(i+1)-1
               icell = snd_leids(j)
               call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last      = this%ptr_vefs_per_cell(icell+1)-1
+              first     = this%ptr_vefs_x_cell(icell)
+              last      = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_pack ( cell = cell, &
@@ -430,8 +430,8 @@ end subroutine bst_orient_tet_mesh
             do j=snd_ptrs(i),snd_ptrs(i+1)-1
               icell = snd_leids(j)
               call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last      = this%ptr_vefs_per_cell(icell+1)-1
+              first     = this%ptr_vefs_x_cell(icell)
+              last      = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_pack ( cell = cell, &
@@ -447,8 +447,8 @@ end subroutine bst_orient_tet_mesh
             do j=snd_ptrs(i),snd_ptrs(i+1)-1
               icell = snd_leids(j)
               call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last      = this%ptr_vefs_per_cell(icell+1)-1
+              first     = this%ptr_vefs_x_cell(icell)
+              last      = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_pack ( cell = cell, &
@@ -474,8 +474,8 @@ end subroutine bst_orient_tet_mesh
             do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
               icell = rcv_leids(j)
               call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last       = this%ptr_vefs_per_cell(icell+1)-1
+              first     = this%ptr_vefs_x_cell(icell)
+              last       = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_unpack ( cell = cell, &
@@ -490,8 +490,8 @@ end subroutine bst_orient_tet_mesh
             do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
               icell = rcv_leids(j)
               call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last       = this%ptr_vefs_per_cell(icell+1)-1
+              first     = this%ptr_vefs_x_cell(icell)
+              last       = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_unpack ( cell = cell, &
@@ -506,8 +506,8 @@ end subroutine bst_orient_tet_mesh
             do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
               icell = rcv_leids(j)
               call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last       = this%ptr_vefs_per_cell(icell+1)-1
+              first     = this%ptr_vefs_x_cell(icell)
+              last       = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_unpack ( cell = cell, &
@@ -860,7 +860,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     num_neighbours = this%cell_import%get_num_neighbours()    
     call memalloc ( num_neighbours, touched_neighbours, __FILE__, __LINE__ )
     
-    ! The two extra rows in parts_per_itfc_vef are required in order to: (1) hold the number of parts around an interface vef
+    ! The two extra rows in parts_x_itfc_vef are required in order to: (1) hold the number of parts around an interface vef
     !                                                                    (2) to hold mypart_id, which should be also listed among 
     !                                                                        the parts around each vef
     num_rows_parts_itfc_vefs = num_neighbours + 2
@@ -1177,7 +1177,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       ivef_itfc = ivef_itfc + 1
     end do
         
-    ! Count num_vefs_per_object and num_parts_per_object
+    ! Count num_vefs_x_object and num_parts_x_object
     call vefs_object%create(n=this%num_objects)
     call parts_object%create(n=this%num_objects)
     ivef_itfc = 1
@@ -1203,7 +1203,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call vefs_object%allocate_list_from_pointer()
     call parts_object%allocate_list_from_pointer()
     
-    ! List num_vefs_per_object and num_parts_per_object
+    ! List num_vefs_x_object and num_parts_x_object
     ivef_itfc=1
     do iobj=1, vefs_object%get_num_pointers()
        vefs_object_iterator = vefs_object%create_iterator(iobj)
@@ -1578,12 +1578,12 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
                                               num_dims               = num_dims, &
                                               num_local_cells              = num_local_coarse_cells, &
                                               cells_gid                    = coarse_cells_gid, &
-                                              ptr_vefs_per_cell            = coarse_vefs_displs, &
+                                              ptr_vefs_x_cell            = coarse_vefs_displs, &
                                               lst_vefs_gids                = lst_coarse_vef_gids, &
                                               lst_vefs_dim           = lst_coarse_vef_dim, &
                                               num_itfc_cells               = num_itfc_coarse_cells, &
                                               lst_itfc_cells               = coarse_dgraph_recv_counts, &
-                                              ptr_ext_neighs_per_itfc_cell = coarse_dgraph_displs, &
+                                              ptr_ext_neighs_x_itfc_cell = coarse_dgraph_displs, &
                                               lst_ext_neighs_gids          = lextn, &
                                               lst_ext_neighs_part_ids      = lextp )
     else
@@ -1876,7 +1876,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
         coarse_vefs_displs(i)=coarse_vefs_displs(i)+1
       end do
    
-      ! Re-use coarse_dgraph_displs as ptr_ext_neighs_per_itfc_cell
+      ! Re-use coarse_dgraph_displs as ptr_ext_neighs_x_itfc_cell
       num_itfc_coarse_cells = 0
       coarse_dgraph_displs(1) = 1 
       do i=1, size(coarse_dgraph_recv_counts)
@@ -2033,7 +2033,7 @@ subroutine bst_print ( this )
         this%num_dims = -1 
       
         ! Free cell-related data
-        call this%free_ptr_vefs_per_cell()
+        call this%free_ptr_vefs_x_cell()
         call this%free_lst_vefs_lids()
         call this%free_cells_gid()
         call this%free_cells_mypart() 
