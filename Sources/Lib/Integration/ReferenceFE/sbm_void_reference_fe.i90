@@ -63,7 +63,7 @@ subroutine void_reference_fe_create_quadrature ( this, quadrature, degree )
 end subroutine void_reference_fe_create_quadrature
 
 !==================================================================================================
-subroutine void_reference_fe_create_face_quadrature ( this, quadrature, degree )
+subroutine void_reference_fe_create_facet_quadrature ( this, quadrature, degree )
   implicit none
   class(void_reference_fe_t)      , intent(in)    :: this
   type(quadrature_t)              , intent(inout) :: quadrature
@@ -71,7 +71,7 @@ subroutine void_reference_fe_create_face_quadrature ( this, quadrature, degree )
   integer(ip) :: face_dims
   face_dims = this%num_dims - 1
   call quadrature%create( face_dims, 0 )
-end subroutine void_reference_fe_create_face_quadrature
+end subroutine void_reference_fe_create_facet_quadrature
 
 !==================================================================================================
 subroutine void_reference_fe_create_interpolation ( this, quadrature, & 
@@ -101,7 +101,7 @@ end subroutine void_reference_fe_create_interpolation
 ! This routine creates the interpolation corresponding to the evaluation of the shape functions on
 ! integration points given by local_quadrature either on the face 'local_face_id' of the element or
 ! in all the faces of the element.
-subroutine void_reference_fe_create_face_interpolation( this,local_face_id, &
+subroutine void_reference_fe_create_facet_interpolation( this,local_face_id, &
      & local_quadrature,face_interpolation)
   implicit none 
   class(void_reference_fe_t), intent(in)    :: this 
@@ -115,12 +115,12 @@ subroutine void_reference_fe_create_face_interpolation( this,local_face_id, &
 
   ! Fill the values of the shape functions
   !call this%fill_face_interpolation(local_quadrature,local_face_id,face_interpolation)
-end subroutine void_reference_fe_create_face_interpolation
+end subroutine void_reference_fe_create_facet_interpolation
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine void_reference_fe_create_face_local_interpolation (this, quadrature, interpolation)
+subroutine void_reference_fe_create_facet_local_interpolation (this, quadrature, interpolation)
   implicit none
   class(void_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -137,7 +137,7 @@ subroutine void_reference_fe_create_face_local_interpolation (this, quadrature, 
   
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
-end subroutine void_reference_fe_create_face_local_interpolation
+end subroutine void_reference_fe_create_facet_local_interpolation
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.

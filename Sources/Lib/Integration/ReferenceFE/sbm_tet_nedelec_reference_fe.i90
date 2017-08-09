@@ -1237,7 +1237,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
           field_type        = field_type_scalar,   &
           conformity        = .true. )
 
-     call this%create_face_quadrature( face_quadrature )
+     call this%create_facet_quadrature( face_quadrature )
      call fe_2D%create_interpolation( face_quadrature, interpolation_2D )
      call face_map%create( face_quadrature, d_fe_geo )
 
@@ -1261,7 +1261,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
         call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
              quadrature             = face_quadrature ) 
 
-        call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
+        call this%create_facet_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
              face_quadrature,                           &
              face_interpolation )
 

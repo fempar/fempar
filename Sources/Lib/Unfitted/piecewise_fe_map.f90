@@ -62,7 +62,7 @@ module piecewise_fe_map_names
   contains
 
     ! This are thought as an extension of the same methods in fe_map_t
-    procedure, non_overridable :: create_face_map                => piecewise_fe_map_create_face_map
+    procedure, non_overridable :: create_facet_map                => piecewise_fe_map_create_facet_map
     procedure, non_overridable :: free                           => piecewise_fe_map_free
     procedure, non_overridable :: update_face_map                => piecewise_fe_map_update_face_map
     procedure, non_overridable :: compute_quadrature_coordinates => piecewise_fe_map_compute_quadrature_coordinates
@@ -80,7 +80,7 @@ module piecewise_fe_map_names
 contains
 
 !========================================================================================
-  subroutine piecewise_fe_map_create_face_map( this, quadrature, reference_fe_geometry, num_sub_maps )
+  subroutine piecewise_fe_map_create_facet_map( this, quadrature, reference_fe_geometry, num_sub_maps )
 
     implicit none
     class  (piecewise_fe_map_t),        intent(inout) :: this
@@ -112,7 +112,7 @@ contains
     
     this%reference_fe_geometry => reference_fe_geometry
 
-  end subroutine piecewise_fe_map_create_face_map
+  end subroutine piecewise_fe_map_create_facet_map
 
 !========================================================================================
   subroutine piecewise_fe_map_free( this )

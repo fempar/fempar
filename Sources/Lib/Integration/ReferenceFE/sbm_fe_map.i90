@@ -83,7 +83,7 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   this%num_dims        = reference_fe_geometry%num_dims
   this%num_quadrature_points = quadrature%num_quadrature_points
 
-  call reference_fe_geometry%create_face_interpolation( local_face_id, quadrature,                &
+  call reference_fe_geometry%create_facet_interpolation( local_face_id, quadrature,                &
        &                                                this%interpolation_geometry )
 
   call memalloc(this%num_dims, &

@@ -390,11 +390,11 @@ module reference_fe_names
      procedure(create_interface), private, deferred :: create 
      ! TBP to create a quadrature for a reference_fe_t
      procedure(create_quadrature_interface)             , deferred :: create_quadrature
-     procedure(create_face_quadrature_interface)        , deferred :: create_face_quadrature
+     procedure(create_facet_quadrature_interface)        , deferred :: create_facet_quadrature
      ! TBP to create an interpolation from a quadrature_t and reference_fe_t, 
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
-     procedure(create_face_interpolation_interface)     , deferred :: create_face_interpolation
+     procedure(create_facet_interpolation_interface)     , deferred :: create_facet_interpolation
      procedure(apply_cell_map_interface)                , deferred :: apply_cell_map
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
@@ -549,13 +549,13 @@ module reference_fe_names
        integer(ip), optional, intent(in)    :: degree
      end subroutine create_quadrature_interface
 
-     subroutine create_face_quadrature_interface ( this, quadrature, degree  )
+     subroutine create_facet_quadrature_interface ( this, quadrature, degree  )
        import :: reference_fe_t, quadrature_t, ip
        implicit none
        class(reference_fe_t), intent(in)    :: this
        type(quadrature_t)   , intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: degree
-     end subroutine create_face_quadrature_interface
+     end subroutine create_facet_quadrature_interface
 
      subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
        import :: reference_fe_t, quadrature_t, interpolation_t
@@ -566,7 +566,7 @@ module reference_fe_names
        logical    , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
 
-     subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature,       &
+     subroutine create_facet_interpolation_interface ( this, local_face_id , local_quadrature,       &
           &                                           face_interpolation)
        import :: reference_fe_t, ip, quadrature_t, interpolation_t
        implicit none 
@@ -574,7 +574,7 @@ module reference_fe_names
        integer(ip)          , intent(in)    :: local_face_id
        type(quadrature_t)   , intent(in)    :: local_quadrature
        type(interpolation_t), intent(inout) :: face_interpolation
-     end subroutine create_face_interpolation_interface
+     end subroutine create_facet_interpolation_interface
 
      function get_component_node_interface( this, node )
        import :: reference_fe_t, ip
@@ -878,10 +878,10 @@ contains
   procedure :: create                    => lagrangian_reference_fe_create
   procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
   procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
-  procedure :: create_face_quadrature    => lagrangian_reference_fe_create_face_quadrature
+  procedure :: create_facet_quadrature    => lagrangian_reference_fe_create_facet_quadrature
   procedure :: create_interpolation      => lagrangian_reference_fe_create_interpolation
-  procedure :: create_face_interpolation => lagrangian_reference_fe_create_face_interpolation
-  procedure :: create_face_local_interpolation  => lagrangian_reference_fe_create_face_local_interpolation
+  procedure :: create_facet_interpolation => lagrangian_reference_fe_create_facet_interpolation
+  procedure :: create_facet_local_interpolation  => lagrangian_reference_fe_create_facet_local_interpolation
   procedure :: create_edge_local_interpolation  => lagrangian_reference_fe_create_edge_local_interpolation
   procedure :: apply_cell_map      => lagrangian_reference_fe_apply_cell_map
   procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
@@ -1032,7 +1032,7 @@ contains
 procedure (change_basis_interface), private, deferred :: change_basis
 procedure :: create                           => raviart_thomas_create
 procedure :: free                             => raviart_thomas_free
-procedure :: create_face_local_interpolation  => raviart_thomas_create_face_local_interpolation
+procedure :: create_facet_local_interpolation  => raviart_thomas_create_facet_local_interpolation
 procedure :: blending                         => raviart_thomas_blending
 procedure :: create_data_out_quadrature       => raviart_thomas_create_data_out_quadrature
 procedure :: get_num_subcells              => raviart_thomas_get_num_subcells
@@ -1052,7 +1052,7 @@ procedure :: get_divergences_vector           => raviart_thomas_get_divergences_
 procedure :: get_curl_vector                  => raviart_thomas_get_curl_vector
 procedure :: get_curls_vector                  => raviart_thomas_get_curls_vector
 procedure :: create_interpolation             => raviart_thomas_create_interpolation
-procedure :: create_face_interpolation        => raviart_thomas_create_face_interpolation
+procedure :: create_facet_interpolation        => raviart_thomas_create_facet_interpolation
 procedure :: evaluate_fe_function_scalar          &
     & => raviart_thomas_evaluate_fe_function_scalar
 procedure :: evaluate_fe_function_vector          & 
@@ -1100,7 +1100,7 @@ procedure (nedelec_fill_edge_interpolation), private, deferred :: fill_edge_inte
 
 procedure :: create                          => nedelec_create
 procedure :: free                            => nedelec_free
-procedure :: create_face_local_interpolation => nedelec_create_face_local_interpolation
+procedure :: create_facet_local_interpolation => nedelec_create_facet_local_interpolation
 procedure :: blending                        => nedelec_blending
 procedure :: create_data_out_quadrature      => nedelec_create_data_out_quadrature
 procedure :: get_num_subcells             => nedelec_get_num_subcells
@@ -1120,7 +1120,7 @@ procedure :: get_divergences_vector          => nedelec_get_divergences_vector
 procedure :: get_curl_vector                 => nedelec_get_curl_vector
 procedure :: get_curls_vector                => nedelec_get_curls_vector
 procedure :: create_interpolation            => nedelec_create_interpolation
-procedure :: create_face_interpolation       => nedelec_create_face_interpolation
+procedure :: create_facet_interpolation       => nedelec_create_facet_interpolation
 procedure :: create_edge_interpolation       => nedelec_create_edge_interpolation
 procedure :: create_edge_quadrature          => nedelec_create_edge_quadrature
 procedure :: evaluate_fe_function_scalar          &
@@ -1428,10 +1428,10 @@ public :: tet_nedelec_reference_fe_t
 contains
   procedure :: create                      => void_reference_fe_create
   procedure :: create_quadrature           => void_reference_fe_create_quadrature
-  procedure :: create_face_quadrature      => void_reference_fe_create_face_quadrature
+  procedure :: create_facet_quadrature      => void_reference_fe_create_facet_quadrature
   procedure :: create_interpolation        => void_reference_fe_create_interpolation
-  procedure :: create_face_interpolation   => void_reference_fe_create_face_interpolation
-  procedure :: create_face_local_interpolation  => void_reference_fe_create_face_local_interpolation
+  procedure :: create_facet_interpolation   => void_reference_fe_create_facet_interpolation
+  procedure :: create_facet_local_interpolation  => void_reference_fe_create_facet_local_interpolation
   procedure :: create_edge_local_interpolation  => void_reference_fe_create_edge_local_interpolation
   procedure :: apply_cell_map             => void_reference_fe_apply_cell_map
   procedure :: get_component_node               => void_reference_fe_get_component_node

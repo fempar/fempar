@@ -157,7 +157,7 @@ subroutine uim_init_reference_subelem( this )
   ! Create the quadrature for the sub-face
   ! degree 2*(d*p-1) needed for integrate (n*grad(u))*(n*grad(u))
   ! 2*d*p Needed for the penalty terms 
-  call this%geo_reference_subelem%create_face_quadrature(this%quadrature_subface,degree=2*num_dim*p)
+  call this%geo_reference_subelem%create_facet_quadrature(this%quadrature_subface,degree=2*num_dim*p)
   
   ! Create the fe map
   call this%fe_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
@@ -342,7 +342,7 @@ subroutine uim_init_cut_boundary_integration( this )
 
   do mc_case = 1, mc_num_cases
     num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
-    call this%cut_boundary_piecewise_fe_maps(mc_case)%create_face_map(&
+    call this%cut_boundary_piecewise_fe_maps(mc_case)%create_facet_map(&
          this%quadrature_subface, this%geo_reference_subelem, num_subfaces  )
   end do
 
@@ -366,7 +366,7 @@ subroutine uim_init_cut_boundary_integration( this )
 
   end do
 
-  call this%empty_piecewise_fe_map%create_face_map( this%empty_quadrature, geo_reference_elem, 0 )
+  call this%empty_piecewise_fe_map%create_facet_map( this%empty_quadrature, geo_reference_elem, 0 )
 
   call this%fe_space%free_fe_iterator(fe)
 

@@ -1944,7 +1944,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
                                                 stat = istat)  
      if (istat == now_stored) then
         reference_fe=>this%reference_fes( this%max_order_reference_fe_id_x_fe_face(fe_face%face_lid) )%p
-        call reference_fe%create_face_quadrature(this%fe_face_quadratures(current_fe_face_quadrature),fe_face%get_quadrature_degree())
+        call reference_fe%create_facet_quadrature(this%fe_face_quadratures(current_fe_face_quadrature),fe_face%get_quadrature_degree())
         call this%fe_face_maps(current_fe_face_map)%create(fe_face%get_quadrature(), &
                                                            reference_fes_geo(1)%p, &
                                                            reference_fes_geo(2)%p )
