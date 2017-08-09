@@ -872,8 +872,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
                       conformity        = .true. )
 
  call this%create_edge_quadrature( edge_quadrature )
- call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
- 
+ call fe_1D%create_interpolation( edge_quadrature, interpolation_1D ) 
  call edge_map%create( edge_quadrature, d_fe_geo )
 
  ! Initialize change of basis matrix
@@ -958,7 +957,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
                           quadrature             = face_quadrature ) 
      
-     call this%create_facet_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
+     call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_face_id()+1, &
                                           face_quadrature, &
                                           face_interpolation )
      

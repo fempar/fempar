@@ -242,7 +242,7 @@ subroutine unfitted_fe_iterator_update_cut_quadratures( this )
   class(unfitted_fe_iterator_t), intent(inout) :: this
 
   type(quadrature_t), pointer :: quadrature
-  real(rp),           pointer :: quadrature_coordinates(:,:)
+  real(rp),           pointer :: quadrature_points_coordinates(:,:)
   real(rp),           pointer :: quadrature_weights(:)
   integer(ip)                 :: num_gp, igp, num_dim
   type(quadrature_t), pointer :: quadrature_subelem
@@ -259,7 +259,7 @@ subroutine unfitted_fe_iterator_update_cut_quadratures( this )
 
   ! Recover info about the quadrature of the current element
   quadrature => this%get_quadrature()
-  quadrature_coordinates => quadrature%get_coordinates()
+  quadrature_points_coordinates => quadrature%get_coordinates()
   quadrature_weights     => quadrature%get_weights()
   num_gp                 =  quadrature%get_num_quadrature_points()
   num_dim                =  quadrature%get_num_dims()
@@ -309,7 +309,7 @@ subroutine unfitted_fe_iterator_update_cut_quadratures( this )
 
       ! Map the coordinates
       do idi = 1, num_dim
-        quadrature_coordinates(idi,igp) = mapped_quadrature_coords_subelem(igp_subelem)%get(idi)
+        quadrature_points_coordinates(idi,igp) = mapped_quadrature_coords_subelem(igp_subelem)%get(idi)
       end do
 
       igp = igp + 1
@@ -381,7 +381,7 @@ subroutine unfitted_fe_iterator_update_cut_boundary_quadratures( this )
   end do
 
   ! Compute coordinates
-  call pw_fe_map%compute_quadrature_coordinates()
+  call pw_fe_map%compute_quadrature_points_coordinates()
 
   ! Extract the coordinates and store them inside the quadrature
   quad_coords => pw_fe_map%get_quadrature_points_coordinates()

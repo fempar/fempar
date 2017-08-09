@@ -140,7 +140,7 @@ contains
          call fe%update_integration()
          
          ! Get quadrature coordinates to evaluate source_term
-         quad_coords => fe_map%get_quadrature_coordinates()
+         quad_coords => fe_map%get_quadrature_points_coordinates()
 
          ! Compute element matrix and vector
          elmat = 0.0_rp
@@ -262,7 +262,7 @@ contains
          assert( fe_face%get_set_id() == 1 )
          call fe_face%update_integration()
          call boundary_face_fe_function%update(fe_face,boundary_fe_function)
-         quad_coords => face_map%get_quadrature_coordinates()
+         quad_coords => face_map%get_quadrature_points_coordinates()
          call face_int%get_values(1,shape_values_first)
          call face_int%get_gradients(1,shape_gradients_first)
          do qpoint = 1, num_quad_points

@@ -129,7 +129,7 @@ contains
        call fe%update_integration()
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => fe_map%get_quadrature_coordinates()
+       quad_coords => fe_map%get_quadrature_points_coordinates()
        
        ! Evaluate pressure source term at quadrature points
        call this%pressure_source_term%get_values_set(quad_coords, pressure_source_term_values)
@@ -201,7 +201,7 @@ contains
          !assert( fe_face%get_set_id() == 1 )
          facevec = 0.0_rp
          call fe_face%update_integration() 
-         quad_coords => face_map%get_quadrature_coordinates()
+         quad_coords => face_map%get_quadrature_points_coordinates()
          call this%pressure_boundary_function%get_values_set(quad_coords, pressure_boundary_function_values)
          call face_int_velocity%get_values(1,velocity_shape_values)
          do qpoint = 1, num_quad_points

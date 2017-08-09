@@ -193,7 +193,7 @@ subroutine tet_lagrangian_reference_fe_blending(this,values)
 end subroutine tet_lagrangian_reference_fe_blending
 
 !==================================================================================================
-subroutine tet_lagrangian_reference_fe_fill_own_dof_permutations (this)
+subroutine tet_lagrangian_reference_fe_fill_own_dofs_permutations (this)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(inout) :: this
   integer(ip) :: idime
@@ -203,7 +203,7 @@ subroutine tet_lagrangian_reference_fe_fill_own_dof_permutations (this)
      this%own_dof_permutations(idime)%nd1 = 0
      this%own_dof_permutations(idime)%nd2 = 0
   end do
-end subroutine tet_lagrangian_reference_fe_fill_own_dof_permutations
+end subroutine tet_lagrangian_reference_fe_fill_own_dofs_permutations
 
 !==================================================================================================
 subroutine tet_lagrangian_reference_fe_fill_qpoints_permutations (this, quadrature, qpoints_perm)

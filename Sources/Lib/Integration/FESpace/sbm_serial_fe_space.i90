@@ -505,8 +505,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
 
               cell_coordinates => fe_maps(reference_fe_id)%get_coordinates()
               call fe%get_coordinates(cell_coordinates)
-              call fe_maps(reference_fe_id)%compute_quadrature_coordinates()
-              nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_coordinates()
+              call fe_maps(reference_fe_id)%compute_quadrature_points_coordinates()
+              nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_points_coordinates()
 
               ! Go over all vefs within current FE
               do ivef = 1, fe%get_num_vefs()
@@ -973,7 +973,7 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   call fe_face%get_cell_around(1,fe)
   reference_fe => fe%get_reference_fe(field_id)
   face_map     => fe_face%get_face_maps()   
-  quad_coords  => face_map%get_quadrature_coordinates()
+  quad_coords  => face_map%get_quadrature_points_coordinates()
   
   assert ( reference_fe%get_num_field_components() <= size(function_scalar_components) )
   assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
@@ -1140,8 +1140,8 @@ end subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec
        ! Map reference_fe nodal coordinates to actual domain 
        cell_coordinates => fe_maps(reference_fe_id)%get_coordinates()
        call fe%get_coordinates(cell_coordinates)
-       call fe_maps(reference_fe_id)%compute_quadrature_coordinates()
-       nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_coordinates()
+       call fe_maps(reference_fe_id)%compute_quadrature_points_coordinates()
+       nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_points_coordinates()
        
        n_nodal_q_points = nodal_quadrature%get_num_quadrature_points()
       
@@ -1275,8 +1275,8 @@ subroutine serial_fe_space_interpolate_vector( this, &
        ! Map reference_fe nodal coordinates to actual domain 
        cell_coordinates => fe_maps(reference_fe_id)%get_coordinates()
        call fe%get_coordinates(cell_coordinates)
-       call fe_maps(reference_fe_id)%compute_quadrature_coordinates()
-       nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_coordinates()
+       call fe_maps(reference_fe_id)%compute_quadrature_points_coordinates()
+       nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_points_coordinates()
        
        n_nodal_q_points = nodal_quadrature%get_num_quadrature_points()
       

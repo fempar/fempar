@@ -41,7 +41,7 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   this%num_dims        = reference_fe_geometry%num_dims
   this%num_quadrature_points = quadrature%num_quadrature_points
 
-  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation_geometry )
+  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
 
   call memalloc(this%num_dims, &
                 this%num_dims, &
@@ -57,11 +57,11 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
                 this%det_jacobian,__FILE__,__LINE__)
 
 
-  allocate(this%coordinates_quadrature(this%num_quadrature_points), stat=istat)
+  allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat)
   check(istat==0)
 
   num_nodes = reference_fe_geometry%get_num_shape_functions()
-  allocate(this%coordinates_nodes(num_nodes), stat=istat)
+  allocate(this%nodes_coordinates(num_nodes), stat=istat)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
@@ -83,8 +83,8 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   this%num_dims        = reference_fe_geometry%num_dims
   this%num_quadrature_points = quadrature%num_quadrature_points
 
-  call reference_fe_geometry%create_facet_interpolation( local_face_id, quadrature,                &
-       &                                                this%interpolation_geometry )
+  call reference_fe_geometry%create_interpolation_restricted_to_facet( local_face_id, quadrature,                &
+       &                                                this%interpolation )
 
   call memalloc(this%num_dims, &
                 this%num_dims, &
@@ -99,11 +99,11 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   call memalloc(this%num_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)
 
-  allocate(this%coordinates_quadrature(this%num_quadrature_points), stat=istat)
+  allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat)
   check(istat==0)
 
   num_nodes = reference_fe_geometry%get_num_shape_functions()
-  allocate(this%coordinates_nodes(num_nodes), stat=istat)
+  allocate(this%nodes_coordinates(num_nodes), stat=istat)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
@@ -138,13 +138,13 @@ subroutine fe_map_update( this, quadrature)
   type(vector_field_t) :: aux_vector
 
   khes = .false.
-  if ( allocated( this%interpolation_geometry%hessian ) ) then 
+  if ( allocated( this%interpolation%hessian ) ) then 
      khes = .true.
   end if
 
-  ndime = this%interpolation_geometry%num_dims
-  nnode = size(this%interpolation_geometry%shape_functions,2)
-  nlocs = this%interpolation_geometry%num_quadrature_points
+  ndime = this%interpolation%num_dims
+  nnode = size(this%interpolation%shape_functions,2)
+  nlocs = this%interpolation%num_quadrature_points
 
   do ilocs=1,nlocs
      ! Matmul is not thread safe
@@ -152,8 +152,8 @@ subroutine fe_map_update( this, quadrature)
      do jdime=1,ndime
         aux_vector = 0.0_rp
         do inode=1,nnode
-           aux_vector = aux_vector + this%coordinates_nodes(inode) * &
-                & this%interpolation_geometry%shape_derivatives(1,jdime,inode,ilocs)
+           aux_vector = aux_vector + this%nodes_coordinates(inode) * &
+                & this%interpolation%shape_derivatives(1,jdime,inode,ilocs)
         end do
         do idime=1,ndime
            this%jacobian(idime,jdime,ilocs) = aux_vector%get(idime)
@@ -176,11 +176,11 @@ subroutine fe_map_update( this, quadrature)
   end if
   
   ! Evaluation (Gauss) point coordinates
-  call this%compute_quadrature_coordinates()
+  call this%compute_quadrature_points_coordinates()
 
   ! ! Second derivatives of the map
   if( khes ) then
-     ntens=this%interpolation_geometry%num_entries_symmetric_tensor
+     ntens=this%interpolation%num_entries_symmetric_tensor
      ! Check that second derivativesof the map have been allocated.
      assert(ndime==size(this%d2sdx,dim=1))
      assert(nlocs==size(this%d2sdx,dim=4))
@@ -193,7 +193,7 @@ subroutine fe_map_update( this, quadrature)
         ! Transforms the array HESSI to a symmetric matrix WMAT1
         do inode=1,nnode
            do itens = 1, ntens
-              wvec1(itens) = this%interpolation_geometry%hessian(1,itens,inode,ilocs)
+              wvec1(itens) = this%interpolation%hessian(1,itens,inode,ilocs)
            end do
            call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
         end do
@@ -237,14 +237,14 @@ subroutine fe_map_update_interpolation( this, quadrature, reference_fe_geometry 
   class(fe_map_t)                 , intent(inout) :: this
   type(quadrature_t)              , intent(in)    :: quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
-  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation_geometry )
+  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
 end subroutine fe_map_update_interpolation
 
 subroutine fe_map_print( this )
   implicit none
   class(fe_map_t) :: this
   integer(ip) :: i,j,k
-  call this%interpolation_geometry%print()
+  call this%interpolation%print()
   write(*,*) '%%%%%%%%%%%%%%%% JACOBIAN: %%%%%%%%%%%%%%%%'
   do i = 1, this%num_quadrature_points
      write(*,*) '%%%%%%%%%%%%%%%% Gauss point: ',i
@@ -362,14 +362,14 @@ function fe_map_get_coordinates(this)
   implicit none
   class(fe_map_t)   , target, intent(in) :: this
   type(point_t), pointer :: fe_map_get_coordinates(:)
-  fe_map_get_coordinates => this%coordinates_nodes
+  fe_map_get_coordinates => this%nodes_coordinates
 end function fe_map_get_coordinates
 
 function fe_map_get_quadrature_points_coordinates(this)
   implicit none
   class(fe_map_t)   , target, intent(in) :: this
   type(point_t), pointer :: fe_map_get_quadrature_points_coordinates(:)
-  fe_map_get_quadrature_points_coordinates => this%coordinates_quadrature
+  fe_map_get_quadrature_points_coordinates => this%quadrature_points_coordinates
 end function fe_map_get_quadrature_points_coordinates
 
 !==================================================================================================
@@ -418,22 +418,22 @@ function fe_map_get_reference_h ( this )
 end function fe_map_get_reference_h
 
 !==================================================================================================
-subroutine fe_map_compute_quadrature_coordinates(this)
+subroutine fe_map_compute_quadrature_points_coordinates(this)
   implicit none
   class(fe_map_t), intent(inout) :: this
   integer(ip)   :: qpoin,inode,nnode,nquad
 
-  nnode = this%interpolation_geometry%num_shape_functions
+  nnode = this%interpolation%num_shape_functions
   nquad = this%num_quadrature_points
   do qpoin = 1,nquad
-     call this%coordinates_quadrature(qpoin)%init(0.0_rp)
+     call this%quadrature_points_coordinates(qpoin)%init(0.0_rp)
      do inode=1,nnode
-        this%coordinates_quadrature(qpoin) = this%coordinates_quadrature(qpoin) + &
-             & this%coordinates_nodes(inode) * this%interpolation_geometry%shape_functions(1,inode,qpoin)
+        this%quadrature_points_coordinates(qpoin) = this%quadrature_points_coordinates(qpoin) + &
+             & this%nodes_coordinates(inode) * this%interpolation%shape_functions(1,inode,qpoin)
      end do
   end do
   
-end subroutine fe_map_compute_quadrature_coordinates
+end subroutine fe_map_compute_quadrature_points_coordinates
 
 !==================================================================================================
 subroutine fe_map_get_jacobian_normalized_column ( this, column_id, qpoint, normalized_column )

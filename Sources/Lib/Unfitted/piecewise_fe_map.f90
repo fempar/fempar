@@ -54,7 +54,7 @@ module piecewise_fe_map_names
     ! The same as in fe_map_t (this can be inherited form fe_map_t)
     real(rp),      allocatable    :: det_jacobian(:)
     type(point_t), allocatable    :: coordinates_quadrature(:)
-    type(point_t), allocatable    :: coordinates_nodes(:)
+    type(point_t), allocatable    :: nodes_coordinates(:)
     real(rp),      allocatable    :: normals(:,:)
     integer(ip)                   :: num_dims
     integer(ip)                   :: num_quadrature_points
@@ -65,7 +65,7 @@ module piecewise_fe_map_names
     procedure, non_overridable :: create_facet_map                => piecewise_fe_map_create_facet_map
     procedure, non_overridable :: free                           => piecewise_fe_map_free
     procedure, non_overridable :: update_face_map                => piecewise_fe_map_update_face_map
-    procedure, non_overridable :: compute_quadrature_coordinates => piecewise_fe_map_compute_quadrature_coordinates
+    procedure, non_overridable :: compute_quadrature_points_coordinates => piecewise_fe_map_compute_quadrature_points_coordinates
 
     ! The same as in fe_map_t (this can be inherited form fe_map_t)
     procedure, non_overridable :: get_det_jacobian                  => piecewise_fe_map_get_det_jacobian
@@ -104,7 +104,7 @@ contains
     this%num_nodes_sub_map = size(nod_coords)
     this%num_nodes = size(nod_coords) * num_sub_maps
 
-    allocate( this%coordinates_nodes     (1:this%num_nodes),             stat = istat ); check(istat==0)
+    allocate( this%nodes_coordinates     (1:this%num_nodes),             stat = istat ); check(istat==0)
     allocate( this%coordinates_quadrature(1:this%num_quadrature_points), stat = istat ); check(istat==0)
 
     call memalloc( this%num_quadrature_points, this%det_jacobian, __FILE__,__LINE__ )
@@ -124,7 +124,7 @@ contains
     this%num_quadrature_points_sub_map = -1
     this%num_nodes_sub_map             = -1
     this%num_nodes                     = -1
-    if (allocated(this%coordinates_nodes     )) deallocate  ( this%coordinates_nodes      )
+    if (allocated(this%nodes_coordinates     )) deallocate  ( this%nodes_coordinates      )
     if (allocated(this%coordinates_quadrature)) deallocate  ( this%coordinates_quadrature )
     if (allocated(this%det_jacobian))           call memfree( this%det_jacobian, __FILE__,__LINE__  )
     if (allocated(this%normals     ))           call memfree( this%normals,      __FILE__,__LINE__  )
@@ -156,7 +156,7 @@ contains
       nend = imap * this%num_nodes_sub_map
       nini = nend - this%num_nodes_sub_map + 1
       nod_coords => this%fe_sub_map%get_coordinates()
-      nod_coords(:) = this%coordinates_nodes(nini:nend)
+      nod_coords(:) = this%nodes_coordinates(nini:nend)
 
       ! Compute the info of the sub map
       call this%fe_sub_map%update(reorientation_factor,quadrature)
@@ -176,7 +176,7 @@ contains
   end subroutine piecewise_fe_map_update_face_map
 
 !========================================================================================
-  subroutine piecewise_fe_map_compute_quadrature_coordinates( this )
+  subroutine piecewise_fe_map_compute_quadrature_points_coordinates( this )
 
     implicit none
     class(piecewise_fe_map_t), intent(inout) :: this
@@ -191,10 +191,10 @@ contains
       nend = imap * this%num_nodes_sub_map
       nini = nend - this%num_nodes_sub_map + 1
       nod_coord => this%fe_sub_map%get_coordinates()
-      nod_coord(:) = this%coordinates_nodes(nini:nend)
+      nod_coord(:) = this%nodes_coordinates(nini:nend)
 
       ! Compute the coordinates in the sub map
-      call this%fe_sub_map%compute_quadrature_coordinates()
+      call this%fe_sub_map%compute_quadrature_points_coordinates()
 
       ! Recover the computed quantities in the sub map, and put them in the arrays
       quad_coord => this%fe_sub_map%get_quadrature_points_coordinates()
@@ -204,7 +204,7 @@ contains
 
     end do
 
-  end subroutine piecewise_fe_map_compute_quadrature_coordinates
+  end subroutine piecewise_fe_map_compute_quadrature_points_coordinates
 
 !========================================================================================
   function piecewise_fe_map_get_det_jacobian ( this, i )
@@ -220,7 +220,7 @@ contains
     implicit none
     class(piecewise_fe_map_t)   , target, intent(in) :: this
     type(point_t), pointer :: piecewise_fe_map_get_coordinates(:)
-    piecewise_fe_map_get_coordinates => this%coordinates_nodes
+    piecewise_fe_map_get_coordinates => this%nodes_coordinates
   end function piecewise_fe_map_get_coordinates
 
 !========================================================================================

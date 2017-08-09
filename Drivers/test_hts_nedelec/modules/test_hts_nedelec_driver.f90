@@ -601,7 +601,7 @@ contains
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
     fe_map           => fe%get_fe_map()
-    quad_coords      => fe_map%get_quadrature_coordinates()
+    quad_coords      => fe_map%get_quadrature_points_coordinates()
     aux_quad_coords  = quad_coords
 
     ! Loop over elements
@@ -616,7 +616,7 @@ contains
           call cell_fe_function_current%update(fe, this%H_current)
 
           ! Get quadrature coordinates to evaluate boundary value
-          quad_coords => fe_map%get_quadrature_coordinates()
+          quad_coords => fe_map%get_quadrature_points_coordinates()
 
           ! Integrate cell contribution to H_y, x·J_z average 
           do qpoin=1, num_quad_points

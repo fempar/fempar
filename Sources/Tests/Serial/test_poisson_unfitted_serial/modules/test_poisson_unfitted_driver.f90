@@ -561,7 +561,7 @@ contains
       call vtk_writer%write_to_vtk_file('out_mesh_boundary.vtu')
       call vtk_writer%free()
 
-      call vtk_writer%attach_boundary_quad_points(this%fe_space)
+      call vtk_writer%attach_boundary_quadrature_points(this%fe_space)
       call vtk_writer%write_to_vtk_file('out_mesh_boundary_normals.vtu')
       call vtk_writer%free()
 
@@ -625,7 +625,7 @@ subroutine compute_domain_volume( this )
     type(quadrature_t), pointer :: quadrature
     type(fe_map_t),     pointer :: fe_map
     integer(ip) :: qpoint, num_quad_points
-    type(point_t), pointer :: quadrature_coordinates(:)
+    type(point_t), pointer :: quadrature_points_coordinates(:)
 
     write(*,*) "Computing domain volume ..."
 
@@ -643,7 +643,7 @@ subroutine compute_domain_volume( this )
        fe_map => fe%get_fe_map()
 
        ! Physical coordinates of the quadrature points
-       quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => fe_map%get_quadrature_points_coordinates()
 
        ! Integrate!
        do qpoint = 1, num_quad_points
@@ -672,7 +672,7 @@ subroutine compute_domain_surface( this )
     type(quadrature_t), pointer :: quadrature
     type(piecewise_fe_map_t),     pointer :: fe_map
     integer(ip) :: qpoint, num_quad_points
-    type(point_t), pointer :: quadrature_coordinates(:)
+    type(point_t), pointer :: quadrature_points_coordinates(:)
 
     write(*,*) "Computing domain surface..."
 
@@ -697,12 +697,12 @@ subroutine compute_domain_surface( this )
        fe_map => fe%get_boundary_piecewise_fe_map()
 
        ! Physical coordinates of the quadrature points
-       quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => fe_map%get_quadrature_points_coordinates()
 
        ! Integrate!
        do qpoint = 1, num_quad_points
          dS = fe_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-         surface = surface + dS !quadrature_coordinates(qpoint)%get(1)*quadrature_coordinates(qpoint)%get(2)*dS
+         surface = surface + dS !quadrature_points_coordinates(qpoint)%get(1)*quadrature_points_coordinates(qpoint)%get(2)*dS
        end do
 
        call fe%next()

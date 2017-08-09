@@ -118,7 +118,7 @@ end subroutine lagrangian_reference_fe_create_interpolation
 ! This routine creates the interpolation corresponding to the evaluation of the shape functions on
 ! integration points given by local_quadrature either on the face 'local_face_id' of the element or
 ! in all the faces of the element.
-subroutine lagrangian_reference_fe_create_facet_interpolation( this,local_face_id, &
+subroutine lrfe_create_interpolation_restricted_to_facet( this,local_face_id, &
      & local_quadrature,face_interpolation)
   implicit none 
   class(lagrangian_reference_fe_t), intent(in)    :: this 
@@ -133,12 +133,12 @@ subroutine lagrangian_reference_fe_create_facet_interpolation( this,local_face_i
   ! Fill the values of the shape functions
   call this%fill_face_interpolation(local_quadrature,local_face_id,face_interpolation)
 
-end subroutine lagrangian_reference_fe_create_facet_interpolation
+end subroutine lrfe_create_interpolation_restricted_to_facet
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine lagrangian_reference_fe_create_facet_local_interpolation (this, quadrature, interpolation)
+subroutine lagrangian_reference_fe_create_facet_interpolation (this, quadrature, interpolation)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -155,26 +155,28 @@ subroutine lagrangian_reference_fe_create_facet_local_interpolation (this, quadr
 
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
-end subroutine lagrangian_reference_fe_create_facet_local_interpolation
+end subroutine lagrangian_reference_fe_create_facet_interpolation
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine lagrangian_reference_fe_create_edge_local_interpolation (this, quadrature, interpolation)
+subroutine lagrangian_reference_fe_create_edget_interpolation (this, quadrature, interpolation)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
   type(p_reference_fe_t) :: aux_reference_fe
+  !assert( this%num_dims > 2 )
   aux_reference_fe = make_reference_fe ( this%topology, &
                                          this%fe_type, &
+  !                                       this%num_dims-2, 
                                          1, &
                                          this%order_vector(1), &
                                          this%field_type, &
                                          this%conformity )
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
-end subroutine lagrangian_reference_fe_create_edge_local_interpolation
+end subroutine lagrangian_reference_fe_create_edget_interpolation
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_apply_cell_map( this, fe_map,                 &
@@ -822,7 +824,7 @@ subroutine lagrangian_reference_fe_fill (this)
 
   if ( this%conformity .and. this%continuity ) then
      allocate(this%own_dof_permutations(this%num_dims-1))
-     call this%fill_own_dof_permutations()
+     call this%fill_own_dofs_permutations()
   end if
 
   if ( this%num_field_components /= 1 ) then
@@ -882,7 +884,7 @@ subroutine lagrangian_reference_fe_fill (this)
 end subroutine lagrangian_reference_fe_fill
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_fill_own_dof_permutations (this)
+subroutine lagrangian_reference_fe_fill_own_dofs_permutations (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout) :: this
   integer(ip) :: idime
@@ -893,7 +895,7 @@ subroutine lagrangian_reference_fe_fill_own_dof_permutations (this)
                                              this%polytope, &
                                              this%own_dof_permutations(idime) )
   end do
-end subroutine lagrangian_reference_fe_fill_own_dof_permutations
+end subroutine lagrangian_reference_fe_fill_own_dofs_permutations
 
 subroutine lagrangian_fill_qpoints_permutations (this, quadrature, qpoints_perm)
   implicit none

@@ -150,7 +150,7 @@ subroutine error_norms_scalar_compute_cell_contribution (this, &
   norm_requires_gradients = error_norm_requires_gradients(norm_type) 
   fe_map                  => fe%get_fe_map()
   quadrature              => fe%get_quadrature()
-  coordinates             => fe_map%get_quadrature_coordinates()
+  coordinates             => fe_map%get_quadrature_points_coordinates()
   n_q_points              = quadrature%get_num_quadrature_points() 
 
   if (norm_requires_values) then

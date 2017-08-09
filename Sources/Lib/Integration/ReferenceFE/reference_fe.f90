@@ -142,13 +142,13 @@ module reference_fe_names
     real(rp), allocatable       :: det_jacobian(:) 
 
     ! Coordinates of git points (num_dims,num_quadrature_points)       
-    type(point_t), allocatable  :: coordinates_quadrature(:)  
+    type(point_t), allocatable  :: quadrature_points_coordinates(:)  
     
     ! Coordinates of evaluation points (num_dims,num_corners of element/face)  
-    type(point_t), allocatable  :: coordinates_nodes(:) 
+    type(point_t), allocatable  :: nodes_coordinates(:) 
     
     ! Geometry interpolation_t in the reference element domain    
-    type(interpolation_t)       :: interpolation_geometry   
+    type(interpolation_t)       :: interpolation   
     
     ! Characteristic length of the reference element
     real(rp)                    :: reference_fe_characteristic_length
@@ -157,8 +157,7 @@ module reference_fe_names
     procedure, non_overridable :: update_interpolation              => base_map_update_interpolation
     procedure, non_overridable :: get_coordinates                   => base_map_get_coordinates
     procedure, non_overridable :: get_quadrature_points_coordinates => base_map_get_quadrature_points_coordinates
-    procedure, non_overridable :: get_quadrature_coordinates        => base_map_get_quadrature_coordinates
-    procedure, non_overridable :: compute_quadrature_coordinates    => base_map_compute_quadrature_coordinates
+    procedure, non_overridable :: compute_quadrature_points_coordinates    => base_map_compute_quadrature_points_coordinates
     procedure, non_overridable :: get_det_jacobian                  => base_map_get_det_jacobian
     procedure, non_overridable :: get_det_jacobians                 => base_map_get_det_jacobians
     procedure, non_overridable :: get_jacobian_column               => base_map_get_jacobian_column
@@ -394,7 +393,7 @@ module reference_fe_names
      ! TBP to create an interpolation from a quadrature_t and reference_fe_t, 
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
-     procedure(create_facet_interpolation_interface)     , deferred :: create_facet_interpolation
+     procedure(create_interpolation_restricted_to_facet_interface)     , deferred :: create_interpolation_restricted_to_facet
      procedure(apply_cell_map_interface)                , deferred :: apply_cell_map
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
@@ -462,7 +461,7 @@ module reference_fe_names
           &     check_compatibility_of_n_faces
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
      
-     procedure(fill_own_dof_permutations_interface), deferred :: fill_own_dof_permutations
+     procedure(fill_own_dofs_permutations_interface), deferred :: fill_own_dofs_permutations
      procedure(fill_qpoints_permutations_interface), deferred :: fill_qpoints_permutations
      
      procedure(get_default_quadrature_degree_interface), deferred :: get_default_quadrature_degree
@@ -566,7 +565,7 @@ module reference_fe_names
        logical    , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
 
-     subroutine create_facet_interpolation_interface ( this, local_face_id , local_quadrature,       &
+     subroutine create_interpolation_restricted_to_facet_interface ( this, local_face_id , local_quadrature,       &
           &                                           face_interpolation)
        import :: reference_fe_t, ip, quadrature_t, interpolation_t
        implicit none 
@@ -574,7 +573,7 @@ module reference_fe_names
        integer(ip)          , intent(in)    :: local_face_id
        type(quadrature_t)   , intent(in)    :: local_quadrature
        type(interpolation_t), intent(inout) :: face_interpolation
-     end subroutine create_facet_interpolation_interface
+     end subroutine create_interpolation_restricted_to_facet_interface
 
      function get_component_node_interface( this, node )
        import :: reference_fe_t, ip
@@ -818,7 +817,7 @@ module reference_fe_names
        class(reference_fe_t), intent(inout) :: this 
      end subroutine create_nodal_quadrature_interface
      
-     subroutine fill_own_dof_permutations_interface (this)
+     subroutine fill_own_dofs_permutations_interface (this)
         import :: reference_fe_t
         implicit none
         class(reference_fe_t), intent(inout) :: this 
@@ -880,9 +879,9 @@ contains
   procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
   procedure :: create_facet_quadrature    => lagrangian_reference_fe_create_facet_quadrature
   procedure :: create_interpolation      => lagrangian_reference_fe_create_interpolation
-  procedure :: create_facet_interpolation => lagrangian_reference_fe_create_facet_interpolation
-  procedure :: create_facet_local_interpolation  => lagrangian_reference_fe_create_facet_local_interpolation
-  procedure :: create_edge_local_interpolation  => lagrangian_reference_fe_create_edge_local_interpolation
+  procedure :: create_interpolation_restricted_to_facet => lrfe_create_interpolation_restricted_to_facet
+  procedure :: create_facet_interpolation  => lagrangian_reference_fe_create_facet_interpolation
+  procedure :: create_edget_interpolation  => lagrangian_reference_fe_create_edget_interpolation
   procedure :: apply_cell_map      => lagrangian_reference_fe_apply_cell_map
   procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node  => lagrangian_reference_fe_get_scalar_from_vector_node
@@ -918,8 +917,8 @@ contains
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
        & => lagrangian_reference_fe_fill
-  procedure :: fill_own_dof_permutations           &
-       & => lagrangian_reference_fe_fill_own_dof_permutations
+  procedure :: fill_own_dofs_permutations           &
+       & => lagrangian_reference_fe_fill_own_dofs_permutations
   procedure :: fill_qpoints_permutations           &
        & => lagrangian_fill_qpoints_permutations
   procedure, private, non_overridable :: fill_field_components        & 
@@ -1032,7 +1031,7 @@ contains
 procedure (change_basis_interface), private, deferred :: change_basis
 procedure :: create                           => raviart_thomas_create
 procedure :: free                             => raviart_thomas_free
-procedure :: create_facet_local_interpolation  => raviart_thomas_create_facet_local_interpolation
+procedure :: create_facet_interpolation  => raviart_thomas_create_facet_interpolation
 procedure :: blending                         => raviart_thomas_blending
 procedure :: create_data_out_quadrature       => raviart_thomas_create_data_out_quadrature
 procedure :: get_num_subcells              => raviart_thomas_get_num_subcells
@@ -1052,7 +1051,7 @@ procedure :: get_divergences_vector           => raviart_thomas_get_divergences_
 procedure :: get_curl_vector                  => raviart_thomas_get_curl_vector
 procedure :: get_curls_vector                  => raviart_thomas_get_curls_vector
 procedure :: create_interpolation             => raviart_thomas_create_interpolation
-procedure :: create_facet_interpolation        => raviart_thomas_create_facet_interpolation
+procedure :: create_interpolation_restricted_to_facet        => rt_create_interpolation_restricted_to_facet
 procedure :: evaluate_fe_function_scalar          &
     & => raviart_thomas_evaluate_fe_function_scalar
 procedure :: evaluate_fe_function_vector          & 
@@ -1100,7 +1099,7 @@ procedure (nedelec_fill_edge_interpolation), private, deferred :: fill_edge_inte
 
 procedure :: create                          => nedelec_create
 procedure :: free                            => nedelec_free
-procedure :: create_facet_local_interpolation => nedelec_create_facet_local_interpolation
+procedure :: create_facet_interpolation => nedelec_create_facet_interpolation
 procedure :: blending                        => nedelec_blending
 procedure :: create_data_out_quadrature      => nedelec_create_data_out_quadrature
 procedure :: get_num_subcells             => nedelec_get_num_subcells
@@ -1120,7 +1119,7 @@ procedure :: get_divergences_vector          => nedelec_get_divergences_vector
 procedure :: get_curl_vector                 => nedelec_get_curl_vector
 procedure :: get_curls_vector                => nedelec_get_curls_vector
 procedure :: create_interpolation            => nedelec_create_interpolation
-procedure :: create_facet_interpolation       => nedelec_create_facet_interpolation
+procedure :: create_interpolation_restricted_to_facet       => nedelec_create_interpolation_restricted_to_facet
 procedure :: create_edge_interpolation       => nedelec_create_edge_interpolation
 procedure :: create_edge_quadrature          => nedelec_create_edge_quadrature
 procedure :: evaluate_fe_function_scalar          &
@@ -1187,8 +1186,8 @@ contains
              &  => tet_lagrangian_reference_fe_get_subcells_connectivity
    procedure :: blending                                                                &
              &  => tet_lagrangian_reference_fe_blending 
-   procedure :: fill_own_dof_permutations                                               &
-             &  => tet_lagrangian_reference_fe_fill_own_dof_permutations
+   procedure :: fill_own_dofs_permutations                                               &
+             &  => tet_lagrangian_reference_fe_fill_own_dofs_permutations
    procedure :: fill_qpoints_permutations                                               &
              &  => tet_lagrangian_reference_fe_fill_qpoints_permutations
    ! Deferred TBP implementors from lagrangian_reference_fe_t
@@ -1390,8 +1389,8 @@ procedure :: check_compatibility_of_n_faces                              &
 &   => tet_nedelec_reference_fe_check_compatibility_of_n_faces
 procedure :: get_characteristic_length                                   &
 &   => tet_nedelec_reference_fe_get_characteristic_length
-procedure :: fill_own_dof_permutations                                   &
-&  => tet_nedelec_reference_fe_fill_own_dof_permutations
+procedure :: fill_own_dofs_permutations                                   &
+&  => tet_nedelec_reference_fe_fill_own_dofs_permutations
 procedure :: fill_qpoints_permutations                                   &
 &  => tet_nedelec_reference_fe_fill_qpoints_permutations
 procedure, private :: fill                                               & 
@@ -1430,9 +1429,9 @@ contains
   procedure :: create_quadrature           => void_reference_fe_create_quadrature
   procedure :: create_facet_quadrature      => void_reference_fe_create_facet_quadrature
   procedure :: create_interpolation        => void_reference_fe_create_interpolation
-  procedure :: create_facet_interpolation   => void_reference_fe_create_facet_interpolation
-  procedure :: create_facet_local_interpolation  => void_reference_fe_create_facet_local_interpolation
-  procedure :: create_edge_local_interpolation  => void_reference_fe_create_edge_local_interpolation
+  procedure :: create_interpolation_restricted_to_facet   => void_reference_fe_create_interpolation_restricted_to_facet
+  procedure :: create_facet_interpolation  => void_reference_fe_create_facet_interpolation
+  procedure :: create_edget_interpolation  => void_reference_fe_create_edget_interpolation
   procedure :: apply_cell_map             => void_reference_fe_apply_cell_map
   procedure :: get_component_node               => void_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node => void_reference_fe_get_scalar_from_vector_node
@@ -1456,7 +1455,7 @@ contains
   procedure :: evaluate_gradient_fe_function_vector => void_reference_fe_evaluate_gradient_fe_function_vector
   procedure :: check_compatibility_of_n_faces       => void_reference_fe_check_compatibility_of_n_faces
   procedure :: get_characteristic_length            => void_reference_fe_get_characteristic_length  
-  procedure :: fill_own_dof_permutations            => void_reference_fe_fill_own_dof_permutations
+  procedure :: fill_own_dofs_permutations            => void_reference_fe_fill_own_dofs_permutations
   procedure :: fill_qpoints_permutations            => void_reference_fe_fill_qpoints_permutations     
   procedure :: free                                 => void_reference_fe_free
   procedure :: get_default_quadrature_degree        => void_reference_fe_get_default_quadrature_degree
@@ -1473,8 +1472,8 @@ private
 integer(ip)                    :: num_shape_functions
 integer(ip)                    :: num_quadrature_points
 class(reference_fe_t), pointer :: reference_fe
-type(interpolation_t)          :: interpolation      ! Unknown interpolation_t in the reference element domain
-type(interpolation_t)          :: interpolation_o_map! Unknown interpolation_t in the physical element domain
+type(interpolation_t)          :: interpolation_reference_cell      ! Unknown interpolation_t in the reference element domain
+type(interpolation_t)          :: interpolation_real_cell! Unknown interpolation_t in the physical element domain
 contains
 
 procedure, non_overridable :: create         => cell_integrator_create
@@ -1592,8 +1591,8 @@ contains
   procedure, non_overridable :: update               => face_maps_update
   procedure, non_overridable :: compute_characteristic_length                                      &
   &                                             => face_maps_compute_characteristic_length
-  procedure, non_overridable :: get_quadrature_coordinates                                         &
-  &                                             => face_maps_get_quadrature_coordinates
+  procedure, non_overridable :: get_quadrature_points_coordinates                                         &
+  &                                             => face_maps_get_quadrature_points_coordinates
   procedure, non_overridable :: get_face_coordinates => face_maps_get_face_coordinates
   procedure, non_overridable :: get_coordinates_neighbour                                          &
   &                                             => face_maps_get_coordinates_neighbour

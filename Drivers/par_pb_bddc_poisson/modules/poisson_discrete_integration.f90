@@ -111,7 +111,7 @@ contains
           call fe%update_integration()
           
           ! Get quadrature coordinates to evaluate source_term
-          quad_coords => fe_map%get_quadrature_coordinates()
+          quad_coords => fe_map%get_quadrature_points_coordinates()
           
           ! Get subset_id
           if ( fe%get_set_id() <= 1 ) then

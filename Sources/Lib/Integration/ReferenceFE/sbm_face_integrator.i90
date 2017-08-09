@@ -185,14 +185,14 @@ function face_maps_get_face_coordinates(this)
 end function face_maps_get_face_coordinates
 
 !==================================================================================================
-function face_maps_get_quadrature_coordinates(this)
+function face_maps_get_quadrature_points_coordinates(this)
   implicit none
   ! Parameters
   class(face_maps_t), target, intent(in) :: this
-  type(point_t), pointer :: face_maps_get_quadrature_coordinates(:)
+  type(point_t), pointer :: face_maps_get_quadrature_points_coordinates(:)
   
-  face_maps_get_quadrature_coordinates => this%face_map%get_quadrature_coordinates()
-end function face_maps_get_quadrature_coordinates
+  face_maps_get_quadrature_points_coordinates => this%face_map%get_quadrature_points_coordinates()
+end function face_maps_get_quadrature_points_coordinates
 
 !==================================================================================================
 function face_maps_get_coordinates_neighbour(this,neighbour_id,face_lid)

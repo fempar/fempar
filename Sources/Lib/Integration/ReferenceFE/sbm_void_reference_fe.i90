@@ -101,7 +101,7 @@ end subroutine void_reference_fe_create_interpolation
 ! This routine creates the interpolation corresponding to the evaluation of the shape functions on
 ! integration points given by local_quadrature either on the face 'local_face_id' of the element or
 ! in all the faces of the element.
-subroutine void_reference_fe_create_facet_interpolation( this,local_face_id, &
+subroutine void_reference_fe_create_interpolation_restricted_to_facet( this,local_face_id, &
      & local_quadrature,face_interpolation)
   implicit none 
   class(void_reference_fe_t), intent(in)    :: this 
@@ -115,12 +115,12 @@ subroutine void_reference_fe_create_facet_interpolation( this,local_face_id, &
 
   ! Fill the values of the shape functions
   !call this%fill_face_interpolation(local_quadrature,local_face_id,face_interpolation)
-end subroutine void_reference_fe_create_facet_interpolation
+end subroutine void_reference_fe_create_interpolation_restricted_to_facet
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine void_reference_fe_create_facet_local_interpolation (this, quadrature, interpolation)
+subroutine void_reference_fe_create_facet_interpolation (this, quadrature, interpolation)
   implicit none
   class(void_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -137,12 +137,12 @@ subroutine void_reference_fe_create_facet_local_interpolation (this, quadrature,
   
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
-end subroutine void_reference_fe_create_facet_local_interpolation
+end subroutine void_reference_fe_create_facet_interpolation
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine void_reference_fe_create_edge_local_interpolation (this, quadrature, interpolation)
+subroutine void_reference_fe_create_edget_interpolation (this, quadrature, interpolation)
   implicit none
   class(void_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -156,7 +156,7 @@ subroutine void_reference_fe_create_edge_local_interpolation (this, quadrature, 
                                          this%conformity )
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
-end subroutine void_reference_fe_create_edge_local_interpolation
+end subroutine void_reference_fe_create_edget_interpolation
 
 !==================================================================================================
 subroutine void_reference_fe_apply_cell_map( this, fe_map,                 &
@@ -529,12 +529,12 @@ end function void_reference_fe_get_characteristic_length
 
 
 !=================================================================================================
-subroutine void_reference_fe_fill_own_dof_permutations  ( this )
+subroutine void_reference_fe_fill_own_dofs_permutations  ( this )
   implicit none 
   class(void_reference_fe_t), intent(inout) :: this 
   real(rp)  :: void_reference_fe_get_characteristic_length 
   check(.false.)
-end subroutine void_reference_fe_fill_own_dof_permutations 
+end subroutine void_reference_fe_fill_own_dofs_permutations 
 
 !=================================================================================================
 subroutine void_reference_fe_fill_qpoints_permutations  ( this, quadrature, qpoints_perm )

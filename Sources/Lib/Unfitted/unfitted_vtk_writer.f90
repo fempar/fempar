@@ -63,7 +63,7 @@ module unfitted_vtk_writer_names
 
     procedure, non_overridable :: attach_triangulation  => uvtkw_attach_triangulation
     procedure, non_overridable :: attach_boundary_faces => uvtkw_attach_boundary_faces
-    procedure, non_overridable :: attach_boundary_quad_points => uvtkw_attach_boundary_quad_points
+    procedure, non_overridable :: attach_boundary_quadrature_points => uvtkw_attach_boundary_quadrature_points
     procedure, non_overridable :: attach_fe_function    => uvtkw_attach_fe_function
     procedure, non_overridable :: write_to_vtk_file     => uvtkw_write_to_vtk_file
     procedure, non_overridable :: write_to_pvtk_file    => uvtkw_write_to_pvtk_file
@@ -423,7 +423,7 @@ contains
   end subroutine  uvtkw_attach_fe_function
 
 !========================================================================================
-  subroutine uvtkw_attach_boundary_quad_points( this, fe_space )
+  subroutine uvtkw_attach_boundary_quadrature_points( this, fe_space )
   
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
@@ -431,7 +431,7 @@ contains
   
     class(fe_iterator_t),allocatable :: fe
     type(quadrature_t), pointer :: quadrature
-    type(point_t), pointer :: quadrature_coordinates(:)
+    type(point_t), pointer :: quadrature_points_coordinates(:)
     type(piecewise_fe_map_t),     pointer :: fe_map
     integer(ip) :: num_dime, num_subfaces, num_gp_subface
     integer(ip) :: qpoint, num_quad_points
@@ -499,12 +499,12 @@ contains
        fe_map => fe%get_boundary_piecewise_fe_map()
   
        ! Physical coordinates of the quadrature points
-       quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => fe_map%get_quadrature_points_coordinates()
   
        do qpoint = 1, num_quad_points
-         this%x(ipoint) = quadrature_coordinates(qpoint)%get(1)
-         this%y(ipoint) = quadrature_coordinates(qpoint)%get(2)
-         this%z(ipoint) = quadrature_coordinates(qpoint)%get(3)
+         this%x(ipoint) = quadrature_points_coordinates(qpoint)%get(1)
+         this%y(ipoint) = quadrature_points_coordinates(qpoint)%get(2)
+         this%z(ipoint) = quadrature_points_coordinates(qpoint)%get(3)
          call fe_map%get_normal(qpoint,normal_vec)
          this%v_x(ipoint) = normal_vec%get(1)
          this%v_y(ipoint) = normal_vec%get(2)
@@ -522,7 +522,7 @@ contains
     if (num_dime == 2_ip) this%v_z(:) = 0
     call fe_space%free_fe_iterator(fe)
   
-  end subroutine uvtkw_attach_boundary_quad_points
+  end subroutine uvtkw_attach_boundary_quadrature_points
 
 !========================================================================================  
   subroutine uvtkw_write_to_vtk_file(this,filename)

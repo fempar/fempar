@@ -152,7 +152,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   call fe_map%update_interpolation( quadrature, reference_fe_geo )
   phys_cell_coords => fe_map%get_coordinates()
   call this%get_coordinates(phys_cell_coords)
-  call fe_map%compute_quadrature_coordinates()
+  call fe_map%compute_quadrature_points_coordinates()
 
   ! At this point we can extract the physical coordinates of the sub-nodes from the fe_maps
 

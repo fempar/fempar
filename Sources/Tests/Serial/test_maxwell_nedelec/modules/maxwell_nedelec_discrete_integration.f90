@@ -106,7 +106,7 @@ contains
        call fe%update_integration()
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => fe_map%get_quadrature_coordinates()
+       quad_coords => fe_map%get_quadrature_points_coordinates()
        
        ! Evaluate pressure source term at quadrature points
        call this%source_term%get_values_set(quad_coords, source_term_values)
