@@ -72,19 +72,19 @@ function base_fe_object_iterator_get_dimension (this)
   base_fe_object_iterator_get_dimension = this%object%get_dimension()
 end function base_fe_object_iterator_get_dimension
 
-function base_fe_object_iterator_get_number_parts_around(this)
+function base_fe_object_iterator_get_num_parts_around(this)
   implicit none
   class(base_fe_object_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_object_iterator_get_number_parts_around
-  base_fe_object_iterator_get_number_parts_around = this%object%get_number_parts_around()
-end function base_fe_object_iterator_get_number_parts_around
+  integer(ip) :: base_fe_object_iterator_get_num_parts_around
+  base_fe_object_iterator_get_num_parts_around = this%object%get_num_parts_around()
+end function base_fe_object_iterator_get_num_parts_around
 
-function base_fe_object_iterator_get_number_subparts_around(this)
+function base_fe_object_iterator_get_num_subparts_around(this)
   implicit none
   class(base_fe_object_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_object_iterator_get_number_subparts_around
-  base_fe_object_iterator_get_number_subparts_around = this%object%get_number_subparts_around()
-end function base_fe_object_iterator_get_number_subparts_around
+  integer(ip) :: base_fe_object_iterator_get_num_subparts_around
+  base_fe_object_iterator_get_num_subparts_around = this%object%get_num_subparts_around()
+end function base_fe_object_iterator_get_num_subparts_around
 
 function base_fe_object_iterator_create_parts_around_iterator(this)
   implicit none

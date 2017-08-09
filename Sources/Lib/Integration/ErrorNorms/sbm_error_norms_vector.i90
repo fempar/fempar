@@ -43,9 +43,9 @@ subroutine error_norms_vector_create (this, fe_space, field_id)
   call this%cell_fe_function%create(fe_space, field_id)  
   environment => this%fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then
-     allocate(this%work_array_values(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
+     allocate(this%work_array_values(this%fe_space%get_max_num_quadrature_points(),1), stat=istat)
      check(istat==0)
-     allocate(this%work_array_gradients(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
+     allocate(this%work_array_gradients(this%fe_space%get_max_num_quadrature_points(),1), stat=istat)
      check(istat==0)
   end if
 end subroutine error_norms_vector_create
@@ -152,7 +152,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   type(point_t)     , pointer   :: coordinates(:)
   real(rp)                      :: time_(1) 
   integer(ip)                   :: q_point, n_q_points
-  integer(ip)                   :: number_dimensions, idime, jdime
+  integer(ip)                   :: num_dimensions, idime, jdime
   real(rp)                      :: sum, gradient_component
   
   type(vector_field_t), pointer :: fe_function_values(:)
@@ -170,7 +170,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   fe_map                  => fe%get_fe_map()
   quadrature              => fe%get_quadrature()
   coordinates             => fe_map%get_quadrature_coordinates()
-  n_q_points              = quadrature%get_number_quadrature_points() 
+  n_q_points              = quadrature%get_num_quadrature_points() 
 
   if (norm_requires_values) then
      ! First evaluate exact solution at the quadrature points.

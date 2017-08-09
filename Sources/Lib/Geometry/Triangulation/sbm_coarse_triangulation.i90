@@ -75,7 +75,7 @@
                                          lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
       this%num_dimensions  = num_dimensions      
       this%num_local_cells = num_local_cells
-      this%num_ghost_cells = this%cell_import%get_number_ghost_elements()
+      this%num_ghost_cells = this%cell_import%get_num_ghost_elements()
       
       ! Allocate + fill cells-related data
       call this%allocate_and_fill_ptr_vefs_per_cell(ptr_vefs_per_cell)

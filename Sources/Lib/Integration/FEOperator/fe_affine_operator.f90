@@ -186,11 +186,11 @@ subroutine fe_affine_operator_create (this, &
 
 #ifdef DEBUG
  if ( present(field_blocks) ) then
-   assert ( size(field_blocks) == fe_space%get_number_fields() )
+   assert ( size(field_blocks) == fe_space%get_num_fields() )
  end if
  if ( present(field_coupling) ) then
-   assert ( size(field_coupling,1) == fe_space%get_number_fields() )
-   assert ( size(field_coupling,2) == fe_space%get_number_fields() )
+   assert ( size(field_coupling,1) == fe_space%get_num_fields() )
+   assert ( size(field_coupling,2) == fe_space%get_num_fields() )
  end if
 #endif
  
@@ -198,7 +198,7 @@ subroutine fe_affine_operator_create (this, &
  this%fe_space                     => fe_space
  this%discrete_integration         => discrete_integration
  
- call this%block_layout%create(fe_space%get_number_fields(), field_blocks, field_coupling )
+ call this%block_layout%create(fe_space%get_num_fields(), field_blocks, field_coupling )
  call this%fe_space%fill_dof_info(this%block_layout)
  if ( present(trial_fe_space) ) then
     this%trial_fe_space => trial_fe_space

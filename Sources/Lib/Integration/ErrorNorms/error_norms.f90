@@ -72,7 +72,7 @@ module error_norms_names
      type(cell_fe_function_scalar_t)       :: cell_fe_function
      
      ! Work arrays to store exact function (and difference of fe - exact functions) 
-     ! values and gradients. Size = (max_number_of_quadrature_points, 1). A 2-rank array 
+     ! values and gradients. Size = (max_num_quadrature_points, 1). A 2-rank array 
      ! is required provided the current interface of tensor-valued function_t data types
      real(rp)                , allocatable :: work_array_values(:,:)
      type(vector_field_t)    , allocatable :: work_array_gradients(:,:)
@@ -103,7 +103,7 @@ module error_norms_names
      type(cell_fe_function_vector_t)       :: cell_fe_function
      
      ! Work arrays to store exact function (and difference of fe - exact functions) 
-     ! values, gradients and curls. Size = (max_number_of_quadrature_points, 1). A 2-rank array 
+     ! values, gradients and curls. Size = (max_num_quadrature_points, 1). A 2-rank array 
      ! is required provided the current interface of tensor-valued function_t data types
      type(vector_field_t)    , allocatable :: work_array_values(:,:)
      type(tensor_field_t)    , allocatable :: work_array_gradients(:,:)

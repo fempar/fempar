@@ -179,7 +179,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
              ptr_ext_neighs_per_itfc_cell, &
              lst_ext_neighs_gids, &
              lst_ext_neighs_part_ids)
-        this%num_ghost_cells = this%cell_import%get_number_ghost_elements()
+        this%num_ghost_cells = this%cell_import%get_num_ghost_elements()
 
         ! Allocate + fill cells-related data
         call this%allocate_and_fill_ptr_vefs_per_cell(ptr_vefs_per_cell)
@@ -222,8 +222,8 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
      else if(triangulation_generate==triangulation_generate_structured) then
 
         ! Get num_dimensions from FPL
-        assert(parameters%isAssignable(number_of_dimensions_key, this%num_dimensions))
-        istat = parameters%get(key = number_of_dimensions_key, value = this%num_dimensions)
+        assert(parameters%isAssignable(num_dimensions_key, this%num_dimensions))
+        istat = parameters%get(key = num_dimensions_key, value = this%num_dimensions)
         assert(istat==0)
 
         call uniform_hex_mesh%get_data_from_parameter_list(parameters)
@@ -283,13 +283,13 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
            call this%reference_fe_geo_index%put(key=8,val=1,stat=istat)
            reference_fe_geo_list(1) = &
                 &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-                &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
+                &                        num_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
                 &                        field_type = field_type_scalar, conformity = .true. )
         else
            call this%reference_fe_geo_index%put(key=26,val=1,stat=istat)
            reference_fe_geo_list(1) = &
                 &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-                &                        number_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
+                &                        num_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
                 &                        field_type = field_type_scalar, conformity = .true. )
         end if
         ! Transfer allocated target from local variable to member variable of base_static_triangulation

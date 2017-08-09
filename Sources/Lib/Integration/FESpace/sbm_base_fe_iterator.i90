@@ -218,13 +218,13 @@ end function base_fe_iterator_is_ghost
 ! comment (commit 0907e7b9d07e122ba69e02e0d72bac46546acc04), type(coarse_fe_space_t) needs 
 ! this TBP to efficiently locate a vef in the global type(list_t) data type which associates 
 ! DoFs to vefs. 
-function base_fe_iterator_get_scan_sum_number_vefs(this)
+function base_fe_iterator_get_scan_sum_num_vefs(this)
   implicit none
   class(base_fe_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_iterator_get_scan_sum_number_vefs
+  integer(ip) :: base_fe_iterator_get_scan_sum_num_vefs
   assert(allocated(this%cell))
-  base_fe_iterator_get_scan_sum_number_vefs = this%cell%scan_sum_number_vefs()
-end function base_fe_iterator_get_scan_sum_number_vefs
+  base_fe_iterator_get_scan_sum_num_vefs = this%cell%scan_sum_num_vefs()
+end function base_fe_iterator_get_scan_sum_num_vefs
 
 subroutine base_fe_iterator_get_vef (this, ivef, vef)
   implicit none
@@ -248,19 +248,19 @@ function base_fe_iterator_get_mc_case( this ) result ( mc_case )
   mc_case = this%cell%get_mc_case()
 end function base_fe_iterator_get_mc_case
 
-function base_fe_iterator_get_number_of_subcells( this ) result ( num_subcells )
+function base_fe_iterator_get_num_subcells( this ) result ( num_subcells )
   implicit none
   class(base_fe_iterator_t), intent(in) :: this
   integer(ip) :: num_subcells
-  num_subcells = this%cell%get_number_of_subcells()
-end function base_fe_iterator_get_number_of_subcells
+  num_subcells = this%cell%get_num_subcells()
+end function base_fe_iterator_get_num_subcells
 
-function base_fe_iterator_get_number_of_subcell_nodes( this ) result ( num_nodes_subcell )
+function base_fe_iterator_get_num_subcell_nodes( this ) result ( num_nodes_subcell )
   implicit none
   class(base_fe_iterator_t), intent(in) :: this
   integer(ip) :: num_nodes_subcell
-  num_nodes_subcell = this%cell%get_number_of_subcell_nodes()
-end function base_fe_iterator_get_number_of_subcell_nodes
+  num_nodes_subcell = this%cell%get_num_subcell_nodes()
+end function base_fe_iterator_get_num_subcell_nodes
 
 subroutine base_fe_iterator_get_phys_coords_of_subcell( this, subcell, points)
   implicit none
@@ -278,19 +278,19 @@ subroutine base_fe_iterator_get_ref_coords_of_subcell( this, subcell, points)
   call this%cell%get_ref_coords_of_subcell(subcell,points)
 end subroutine base_fe_iterator_get_ref_coords_of_subcell
 
-function base_fe_iterator_get_number_of_subfaces( this ) result ( num_subfaces )
+function base_fe_iterator_get_num_subfaces( this ) result ( num_subfaces )
   implicit none
   class(base_fe_iterator_t), intent(in)    :: this
   integer(ip) :: num_subfaces
-  num_subfaces = this%cell%get_number_of_subfaces()
-end function base_fe_iterator_get_number_of_subfaces
+  num_subfaces = this%cell%get_num_subfaces()
+end function base_fe_iterator_get_num_subfaces
 
-function base_fe_iterator_get_number_of_subface_nodes( this ) result ( num_nodes_subface )
+function base_fe_iterator_get_num_subface_nodes( this ) result ( num_nodes_subface )
   implicit none
   class(base_fe_iterator_t), intent(in)    :: this
   integer(ip) :: num_nodes_subface
-  num_nodes_subface = this%cell%get_number_of_subface_nodes()
-end function base_fe_iterator_get_number_of_subface_nodes
+  num_nodes_subface = this%cell%get_num_subface_nodes()
+end function base_fe_iterator_get_num_subface_nodes
 
 subroutine base_fe_iterator_get_phys_coords_of_subface( this, subface, points )
   implicit none

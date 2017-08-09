@@ -335,14 +335,14 @@ end subroutine free_timers
       reference_fe_geo => cell%get_reference_fe_geo()
       this%reference_fes(PAR_TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   num_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true. )
       if (this%test_params%get_use_void_fes()) then
         this%reference_fes(PAR_TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_void, &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   num_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = -1, &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true. )

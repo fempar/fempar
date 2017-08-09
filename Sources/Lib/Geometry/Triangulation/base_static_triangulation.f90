@@ -130,17 +130,17 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_vef                 => cell_iterator_get_vef
     procedure, non_overridable           :: is_local                => cell_iterator_is_local
     procedure, non_overridable           :: is_ghost                => cell_iterator_is_ghost
-    procedure, non_overridable           :: scan_sum_number_vefs    => cell_iterator_get_scan_sum_number_vefs
+    procedure, non_overridable           :: scan_sum_num_vefs    => cell_iterator_get_scan_sum_num_vefs
 
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
     procedure :: update_sub_triangulation    => cell_iterator_update_sub_triangulation
     procedure :: get_mc_case                 => cell_iterator_get_mc_case
-    procedure :: get_number_of_subcells      => cell_iterator_get_number_of_subcells
-    procedure :: get_number_of_subcell_nodes => cell_iterator_get_number_of_subcell_nodes
+    procedure :: get_num_subcells      => cell_iterator_get_num_subcells
+    procedure :: get_num_subcell_nodes => cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => cell_iterator_get_phys_coords_of_subcell
     procedure :: get_ref_coords_of_subcell   => cell_iterator_get_ref_coords_of_subcell
-    procedure :: get_number_of_subfaces      => cell_iterator_get_number_of_subfaces
-    procedure :: get_number_of_subface_nodes => cell_iterator_get_number_of_subface_nodes
+    procedure :: get_num_subfaces      => cell_iterator_get_num_subfaces
+    procedure :: get_num_subface_nodes => cell_iterator_get_num_subface_nodes
     procedure :: get_phys_coords_of_subface  => cell_iterator_get_phys_coords_of_subface
     procedure :: get_ref_coords_of_subface   => cell_iterator_get_ref_coords_of_subface
     procedure :: is_cut                      => cell_iterator_is_cut
@@ -222,8 +222,8 @@ module base_static_triangulation_names
     procedure, non_overridable          :: get_lid                         => object_iterator_get_lid
     procedure, non_overridable          :: get_gid                         => object_iterator_get_gid
     procedure, non_overridable          :: get_dimension                   => object_iterator_get_dimension
-    procedure, non_overridable          :: get_number_parts_around         => object_iterator_get_number_parts_around
-    procedure, non_overridable          :: get_number_subparts_around      => object_iterator_get_number_subparts_around
+    procedure, non_overridable          :: get_num_parts_around         => object_iterator_get_num_parts_around
+    procedure, non_overridable          :: get_num_subparts_around      => object_iterator_get_num_subparts_around
     procedure, non_overridable          :: create_parts_around_iterator    => object_iterator_create_parts_around_iterator
     procedure, non_overridable          :: create_subparts_around_iterator => object_iterator_create_subparts_around_iterator
     procedure, non_overridable          :: get_num_vefs                    => object_iterator_get_num_vefs
@@ -296,14 +296,14 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
 
      ! Data structures to create objects (coarse cell info)
-     integer(ip)                             :: number_global_objects = 0
-     integer(ip)                             :: number_objects = 0
+     integer(ip)                             :: num_global_objects = 0
+     integer(ip)                             :: num_objects = 0
      integer(igp), allocatable               :: objects_gids(:)
      integer(ip) , allocatable               :: objects_dimension(:)
      type(list_t)                            :: vefs_object
      type(list_t)                            :: faces_object
      type(list_t)                            :: parts_object
-     integer(ip)                             :: number_subparts        ! Number of subparts around part (including those subparts which are local)
+     integer(ip)                             :: num_subparts        ! Number of subparts around part (including those subparts which are local)
      type(list_t)                            :: subparts_object        ! Number and list of subparts GIDs around each coarse n_face
      type(hash_table_ip_ip_t)                :: g2l_subparts           ! Translator among the GIDs of subparts and LIDs
      type(coarse_triangulation_t), pointer   :: coarse_triangulation => NULL()
@@ -331,7 +331,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_num_cells                       => bst_get_num_cells
      procedure, non_overridable          :: get_num_local_cells                 => bst_get_num_local_cells
      procedure, non_overridable          :: get_num_ghost_cells                 => bst_get_num_ghost_cells
-     procedure, non_overridable          :: get_number_objects                  => bst_get_number_objects
+     procedure, non_overridable          :: get_num_objects                  => bst_get_num_objects
 
      ! Cell traversals-related TBPs
      procedure                           :: create_cell_iterator                => bst_create_cell_iterator
@@ -351,8 +351,8 @@ module base_static_triangulation_names
      procedure                           :: free                                => bst_free
      
      ! Getters
-     procedure                           :: get_number_reference_fes_geo        => bst_get_number_reference_fes_geo
-     procedure                           :: get_max_number_shape_functions      => bst_get_max_number_shape_functions
+     procedure                           :: get_num_reference_fes_geo        => bst_get_num_reference_fes_geo
+     procedure                           :: get_max_num_shape_functions      => bst_get_max_num_shape_functions
      procedure                           :: is_tet_mesh                         => bst_is_tet_mesh
      procedure                           :: is_hex_mesh                         => bst_is_hex_mesh
      procedure                           :: is_mix_mesh                         => bst_is_mix_mesh
@@ -400,7 +400,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_lst_itfc_vefs                  => bst_free_lst_itfc_vefs
 
      ! Private methods to compute objects
-     procedure, non_overridable          :: get_number_subparts                            => bst_get_number_subparts
+     procedure, non_overridable          :: get_num_subparts                            => bst_get_num_subparts
      procedure, non_overridable          :: get_subpart_lid                                => bst_get_subpart_lid
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => bst_compute_vefs_and_parts_object
      procedure, non_overridable, private :: compute_vefs_and_parts_object_body             => bst_compute_vefs_and_parts_object_body
@@ -410,7 +410,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => bst_compute_part_id_from_subpart_gid
      procedure, non_overridable, private :: compute_objects_dimension                      => bst_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
-     procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids
+     procedure, non_overridable, private :: compute_num_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids
      procedure, non_overridable, private :: free_objects_gids_and_dim                      => bst_free_objects_gids_and_dim
 
      ! Private methods for coarser triangulation set-up

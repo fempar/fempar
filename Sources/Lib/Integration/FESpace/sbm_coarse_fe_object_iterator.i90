@@ -51,13 +51,13 @@ subroutine coarse_fe_object_iterator_get_fe_vef (this, ivef, fe_vef)
   call this%object%get_vef(ivef, fe_vef%vef)
 end subroutine coarse_fe_object_iterator_get_fe_vef
 
-function coarse_fe_object_iterator_get_number_coarse_dofs(this, field_id)
+function coarse_fe_object_iterator_get_num_coarse_dofs(this, field_id)
   implicit none
   class(coarse_fe_object_iterator_t), intent(in) :: this
   integer(ip)                       , intent(in) :: field_id
-  integer(ip) :: coarse_fe_object_iterator_get_number_coarse_dofs
-  coarse_fe_object_iterator_get_number_coarse_dofs = this%coarse_fe_space%own_coarse_dofs_per_field(field_id)%get_sublist_size(this%get_lid())
-end function coarse_fe_object_iterator_get_number_coarse_dofs
+  integer(ip) :: coarse_fe_object_iterator_get_num_coarse_dofs
+  coarse_fe_object_iterator_get_num_coarse_dofs = this%coarse_fe_space%own_coarse_dofs_per_field(field_id)%get_sublist_size(this%get_lid())
+end function coarse_fe_object_iterator_get_num_coarse_dofs
 
 function coarse_fe_object_iterator_create_own_coarse_dofs_iterator(this, field_id) 
   implicit none

@@ -56,19 +56,19 @@ public :: par_sparse_matrix_array_assembler_t
 contains
 
   subroutine par_sparse_matrix_array_assembler_assembly_array( this,           & 
-                                                     number_fields,  &
+                                                     num_fields,  &
                                                      field_blocks,   &
                                                      field_coupling, &
-                                                     number_dofs,    &
+                                                     num_dofs,    &
                                                      cell2dof,       &
                                                      elvec )
     implicit none
     class(par_sparse_matrix_array_assembler_t), intent(inout) :: this
-    integer(ip)                               , intent(in)    :: number_fields
-    integer(ip)                               , intent(in)    :: field_blocks(number_fields)
-    logical                                   , intent(in)    :: field_coupling(number_fields,number_fields)
-    integer(ip)                               , intent(in)    :: number_dofs(number_fields)
-    type(i1p_t)                               , intent(in)    :: cell2dof(number_fields)
+    integer(ip)                               , intent(in)    :: num_fields
+    integer(ip)                               , intent(in)    :: field_blocks(num_fields)
+    logical                                   , intent(in)    :: field_coupling(num_fields,num_fields)
+    integer(ip)                               , intent(in)    :: num_dofs(num_fields)
+    type(i1p_t)                               , intent(in)    :: cell2dof(num_fields)
     real(rp)                                  , intent(in)    :: elvec(:)
 
     class(array_t) , pointer :: array
@@ -77,8 +77,8 @@ contains
     select type(array)
        class is(par_scalar_array_t)
        call element_par_scalar_array_assembly( array,         &
-                                               number_fields, &
-                                               number_dofs,   &
+                                               num_fields, &
+                                               num_dofs,   &
                                                cell2dof,      &
                                                elvec )
        class default
@@ -88,23 +88,23 @@ contains
   end subroutine par_sparse_matrix_array_assembler_assembly_array
   
   subroutine par_sparse_matrix_array_assembler_assembly_matrix( this,            &
-                                                                number_fields,   &
+                                                                num_fields,   &
                                                                 field_blocks,    &
                                                                 field_coupling,  &
-                                                                number_row_dofs, &
-                                                                number_col_dofs, &
+                                                                num_row_dofs, &
+                                                                num_col_dofs, &
                                                                 cell2row_dofs,   &
                                                                 cell2col_dofs,   &
                                                                 elmat )
     implicit none
     class(par_sparse_matrix_array_assembler_t), intent(inout) :: this
-    integer(ip)                               , intent(in)    :: number_fields
-    integer(ip)                               , intent(in)    :: field_blocks(number_fields)
-    logical                                   , intent(in)    :: field_coupling(number_fields,number_fields)
-    integer(ip)                               , intent(in)    :: number_row_dofs(number_fields)
-    integer(ip)                               , intent(in)    :: number_col_dofs(number_fields)
-    type(i1p_t)                               , intent(in)    :: cell2row_dofs(number_fields)
-    type(i1p_t)                               , intent(in)    :: cell2col_dofs(number_fields)
+    integer(ip)                               , intent(in)    :: num_fields
+    integer(ip)                               , intent(in)    :: field_blocks(num_fields)
+    logical                                   , intent(in)    :: field_coupling(num_fields,num_fields)
+    integer(ip)                               , intent(in)    :: num_row_dofs(num_fields)
+    integer(ip)                               , intent(in)    :: num_col_dofs(num_fields)
+    type(i1p_t)                               , intent(in)    :: cell2row_dofs(num_fields)
+    type(i1p_t)                               , intent(in)    :: cell2col_dofs(num_fields)
     real(rp)                                  , intent(in)    :: elmat(:,:) 
 
     class(matrix_t), pointer :: matrix
@@ -113,9 +113,9 @@ contains
     select type(matrix)
        class is(par_sparse_matrix_t)
        call element_par_sparse_matrix_assembly( matrix,          &
-                                                number_fields,   &
-                                                number_row_dofs, &
-                                                number_col_dofs, &
+                                                num_fields,   &
+                                                num_row_dofs, &
+                                                num_col_dofs, &
                                                 cell2row_dofs,   &
                                                 cell2col_dofs,   &
                                                 field_coupling,  &
@@ -159,40 +159,40 @@ contains
     
   end subroutine par_sparse_matrix_array_assembler_compress_storage
 
-  subroutine element_par_scalar_array_assembly( array, number_fields, number_dofs, cell2dof, elvec )
+  subroutine element_par_scalar_array_assembly( array, num_fields, num_dofs, cell2dof, elvec )
     implicit none
     ! Parameters
     type(par_scalar_array_t), intent(inout) :: array
-    integer(ip)             , intent(in) :: number_fields
-    integer(ip)             , intent(in) :: number_dofs(number_fields)
-    type(i1p_t)             , intent(in) :: cell2dof(number_fields)
+    integer(ip)             , intent(in) :: num_fields
+    integer(ip)             , intent(in) :: num_dofs(num_fields)
+    type(i1p_t)             , intent(in) :: cell2dof(num_fields)
     real(rp)                , intent(in) :: elvec(:) 
     
     integer(ip) :: inode, idof, ielvec, ife_space
     
     ielvec = 0
-    do ife_space = 1, number_fields
-      call array%add( number_dofs(ife_space), &
+    do ife_space = 1, num_fields
+      call array%add( num_dofs(ife_space), &
                       cell2dof(ife_space)%p,  &
                       ielvec,                 &
                       elvec )
-      ielvec = ielvec + number_dofs(ife_space)
+      ielvec = ielvec + num_dofs(ife_space)
     end do
     
   end subroutine element_par_scalar_array_assembly
 
-  subroutine element_par_sparse_matrix_assembly( matrix, number_fields, number_row_dofs,        &
-       &                                         number_col_dofs, cell2row_dofs, cell2col_dofs, &
+  subroutine element_par_sparse_matrix_assembly( matrix, num_fields, num_row_dofs,        &
+       &                                         num_col_dofs, cell2row_dofs, cell2col_dofs, &
        &                                         field_coupling, facemat )
     implicit none
     ! Parameters
     type(par_sparse_matrix_t), intent(inout) :: matrix
-    integer(ip)              , intent(in)    :: number_fields
-    integer(ip)              , intent(in)    :: number_row_dofs(number_fields)
-    integer(ip)              , intent(in)    :: number_col_dofs(number_fields)
-    type(i1p_t)              , intent(in)    :: cell2row_dofs(number_fields)
-    type(i1p_t)              , intent(in)    :: cell2col_dofs(number_fields)
-    logical                  , intent(in)    :: field_coupling(number_fields,number_fields)
+    integer(ip)              , intent(in)    :: num_fields
+    integer(ip)              , intent(in)    :: num_row_dofs(num_fields)
+    integer(ip)              , intent(in)    :: num_col_dofs(num_fields)
+    type(i1p_t)              , intent(in)    :: cell2row_dofs(num_fields)
+    type(i1p_t)              , intent(in)    :: cell2col_dofs(num_fields)
+    logical                  , intent(in)    :: field_coupling(num_fields,num_fields)
     real(rp)                 , intent(in)    :: facemat(:,:) 
 
     integer(ip) :: ife_space, jfe_space
@@ -201,17 +201,17 @@ contains
     integer(ip) :: ielmat, jelmat
 
     ielmat=0
-    do ife_space=1, number_fields
+    do ife_space=1, num_fields
        jelmat=0
-       do jfe_space=1, number_fields
+       do jfe_space=1, num_fields
           if ((field_coupling(ife_space,jfe_space))) then
-             call matrix%insert(number_row_dofs(ife_space),number_col_dofs(jfe_space),               &
+             call matrix%insert(num_row_dofs(ife_space),num_col_dofs(jfe_space),               &
                   &             cell2row_dofs(ife_space)%p,cell2col_dofs(jfe_space)%p,ielmat,jelmat, &
                   &             facemat)
           end if
-          jelmat=jelmat+number_col_dofs(jfe_space)
+          jelmat=jelmat+num_col_dofs(jfe_space)
        end do
-       ielmat=ielmat+number_row_dofs(ife_space)
+       ielmat=ielmat+num_row_dofs(ife_space)
     end do
 
   end subroutine element_par_sparse_matrix_assembly

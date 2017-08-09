@@ -52,8 +52,8 @@ module vtk_parameters_names
 ! [[vtk_parameters_names(module):vtk_format_binary_appended(variable]], 
 ! [[vtk_parameters_names(module):vtk_format_binary(variable]], 
 ! [[vtk_parameters_names(module):vtk_default_root_task(variable]], 
-! [[vtk_parameters_names(module):vtk_default_number_of_tasks(variable]], 
-! [[vtk_parameters_names(module):vtk_default_guess_number_of_steps(variable]], 
+! [[vtk_parameters_names(module):vtk_default_num_tasks(variable]], 
+! [[vtk_parameters_names(module):vtk_default_guess_num_steps(variable]], 
 ! [[vtk_parameters_names(module):vtk_default_step_value(variable]], 
 ! [[vtk_parameters_names(module):vtk_default_format(variable]], 
 ! [[vtk_parameters_names(module):vtk_default_StaticGrid(variable]]
@@ -98,8 +98,8 @@ private
 
     ! DEFAULT PARAMETERS
     integer(ip),      parameter, public :: vtk_default_root_task             = 0
-    integer(ip),      parameter, public :: vtk_default_number_of_tasks       = 1
-    integer(ip),      parameter, public :: vtk_default_guess_number_of_steps = 100
+    integer(ip),      parameter, public :: vtk_default_num_tasks       = 1
+    integer(ip),      parameter, public :: vtk_default_guess_num_steps = 100
     real(rp),         parameter, public :: vtk_default_step_value            = 0.0_rp
     character(len=*), parameter, public :: vtk_default_format                = vtk_format_raw
     logical,          parameter, public :: vtk_default_StaticGrid            = .true.

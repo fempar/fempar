@@ -37,10 +37,10 @@ subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geomet
   integer(ip)           :: face_lid, istat
 
   call this%free()
-  this%number_faces = reference_fe_geometry%get_number_faces()
-  allocate(this%fe_map(this%number_faces),stat = istat)
+  this%num_faces = reference_fe_geometry%get_num_faces()
+  allocate(this%fe_map(this%num_faces),stat = istat)
   check(istat == 0)
-  do face_lid = 1,  this%number_faces
+  do face_lid = 1,  this%num_faces
      call this%fe_map(face_lid)%create_on_face(face_lid,quadrature,reference_fe_geometry)
   end do
 end subroutine fe_map_face_restriction_create
@@ -64,14 +64,14 @@ subroutine fe_map_face_restriction_free( this)
   ! Parameters
   class(fe_map_face_restriction_t), intent(inout) :: this
   integer(ip) :: face_lid , istat
-  do face_lid = 1, this%number_faces
+  do face_lid = 1, this%num_faces
      call this%fe_map(face_lid)%free()
   end do
   if (allocated(this%fe_map)) then
      deallocate(this%fe_map, stat = istat)
      check(istat == 0)
   end if
-  this%number_faces = 0
+  this%num_faces = 0
   this%active_face_lid = 0
 end subroutine fe_map_face_restriction_free
 
@@ -91,7 +91,7 @@ function fe_map_face_restriction_get_active_fe_map(this)
   ! Parameters
   class(fe_map_face_restriction_t), target, intent(in) :: this
   type(fe_map_t), pointer :: fe_map_face_restriction_get_active_fe_map
-  assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%number_faces )
+  assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%num_faces )
   fe_map_face_restriction_get_active_fe_map => this%fe_map(this%active_face_lid)
 end function fe_map_face_restriction_get_active_fe_map
 
@@ -108,7 +108,7 @@ subroutine face_maps_create(this, quadrature, left_geo_reference_fe, right_geo_r
 
   this%is_boundary = (.not. associated(right_geo_reference_fe))
 
-  this%number_dimensions = left_geo_reference_fe%get_number_dimensions()
+  this%num_dimensions = left_geo_reference_fe%get_num_dimensions()
   call this%face_map%create(quadrature,left_geo_reference_fe)
   call this%fe_maps(1)%create(quadrature,left_geo_reference_fe)
   if (associated(right_geo_reference_fe)) then
@@ -228,7 +228,7 @@ subroutine face_maps_get_normals (this, qpoint, normal)
   integer(ip) :: idime
   call normal(1)%init(0.0_rp)
   call normal(2)%init(0.0_rp)
-  do idime = 1, this%number_dimensions
+  do idime = 1, this%num_dimensions
      call normal(1)%set(idime,this%face_map%normals(idime,qpoint))
      call normal(2)%set(idime,- this%face_map%normals(idime,qpoint))
   end do
@@ -261,9 +261,9 @@ subroutine cell_integrator_face_restriction_create(this, quadrature, reference_f
   integer(ip) :: face_lid, istat
   call this%free()
   this%active_face_lid = -1
-  this%number_faces = reference_fe%get_number_faces()
-  allocate(this%cell_integrator(this%number_faces), stat = istat); check(istat==0);
-  do face_lid =1, this%number_faces
+  this%num_faces = reference_fe%get_num_faces()
+  allocate(this%cell_integrator(this%num_faces), stat = istat); check(istat==0);
+  do face_lid =1, this%num_faces
      call this%cell_integrator(face_lid)%create_on_face(quadrature, reference_fe, face_lid)
   end do
 end subroutine cell_integrator_face_restriction_create
@@ -285,12 +285,12 @@ subroutine cell_integrator_face_restriction_free(this)
   class(cell_integrator_face_restriction_t), intent(inout) :: this
   integer(ip) :: i, istat
   if (allocated(this%cell_integrator)) then
-     do i = 1, this%number_faces
+     do i = 1, this%num_faces
        call this%cell_integrator(i)%free()
      end do
      deallocate(this%cell_integrator, stat = istat); check(istat==0);
   end if
-  this%number_faces   = 0
+  this%num_faces   = 0
   this%active_face_lid = 0
 end subroutine cell_integrator_face_restriction_free
 
@@ -299,7 +299,7 @@ function cell_integrator_face_restriction_get_active_cell_integrator(this)
   ! Parameters
   class(cell_integrator_face_restriction_t), target, intent(in) :: this
   type(cell_integrator_t), pointer :: cell_integrator_face_restriction_get_active_cell_integrator
-  assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%number_faces )
+  assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%num_faces )
   cell_integrator_face_restriction_get_active_cell_integrator => this%cell_integrator(this%active_face_lid)
 end function cell_integrator_face_restriction_get_active_cell_integrator
 

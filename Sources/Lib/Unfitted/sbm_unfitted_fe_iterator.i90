@@ -83,7 +83,7 @@ function unfitted_fe_iterator_get_quadrature(this) result (quadrature)
     quadrature => this%fe_iterator_t%get_quadrature()
   else if ( this%is_exterior() ) then
     quadrature => this%fe_iterator_t%get_quadrature()
-    assert(quadrature%get_number_quadrature_points() == 0)
+    assert(quadrature%get_num_quadrature_points() == 0)
   else
     check(.false.)
   end if
@@ -199,7 +199,7 @@ subroutine unfitted_fe_iterator_update_integration( this )
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
   
-  integer(ip)            , pointer :: number_dofs_per_field(:)
+  integer(ip)            , pointer :: num_dofs_per_field(:)
 
   assert(this%is_local())
   call this%update_sub_triangulation()
@@ -214,13 +214,13 @@ subroutine unfitted_fe_iterator_update_integration( this )
 
   quadrature => this%get_quadrature()
   call fe_map%update(quadrature)
-  do field_id = 1, this%get_number_fields()
+  do field_id = 1, this%get_num_fields()
      cell_integrator => this%get_cell_integrator(field_id)
      call cell_integrator%update(fe_map)
   end do
   
-  number_dofs_per_field => this%get_number_dofs_per_field()
-  call this%update_number_dofs_per_field(number_dofs_per_field)
+  num_dofs_per_field => this%get_num_dofs_per_field()
+  call this%update_num_dofs_per_field(num_dofs_per_field)
 
 end subroutine unfitted_fe_iterator_update_integration
 
@@ -261,18 +261,18 @@ subroutine unfitted_fe_iterator_update_cut_quadratures( this )
   quadrature => this%get_quadrature()
   quadrature_coordinates => quadrature%get_coordinates()
   quadrature_weights     => quadrature%get_weights()
-  num_gp                 =  quadrature%get_number_quadrature_points()
-  num_dim                =  quadrature%get_number_dimensions()
+  num_gp                 =  quadrature%get_num_quadrature_points()
+  num_dim                =  quadrature%get_num_dimensions()
 
   ! Recover info about the quadrature of the sub-element
   quadrature_subelem => this%unfitted_integration_manager%quadrature_subelem
   quadrature_weights_subelem     => quadrature_subelem%get_weights()
-  num_gp_subelem                 =  quadrature_subelem%get_number_quadrature_points()
-  num_dim_subelem                =  quadrature_subelem%get_number_dimensions()
+  num_gp_subelem                 =  quadrature_subelem%get_num_quadrature_points()
+  num_dim_subelem                =  quadrature_subelem%get_num_dimensions()
 
   ! Check that both quadratures are compatible in size
   assert( num_dim == num_dim_subelem )
-  assert( num_gp  == num_gp_subelem*this%get_number_of_subcells() )
+  assert( num_gp  == num_gp_subelem*this%get_num_subcells() )
 
   ! Recover the fe map between the reference sub-element and the reference element
   fe_map_subelem                   => this%unfitted_integration_manager%fe_map_subelem
@@ -281,7 +281,7 @@ subroutine unfitted_fe_iterator_update_cut_quadratures( this )
 
   ! Compute modified quadrature for the element
   igp = 1
-  do subcell = 1, this%get_number_of_subcells()
+  do subcell = 1, this%get_num_subcells()
 
     ! Take the coordinates of the sub-element in the ref space of the element
     call this%get_ref_coords_of_subcell( subcell, nodal_coords_subelem )
@@ -349,7 +349,7 @@ subroutine unfitted_fe_iterator_update_cut_cell_integrators( this )
 
   assert(this%is_local())
   quadrature => this%get_quadrature()
-  do field_id = 1, this%get_number_fields()
+  do field_id = 1, this%get_num_fields()
     cell_integrator => this%get_cell_integrator(field_id)
     call cell_integrator%update_interpolation( quadrature )
   end do
@@ -374,9 +374,9 @@ subroutine unfitted_fe_iterator_update_cut_boundary_quadratures( this )
   nodal_coords => pw_fe_map%get_coordinates()
 
   ! Set the nodal coordinates of the piecewise map for each subface (in the ref space of the cell)
-  do subface = 1, this%get_number_of_subfaces()
-    nend = subface * this%get_number_of_subface_nodes()
-    nini = nend    - this%get_number_of_subface_nodes() + 1
+  do subface = 1, this%get_num_subfaces()
+    nend = subface * this%get_num_subface_nodes()
+    nini = nend    - this%get_num_subface_nodes() + 1
     call this%get_ref_coords_of_subface( subface, nodal_coords(nini:nend) )
   end do
 
@@ -387,8 +387,8 @@ subroutine unfitted_fe_iterator_update_cut_boundary_quadratures( this )
   quad_coords => pw_fe_map%get_quadrature_points_coordinates()
   quad_coords_aux => quad%get_coordinates()
   ! TODO its a nightmare that the quadrature does not work with point_t!
-  do idi = 1, quad%get_number_dimensions()
-    do igp = 1, quad%get_number_quadrature_points()
+  do idi = 1, quad%get_num_dimensions()
+    do igp = 1, quad%get_num_quadrature_points()
       quad_coords_aux(idi,igp) = quad_coords(igp)%get(idi)
     end do
   end do
@@ -412,9 +412,9 @@ subroutine unfitted_fe_iterator_update_cut_boundary_fe_maps( this )
   nodal_coords => pw_fe_map%get_coordinates()
 
   ! Set the nodal coordinates of the piecewise map for each subface (in the phys space of the cell)
-  do subface = 1, this%get_number_of_subfaces()
-    nend = subface * this%get_number_of_subface_nodes()
-    nini = nend    - this%get_number_of_subface_nodes() + 1
+  do subface = 1, this%get_num_subfaces()
+    nend = subface * this%get_num_subface_nodes()
+    nini = nend    - this%get_num_subface_nodes() + 1
     call this%get_phys_coords_of_subface( subface, nodal_coords(nini:nend) )
   end do
 
@@ -446,7 +446,7 @@ subroutine unfitted_fe_iterator_update_cut_boundary_cell_integrators( this )
   ! The quadrature points have changed.
   ! Update the interior interpolation of fe map and cell integrators
   call fe_map%update_interpolation( quad, reference_fe_geometry )
-  do field_id = 1, this%get_number_fields()
+  do field_id = 1, this%get_num_fields()
     cell_int => this%get_boundary_cell_integrator(field_id)
     call cell_int%update_interpolation( quad )
   end do
@@ -459,7 +459,7 @@ subroutine unfitted_fe_iterator_update_cut_boundary_cell_integrators( this )
   call fe_map%update( quad )
 
   ! Compute shape function derivatives 
-  do field_id = 1, this%get_number_fields()
+  do field_id = 1, this%get_num_fields()
     cell_int => this%get_boundary_cell_integrator(field_id)
      call cell_int%update(fe_map)
   end do

@@ -66,14 +66,14 @@ function tet_nedelec_reference_fe_check_compatibility_of_n_faces                
   select type(source_reference_fe)
      class is(tet_nedelec_reference_fe_t)
         ! Get number nodes per dimension
-     assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
-     do idime = 1, target_reference_fe%number_dimensions
+     assert (target_reference_fe%num_dimensions == source_reference_fe%num_dimensions)
+     do idime = 1, target_reference_fe%num_dimensions
         assert (target_reference_fe%order_vector(idime) == source_reference_fe%order_vector(idime))
      end do
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
      assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
-     assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-     assert (target_reference_fe%get_number_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_number_own_dofs_n_face(source_n_face_id))
+     assert (target_reference_fe%num_field_components == source_reference_fe%num_field_components)
+     assert (target_reference_fe%get_num_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_num_own_dofs_n_face(source_n_face_id))
      tet_nedelec_reference_fe_check_compatibility_of_n_faces = .true.
      class default
      tet_nedelec_reference_fe_check_compatibility_of_n_faces = .false.
@@ -87,7 +87,7 @@ function tet_nedelec_reference_fe_get_characteristic_length ( this )
   class(tet_nedelec_reference_fe_t), intent(in) :: this 
   real(rp)  :: tet_nedelec_reference_fe_get_characteristic_length 
   tet_nedelec_reference_fe_get_characteristic_length =   &
-       &   real(get_factorial(this%number_dimensions),rp)**(-1.0_rp/real(this%number_dimensions,rp))
+       &   real(get_factorial(this%num_dimensions),rp)**(-1.0_rp/real(this%num_dimensions,rp))
 end function tet_nedelec_reference_fe_get_characteristic_length
 
 !==================================================================================================
@@ -104,8 +104,8 @@ subroutine tet_nedelec_reference_fe_fill_qpoints_permutations (this, quadrature,
   type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
   integer(ip)    :: ndime, n_q_points, i
 
-  ndime      = quadrature%get_number_dimensions()
-  n_q_points = quadrature%get_number_quadrature_points()
+  ndime      = quadrature%get_num_dimensions()
+  n_q_points = quadrature%get_num_quadrature_points()
 
 
   call qpoints_perm%create(n_q_points, &    !> Number of quadrature points
@@ -118,7 +118,7 @@ end subroutine tet_nedelec_reference_fe_fill_qpoints_permutations
 subroutine tet_nedelec_reference_fe_fill (this)
   implicit none
   class(tet_nedelec_reference_fe_t), intent(inout) :: this
-  integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
+  integer(ip) :: c, i, j, dimension, num_interior_nodes, num_interior_nodes_scalar
   integer(ip) :: column, inode, idime, inode_scalar, num_columns
 
   ! Here we put a k-1,k-1,k-1 order_vector to fill the node array of [P_{k-1,k-1,k-1}]**d
@@ -154,12 +154,12 @@ subroutine tet_nedelec_reference_fe_fill_quadrature( this, quadrature )
      call hex_nedelec_rfe%fill_quadrature ( quadrature ) 
 
      ! Transform quadrature to the tet element 
-     if (quadrature%number_dimensions==1) then
+     if (quadrature%num_dimensions==1) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp        
         ! w' = w/2
         quadrature%weight = quadrature%weight / 2.0_rp
-     elseif (quadrature%number_dimensions==2) then
+     elseif (quadrature%num_dimensions==2) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
         ! y' = (1-x')(y+1)/2
@@ -169,7 +169,7 @@ subroutine tet_nedelec_reference_fe_fill_quadrature( this, quadrature )
         quadrature%weight = (1.0_rp - quadrature%coordinates(1,:)) /4.0_rp * &
              quadrature%weight
 
-     elseif (quadrature%number_dimensions==3) then
+     elseif (quadrature%num_dimensions==3) then
         ! x' = (x+1)/2
         quadrature%coordinates(1,:) = (quadrature%coordinates(1,:)+1.0_rp) / 2.0_rp
         ! y' = (1-x')(y+1)/2
@@ -211,29 +211,29 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this )
   call k_order_node_array%create( this%polytope, k_order_vector ) 
 
   ! Basis Sk indices [ dim(Sk), num_poynomials(k)*D ]  
-  basis_dimension = this%order*(this%order+2)**(this%number_dimensions-2) 
-  call memalloc(basis_dimension, k_order_node_array%number_nodes*this%number_dimensions, &
+  basis_dimension = this%order*(this%order+2)**(this%num_dimensions-2) 
+  call memalloc(basis_dimension, k_order_node_array%num_nodes*this%num_dimensions, &
        this%basis_Sk_indices, __FILE__, __LINE__ )
   this%basis_Sk_indices = 0.0_rp
 
   coord = 0  
   c     = 1 
-  if (this%number_dimensions == 2) then 
+  if (this%num_dimensions == 2) then 
 
      do i = 1, k
         coord(0) = i-1
         coord(1) = k - i + 1
-        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%num_dimensions )) 
         this%basis_Sk_indices( c, ijk ) = -1.0_rp  
 
         coord(0) = coord(0) + 1
         coord(1) = coord(1) - 1
-        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-        this%basis_Sk_indices( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp  
+        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%num_dimensions )) 
+        this%basis_Sk_indices( c, k_order_node_array%num_nodes + ijk ) = 1.0_rp  
         c = c + 1
      end do
 
-  elseif (this%number_dimensions == 3) then 
+  elseif (this%num_dimensions == 3) then 
 
      do j = 1, k
         do i = 1, k+1-j 
@@ -242,26 +242,26 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this )
            coord(0) = i - 1
            coord(1) = k - i - j + 2
            coord(2) = j - 1
-           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%num_dimensions )) 
            this%basis_Sk_indices( c, ijk ) = -1.0_rp 
 
            coord(0) = coord(0) + 1
            coord(1) = coord(1) - 1
-           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-           this%basis_Sk_indices( c, k_order_node_array%number_nodes + ijk ) = 1.0_rp 
+           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%num_dimensions )) 
+           this%basis_Sk_indices( c, k_order_node_array%num_nodes + ijk ) = 1.0_rp 
 
            c = c + 1
            ! Fill second subset of functions 
            coord(0) = k - i - j + 1
            coord(1) = j - 1
            coord(2) = i
-           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
+           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%num_dimensions )) 
            this%basis_Sk_indices( c, ijk ) = -1.0_rp 
 
            coord(0) = coord(0) + 1
            coord(2) = coord(2) - 1
-           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-           this%basis_Sk_indices( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp 
+           ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%num_dimensions )) 
+           this%basis_Sk_indices( c, 2*k_order_node_array%num_nodes + ijk ) = 1.0_rp 
 
            c = c + 1
         end do
@@ -270,13 +270,13 @@ subroutine tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices( this )
         coord(0) = 0
         coord(1) = j - 1
         coord(2) = k - j + 1
-        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-        this%basis_Sk_indices( c, k_order_node_array%number_nodes + ijk ) = -1.0_rp  
+        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%num_dimensions )) 
+        this%basis_Sk_indices( c, k_order_node_array%num_nodes + ijk ) = -1.0_rp  
 
         coord(1) = coord(1) + 1
         coord(2) = coord(2) - 1
-        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%number_dimensions )) 
-        this%basis_Sk_indices( c, 2*k_order_node_array%number_nodes + ijk ) = 1.0_rp  
+        ijk = k_order_node_array%ijk_to_index(ijk_to_index( coord, k_order_vector, this%num_dimensions )) 
+        this%basis_Sk_indices( c, 2*k_order_node_array%num_nodes + ijk ) = 1.0_rp  
         c = c + 1
      end do
 
@@ -322,7 +322,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   real(rp), allocatable :: gradients(:,:)
 
   integer(ip)              :: c, idime, jdime, q_point, ipoly, Sk_basis_dimension 
-  integer(ip)              :: number_polynomials_prebase_1, N_k
+  integer(ip)              :: num_polynomials_prebase_1, N_k
   integer(ip)              :: ivalu, info, offcomponent 
 
   interpolation%shape_functions   = 0.0_rp
@@ -337,26 +337,26 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   ! k_order_node_array             order=k   --> prebasis_2 
 
   ! First subspace, create polynomial prebase of order (k-1) 
-  do idime=1,interpolation%number_dimensions
+  do idime=1,interpolation%num_dimensions
      call monomial_1D%generate_basis(this%order_vector(idime)-1, monomial_1D_basis(idime) )
   end do
 
-  call tet_polynomial_prebase_1%create(interpolation%number_dimensions,monomial_1D_basis)
+  call tet_polynomial_prebase_1%create(interpolation%num_dimensions,monomial_1D_basis)
   call tet_polynomial_prebase_1%fill( quadrature%get_coordinates() )
 
-  number_polynomials_prebase_1 = tet_polynomial_prebase_1%get_number_polynomials()
-  call memalloc(number_polynomials_prebase_1,values,__FILE__,__LINE__)
-  call memalloc(SPACE_DIM,number_polynomials_prebase_1,gradients,__FILE__,__LINE__)
+  num_polynomials_prebase_1 = tet_polynomial_prebase_1%get_num_polynomials()
+  call memalloc(num_polynomials_prebase_1,values,__FILE__,__LINE__)
+  call memalloc(SPACE_DIM,num_polynomials_prebase_1,gradients,__FILE__,__LINE__)
 
   ! Fill first set of pre-basis functions (replicated prebase_1 in directions)
-  do idime=1, interpolation%number_dimensions 
-     do q_point=1, quadrature%get_number_quadrature_points()
-        c=(idime-1)*number_polynomials_prebase_1
+  do idime=1, interpolation%num_dimensions 
+     do q_point=1, quadrature%get_num_quadrature_points()
+        c=(idime-1)*num_polynomials_prebase_1
         call tet_polynomial_prebase_1%evaluate(q_point, values, gradients)
-        do ipoly=1,number_polynomials_prebase_1
+        do ipoly=1,num_polynomials_prebase_1
            c=c+1
            interpolation%shape_functions(idime,c,q_point) = values(ipoly)
-           do jdime=1, interpolation%number_dimensions
+           do jdime=1, interpolation%num_dimensions
               interpolation%shape_derivatives(idime,jdime,c,q_point) = gradients(jdime,ipoly)
            end do
         end do
@@ -367,36 +367,36 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   if(allocated(values))    call memfree(values,__FILE__,__LINE__)
   if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
 
-  do idime=1,interpolation%number_dimensions
+  do idime=1,interpolation%num_dimensions
      call monomial_1D_basis(idime)%free()
   end do
   call monomial_1D%free()
   call tet_polynomial_prebase_1%free()
 
   ! Second subspace, create polynomial prebase of order k 
-  do idime=1,interpolation%number_dimensions
+  do idime=1,interpolation%num_dimensions
      call monomial_1D%generate_basis(this%order_vector(idime), monomial_1D_basis(idime) )
   end do
 
-  call tet_polynomial_prebase_2%create(interpolation%number_dimensions,monomial_1D_basis)
+  call tet_polynomial_prebase_2%create(interpolation%num_dimensions,monomial_1D_basis)
   call tet_polynomial_prebase_2%fill( quadrature%get_coordinates() )
 
-  call memalloc(tet_polynomial_prebase_2%get_number_polynomials(),values,__FILE__,__LINE__)
-  call memalloc(SPACE_DIM,tet_polynomial_prebase_2%get_number_polynomials(),gradients,__FILE__,__LINE__)
+  call memalloc(tet_polynomial_prebase_2%get_num_polynomials(),values,__FILE__,__LINE__)
+  call memalloc(SPACE_DIM,tet_polynomial_prebase_2%get_num_polynomials(),gradients,__FILE__,__LINE__)
 
   ! Fill second set of prebasis functions with order k prebase and Sk( homogeneous polynomials basis indices )  
-  N_k = tet_polynomial_prebase_2%get_number_polynomials()
-  Sk_basis_dimension = this%order * (this%order+2)**(this%number_dimensions-2)
-  c   = interpolation%number_dimensions*number_polynomials_prebase_1 
-  do q_point=1, quadrature%get_number_quadrature_points()
+  N_k = tet_polynomial_prebase_2%get_num_polynomials()
+  Sk_basis_dimension = this%order * (this%order+2)**(this%num_dimensions-2)
+  c   = interpolation%num_dimensions*num_polynomials_prebase_1 
+  do q_point=1, quadrature%get_num_quadrature_points()
      call tet_polynomial_prebase_2%evaluate(q_point, values, gradients)
      do ipoly=1, Sk_basis_dimension 
-        do idime=1, interpolation%number_dimensions	
-           offcomponent = (idime-1)*tet_polynomial_prebase_2%get_number_polynomials()
-           do ivalu=1, tet_polynomial_prebase_2%get_number_polynomials()
+        do idime=1, interpolation%num_dimensions	
+           offcomponent = (idime-1)*tet_polynomial_prebase_2%get_num_polynomials()
+           do ivalu=1, tet_polynomial_prebase_2%get_num_polynomials()
               interpolation%shape_functions(idime,c+ipoly,q_point) =  &	
                    interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*values(ivalu)	
-              do jdime=1, interpolation%number_dimensions
+              do jdime=1, interpolation%num_dimensions
                  interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) = & 
                       interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*gradients(jdime,ivalu)
               end do
@@ -409,7 +409,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   if(allocated(values))    call memfree(values,__FILE__,__LINE__)
   if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
 
-  do idime=1,interpolation%number_dimensions
+  do idime=1,interpolation%num_dimensions
      call monomial_1D_basis(idime)%free()
   end do
   call monomial_1D%free()
@@ -432,13 +432,13 @@ subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id
 
   ! Create a d-dimensional quadrature as follows: 
   ! Non-orthogonal directions are taken into account with the (1-d) factor for the free and anchor node dimension 
-  call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
+  call aux_quadrature%create( this%num_dimensions, local_quadrature%num_quadrature_points )
 
-  do idime = 0,this%number_dimensions-1
+  do idime = 0,this%num_dimensions-1
      if ( (this%polytope%n_face_dir_is_fixed( n_face_index, idime )==1) .and. (this%polytope%n_face_dir_coordinate( n_face_index, idime )==0) ) then
         aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(1,:)	 
      elseif  ( (this%polytope%n_face_dir_is_fixed( n_face_index, idime )==0) .and. (this%polytope%n_face_dir_coordinate( n_face_index, idime )==1) ) then 
-        do qpoin = 1, local_quadrature%number_quadrature_points
+        do qpoin = 1, local_quadrature%num_quadrature_points
            aux_quadrature%coordinates(idime+1, qpoin) = 1.0_rp - local_quadrature%coordinates(1,qpoin)
         end do
      else 
@@ -465,14 +465,14 @@ subroutine tet_nedelec_reference_fe_fill_face_interpolation( this, local_quadrat
   n_face_index = local_face_id+this%get_first_face_id()-1
 
   ! Create a d-dimensional quadrature as follows
-  call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
-  do qpoin = 1,face_interpolation%number_quadrature_points
+  call aux_quadrature%create( this%num_dimensions, local_quadrature%num_quadrature_points )
+  do qpoin = 1,face_interpolation%num_quadrature_points
      ! Transform face local coordinates to element global coordinates
-     if (local_face_id <= face_interpolation%number_dimensions ) then 
+     if (local_face_id <= face_interpolation%num_dimensions ) then 
         ! Orthogonal face in the reference element
         p_local_coordinate = 1
-        do idime = 1, face_interpolation%number_dimensions
-           if (idime == face_interpolation%number_dimensions + 1 - local_face_id ) then
+        do idime = 1, face_interpolation%num_dimensions
+           if (idime == face_interpolation%num_dimensions + 1 - local_face_id ) then
               aux_quadrature%coordinates(idime,qpoin) = 0.0_rp
            else
               aux_quadrature%coordinates(idime,qpoin) = local_quadrature%coordinates(p_local_coordinate, qpoin)
@@ -482,8 +482,8 @@ subroutine tet_nedelec_reference_fe_fill_face_interpolation( this, local_quadrat
      else 
         ! Non-orthogonal face in the reference element
         aux_quadrature%coordinates(1,qpoin) = 1 - sum(local_quadrature%coordinates(:,qpoin))
-        aux_quadrature%coordinates(2:face_interpolation%number_dimensions, qpoin) = & 
-             & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,qpoin)
+        aux_quadrature%coordinates(2:face_interpolation%num_dimensions, qpoin) = & 
+             & local_quadrature%coordinates(1:face_interpolation%num_dimensions-1,qpoin)
      end if
   end do
 
@@ -492,44 +492,44 @@ subroutine tet_nedelec_reference_fe_fill_face_interpolation( this, local_quadrat
 end subroutine tet_nedelec_reference_fe_fill_face_interpolation
 
 !=================================================================================================
-function tet_nedelec_reference_fe_compute_number_quadrature_points( this, degree, dimension )
+function tet_nedelec_reference_fe_compute_num_quadrature_points( this, degree, dimension )
   implicit none
   class(tet_nedelec_reference_fe_t), intent(in)    :: this
   integer(ip)                             , intent(in)    :: degree
   integer(ip)                             , intent(in)    :: dimension
-  integer(ip) :: tet_nedelec_reference_fe_compute_number_quadrature_points
+  integer(ip) :: tet_nedelec_reference_fe_compute_num_quadrature_points
 
   if( dimension == 1 ) then
-     tet_nedelec_reference_fe_compute_number_quadrature_points = int(ceiling(real(degree,rp)/2.0_rp),ip)+1
+     tet_nedelec_reference_fe_compute_num_quadrature_points = int(ceiling(real(degree,rp)/2.0_rp),ip)+1
   elseif( dimension == 2 ) then
      !*************************************************************************
      ! Using efficent symmetrical gaussian quadrature rules (when available). 
      if( degree <= 2 ) then
-        tet_nedelec_reference_fe_compute_number_quadrature_points = 3
+        tet_nedelec_reference_fe_compute_num_quadrature_points = 3
      elseif( degree <= 4 ) then
-        tet_nedelec_reference_fe_compute_number_quadrature_points = 6
+        tet_nedelec_reference_fe_compute_num_quadrature_points = 6
      elseif( degree <= 6 ) then
-        tet_nedelec_reference_fe_compute_number_quadrature_points = 13
+        tet_nedelec_reference_fe_compute_num_quadrature_points = 13
      elseif( degree <= 8 ) then
-        tet_nedelec_reference_fe_compute_number_quadrature_points = 19
+        tet_nedelec_reference_fe_compute_num_quadrature_points = 19
      elseif( degree <= 10 ) then
-        tet_nedelec_reference_fe_compute_number_quadrature_points = 28
+        tet_nedelec_reference_fe_compute_num_quadrature_points = 28
      else ! Quadratures based on brick quadratures transformation
-        tet_nedelec_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 1.0_rp )**2.0_rp,ip)
+        tet_nedelec_reference_fe_compute_num_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 1.0_rp )**2.0_rp,ip)
      end if
   elseif( dimension == 3 ) then
      !*************************************************************************
      ! Using efficent symmetrical gaussian quadrature rules (when available). 
      if( degree <= 2 ) then
-        tet_nedelec_reference_fe_compute_number_quadrature_points = 4
+        tet_nedelec_reference_fe_compute_num_quadrature_points = 4
      elseif( degree <= 4) then
-        tet_nedelec_reference_fe_compute_number_quadrature_points = 11
+        tet_nedelec_reference_fe_compute_num_quadrature_points = 11
      else ! Quadratures based on brick quadratures transformation
-        tet_nedelec_reference_fe_compute_number_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 2.0_rp )**3.0_rp,ip)
+        tet_nedelec_reference_fe_compute_num_quadrature_points = int((ceiling(real(degree,rp)/2.0_rp) + 2.0_rp )**3.0_rp,ip)
      end if
   end if
 
-end function tet_nedelec_reference_fe_compute_number_quadrature_points
+end function tet_nedelec_reference_fe_compute_num_quadrature_points
 
 !==================================================================================================
 subroutine tet_nedelec_reference_fe_fill_symmetric_quadrature ( this, quadrature ) 
@@ -560,8 +560,8 @@ subroutine tet_nedelec_reference_fe_fill_symmetric_quadrature ( this, quadrature
   real(rp)    :: ex1,et1,ez1,ex2,et2,ez2
   integer(ip) :: ndime,ngaus
 
-  ndime = quadrature%number_dimensions
-  ngaus = quadrature%number_quadrature_points
+  ndime = quadrature%num_dimensions
+  ngaus = quadrature%num_quadrature_points
 
   ! Line integral (the same as for brick elements)
   if(ndime==1) then
@@ -1156,22 +1156,22 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   if ( allocated(this%change_basis_matrix) ) & 
        call memfree(this%change_basis_matrix, __FILE__, __LINE__)    
 
-  call memalloc(this%number_shape_functions, &
-       this%number_shape_functions, &
+  call memalloc(this%num_shape_functions, &
+       this%num_shape_functions, &
        this%change_basis_matrix, &
        __FILE__, &
        __LINE__)
 
   ! Create a 1D scalar lagrangian reference FE of order k-1,  ! P_{k-1}
   call fe_1D%create(topology          = this%get_topology(), &
-       number_dimensions = 1,                   &
+       num_dimensions = 1,                   &
        order             = this%order-1,        & 
        field_type        = field_type_scalar,   &
        conformity        = .true. )
 
   ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
   call d_fe_geo%create(topology          = this%get_topology(), &
-       number_dimensions = this%number_dimensions, &
+       num_dimensions = this%num_dimensions, &
        order             = 1, &
        field_type        = field_type_scalar, &
        conformity        = .true. )
@@ -1187,7 +1187,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
   d = 0
   do edge_id = this%get_first_n_face_id_of_dimension(1), & 
-       this%get_first_n_face_id_of_dimension(1) + this%get_number_n_faces_of_dimension(1)-1
+       this%get_first_n_face_id_of_dimension(1) + this%get_num_n_faces_of_dimension(1)-1
 
      ! Get edge map coordinates
      edge_map_coordinates => edge_map%get_coordinates()
@@ -1213,26 +1213,26 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
           edge_interpolation )
 
      ! Integrate edge boundary moments int_edge(u.t q), q \in P_k-1
-     do qpoint = 1, edge_quadrature%number_quadrature_points
+     do qpoint = 1, edge_quadrature%num_quadrature_points
         factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
         call edge_map%get_tangent(qpoint, tangent)
 
-        do ishape=1, interpolation_1D%number_shape_functions
+        do ishape=1, interpolation_1D%num_shape_functions
            call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
-           do jshape=1, edge_interpolation%number_shape_functions
+           do jshape=1, edge_interpolation%num_shape_functions
               call this%get_value(edge_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
                    + shape_test * v_shape_trial * tangent * factor
            end do
         end do
      end do
-     d = d + interpolation_1D%number_shape_functions
+     d = d + interpolation_1D%num_shape_functions
   end do
 
-  if ( this%number_dimensions == 3 .and. this%order > 1 ) then 
+  if ( this%num_dimensions == 3 .and. this%order > 1 ) then 
      ! Create a 2D scalar reference_fe of order P_{k-2,k-2} x P_{k-2,k-2}
      call fe_2D%create(topology          = this%get_topology(), &
-          number_dimensions = 2,                   &
+          num_dimensions = 2,                   &
           order             = this%order-2,        &
           field_type        = field_type_scalar,   &
           conformity        = .true. )
@@ -1241,7 +1241,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      call fe_2D%create_interpolation( face_quadrature, interpolation_2D )
      call face_map%create( face_quadrature, d_fe_geo )
 
-     do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
+     do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_num_faces()-1
 
         ! Get face map coordinates
         face_map_coordinates => face_map%get_coordinates()
@@ -1266,17 +1266,17 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
              face_interpolation )
 
         ! Integrate face boundary moments int_Face(u^n q), q \in P_{k-2,k-2} P_{k-2,k-2}
-        do qpoint = 1, face_quadrature%number_quadrature_points
+        do qpoint = 1, face_quadrature%num_quadrature_points
            factor = face_map%get_det_jacobian(qpoint) * face_quadrature%get_weight(qpoint)		   
            face_area = 0.5_rp*face_map%get_det_jacobian(qpoint) 
            ! Each scalar test function is endowed with vector field type  
            ! through v_scalar_shape_test * tangent vectors to the face 
            do direction=1,2
-              c = (direction-1)*interpolation_2D%number_shape_functions
+              c = (direction-1)*interpolation_2D%num_shape_functions
               call face_map%get_jacobian_column(direction,qpoint,tangent) ! x_i - x^0_i (not normalized)
-              do ishape=1, interpolation_2D%number_shape_functions
+              do ishape=1, interpolation_2D%num_shape_functions
                  call fe_2D%get_value(interpolation_2D, ishape, qpoint, v_scalar_shape_test)   
-                 do jshape=1, face_interpolation%number_shape_functions
+                 do jshape=1, face_interpolation%num_shape_functions
                     call this%get_value(face_interpolation, jshape, qpoint, v_shape_trial)   	
                     this%change_basis_matrix(d+ishape+c,jshape) = this%change_basis_matrix(d+ishape+c,jshape) &
                          + 1/face_area * v_shape_trial * v_scalar_shape_test * tangent * factor
@@ -1284,14 +1284,14 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
               end do
            end do
         end do
-        d = d + interpolation_2D%number_shape_functions*fe_2D%number_dimensions 
+        d = d + interpolation_2D%num_shape_functions*fe_2D%num_dimensions 
      end do
   end if
 
   ! Compute number interior shape functions shape functions
-  if ( this%number_dimensions == 2) then 
+  if ( this%num_dimensions == 2) then 
      num_interior_moments = this%order_vector(1)*(this%order_vector(1)-1) ! k(k-1)
-  elseif (this%number_dimensions == 3) then 
+  elseif (this%num_dimensions == 3) then 
      num_interior_moments = this%order_vector(1)*(this%order_vector(1)-1)*(this%order_vector(1)-2)/2 ! k(k-1)(k-2)/2
   end if
 
@@ -1299,8 +1299,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
      ! Create dim-D Lagrangian polynomial of order k-d 
      call fe%create(topology           = this%get_topology(),               &
-          number_dimensions  = this%number_dimensions,            &
-          order              = this%order-this%number_dimensions, &
+          num_dimensions  = this%num_dimensions,            &
+          order              = this%order-this%num_dimensions, &
           field_type         = field_type_vector,                 &
           conformity         = .true.                            )
 
@@ -1313,7 +1313,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      ! Create + Update cell map 
      call cell_map%create(cell_quadrature, d_fe_geo )
      cell_map_coordinates => cell_map%get_coordinates()
-     do vertex_within_cell_id=1,d_fe_geo%get_number_vertices()
+     do vertex_within_cell_id=1,d_fe_geo%get_num_vertices()
         call cell_map_coordinates(vertex_within_cell_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
      end do
      call cell_map%update(cell_quadrature)
@@ -1321,11 +1321,11 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      ! Integration of interior moments 
      ! 2D CASE: int_K (u·q), q \in P_{k-2,k-2} x Q_{k-2,k-2} 
      ! 3D CASE: int_K (u·q), q \in P_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3}     
-     do qpoint = 1, cell_quadrature%number_quadrature_points
+     do qpoint = 1, cell_quadrature%num_quadrature_points
         factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
-        do ishape=1, interpolation%number_shape_functions*fe%number_dimensions
+        do ishape=1, interpolation%num_shape_functions*fe%num_dimensions
            call fe%get_value(interpolation, ishape, qpoint, v_shape_test)
-           do jshape=1, cell_interpolation%number_shape_functions
+           do jshape=1, cell_interpolation%num_shape_functions
               call this%get_value(cell_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) + v_shape_test * v_shape_trial * factor
            end do
@@ -1338,28 +1338,28 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   call this%invert_change_basis_matrix()
 
   ! Transform type(list_t) member variables of this to reflect change of basis
-  call this%own_dofs_n_face%create( this%number_n_faces + 1 )
+  call this%own_dofs_n_face%create( this%num_n_faces + 1 )
 
   if ( this%conformity .and. this%continuity ) then
      do edge_id = this%get_first_n_face_id_of_dimension(1), & 
-          this%get_first_n_face_id_of_dimension(1) + this%get_number_n_faces_of_dimension(1)-1
-        call this%own_dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%number_shape_functions )           
+          this%get_first_n_face_id_of_dimension(1) + this%get_num_n_faces_of_dimension(1)-1
+        call this%own_dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%num_shape_functions )           
      end do
 
-     if (this%number_dimensions == 3 .and. this%order > 1) then
-        do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
-           call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%number_shape_functions*fe_2D%number_dimensions )
+     if (this%num_dimensions == 3 .and. this%order > 1) then
+        do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_num_faces()-1
+           call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%num_shape_functions*fe_2D%num_dimensions )
         end do
      end if
 
-     call this%own_dofs_n_face%sum_to_pointer_index(this%number_n_faces + 1, num_interior_moments)
+     call this%own_dofs_n_face%sum_to_pointer_index(this%num_n_faces + 1, num_interior_moments)
      call this%own_dofs_n_face%calculate_header()
      call this%own_dofs_n_face%allocate_list_from_pointer()
 
      c=1
-     do idime=1, this%number_dimensions
+     do idime=1, this%num_dimensions
         do n_face_id = this%get_first_n_face_id_of_dimension(idime), & 
-             this%get_first_n_face_id_of_dimension(idime) + this%get_number_n_faces_of_dimension(idime)-1
+             this%get_first_n_face_id_of_dimension(idime) + this%get_num_n_faces_of_dimension(idime)-1
            own_dofs_iterator = this%own_dofs_n_face%create_iterator(n_face_id)
            do while ( .not. own_dofs_iterator%is_upper_bound() )
               call own_dofs_iterator%set_current(c)
@@ -1371,7 +1371,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      end do
   else 
 
-     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%number_shape_functions)
+     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%num_shape_functions)
      call this%own_dofs_n_face%calculate_header()
      call this%own_dofs_n_face%allocate_list_from_pointer()
      own_dofs_iterator = this%own_dofs_n_face%create_iterator()

@@ -91,9 +91,9 @@ module polynomial_names
  
   type :: tensor_product_polynomial_space_t
      private
-     integer(ip)                          :: number_dimensions
-     integer(ip)                          :: number_polynomials
-     integer(ip)                          :: number_pols_dim(SPACE_DIM)
+     integer(ip)                          :: num_dimensions
+     integer(ip)                          :: num_polynomials
+     integer(ip)                          :: num_pols_dim(SPACE_DIM)
      type(polynomial_allocatable_array_t) :: polynomial_1D_basis(SPACE_DIM)
      type(allocatable_array_rp3_t)        :: work_shape_data(SPACE_DIM)
    contains
@@ -101,7 +101,7 @@ module polynomial_names
      procedure, non_overridable :: fill     => tensor_product_polynomial_space_fill
      procedure                  :: evaluate => tensor_product_polynomial_space_evaluate
      procedure, non_overridable :: free     => tensor_product_polynomial_space_free
-     procedure, non_overridable :: get_number_polynomials => tensor_product_polynomial_space_get_number_polynomials
+     procedure, non_overridable :: get_num_polynomials => tensor_product_polynomial_space_get_num_polynomials
      
   end type tensor_product_polynomial_space_t
   ! Note: The vector space built from tensor_product_polynomial_space_t is going to be

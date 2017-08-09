@@ -111,14 +111,14 @@ contains
 
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_raviart_thomas, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_vector, &
                                                  conformity = .true. ) 
     
     this%reference_fes(2) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_scalar, &
                                                  conformity = .false. ) 
@@ -325,21 +325,21 @@ contains
     real(rp), allocatable :: nodal_values_rt(:)
     real(rp), allocatable :: nodal_values_pre_basis(:)
     type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip) :: number_fields, istat
+    integer(ip) :: num_fields, istat
 
     
-    call memalloc ( this%reference_fes(1)%p%get_number_shape_functions(), &
+    call memalloc ( this%reference_fes(1)%p%get_num_shape_functions(), &
                     nodal_values_rt, &
                     __FILE__, __LINE__ )
     
-    call memalloc ( this%reference_fes(1)%p%get_number_shape_functions(), &
+    call memalloc ( this%reference_fes(1)%p%get_num_shape_functions(), &
                     nodal_values_pre_basis, &
                     __FILE__, __LINE__ )
     
     dof_values => this%solution%get_dof_values()
     
-    number_fields = this%fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
+    num_fields = this%fe_space%get_num_fields()
+    allocate( elem2dof(num_fields), stat=istat); check(istat==0);
     
     call this%fe_space%create_fe_iterator(fe)
     do while ( .not. fe%has_finished())

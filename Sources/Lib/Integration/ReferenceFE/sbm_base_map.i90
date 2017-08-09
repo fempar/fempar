@@ -76,8 +76,8 @@ subroutine base_map_compute_quadrature_coordinates(this)
   implicit none
   class(base_map_t), intent(inout) :: this
   integer(ip)   :: qpoin,inode,nnode,nquad
-  nnode = this%interpolation_geometry%number_shape_functions
-  nquad = this%number_quadrature_points
+  nnode = this%interpolation_geometry%num_shape_functions
+  nquad = this%num_quadrature_points
   do qpoin = 1,nquad
      call this%coordinates_quadrature(qpoin)%init(0.0_rp)
      do inode=1,nnode
@@ -115,7 +115,7 @@ subroutine base_map_get_jacobian_column ( this, column_id, qpoint, column )
   integer(ip) :: idime
   
   call column%init(0.0_rp)
-  do idime=1, this%number_dimensions
+  do idime=1, this%num_dimensions
     call column%set(idime, this%jacobian(idime, column_id, qpoint))
   end do
 

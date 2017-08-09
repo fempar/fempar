@@ -130,9 +130,9 @@ contains
     class(level_set_function_t), pointer :: levset
 
     ! Get number of dimensions form input
-    assert( this%parameter_list%isPresent    (key = number_of_dimensions_key) )
-    assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
+    assert( this%parameter_list%isPresent    (key = num_dimensions_key) )
+    assert( this%parameter_list%isAssignable (key = num_dimensions_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = num_dimensions_key, value=num_dime); check(istat==0)
 
     !TODO we assume it is a sphere
     select case ('sphere')
@@ -257,7 +257,7 @@ contains
 
     this%reference_fes(SERIAL_UNF_POISSON_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
                                                  conformity = .true., &
@@ -265,7 +265,7 @@ contains
 
     this%reference_fes(SERIAL_UNF_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_void, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = -1, & ! this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
                                                  conformity = .true., &
@@ -639,7 +639,7 @@ subroutine compute_domain_volume( this )
 
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_quadrature()
-       num_quad_points = quadrature%get_number_quadrature_points()
+       num_quad_points = quadrature%get_num_quadrature_points()
        fe_map => fe%get_fe_map()
 
        ! Physical coordinates of the quadrature points
@@ -693,7 +693,7 @@ subroutine compute_domain_surface( this )
 
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_boundary_quadrature()
-       num_quad_points = quadrature%get_number_quadrature_points()
+       num_quad_points = quadrature%get_num_quadrature_points()
        fe_map => fe%get_boundary_piecewise_fe_map()
 
        ! Physical coordinates of the quadrature points

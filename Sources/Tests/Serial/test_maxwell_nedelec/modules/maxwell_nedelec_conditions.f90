@@ -42,7 +42,7 @@ module maxwell_nedelec_conditions_names
 	 procedure :: set_boundary_function_Hx    => maxwell_nedelec_conditions_set_boundary_function_Hx
 	 procedure :: set_boundary_function_Hy    => maxwell_nedelec_conditions_set_boundary_function_Hy
 	 procedure :: set_boundary_function_Hz    => maxwell_nedelec_conditions_set_boundary_function_Hz
-     procedure :: get_number_components       => maxwell_nedelec_conditions_get_number_components  
+     procedure :: get_num_components       => maxwell_nedelec_conditions_get_num_components  
      procedure :: get_components_code         => maxwell_nedelec_conditions_get_components_code
      procedure :: get_function                => maxwell_nedelec_conditions_get_function
   end type maxwell_nedelec_conditions_t
@@ -79,13 +79,13 @@ contains
     this%boundary_function_Hz => scalar_function
   end subroutine maxwell_nedelec_conditions_set_boundary_function_Hz
 
-  function maxwell_nedelec_conditions_get_number_components(this)
+  function maxwell_nedelec_conditions_get_num_components(this)
     implicit none
     class(maxwell_nedelec_conditions_t), intent(in) :: this
-    integer(ip) :: maxwell_nedelec_conditions_get_number_components
+    integer(ip) :: maxwell_nedelec_conditions_get_num_components
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 ) 
-    maxwell_nedelec_conditions_get_number_components = this%num_dimensions
-  end function maxwell_nedelec_conditions_get_number_components
+    maxwell_nedelec_conditions_get_num_components = this%num_dimensions
+  end function maxwell_nedelec_conditions_get_num_components
 
   subroutine maxwell_nedelec_conditions_get_components_code(this, boundary_id, components_code)
     implicit none

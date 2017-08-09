@@ -57,8 +57,8 @@ module face_fe_function_names
      procedure, non_overridable :: get_quadrature_points_gradients       => face_fe_function_scalar_get_quadrature_points_gradients
      procedure, non_overridable :: get_value                             => face_fe_function_scalar_get_value
      procedure, non_overridable :: get_gradient                          => face_fe_function_scalar_get_gradient
-     procedure, non_overridable :: set_current_number_nodes              => face_fe_function_scalar_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => face_fe_function_scalar_set_current_number_quadrature_points
+     procedure, non_overridable :: set_current_num_nodes              => face_fe_function_scalar_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points  => face_fe_function_scalar_set_current_num_quadrature_points
      procedure, non_overridable :: free                                  => face_fe_function_scalar_free
   end type face_fe_function_scalar_t
   
@@ -78,8 +78,8 @@ module face_fe_function_names
      procedure, non_overridable :: get_quadrature_points_gradients       => face_fe_function_vector_get_quadrature_points_gradients
      procedure, non_overridable :: get_value                             => face_fe_function_vector_get_value
      procedure, non_overridable :: get_gradient                          => face_fe_function_vector_get_gradient
-     procedure, non_overridable :: set_current_number_nodes              => face_fe_function_vector_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => face_fe_function_vector_set_current_number_quadrature_points
+     procedure, non_overridable :: set_current_num_nodes              => face_fe_function_vector_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points  => face_fe_function_vector_set_current_num_quadrature_points
      procedure, non_overridable :: free                                  => face_fe_function_vector_free
   end type face_fe_function_vector_t
   
@@ -97,8 +97,8 @@ module face_fe_function_names
      procedure, non_overridable :: get_nodal_values                      => face_fe_function_tensor_get_nodal_values
      procedure, non_overridable :: get_quadrature_points_values          => face_fe_function_tensor_get_quadrature_points_values
      procedure, non_overridable :: get_value                             => face_fe_function_tensor_get_value
-     procedure, non_overridable :: set_current_number_nodes              => face_fe_function_tensor_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => face_fe_function_tensor_set_current_number_quadrature_points
+     procedure, non_overridable :: set_current_num_nodes              => face_fe_function_tensor_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points  => face_fe_function_tensor_set_current_num_quadrature_points
      procedure, non_overridable :: free                                  => face_fe_function_tensor_free
   end type face_fe_function_tensor_t
   

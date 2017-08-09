@@ -35,36 +35,36 @@ subroutine edge_map_create(this, quadrature, reference_fe_geo)
   type(quadrature_t)               , intent(in)    :: quadrature
   class(lagrangian_reference_fe_t) , intent(in)    :: reference_fe_geo
 
-  integer(ip)           :: number_edge_dimensions
-  integer(ip)           :: number_vertices_face
+  integer(ip)           :: num_edge_dimensions
+  integer(ip)           :: num_vertices_face
   integer(ip)           :: istat
-  integer(ip)           :: number_dofs_on_edge
+  integer(ip)           :: num_dofs_on_edge
   
   call this%free()
-  this%number_dimensions        = reference_fe_geo%number_dimensions
-  this%number_quadrature_points = quadrature%number_quadrature_points
-  number_edge_dimensions        = 1
+  this%num_dimensions        = reference_fe_geo%num_dimensions
+  this%num_quadrature_points = quadrature%num_quadrature_points
+  num_edge_dimensions        = 1
 
   call reference_fe_geo%create_edge_local_interpolation &
        &                ( quadrature, this%interpolation_geometry)
 
-  call memalloc(this%number_dimensions, &
-                number_edge_dimensions, &
-                this%number_quadrature_points, &
+  call memalloc(this%num_dimensions, &
+                num_edge_dimensions, &
+                this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
 
-  call memalloc(this%number_quadrature_points, &
+  call memalloc(this%num_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(this%number_dimensions, &
-                this%number_quadrature_points, &
+  call memalloc(this%num_dimensions, &
+                this%num_quadrature_points, &
                 this%tangents,__FILE__,__LINE__)
 
-  allocate(this%coordinates_quadrature(this%number_quadrature_points), stat=istat)
+  allocate(this%coordinates_quadrature(this%num_quadrature_points), stat=istat)
   check(istat==0)
 
-  number_dofs_on_edge = reference_fe_geo%get_number_dofs_on_n_face(reference_fe_geo%get_first_n_face_id_of_dimension(1))
-  allocate(this%coordinates_nodes(number_dofs_on_edge), stat=istat)
+  num_dofs_on_edge = reference_fe_geo%get_num_dofs_on_n_face(reference_fe_geo%get_first_n_face_id_of_dimension(1))
+  allocate(this%coordinates_nodes(num_dofs_on_edge), stat=istat)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
@@ -79,26 +79,26 @@ subroutine edge_map_update(this,local_edge_id,reference_fe,quadrature)
   type(quadrature_t), intent(in)    :: quadrature
 
   integer(ip) :: evaluation_point_id, node_id, idime, jdime, local_vef_id,  reorientation_factor
-  integer(ip) :: number_edge_dimensions, number_cell_dimensions
+  integer(ip) :: num_edge_dimensions, num_cell_dimensions
   type(vector_field_t) :: aux_vector
 
-  number_edge_dimensions = 1
-  number_cell_dimensions = reference_fe%number_dimensions
+  num_edge_dimensions = 1
+  num_cell_dimensions = reference_fe%num_dimensions
 
   ! See comment in facet_orientation (polytope module) about the reasoning behind this
   call this%compute_quadrature_coordinates()
 
   ! Initialize values
   this%jacobian           = 0.0_rp
-  do evaluation_point_id = 1, quadrature%number_quadrature_points
+  do evaluation_point_id = 1, quadrature%num_quadrature_points
      ! Updating the Jacobian Matrix
-     do jdime=1, number_edge_dimensions
+     do jdime=1, num_edge_dimensions
         aux_vector = 0.0_rp
-        do node_id = 1, this%interpolation_geometry%number_shape_functions
+        do node_id = 1, this%interpolation_geometry%num_shape_functions
            aux_vector = aux_vector + this%coordinates_nodes(node_id) * &
                 & this%interpolation_geometry%shape_derivatives(1,jdime,node_id,evaluation_point_id)
         end do
-        do idime=1,number_cell_dimensions
+        do idime=1,num_cell_dimensions
            this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)
         end do
 
@@ -131,7 +131,7 @@ subroutine edge_map_get_tangent(this, qpoint, tangent)
  type(vector_field_t), intent(inout) :: tangent 
  integer(ip) :: idime
  assert ( allocated(this%tangents) )
- do idime = 1, this%number_dimensions
+ do idime = 1, this%num_dimensions
    call tangent%set(idime,this%tangents(idime,qpoint))
  end do
 end subroutine edge_map_get_tangent

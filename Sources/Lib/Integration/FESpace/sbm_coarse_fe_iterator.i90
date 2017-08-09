@@ -71,7 +71,7 @@ function coarse_fe_iterator_create_own_dofs_on_vef_iterator ( this, ivef, field_
   ! 2. The number of boundary vefs of all cells up-to the present one,
   !    but not including the present one (this%sum_scan_num_vefs())
   ! 3. The position of the vef in the current cell (ivef)
-  position_own_dofs_vef = (this%get_lid()-1) + this%scan_sum_number_vefs() + ivef
+  position_own_dofs_vef = (this%get_lid()-1) + this%scan_sum_num_vefs() + ivef
   list_iterator = this%coarse_fe_space%own_dofs_vef_per_fe(field_id)%create_iterator(position_own_dofs_vef)
 end function coarse_fe_iterator_create_own_dofs_on_vef_iterator
 
@@ -88,7 +88,7 @@ subroutine coarse_fe_iterator_fill_own_dofs_on_vef ( this, ivef, field_id, curre
   
   ! Determine position in lst_dofs_lids of the first dof associated to the
   ! field "field_id" within the current coarse_fe
-  base_pos_lst_dofs_lids = this%get_scan_sum_number_dofs(field_id)
+  base_pos_lst_dofs_lids = this%get_scan_sum_num_dofs(field_id)
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within current coarse_fe
@@ -117,13 +117,13 @@ subroutine coarse_fe_iterator_fill_own_dofs_on_vef_from_source_coarse_fe ( this,
   type(list_iterator_t) :: own_dofs_on_vef_iterator_target
   
   
-  base_pos_lst_dofs_lids_target = this%get_scan_sum_number_dofs(field_id)
+  base_pos_lst_dofs_lids_target = this%get_scan_sum_num_dofs(field_id)
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within target coarse_fe
   own_dofs_on_vef_iterator_target = this%create_own_dofs_on_vef_iterator(target_ivef,field_id)
   
-  base_pos_lst_dofs_lids_source = source_fe%get_scan_sum_number_dofs(field_id)
+  base_pos_lst_dofs_lids_source = source_fe%get_scan_sum_num_dofs(field_id)
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within target coarse_fe
@@ -145,7 +145,7 @@ subroutine coarse_fe_iterator_fill_own_dofs_on_vef_from_source_coarse_fe ( this,
 end subroutine coarse_fe_iterator_fill_own_dofs_on_vef_from_source_coarse_fe
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
-subroutine coarse_fe_iterator_renumber_dofs_block ( this, block_id, perm_old2new )
+subroutine coarse_fe_iterator_renum_dofs_block ( this, block_id, perm_old2new )
   implicit none
   ! Parameters
   class(coarse_fe_iterator_t), intent(inout) :: this
@@ -156,16 +156,16 @@ subroutine coarse_fe_iterator_renumber_dofs_block ( this, block_id, perm_old2new
   ! class(coarse_fe_iterator_t) also has access to the whole mesh-like container.
   integer(ip)               , intent(in) :: perm_old2new(*)
   integer(ip)                            :: field_id
-  assert ( block_id >= 1 .and. block_id <= this%coarse_fe_space%get_number_blocks() )
-  do field_id=1, this%coarse_fe_space%get_number_fields()
+  assert ( block_id >= 1 .and. block_id <= this%coarse_fe_space%get_num_blocks() )
+  do field_id=1, this%coarse_fe_space%get_num_fields()
     if ( this%coarse_fe_space%field_blocks(field_id) == block_id ) then
-      call this%renumber_dofs_field( field_id, perm_old2new )
+      call this%renum_dofs_field( field_id, perm_old2new )
     end if
   end do 
-end subroutine coarse_fe_iterator_renumber_dofs_block
+end subroutine coarse_fe_iterator_renum_dofs_block
 
 ! Renumbers the DoF identifiers corresponding to field with identifier field_id
-subroutine coarse_fe_iterator_renumber_dofs_field ( this, field_id, perm_old2new )
+subroutine coarse_fe_iterator_renum_dofs_field ( this, field_id, perm_old2new )
   implicit none
   ! Parameters
   class(coarse_fe_iterator_t), intent(inout) :: this
@@ -177,58 +177,58 @@ subroutine coarse_fe_iterator_renumber_dofs_field ( this, field_id, perm_old2new
   integer(ip)               , intent(in) :: perm_old2new(*)
   integer(ip) :: i, start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
   
-  start_pos_lst_dofs_lids = this%get_scan_sum_number_dofs(field_id)+1
-  end_pos_lst_dofs_lids   = this%get_scan_sum_number_dofs(field_id+1)
+  start_pos_lst_dofs_lids = this%get_scan_sum_num_dofs(field_id)+1
+  end_pos_lst_dofs_lids   = this%get_scan_sum_num_dofs(field_id+1)
   
-  assert ( field_id >= 1 .and. field_id <= this%coarse_fe_space%get_number_fields() )
+  assert ( field_id >= 1 .and. field_id <= this%coarse_fe_space%get_num_fields() )
   do i = start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
     if ( this%coarse_fe_space%lst_dofs_lids(i) > 0 ) then
       this%coarse_fe_space%lst_dofs_lids(i) = perm_old2new(this%coarse_fe_space%lst_dofs_lids(i))
     end if
   end do
-end subroutine coarse_fe_iterator_renumber_dofs_field
+end subroutine coarse_fe_iterator_renum_dofs_field
 
 
-! Returns the sum of get_number_dofs() over all cells up-to the present one 
-! (BUT without considering the present one), plus (+) number_dofs() over all fields 
+! Returns the sum of get_num_dofs() over all cells up-to the present one 
+! (BUT without considering the present one), plus (+) num_dofs() over all fields 
 ! up-to field_id-1 in the present cell. 
-function coarse_fe_iterator_get_scan_sum_number_dofs (this, field_id)
+function coarse_fe_iterator_get_scan_sum_num_dofs (this, field_id)
   implicit none
   class(coarse_fe_iterator_t), intent(in) :: this
   integer(ip), intent(in) :: field_id
-  integer(ip) :: coarse_fe_iterator_get_scan_sum_number_dofs
+  integer(ip) :: coarse_fe_iterator_get_scan_sum_num_dofs
   integer(ip) ::  pos_ptr_dofs
-  pos_ptr_dofs = (this%get_lid()-1)*this%coarse_fe_space%number_fields + field_id
-  coarse_fe_iterator_get_scan_sum_number_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs)-1
-end function coarse_fe_iterator_get_scan_sum_number_dofs
+  pos_ptr_dofs = (this%get_lid()-1)*this%coarse_fe_space%num_fields + field_id
+  coarse_fe_iterator_get_scan_sum_num_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs)-1
+end function coarse_fe_iterator_get_scan_sum_num_dofs
 
-function coarse_fe_iterator_get_number_fe_spaces(this)
+function coarse_fe_iterator_get_num_fe_spaces(this)
   implicit none
   class(coarse_fe_iterator_t), intent(in) :: this
-  integer(ip) :: coarse_fe_iterator_get_number_fe_spaces
-  coarse_fe_iterator_get_number_fe_spaces = this%coarse_fe_space%number_fields
-end function coarse_fe_iterator_get_number_fe_spaces
+  integer(ip) :: coarse_fe_iterator_get_num_fe_spaces
+  coarse_fe_iterator_get_num_fe_spaces = this%coarse_fe_space%num_fields
+end function coarse_fe_iterator_get_num_fe_spaces
 
-pure function coarse_fe_iterator_get_number_dofs(this)
+pure function coarse_fe_iterator_get_num_dofs(this)
   implicit none
   class(coarse_fe_iterator_t), intent(in) :: this
-  integer(ip) :: coarse_fe_iterator_get_number_dofs
+  integer(ip) :: coarse_fe_iterator_get_num_dofs
   integer(ip) :: spos
   integer(ip) :: epos
-  spos = (this%get_lid()-1)*this%coarse_fe_space%number_fields+1
-  epos = (this%get_lid())*this%coarse_fe_space%number_fields+1
-  coarse_fe_iterator_get_number_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(epos)- &
+  spos = (this%get_lid()-1)*this%coarse_fe_space%num_fields+1
+  epos = (this%get_lid())*this%coarse_fe_space%num_fields+1
+  coarse_fe_iterator_get_num_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(epos)- &
                                        this%coarse_fe_space%ptr_dofs_per_fe_and_field(spos)
-end function coarse_fe_iterator_get_number_dofs
+end function coarse_fe_iterator_get_num_dofs
 
 subroutine coarse_fe_iterator_get_elem2dof( this, elem2dof )
   implicit none
   class(coarse_fe_iterator_t), intent(in) :: this
-  type(i1p_t)                             :: elem2dof(this%coarse_fe_space%number_fields)
+  type(i1p_t)                             :: elem2dof(this%coarse_fe_space%num_fields)
   integer(ip) :: field_id, j, spos, epos
   
-  j = (this%get_lid()-1)*this%coarse_fe_space%number_fields+1
-  do field_id = 1, this%coarse_fe_space%number_fields
+  j = (this%get_lid()-1)*this%coarse_fe_space%num_fields+1
+  do field_id = 1, this%coarse_fe_space%num_fields
     spos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j)
     epos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j+1)-1
     elem2dof(field_id)%p => this%coarse_fe_space%lst_dofs_lids(spos:epos)
@@ -242,7 +242,7 @@ subroutine coarse_fe_iterator_get_field_elem2dof( this, field_id, elem2dof )
   integer(ip)                , intent(in)    :: field_id
   integer(ip), pointer       , intent(inout) :: elem2dof(:)
   integer(ip) :: j, spos, epos
-  j = (this%get_lid()-1)*this%coarse_fe_space%number_fields+field_id
+  j = (this%get_lid()-1)*this%coarse_fe_space%num_fields+field_id
   spos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j)
   epos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j+1)-1
   elem2dof => this%coarse_fe_space%lst_dofs_lids(spos:epos)

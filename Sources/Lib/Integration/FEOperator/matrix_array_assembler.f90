@@ -56,42 +56,42 @@ module matrix_array_assembler_names
   abstract interface
      
      subroutine assembly_array_interface( this,           & 
-                                          number_fields,  &
+                                          num_fields,  &
                                           field_blocks,   &
                                           field_coupling, &
-                                          number_dofs,    &
+                                          num_dofs,    &
                                           cell2dof,       &
                                           elvec )
        import :: matrix_array_assembler_t, rp, ip, i1p_t
        implicit none
        class(matrix_array_assembler_t) , intent(inout) :: this
-       integer(ip)                     , intent(in)    :: number_fields
-       integer(ip)                     , intent(in)    :: field_blocks(number_fields)
-       logical                         , intent(in)    :: field_coupling(number_fields,number_fields)
-       integer(ip)                     , intent(in)    :: number_dofs(number_fields)
-       type(i1p_t)                     , intent(in)    :: cell2dof(number_fields)
+       integer(ip)                     , intent(in)    :: num_fields
+       integer(ip)                     , intent(in)    :: field_blocks(num_fields)
+       logical                         , intent(in)    :: field_coupling(num_fields,num_fields)
+       integer(ip)                     , intent(in)    :: num_dofs(num_fields)
+       type(i1p_t)                     , intent(in)    :: cell2dof(num_fields)
        real(rp)                        , intent(in)    :: elvec(:)
      end subroutine assembly_array_interface
      
      subroutine assembly_matrix_interface( this,            &
-                                           number_fields,   &
+                                           num_fields,   &
                                            field_blocks,    &
                                            field_coupling,  &
-                                           number_row_dofs, &
-                                           number_col_dofs, &
+                                           num_row_dofs, &
+                                           num_col_dofs, &
                                            cell2row_dofs,   &
                                            cell2col_dofs,   &
                                            elmat )
        import :: matrix_array_assembler_t, rp, ip, i1p_t
        implicit none
        class(matrix_array_assembler_t), intent(inout) :: this
-       integer(ip)                    , intent(in)    :: number_fields
-       integer(ip)                    , intent(in)    :: field_blocks(number_fields)
-       logical                        , intent(in)    :: field_coupling(number_fields,number_fields)
-       integer(ip)                    , intent(in)    :: number_row_dofs(number_fields)
-       integer(ip)                    , intent(in)    :: number_col_dofs(number_fields)
-       type(i1p_t)                    , intent(in)    :: cell2row_dofs(number_fields)
-       type(i1p_t)                    , intent(in)    :: cell2col_dofs(number_fields)
+       integer(ip)                    , intent(in)    :: num_fields
+       integer(ip)                    , intent(in)    :: field_blocks(num_fields)
+       logical                        , intent(in)    :: field_coupling(num_fields,num_fields)
+       integer(ip)                    , intent(in)    :: num_row_dofs(num_fields)
+       integer(ip)                    , intent(in)    :: num_col_dofs(num_fields)
+       type(i1p_t)                    , intent(in)    :: cell2row_dofs(num_fields)
+       type(i1p_t)                    , intent(in)    :: cell2col_dofs(num_fields)
        real(rp)                       , intent(in)    :: elmat(:,:) 
      end subroutine assembly_matrix_interface
 

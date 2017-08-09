@@ -41,8 +41,8 @@ module cell_fe_function_names
   type cell_fe_function_scalar_t
    private
    integer(ip)                       :: field_id
-   integer(ip)                       :: current_number_nodes             
-   integer(ip)                       :: current_number_quadrature_points
+   integer(ip)                       :: current_num_nodes             
+   integer(ip)                       :: current_num_quadrature_points
    real(rp)            , allocatable :: nodal_values(:)  
    real(rp)            , allocatable :: quadrature_points_values(:)
    type(vector_field_t), allocatable :: quadrature_points_gradients(:)
@@ -59,16 +59,16 @@ module cell_fe_function_names
      procedure, non_overridable :: get_quadrature_points_gradients       => cell_fe_function_scalar_get_quadrature_points_gradients
      procedure, non_overridable :: get_value                             => cell_fe_function_scalar_get_value
      procedure, non_overridable :: get_gradient                          => cell_fe_function_scalar_get_gradient
-     procedure, non_overridable :: set_current_number_nodes              => cell_fe_function_scalar_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => cell_fe_function_scalar_set_current_number_quadrature_points
+     procedure, non_overridable :: set_current_num_nodes              => cell_fe_function_scalar_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points  => cell_fe_function_scalar_set_current_num_quadrature_points
      procedure, non_overridable :: free                                  => cell_fe_function_scalar_free
   end type cell_fe_function_scalar_t
   
   type cell_fe_function_vector_t
    private
    integer(ip)                       :: field_id
-   integer(ip)                       :: current_number_nodes             
-   integer(ip)                       :: current_number_quadrature_points           
+   integer(ip)                       :: current_num_nodes             
+   integer(ip)                       :: current_num_quadrature_points           
    real(rp)            , allocatable :: nodal_values(:)  
    type(vector_field_t), allocatable :: quadrature_points_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_gradients(:)
@@ -88,16 +88,16 @@ module cell_fe_function_names
      procedure, non_overridable :: get_gradient                          => cell_fe_function_vector_get_gradient 
      procedure, non_overridable :: compute_curl                          => cell_fe_function_vector_compute_curl 
      procedure, non_overridable :: compute_divergence                    => cell_fe_function_vector_compute_divergence 
-     procedure, non_overridable :: set_current_number_nodes              => cell_fe_function_vector_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => cell_fe_function_vector_set_current_number_quadrature_points
+     procedure, non_overridable :: set_current_num_nodes              => cell_fe_function_vector_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points  => cell_fe_function_vector_set_current_num_quadrature_points
      procedure, non_overridable :: free                                  => cell_fe_function_vector_free
   end type cell_fe_function_vector_t
   
   type cell_fe_function_tensor_t
    private
    integer(ip)                       :: field_id
-   integer(ip)                       :: current_number_nodes            
-   integer(ip)                       :: current_number_quadrature_points     
+   integer(ip)                       :: current_num_nodes            
+   integer(ip)                       :: current_num_quadrature_points     
    real(rp)            , allocatable :: nodal_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_values(:)
   contains
@@ -109,8 +109,8 @@ module cell_fe_function_names
      procedure, non_overridable :: get_nodal_values                     => cell_fe_function_tensor_get_nodal_values  
      procedure, non_overridable :: get_quadrature_points_values         => cell_fe_function_tensor_get_quadrature_points_values          
      procedure, non_overridable :: get_value                            => cell_fe_function_tensor_get_value      
-     procedure, non_overridable :: set_current_number_nodes             => cell_fe_function_tensor_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points => cell_fe_function_tensor_set_current_number_quadrature_points
+     procedure, non_overridable :: set_current_num_nodes             => cell_fe_function_tensor_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points => cell_fe_function_tensor_set_current_num_quadrature_points
      procedure, non_overridable :: free                                 => cell_fe_function_tensor_free
   end type cell_fe_function_tensor_t
   

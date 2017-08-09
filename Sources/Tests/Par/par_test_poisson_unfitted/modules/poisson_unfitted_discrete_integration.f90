@@ -142,10 +142,10 @@ contains
       return
     end if
     quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
+    num_quad_points = quad%get_num_quadrature_points()
 
     ! TODO We assume that all non-void FEs are the same...
-    num_dofs = fe%get_number_dofs()
+    num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
 
@@ -176,10 +176,10 @@ contains
 
          !WARNING This has to be inside the loop
          quad            => fe%get_quadrature()
-         num_quad_points = quad%get_number_quadrature_points()
+         num_quad_points = quad%get_num_quadrature_points()
          fe_map          => fe%get_fe_map()
          cell_int         => fe%get_cell_integrator(1)
-         num_dofs = fe%get_number_dofs()
+         num_dofs = fe%get_num_dofs()
 
          ! Get quadrature coordinates to evaluate source_term
          quad_coords => fe_map%get_quadrature_coordinates()
@@ -216,7 +216,7 @@ contains
 
            ! Get info on the unfitted boundary for integrating BCs
            quad            => fe%get_boundary_quadrature()
-           num_quad_points = quad%get_number_quadrature_points()
+           num_quad_points = quad%get_num_quadrature_points()
            pw_fe_map       => fe%get_boundary_piecewise_fe_map()
            quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
            cell_int         => fe%get_boundary_cell_integrator(1)

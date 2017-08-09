@@ -112,12 +112,12 @@ contains
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)
 
-    num_dofs = fe%get_number_dofs()
+    num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    num_dofs_per_field => fe%get_number_dofs_per_field()
+    num_dofs_per_field => fe%get_num_dofs_per_field()
     quad             => fe%get_quadrature()
-    num_quad_points  = quad%get_number_quadrature_points()
+    num_quad_points  = quad%get_num_quadrature_points()
     fe_map           => fe%get_fe_map()
     cell_int_velocity => fe%get_cell_integrator(1)
     cell_int_pressure => fe%get_cell_integrator(2)
@@ -190,10 +190,10 @@ contains
     end do
 
     quad               => fe_face%get_quadrature()
-    num_quad_points    = quad%get_number_quadrature_points()
+    num_quad_points    = quad%get_num_quadrature_points()
     face_map           => fe_face%get_face_maps()
     face_int_velocity  => fe_face%get_face_integrator(1)
-    num_dofs_per_field => fe_face%get_number_dofs_per_field(1)
+    num_dofs_per_field => fe_face%get_num_dofs_per_field(1)
     
     call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
     do while ( .not. fe_face%has_finished() )

@@ -37,7 +37,7 @@ module vector_poisson_unfitted_conditions_names
      type(boundary_function_t), pointer :: boundary_function
    contains
      procedure :: set_boundary_function       => vector_poisson_unfitted_conditions_set_boundary_function
-     procedure :: get_number_components       => vector_poisson_unfitted_conditions_get_number_components  
+     procedure :: get_num_components       => vector_poisson_unfitted_conditions_get_num_components  
      procedure :: get_components_code         => vector_poisson_unfitted_conditions_get_components_code
      procedure :: get_function                => vector_poisson_unfitted_conditions_get_function
   end type vector_poisson_unfitted_conditions_t
@@ -53,12 +53,12 @@ contains
     this%boundary_function => boundary_function
   end subroutine vector_poisson_unfitted_conditions_set_boundary_function
 
-  function vector_poisson_unfitted_conditions_get_number_components(this)
+  function vector_poisson_unfitted_conditions_get_num_components(this)
     implicit none
     class(vector_poisson_unfitted_conditions_t), intent(in) :: this
-    integer(ip) :: vector_poisson_unfitted_conditions_get_number_components
-    vector_poisson_unfitted_conditions_get_number_components = this%boundary_function%num_dimensions
-  end function vector_poisson_unfitted_conditions_get_number_components
+    integer(ip) :: vector_poisson_unfitted_conditions_get_num_components
+    vector_poisson_unfitted_conditions_get_num_components = this%boundary_function%num_dimensions
+  end function vector_poisson_unfitted_conditions_get_num_components
 
   subroutine vector_poisson_unfitted_conditions_get_components_code(this, boundary_id, components_code)
     implicit none

@@ -265,7 +265,7 @@ contains
     class(environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
 
-    ! Some refactoring is needed here separating number_of_parts_per_level (and dir)
+    ! Some refactoring is needed here separating num_parts_per_level (and dir)
     ! from the rest of the mesh information.
     type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
@@ -800,7 +800,7 @@ contains
 
   !=============================================================================
   subroutine environment_l1_neighbours_exchange_wo_pack_unpack_ieep ( this, &
-       &                                                                  number_neighbours, &
+       &                                                                  num_neighbours, &
        &                                                                  neighbour_ids, &
        &                                                                  snd_ptrs, &
        &                                                                  snd_buf, & 
@@ -808,15 +808,15 @@ contains
        &                                                                  rcv_buf )
     ! Parameters
     class(environment_t)  , intent(in)    :: this 
-    integer(ip)               , intent(in)    :: number_neighbours
-    integer(ip)               , intent(in)    :: neighbour_ids(number_neighbours)
-    integer(ip)               , intent(in)    :: snd_ptrs(number_neighbours+1)
-    integer(ieep)             , intent(in)    :: snd_buf(snd_ptrs(number_neighbours+1)-1)   
-    integer(ip)               , intent(in)    :: rcv_ptrs(number_neighbours+1)
-    integer(ieep)             , intent(out)   :: rcv_buf(rcv_ptrs(number_neighbours+1)-1)
+    integer(ip)               , intent(in)    :: num_neighbours
+    integer(ip)               , intent(in)    :: neighbour_ids(num_neighbours)
+    integer(ip)               , intent(in)    :: snd_ptrs(num_neighbours+1)
+    integer(ieep)             , intent(in)    :: snd_buf(snd_ptrs(num_neighbours+1)-1)   
+    integer(ip)               , intent(in)    :: rcv_ptrs(num_neighbours+1)
+    integer(ieep)             , intent(out)   :: rcv_buf(rcv_ptrs(num_neighbours+1)-1)
 
     assert ( this%am_i_l1_task() )
-    call this%l1_context%neighbours_exchange ( number_neighbours, &
+    call this%l1_context%neighbours_exchange ( num_neighbours, &
          &                                     neighbour_ids, &
          &                                     snd_ptrs, &
          &                                     snd_buf, & 

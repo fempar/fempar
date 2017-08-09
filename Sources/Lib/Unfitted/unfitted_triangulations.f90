@@ -61,14 +61,14 @@ module unfitted_triangulations_names
     procedure :: get_mc_case   => unfitted_cell_iterator_get_mc_case
     
     ! Getters related with the subcells
-    procedure :: get_number_of_subcells      => unfitted_cell_iterator_get_number_of_subcells
-    procedure :: get_number_of_subcell_nodes => unfitted_cell_iterator_get_number_of_subcell_nodes
+    procedure :: get_num_subcells      => unfitted_cell_iterator_get_num_subcells
+    procedure :: get_num_subcell_nodes => unfitted_cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => unfitted_cell_iterator_get_phys_coords_of_subcell
     procedure :: get_ref_coords_of_subcell   => unfitted_cell_iterator_get_ref_coords_of_subcell
     
     ! Getters related with the subfaces
-    procedure :: get_number_of_subfaces      => unfitted_cell_iterator_get_number_of_subfaces
-    procedure :: get_number_of_subface_nodes => unfitted_cell_iterator_get_number_of_subface_nodes
+    procedure :: get_num_subfaces      => unfitted_cell_iterator_get_num_subfaces
+    procedure :: get_num_subface_nodes => unfitted_cell_iterator_get_num_subface_nodes
     procedure :: get_phys_coords_of_subface  => unfitted_cell_iterator_get_phys_coords_of_subface
     procedure :: get_ref_coords_of_subface   => unfitted_cell_iterator_get_ref_coords_of_subface
     
@@ -80,7 +80,7 @@ module unfitted_triangulations_names
     procedure :: is_exterior_subcell => unfitted_cell_iterator_is_exterior_subcell
 
     ! Private TBPs
-    procedure, non_overridable, private :: get_number_of_subnodes         => unfitted_cell_iterator_get_number_of_subnodes
+    procedure, non_overridable, private :: get_num_subnodes         => unfitted_cell_iterator_get_num_subnodes
     procedure, non_overridable, private :: subcell_has_been_reoriented    => unfitted_cell_iterator_subcell_has_been_reoriented
     procedure, non_overridable, private :: subface_touches_interior_reoriented_subcell => unfitted_cell_iterator_subface_touches_reoriented_subcell
 
@@ -98,7 +98,7 @@ module unfitted_triangulations_names
   ! We need this to create a fe space in marching_cubes_t to hold a discrete levelset function
   type, extends(conditions_t) :: mc_dummy_conditions_t
     contains
-      procedure :: get_number_components  => mc_dummy_conditions_get_number_components
+      procedure :: get_num_components  => mc_dummy_conditions_get_num_components
       procedure :: get_components_code    => mc_dummy_conditions_get_components_code
       procedure :: get_function           => mc_dummy_conditions_get_function
   end type mc_dummy_conditions_t
@@ -169,10 +169,10 @@ module unfitted_triangulations_names
     procedure, non_overridable :: get_num_exterior_cells        => marching_cubes_get_num_exterior_cells
     procedure, non_overridable :: get_max_num_subcells_in_cell  => marching_cubes_get_max_num_subcells_in_cell
     procedure, non_overridable :: get_max_num_nodes_in_subcell  => marching_cubes_get_max_num_nodes_in_subcell
-    procedure, non_overridable :: get_total_num_of_subcells     => marching_cubes_get_total_num_of_subcells
+    procedure, non_overridable :: get_total_num_subcells     => marching_cubes_get_total_num_subcells
     procedure, non_overridable :: get_max_num_subfaces_in_cell  => marching_cubes_get_max_num_subfaces_in_cell
     procedure, non_overridable :: get_max_num_nodes_in_subface  => marching_cubes_get_max_num_nodes_in_subface
-    procedure, non_overridable :: get_total_num_of_subfaces     => marching_cubes_get_total_num_of_subfaces
+    procedure, non_overridable :: get_total_num_subfaces     => marching_cubes_get_total_num_subfaces
     procedure, non_overridable :: get_max_num_subnodes_in_cell  => marching_cubes_get_max_num_subnodes_in_cell
     procedure, non_overridable :: get_num_dimensions            => marching_cubes_get_num_dimensions
     
@@ -221,10 +221,10 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_num_exterior_cells        => sut_get_num_exterior_cells
       procedure, non_overridable :: get_max_num_subcells_in_cell  => sut_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => sut_get_max_num_nodes_in_subcell
-      procedure, non_overridable :: get_total_num_of_subcells     => sut_get_total_num_of_subcells
+      procedure, non_overridable :: get_total_num_subcells     => sut_get_total_num_subcells
       procedure, non_overridable :: get_max_num_subfaces_in_cell  => sut_get_max_num_subfaces_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subface  => sut_get_max_num_nodes_in_subface
-      procedure, non_overridable :: get_total_num_of_subfaces     => sut_get_total_num_of_subfaces
+      procedure, non_overridable :: get_total_num_subfaces     => sut_get_total_num_subfaces
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => sut_get_max_num_subnodes_in_cell
 
       ! TODO this getters should be removed in the future
@@ -260,10 +260,10 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_num_exterior_cells        => put_get_num_exterior_cells
       procedure, non_overridable :: get_max_num_subcells_in_cell  => put_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => put_get_max_num_nodes_in_subcell
-      procedure, non_overridable :: get_total_num_of_subcells     => put_get_total_num_of_subcells
+      procedure, non_overridable :: get_total_num_subcells     => put_get_total_num_subcells
       procedure, non_overridable :: get_max_num_subfaces_in_cell  => put_get_max_num_subfaces_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subface  => put_get_max_num_nodes_in_subface
-      procedure, non_overridable :: get_total_num_of_subfaces     => put_get_total_num_of_subfaces
+      procedure, non_overridable :: get_total_num_subfaces     => put_get_total_num_subfaces
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => put_get_max_num_subnodes_in_cell
 
       ! TODO this getters should be removed in the future

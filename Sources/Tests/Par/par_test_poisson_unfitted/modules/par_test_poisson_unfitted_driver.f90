@@ -192,9 +192,9 @@ end subroutine free_timers
     type(level_set_function_factory_t) :: level_set_factory
 
     ! Get number of dimensions form input
-    assert( this%parameter_list%isPresent    (key = number_of_dimensions_key) )
-    assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
+    assert( this%parameter_list%isPresent    (key = num_dimensions_key) )
+    assert( this%parameter_list%isAssignable (key = num_dimensions_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = num_dimensions_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_level_set_function_type(), this%level_set_function)
@@ -299,7 +299,7 @@ end subroutine free_timers
     found_interior_vertex = .false.
     if (this%test_params%get_unfitted_boundary_type() == 'neumann' .and. this%par_environment%am_i_l1_task()) then
 
-      allocate(coords(this%triangulation%get_max_number_shape_functions()),stat = istat); check(istat == 0)
+      allocate(coords(this%triangulation%get_max_num_shape_functions()),stat = istat); check(istat == 0)
       call this%triangulation%create_cell_iterator(cell)
       do while( .not. cell%has_finished() )
         if (cell%is_local()) then
@@ -356,7 +356,7 @@ end subroutine free_timers
       reference_fe_geo => cell%get_reference_fe_geo()
       this%reference_fes(PAR_POISSON_UNFITTED_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   num_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true., &
@@ -364,7 +364,7 @@ end subroutine free_timers
 
       this%reference_fes(PAR_POISSON_UNFITTED_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_void, &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   num_dimensions = this%triangulation%get_num_dimensions(), &
                                                    order = -1, &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true., &
@@ -589,7 +589,7 @@ end subroutine free_timers
 
       num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
       num_active_cells = real(count( this%cell_set_ids(:) == PAR_POISSON_UNFITTED_SET_ID_FULL ),kind=rp)
-      num_dofs         = real(this%fe_space%get_field_number_dofs(1),kind=rp)
+      num_dofs         = real(this%fe_space%get_field_num_dofs(1),kind=rp)
 
       call environment%l1_sum(num_total_cells )
       call environment%l1_sum(num_active_cells)
@@ -609,7 +609,7 @@ end subroutine free_timers
     if (this%test_params%get_use_preconditioner()) then
       if (environment%am_i_lgt1_task()) then
         coarse_fe_space => this%fe_space%get_coarse_fe_space()
-        num_coarse_dofs = coarse_fe_space%get_field_number_dofs(1)
+        num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
         write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
       end if
     end if

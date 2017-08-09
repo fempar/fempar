@@ -36,7 +36,7 @@ module mixed_laplacian_rt_conditions_names
      integer(ip) :: num_dimensions
    contains
      procedure :: set_num_dimensions          => mixed_laplacian_rt_conditions_set_num_dimensions
-     procedure :: get_number_components       => mixed_laplacian_rt_conditions_get_number_components  
+     procedure :: get_num_components       => mixed_laplacian_rt_conditions_get_num_components  
      procedure :: get_components_code         => mixed_laplacian_rt_conditions_get_components_code
      procedure :: get_function                => mixed_laplacian_rt_conditions_get_function
   end type mixed_laplacian_rt_conditions_t
@@ -52,13 +52,13 @@ contains
     this%num_dimensions = num_dimensions
   end subroutine mixed_laplacian_rt_conditions_set_num_dimensions 
 
-  function mixed_laplacian_rt_conditions_get_number_components(this)
+  function mixed_laplacian_rt_conditions_get_num_components(this)
     implicit none
     class(mixed_laplacian_rt_conditions_t), intent(in) :: this
-    integer(ip) :: mixed_laplacian_rt_conditions_get_number_components
+    integer(ip) :: mixed_laplacian_rt_conditions_get_num_components
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 ) 
-    mixed_laplacian_rt_conditions_get_number_components = this%num_dimensions+1
-  end function mixed_laplacian_rt_conditions_get_number_components
+    mixed_laplacian_rt_conditions_get_num_components = this%num_dimensions+1
+  end function mixed_laplacian_rt_conditions_get_num_components
 
   subroutine mixed_laplacian_rt_conditions_get_components_code(this, boundary_id, components_code)
     implicit none

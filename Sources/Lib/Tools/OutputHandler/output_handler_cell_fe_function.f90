@@ -98,9 +98,9 @@ private
     !-----------------------------------------------------------------
     private
         logical                                        :: mixed_cell_topologies = .false.
-        integer(ip)                                    :: number_dimensions     = 0
-        integer(ip)                                    :: number_nodes          = 0
-        integer(ip)                                    :: number_cells          = 0
+        integer(ip)                                    :: num_dimensions     = 0
+        integer(ip)                                    :: num_nodes          = 0
+        integer(ip)                                    :: num_cells          = 0
         class(fe_iterator_t), pointer                  :: current_fe            => NULL()
         type(quadrature_t),        allocatable         :: quadratures(:)
         type(fe_map_t),            allocatable         :: fe_maps(:)
@@ -113,9 +113,9 @@ private
         contains
         private
             procedure, non_overridable, public :: create                    => output_handler_cell_fe_function_create
-            procedure, non_overridable, public :: get_number_nodes          => output_handler_cell_fe_function_get_number_nodes
-            procedure, non_overridable, public :: get_number_cells          => output_handler_cell_fe_function_get_number_cells
-            procedure, non_overridable, public :: get_number_dimensions     => output_handler_cell_fe_function_get_number_dimensions
+            procedure, non_overridable, public :: get_num_nodes          => output_handler_cell_fe_function_get_num_nodes
+            procedure, non_overridable, public :: get_num_cells          => output_handler_cell_fe_function_get_num_cells
+            procedure, non_overridable, public :: get_num_dimensions     => output_handler_cell_fe_function_get_num_dimensions
             procedure, non_overridable, public :: has_mixed_cell_topologies => output_handler_cell_fe_function_has_mixed_cell_topologies
             procedure, non_overridable, public :: fill_patch                => output_handler_cell_fe_function_fill_patch
             procedure, non_overridable, public :: free                      => output_handler_cell_fe_function_free
@@ -140,7 +140,7 @@ private
             procedure, non_overridable :: fill_patch_cell_vector => output_handler_cell_fe_function_fill_patch_cell_vector
 
             procedure, non_overridable :: generate_cell_integ_pos_key => output_handler_cell_fe_function_generate_cell_integ_pos_key
-            procedure, non_overridable :: get_number_reference_fes   => output_handler_cell_fe_function_get_number_reference_fes
+            procedure, non_overridable :: get_num_reference_fes   => output_handler_cell_fe_function_get_num_reference_fes
             procedure, non_overridable :: get_quadrature             => output_handler_cell_fe_function_get_quadrature
             procedure, non_overridable :: get_fe_map                 => output_handler_cell_fe_function_get_fe_map
             procedure, non_overridable :: get_cell_integrator      => output_handler_cell_fe_function_get_cell_integrator      
@@ -167,18 +167,18 @@ contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
-    subroutine output_handler_cell_fe_function_create ( this, fe, number_fields, fe_fields, num_refinements )
+    subroutine output_handler_cell_fe_function_create ( this, fe, num_fields, fe_fields, num_refinements )
     !-----------------------------------------------------------------
     !< Create output_handler_cell_fe_function. 
     !< This procedure must be called every time the mesh changes.
     !< It loops over the finite elements to precalculate some values
-    !< like *number_dimensions*, *number_cells*, *number_nodes*, 
+    !< like *num_dimensions*, *num_cells*, *num_nodes*, 
     !< *quadratures*, *mixed_cell_topologies*, etc.
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(inout) :: this
         class(fe_iterator_t)                    , intent(inout) :: fe
-        integer(ip),                              intent(in)    :: number_fields
-        type(output_handler_fe_field_t),          intent(in)    :: fe_fields(1:number_fields)
+        integer(ip),                              intent(in)    :: num_fields
+        type(output_handler_fe_field_t),          intent(in)    :: fe_fields(1:num_fields)
         integer(ip), optional,                    intent(in)    :: num_refinements
         class(base_static_triangulation_t), pointer             :: triangulation
         class(reference_fe_t),            pointer               :: reference_fe
@@ -191,7 +191,7 @@ contains
         integer(ip)                                             :: cell_integ_pos_key
         integer(ip)                                             :: istat, field_id, quadrature_and_map_pos
         integer(ip)                                             :: reference_fe_id
-        integer(ip)                                             :: number_field
+        integer(ip)                                             :: num_field
         character(len=:), allocatable                           :: field_type
         character(len=:), allocatable                           :: diff_operator
         class(serial_fe_space_t),  pointer                      :: fe_space
@@ -202,13 +202,13 @@ contains
         if (environment%am_i_l1_task()) then
             call this%free()
             triangulation => fe_space%get_triangulation()
-            this%number_dimensions = triangulation%get_num_dimensions()
-            this%number_cells      = 0
-            this%number_nodes      = 0
+            this%num_dimensions = triangulation%get_num_dimensions()
+            this%num_cells      = 0
+            this%num_nodes      = 0
 
-            allocate ( this%quadratures(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
-            allocate ( this%fe_maps(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
-            allocate ( this%cell_integrators(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
+            allocate ( this%quadratures(fe_space%get_num_reference_fes()), stat=istat); check (istat==0)
+            allocate ( this%fe_maps(fe_space%get_num_reference_fes()), stat=istat); check (istat==0)
+            allocate ( this%cell_integrators(fe_space%get_num_reference_fes()), stat=istat); check (istat==0)
 
             ! Create quadratures, fe_maps, and cell_integrators
             call this%quadratures_and_maps_position%init()
@@ -235,8 +235,8 @@ contains
                                                                          reference_fe_geo)
                     current_quadrature_and_map = current_quadrature_and_map + 1
                 end if
-                do field_id=1, fe_space%get_number_fields()
-                    cell_integ_pos_key = this%generate_cell_integ_pos_key(fe_space%get_number_reference_fes(), &
+                do field_id=1, fe_space%get_num_fields()
+                    cell_integ_pos_key = this%generate_cell_integ_pos_key(fe_space%get_num_reference_fes(), &
                                                                         max_order_reference_fe_id, &
                                                                         fe%get_reference_fe_id(field_id))
                     call this%cell_integrators_position%put(key=cell_integ_pos_key, &
@@ -257,9 +257,9 @@ contains
                     ! reference_fe_void_t (defined with order == -1)
                     max_order = max(fe%get_max_order_all_fields(),1)
                     ! Local cell and node counter
-                    this%number_cells = this%number_cells + reference_fe_geo%get_number_subcells(max_order-1)
-                    this%number_nodes = this%number_nodes + &
-                            (reference_fe_geo%get_number_subcells(max_order-1)*reference_fe_geo%get_number_vertices())
+                    this%num_cells = this%num_cells + reference_fe_geo%get_num_subcells(max_order-1)
+                    this%num_nodes = this%num_nodes + &
+                            (reference_fe_geo%get_num_subcells(max_order-1)*reference_fe_geo%get_num_vertices())
 
                     ! Check if there are several topology types or a single one
                     !if(associated(previous_reference_fe_geo) .and.                       &
@@ -275,47 +275,47 @@ contains
             end do
             ! Configure fill_patch_field strategy for each field
             if(allocated(this%fill_patch_field)) deallocate(this%fill_patch_field)
-            allocate(this%fill_patch_field(number_fields))
-            do number_field = 1, number_fields
-                field_type    = fe_fields(number_field)%get_field_type()
-                diff_operator = fe_fields(number_field)%get_diff_operator()
-                call this%apply_fill_patch_field_strategy(field_type, diff_operator, this%fill_patch_field(number_field)%p)
+            allocate(this%fill_patch_field(num_fields))
+            do num_field = 1, num_fields
+                field_type    = fe_fields(num_field)%get_field_type()
+                diff_operator = fe_fields(num_field)%get_diff_operator()
+                call this%apply_fill_patch_field_strategy(field_type, diff_operator, this%fill_patch_field(num_field)%p)
             end do
         end if
     end subroutine output_handler_cell_fe_function_create
 
 
-    function output_handler_cell_fe_function_get_number_nodes(this) result(number_nodes)
+    function output_handler_cell_fe_function_get_num_nodes(this) result(num_nodes)
     !-----------------------------------------------------------------
     !< Return the number of nodes
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t),  intent(in) :: this
-        integer(ip)                                           :: number_nodes
+        integer(ip)                                           :: num_nodes
     !-----------------------------------------------------------------
-        number_nodes = this%number_nodes
-    end function output_handler_cell_fe_function_get_number_nodes
+        num_nodes = this%num_nodes
+    end function output_handler_cell_fe_function_get_num_nodes
 
 
-    function output_handler_cell_fe_function_get_number_cells(this) result(number_cells)
+    function output_handler_cell_fe_function_get_num_cells(this) result(num_cells)
     !-----------------------------------------------------------------
     !< Return the number of cells
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t),  intent(in) :: this
-        integer(ip)                                           :: number_cells
+        integer(ip)                                           :: num_cells
     !-----------------------------------------------------------------
-        number_cells = this%number_cells
-    end function output_handler_cell_fe_function_get_number_cells
+        num_cells = this%num_cells
+    end function output_handler_cell_fe_function_get_num_cells
 
 
-    function output_handler_cell_fe_function_get_number_dimensions(this) result(number_dimensions)
+    function output_handler_cell_fe_function_get_num_dimensions(this) result(num_dimensions)
     !-----------------------------------------------------------------
     !< Return the number of dimensions
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t),  intent(in) :: this
-        integer(ip)                                           :: number_dimensions
+        integer(ip)                                           :: num_dimensions
     !-----------------------------------------------------------------
-        number_dimensions = this%number_dimensions
-    end function output_handler_cell_fe_function_get_number_dimensions
+        num_dimensions = this%num_dimensions
+    end function output_handler_cell_fe_function_get_num_dimensions
 
 
     function output_handler_cell_fe_function_has_mixed_cell_topologies(this) result(mixed_cell_topologies)
@@ -329,7 +329,7 @@ contains
     end function output_handler_cell_fe_function_has_mixed_cell_topologies
 
 
-    subroutine output_handler_cell_fe_function_fill_patch(this, fe_iterator, number_fields, fe_fields, number_cell_vectors, cell_vectors, patch)
+    subroutine output_handler_cell_fe_function_fill_patch(this, fe_iterator, num_fields, fe_fields, num_cell_vectors, cell_vectors, patch)
     !-----------------------------------------------------------------
     !< Fill a [[output_handler_patch_t(type)]] from a given [[fe_iterator_t(type)]].
     !< The **pach** contains a local view of the coordinates, connectivities 
@@ -337,10 +337,10 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t),  intent(inout) :: this
         class(fe_iterator_t),             target,  intent(in)    :: fe_iterator
-        integer(ip),                               intent(in)    :: number_fields
-        type(output_handler_fe_field_t),           intent(in)    :: fe_fields(1:number_fields)
-        integer(ip),                               intent(in)    :: number_cell_vectors
-        type(output_handler_cell_vector_t),        intent(in)    :: cell_vectors(1:number_cell_vectors)
+        integer(ip),                               intent(in)    :: num_fields
+        type(output_handler_fe_field_t),           intent(in)    :: fe_fields(1:num_fields)
+        integer(ip),                               intent(in)    :: num_cell_vectors
+        type(output_handler_cell_vector_t),        intent(in)    :: cell_vectors(1:num_cell_vectors)
         type(output_handler_patch_t),              intent(inout) :: patch
         integer(ip)                                              :: reference_fe_id
         integer(ip)                                              :: idx
@@ -374,23 +374,23 @@ contains
 
             ! Set subcell information into patch
             call patch%set_cell_type(reference_fe_geo%get_topology())
-            call patch%set_number_dimensions(reference_fe_geo%get_number_dimensions())
-            call patch%set_number_vertices_per_subcell(quadrature%get_number_quadrature_points())
-            call patch%set_number_subcells(reference_fe_geo%get_number_subcells(num_refinements=max_order_within_fe-1))
-            call patch%set_number_vertices_per_subcell(reference_fe_geo%get_number_vertices())
+            call patch%set_num_dimensions(reference_fe_geo%get_num_dimensions())
+            call patch%set_num_vertices_per_subcell(quadrature%get_num_quadrature_points())
+            call patch%set_num_subcells(reference_fe_geo%get_num_subcells(num_refinements=max_order_within_fe-1))
+            call patch%set_num_vertices_per_subcell(reference_fe_geo%get_num_vertices())
 
             ! Set patch coordinates from fe_map
             call patch%set_coordinates(fe_map%get_quadrature_points_coordinates())
 
             ! Set patch connectivities from reference_fe_geo given num_refinements
             patch_subcells_connectivity => patch%get_subcells_connectivity()
-            call patch_subcells_connectivity%create(reference_fe_geo%get_number_vertices(), &
-                                                    reference_fe_geo%get_number_subcells(num_refinements=max_order_within_fe-1))
+            call patch_subcells_connectivity%create(reference_fe_geo%get_num_vertices(), &
+                                                    reference_fe_geo%get_num_subcells(num_refinements=max_order_within_fe-1))
             call reference_fe_geo%get_subcells_connectivity(num_refinements=max_order_within_fe-1, &
                                                             connectivity=patch_subcells_connectivity%a)
 
             ! Fill patch fe field data
-            do idx = 1, number_fields
+            do idx = 1, num_fields
                 fe_function  => fe_fields(idx)%get_fe_function()
                 field_id     =  fe_fields(idx)%get_field_id()
                 patch_field  => patch%get_field(idx)
@@ -400,9 +400,9 @@ contains
             end do
 
             ! Fill patch cell vectors data
-            do idx = 1, number_cell_vectors
+            do idx = 1, num_cell_vectors
                 patch_cell_vector  => patch%get_cell_vector(idx)
-                call this%fill_patch_cell_vector(cell_vectors(idx), patch%get_number_subcells(), patch_cell_vector)
+                call this%fill_patch_cell_vector(cell_vectors(idx), patch%get_num_subcells(), patch_cell_vector)
             end do
         end if
     end subroutine output_handler_cell_fe_function_fill_patch
@@ -482,7 +482,7 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_number_shape_functions())
+        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
         call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
 
         ! Calculate scalar field values
@@ -521,7 +521,7 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_number_shape_functions())
+        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
         call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
 
         ! Calculate scalar field gradients
@@ -560,7 +560,7 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_number_shape_functions())
+        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
         call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
 
         ! Calculate vector field values
@@ -599,7 +599,7 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_number_shape_functions())
+        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
         call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
 
         ! Calculate vector field gradients
@@ -644,7 +644,7 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_number_shape_functions())
+        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
         call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
 
         call patch_field%set_field_type(field_type_scalar)
@@ -660,15 +660,15 @@ contains
 
         ! Allocate scalar function values
         if ( allocated(scalar_function_values) ) then
-           call memrealloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
+           call memrealloc(quadrature%get_num_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
         else
-           call memalloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
+           call memalloc(quadrature%get_num_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
         end if
         
         ! Calculate divergence
         scalar_function_values = 0._rp
-        do qpoint = 1, quadrature%get_number_quadrature_points()
-            do dim = 1, this%number_dimensions
+        do qpoint = 1, quadrature%get_num_quadrature_points()
+            do dim = 1, this%num_dimensions
                 scalar_function_values(qpoint) = scalar_function_values(qpoint) + tensor_function_values(qpoint)%get(dim, dim)
             enddo
         enddo 
@@ -714,7 +714,7 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_number_shape_functions())
+        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
         call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
 
         ! get tensor function values
@@ -724,37 +724,37 @@ contains
         ! Calculate gradients
         call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
 
-        if(this%number_dimensions == 2) then
+        if(this%num_dimensions == 2) then
             call patch_field%set_field_type(field_type_scalar)
             patch_field_scalar_function_values => patch_field%get_scalar_function_values()
             call patch_field_scalar_function_values%move_alloc_out(scalar_function_values) 
             ! Allocate scalar function values
             if ( allocated(scalar_function_values) ) then
-               call memrealloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
+               call memrealloc(quadrature%get_num_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
             else
-               call memalloc(quadrature%get_number_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
+               call memalloc(quadrature%get_num_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
             end if
             ! Calculate curl
-            do qpoint = 1, quadrature%get_number_quadrature_points()
+            do qpoint = 1, quadrature%get_num_quadrature_points()
                 scalar_function_values(qpoint) = tensor_function_values(qpoint)%get(1,2)-tensor_function_values(qpoint)%get(2,1)
             enddo
             call patch_field_scalar_function_values%move_alloc_in(scalar_function_values)     
 
-        elseif(this%number_dimensions == 3) then
+        elseif(this%num_dimensions == 3) then
             call patch_field%set_field_type(field_type_vector)
             patch_field_vector_function_values => patch_field%get_vector_function_values()
             call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
             ! Allocate vector function values
             if ( allocated(vector_function_values) ) then
-               if ( size(vector_function_values) < quadrature%get_number_quadrature_points() ) then
+               if ( size(vector_function_values) < quadrature%get_num_quadrature_points() ) then
                   deallocate(vector_function_values, stat=istat); check(istat==0)
-                  allocate(vector_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
+                  allocate(vector_function_values(quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
                endif
             else
-               allocate(vector_function_values(quadrature%get_number_quadrature_points()), stat=istat); check(istat==0)
+               allocate(vector_function_values(quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
             end if
             ! Calculate curl
-            do qpoint = 1, quadrature%get_number_quadrature_points()
+            do qpoint = 1, quadrature%get_num_quadrature_points()
                 call vector_function_values(qpoint)%set(1, &
                         tensor_function_values(qpoint)%get(2,3)-tensor_function_values(qpoint)%get(3,2))
                 call vector_function_values(qpoint)%set(2, &
@@ -797,7 +797,7 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_number_shape_functions())
+        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
         call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
 
         ! Calculate tensor field values
@@ -810,19 +810,19 @@ contains
     end subroutine output_handler_cell_fe_function_fill_patch_tensor_field_val
 
 
-    subroutine output_handler_cell_fe_function_fill_patch_cell_vector(this, cell_vector, number_subcells, patch_cell_vector)
+    subroutine output_handler_cell_fe_function_fill_patch_cell_vector(this, cell_vector, num_subcells, patch_cell_vector)
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field values given a **cell_vector**
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(inout) :: this
         type(output_handler_cell_vector_t),       intent(in)    :: cell_vector
-        integer(ip),                              intent(in)    :: number_subcells
+        integer(ip),                              intent(in)    :: num_subcells
         type(allocatable_array_rp1_t),            intent(inout) :: patch_cell_vector
         real(rp), pointer                                       :: values(:)
     !-----------------------------------------------------------------
         ! Gather DoFs of current cell + field_id on nodal_values 
         values => cell_vector%get_cell_vector()
-        call patch_cell_vector%create(number_subcells)
+        call patch_cell_vector%create(num_subcells)
         patch_cell_vector%a = values(this%current_fe%get_lid())
     end subroutine output_handler_cell_fe_function_fill_patch_cell_vector
 
@@ -860,9 +860,9 @@ contains
             check(istat==0)
         end if
 
-        this%number_cells          = 0
-        this%number_nodes          = 0
-        this%number_dimensions     = 0
+        this%num_cells          = 0
+        this%num_nodes          = 0
+        this%num_dimensions     = 0
         this%mixed_cell_topologies = .false.
     end subroutine output_handler_cell_fe_function_free
 
@@ -931,7 +931,7 @@ contains
         assert ( associated(this%current_fe) )
 
         cell_integ_pos_key = &
-             this%generate_cell_integ_pos_key(this%get_number_reference_fes(), &
+             this%generate_cell_integ_pos_key(this%get_num_reference_fes(), &
              this%current_fe%get_max_order_reference_fe_id(), &
              this%current_fe%get_reference_fe_id(field_id))
 
@@ -943,17 +943,17 @@ contains
     end function output_handler_cell_fe_function_get_cell_integrator
 
 
-    function output_handler_cell_fe_function_get_number_reference_fes ( this ) result(number_reference_fes)
+    function output_handler_cell_fe_function_get_num_reference_fes ( this ) result(num_reference_fes)
     !-----------------------------------------------------------------
     !< Return the number of [[reference_fe_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(in)   :: this
-        integer(ip)                                            :: number_reference_fes
+        integer(ip)                                            :: num_reference_fes
         class(serial_fe_space_t), pointer                      :: serial_fe_space
     !-----------------------------------------------------------------
         assert ( associated(this%current_fe) )
         serial_fe_space => this%current_fe%get_fe_space()
-        number_reference_fes = serial_fe_space%get_number_reference_fes()
-    end function output_handler_cell_fe_function_get_number_reference_fes
+        num_reference_fes = serial_fe_space%get_num_reference_fes()
+    end function output_handler_cell_fe_function_get_num_reference_fes
 
 end module output_handler_cell_fe_function_names

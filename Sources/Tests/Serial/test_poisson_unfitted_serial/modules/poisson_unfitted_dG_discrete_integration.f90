@@ -123,11 +123,11 @@ contains
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)
     
-    num_dofs = fe%get_number_dofs()
+    num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
+    num_quad_points = quad%get_num_quadrature_points()
     fe_map          => fe%get_fe_map()
     cell_int         => fe%get_cell_integrator(1)
     
@@ -184,7 +184,7 @@ contains
     end do
     
     quad            => fe_face%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
+    num_quad_points = quad%get_num_quadrature_points()
     face_map        => fe_face%get_face_maps()
     face_int        => fe_face%get_face_integrator(1)
     
@@ -252,7 +252,7 @@ contains
     end do
 
     quad            => fe_face%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
+    num_quad_points = quad%get_num_quadrature_points()
     face_map        => fe_face%get_face_maps()
     face_int        => fe_face%get_face_integrator(1)
    

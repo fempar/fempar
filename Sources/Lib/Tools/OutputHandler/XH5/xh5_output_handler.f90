@@ -108,7 +108,7 @@ private
         integer(ip),                              allocatable :: Connectivities(:)
         type(output_handler_fe_field_1D_value_t), allocatable :: FieldValues(:)
         type(output_handler_fe_field_1D_value_t), allocatable :: CellValues(:)
-        integer(ip)                                           :: number_steps = 0
+        integer(ip)                                           :: num_steps = 0
         integer(ip)                                           :: node_offset = 0
         integer(ip)                                           :: cell_offset = 0
     contains
@@ -151,7 +151,7 @@ contains
             enddo
             deallocate(this%CellValues)
         endif
-        this%number_steps = 0
+        this%num_steps = 0
         this%node_offset  = 0
         this%cell_offset  = 0
     end subroutine xh5_output_handler_free_body
@@ -248,7 +248,7 @@ contains
         assert(associated(environment))
 
         if( environment%am_i_l1_task()) call this%xh5%AppendStep(Value)
-        this%number_steps = this%number_steps + 1
+        this%num_steps = this%num_steps + 1
         this%node_offset  = 0
         this%cell_offset  = 0
     end subroutine xh5_output_handler_append_time_step
@@ -259,40 +259,40 @@ contains
     !< Allocate cell and nodal arrays
     !-----------------------------------------------------------------
         class(xh5_output_handler_t), intent(inout) :: this
-        integer(ip)                                :: number_nodes
-        integer(ip)                                :: number_cells
-        integer(ip)                                :: number_dimensions
+        integer(ip)                                :: num_nodes
+        integer(ip)                                :: num_cells
+        integer(ip)                                :: num_dimensions
         type(output_handler_fe_field_t), pointer   :: field
         integer(ip)                                :: i
     !-----------------------------------------------------------------
-        number_nodes      = this%get_number_nodes()
-        number_cells      = this%get_number_cells()
-        number_dimensions = this%get_number_dimensions()
+        num_nodes      = this%get_num_nodes()
+        num_cells      = this%get_num_cells()
+        num_dimensions = this%get_num_dimensions()
         if(allocated(this%XYZ)) then
-            call memrealloc(number_nodes*number_dimensions, this%XYZ,            __FILE__, __LINE__)
+            call memrealloc(num_nodes*num_dimensions, this%XYZ,            __FILE__, __LINE__)
         else
-            call memalloc(  number_nodes*number_dimensions, this%XYZ,            __FILE__, __LINE__)
+            call memalloc(  num_nodes*num_dimensions, this%XYZ,            __FILE__, __LINE__)
         endif
         if(this%has_mixed_cell_topologies()) then
             if(allocated(this%Connectivities)) then
-                call memrealloc(number_nodes+number_cells,  this%Connectivities, __FILE__, __LINE__)
+                call memrealloc(num_nodes+num_cells,  this%Connectivities, __FILE__, __LINE__)
             else
-                call memalloc(  number_nodes+number_cells,  this%Connectivities, __FILE__, __LINE__)
+                call memalloc(  num_nodes+num_cells,  this%Connectivities, __FILE__, __LINE__)
             endif
         else
             if(allocated(this%Connectivities)) then
-                call memrealloc(number_nodes,               this%Connectivities, __FILE__, __LINE__)
+                call memrealloc(num_nodes,               this%Connectivities, __FILE__, __LINE__)
             else
-                call memalloc(  number_nodes,               this%Connectivities, __FILE__, __LINE__)
+                call memalloc(  num_nodes,               this%Connectivities, __FILE__, __LINE__)
             endif
         endif
-        do i=1, this%get_number_fields()
+        do i=1, this%get_num_fields()
             field => this%get_fe_field(i)
-            call this%FieldValues(i)%create(field%get_number_components(), this%get_number_nodes())
+            call this%FieldValues(i)%create(field%get_num_components(), this%get_num_nodes())
             call this%FieldValues(i)%init(0.0_rp)
         end do
-        do i=1, this%get_number_cell_vectors()
-            call this%CellValues(i)%create(1, this%get_number_cells())
+        do i=1, this%get_num_cell_vectors()
+            call this%CellValues(i)%create(1, this%get_num_cells())
 	           call this%CellValues(i)%init(0.0_rp)
         enddo
     end subroutine xh5_output_handler_allocate_cell_and_nodal_arrays
@@ -307,28 +307,28 @@ contains
         real(rp),    allocatable                   :: Coordinates(:,:)
         integer(ip), allocatable                   :: Connectivity(:)
         real(rp),                        pointer   :: Value(:)
-        integer(ip)                                :: number_vertices
-        integer(ip)                                :: number_dimensions
-        integer(ip)                                :: number_fields
-        integer(ip)                                :: number_cell_vectors
-        integer(ip)                                :: number_components
+        integer(ip)                                :: num_vertices
+        integer(ip)                                :: num_dimensions
+        integer(ip)                                :: num_fields
+        integer(ip)                                :: num_cell_vectors
+        integer(ip)                                :: num_components
         integer(ip)                                :: connectivities_offset
         integer(ip)                                :: i
     !-----------------------------------------------------------------
-        number_vertices   = subcell_accessor%get_number_vertices()
-        number_dimensions = subcell_accessor%get_number_dimensions()
-        number_fields     = this%get_number_fields()
-        number_cell_vectors = this%get_number_cell_vectors()
+        num_vertices   = subcell_accessor%get_num_vertices()
+        num_dimensions = subcell_accessor%get_num_dimensions()
+        num_fields     = this%get_num_fields()
+        num_cell_vectors = this%get_num_cell_vectors()
 
 
-        if(.not. this%StaticGrid .or. this%number_steps <= 1) then
+        if(.not. this%StaticGrid .or. this%num_steps <= 1) then
             call subcell_accessor%get_coordinates(this%XYZ( &
-                                this%node_offset*number_dimensions+1:(this%node_offset+number_vertices)*number_dimensions) )
+                                this%node_offset*num_dimensions+1:(this%node_offset+num_vertices)*num_dimensions) )
 
             if(this%has_mixed_cell_topologies()) then
                 ! Add element topology ID before its connectivities
                 connectivities_offset = this%node_offset+this%cell_offset
-                this%Connectivities(connectivities_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), number_dimensions)
+                this%Connectivities(connectivities_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), num_dimensions)
                 connectivities_offset = connectivities_offset+1
             else
                 connectivities_offset = this%node_offset
@@ -337,34 +337,34 @@ contains
 
             select case (subcell_accessor%get_cell_type())
                 case (topology_hex) 
-                    select case (number_dimensions)
+                    select case (num_dimensions)
                         case (2)
-                            this%Connectivities(connectivities_offset+1:connectivities_offset+number_vertices) = &
+                            this%Connectivities(connectivities_offset+1:connectivities_offset+num_vertices) = &
                                     [0,1,3,2]+this%node_offset
                         case (3)
-                            this%Connectivities(connectivities_offset+1:connectivities_offset+number_vertices) = &
+                            this%Connectivities(connectivities_offset+1:connectivities_offset+num_vertices) = &
                                     [0,1,3,2,4,5,7,6]+this%node_offset
                         case DEFAULT
                             check(.false.)
                     end select
                 case (topology_tet) 
-                    this%Connectivities(connectivities_offset+1:connectivities_offset+number_vertices) = &
-                                    [(i, i=this%node_offset, this%node_offset+number_vertices-1)]
+                    this%Connectivities(connectivities_offset+1:connectivities_offset+num_vertices) = &
+                                    [(i, i=this%node_offset, this%node_offset+num_vertices-1)]
                 case DEFAULT
                     check(.false.)    
             end select
         endif
 
-        do i=1, number_fields
-            number_components = this%FieldValues(i)%get_number_components()
+        do i=1, num_fields
+            num_components = this%FieldValues(i)%get_num_components()
             Value => this%FieldValues(i)%get_value()
-            call subcell_accessor%get_field(i, Value((number_components*this%node_offset)+1:number_components*(this%node_offset+number_vertices)))
+            call subcell_accessor%get_field(i, Value((num_components*this%node_offset)+1:num_components*(this%node_offset+num_vertices)))
         enddo
 
-        this%node_offset = this%node_offset + number_vertices
+        this%node_offset = this%node_offset + num_vertices
         this%cell_offset = this%cell_offset + 1
 
-        do i=1, number_cell_vectors
+        do i=1, num_cell_vectors
             Value => this%CellValues(i)%get_value()
             call subcell_accessor%get_cell_vector(i, Value(this%cell_offset:this%cell_offset))
         enddo
@@ -394,25 +394,25 @@ contains
         assert(associated(environment))
 
         if( environment%am_i_l1_task()) then
-            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
-            if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_number_cell_vectors()))
+            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_num_fields()))
+            if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_num_cell_vectors()))
 
-            call this%fill_data(update_mesh = (.not. this%StaticGrid .or. this%number_steps <= 1))
+            call this%fill_data(update_mesh = (.not. this%StaticGrid .or. this%num_steps <= 1))
 
             !call environment%info(me, np)
             me = environment%get_l1_rank()
             np = environment%get_l1_size()
 
-            if(.not. this%StaticGrid .or. this%number_steps <= 1) then                 
-                geometry_type = dimensions_to_xh5_unstructured_GeometryType(this%get_number_dimensions())
+            if(.not. this%StaticGrid .or. this%num_steps <= 1) then                 
+                geometry_type = dimensions_to_xh5_unstructured_GeometryType(this%get_num_dimensions())
                 if(allocated(this%CellType) .and.  .not. this%has_mixed_cell_topologies()) then
-                    topology_type = topology_to_xh5_topologytype(this%CellType, this%get_number_dimensions())
+                    topology_type = topology_to_xh5_topologytype(this%CellType, this%get_num_dimensions())
                 else
                     topology_type = XDMF_TOPOLOGY_TYPE_MIXED
                 endif
 
-                call this%xh5%SetGrid(NumberOfNodes        = this%get_number_nodes(),  &
-                                      NumberOfElements     = this%get_number_cells(),  &
+                call this%xh5%SetGrid(NumberOfNodes        = this%get_num_nodes(),  &
+                                      NumberOfElements     = this%get_num_cells(),  &
                                       TopologyType         = topology_type,            &
                                       GeometryType         = geometry_type)
 
@@ -421,17 +421,17 @@ contains
                 call this%xh5%WriteTopology(Connectivities = this%Connectivities)
             endif
 
-            do i=1, this%get_number_fields()
+            do i=1, this%get_num_fields()
                 field => this%get_fe_field(i)
                 Value => this%FieldValues(i)%get_value()
-                attribute_type = number_components_to_xh5_AttributeType(this%FieldValues(i)%get_number_components())
+                attribute_type = num_components_to_xh5_AttributeType(this%FieldValues(i)%get_num_components())
                 call this%xh5%WriteAttribute(Name   = field%get_name(),             &
                                              Type   = attribute_type,               &
                                              Center = XDMF_ATTRIBUTE_CENTER_NODE ,  &
                                              Values = Value)
             enddo
 
-            do i=1, this%get_number_cell_vectors()
+            do i=1, this%get_num_cell_vectors()
                 cell_vector => this%get_cell_vector(i)
                 Value => this%CellValues(i)%get_value()
                 call this%xh5%WriteAttribute(Name   = cell_vector%get_name(),       &

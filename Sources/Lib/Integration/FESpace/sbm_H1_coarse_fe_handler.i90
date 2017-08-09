@@ -72,7 +72,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   triangulation => par_fe_space%get_triangulation()
 
   allocate (test_elem2dof(1), stat=istat); check(istat==0);
-  call memalloc(par_fe_space%get_max_number_shape_functions(), facevec, __FILE__, __LINE__ )
+  call memalloc(par_fe_space%get_max_num_shape_functions(), facevec, __FILE__, __LINE__ )
 
   ! Fill constraint matrix entries (transposed)
   call par_fe_space%create_fe_object_iterator(object)
@@ -80,7 +80,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   call par_fe_space%create_fe_face_iterator(fe_face)
   call par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
-     if ( object%get_number_coarse_dofs(field_id) > 0 ) then
+     if ( object%get_num_coarse_dofs(field_id) > 0 ) then
 
         own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
         assert ( own_coarse_dofs_iterator%get_size() == 1 )
@@ -99,16 +99,16 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
               call fe_face%get_cell_around(1,fe)
               facevec = 0.0_rp
               call fe_face%update_integration() 
-              do qpoint = 1, quad%get_number_quadrature_points()
+              do qpoint = 1, quad%get_num_quadrature_points()
                  factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-                 do idof = 1, fe%get_number_dofs()
+                 do idof = 1, fe%get_num_dofs()
                     call face_int%get_value(idof,qpoint,1,shape_trial)
                     facevec(idof) = facevec(idof) + shape_trial*factor
                  end do
               end do
 
               call fe_face%get_elem2dof(1, test_elem2dof)
-              call constraint_matrix%insert(fe%get_number_dofs(), &
+              call constraint_matrix%insert(fe%get_num_dofs(), &
                                             test_elem2dof(1)%p, &
                                             coarse_dof_lid, &
                                             facevec)
@@ -190,9 +190,9 @@ subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, paramete
     
   ! Fill constraint matrix entries (transposed)
   triangulation => par_fe_space%get_triangulation()
-  call memalloc( triangulation%get_number_subparts(), is_subpart_local, __FILE__ , __LINE__ )
-  call memalloc( triangulation%get_number_subparts(), touch_subpart, __FILE__ , __LINE__ )
-  call memalloc( triangulation%get_number_subparts(), subpart_viscosity, __FILE__ , __LINE__ )
+  call memalloc( triangulation%get_num_subparts(), is_subpart_local, __FILE__ , __LINE__ )
+  call memalloc( triangulation%get_num_subparts(), touch_subpart, __FILE__ , __LINE__ )
+  call memalloc( triangulation%get_num_subparts(), subpart_viscosity, __FILE__ , __LINE__ )
   
   is_subpart_local = .false.
   touch_subpart = .false.

@@ -34,8 +34,8 @@ subroutine fe_iterator_create ( this, fe_space )
   call this%free()
   this%fe_space => fe_space
   call this%fe_space%triangulation%create_cell_iterator(this%cell)
-  call memalloc ( this%fe_space%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
-  allocate( this%elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
+  call memalloc ( this%fe_space%num_fields, this%num_dofs_per_field, __FILE__, __LINE__ )
+  allocate( this%elem2dof(this%fe_space%num_fields), stat=istat); check(istat==0);
 end subroutine fe_iterator_create
 
 subroutine fe_iterator_free (this)
@@ -48,8 +48,8 @@ subroutine fe_iterator_free (this)
     end if
   end if
   nullify(this%fe_space)
-  if ( allocated(this%number_dofs_per_field) ) then
-    call memfree ( this%number_dofs_per_field, __FILE__, __LINE__ )
+  if ( allocated(this%num_dofs_per_field) ) then
+    call memfree ( this%num_dofs_per_field, __FILE__, __LINE__ )
   end if
   if ( allocated(this%elem2dof) ) then
     deallocate ( this%elem2dof, stat=istat ); check(istat==0);
@@ -75,7 +75,7 @@ function fe_iterator_count_own_dofs ( this, field_id )
   class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   
-  assert ( field_id>= 1 .and. field_id <= this%fe_space%number_fields )
+  assert ( field_id>= 1 .and. field_id <= this%fe_space%num_fields )
   
   reference_fe => this%get_reference_fe(field_id)
   ivef = this%get_num_vefs()+1
@@ -96,7 +96,7 @@ subroutine fe_iterator_fill_own_dofs ( this, field_id, current_dof )
   class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   
-  assert ( field_id>= 1 .and. field_id <= this%fe_space%number_fields )
+  assert ( field_id>= 1 .and. field_id <= this%fe_space%num_fields )
   ivef = this%get_num_vefs()+1
   
   reference_fe => this%get_reference_fe(field_id)
@@ -128,7 +128,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof,
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   
   assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
-  assert ( field_id >= 1 .and. field_id <= this%fe_space%number_fields )
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%num_fields )
   
   ! Determine position in lst_dofs_lids of the first dof associated to the
   ! field "field_id" within the current fe
@@ -164,7 +164,7 @@ function fe_iterator_count_own_dofs_on_vef ( this, ivef, field_id )
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   
   assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
-  assert ( field_id >= 1 .and. field_id <= this%fe_space%number_fields )
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%num_fields )
   
   ! Determine position in lst_dofs_lids of the first dof associated to the
   ! field "field_id" within the current fe
@@ -195,7 +195,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_component_wise ( this, ivef, field_i
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   
   assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
-  assert ( field_id >= 1 .and. field_id <= this%get_number_fields() )
+  assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
   
   ! Determine position in lst_dofs_lids of the first dof associated to the
   ! field "field_id" within the current fe
@@ -203,7 +203,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_component_wise ( this, ivef, field_i
 
   reference_fe => this%get_reference_fe(field_id)
   
-  assert ( size(components_code) == reference_fe%get_number_field_components() )
+  assert ( size(components_code) == reference_fe%get_num_field_components() )
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within current fe
@@ -248,7 +248,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
 
   assert ( target_ivef <= this%get_num_vefs() )
   assert ( source_ivef <= source_fe%get_num_vefs() )
-  assert ( field_id <= this%get_number_fields() )
+  assert ( field_id <= this%get_num_fields() )
   
   reference_fe_target => this%get_reference_fe(field_id)
   base_pos_lst_dofs_lids_target = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())-1
@@ -295,7 +295,7 @@ subroutine fe_iterator_fill_dofs_face_integration_coupling ( this, ivef, field_i
   type(list_iterator_t)          :: face_integration_coupling_dofs 
   
   reference_fe => this%get_reference_fe(field_id)
-  assert ( reference_fe%get_n_face_dimension(ivef) == reference_fe%get_number_dimensions()-1 )
+  assert ( reference_fe%get_n_face_dimension(ivef) == reference_fe%get_num_dimensions()-1 )
   
   if ( reference_fe%get_continuity() ) then
     face_integration_coupling_dofs = reference_fe%create_dofs_on_n_face_iterator(ivef)
@@ -310,7 +310,7 @@ subroutine fe_iterator_fill_dofs_face_integration_coupling ( this, ivef, field_i
 end subroutine fe_iterator_fill_dofs_face_integration_coupling
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
-subroutine fe_iterator_renumber_dofs_block ( this, block_id, perm_old2new )
+subroutine fe_iterator_renum_dofs_block ( this, block_id, perm_old2new )
   implicit none
   ! Parameters
   class(fe_iterator_t)      , intent(inout) :: this
@@ -321,16 +321,16 @@ subroutine fe_iterator_renumber_dofs_block ( this, block_id, perm_old2new )
   ! class(fe_iterator_t) also has access to the whole mesh-like container.
   integer(ip)               , intent(in)    :: perm_old2new(*)
   integer(ip)                            :: field_id
-  assert ( block_id >= 1 .and. block_id <= this%fe_space%get_number_blocks() )
-  do field_id=1, this%fe_space%get_number_fields()
+  assert ( block_id >= 1 .and. block_id <= this%fe_space%get_num_blocks() )
+  do field_id=1, this%fe_space%get_num_fields()
     if ( this%fe_space%block_layout%get_block_id(field_id) == block_id ) then
-      call this%renumber_dofs_field( field_id, perm_old2new )
+      call this%renum_dofs_field( field_id, perm_old2new )
     end if
   end do 
-end subroutine fe_iterator_renumber_dofs_block
+end subroutine fe_iterator_renum_dofs_block
 
 ! Renumbers the DoF identifiers corresponding to field with identifier field_id
-subroutine fe_iterator_renumber_dofs_field ( this, field_id, perm_old2new )
+subroutine fe_iterator_renum_dofs_field ( this, field_id, perm_old2new )
   implicit none
   ! Parameters
   class(fe_iterator_t), intent(inout) :: this
@@ -344,34 +344,34 @@ subroutine fe_iterator_renumber_dofs_field ( this, field_id, perm_old2new )
   
   start_pos_lst_dofs_lids = this%fe_space%ptr_dofs_per_fe(field_id,this%get_lid())
   
-  if ( field_id == this%fe_space%get_number_fields() ) then
+  if ( field_id == this%fe_space%get_num_fields() ) then
     end_pos_lst_dofs_lids = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)-1
   else  
     end_pos_lst_dofs_lids   = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())-1
   end if  
   
-  assert ( field_id >= 1 .and. field_id <= this%fe_space%get_number_fields() )
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
   do i = start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
     if ( this%fe_space%lst_dofs_lids(i) > 0 ) then
       this%fe_space%lst_dofs_lids(i) = perm_old2new(this%fe_space%lst_dofs_lids(i))
     end if
   end do
-end subroutine fe_iterator_renumber_dofs_field
+end subroutine fe_iterator_renum_dofs_field
 
-subroutine fe_iterator_update_number_dofs_per_field( this, number_dofs_per_field )
+subroutine fe_iterator_update_num_dofs_per_field( this, num_dofs_per_field )
   implicit none
   class(fe_iterator_t), intent(in)    :: this 
-  integer(ip)         , intent(inout) :: number_dofs_per_field(:)
+  integer(ip)         , intent(inout) :: num_dofs_per_field(:)
   integer(ip) :: field_id
   
-  do field_id = 1, this%get_number_fields()-1
-    number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())- &
+  do field_id = 1, this%get_num_fields()-1
+    num_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())- &
                                       this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
   end do
-  number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
+  num_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
                                     this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
   
-end subroutine fe_iterator_update_number_dofs_per_field
+end subroutine fe_iterator_update_num_dofs_per_field
 
 subroutine fe_iterator_update_integration( this )
   implicit none
@@ -390,12 +390,12 @@ subroutine fe_iterator_update_integration( this )
 
   quadrature => this%get_quadrature()
   call fe_map%update(quadrature)
-  do field_id = 1, this%get_number_fields()
+  do field_id = 1, this%get_num_fields()
      cell_integrator => this%get_cell_integrator(field_id) 
      call cell_integrator%update(fe_map)
   end do
   
-  call this%update_number_dofs_per_field(this%number_dofs_per_field)
+  call this%update_num_dofs_per_field(this%num_dofs_per_field)
   
 end subroutine fe_iterator_update_integration
 
@@ -406,12 +406,12 @@ function fe_iterator_get_fe_space(this)
   fe_iterator_get_fe_space => this%fe_space
 end function fe_iterator_get_fe_space
 
-function fe_iterator_get_number_fields(this)
+function fe_iterator_get_num_fields(this)
   implicit none
   class(fe_iterator_t), intent(in) :: this
-  integer(ip) :: fe_iterator_get_number_fields
-  fe_iterator_get_number_fields = this%fe_space%number_fields
-end function fe_iterator_get_number_fields
+  integer(ip) :: fe_iterator_get_num_fields
+  fe_iterator_get_num_fields = this%fe_space%num_fields
+end function fe_iterator_get_num_fields
 
 function fe_iterator_get_fe_space_type(this, field_id)
   implicit none
@@ -447,20 +447,20 @@ function fe_iterator_get_field_blocks(this)
 end function fe_iterator_get_field_blocks
 
 
-function fe_iterator_get_number_dofs(this)
+function fe_iterator_get_num_dofs(this)
   implicit none
   class(fe_iterator_t), intent(in) :: this
-  integer(ip) :: fe_iterator_get_number_dofs
-  fe_iterator_get_number_dofs = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
+  integer(ip) :: fe_iterator_get_num_dofs
+  fe_iterator_get_num_dofs = this%fe_space%ptr_dofs_per_fe(1, this%get_lid()+1)- &
                                 this%fe_space%ptr_dofs_per_fe(1, this%get_lid())
-end function fe_iterator_get_number_dofs
+end function fe_iterator_get_num_dofs
 
-function fe_iterator_get_number_dofs_per_field (this) result (number_dofs_per_field)
+function fe_iterator_get_num_dofs_per_field (this) result (num_dofs_per_field)
   implicit none
   class(fe_iterator_t), target, intent(in) :: this
-  integer(ip), pointer :: number_dofs_per_field(:)
-  number_dofs_per_field => this%number_dofs_per_field
-end function fe_iterator_get_number_dofs_per_field
+  integer(ip), pointer :: num_dofs_per_field(:)
+  num_dofs_per_field => this%num_dofs_per_field
+end function fe_iterator_get_num_dofs_per_field
 
 subroutine fe_iterator_get_field_elem2dof( this, field_id, elem2dof )
   implicit none
@@ -470,7 +470,7 @@ subroutine fe_iterator_get_field_elem2dof( this, field_id, elem2dof )
   integer(ip) :: spos, epos
  
   spos = this%fe_space%ptr_dofs_per_fe(field_id  ,this%get_lid())
-  if ( field_id == this%fe_space%get_number_fields() ) then
+  if ( field_id == this%fe_space%get_num_fields() ) then
      epos = this%fe_space%ptr_dofs_per_fe(1,this%get_lid()+1)-1
   else
      epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
@@ -484,8 +484,8 @@ subroutine fe_iterator_get_elem2dof( this, elem2dof )
   type(i1p_t)         , intent(inout) :: elem2dof(:)
   integer(ip) :: field_id, j, spos, epos
   
-  assert ( size(elem2dof) == this%fe_space%number_fields )
-  do field_id = 1, this%get_number_fields()-1
+  assert ( size(elem2dof) == this%fe_space%num_fields )
+  do field_id = 1, this%get_num_fields()-1
     spos = this%fe_space%ptr_dofs_per_fe(field_id  ,this%get_lid())
     epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
     elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
@@ -522,7 +522,7 @@ function fe_iterator_get_max_order_all_fields( this )
   integer(ip) :: fe_iterator_get_max_order_all_fields
   integer(ip) :: field_id
   fe_iterator_get_max_order_all_fields = -1
-  do field_id=1, this%get_number_fields()
+  do field_id=1, this%get_num_fields()
    if ( fe_iterator_get_max_order_all_fields < this%get_max_order_single_field(field_id) ) then
         fe_iterator_get_max_order_all_fields = this%get_max_order_single_field(field_id)
    end if
@@ -551,7 +551,7 @@ subroutine fe_iterator_determine_at_strong_dirichlet_boundary_all_fields ( this 
   implicit none
   class(fe_iterator_t)   , intent(inout) :: this
   integer(ip) :: field_id
-  do field_id=1, this%get_number_fields()
+  do field_id=1, this%get_num_fields()
     call this%determine_at_strong_dirichlet_boundary(field_id)
   end do
 end subroutine fe_iterator_determine_at_strong_dirichlet_boundary_all_fields
@@ -561,7 +561,7 @@ function fe_iterator_compute_volume ( this )
   implicit none
   class(fe_iterator_t), intent(in) :: this
   real(rp) :: fe_iterator_compute_volume
-  integer(ip)                 :: q_poin, number_quadrature_points
+  integer(ip)                 :: q_poin, num_quadrature_points
   
   type(quadrature_t), pointer :: quadrature
   type(fe_map_t)    , pointer :: fe_map
@@ -569,9 +569,9 @@ function fe_iterator_compute_volume ( this )
   quadrature => this%get_quadrature()
   fe_map     => this%get_fe_map()
   
-  number_quadrature_points = quadrature%get_number_quadrature_points()
+  num_quadrature_points = quadrature%get_num_quadrature_points()
   fe_iterator_compute_volume = 0.0_rp
-  do q_poin = 1, number_quadrature_points
+  do q_poin = 1, num_quadrature_points
      fe_iterator_compute_volume = fe_iterator_compute_volume + &
           &                          fe_map%get_det_jacobian(q_poin) * &
           &                          quadrature%get_weight(q_poin)
@@ -694,7 +694,7 @@ function fe_iterator_get_max_order_reference_fe(this)
   integer(ip)                            :: max_order
   integer(ip)                            :: field_id
   max_order = -1
-  do field_id=1, this%get_number_fields()
+  do field_id=1, this%get_num_fields()
     reference_fe => this%get_reference_fe(field_id)
     if ( reference_fe%get_max_order() > max_order ) then
       max_order = reference_fe%get_max_order()
@@ -712,7 +712,7 @@ function fe_iterator_get_max_order_reference_fe_id(this)
   integer(ip)                            :: field_id
   max_order = -1
   fe_iterator_get_max_order_reference_fe_id = -1
-  do field_id=1, this%get_number_fields()
+  do field_id=1, this%get_num_fields()
     reference_fe => this%get_reference_fe(field_id)
     if ( reference_fe%get_max_order() >= max_order ) then
       max_order = reference_fe%get_max_order()
@@ -772,11 +772,11 @@ subroutine fe_iterator_impose_strong_dirichlet_bcs ( this, fe_function, elmat, e
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
   
   elmat_col = 0
-  do field_id = 1, this%fe_space%get_number_fields()
+  do field_id = 1, this%fe_space%get_num_fields()
     if ( this%at_strong_dirichlet_boundary(field_id) ) then
       reference_fe => this%get_reference_fe(field_id)
       spos = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
-      do idof = 1, reference_fe%get_number_shape_functions()
+      do idof = 1, reference_fe%get_num_shape_functions()
         elmat_col = elmat_col + 1
         if ( this%fe_space%lst_dofs_lids(spos+idof-1) < 0 ) then
           elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(-this%fe_space%lst_dofs_lids(spos+idof-1))
@@ -796,10 +796,10 @@ subroutine fe_iterator_assembly_array ( this,  &
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
   call this%get_elem2dof(this%elem2dof)
-  call matrix_array_assembler%assembly_array( this%fe_space%number_fields,         &
+  call matrix_array_assembler%assembly_array( this%fe_space%num_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
-                                              this%number_dofs_per_field,          &
+                                              this%num_dofs_per_field,          &
                                               this%elem2dof,                       &
                                               elvec )
   
@@ -814,11 +814,11 @@ subroutine fe_iterator_assembly_matrix ( this,  &
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
   call this%get_elem2dof(this%elem2dof)
-  call matrix_array_assembler%assembly_matrix( this%fe_space%number_fields,        &
+  call matrix_array_assembler%assembly_matrix( this%fe_space%num_fields,        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
-                                               this%number_dofs_per_field,         &
-                                               this%number_dofs_per_field,         &
+                                               this%num_dofs_per_field,         &
+                                               this%num_dofs_per_field,         &
                                                this%elem2dof,                      &
                                                this%elem2dof,                      &
                                                elmat )
@@ -836,18 +836,18 @@ subroutine fe_iterator_assembly_matrix_array ( this,  &
   class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
   
   call this%get_elem2dof(this%elem2dof)
-  call matrix_array_assembler%assembly_matrix( this%fe_space%number_fields,        &
+  call matrix_array_assembler%assembly_matrix( this%fe_space%num_fields,        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
-                                               this%number_dofs_per_field,         &
-                                               this%number_dofs_per_field,         &
+                                               this%num_dofs_per_field,         &
+                                               this%num_dofs_per_field,         &
                                                this%elem2dof,                      &
                                                this%elem2dof,                      &
                                                elmat )
-  call matrix_array_assembler%assembly_array( this%fe_space%number_fields,         &
+  call matrix_array_assembler%assembly_array( this%fe_space%num_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
-                                              this%number_dofs_per_field,          &
+                                              this%num_dofs_per_field,          &
                                               this%elem2dof,                       &
                                               elvec )
   

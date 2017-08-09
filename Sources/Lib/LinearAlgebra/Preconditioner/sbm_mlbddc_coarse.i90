@@ -80,7 +80,7 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
   ! a single-field PDE problem
   field_id = 1
   
-  call memalloc(fe_space%get_block_number_dofs(1), this%W, __FILE__, __LINE__ )
+  call memalloc(fe_space%get_block_num_dofs(1), this%W, __FILE__, __LINE__ )
   this%W = 1.0_rp
   
   call fe_space%create_coarse_fe_iterator(fe)
@@ -96,7 +96,7 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    = own_dofs_on_vef_iterator%get_current()
            dof_lid = elem2dof(idof)
-           this%W(dof_lid) = this%W(dof_lid)/real(object%get_number_parts_around(),rp)
+           this%W(dof_lid) = this%W(dof_lid)/real(object%get_num_parts_around(),rp)
            call own_dofs_on_vef_iterator%next()
         end do
      end do

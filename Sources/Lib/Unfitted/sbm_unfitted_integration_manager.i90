@@ -77,7 +77,7 @@ subroutine uim_check_assumptions(this)
   ! Same ref elem in all cells, but possibly different among fields
 
   call this%fe_space%create_fe_iterator(fe)
-  num_fields = this%fe_space%get_number_fields()
+  num_fields = this%fe_space%get_num_fields()
 
   ! Check geom ref element
   ! TODO how to check the fe_type? EDIT: I think it is not necessary
@@ -87,7 +87,7 @@ subroutine uim_check_assumptions(this)
     if (fe%is_local()) then
       geo_ref_fe => fe%get_reference_fe_geo()
       assert( geo_ref_fe_1%get_topology()          ==    geo_ref_fe%get_topology()          )
-      assert( geo_ref_fe_1%get_number_dimensions() ==    geo_ref_fe%get_number_dimensions() )
+      assert( geo_ref_fe_1%get_num_dimensions() ==    geo_ref_fe%get_num_dimensions() )
       assert( geo_ref_fe_1%get_order()             ==    geo_ref_fe%get_order()             )
       assert( geo_ref_fe_1%get_field_type()        ==    geo_ref_fe%get_field_type()        )
       assert( geo_ref_fe_1%get_continuity()        .eqv. geo_ref_fe%get_continuity()        )
@@ -108,7 +108,7 @@ subroutine uim_check_assumptions(this)
       if (fe%is_local() .and. (.not. fe%is_void(ifield) )) then
         ref_fe     => fe%get_reference_fe(ifield)
         assert( ref_fe_1%get_topology()          ==    ref_fe%get_topology()         )
-        assert( ref_fe_1%get_number_dimensions() ==    ref_fe%get_number_dimensions())
+        assert( ref_fe_1%get_num_dimensions() ==    ref_fe%get_num_dimensions())
         assert( ref_fe_1%get_order()             ==    ref_fe%get_order()            )
         assert( ref_fe_1%get_field_type()        ==    ref_fe%get_field_type()       )
         assert( ref_fe_1%get_continuity()        .eqv. ref_fe%get_continuity()       )
@@ -140,7 +140,7 @@ subroutine uim_init_reference_subelem( this )
   ! TODO we assume that the sub-element is always either a triangle or a tetrahedron
   ! TODO We assume also order 1 in the geometrical representation of the unfitted boundary
   call this%geo_reference_subelem%create( topology = topology_tet,&
-                                      number_dimensions = num_dim,&
+                                      num_dimensions = num_dim,&
                                       order = 1,&
                                       field_type = field_type_scalar,&
                                       conformity = .true., &
@@ -188,7 +188,7 @@ subroutine uim_init_cut_integration( this )
 
   call this%free_cut_integration()
   num_dim = this%marching_cubes%get_num_dimensions()
-  num_gp_subelem = this%quadrature_subelem%get_number_quadrature_points()
+  num_gp_subelem = this%quadrature_subelem%get_num_quadrature_points()
   mc_num_cases = this%marching_cubes%get_num_mc_cases()
 
   allocate( this%cut_quadratures(1:mc_num_cases), stat=istat ); check(istat==0_ip)
@@ -212,7 +212,7 @@ subroutine uim_init_cut_integration( this )
   end do
 
   ! cell integrators
-  num_fields = this%fe_space%get_number_fields()
+  num_fields = this%fe_space%get_num_fields()
   allocate( this%cut_cell_integrators(1:mc_num_cases,1:num_fields), stat=istat ); check(istat==0_ip)
   do ifield = 1,num_fields
 
@@ -305,10 +305,10 @@ subroutine uim_init_cut_boundary_integration( this )
 
   call this%free_cut_boundary_integration()
 
-  num_gp = this%quadrature_subface%get_number_quadrature_points()
+  num_gp = this%quadrature_subface%get_num_quadrature_points()
   num_dim = this%marching_cubes%get_num_dimensions()
   mc_num_cases = this%marching_cubes%get_num_mc_cases()
-  num_fields = this%fe_space%get_number_fields()
+  num_fields = this%fe_space%get_num_fields()
 
   !TODO not needed to allocate for all the mc cases
   allocate( this%cut_boundary_quadratures_cell_dim    (1:mc_num_cases), stat = istat ); check(istat==0)

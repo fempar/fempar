@@ -61,7 +61,7 @@ module maxwell_nedelec_params_names
      integer(ip)                   :: reference_fe_order
      character(len=str_cla_len)    :: triangulation_type
      integer(ip)                   :: num_dimensions     
-     integer(ip)                   :: number_of_cells_per_dir(0:SPACE_DIM-1)
+     integer(ip)                   :: num_cells_per_dir(0:SPACE_DIM-1)
      integer(ip)                   :: is_dir_periodic(0:SPACE_DIM-1)
      logical                       :: write_solution
      
@@ -152,16 +152,16 @@ contains
     call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
          &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
     check(error==0) 
-    call this%cli%add(switch='--number_of_dimensions',switch_ab='-dim',help='Number of space dimensions',&
+    call this%cli%add(switch='--num_dimensions',switch_ab='-dim',help='Number of space dimensions',&
          &            required=.false.,act='store',def=trim(this%default_num_dimensions),error=error) 
     check(error==0) 
-    call this%cli%add(switch='--number_of_cells_in_x',switch_ab='-nx',help='Number of cells in x',&
+    call this%cli%add(switch='--num_cells_in_x',switch_ab='-nx',help='Number of cells in x',&
          &            required=.false.,act='store',def=trim(this%default_nx),error=error) 
     check(error==0) 
-    call this%cli%add(switch='--number_of_cells_in_y',switch_ab='-ny',help='Number of cells in y',&
+    call this%cli%add(switch='--num_cells_in_y',switch_ab='-ny',help='Number of cells in y',&
          &            required=.false.,act='store',def=trim(this%default_ny),error=error) 
     check(error==0) 
-    call this%cli%add(switch='--number_of_cells_in_z',switch_ab='-nz',help='Number of cells in z',&
+    call this%cli%add(switch='--num_cells_in_z',switch_ab='-nz',help='Number of cells in z',&
          &            required=.false.,act='store',def=trim(this%default_nz),error=error) 
     check(error==0) 
     call this%cli%add(switch='--periodic_in_x',switch_ab='-px',help='Is the mesh periodic in x',&
@@ -195,9 +195,9 @@ contains
     call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
     call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
     call this%cli%get(switch='-dim',val=this%num_dimensions,error=istat); check(istat==0)
-    call this%cli%get(switch='-nx',val=this%number_of_cells_per_dir(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-ny',val=this%number_of_cells_per_dir(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-nz',val=this%number_of_cells_per_dir(2),error=istat); check(istat==0)
+    call this%cli%get(switch='-nx',val=this%num_cells_per_dir(0),error=istat); check(istat==0)
+    call this%cli%get(switch='-ny',val=this%num_cells_per_dir(1),error=istat); check(istat==0)
+    call this%cli%get(switch='-nz',val=this%num_cells_per_dir(2),error=istat); check(istat==0)
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
@@ -214,8 +214,8 @@ contains
        istat = parameter_list%set(key = triangulation_generate_key, value = triangulation_generate_from_mesh)
     else if(trim(this%triangulation_type)=='structured') then
        istat = parameter_list%set(key = triangulation_generate_key         , value = triangulation_generate_structured)
-       istat = istat + parameter_list%set(key = number_of_dimensions_key   , value = this%num_dimensions)
-       istat = istat + parameter_list%set(key = number_of_cells_per_dir_key, value = this%number_of_cells_per_dir)
+       istat = istat + parameter_list%set(key = num_dimensions_key   , value = this%num_dimensions)
+       istat = istat + parameter_list%set(key = num_cells_per_dir_key, value = this%num_cells_per_dir)
        istat = istat + parameter_list%set(key = is_dir_periodic_key        , value = this%is_dir_periodic)
     end if
     check(istat==0)

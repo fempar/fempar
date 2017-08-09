@@ -45,10 +45,10 @@ module piecewise_fe_map_names
     private
 
     type(face_map_t)   :: fe_sub_map
-    integer(ip)        :: number_sub_maps
-    integer(ip)        :: number_quadrature_points_sub_map
-    integer(ip)        :: number_nodes_sub_map
-    integer(ip)        :: number_nodes
+    integer(ip)        :: num_sub_maps
+    integer(ip)        :: num_quadrature_points_sub_map
+    integer(ip)        :: num_nodes_sub_map
+    integer(ip)        :: num_nodes
     class  (lagrangian_reference_fe_t), pointer:: reference_fe_geometry => null()
 
     ! The same as in fe_map_t (this can be inherited form fe_map_t)
@@ -56,8 +56,8 @@ module piecewise_fe_map_names
     type(point_t), allocatable    :: coordinates_quadrature(:)
     type(point_t), allocatable    :: coordinates_nodes(:)
     real(rp),      allocatable    :: normals(:,:)
-    integer(ip)                   :: number_dimensions
-    integer(ip)                   :: number_quadrature_points
+    integer(ip)                   :: num_dimensions
+    integer(ip)                   :: num_quadrature_points
 
   contains
 
@@ -93,22 +93,22 @@ contains
 
     call this%free()
 
-    this%number_quadrature_points_sub_map = quadrature%get_number_quadrature_points()
-    this%number_sub_maps                  = num_sub_maps
-    this%number_quadrature_points         = quadrature%get_number_quadrature_points() * num_sub_maps
-    this%number_dimensions                = reference_fe_geometry%get_number_dimensions()
+    this%num_quadrature_points_sub_map = quadrature%get_num_quadrature_points()
+    this%num_sub_maps                  = num_sub_maps
+    this%num_quadrature_points         = quadrature%get_num_quadrature_points() * num_sub_maps
+    this%num_dimensions                = reference_fe_geometry%get_num_dimensions()
 
     call this%fe_sub_map%create( quadrature, reference_fe_geometry )
 
     nod_coords => this%fe_sub_map%get_coordinates()
-    this%number_nodes_sub_map = size(nod_coords)
-    this%number_nodes = size(nod_coords) * num_sub_maps
+    this%num_nodes_sub_map = size(nod_coords)
+    this%num_nodes = size(nod_coords) * num_sub_maps
 
-    allocate( this%coordinates_nodes     (1:this%number_nodes),             stat = istat ); check(istat==0)
-    allocate( this%coordinates_quadrature(1:this%number_quadrature_points), stat = istat ); check(istat==0)
+    allocate( this%coordinates_nodes     (1:this%num_nodes),             stat = istat ); check(istat==0)
+    allocate( this%coordinates_quadrature(1:this%num_quadrature_points), stat = istat ); check(istat==0)
 
-    call memalloc( this%number_quadrature_points, this%det_jacobian, __FILE__,__LINE__ )
-    call memalloc( this%number_dimensions, this%number_quadrature_points, this%normals, __FILE__,__LINE__  )
+    call memalloc( this%num_quadrature_points, this%det_jacobian, __FILE__,__LINE__ )
+    call memalloc( this%num_dimensions, this%num_quadrature_points, this%normals, __FILE__,__LINE__  )
     
     this%reference_fe_geometry => reference_fe_geometry
 
@@ -118,12 +118,12 @@ contains
   subroutine piecewise_fe_map_free( this )
     implicit none
     class(piecewise_fe_map_t), intent(inout) :: this
-    this%number_dimensions                = -1
-    this%number_quadrature_points         = -1
-    this%number_sub_maps                  = -1
-    this%number_quadrature_points_sub_map = -1
-    this%number_nodes_sub_map             = -1
-    this%number_nodes                     = -1
+    this%num_dimensions                = -1
+    this%num_quadrature_points         = -1
+    this%num_sub_maps                  = -1
+    this%num_quadrature_points_sub_map = -1
+    this%num_nodes_sub_map             = -1
+    this%num_nodes                     = -1
     if (allocated(this%coordinates_nodes     )) deallocate  ( this%coordinates_nodes      )
     if (allocated(this%coordinates_quadrature)) deallocate  ( this%coordinates_quadrature )
     if (allocated(this%det_jacobian))           call memfree( this%det_jacobian, __FILE__,__LINE__  )
@@ -150,11 +150,11 @@ contains
     
     reorientation_factor = this%reference_fe_geometry%get_normal_orientation_factor(face_lid = 1)
 
-    do imap = 1, this%number_sub_maps
+    do imap = 1, this%num_sub_maps
 
       ! Update the coordinates of the sub map
-      nend = imap * this%number_nodes_sub_map
-      nini = nend - this%number_nodes_sub_map + 1
+      nend = imap * this%num_nodes_sub_map
+      nini = nend - this%num_nodes_sub_map + 1
       nod_coords => this%fe_sub_map%get_coordinates()
       nod_coords(:) = this%coordinates_nodes(nini:nend)
 
@@ -165,8 +165,8 @@ contains
       quad_coords => this%fe_sub_map%get_quadrature_points_coordinates()
       det_jacobs => this%fe_sub_map%get_det_jacobians()
       normal_vecs => this%fe_sub_map%get_normals()
-      pend = imap * this%number_quadrature_points_sub_map
-      pini = pend - this%number_quadrature_points_sub_map + 1
+      pend = imap * this%num_quadrature_points_sub_map
+      pini = pend - this%num_quadrature_points_sub_map + 1
       this%coordinates_quadrature(pini:pend) = quad_coords(:)
       this%det_jacobian(pini:pend) = det_jacobs(:)
       this%normals(:,pini:pend) = normal_vecs(:,:)
@@ -185,11 +185,11 @@ contains
     type(point_t), pointer :: nod_coord(:), quad_coord(:)
 
 
-    do imap = 1, this%number_sub_maps
+    do imap = 1, this%num_sub_maps
 
       ! Update the coordinates of the sub map
-      nend = imap * this%number_nodes_sub_map
-      nini = nend - this%number_nodes_sub_map + 1
+      nend = imap * this%num_nodes_sub_map
+      nini = nend - this%num_nodes_sub_map + 1
       nod_coord => this%fe_sub_map%get_coordinates()
       nod_coord(:) = this%coordinates_nodes(nini:nend)
 
@@ -198,8 +198,8 @@ contains
 
       ! Recover the computed quantities in the sub map, and put them in the arrays
       quad_coord => this%fe_sub_map%get_quadrature_points_coordinates()
-      pend = imap * this%number_quadrature_points_sub_map
-      pini = pend - this%number_quadrature_points_sub_map + 1
+      pend = imap * this%num_quadrature_points_sub_map
+      pini = pend - this%num_quadrature_points_sub_map + 1
       this%coordinates_quadrature(pini:pend) = quad_coord(:)
 
     end do
@@ -239,7 +239,7 @@ contains
    type(vector_field_t), intent(inout) :: normal
    integer(ip) :: idime
    assert ( allocated(this%normals) )
-   do idime = 1, this%number_dimensions
+   do idime = 1, this%num_dimensions
      call normal%set(idime,this%normals(idime,qpoint))
    end do
   end subroutine  piecewise_fe_map_get_normal

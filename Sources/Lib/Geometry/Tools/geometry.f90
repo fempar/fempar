@@ -36,7 +36,7 @@ module geometry_names
      ! which is detected checking when n==0
      integer(ip)               :: n = 0
      integer(ip)               :: p = 0               ! p as in sisl=order+1
-     real(rp), allocatable     :: control_points(:)   ! (number_space_dimensions+1)*n, including weights
+     real(rp), allocatable     :: control_points(:)   ! (num_space_dimensions+1)*n, including weights
      real(rp), allocatable     :: knots(:)            ! nu+pu+1
      type(c_ptr)               :: sisl_ptr = c_null_ptr
      type(geometry_t), pointer :: geometry => null()
@@ -327,7 +327,7 @@ contains
     real(rp)     , intent(in) :: tol
     real(rp)                  :: line_get_parameter
 
-    !real(rp)          :: point_coords(number_space_dimensions)
+    !real(rp)          :: point_coords(num_space_dimensions)
     integer(ip)       :: p_shape(1)
     real(rp), pointer :: param(:)
     type(c_ptr)       :: p_param
@@ -335,7 +335,7 @@ contains
     type(c_ptr)       :: wcurve
 
     !point_coords = point%get_value()
-    !call curve_point_intersection(line%sisl_ptr, point_coords, number_space_dimensions, tol, num_int, p_param, num_curves, wcurve, istat)
+    !call curve_point_intersection(line%sisl_ptr, point_coords, num_space_dimensions, tol, num_int, p_param, num_curves, wcurve, istat)
     call curve_point_intersection(this%sisl_ptr, point%get_value(), SPACE_DIM, tol, num_int, p_param, num_curves, wcurve, istat)
     !write(*,*) num_int, istat
     assert(istat==0)
@@ -359,12 +359,12 @@ contains
     real(rp)    :: values(6)
     integer(ip) :: leftknot = 0
     integer(ip) :: stat
-    integer(ip) :: number_of_derivatives_to_compute
+    integer(ip) :: num_derivatives_to_compute
 
-    number_of_derivatives_to_compute = 0
-    if(present(tangent)) number_of_derivatives_to_compute=1
+    num_derivatives_to_compute = 0
+    if(present(tangent)) num_derivatives_to_compute=1
     
-    call curve_left_evaluation(this%sisl_ptr, number_of_derivatives_to_compute, param, leftknot, values, stat) 
+    call curve_left_evaluation(this%sisl_ptr, num_derivatives_to_compute, param, leftknot, values, stat) 
 
     assert(stat==0)
     call point%init(values(1:SPACE_DIM))
@@ -402,19 +402,19 @@ contains
     end subroutine surface_free
 
 
-    subroutine surface_create_linear(this, surface_id, number_lines, lines_ids, lines_orientation)
+    subroutine surface_create_linear(this, surface_id, num_lines, lines_ids, lines_orientation)
     !-----------------------------------------------------------------
     !< Create a linear quad
     !-----------------------------------------------------------------
         class(surface_t), intent(inout) :: this
         integer(ip),      intent(in)    :: surface_id
-        integer(ip),      intent(in)    :: number_lines
-        integer(ip),      intent(in)    :: lines_ids(number_lines)
-        integer(ip),      intent(in)    :: lines_orientation(number_lines)
+        integer(ip),      intent(in)    :: num_lines
+        integer(ip),      intent(in)    :: lines_ids(num_lines)
+        integer(ip),      intent(in)    :: lines_orientation(num_lines)
     !-----------------------------------------------------------------
         call this%free()
         this%id        = surface_id
-        this%num_lines = number_lines
+        this%num_lines = num_lines
         call memalloc(this%num_lines, this%lines_ids, __FILE__, __LINE__)
         call memalloc(this%num_lines, this%lines_orientation, __FILE__, __LINE__)
         this%lines_ids = lines_ids
@@ -423,15 +423,15 @@ contains
 
 
 
-    subroutine surface_create_nurbs(this, surface_id, number_lines, lines_ids, lines_orientation, nu, nv, pu, pv, control_points, u_knots, v_knots)
+    subroutine surface_create_nurbs(this, surface_id, num_lines, lines_ids, lines_orientation, nu, nv, pu, pv, control_points, u_knots, v_knots)
     !-----------------------------------------------------------------
     !< Create a nurbs quad
     !-----------------------------------------------------------------
         class(surface_t), intent(inout) :: this
         integer(ip),      intent(in)    :: surface_id
-        integer(ip),      intent(in)    :: number_lines
-        integer(ip),      intent(in)    :: lines_ids(number_lines)
-        integer(ip),      intent(in)    :: lines_orientation(number_lines)
+        integer(ip),      intent(in)    :: num_lines
+        integer(ip),      intent(in)    :: lines_ids(num_lines)
+        integer(ip),      intent(in)    :: lines_orientation(num_lines)
         integer(ip),      intent(in)    :: nu
         integer(ip),      intent(in)    :: nv
         integer(ip),      intent(in)    :: pu
@@ -440,7 +440,7 @@ contains
         real(rp),         intent(in)    :: u_knots(nu+pu+1)
         real(rp),         intent(in)    :: v_knots(nv+pv+1)
     !-----------------------------------------------------------------
-        call this%create(surface_id, number_lines, lines_ids, lines_orientation)
+        call this%create(surface_id, num_lines, lines_ids, lines_orientation)
         this%nu = nu
         this%nv = nv
         this%pu = pu
@@ -552,14 +552,14 @@ contains
         integer(ip)                                   :: leftknot1
         integer(ip)                                   :: leftknot2
         integer(ip)                                   :: stat
-        integer(ip)                                   :: number_of_derivatives_to_compute
+        integer(ip)                                   :: num_derivatives_to_compute
     !-----------------------------------------------------------------
         leftknot1 = 0
         leftknot2 = 0
-        number_of_derivatives_to_compute = 0
-        if(present(tangent)) number_of_derivatives_to_compute=1
+        num_derivatives_to_compute = 0
+        if(present(tangent)) num_derivatives_to_compute=1
 
-        call surface_left_evaluation(this%sisl_ptr, number_of_derivatives_to_compute, param, leftknot1, leftknot2, values, normal, stat) 
+        call surface_left_evaluation(this%sisl_ptr, num_derivatives_to_compute, param, leftknot1, leftknot2, values, normal, stat) 
 
         assert(stat==0)
         call point%init(values(1:SPACE_DIM))
@@ -640,19 +640,19 @@ contains
     end subroutine volume_free
 
 
-    subroutine volume_create_linear(this, volume_id, number_surfaces, surfaces_ids, surfaces_orientation)
+    subroutine volume_create_linear(this, volume_id, num_surfaces, surfaces_ids, surfaces_orientation)
     !-----------------------------------------------------------------
     !< Create a valume
     !-----------------------------------------------------------------
         class(volume_t),  intent(inout) :: this
         integer(ip),      intent(in)    :: volume_id
-        integer(ip),      intent(in)    :: number_surfaces
-        integer(ip),      intent(in)    :: surfaces_ids(number_surfaces)
-        integer(ip),      intent(in)    :: surfaces_orientation(number_surfaces)
+        integer(ip),      intent(in)    :: num_surfaces
+        integer(ip),      intent(in)    :: surfaces_ids(num_surfaces)
+        integer(ip),      intent(in)    :: surfaces_orientation(num_surfaces)
     !-----------------------------------------------------------------
         call this%free()
         this%id = volume_id
-        this%num_surfaces = number_surfaces
+        this%num_surfaces = num_surfaces
         call memalloc(this%num_surfaces, this%surfaces_ids, __FILE__, __LINE__)
         call memalloc(this%num_surfaces, this%surfaces_orientation, __FILE__, __LINE__)
         this%surfaces_ids = surfaces_ids
@@ -922,22 +922,22 @@ contains
     end subroutine geometry_add_quad
 
 
-    subroutine geometry_add_linear_surf_from_line_ids(this, surface_id, number_lines, lines_ids, lines_orientation)
+    subroutine geometry_add_linear_surf_from_line_ids(this, surface_id, num_lines, lines_ids, lines_orientation)
     !-----------------------------------------------------------------
     !< Create a linear surface given the information about its lines
     !-----------------------------------------------------------------
         class(geometry_t),         intent(inout) :: this
         integer(ip),               intent(in)    :: surface_id
-        integer(ip),               intent(in)    :: number_lines
-        integer(ip),               intent(in)    :: lines_ids(number_lines)
-        integer(ip),               intent(in)    :: lines_orientation(number_lines)
+        integer(ip),               intent(in)    :: num_lines
+        integer(ip),               intent(in)    :: lines_ids(num_lines)
+        integer(ip),               intent(in)    :: lines_orientation(num_lines)
         integer(ip)                              :: i
         integer(ip)                              :: error
     !-----------------------------------------------------------------
         assert(allocated(this%surfaces) .and. size(this%surfaces)>= this%num_surfaces+1)
         this%num_surfaces = this%num_surfaces+1
         call this%surfaces(this%num_surfaces)%create(surface_id=surface_id,      &
-                                                     number_lines=number_lines,  &
+                                                     num_lines=num_lines,  &
                                                      lines_ids=lines_ids,        &
                                                      lines_orientation=lines_orientation)
         call this%surfaces(this%num_surfaces)%set_geometry_pointer_to(this)
@@ -945,16 +945,16 @@ contains
     end subroutine geometry_add_linear_surf_from_line_ids
 
 
-    subroutine geometry_add_nurbs_surf_from_line_ids(this, surface_id, number_lines, lines_ids, lines_orientation, &
+    subroutine geometry_add_nurbs_surf_from_line_ids(this, surface_id, num_lines, lines_ids, lines_orientation, &
                                                      nu, nv, pu, pv, control_points, u_knots, v_knots)
     !-----------------------------------------------------------------
     !< Create a nurbs surface given the information about its lines
     !-----------------------------------------------------------------
         class(geometry_t),         intent(inout) :: this
         integer(ip),               intent(in)    :: surface_id
-        integer(ip),               intent(in)    :: number_lines
-        integer(ip),               intent(in)    :: lines_ids(number_lines)
-        integer(ip),               intent(in)    :: lines_orientation(number_lines)
+        integer(ip),               intent(in)    :: num_lines
+        integer(ip),               intent(in)    :: lines_ids(num_lines)
+        integer(ip),               intent(in)    :: lines_orientation(num_lines)
         integer(ip),               intent(in)    :: nu
         integer(ip),               intent(in)    :: nv
         integer(ip),               intent(in)    :: pu
@@ -968,7 +968,7 @@ contains
         assert(allocated(this%surfaces) .and. size(this%surfaces)>= this%num_surfaces+1)
         this%num_surfaces = this%num_surfaces+1
         call this%surfaces(this%num_surfaces)%create(surface_id=surface_id,               &
-                                                     number_lines=number_lines,           &
+                                                     num_lines=num_lines,           &
                                                      lines_ids=lines_ids,                 &
                                                      lines_orientation=lines_orientation, &
                                                      nu=nu, nv=nv, pu=pu, pv=pv,          &
@@ -1076,29 +1076,29 @@ contains
         ! Create hexa
         this%num_volumes = this%num_volumes+1
         call this%volumes(this%num_volumes)%create(volume_id=this%num_volumes,                   &
-                                                   number_surfaces=6,                            &
+                                                   num_surfaces=6,                            &
                                                    surfaces_ids=[sid1,sid2,sid3,sid4,sid5,sid6], &
                                                    surfaces_orientation=[1,1,1,1,1,1])
         call this%volume_index%put(key=this%volumes(this%num_volumes)%id, val=this%num_volumes,stat=error)
     end subroutine geometry_add_hexa
 
 
-    subroutine geometry_add_linear_vol_from_surf_ids(this, volume_id, number_faces, surfaces_ids, surfaces_orientation)
+    subroutine geometry_add_linear_vol_from_surf_ids(this, volume_id, num_faces, surfaces_ids, surfaces_orientation)
     !-----------------------------------------------------------------
     !< Create a linear volume given the information about its surfaces
     !-----------------------------------------------------------------
         class(geometry_t),         intent(inout) :: this
         integer(ip),               intent(in)    :: volume_id
-        integer(ip),               intent(in)    :: number_faces
-        integer(ip),               intent(in)    :: surfaces_ids(number_faces)
-        integer(ip),               intent(in)    :: surfaces_orientation(number_faces)
+        integer(ip),               intent(in)    :: num_faces
+        integer(ip),               intent(in)    :: surfaces_ids(num_faces)
+        integer(ip),               intent(in)    :: surfaces_orientation(num_faces)
         integer(ip)                              :: i
         integer(ip)                              :: error
     !-----------------------------------------------------------------
         assert(allocated(this%volumes) .and. size(this%volumes)>= this%num_volumes+1)
         this%num_volumes = this%num_volumes+1
         call this%volumes(this%num_volumes)%create(volume_id=volume_id,          &
-                                                   number_surfaces=number_faces, &
+                                                   num_surfaces=num_faces, &
                                                    surfaces_ids=surfaces_ids,    &
                                                    surfaces_orientation=surfaces_orientation)
         call this%volume_index%put(key=this%volumes(this%num_volumes)%id, val=this%num_volumes,stat=error)

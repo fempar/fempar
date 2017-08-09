@@ -143,13 +143,13 @@ end subroutine monomial_generate_basis
 
 ! polynomial_allocatable_array_t TBPS
 !===================================================================================
-subroutine polynomial_allocatable_array_create ( this, number_polynomials, mold_polynomial )
+subroutine polynomial_allocatable_array_create ( this, num_polynomials, mold_polynomial )
   implicit none
   class(polynomial_allocatable_array_t), intent(inout) :: this
-  integer(ip)                          , intent(in)    :: number_polynomials
+  integer(ip)                          , intent(in)    :: num_polynomials
   class(polynomial_t)                  , intent(in)    :: mold_polynomial
   call this%free()
-  allocate ( this%polynomials(number_polynomials), mold=mold_polynomial )
+  allocate ( this%polynomials(num_polynomials), mold=mold_polynomial )
 end subroutine polynomial_allocatable_array_create
 
 subroutine polynomial_allocatable_array_copy (lhs, rhs)

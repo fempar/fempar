@@ -115,17 +115,17 @@ private
         procedure(create_fe_iterator_interface), nopass, pointer :: create_fe_iterator    => NULL()
         procedure(free_fe_iterator_interface)  , nopass, pointer :: free_fe_iterator      => NULL()
         integer(ip)                                              :: state                 = BASE_OUTPUT_HANDLER_STATE_INIT
-        integer(ip)                                              :: number_fields         = 0
-        integer(ip)                                              :: number_cell_vectors   = 0
+        integer(ip)                                              :: num_fields         = 0
+        integer(ip)                                              :: num_cell_vectors   = 0
     contains
     private
         procedure, non_overridable, public :: free                          => base_output_handler_free
-        procedure, non_overridable, public :: get_number_nodes              => base_output_handler_get_number_nodes
-        procedure, non_overridable, public :: get_number_cells              => base_output_handler_get_number_cells
+        procedure, non_overridable, public :: get_num_nodes              => base_output_handler_get_num_nodes
+        procedure, non_overridable, public :: get_num_cells              => base_output_handler_get_num_cells
         procedure, non_overridable, public :: has_mixed_cell_topologies     => base_output_handler_has_mixed_cell_topologies
-        procedure, non_overridable, public :: get_number_dimensions         => base_output_handler_get_number_dimensions
-        procedure, non_overridable, public :: get_number_fields             => base_output_handler_get_number_fields
-        procedure, non_overridable, public :: get_number_cell_vectors       => base_output_handler_get_number_cell_vectors
+        procedure, non_overridable, public :: get_num_dimensions         => base_output_handler_get_num_dimensions
+        procedure, non_overridable, public :: get_num_fields             => base_output_handler_get_num_fields
+        procedure, non_overridable, public :: get_num_cell_vectors       => base_output_handler_get_num_cell_vectors
         procedure, non_overridable, public :: get_fe_field                  => base_output_handler_get_fe_field
         procedure, non_overridable, public :: get_cell_vector               => base_output_handler_get_cell_vector
         procedure, non_overridable, public :: get_fe_space                  => base_output_handler_get_fe_space
@@ -234,45 +234,45 @@ contains
         nullify(this%fe_space)
         nullify(this%create_fe_iterator)
         nullify(this%free_fe_iterator)
-        this%number_cell_vectors   = 0
-        this%number_fields         = 0
+        this%num_cell_vectors   = 0
+        this%num_fields         = 0
         this%state                 = BASE_OUTPUT_HANDLER_STATE_INIT
     end subroutine base_output_handler_free
 
-    function base_output_handler_get_number_nodes(this) result(number_nodes)
+    function base_output_handler_get_num_nodes(this) result(num_nodes)
     !-----------------------------------------------------------------
     !< Return the number of visualization nodes
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
-        integer(ip)                              :: number_nodes
+        integer(ip)                              :: num_nodes
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
-        number_nodes = this%ohcff%get_number_nodes()
-    end function base_output_handler_get_number_nodes
+        num_nodes = this%ohcff%get_num_nodes()
+    end function base_output_handler_get_num_nodes
 
 
-    function base_output_handler_get_number_cells(this) result(number_cells)
+    function base_output_handler_get_num_cells(this) result(num_cells)
     !-----------------------------------------------------------------
     !< Return the number of visualization cells
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
-        integer(ip)                              :: number_cells
+        integer(ip)                              :: num_cells
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
-        number_cells = this%ohcff%get_number_cells()
-    end function base_output_handler_get_number_cells
+        num_cells = this%ohcff%get_num_cells()
+    end function base_output_handler_get_num_cells
 
 
-    function base_output_handler_get_number_dimensions(this) result(number_dimensions)
+    function base_output_handler_get_num_dimensions(this) result(num_dimensions)
     !-----------------------------------------------------------------
     !< Return the number of dimensions
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
-        integer(ip)                              :: number_dimensions
+        integer(ip)                              :: num_dimensions
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
-        number_dimensions = this%ohcff%get_number_dimensions()
-    end function base_output_handler_get_number_dimensions
+        num_dimensions = this%ohcff%get_num_dimensions()
+    end function base_output_handler_get_num_dimensions
 
     function base_output_handler_has_mixed_cell_topologies(this) result(mixed_cell_topologies)
     !-----------------------------------------------------------------
@@ -286,28 +286,28 @@ contains
     end function base_output_handler_has_mixed_cell_topologies
 
 
-    function base_output_handler_get_number_fields(this) result(number_fields)
+    function base_output_handler_get_num_fields(this) result(num_fields)
     !-----------------------------------------------------------------
     !< Return the number of fields
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
-        integer(ip)                              :: number_fields
+        integer(ip)                              :: num_fields
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
-        number_fields = this%number_fields
-    end function base_output_handler_get_number_fields
+        num_fields = this%num_fields
+    end function base_output_handler_get_num_fields
 
 
-    function base_output_handler_get_number_cell_vectors(this) result(number_cell_vectors)
+    function base_output_handler_get_num_cell_vectors(this) result(num_cell_vectors)
     !-----------------------------------------------------------------
     !< Return the number of cell_vectors
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
-        integer(ip)                              :: number_cell_vectors
+        integer(ip)                              :: num_cell_vectors
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
-        number_cell_vectors = this%number_cell_vectors
-    end function base_output_handler_get_number_cell_vectors
+        num_cell_vectors = this%num_cell_vectors
+    end function base_output_handler_get_num_cell_vectors
 
 
     function base_output_handler_get_fe_field(this, field_id) result(field)
@@ -319,7 +319,7 @@ contains
         type(output_handler_fe_field_t), pointer            :: field
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
-        assert(field_id <= this%number_fields)
+        assert(field_id <= this%num_fields)
         field => this%fe_fields(field_id)
     end function base_output_handler_get_fe_field  
 
@@ -332,7 +332,7 @@ contains
         integer(ip),                                intent(in) :: cell_vector_id
         type(output_handler_cell_vector_t), pointer            :: cell_vector
     !-----------------------------------------------------------------
-        assert(cell_vector_id <= this%number_cell_vectors)
+        assert(cell_vector_id <= this%num_cell_vectors)
         cell_vector => this%cell_vectors(cell_vector_id)
     end function base_output_handler_get_cell_vector
 
@@ -394,20 +394,20 @@ contains
     end function base_output_handler_get_fe_space
 
 
-    subroutine base_output_handler_resize_fe_fields_if_needed(this, number_fields)
+    subroutine base_output_handler_resize_fe_fields_if_needed(this, num_fields)
     !-----------------------------------------------------------------
     !< Resize the array of added [[output_handler_fe_field_t(type)]]
     !< only if it's needed
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
-        integer(ip),                        intent(in)    :: number_fields
+        integer(ip),                        intent(in)    :: num_fields
         integer(ip)                                       :: current_size
         type(output_handler_fe_field_t), allocatable      :: temp_fe_functions(:)
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         if(.not. allocated(this%fe_fields)) then
             allocate(this%fe_fields(cell_node_field_array_size))
-        elseif(number_fields > size(this%fe_fields)) then
+        elseif(num_fields > size(this%fe_fields)) then
             current_size = size(this%fe_fields)
             call move_alloc(from=this%fe_fields, to=temp_fe_functions)
             allocate(this%fe_fields(int(1.5*current_size)))
@@ -417,19 +417,19 @@ contains
     end subroutine base_output_handler_resize_fe_fields_if_needed
 
 
-    subroutine base_output_handler_resize_cell_vectors_if_needed(this, number_fields)
+    subroutine base_output_handler_resize_cell_vectors_if_needed(this, num_fields)
     !-----------------------------------------------------------------
     !< Resize the array of added **cell_vector** only if it's needed
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
-        integer(ip),                        intent(in)    :: number_fields
+        integer(ip),                        intent(in)    :: num_fields
         integer(ip)                                       :: current_size
         type(output_handler_cell_vector_t), allocatable   :: temp_cell_vectors(:)
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         if(.not. allocated(this%cell_vectors)) then
             allocate(this%cell_vectors(cell_node_field_array_size))
-        elseif(number_fields > size(this%cell_vectors)) then
+        elseif(num_fields > size(this%cell_vectors)) then
             current_size = size(this%cell_vectors)
             call move_alloc(from=this%cell_vectors, to=temp_cell_vectors)
             allocate(this%cell_vectors(int(1.5*current_size)))
@@ -456,11 +456,11 @@ contains
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         assert(associated(this%fe_space))
-        assert(field_id >=1 .and. field_id <= this%fe_space%get_number_fields())
+        assert(field_id >=1 .and. field_id <= this%fe_space%get_num_fields())
         field_type = this%fe_space%get_field_type(field_id)
-        call this%resize_fe_fields_if_needed(this%number_fields+1)
-        this%number_fields = this%number_fields + 1
-        call this%fe_fields(this%number_fields)%set(fe_function, field_id, name, field_type, diff_operator)
+        call this%resize_fe_fields_if_needed(this%num_fields+1)
+        this%num_fields = this%num_fields + 1
+        call this%fe_fields(this%num_fields)%set(fe_function, field_id, name, field_type, diff_operator)
     end subroutine base_output_handler_add_fe_function
 
 
@@ -475,9 +475,9 @@ contains
         character(len=*),                   intent(in)    :: name
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
-        call this%resize_cell_vectors_if_needed(this%number_cell_vectors+1)
-        this%number_cell_vectors = this%number_cell_vectors + 1
-        call this%cell_vectors(this%number_cell_vectors)%set(cell_vector, name)
+        call this%resize_cell_vectors_if_needed(this%num_cell_vectors+1)
+        this%num_cell_vectors = this%num_cell_vectors + 1
+        call this%cell_vectors(this%num_cell_vectors)%set(cell_vector, name)
     end subroutine base_output_handler_add_cell_Vector
 
 
@@ -537,7 +537,7 @@ contains
         call this%create_fe_iterator_wrapper(fe)
         if(update_mesh) then
             ! Create Output Cell Handler and allocate patch fields
-            call this%ohcff%create(fe, this%number_fields, this%fe_fields(1:this%number_fields))
+            call this%ohcff%create(fe, this%num_fields, this%fe_fields(1:this%num_fields))
             this%state = BASE_OUTPUT_HANDLER_STATE_FILL
 
             ! Allocate geometry and connectivity arrays
@@ -548,17 +548,17 @@ contains
         if(.not.allocated(this%cell_vectors)) allocate(this%cell_vectors(1))
         
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
-        call patch%create(this%number_fields, this%number_cell_vectors)
+        call patch%create(this%num_fields, this%num_cell_vectors)
         call fe%first()
         ! Translate coordinates and connectivities to VTK format for every subcell
         do while ( .not. fe%has_finished())
             ! Get Finite element
             if ( fe%is_local() ) then
                 call this%ohcff%fill_patch(fe, &
-                                           this%number_fields, &
-                                           this%fe_fields(1:this%number_fields), &
-                                           this%number_cell_vectors, &
-                                           this%cell_vectors(1:this%number_cell_vectors), &
+                                           this%num_fields, &
+                                           this%fe_fields(1:this%num_fields), &
+                                           this%num_cell_vectors, &
+                                           this%cell_vectors(1:this%num_cell_vectors), &
                                            patch)
                 subcell_iterator = patch%get_subcells_iterator()
 !               ! Fill data

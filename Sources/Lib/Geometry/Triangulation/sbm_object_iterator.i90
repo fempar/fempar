@@ -83,7 +83,7 @@ function object_iterator_has_finished(this)
   implicit none
   class(object_iterator_t), intent(in) :: this
   logical :: object_iterator_has_finished
-  object_iterator_has_finished = (this%lid > this%base_static_triangulation%number_objects)
+  object_iterator_has_finished = (this%lid > this%base_static_triangulation%num_objects)
 end function object_iterator_has_finished
 
 function object_iterator_get_lid (this)
@@ -109,21 +109,21 @@ function object_iterator_get_dimension (this)
   object_iterator_get_dimension = this%base_static_triangulation%objects_dimension(this%lid)
 end function object_iterator_get_dimension
 
-function object_iterator_get_number_parts_around(this)
+function object_iterator_get_num_parts_around(this)
   implicit none
   class(object_iterator_t), intent(in) :: this
-  integer(ip) :: object_iterator_get_number_parts_around
+  integer(ip) :: object_iterator_get_num_parts_around
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_get_number_parts_around = this%base_static_triangulation%parts_object%get_sublist_size(this%lid)
-end function object_iterator_get_number_parts_around
+  object_iterator_get_num_parts_around = this%base_static_triangulation%parts_object%get_sublist_size(this%lid)
+end function object_iterator_get_num_parts_around
 
-function object_iterator_get_number_subparts_around(this)
+function object_iterator_get_num_subparts_around(this)
   implicit none
   class(object_iterator_t), intent(in) :: this
-  integer(ip) :: object_iterator_get_number_subparts_around
+  integer(ip) :: object_iterator_get_num_subparts_around
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_get_number_subparts_around = this%base_static_triangulation%subparts_object%get_sublist_size(this%lid)
-end function object_iterator_get_number_subparts_around
+  object_iterator_get_num_subparts_around = this%base_static_triangulation%subparts_object%get_sublist_size(this%lid)
+end function object_iterator_get_num_subparts_around
 
 function object_iterator_create_parts_around_iterator(this)
   implicit none

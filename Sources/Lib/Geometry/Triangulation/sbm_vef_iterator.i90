@@ -296,7 +296,7 @@ end subroutine vef_iterator_get_cell_around
 !  vertices_iterator = vertices_per_vef%create_iterator(ivef)
 !  num_vertices = vertices_iterator%get_size()
 !  ! Alternatively:
-!  !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_number_vertices_vef(ivef)
+!  !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_num_vertices_vef(ivef)
 !  assert(size(vertices)>=num_vertices)
 !  do i=1, num_vertices
 !     vertices(i) = vertices_iterator%get_current()

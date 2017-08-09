@@ -160,7 +160,7 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_
   par_environment => this%par_fe_space%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
-  assert ( size(num_coarse_dofs) == this%par_fe_space%get_number_fe_objects() )
+  assert ( size(num_coarse_dofs) == this%par_fe_space%get_num_fe_objects() )
 
 
   max_cdof_lid_in_object = maxval(this%dof_lid_to_cdof_id_in_object) + 1
@@ -215,7 +215,7 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
 
   ! We assume a single field for the moment
   assert(field_id == 1)
-  assert(this%par_fe_space%get_number_fields() == 1)
+  assert(this%par_fe_space%get_num_fields() == 1)
 
   ! Free any dynamic memory that constraint_matrix may have inside
   call constraint_matrix%free()
@@ -223,8 +223,8 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
   ! Create constraint matrix (transposed)
   field_to_block => this%par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
-  num_cols = this%par_fe_space%get_block_number_dofs(block_id)
-  num_rows = this%par_fe_space%get_block_number_coarse_dofs(block_id)
+  num_cols = this%par_fe_space%get_block_num_dofs(block_id)
+  num_rows = this%par_fe_space%get_block_num_coarse_dofs(block_id)
   call constraint_matrix%create ( num_cols, num_rows )
 
   cdof_lid = 0
@@ -308,13 +308,13 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
 
   ! We assume a single field for the moment
   field_id = 1
-  assert(this%par_fe_space%get_number_fields() == 1)
+  assert(this%par_fe_space%get_num_fields() == 1)
 
   ! Auxiliary
   field_to_block => this%par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
-  num_dofs  = this%par_fe_space%get_block_number_dofs(block_id)
-  num_objects = this%par_fe_space%get_number_fe_objects()
+  num_dofs  = this%par_fe_space%get_block_num_dofs(block_id)
+  num_objects = this%par_fe_space%get_num_fe_objects()
   call memalloc(num_dofs,visited_dofs,__FILE__,__LINE__)
   call memalloc(num_dofs,dof_lids,__FILE__,__LINE__)
   call memalloc(num_objects,object_lid_to_num_dofs_in_object,__FILE__,__LINE__)
@@ -399,7 +399,7 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
 
   ! Initialize the list
   call this%object_lid_to_dof_lids%free()
-  call this%object_lid_to_dof_lids%create(this%par_fe_space%get_number_fe_objects())
+  call this%object_lid_to_dof_lids%create(this%par_fe_space%get_num_fe_objects())
   call object%first()
   do while ( .not. object%has_finished() )
     call this%object_lid_to_dof_lids%sum_to_pointer_index(&
@@ -457,7 +457,7 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
 
   ! We assume a single field for the moment
   field_id = 1
-  assert(this%par_fe_space%get_number_fields() == 1)
+  assert(this%par_fe_space%get_num_fields() == 1)
   
   ! Get my part id
   p_env => this%par_fe_space%get_par_environment()
@@ -466,7 +466,7 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   ! Allocate and initialize the member variable
   field_to_block => this%par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
-  num_dofs = this%par_fe_space%get_block_number_dofs(block_id)
+  num_dofs = this%par_fe_space%get_block_num_dofs(block_id)
   call memalloc(num_dofs,this%dof_lid_to_cdof_id_in_object,__FILE__,__LINE__)
   this%dof_lid_to_cdof_id_in_object(:) = 0
 
@@ -540,7 +540,7 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
 
   ! We assume a single field for the moment
   field_id = 1
-  assert(this%par_fe_space%get_number_fields() == 1)
+  assert(this%par_fe_space%get_num_fields() == 1)
   
 
   ! Recover the unfitted par fe space
@@ -572,11 +572,11 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   par_environment => triangulation%get_par_environment()
   cell_import => triangulation%get_cell_import()
   if(par_environment%get_l1_size()>1) &
-  call par_environment%l1_neighbours_exchange ( cell_import%get_number_neighbours(), &
+  call par_environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
                                                 cell_import%get_neighbours_ids(),    &
                                                 cell_import%get_rcv_ptrs(),          &
                                                 cell_import%get_rcv_leids(),         &
-                                                cell_import%get_number_neighbours(), &
+                                                cell_import%get_num_neighbours(), &
                                                 cell_import%get_neighbours_ids(),    &
                                                 cell_import%get_snd_ptrs(),          &
                                                 cell_import%get_snd_leids(),         &

@@ -101,10 +101,10 @@ contains
 
     select type (triangulation)
     class is (serial_unfitted_triangulation_t)
-      num_subcells = triangulation%get_total_num_of_subcells()
+      num_subcells = triangulation%get_total_num_subcells()
       num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
     class is (par_unfitted_triangulation_t)
-      num_subcells = triangulation%get_total_num_of_subcells()
+      num_subcells = triangulation%get_total_num_subcells()
       num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
     class default
       check(.false.)
@@ -182,7 +182,7 @@ contains
 
       icell = icell + 1
 
-      do isubcell = 1, cell%get_number_of_subcells()
+      do isubcell = 1, cell%get_num_subcells()
         call cell%get_phys_coords_of_subcell(isubcell,subcell_coords)
 
         do ino = 1, num_subcell_nodes
@@ -245,7 +245,7 @@ contains
 
   
     num_dime = triangulation%get_num_dimensions()
-    num_subfaces = triangulation%get_total_num_of_subfaces()
+    num_subfaces = triangulation%get_total_num_subfaces()
     num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
     this%Ne = num_subfaces
     this%Nn = num_subface_nodes*num_subfaces
@@ -280,7 +280,7 @@ contains
   
       call cell%update_sub_triangulation()
   
-      do isubface = 1, cell%get_number_of_subfaces()
+      do isubface = 1, cell%get_num_subfaces()
         call cell%get_phys_coords_of_subface(isubface,subface_coords)
   
         do ino = 1, num_subface_nodes
@@ -347,7 +347,7 @@ contains
     end select
 
 
-    num_elem_nodes = triangulation%get_max_number_shape_functions()
+    num_elem_nodes = triangulation%get_max_num_shape_functions()
     num_dime = triangulation%get_num_dimensions()
 
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
@@ -384,7 +384,7 @@ contains
 
        call fe%update_sub_triangulation()
 
-       do subcell = 1, fe%get_number_of_subcells()
+       do subcell = 1, fe%get_num_subcells()
 
          ! Get the subcell values
          if (fe%is_interior_subcell(subcell)) then
@@ -452,7 +452,7 @@ contains
 
     select type(triangulation)
       class is (serial_unfitted_triangulation_t)
-        num_subfaces   = triangulation%get_total_num_of_subfaces()
+        num_subfaces   = triangulation%get_total_num_subfaces()
       class default
       check(.false.)
     end select
@@ -463,7 +463,7 @@ contains
     do while ( .not. fe%has_finished() )
        call fe%update_boundary_integration()
        quadrature => fe%get_boundary_quadrature()
-       num_gp_subface = quadrature%get_number_quadrature_points()
+       num_gp_subface = quadrature%get_num_quadrature_points()
        if (num_gp_subface > 0) exit
        call fe%next()
     end do
@@ -495,7 +495,7 @@ contains
   
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_boundary_quadrature()
-       num_quad_points = quadrature%get_number_quadrature_points()
+       num_quad_points = quadrature%get_num_quadrature_points()
        fe_map => fe%get_boundary_piecewise_fe_map()
   
        ! Physical coordinates of the quadrature points
@@ -575,12 +575,12 @@ contains
   end subroutine uvtkw_write_to_vtk_file
 
 !========================================================================================  
-  subroutine uvtkw_write_to_pvtk_file(this,file_prefix,number_parts)
+  subroutine uvtkw_write_to_pvtk_file(this,file_prefix,num_parts)
 
     implicit none
     class(unfitted_vtk_writer_t), intent(in) :: this
     character(*),                 intent(in) :: file_prefix
-    integer(ip),                  intent(in) :: number_parts
+    integer(ip),                  intent(in) :: num_parts
 
     integer(ip) :: file_id
     integer(ip) :: E_IO
@@ -596,7 +596,7 @@ contains
                         tp            = 'Float64',           &
                         cf            = file_id)
     assert(E_IO == 0)
-    do i=0, number_parts-1
+    do i=0, num_parts-1
         E_IO = PVTK_GEO_XML(source=trim(adjustl( trim(adjustl(file_prefix))//'_'//trim(adjustl(str(no_sign=.true.,n=i)))//'.vtu' )), cf=file_id)
         assert(E_IO == 0)
     enddo

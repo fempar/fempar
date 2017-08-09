@@ -111,7 +111,7 @@ contains
     l2_norm = 0.0
 
     num_dime = this%fe_space%get_num_dimensions()
-    num_elem_nodes =  this%fe_space%get_max_number_shape_functions()
+    num_elem_nodes =  this%fe_space%get_max_num_shape_functions()
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
 
 
@@ -128,7 +128,7 @@ contains
 
        !This cannot be outside the loop
        quad            => fe%get_quadrature()
-       num_quad_points = quad%get_number_quadrature_points()
+       num_quad_points = quad%get_num_quadrature_points()
        fe_map          => fe%get_fe_map()
        cell_int         => fe%get_cell_integrator(1)
 

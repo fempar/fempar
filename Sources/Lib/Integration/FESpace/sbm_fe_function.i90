@@ -40,7 +40,7 @@
     type(serial_scalar_array_t), pointer :: strong_dirichlet_values
     call this%free()
     call fe_space%create_dof_values(this%dof_values)
-    call this%strong_dirichlet_values%create_and_allocate(fe_space%get_number_strong_dirichlet_dofs())
+    call this%strong_dirichlet_values%create_and_allocate(fe_space%get_num_strong_dirichlet_dofs())
     call this%strong_dirichlet_values%init(0.0_rp)
   end subroutine fe_function_create
   
@@ -54,18 +54,18 @@
     class(reference_fe_t)      , pointer :: reference_fe
     real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
     integer(ip)                , pointer :: elem2dof(:)
-    integer(ip) :: inode, number_nodes_field
+    integer(ip) :: inode, num_nodes_field
     integer(ip) :: block_id
     integer(ip), pointer :: field_blocks(:)
     
     call fe_iterator%get_field_elem2dof(field_id,elem2dof)
     reference_fe => fe_iterator%get_reference_fe(field_id)
-    number_nodes_field = reference_fe%get_number_shape_functions()
+    num_nodes_field = reference_fe%get_num_shape_functions()
 
     if ( fe_iterator%at_strong_dirichlet_boundary(field_id) ) then
       ! Extract nodal values associated to dirichlet bcs
       strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
-      do inode = 1, number_nodes_field
+      do inode = 1, num_nodes_field
         if ( elem2dof(inode) < 0 ) then
            nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
         end if
@@ -77,7 +77,7 @@
     
     ! Extract nodal values associated to dofs
     call this%dof_values%extract_subvector ( block_id, &
-                                             number_nodes_field, &
+                                             num_nodes_field, &
                                              elem2dof, &
                                              nodal_values )
     
@@ -93,19 +93,19 @@
     class(reference_fe_t)      , pointer :: reference_fe
     real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
     integer(ip)                , pointer :: elem2dof(:)
-    integer(ip) :: inode, number_nodes_field
+    integer(ip) :: inode, num_nodes_field
     integer(ip) :: block_id
     integer(ip), pointer :: field_blocks(:)
     
     call fe%get_field_elem2dof(field_id,elem2dof)
     reference_fe => fe%get_reference_fe(field_id)
-    number_nodes_field = reference_fe%get_number_shape_functions()
-    assert(number_nodes_field<=size(nodal_values))
+    num_nodes_field = reference_fe%get_num_shape_functions()
+    assert(num_nodes_field<=size(nodal_values))
 
     if ( fe%at_strong_dirichlet_boundary(field_id) ) then
       ! Insert nodal values associated to dirichlet bcs
       strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
-      do inode = 1, number_nodes_field
+      do inode = 1, num_nodes_field
         if ( elem2dof(inode) < 0 ) then
             strong_dirichlet_values_entries(-elem2dof(inode)) = nodal_values(inode)
         end if
@@ -117,7 +117,7 @@
     
     ! Extract nodal values associated to dofs
     call this%dof_values%insert_subvector ( block_id, &
-                                             number_nodes_field, &
+                                             num_nodes_field, &
                                              elem2dof, &
                                              nodal_values )
     
