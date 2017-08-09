@@ -41,7 +41,7 @@ subroutine sufs_create_same_reference_fes_on_all_cells(&
 end subroutine sufs_create_same_reference_fes_on_all_cells
 
 !========================================================================================
-subroutine sufs_space_create_different_between_cells(&
+subroutine sufs_space_create_different_ref_fes_between_cells(&
     this, &
     triangulation, &
     reference_fes, &
@@ -65,7 +65,7 @@ subroutine sufs_space_create_different_between_cells(&
   class default
     check(.false.)
   end select
-end subroutine sufs_space_create_different_between_cells
+end subroutine sufs_space_create_different_ref_fes_between_cells
 
 !========================================================================================
 subroutine sufs_free(this)

@@ -103,7 +103,7 @@ subroutine fe_iterator_fill_own_dofs ( this, field_id, current_dof )
   
   ! Determine position in lst_dofs_lids of the first dof associated to the
   ! field "field_id" within the current fe
-  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_lid())-1
+  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_lid())-1
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within current fe
@@ -132,7 +132,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof,
   
   ! Determine position in lst_dofs_lids of the first dof associated to the
   ! field "field_id" within the current fe
-  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_lid())-1
+  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_lid())-1
   
   reference_fe => this%get_reference_fe(field_id)
   
@@ -168,7 +168,7 @@ function fe_iterator_count_own_dofs_on_vef ( this, ivef, field_id )
   
   ! Determine position in lst_dofs_lids of the first dof associated to the
   ! field "field_id" within the current fe
-  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_lid())-1
+  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_lid())-1
   
   reference_fe => this%get_reference_fe(field_id)
   
@@ -199,7 +199,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_component_wise ( this, ivef, field_i
   
   ! Determine position in lst_dofs_lids of the first dof associated to the
   ! field "field_id" within the current fe
-  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_lid())-1
+  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_lid())-1
 
   reference_fe => this%get_reference_fe(field_id)
   
@@ -251,10 +251,10 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   assert ( field_id <= this%get_num_fields() )
   
   reference_fe_target => this%get_reference_fe(field_id)
-  base_pos_lst_dofs_lids_target = this%fe_space%ptr_dofs_x_fe(field_id, this%get_lid())-1
+  base_pos_lst_dofs_lids_target = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_lid())-1
   
   reference_fe_source => source_fe%get_reference_fe(field_id)
-  base_pos_lst_dofs_lids_source = this%fe_space%ptr_dofs_x_fe(field_id, source_fe%get_lid())-1
+  base_pos_lst_dofs_lids_source = this%fe_space%ptr_dofs_x_field_cell(field_id, source_fe%get_lid())-1
   source_ivef_dim = reference_fe_source%get_n_face_dim(source_ivef)
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within target fe
@@ -299,7 +299,7 @@ subroutine fe_iterator_fill_dofs_face_integration_coupling ( this, ivef, field_i
   
   if ( reference_fe%get_continuity() ) then
     face_integration_coupling_dofs = reference_fe%create_dofs_on_n_face_iterator(ivef)
-    base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_lid())-1
+    base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_lid())-1
     do while (.not. face_integration_coupling_dofs%is_upper_bound())
       idof = face_integration_coupling_dofs%get_current()
       dof_count = dof_count +1 
@@ -342,12 +342,12 @@ subroutine fe_iterator_renum_dofs_field ( this, field_id, perm_old2new )
   integer(ip)         , intent(in) :: perm_old2new(*)
   integer(ip) :: i, start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
   
-  start_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_fe(field_id,this%get_lid())
+  start_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_field_cell(field_id,this%get_lid())
   
   if ( field_id == this%fe_space%get_num_fields() ) then
-    end_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_fe(1, this%get_lid()+1)-1
+    end_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_field_cell(1, this%get_lid()+1)-1
   else  
-    end_pos_lst_dofs_lids   = this%fe_space%ptr_dofs_x_fe(field_id+1, this%get_lid())-1
+    end_pos_lst_dofs_lids   = this%fe_space%ptr_dofs_x_field_cell(field_id+1, this%get_lid())-1
   end if  
   
   assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
@@ -365,11 +365,11 @@ subroutine fe_iterator_update_num_dofs_x_field( this, num_dofs_x_field )
   integer(ip) :: field_id
   
   do field_id = 1, this%get_num_fields()-1
-    num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_fe(field_id+1, this%get_lid())- &
-                                      this%fe_space%ptr_dofs_x_fe(field_id  , this%get_lid())
+    num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_field_cell(field_id+1, this%get_lid())- &
+                                      this%fe_space%ptr_dofs_x_field_cell(field_id  , this%get_lid())
   end do
-  num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_fe(1, this%get_lid()+1)- &
-                                    this%fe_space%ptr_dofs_x_fe(field_id, this%get_lid())
+  num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_field_cell(1, this%get_lid()+1)- &
+                                    this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_lid())
   
 end subroutine fe_iterator_update_num_dofs_x_field
 
@@ -451,8 +451,8 @@ function fe_iterator_get_num_dofs(this)
   implicit none
   class(fe_iterator_t), intent(in) :: this
   integer(ip) :: fe_iterator_get_num_dofs
-  fe_iterator_get_num_dofs = this%fe_space%ptr_dofs_x_fe(1, this%get_lid()+1)- &
-                                this%fe_space%ptr_dofs_x_fe(1, this%get_lid())
+  fe_iterator_get_num_dofs = this%fe_space%ptr_dofs_x_field_cell(1, this%get_lid()+1)- &
+                                this%fe_space%ptr_dofs_x_field_cell(1, this%get_lid())
 end function fe_iterator_get_num_dofs
 
 function fe_iterator_get_num_dofs_x_field (this) result (num_dofs_x_field)
@@ -469,11 +469,11 @@ subroutine fe_iterator_get_field_elem2dof( this, field_id, elem2dof )
   integer(ip), pointer, intent(inout) :: elem2dof(:)
   integer(ip) :: spos, epos
  
-  spos = this%fe_space%ptr_dofs_x_fe(field_id  ,this%get_lid())
+  spos = this%fe_space%ptr_dofs_x_field_cell(field_id  ,this%get_lid())
   if ( field_id == this%fe_space%get_num_fields() ) then
-     epos = this%fe_space%ptr_dofs_x_fe(1,this%get_lid()+1)-1
+     epos = this%fe_space%ptr_dofs_x_field_cell(1,this%get_lid()+1)-1
   else
-     epos = this%fe_space%ptr_dofs_x_fe(field_id+1,this%get_lid())-1
+     epos = this%fe_space%ptr_dofs_x_field_cell(field_id+1,this%get_lid())-1
   end if
   elem2dof => this%fe_space%lst_dofs_lids(spos:epos)
 end subroutine fe_iterator_get_field_elem2dof
@@ -486,12 +486,12 @@ subroutine fe_iterator_get_elem2dof( this, elem2dof )
   
   assert ( size(elem2dof) == this%fe_space%num_fields )
   do field_id = 1, this%get_num_fields()-1
-    spos = this%fe_space%ptr_dofs_x_fe(field_id  ,this%get_lid())
-    epos = this%fe_space%ptr_dofs_x_fe(field_id+1,this%get_lid())-1
+    spos = this%fe_space%ptr_dofs_x_field_cell(field_id  ,this%get_lid())
+    epos = this%fe_space%ptr_dofs_x_field_cell(field_id+1,this%get_lid())-1
     elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
   end do
-  spos = this%fe_space%ptr_dofs_x_fe(field_id  , this%get_lid())
-  epos = this%fe_space%ptr_dofs_x_fe(1         , this%get_lid()+1)-1
+  spos = this%fe_space%ptr_dofs_x_field_cell(field_id  , this%get_lid())
+  epos = this%fe_space%ptr_dofs_x_field_cell(1         , this%get_lid()+1)-1
   elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
   
 end subroutine fe_iterator_get_elem2dof
@@ -596,8 +596,8 @@ function fe_iterator_get_default_quadrature_degree ( this )
   class(fe_iterator_t), intent(in) :: this
   integer(ip) :: fe_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
-  assert( allocated(this%fe_space%max_order_reference_fe_id_x_fe) )
-  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_fe(this%get_lid())
+  assert( allocated(this%fe_space%max_order_reference_fe_id_x_fe_cell) )
+  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_fe_cell(this%get_lid())
   fe_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
 end function fe_iterator_get_default_quadrature_degree
@@ -661,7 +661,7 @@ function fe_iterator_get_cell_integrator ( this, field_id )
   fe_cell_integrators_position_key = &
         this%fe_space%generate_fe_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
                                                                   this%get_quadrature_degree(), &
-                                                                  this%fe_space%reference_fe_id_x_fe(field_id, this%get_lid()))
+                                                                  this%fe_space%field_cell_to_ref_fes(field_id, this%get_lid()))
   
   call this%fe_space%fe_cell_integrators_position%get(key=fe_cell_integrators_position_key, &
                                                         val=fe_cell_integrators_position, &
@@ -683,7 +683,7 @@ function fe_iterator_get_reference_fe(this, field_id)
   class(fe_iterator_t), target   , intent(in)    :: this
   integer(ip)                    , intent(in)    :: field_id
   class(reference_fe_t), pointer :: fe_iterator_get_reference_fe
-  fe_iterator_get_reference_fe => this%fe_space%reference_fes(this%fe_space%reference_fe_id_x_fe(field_id,this%get_lid()))%p
+  fe_iterator_get_reference_fe => this%fe_space%reference_fes(this%fe_space%field_cell_to_ref_fes(field_id,this%get_lid()))%p
 end function fe_iterator_get_reference_fe
 
 function fe_iterator_get_max_order_reference_fe(this)
@@ -726,7 +726,7 @@ function fe_iterator_get_reference_fe_id(this, field_id)
   class(fe_iterator_t), target   , intent(in)    :: this
   integer(ip)                    , intent(in)    :: field_id
   integer(ip) :: fe_iterator_get_reference_fe_id
-  fe_iterator_get_reference_fe_id = this%fe_space%reference_fe_id_x_fe(field_id,this%get_lid())
+  fe_iterator_get_reference_fe_id = this%fe_space%field_cell_to_ref_fes(field_id,this%get_lid())
 end function fe_iterator_get_reference_fe_id
 
 function fe_iterator_is_void(this, field_id)
@@ -775,7 +775,7 @@ subroutine fe_iterator_impose_strong_dirichlet_bcs ( this, fe_function, elmat, e
   do field_id = 1, this%fe_space%get_num_fields()
     if ( this%at_strong_dirichlet_boundary(field_id) ) then
       reference_fe => this%get_reference_fe(field_id)
-      spos = this%fe_space%ptr_dofs_x_fe(field_id, this%get_lid())
+      spos = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_lid())
       do idof = 1, reference_fe%get_num_shape_functions()
         elmat_col = elmat_col + 1
         if ( this%fe_space%lst_dofs_lids(spos+idof-1) < 0 ) then

@@ -38,7 +38,7 @@ subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this,    
   assert(.false.)
 end subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells
 
-subroutine par_fe_space_serial_create_different_between_cells( this,                     &
+subroutine par_fe_space_serial_create_different_ref_fes_between_cells( this,                     &
                                                                triangulation,            &
                                                                reference_fes,            &
                                                                set_ids_to_reference_fes, &
@@ -50,7 +50,7 @@ subroutine par_fe_space_serial_create_different_between_cells( this,            
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
   check(.false.)
-end subroutine par_fe_space_serial_create_different_between_cells
+end subroutine par_fe_space_serial_create_different_ref_fes_between_cells
 
 subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,               &
                                                                 triangulation,      &
@@ -96,7 +96,7 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
   
 end subroutine par_fe_space_create_same_reference_fes_on_all_cells
 
-subroutine par_fe_space_create_different_between_cells( this,                     &
+subroutine par_fe_space_create_different_ref_fes_between_cells( this,                     &
                                                         triangulation,            &
                                                         reference_fes,            &
                                                         set_ids_to_reference_fes, &
@@ -142,7 +142,7 @@ subroutine par_fe_space_create_different_between_cells( this,                   
 
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
 
-end subroutine par_fe_space_create_different_between_cells
+end subroutine par_fe_space_create_different_ref_fes_between_cells
 
 subroutine par_fe_space_free( this )
   implicit none

@@ -344,8 +344,8 @@ module fe_space_names
      integer(ip)                   , allocatable :: fe_quadratures_degree(:)
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
-     integer(ip)                   , allocatable :: reference_fe_id_x_fe(:,:)         ! (num_fields, num_fes)
-     integer(ip)                   , allocatable :: max_order_reference_fe_id_x_fe(:) ! Stores Key=max_order_reference_fe_id for all FEs
+     integer(ip)                   , allocatable :: field_cell_to_ref_fes(:,:)         ! (num_fields, num_fes)
+     integer(ip)                   , allocatable :: max_order_reference_fe_id_x_fe_cell(:) ! Stores Key=max_order_reference_fe_id for all FEs
      type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
      type(hash_table_ip_ip_t)                    :: fe_cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
@@ -370,7 +370,7 @@ module fe_space_names
      type(std_vector_integer_ip_t)               :: face_permutation_indices
      
      ! DoF identifiers associated to each FE and field within FE
-     integer(ip)                   , allocatable :: ptr_dofs_x_fe(:,:) ! (num_fields, num_fes+1)
+     integer(ip)                   , allocatable :: ptr_dofs_x_field_cell(:,:) ! (num_fields, num_fes+1)
      integer(ip)                   , allocatable :: lst_dofs_lids(:)
      
      ! Strong Dirichlet BCs-related member variables
@@ -385,19 +385,19 @@ module fe_space_names
      class(base_static_triangulation_t), pointer :: triangulation => NULL()
    contains
      procedure,                  private :: serial_fe_space_create_same_reference_fes_on_all_cells
-     procedure,                  private :: serial_fe_space_create_different_between_cells
+     procedure,                  private :: serial_fe_space_create_different_ref_fes_between_cells
      generic                             :: create                                       => serial_fe_space_create_same_reference_fes_on_all_cells,&
-                                                                                            serial_fe_space_create_different_between_cells
+                                                                                            serial_fe_space_create_different_ref_fes_between_cells
      procedure                           :: free                                         => serial_fe_space_free
      procedure                           :: print                                        => serial_fe_space_print
      
      procedure, non_overridable, private :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
           
-     procedure, non_overridable, private :: allocate_ref_fe_id_x_fe                    => serial_fe_space_allocate_ref_fe_id_x_fe
-     procedure, non_overridable, private :: free_ref_fe_id_x_fe                        => serial_fe_space_free_ref_fe_id_x_fe
-     procedure, non_overridable, private :: fill_ref_fe_id_x_fe_same_on_all_cells      => serial_fe_space_fill_ref_fe_id_x_fe_same_on_all_cells
-     procedure, non_overridable, private :: fill_ref_fe_id_x_fe_different_between_cells=> serial_fe_space_fill_ref_fe_id_x_fe_different_between_cells
+     procedure, non_overridable, private :: allocate_field_cell_to_ref_fes                    => serial_fe_space_allocate_field_cell_to_ref_fes
+     procedure, non_overridable, private :: free_field_cell_to_ref_fes                        => serial_fe_space_free_field_cell_to_ref_fes
+     procedure, non_overridable, private :: fill_field_cell_to_ref_fes_same_on_all_cells      => serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
+     procedure, non_overridable, private :: fill_field_cell_to_ref_fes_different_ref_fes_between_cells=> sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells
      
      procedure, non_overridable, private :: check_cell_vs_fe_topology_consistency        => serial_fe_space_check_cell_vs_fe_topology_consistency
      
@@ -432,9 +432,9 @@ module fe_space_names
      procedure, non_overridable, private :: free_fe_quadratures_degree                   => serial_fe_space_free_fe_quadratures_degree
      procedure, non_overridable          :: clear_fe_quadratures_degree                  => serial_fe_space_clear_fe_quadratures_degree
      
-     procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_fe    => serial_fe_space_allocate_max_order_reference_fe_id_x_fe
-     procedure, non_overridable, private :: free_max_order_reference_fe_id_x_fe        => serial_fe_space_free_max_order_reference_fe_id_x_fe
-     procedure, non_overridable, private :: compute_max_order_reference_fe_id_x_fe     => serial_fe_space_compute_max_order_reference_fe_id_x_fe         
+     procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_fe_cell    => serial_fe_space_allocate_max_order_reference_fe_id_x_fe_cell
+     procedure, non_overridable, private :: free_max_order_reference_fe_id_x_fe_cell        => serial_fe_space_free_max_order_reference_fe_id_x_fe_cell
+     procedure, non_overridable, private :: compute_max_order_reference_fe_id_x_fe_cell     => serial_fe_space_compute_max_order_reference_fe_id_x_fe_cell         
      
      procedure, non_overridable          :: initialize_fe_integration                    => serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
@@ -593,11 +593,11 @@ module fe_space_names
    
  contains
    procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
-   procedure, private :: serial_fe_space_create_different_between_cells                           => par_fe_space_serial_create_different_between_cells 
+   procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                           => par_fe_space_serial_create_different_ref_fes_between_cells 
    procedure, private :: par_fe_space_create_same_reference_fes_on_all_cells 
-   procedure, private :: par_fe_space_create_different_between_cells
+   procedure, private :: par_fe_space_create_different_ref_fes_between_cells
    generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells, &
-                                                                                                     par_fe_space_create_different_between_cells
+                                                                                                     par_fe_space_create_different_ref_fes_between_cells
    procedure                         , private :: allocate_and_fill_coarse_fe_handlers            => par_fe_space_allocate_and_fill_coarse_fe_handlers
    procedure                         , private :: free_coarse_fe_handlers                         => par_fe_space_free_coarse_fe_handlers
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info

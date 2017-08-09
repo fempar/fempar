@@ -386,7 +386,7 @@ function fe_face_iterator_get_facet_integrator(this, field_id)
   reference_fes_id(2) = 0 
   do icell_around = 1, this%get_num_cells_around()
      call this%get_cell_around(icell_around, this%fe)
-     reference_fes_id(icell_around) = this%fe_space%reference_fe_id_x_fe(field_id, this%fe%get_lid())
+     reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id, this%fe%get_lid())
   end do
   
   fe_facet_integrators_position_key = &
