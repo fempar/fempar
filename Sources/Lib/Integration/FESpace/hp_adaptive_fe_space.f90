@@ -387,6 +387,21 @@ function hp_adaptive_fe_face_iterator_compute_face_permutation_index (this,first
   class(fe_iterator_t)                 , intent(inout) :: first_fe
   class(fe_iterator_t)                 , intent(inout) :: second_fe
   integer(ip)                                          :: face_permutation_index
+  ! WARNING: This procedure assumes the problem is meshed with a single octree.
+  ! All facets of an octree have the same orientation. Thus, face_permutation_index
+  ! can be straightforwardly set to 1.
+  !
+  ! On a forest of octrees, the interface facets can have different orientations.
+  ! In this case, one may compute the face permutation index following the steps:
+  !  1.- Extract from the first FE the ivef and the vef_lid of the first proper vertex.
+  !  2.- Extract from the second FE the ivef of the vertex that has this vef_lid.
+  !  3.- Extract relative rotation with dimension dependents lookup_tables.
+  !        relative_rotation_nD(ivef_first_fe,ivef_second_fe)
+  !    
+  !    2D: reshape( [ 1, 2, 2, 1 ] , [ 2, 2] )
+  !    
+  !    3D: reshape( [1, 2, 3, 4, 3, 1, 4, 2, 2, 4, 1, 3, 4, 3, 2, 1] , [4, 4] )
+  !    
   assert( .not. this%is_ghost() .and. this%get_num_cells_around() == 2 )
   face_permutation_index = 1
 end function hp_adaptive_fe_face_iterator_compute_face_permutation_index
