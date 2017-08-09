@@ -421,35 +421,35 @@ subroutine cell_iterator_get_ref_coords_of_subcell( this, subcell, points)
   mcheck(.false.,'This subroutine can only be called by some descendent classes')
 end subroutine cell_iterator_get_ref_coords_of_subcell
 
-function cell_iterator_get_num_subfaces( this ) result ( num_subfaces )
+function cell_iterator_get_num_subfacets( this ) result ( num_subfacets )
   implicit none
   class(cell_iterator_t), intent(in)    :: this
-  integer(ip) :: num_subfaces
+  integer(ip) :: num_subfacets
   mcheck(.false.,'This subroutine can only be called by some descendent classes')
-end function cell_iterator_get_num_subfaces
+end function cell_iterator_get_num_subfacets
 
-function cell_iterator_get_num_subface_nodes( this ) result ( num_nodes_subface )
+function cell_iterator_get_num_subfacet_nodes( this ) result ( num_nodes_subfacet )
   implicit none
   class(cell_iterator_t), intent(in)    :: this
-  integer(ip) :: num_nodes_subface
+  integer(ip) :: num_nodes_subfacet
   mcheck(.false.,'This subroutine can only be called by some descendent classes')
-end function cell_iterator_get_num_subface_nodes
+end function cell_iterator_get_num_subfacet_nodes
 
-subroutine cell_iterator_get_phys_coords_of_subface( this, subface, points )
+subroutine cell_iterator_get_phys_coords_of_subfacet( this, subfacet, points )
   implicit none
   class(cell_iterator_t), intent(in)    :: this
-  integer(ip),                     intent(in)    :: subface
+  integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
   mcheck(.false.,'This subroutine can only be called by some descendent classes')
-end subroutine cell_iterator_get_phys_coords_of_subface
+end subroutine cell_iterator_get_phys_coords_of_subfacet
 
-subroutine cell_iterator_get_ref_coords_of_subface( this, subface, points )
+subroutine cell_iterator_get_ref_coords_of_subfacet( this, subfacet, points )
   implicit none
   class(cell_iterator_t), intent(in)    :: this
-  integer(ip),                     intent(in)    :: subface
+  integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
   mcheck(.false.,'This subroutine can only be called by some descendent classes')
-end subroutine cell_iterator_get_ref_coords_of_subface
+end subroutine cell_iterator_get_ref_coords_of_subfacet
  
 function cell_iterator_is_cut(this)
   implicit none

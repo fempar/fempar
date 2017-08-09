@@ -66,7 +66,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   class(unfitted_cell_iterator_t), intent(inout) :: this
 
   integer(ip) :: num_subnodes, num_nodes, num_intersections, i1, i2, mc_case, num_dim
-  integer(ip) :: ipo, idi, subcell, subface
+  integer(ip) :: ipo, idi, subcell, subfacet
   type(point_t), pointer, dimension(:) ::  node_coords, intersec_coords, coordinates
   type(quadrature_t), pointer :: quadrature
   real(rp), pointer :: points_in_quadrature(:,:)
@@ -74,7 +74,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   type(fe_map_t), pointer :: fe_map
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: subcell_nodes(4)
-  integer(ip) :: subface_nodes(3)
+  integer(ip) :: subfacet_nodes(3)
 
   assert(this%is_local())
 
@@ -106,10 +106,10 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   end do
 
   ! Recover connectivities of the sub-faces
-  this%marching_cubes%subfaces_nodal_connectivities(:,:) = 0
-  do subface=1,this%get_num_subfaces()
-    this%marching_cubes%subfaces_nodal_connectivities(:,subface) = &
-    this%marching_cubes%mc_table_subface_node_ids_x_case(:,subface,mc_case)
+  this%marching_cubes%subfacets_nodal_connectivities(:,:) = 0
+  do subfacet=1,this%get_num_subfacets()
+    this%marching_cubes%subfacets_nodal_connectivities(:,subfacet) = &
+    this%marching_cubes%mc_table_subfacet_node_ids_x_case(:,subfacet,mc_case)
   end do
 
   !Fix inverted sub-cells and sub-faces (only in 3D)
@@ -126,10 +126,10 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
     end do
 
     ! Find sub-faces belonging to inverted sub-cells and reorient them
-    do subface=1,this%get_num_subfaces()
-      if (this%subface_touches_interior_reoriented_subcell(subface)) then
-        subface_nodes(:) = this%marching_cubes%subfaces_nodal_connectivities(:,subface)
-        this%marching_cubes%subfaces_nodal_connectivities(:,subface) = subface_nodes([1,3,2])
+    do subfacet=1,this%get_num_subfacets()
+      if (this%subfacet_touches_interior_reoriented_subcell(subfacet)) then
+        subfacet_nodes(:) = this%marching_cubes%subfacets_nodal_connectivities(:,subfacet)
+        this%marching_cubes%subfacets_nodal_connectivities(:,subfacet) = subfacet_nodes([1,3,2])
       end if
     end do
 
@@ -245,81 +245,81 @@ subroutine unfitted_cell_iterator_get_ref_coords_of_subcell( this, subcell, poin
 end subroutine unfitted_cell_iterator_get_ref_coords_of_subcell
 
 !========================================================================================
-function unfitted_cell_iterator_get_num_subfaces( this ) result ( num_subfaces )
+function unfitted_cell_iterator_get_num_subfacets( this ) result ( num_subfacets )
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: num_subfaces
+  integer(ip) :: num_subfacets
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
   mc_case           = this%marching_cubes%mc_case_x_cell(this%get_lid())
-  num_subfaces      = this%marching_cubes%mc_table_num_subfaces_x_case(mc_case)
-end function unfitted_cell_iterator_get_num_subfaces
+  num_subfacets      = this%marching_cubes%mc_table_num_subfacets_x_case(mc_case)
+end function unfitted_cell_iterator_get_num_subfacets
 
 !========================================================================================
-function unfitted_cell_iterator_get_num_subface_nodes( this ) result ( num_nodes_subface )
+function unfitted_cell_iterator_get_num_subfacet_nodes( this ) result ( num_nodes_subfacet )
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: num_nodes_subface
+  integer(ip) :: num_nodes_subfacet
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
-  num_nodes_subface = 0
-  if (this%get_num_subfaces() .ne. 0) num_nodes_subface = this%marching_cubes%mc_table_num_nodes_subface
-end function unfitted_cell_iterator_get_num_subface_nodes
+  num_nodes_subfacet = 0
+  if (this%get_num_subfacets() .ne. 0) num_nodes_subfacet = this%marching_cubes%mc_table_num_nodes_subfacet
+end function unfitted_cell_iterator_get_num_subfacet_nodes
 
 !========================================================================================
-subroutine unfitted_cell_iterator_get_phys_coords_of_subface( this, subface, points )
+subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet( this, subfacet, points )
 
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip),                     intent(in)    :: subface
+  integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
 
-  integer(ip) :: num_nodes_subface, mc_case
+  integer(ip) :: num_nodes_subfacet, mc_case
   type(point_t), pointer :: subnodes_phys_coords(:)
   type(fe_map_t), pointer :: fe_map
-  integer(ip), pointer ::  subface_node_ids(:)
+  integer(ip), pointer ::  subfacet_node_ids(:)
 
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  num_nodes_subface = this%get_num_subface_nodes()
-  assert( size(points) == num_nodes_subface)
+  num_nodes_subfacet = this%get_num_subfacet_nodes()
+  assert( size(points) == num_nodes_subfacet)
   assert(this%is_cut())
-  assert( (1_ip <= subface) .and. (subface <= this%get_num_subfaces())  )
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets())  )
 
   mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
   fe_map => this%marching_cubes%subnodes_fe_maps(mc_case)
   subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
-  subface_node_ids =>  this%marching_cubes%subfaces_nodal_connectivities(:,subface)
-  points(:) = subnodes_phys_coords(subface_node_ids(:))
+  subfacet_node_ids =>  this%marching_cubes%subfacets_nodal_connectivities(:,subfacet)
+  points(:) = subnodes_phys_coords(subfacet_node_ids(:))
 
-end subroutine unfitted_cell_iterator_get_phys_coords_of_subface
+end subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet
 
 !========================================================================================
-subroutine unfitted_cell_iterator_get_ref_coords_of_subface( this, subface, points )
+subroutine unfitted_cell_iterator_get_ref_coords_of_subfacet( this, subfacet, points )
 
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip),                     intent(in)    :: subface
+  integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
 
-  integer(ip) :: num_nodes_subface, mc_case
+  integer(ip) :: num_nodes_subfacet, mc_case
   type(point_t), pointer :: subnodes_ref_coords(:)
-  integer(ip), pointer ::  subface_node_ids(:)
+  integer(ip), pointer ::  subfacet_node_ids(:)
 
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  num_nodes_subface = this%get_num_subface_nodes()
-  assert( size(points) == num_nodes_subface)
+  num_nodes_subfacet = this%get_num_subfacet_nodes()
+  assert( size(points) == num_nodes_subfacet)
   assert(this%is_cut())
-  assert( (1_ip <= subface) .and. (subface <= this%get_num_subfaces())  )
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets())  )
 
   subnodes_ref_coords => this%marching_cubes%subnodes_ref_coords
   mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
-  subface_node_ids =>  this%marching_cubes%subfaces_nodal_connectivities(:,subface)
-  points(:) = subnodes_ref_coords(subface_node_ids(:))
+  subfacet_node_ids =>  this%marching_cubes%subfacets_nodal_connectivities(:,subfacet)
+  points(:) = subnodes_ref_coords(subfacet_node_ids(:))
 
-end subroutine unfitted_cell_iterator_get_ref_coords_of_subface
+end subroutine unfitted_cell_iterator_get_ref_coords_of_subfacet
 
 !========================================================================================
 function unfitted_cell_iterator_is_cut( this ) result ( is_cut )
@@ -441,20 +441,20 @@ function unfitted_cell_iterator_subcell_has_been_reoriented(this,subcell) result
 end function unfitted_cell_iterator_subcell_has_been_reoriented
 
 !========================================================================================
-function unfitted_cell_iterator_subface_touches_reoriented_subcell(this,subface) result (is_neighbour)
+function unfitted_cell_iterator_subfacet_touches_reoriented_subcell(this,subfacet) result (is_neighbour)
 
   implicit none
   class(unfitted_cell_iterator_t), intent(in) :: this
-  integer(ip), intent(in) :: subface
+  integer(ip), intent(in) :: subfacet
   logical :: is_neighbour
 
   integer(ip), pointer :: Tf(:), Te(:)
   integer(ip) :: subcell
-  logical :: has_the_subface, has_been_reoriented, is_interior
+  logical :: has_the_subfacet, has_been_reoriented, is_interior
 
   ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
   ! Check it
-  assert(1<=subface .and. subface <= this%get_num_subfaces())
+  assert(1<=subfacet .and. subfacet <= this%get_num_subfacets())
   assert(this%get_num_subcell_nodes()==4)
   assert(this%marching_cubes%triangulation%get_num_dims() == 3)
 
@@ -462,14 +462,14 @@ function unfitted_cell_iterator_subface_touches_reoriented_subcell(this,subface)
   is_neighbour= .false.
 
   ! Get connectivities of the sub-face
-  Tf => this%marching_cubes%subfaces_nodal_connectivities(:,subface)
+  Tf => this%marching_cubes%subfacets_nodal_connectivities(:,subfacet)
 
   ! Do a loop in sub-cell
   do subcell=1,this%get_num_subcells()
 
     ! Find the sub-cells that have the three nodes of the face
     Te => this%marching_cubes%subcells_nodal_connectivities(:,subcell)
-    has_the_subface = (any(Te == Tf(1)) .and. any(Te == Tf(2)) .and. any(Te == Tf(3)))
+    has_the_subfacet = (any(Te == Tf(1)) .and. any(Te == Tf(2)) .and. any(Te == Tf(3)))
 
     ! Check if it has been reoriented
     has_been_reoriented = this%marching_cubes%subcell_has_been_reoriented(subcell)
@@ -478,11 +478,11 @@ function unfitted_cell_iterator_subface_touches_reoriented_subcell(this,subface)
     is_interior = this%is_interior_subcell(subcell)
 
     ! If the three conditions are met, return true, so that the sub-face will be reoriented
-    is_neighbour = has_the_subface .and. has_been_reoriented .and. is_interior
+    is_neighbour = has_the_subfacet .and. has_been_reoriented .and. is_interior
 
   end do
 
-end function unfitted_cell_iterator_subface_touches_reoriented_subcell
+end function unfitted_cell_iterator_subfacet_touches_reoriented_subcell
 
 
 

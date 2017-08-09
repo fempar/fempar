@@ -738,7 +738,7 @@ subroutine hex_nedelec_reference_fe_fill_face_interpolation( this, local_quadrat
   integer(ip) :: c,idime,iface,n_face_index
   
   ! Add offset to have same numbering as in polytope
-  n_face_index = local_face_id+this%get_first_face_id()-1
+  n_face_index = local_face_id+this%get_first_facet_id()-1
   
   ! Create a d-dimensional quadrature as follows
   call aux_quadrature%create( this%num_dims, local_quadrature%num_quadrature_points )
@@ -804,8 +804,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   type(hex_nedelec_reference_fe_t)    :: fe_2D
   type(quadrature_t)                  :: face_quadrature
   type(interpolation_t)               :: interpolation_2D, face_interpolation
-  type(face_map_t)                    :: face_map
-  type(point_t), pointer              :: face_map_coordinates(:)
+  type(facet_map_t)                    :: facet_map
+  type(point_t), pointer              :: facet_map_coordinates(:)
   type(vector_field_t)                :: normal
   type(vector_field_t)                :: cross_product_v_shape_trial_normal
   type(vector_field_t)                :: cross_product_v_shape_trial_normal_proj
@@ -827,7 +827,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   real(rp)                            :: factor
   integer(ip)                         :: idime
   
-  ! Local variable required for normals reorientation calcs (required to update_face_map)
+  ! Local variable required for normals reorientation calcs (required to update_facet_map)
   integer(ip)                         :: local_face_id
   
   ! Rest of local variables
@@ -935,29 +935,29 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
     
     call this%create_facet_quadrature( face_quadrature )
     call fe_2D%create_interpolation( face_quadrature, interpolation_2D )
-    call face_map%create( face_quadrature, d_fe_geo )
+    call facet_map%create( face_quadrature, d_fe_geo )
  
-    do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_num_faces()-1
+    do facet_id = this%get_first_facet_id(), this%get_first_facet_id() + this%get_num_facets()-1
   
      ! Get face map coordinates
-     face_map_coordinates => face_map%get_coordinates()
+     facet_map_coordinates => facet_map%get_coordinates()
    
      ! Extract coordinates of the vertices within the face
      vertex_within_face_id = 1
      vertex_iterator = this%vertices_n_face%create_iterator(facet_id)
      do while ( .not. vertex_iterator%is_upper_bound () )
         vertex_within_cell_id = vertex_iterator%get_current()
-        call face_map_coordinates(vertex_within_face_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
+        call facet_map_coordinates(vertex_within_face_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
         call vertex_iterator%next()
         vertex_within_face_id = vertex_within_face_id + 1
      end do
 
-     ! Update face_map on current face
-     local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
-     call face_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+     ! Update facet_map on current face
+     local_face_id = facet_id - d_fe_geo%get_first_facet_id()+1
+     call facet_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
                           quadrature             = face_quadrature ) 
      
-     call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_face_id()+1, &
+     call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_facet_id()+1, &
                                           face_quadrature, &
                                           face_interpolation )
      
@@ -965,8 +965,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      
      ! Integrate face boundary moments int_Face(u x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
      do qpoint = 1, face_quadrature%num_quadrature_points
-        factor = face_map%get_det_jacobian(qpoint) * face_quadrature%get_weight(qpoint)
-        call face_map%get_normal(qpoint, normal)
+        factor = facet_map%get_det_jacobian(qpoint) * face_quadrature%get_weight(qpoint)
+        call facet_map%get_normal(qpoint, normal)
         
         !!!!!!!!!!!
         !! IMPORTANT NOTE: trick to have normals associated to each pair of faces pointing
@@ -986,7 +986,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
               ! Multiply the transpose of the jacobian with normalized columns by u x n
               ! This is required to transform u x n in a vector contained within the face
               do i=1,this%num_dims-1
-                call face_map%get_jacobian_column(i,qpoint,col_jacobian)
+                call facet_map%get_jacobian_column(i,qpoint,col_jacobian)
 				col_jacobian = col_jacobian * (1.0_rp/col_jacobian%nrm2())
                 call cross_product_v_shape_trial_normal_proj%set(i, col_jacobian*cross_product_v_shape_trial_normal)
               end do
@@ -1070,7 +1070,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      end do
 
      if (this%num_dims == 3 .and. this%order > 1) then
-        do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_num_faces()-1
+        do facet_id = this%get_first_facet_id(), this%get_first_facet_id() + this%get_num_facets()-1
            call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%num_shape_functions )
         end do
      end if
@@ -1178,7 +1178,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  call face_quadrature%free()
  call interpolation_2D%free()
  call face_interpolation%free()
- call face_map%free()
+ call facet_map%free()
  
  ! Free all  
  call cell_quadrature%free()

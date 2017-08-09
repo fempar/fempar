@@ -755,7 +755,7 @@ subroutine hex_lagrangian_reference_fe_fill_face_interpolation( this, local_quad
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: c,idime,iface,n_face_index
   ! Add offset to have same numbering as in polytope
-  n_face_index = local_face_id+this%get_first_face_id()-1
+  n_face_index = local_face_id+this%get_first_facet_id()-1
   ! Create a d-dimensional quadrature as follows
   call aux_quadrature%create( this%num_dims, local_quadrature%num_quadrature_points )
   c = 0

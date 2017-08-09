@@ -158,10 +158,10 @@ module fe_space_names
     procedure                            :: get_num_subcell_nodes => base_fe_iterator_get_num_subcell_nodes
     procedure                            :: get_phys_coords_of_subcell  => base_fe_iterator_get_phys_coords_of_subcell
     procedure                            :: get_ref_coords_of_subcell   => base_fe_iterator_get_ref_coords_of_subcell
-    procedure                            :: get_num_subfaces      => base_fe_iterator_get_num_subfaces
-    procedure                            :: get_num_subface_nodes => base_fe_iterator_get_num_subface_nodes
-    procedure                            :: get_phys_coords_of_subface  => base_fe_iterator_get_phys_coords_of_subface
-    procedure                            :: get_ref_coords_of_subface   => base_fe_iterator_get_ref_coords_of_subface
+    procedure                            :: get_num_subfacets      => base_fe_iterator_get_num_subfacets
+    procedure                            :: get_num_subfacet_nodes => base_fe_iterator_get_num_subfacet_nodes
+    procedure                            :: get_phys_coords_of_subfacet  => base_fe_iterator_get_phys_coords_of_subfacet
+    procedure                            :: get_ref_coords_of_subfacet   => base_fe_iterator_get_ref_coords_of_subfacet
     procedure                            :: is_cut                      => base_fe_iterator_is_cut
     procedure                            :: is_interior                 => base_fe_iterator_is_interior
     procedure                            :: is_exterior                 => base_fe_iterator_is_exterior
@@ -318,8 +318,8 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature_degree         => fe_face_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree         => fe_face_iterator_set_quadrature_degree
     procedure, non_overridable          :: get_quadrature                => fe_face_iterator_get_quadrature
-    procedure, non_overridable          :: get_face_maps                 => fe_face_iterator_get_face_map
-    procedure, non_overridable          :: get_face_integrator           => fe_face_iterator_get_face_integrator
+    procedure, non_overridable          :: get_facet_maps                 => fe_face_iterator_get_facet_map
+    procedure, non_overridable          :: get_facet_integrator           => fe_face_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface               => fe_face_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_face_permutation_index    => fe_face_iterator_get_face_permutation_index
@@ -351,8 +351,8 @@ module fe_space_names
      
      ! Finite Face-related integration containers
      type(quadrature_t)            , allocatable :: fe_face_quadratures(:)
-     type(face_maps_t)              , allocatable :: fe_face_maps(:)
-     type(face_integrator_t)       , allocatable :: fe_face_integrators(:)
+     type(facet_maps_t)              , allocatable :: fe_facet_maps(:)
+     type(facet_integrator_t)       , allocatable :: fe_facet_integrators(:)
      integer(ip)                   , allocatable :: fe_face_quadratures_degree(:)
      
      
@@ -361,7 +361,7 @@ module fe_space_names
      type(hash_table_ip_ip_t)                    :: fe_face_quadratures_position  ! Key = [quadrature_degree, 
                                                                                   !       left_geo_reference_fe_id,
                                                                                   !       right_geo_reference_fe_id (with 0 for boundary faces)]
-     type(hash_table_ip_ip_t)                    :: fe_face_integrators_position  ! Key = [quadrature_degree,
+     type(hash_table_ip_ip_t)                    :: fe_facet_integrators_position  ! Key = [quadrature_degree,
                                                                                   !       left_reference_fe_id,
                                                                                   !       left_reference_fe_id (with 0 for boundary faces)]
      
@@ -458,7 +458,7 @@ module fe_space_names
      procedure, non_overridable          :: initialize_fe_face_integration               => serial_fe_space_initialize_fe_face_integration
      procedure, non_overridable, private :: free_fe_face_integration                     => serial_fe_space_free_fe_face_integration
      procedure, non_overridable, private :: generate_fe_face_quadratures_position_key    => serial_fe_space_fe_face_quadratures_position_key
-     procedure, non_overridable, private :: generate_fe_face_integrators_position_key    => serial_fe_space_fe_face_integrators_position_key
+     procedure, non_overridable, private :: generate_fe_facet_integrators_position_key    => serial_fe_space_fe_facet_integrators_position_key
 
      procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
      procedure                           :: fill_dof_info                                => serial_fe_space_fill_dof_info
@@ -537,7 +537,7 @@ module fe_space_names
     procedure, non_overridable, private  :: fe_object_iterator_get_fe_vef
     generic                              :: get_vef                               => fe_object_iterator_get_fe_vef 
     procedure, non_overridable, private  :: get_face                              => fe_object_iterator_get_fe_face
-    procedure, non_overridable           :: get_num_faces                         => fe_object_iterator_get_num_faces
+    procedure, non_overridable           :: get_num_facets                         => fe_object_iterator_get_num_facets
     procedure, non_overridable           :: get_num_coarse_dofs                => fe_object_iterator_get_num_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_iterator_create_own_coarse_dofs_iterator
     procedure, non_overridable           :: create_faces_object_iterator          => fe_object_iterator_create_faces_object_iterator

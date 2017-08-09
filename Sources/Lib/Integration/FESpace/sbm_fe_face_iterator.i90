@@ -128,23 +128,23 @@ subroutine fe_face_iterator_update_integration( this )
   integer(ip)                      :: face_lpos_within_cells_around(2)
   type(point_t)          , pointer :: coords(:)
   type(quadrature_t)     , pointer :: quadrature
-  type(face_maps_t)       , pointer :: face_map
-  type(face_integrator_t), pointer :: face_integrator
+  type(facet_maps_t)       , pointer :: facet_map
+  type(facet_integrator_t), pointer :: facet_integrator
   
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   
   quadrature => this%get_quadrature()
-  face_map   => this%get_face_maps()
+  facet_map   => this%get_facet_maps()
   
-  coords => face_map%get_face_coordinates()
+  coords => facet_map%get_facet_coordinates()
   call this%get_coordinates(coords)
 
   do icell_around=1, this%get_num_cells_around()
     call this%get_cell_around(icell_around,this%fe)  
     reference_fe_geo => this%fe%get_reference_fe_geo()
     face_lpos_within_cells_around(icell_around) = &
-      this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_face_id() + 1
-    coords => face_map%get_coordinates_neighbour(icell_around, &
+      this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_facet_id() + 1
+    coords => facet_map%get_coordinates_neighbour(icell_around, &
                                                  face_lpos_within_cells_around(icell_around))
     call this%fe%get_coordinates(coords)
     call this%update_num_dofs_x_field(icell_around)
@@ -153,14 +153,14 @@ subroutine fe_face_iterator_update_integration( this )
   call this%get_cell_around(1, this%fe)
   reference_fe_geo => this%fe%get_reference_fe_geo()
   
-  call face_map%update(face_lpos_within_cells_around, &
+  call facet_map%update(face_lpos_within_cells_around, &
                        quadrature, &
                        reference_fe_geo)
   
   do field_id = 1, this%fe_space%get_num_fields()
-     face_integrator => this%get_face_integrator(field_id)
-     call face_integrator%update(face_lpos_within_cells_around, &
-                                 this%get_face_maps(), &             
+     facet_integrator => this%get_facet_integrator(field_id)
+     call facet_integrator%update(face_lpos_within_cells_around, &
+                                 this%get_facet_maps(), &             
                                  this%get_face_permutation_index())
   end do
   
@@ -343,13 +343,13 @@ function fe_face_iterator_get_quadrature ( this )
 end function fe_face_iterator_get_quadrature
 
 !==================================================================================================
-function fe_face_iterator_get_face_map(this)
+function fe_face_iterator_get_facet_map(this)
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this
-  type(face_maps_t)         , pointer    :: fe_face_iterator_get_face_map
+  type(facet_maps_t)         , pointer    :: fe_face_iterator_get_facet_map
   integer(ip)                           :: icell_around, istat
-  integer(ip)                           :: fe_face_maps_position_key
-  integer(ip)                           :: fe_face_maps_position
+  integer(ip)                           :: fe_facet_maps_position_key
+  integer(ip)                           :: fe_facet_maps_position
   integer(ip)                           :: reference_fes_geo_id(2)
    
   reference_fes_geo_id(2) = 0 
@@ -358,27 +358,27 @@ function fe_face_iterator_get_face_map(this)
      reference_fes_geo_id(icell_around) = this%fe%get_reference_fe_geo_id()
   end do
   
-  fe_face_maps_position_key = &
+  fe_facet_maps_position_key = &
        this%fe_space%generate_fe_face_quadratures_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_geo_id(1), &
                                                                reference_fes_geo_id(2) )
        
-  call this%fe_space%fe_face_quadratures_position%get(key=fe_face_maps_position_key, &
-                                                      val=fe_face_maps_position, &
+  call this%fe_space%fe_face_quadratures_position%get(key=fe_facet_maps_position_key, &
+                                                      val=fe_facet_maps_position, &
                                                       stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_face_iterator_get_face_map => this%fe_space%fe_face_maps(fe_face_maps_position)
-end function fe_face_iterator_get_face_map
+  fe_face_iterator_get_facet_map => this%fe_space%fe_facet_maps(fe_facet_maps_position)
+end function fe_face_iterator_get_facet_map
 
 !==================================================================================================
-function fe_face_iterator_get_face_integrator(this, field_id)
+function fe_face_iterator_get_facet_integrator(this, field_id)
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this
   integer(ip)              , intent(in)    :: field_id
-  type(face_integrator_t)  , pointer    :: fe_face_iterator_get_face_integrator
+  type(facet_integrator_t)  , pointer    :: fe_face_iterator_get_facet_integrator
   integer(ip)                           :: icell_around, istat
-  integer(ip)                           :: fe_face_integrators_position_key
-  integer(ip)                           :: fe_face_integrators_position
+  integer(ip)                           :: fe_facet_integrators_position_key
+  integer(ip)                           :: fe_facet_integrators_position
   integer(ip)                           :: reference_fes_id(2)
   
   assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
@@ -389,18 +389,18 @@ function fe_face_iterator_get_face_integrator(this, field_id)
      reference_fes_id(icell_around) = this%fe_space%reference_fe_id_x_fe(field_id, this%fe%get_lid())
   end do
   
-  fe_face_integrators_position_key = &
-       this%fe_space%generate_fe_face_integrators_position_key(this%get_quadrature_degree(), &
+  fe_facet_integrators_position_key = &
+       this%fe_space%generate_fe_facet_integrators_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_id(1), &
                                                                reference_fes_id(2) )
        
-  call this%fe_space%fe_face_integrators_position%get(key=fe_face_integrators_position_key, &
-                                                      val=fe_face_integrators_position, &
+  call this%fe_space%fe_facet_integrators_position%get(key=fe_facet_integrators_position_key, &
+                                                      val=fe_facet_integrators_position, &
                                                       stat=istat)
   assert ( .not. istat == key_not_found )
   
-  fe_face_iterator_get_face_integrator => this%fe_space%fe_face_integrators(fe_face_integrators_position)
-end function fe_face_iterator_get_face_integrator
+  fe_face_iterator_get_facet_integrator => this%fe_space%fe_facet_integrators(fe_facet_integrators_position)
+end function fe_face_iterator_get_facet_integrator
 
 !==================================================================================================
 function fe_face_iterator_compute_surface ( this )
@@ -408,17 +408,17 @@ function fe_face_iterator_compute_surface ( this )
   class(fe_face_iterator_t), intent(inout) :: this
   real(rp)                         :: fe_face_iterator_compute_surface
   integer(ip) :: qpoin,num_quadrature_points
-  type(face_maps_t)  , pointer :: face_map
+  type(facet_maps_t)  , pointer :: facet_map
   type(quadrature_t), pointer :: quad
   
-  face_map => this%get_face_maps()
+  facet_map => this%get_facet_maps()
   quad     => this%get_quadrature()
   num_quadrature_points = quad%get_num_quadrature_points()
   
   fe_face_iterator_compute_surface = 0.0_rp
   do qpoin = 1, num_quadrature_points
      fe_face_iterator_compute_surface = fe_face_iterator_compute_surface + &
-          &                        face_map%get_det_jacobian(qpoin) * &
+          &                        facet_map%get_det_jacobian(qpoin) * &
           &                        quad%get_weight(qpoin)
   end do
   

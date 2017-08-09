@@ -66,12 +66,12 @@ function bst_get_num_vefs(this)
   bst_get_num_vefs = this%num_vefs
 end function bst_get_num_vefs
 
-function bst_get_num_faces(this)
+function bst_get_num_facets(this)
   implicit none
   class(base_static_triangulation_t), intent(in) :: this
-  integer(ip) :: bst_get_num_faces
-  bst_get_num_faces = this%num_faces
-end function bst_get_num_faces
+  integer(ip) :: bst_get_num_facets
+  bst_get_num_facets = this%num_faces
+end function bst_get_num_facets
 
 function bst_get_num_cells(this)
   implicit none

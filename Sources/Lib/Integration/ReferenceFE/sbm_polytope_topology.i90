@@ -1023,7 +1023,7 @@ end function compute_n_face_dim
 !
 ! Note: Here we use another trick. In 3D, one can check that the outward normal of the face
 ! (dx x dy) is outwards for orientation = 1 and inwards for orientation = 0. We use it in
-! the computation of the norm in fe_map_face_map_update based on ( dx x dy )*orientation.
+! the computation of the norm in fe_map_facet_map_update based on ( dx x dy )*orientation.
 ! Further, in 2D, even though there is only one orientation, using the same code with the
 ! swap at the end, we end up with an orientation array that leads to (dx x e_z)*orientation
 ! provides the right outward normal.

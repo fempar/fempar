@@ -278,35 +278,35 @@ subroutine base_fe_iterator_get_ref_coords_of_subcell( this, subcell, points)
   call this%cell%get_ref_coords_of_subcell(subcell,points)
 end subroutine base_fe_iterator_get_ref_coords_of_subcell
 
-function base_fe_iterator_get_num_subfaces( this ) result ( num_subfaces )
+function base_fe_iterator_get_num_subfacets( this ) result ( num_subfacets )
   implicit none
   class(base_fe_iterator_t), intent(in)    :: this
-  integer(ip) :: num_subfaces
-  num_subfaces = this%cell%get_num_subfaces()
-end function base_fe_iterator_get_num_subfaces
+  integer(ip) :: num_subfacets
+  num_subfacets = this%cell%get_num_subfacets()
+end function base_fe_iterator_get_num_subfacets
 
-function base_fe_iterator_get_num_subface_nodes( this ) result ( num_nodes_subface )
+function base_fe_iterator_get_num_subfacet_nodes( this ) result ( num_nodes_subfacet )
   implicit none
   class(base_fe_iterator_t), intent(in)    :: this
-  integer(ip) :: num_nodes_subface
-  num_nodes_subface = this%cell%get_num_subface_nodes()
-end function base_fe_iterator_get_num_subface_nodes
+  integer(ip) :: num_nodes_subfacet
+  num_nodes_subfacet = this%cell%get_num_subfacet_nodes()
+end function base_fe_iterator_get_num_subfacet_nodes
 
-subroutine base_fe_iterator_get_phys_coords_of_subface( this, subface, points )
+subroutine base_fe_iterator_get_phys_coords_of_subfacet( this, subfacet, points )
   implicit none
   class(base_fe_iterator_t), intent(in)    :: this
-  integer(ip),                     intent(in)    :: subface
+  integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
-  call this%cell%get_phys_coords_of_subface(subface,points)
-end subroutine base_fe_iterator_get_phys_coords_of_subface
+  call this%cell%get_phys_coords_of_subfacet(subfacet,points)
+end subroutine base_fe_iterator_get_phys_coords_of_subfacet
 
-subroutine base_fe_iterator_get_ref_coords_of_subface( this, subface, points )
+subroutine base_fe_iterator_get_ref_coords_of_subfacet( this, subfacet, points )
   implicit none
   class(base_fe_iterator_t), intent(in)    :: this
-  integer(ip),                     intent(in)    :: subface
+  integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
-  call this%cell%get_ref_coords_of_subface(subface,points)
-end subroutine base_fe_iterator_get_ref_coords_of_subface
+  call this%cell%get_ref_coords_of_subfacet(subfacet,points)
+end subroutine base_fe_iterator_get_ref_coords_of_subfacet
 
 function base_fe_iterator_is_cut(this)
   implicit none

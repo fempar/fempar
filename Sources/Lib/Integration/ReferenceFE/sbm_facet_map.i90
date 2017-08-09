@@ -26,12 +26,12 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-! face_map_t type procedures
+! facet_map_t type procedures
 !==================================================================================================
-subroutine face_map_create(this,quadrature,reference_fe_geo)
+subroutine facet_map_create(this,quadrature,reference_fe_geo)
   implicit none
   ! Parameters
-  class(face_map_t)                , intent(inout) :: this
+  class(facet_map_t)                , intent(inout) :: this
   type(quadrature_t)               , intent(in)    :: quadrature
   class(lagrangian_reference_fe_t) , intent(in)    :: reference_fe_geo
 
@@ -63,17 +63,17 @@ subroutine face_map_create(this,quadrature,reference_fe_geo)
   allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat)
   check(istat==0)
 
-  num_dofs_on_face = reference_fe_geo%get_num_dofs_on_n_face(reference_fe_geo%get_first_face_id())
+  num_dofs_on_face = reference_fe_geo%get_num_dofs_on_n_face(reference_fe_geo%get_first_facet_id())
   allocate(this%nodes_coordinates(num_dofs_on_face), stat=istat)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
-end subroutine face_map_create
+end subroutine facet_map_create
 
 !==================================================================================================
-subroutine face_map_update(this,reorientation_factor,quadrature)
+subroutine facet_map_update(this,reorientation_factor,quadrature)
   implicit none    
-  class(face_map_t)      , intent(inout) :: this
+  class(facet_map_t)      , intent(inout) :: this
   real(rp)             , intent(in)    :: reorientation_factor
   type(quadrature_t)   , intent(in)    :: quadrature
 
@@ -135,20 +135,20 @@ subroutine face_map_update(this,reorientation_factor,quadrature)
      this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
           &                                                             real(reorientation_factor) 
   end do
-end subroutine face_map_update
+end subroutine facet_map_update
 
 !==================================================================================================
-subroutine face_map_free( this )
+subroutine facet_map_free( this )
   implicit none
-  class(face_map_t), intent(inout) :: this
+  class(facet_map_t), intent(inout) :: this
   call this%base_map_t%free()
   if(allocated(this%normals)) call memfree(this%normals,__FILE__,__LINE__)
-end subroutine face_map_free
+end subroutine facet_map_free
 
 !==================================================================================================
-subroutine face_map_get_normal(this, qpoint, normal)
+subroutine facet_map_get_normal(this, qpoint, normal)
  implicit none
- class(face_map_t)     , intent(in)    :: this
+ class(facet_map_t)     , intent(in)    :: this
  integer(ip)         , intent(in)    :: qpoint
  type(vector_field_t), intent(inout) :: normal
  integer(ip) :: idime
@@ -156,11 +156,11 @@ subroutine face_map_get_normal(this, qpoint, normal)
  do idime = 1, this%num_dims
    call normal%set(idime,this%normals(idime,qpoint))
  end do
-end subroutine  face_map_get_normal
+end subroutine  facet_map_get_normal
 
-function face_map_get_normals(this)
+function facet_map_get_normals(this)
  implicit none
- class(face_map_t), target, intent(in)    :: this
- real(rp), pointer :: face_map_get_normals(:,:)
- face_map_get_normals => this%normals
-end function  face_map_get_normals
+ class(facet_map_t), target, intent(in)    :: this
+ real(rp), pointer :: facet_map_get_normals(:,:)
+ facet_map_get_normals => this%normals
+end function  facet_map_get_normals

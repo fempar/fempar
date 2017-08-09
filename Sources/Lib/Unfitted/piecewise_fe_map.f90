@@ -44,7 +44,7 @@ module piecewise_fe_map_names
 
     private
 
-    type(face_map_t)   :: fe_sub_map
+    type(facet_map_t)   :: fe_sub_map
     integer(ip)        :: num_sub_maps
     integer(ip)        :: num_quadrature_points_sub_map
     integer(ip)        :: num_nodes_sub_map
@@ -64,7 +64,7 @@ module piecewise_fe_map_names
     ! This are thought as an extension of the same methods in fe_map_t
     procedure, non_overridable :: create_facet_map                => piecewise_fe_map_create_facet_map
     procedure, non_overridable :: free                           => piecewise_fe_map_free
-    procedure, non_overridable :: update_face_map                => piecewise_fe_map_update_face_map
+    procedure, non_overridable :: update_facet_map                => piecewise_fe_map_update_facet_map
     procedure, non_overridable :: compute_quadrature_points_coordinates => piecewise_fe_map_compute_quadrature_points_coordinates
 
     ! The same as in fe_map_t (this can be inherited form fe_map_t)
@@ -133,14 +133,14 @@ contains
   end subroutine piecewise_fe_map_free
 
 !========================================================================================
-  subroutine piecewise_fe_map_update_face_map( this, quadrature )
+  subroutine piecewise_fe_map_update_facet_map( this, quadrature )
 
     implicit none
     class  (piecewise_fe_map_t),        intent(inout) :: this
     type   (quadrature_t),              intent(in)    :: quadrature
 
     ! The arguments quadrature is needed only
-    ! because the fe_map_update_face_map requires them, ...
+    ! because the fe_map_update_facet_map requires them, ...
 
     integer(ip) :: imap, nini, nend, pini, pend
     type(point_t), pointer :: nod_coords(:), quad_coords(:)
@@ -173,7 +173,7 @@ contains
 
     end do
 
-  end subroutine piecewise_fe_map_update_face_map
+  end subroutine piecewise_fe_map_update_facet_map
 
 !========================================================================================
   subroutine piecewise_fe_map_compute_quadrature_points_coordinates( this )

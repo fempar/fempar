@@ -218,20 +218,20 @@ function reference_fe_get_num_vertices ( this )
        &                             this%ptr_n_faces_x_dim(1)
 end function reference_fe_get_num_vertices
 
-function reference_fe_get_num_faces ( this )
+function reference_fe_get_num_facets ( this )
   implicit none
   class(reference_fe_t), intent(in) :: this
-  integer(ip) :: reference_fe_get_num_faces
-  reference_fe_get_num_faces = this%ptr_n_faces_x_dim(this%num_dims+1) -          &
+  integer(ip) :: reference_fe_get_num_facets
+  reference_fe_get_num_facets = this%ptr_n_faces_x_dim(this%num_dims+1) -          &
        &                          this%ptr_n_faces_x_dim(this%num_dims)
-end function reference_fe_get_num_faces
+end function reference_fe_get_num_facets
 
-function reference_fe_get_first_face_id ( this )
+function reference_fe_get_first_facet_id ( this )
   implicit none
   class(reference_fe_t), intent(in) :: this
-  integer(ip) :: reference_fe_get_first_face_id
-  reference_fe_get_first_face_id = this%ptr_n_faces_x_dim(this%num_dims)
-end function reference_fe_get_first_face_id
+  integer(ip) :: reference_fe_get_first_facet_id
+  reference_fe_get_first_facet_id = this%ptr_n_faces_x_dim(this%num_dims)
+end function reference_fe_get_first_facet_id
 
 function reference_fe_get_num_n_faces_of_dim ( this, n_face_dim )
   implicit none

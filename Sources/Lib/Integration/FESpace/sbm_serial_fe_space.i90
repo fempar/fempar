@@ -964,7 +964,7 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   integer(ip)                    :: icomp
   class(reference_fe_t), pointer :: reference_fe
   type(quadrature_t)   , pointer :: quadrature
-  type(face_maps_t)     , pointer :: face_map
+  type(facet_maps_t)     , pointer :: facet_map
   type(point_t)        , pointer :: quad_coords(:)
                    
   real(rp)                       :: time_(1)
@@ -972,8 +972,8 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   
   call fe_face%get_cell_around(1,fe)
   reference_fe => fe%get_reference_fe(field_id)
-  face_map     => fe_face%get_face_maps()   
-  quad_coords  => face_map%get_quadrature_points_coordinates()
+  facet_map     => fe_face%get_facet_maps()   
+  quad_coords  => facet_map%get_quadrature_points_coordinates()
   
   assert ( reference_fe%get_num_field_components() <= size(function_scalar_components) )
   assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
@@ -1024,9 +1024,9 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   class(reference_fe_t)  , pointer :: reference_fe
   type(quadrature_t)     , pointer :: quadrature
   integer(ip)                      :: qpoint, n_q_points
-  type(face_maps_t)       , pointer :: face_maps
-  type(face_map_t)        , pointer :: face_map
-  type(face_integrator_t), pointer :: face_int
+  type(facet_maps_t)       , pointer :: facet_maps
+  type(facet_map_t)        , pointer :: facet_map
+  type(facet_integrator_t), pointer :: face_int
   integer(ip)                      :: ishape, jshape
   real(rp)                         :: factor
   type(vector_field_t) :: normal 
@@ -1035,10 +1035,10 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   call fe_face%get_cell_around(1,fe)
   reference_fe      => fe%get_reference_fe(field_id)
   quadrature        => fe_face%get_quadrature()
-  face_maps         => fe_face%get_face_maps()   
-  face_map => face_maps%get_face_map()
+  facet_maps         => fe_face%get_facet_maps()   
+  facet_map => facet_maps%get_facet_map()
   n_q_points        = quadrature%get_num_quadrature_points()
-  face_int          => fe_face%get_face_integrator(field_id)
+  face_int          => fe_face%get_facet_integrator(field_id)
   select case(reference_fe%get_field_type())
   case ( field_type_scalar )
      ! Curl-conforming projection does not make sense with scalar-valued fields
@@ -1047,8 +1047,8 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
      elmat = 0.0_rp
      elvec = 0.0_rp
      do qpoint = 1, n_q_points
-        factor = face_maps%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-        call face_map%get_normal(qpoint, normal)
+        factor = facet_maps%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+        call facet_map%get_normal(qpoint, normal)
         do ishape = 1, reference_fe%get_num_shape_functions() 
            call face_int%get_value(ishape,qpoint,1,vector_shape_test)
            do jshape = 1, reference_fe%get_num_shape_functions()
@@ -1762,7 +1762,7 @@ subroutine serial_fe_space_fill_vef_lids_of_fe_faces ( this )
   type(fe_vef_iterator_t) :: fe_vef
   integer(ip)             :: face_lid
   face_lid = 0
-  call this%vef_lids_of_fe_faces%resize(this%triangulation%get_num_faces())
+  call this%vef_lids_of_fe_faces%resize(this%triangulation%get_num_facets())
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
     if ( fe_vef%is_face() ) then
@@ -1831,8 +1831,8 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   class(fe_iterator_t)     , allocatable :: fe
 
   integer(ip) :: current_fe_face_quadrature
-  integer(ip) :: current_fe_face_map
-  integer(ip) :: current_fe_face_integrator
+  integer(ip) :: current_fe_facet_map
+  integer(ip) :: current_fe_facet_integrator
 
   integer(ip)            :: max_order_fes_around_fe_face
   integer(ip)            :: reference_fes_geo_id(2)
@@ -1842,7 +1842,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   type(p_reference_fe_t) :: reference_fes(2)
 
   integer(ip) :: fe_face_quadratures_position_key
-  integer(ip) :: fe_face_integrators_position_key
+  integer(ip) :: fe_facet_integrators_position_key
 
   integer(ip) :: field_id, istat, icell_around
 
@@ -1855,13 +1855,13 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   call this%allocate_max_order_reference_fe_id_x_fe_face()
   call this%compute_max_order_reference_fe_id_x_fe_face()
   
-  ! Determine the size of fe_face_quadratures, fe_face_maps, 
-  ! and fe_face_integrators while filling the corresponding hash tables
+  ! Determine the size of fe_face_quadratures, fe_facet_maps, 
+  ! and fe_facet_integrators while filling the corresponding hash tables
   call this%fe_face_quadratures_position%init()
-  call this%fe_face_integrators_position%init()
+  call this%fe_facet_integrators_position%init()
   current_fe_face_quadrature = 1
-  current_fe_face_map = 1
-  current_fe_face_integrator = 1
+  current_fe_facet_map = 1
+  current_fe_facet_integrator = 1
 
   call this%create_fe_iterator(fe)
   call this%create_fe_face_iterator(fe_face)
@@ -1883,7 +1883,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
      
      if (istat == now_stored) then
         current_fe_face_quadrature = current_fe_face_quadrature + 1
-        current_fe_face_map = current_fe_face_map + 1
+        current_fe_facet_map = current_fe_facet_map + 1
      end if
 
      do field_id=1, this%get_num_fields()
@@ -1893,16 +1893,16 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
            reference_fes_id(icell_around) = this%reference_fe_id_x_fe(field_id, fe%get_lid())
         end do
 
-        fe_face_integrators_position_key = &
-             this%generate_fe_face_integrators_position_key(fe_face%get_quadrature_degree(), &
+        fe_facet_integrators_position_key = &
+             this%generate_fe_facet_integrators_position_key(fe_face%get_quadrature_degree(), &
                                                             reference_fes_id(1), &
                                                             reference_fes_id(2) )
 
-        call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
-                                                   val=current_fe_face_integrator, &
+        call this%fe_facet_integrators_position%put(key=fe_facet_integrators_position_key, &
+                                                   val=current_fe_facet_integrator, &
                                                    stat=istat)
         if (istat == now_stored) then
-           current_fe_face_integrator = current_fe_face_integrator + 1
+           current_fe_facet_integrator = current_fe_facet_integrator + 1
         end if
      end do
      call fe_face%next()
@@ -1911,17 +1911,17 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   allocate ( this%fe_face_quadratures(current_fe_face_quadrature-1), stat=istat)
   check (istat==0)
 
-  allocate ( this%fe_face_maps(current_fe_face_map-1), stat=istat)
+  allocate ( this%fe_facet_maps(current_fe_facet_map-1), stat=istat)
   check (istat==0)
 
-  allocate ( this%fe_face_integrators(current_fe_face_integrator-1), stat=istat)
+  allocate ( this%fe_facet_integrators(current_fe_facet_integrator-1), stat=istat)
   check (istat==0)
 
   call this%fe_face_quadratures_position%init()
-  call this%fe_face_integrators_position%init()
+  call this%fe_facet_integrators_position%init()
   current_fe_face_quadrature = 1
-  current_fe_face_map = 1
-  current_fe_face_integrator = 1
+  current_fe_facet_map = 1
+  current_fe_facet_integrator = 1
 
   call fe_face%first()
   do while ( .not. fe_face%has_finished() ) 
@@ -1945,11 +1945,11 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
      if (istat == now_stored) then
         reference_fe=>this%reference_fes( this%max_order_reference_fe_id_x_fe_face(fe_face%face_lid) )%p
         call reference_fe%create_facet_quadrature(this%fe_face_quadratures(current_fe_face_quadrature),fe_face%get_quadrature_degree())
-        call this%fe_face_maps(current_fe_face_map)%create(fe_face%get_quadrature(), &
+        call this%fe_facet_maps(current_fe_facet_map)%create(fe_face%get_quadrature(), &
                                                            reference_fes_geo(1)%p, &
                                                            reference_fes_geo(2)%p )
         current_fe_face_quadrature = current_fe_face_quadrature + 1
-        current_fe_face_map = current_fe_face_map + 1
+        current_fe_facet_map = current_fe_facet_map + 1
      end if
 
      do field_id=1, this%get_num_fields()
@@ -1961,19 +1961,19 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
            reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
         end do
 
-        fe_face_integrators_position_key = &
-             this%generate_fe_face_integrators_position_key(fe_face%get_quadrature_degree(), &
+        fe_facet_integrators_position_key = &
+             this%generate_fe_facet_integrators_position_key(fe_face%get_quadrature_degree(), &
                                                             reference_fes_id(1), &
                                                             reference_fes_id(2) )
 
-        call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
-                                                   val=current_fe_face_integrator, &
+        call this%fe_facet_integrators_position%put(key=fe_facet_integrators_position_key, &
+                                                   val=current_fe_facet_integrator, &
                                                    stat=istat)
         if (istat == now_stored) then
-           call this%fe_face_integrators(current_fe_face_integrator)%create(fe_face%get_quadrature(), &
+           call this%fe_facet_integrators(current_fe_facet_integrator)%create(fe_face%get_quadrature(), &
                 reference_fes(1)%p, &
                 reference_fes(2)%p )
-           current_fe_face_integrator = current_fe_face_integrator + 1
+           current_fe_facet_integrator = current_fe_facet_integrator + 1
         end if
      end do
      call fe_face%next()
@@ -1990,7 +1990,7 @@ subroutine serial_fe_space_free_fe_face_integration ( this )
   !if (allocated(this%max_order_x_fe_face)) call memfree ( this%max_order_x_fe_face, __FILE__, __LINE__ )
 
   call this%fe_face_quadratures_position%free()
-  call this%fe_face_integrators_position%free()
+  call this%fe_facet_integrators_position%free()
 
   if (allocated(this%fe_face_quadratures)) then
      do i=1, size(this%fe_face_quadratures)
@@ -2000,19 +2000,19 @@ subroutine serial_fe_space_free_fe_face_integration ( this )
      check(istat==0)
   end if
 
-  if (allocated(this%fe_face_maps)) then
-     do i=1, size(this%fe_face_maps)
-        call this%fe_face_maps(i)%free()
+  if (allocated(this%fe_facet_maps)) then
+     do i=1, size(this%fe_facet_maps)
+        call this%fe_facet_maps(i)%free()
      end do
-     deallocate(this%fe_face_maps, stat=istat)
+     deallocate(this%fe_facet_maps, stat=istat)
      check(istat==0)
   end if
 
-  if (allocated(this%fe_face_integrators)) then
-     do i=1, size(this%fe_face_integrators)
-        call this%fe_face_integrators(i)%free()
+  if (allocated(this%fe_facet_integrators)) then
+     do i=1, size(this%fe_facet_integrators)
+        call this%fe_facet_integrators(i)%free()
      end do
-     deallocate(this%fe_face_integrators, stat=istat)
+     deallocate(this%fe_facet_integrators, stat=istat)
      check(istat==0)
   end if
   
@@ -2048,23 +2048,23 @@ end function serial_fe_space_fe_face_quadratures_position_key
 
 ! For a given field, provided the identifiers of the reference_fes corresponding 
 ! to the cells around a fe_face, and the quadrature degree to be used, computes a unique key that 
-! is used to retrieve the position in the "this%fe_face_integrators(:)" allocatable array through the corresponding 
+! is used to retrieve the position in the "this%fe_facet_integrators(:)" allocatable array through the corresponding 
 ! hash table. Some comments:
 !    * [quadrature_degree >= -1]
 !    * right_reference_fe_id can range from 1 to this%reference_fes_size 
 !      (with 0 for boundary fe_faces)
 !    * left_reference_fe_id can range from 1 to this%reference_fes_size
-function serial_fe_space_fe_face_integrators_position_key(this, quadrature_degree, left_reference_fe_id, right_reference_fe_id)
+function serial_fe_space_fe_facet_integrators_position_key(this, quadrature_degree, left_reference_fe_id, right_reference_fe_id)
   implicit none
   class(serial_fe_space_t)    , intent(in) :: this
   integer(ip)                 , intent(in) :: quadrature_degree
   integer(ip)                 , intent(in) :: left_reference_fe_id
   integer(ip)                 , intent(in) :: right_reference_fe_id
-  integer(ip) :: serial_fe_space_fe_face_integrators_position_key
-  serial_fe_space_fe_face_integrators_position_key = left_reference_fe_id + &
+  integer(ip) :: serial_fe_space_fe_facet_integrators_position_key
+  serial_fe_space_fe_facet_integrators_position_key = left_reference_fe_id + &
        (this%reference_fes_size)*(right_reference_fe_id) + &
        (this%reference_fes_size)*(this%reference_fes_size+1)*(quadrature_degree+1)
-end function serial_fe_space_fe_face_integrators_position_key
+end function serial_fe_space_fe_facet_integrators_position_key
 
 subroutine serial_fe_space_create_dof_values(this, dof_values)
   implicit none

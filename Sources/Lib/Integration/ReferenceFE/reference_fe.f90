@@ -190,17 +190,17 @@ module reference_fe_names
   end type fe_map_t
   
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type, extends(base_map_t) ::  face_map_t
+  type, extends(base_map_t) ::  facet_map_t
      private
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)
    contains
-     procedure, non_overridable :: create            => face_map_create
-     procedure, non_overridable :: update            => face_map_update
-     procedure                  :: free              => face_map_free
-     procedure, non_overridable :: get_normal        => face_map_get_normal
-     procedure, non_overridable :: get_normals       => face_map_get_normals
-  end type face_map_t
+     procedure, non_overridable :: create            => facet_map_create
+     procedure, non_overridable :: update            => facet_map_update
+     procedure                  :: free              => facet_map_free
+     procedure, non_overridable :: get_normal        => facet_map_get_normal
+     procedure, non_overridable :: get_normals       => facet_map_get_normals
+  end type facet_map_t
   
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  edge_map_t
@@ -222,22 +222,22 @@ module reference_fe_names
      procedure :: free     => p_fe_map_free
   end type p_fe_map_t
 
-  public :: fe_map_t, face_map_t, edge_map_t, p_fe_map_t
+  public :: fe_map_t, facet_map_t, edge_map_t, p_fe_map_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  type fe_map_face_restriction_t
+  type fe_map_facet_restriction_t
      private
-     integer(ip)                 :: num_faces = 0
+     integer(ip)                 :: num_facets = 0
      integer(ip)                 :: active_face_lid
      type(fe_map_t), allocatable :: fe_map(:)
    contains
-     procedure, non_overridable :: create            => fe_map_face_restriction_create
-     procedure, non_overridable :: update            => fe_map_face_restriction_update
-     procedure, non_overridable :: free              => fe_map_face_restriction_free
-     procedure, non_overridable :: get_coordinates   => fe_map_face_restriction_get_coordinates
-     procedure, non_overridable :: get_active_fe_map => fe_map_face_restriction_get_active_fe_map 
-  end type fe_map_face_restriction_t
+     procedure, non_overridable :: create            => fe_map_facet_restriction_create
+     procedure, non_overridable :: update            => fe_map_facet_restriction_update
+     procedure, non_overridable :: free              => fe_map_facet_restriction_free
+     procedure, non_overridable :: get_coordinates   => fe_map_facet_restriction_get_coordinates
+     procedure, non_overridable :: get_active_fe_map => fe_map_facet_restriction_get_active_fe_map 
+  end type fe_map_facet_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
   type polytope_t
@@ -489,10 +489,10 @@ module reference_fe_names
      !procedure :: get_first_vertex_id => reference_fe_get_first_vertex_id
      !procedure :: get_num_vertices_x_edge => reference_fe_get_num_vertices_x_edge
      !procedure :: get_num_vertices_x_face => reference_fe_get_num_vertices_x_face
-     !procedure :: get_num_edges => reference_fe_get_num_edges
+     !procedure :: get_num_edgets => reference_fe_get_num_edgets
      !procedure :: get_first_edge_id => reference_fe_get_first_edge_id
-     procedure :: get_num_faces => reference_fe_get_num_faces
-     procedure :: get_first_face_id => reference_fe_get_first_face_id
+     procedure :: get_num_facets => reference_fe_get_num_facets
+     procedure :: get_first_facet_id => reference_fe_get_first_facet_id
      procedure :: get_num_n_faces_of_dim  => reference_fe_get_num_n_faces_of_dim
      procedure :: get_first_n_face_id_of_dim => reference_fe_get_first_n_face_id_of_dim 
      procedure :: get_num_shape_functions => reference_fe_get_num_shape_functions
@@ -1564,90 +1564,90 @@ end type p_cell_integrator_t
 public :: cell_integrator_t, p_cell_integrator_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type cell_integrator_face_restriction_t
+  type cell_integrator_facet_restriction_t
      private
-     integer(ip)                            :: num_faces
+     integer(ip)                            :: num_facets
      integer(ip)                            :: active_face_lid
      type(cell_integrator_t), allocatable :: cell_integrator(:) 
    contains
-     procedure, non_overridable :: create  => cell_integrator_face_restriction_create
-     procedure, non_overridable :: update  => cell_integrator_face_restriction_update
-     procedure, non_overridable :: free    => cell_integrator_face_restriction_free
-     procedure, non_overridable :: get_active_cell_integrator => cell_integrator_face_restriction_get_active_cell_integrator
-  end type cell_integrator_face_restriction_t
+     procedure, non_overridable :: create  => cell_integrator_facet_restriction_create
+     procedure, non_overridable :: update  => cell_integrator_facet_restriction_update
+     procedure, non_overridable :: free    => cell_integrator_facet_restriction_free
+     procedure, non_overridable :: get_active_cell_integrator => cell_integrator_facet_restriction_get_active_cell_integrator
+  end type cell_integrator_facet_restriction_t
 
-  public :: cell_integrator_face_restriction_t
+  public :: cell_integrator_facet_restriction_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-type face_maps_t
+type facet_maps_t
   private
-  logical                         :: is_boundary
-  type(face_map_t)                :: face_map
-  type(fe_map_face_restriction_t) :: fe_maps(2)
+  logical                         :: is_at_boundary
+  type(facet_map_t)                :: facet_map
+  type(fe_map_facet_restriction_t) :: fe_maps(2)
   integer(ip)                     :: num_dims
 contains
-  procedure, non_overridable :: create               => face_maps_create
-  procedure, non_overridable :: free                 => face_maps_free
-  procedure, non_overridable :: update               => face_maps_update
+  procedure, non_overridable :: create               => facet_maps_create
+  procedure, non_overridable :: free                 => facet_maps_free
+  procedure, non_overridable :: update               => facet_maps_update
   procedure, non_overridable :: compute_characteristic_length                                      &
-  &                                             => face_maps_compute_characteristic_length
+  &                                             => facet_maps_compute_characteristic_length
   procedure, non_overridable :: get_quadrature_points_coordinates                                         &
-  &                                             => face_maps_get_quadrature_points_coordinates
-  procedure, non_overridable :: get_face_coordinates => face_maps_get_face_coordinates
+  &                                             => facet_maps_get_quadrature_points_coordinates
+  procedure, non_overridable :: get_facet_coordinates => facet_maps_get_facet_coordinates
   procedure, non_overridable :: get_coordinates_neighbour                                          &
-  &                                             => face_maps_get_coordinates_neighbour
-  procedure, non_overridable :: get_neighbour_fe_map => face_maps_get_neighbour_fe_map
-  procedure, non_overridable :: get_normals          => face_maps_get_normals
-  procedure, non_overridable :: get_det_jacobian     => face_maps_get_det_jacobian
-  procedure, non_overridable :: get_face_map         => face_maps_get_face_map
-end type face_maps_t
+  &                                             => facet_maps_get_coordinates_neighbour
+  procedure, non_overridable :: get_neighbour_fe_map => facet_maps_get_neighbour_fe_map
+  procedure, non_overridable :: get_normals          => facet_maps_get_normals
+  procedure, non_overridable :: get_det_jacobian     => facet_maps_get_det_jacobian
+  procedure, non_overridable :: get_facet_map         => facet_maps_get_facet_map
+end type facet_maps_t
 
-public :: face_maps_t
+public :: facet_maps_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-type face_integrator_t
+type facet_integrator_t
   private
-  logical                                    :: is_boundary
-  type(cell_integrator_face_restriction_t) :: cell_integrator_face_restriction(2)
+  logical                                    :: is_at_boundary
+  type(cell_integrator_facet_restriction_t) :: cell_integrator_facet_restriction(2)
   type(p_reference_fe_t)                     :: reference_fe(2)
   integer(ip)                                :: current_qpoints_perm_cols(2)
   type(allocatable_array_ip2_t)              :: qpoints_perm
 contains
-  procedure, non_overridable :: create            => face_integrator_create
-  procedure, non_overridable :: update            => face_integrator_update
-  procedure, non_overridable :: free              => face_integrator_free
-  procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
-  procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
+  procedure, non_overridable :: create            => facet_integrator_create
+  procedure, non_overridable :: update            => facet_integrator_update
+  procedure, non_overridable :: free              => facet_integrator_free
+  procedure, non_overridable :: get_value_scalar  => facet_integrator_get_value_scalar
+  procedure, non_overridable :: get_value_vector  => facet_integrator_get_value_vector
   generic                    :: get_value         => get_value_scalar, get_value_vector
-  procedure, non_overridable :: get_values_scalar => face_integrator_get_values_scalar
-  procedure, non_overridable :: get_values_vector => face_integrator_get_values_vector
+  procedure, non_overridable :: get_values_scalar => facet_integrator_get_values_scalar
+  procedure, non_overridable :: get_values_vector => facet_integrator_get_values_vector
   generic                    :: get_values        => get_values_scalar, get_values_vector
-  procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
+  procedure, non_overridable :: get_gradient_scalar  => facet_integrator_get_gradient_scalar
   generic                    :: get_gradient => get_gradient_scalar
-  procedure, non_overridable :: get_gradients_scalar  => face_integrator_get_gradients_scalar
+  procedure, non_overridable :: get_gradients_scalar  => facet_integrator_get_gradients_scalar
   generic                    :: get_gradients => get_gradients_scalar
-  procedure, non_overridable :: get_curl          => face_integrator_get_curl_vector 
-  procedure, non_overridable :: get_curls         => face_integrator_get_curls_vector 
-  procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
+  procedure, non_overridable :: get_curl          => facet_integrator_get_curl_vector 
+  procedure, non_overridable :: get_curls         => facet_integrator_get_curls_vector 
+  procedure, non_overridable :: get_current_qpoints_perm => facet_integrator_get_current_qpoints_perm
 
-  procedure, non_overridable, private :: face_integrator_evaluate_fe_function_scalar
-  procedure, non_overridable, private :: face_integrator_evaluate_fe_function_vector
-  procedure, non_overridable, private :: face_integrator_evaluate_fe_function_tensor
-  generic :: evaluate_fe_function => face_integrator_evaluate_fe_function_scalar, &
-  & face_integrator_evaluate_fe_function_vector, &
-  & face_integrator_evaluate_fe_function_tensor
+  procedure, non_overridable, private :: facet_integrator_evaluate_fe_function_scalar
+  procedure, non_overridable, private :: facet_integrator_evaluate_fe_function_vector
+  procedure, non_overridable, private :: facet_integrator_evaluate_fe_function_tensor
+  generic :: evaluate_fe_function => facet_integrator_evaluate_fe_function_scalar, &
+  & facet_integrator_evaluate_fe_function_vector, &
+  & facet_integrator_evaluate_fe_function_tensor
 
-  procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_scalar
-  procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_vector
-  generic :: evaluate_gradient_fe_function => face_integrator_evaluate_gradient_fe_function_scalar, &
-  & face_integrator_evaluate_gradient_fe_function_vector
-end type face_integrator_t
+  procedure, non_overridable, private :: facet_integrator_evaluate_gradient_fe_function_scalar
+  procedure, non_overridable, private :: facet_integrator_evaluate_gradient_fe_function_vector
+  generic :: evaluate_gradient_fe_function => facet_integrator_evaluate_gradient_fe_function_scalar, &
+  & facet_integrator_evaluate_gradient_fe_function_vector
+end type facet_integrator_t
 
-type p_face_integrator_t
-type(face_integrator_t)          , pointer :: p => NULL()
-end type p_face_integrator_t
+type p_facet_integrator_t
+type(facet_integrator_t)          , pointer :: p => NULL()
+end type p_facet_integrator_t
 
-public :: face_integrator_t, p_face_integrator_t
+public :: facet_integrator_t, p_facet_integrator_t
 
 public :: make_reference_fe
 
@@ -1690,13 +1690,13 @@ contains
 
 #include "sbm_fe_map.i90"
 
-#include "sbm_face_map.i90"
+#include "sbm_facet_map.i90"
 
 #include "sbm_edge_map.i90"
 
 #include "sbm_cell_integrator.i90"
 
-#include "sbm_face_integrator.i90"
+#include "sbm_facet_integrator.i90"
 
 #include "sbm_reference_fe_factory.i90"
 

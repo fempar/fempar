@@ -139,10 +139,10 @@ module base_static_triangulation_names
     procedure :: get_num_subcell_nodes => cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => cell_iterator_get_phys_coords_of_subcell
     procedure :: get_ref_coords_of_subcell   => cell_iterator_get_ref_coords_of_subcell
-    procedure :: get_num_subfaces      => cell_iterator_get_num_subfaces
-    procedure :: get_num_subface_nodes => cell_iterator_get_num_subface_nodes
-    procedure :: get_phys_coords_of_subface  => cell_iterator_get_phys_coords_of_subface
-    procedure :: get_ref_coords_of_subface   => cell_iterator_get_ref_coords_of_subface
+    procedure :: get_num_subfacets      => cell_iterator_get_num_subfacets
+    procedure :: get_num_subfacet_nodes => cell_iterator_get_num_subfacet_nodes
+    procedure :: get_phys_coords_of_subfacet  => cell_iterator_get_phys_coords_of_subfacet
+    procedure :: get_ref_coords_of_subfacet   => cell_iterator_get_ref_coords_of_subfacet
     procedure :: is_cut                      => cell_iterator_is_cut
     procedure :: is_interior                 => cell_iterator_is_interior
     procedure :: is_exterior                 => cell_iterator_is_exterior
@@ -327,7 +327,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_coarse_triangulation            => bst_get_coarse_triangulation
      procedure, non_overridable          :: get_num_dims                  => bst_get_num_dims
      procedure, non_overridable          :: get_num_vefs                        => bst_get_num_vefs 
-     procedure, non_overridable          :: get_num_faces                       => bst_get_num_faces
+     procedure, non_overridable          :: get_num_facets                       => bst_get_num_facets
      procedure, non_overridable          :: get_num_cells                       => bst_get_num_cells
      procedure, non_overridable          :: get_num_local_cells                 => bst_get_num_local_cells
      procedure, non_overridable          :: get_num_ghost_cells                 => bst_get_num_ghost_cells

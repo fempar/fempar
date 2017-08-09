@@ -82,8 +82,8 @@ contains
     real(rp)                 , pointer     :: shape_values_ineigh(:,:),shape_values_jneigh(:,:)
     
     ! Face integration-related data types
-    type(face_maps_t)       , pointer :: face_map
-    type(face_integrator_t), pointer :: face_int
+    type(facet_maps_t)       , pointer :: facet_map
+    type(facet_integrator_t), pointer :: face_int
     type(vector_field_t)             :: normals(2)
     real(rp)                         :: shape_test, shape_trial
     real(rp)                         :: h_length
@@ -183,8 +183,8 @@ contains
     
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
-    face_map        => fe_face%get_face_maps()
-    face_int        => fe_face%get_face_integrator(1)
+    facet_map        => fe_face%get_facet_maps()
+    face_int        => fe_face%get_facet_integrator(1)
     
     do while ( .not. fe_face%has_finished() ) 
        
@@ -197,9 +197,9 @@ contains
          call face_int%get_gradients(1,shape_gradients_first)
          call face_int%get_gradients(2,shape_gradients_second)
          do qpoint = 1, num_quad_points
-            call face_map%get_normals(qpoint,normals)
-            h_length = face_map%compute_characteristic_length(qpoint)
-            factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            call facet_map%get_normals(qpoint,normals)
+            h_length = facet_map%compute_characteristic_length(qpoint)
+            factor = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do ineigh = 1, fe_face%get_num_cells_around()
                if (ineigh==1) then
                  shape_values_ineigh    => shape_values_first
@@ -251,8 +251,8 @@ contains
 
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
-    face_map        => fe_face%get_face_maps()
-    face_int        => fe_face%get_face_integrator(1)
+    facet_map        => fe_face%get_facet_maps()
+    face_int        => fe_face%get_facet_integrator(1)
    
     do while ( .not. fe_face%has_finished() )
        
@@ -262,13 +262,13 @@ contains
          assert( fe_face%get_set_id() == 1 )
          call fe_face%update_integration()
          call boundary_face_fe_function%update(fe_face,boundary_fe_function)
-         quad_coords => face_map%get_quadrature_points_coordinates()
+         quad_coords => facet_map%get_quadrature_points_coordinates()
          call face_int%get_values(1,shape_values_first)
          call face_int%get_gradients(1,shape_gradients_first)
          do qpoint = 1, num_quad_points
-            call face_map%get_normals(qpoint,normals)
-            h_length = face_map%compute_characteristic_length(qpoint)
-            factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            call facet_map%get_normals(qpoint,normals)
+            h_length = facet_map%compute_characteristic_length(qpoint)
+            factor = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
             call boundary_face_fe_function%get_value(qpoint,1,boundary_fe_function_value)
             boundary_value = 2*boundary_value - boundary_fe_function_value

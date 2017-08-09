@@ -222,7 +222,7 @@ subroutine par_fe_space_compute_faces_object(this)
       call fe_object%get_vef(ivef_within_fe_object,fe_vef)
       if ( fe_vef%is_face() ) then
         face_lid = fe_vef%get_lid() - this%triangulation%get_num_vefs() & 
-                                    + this%triangulation%get_num_faces()
+                                    + this%triangulation%get_num_facets()
         call faces_object_iterator%set_current(face_lid)
         call faces_object_iterator%next() 
       end if

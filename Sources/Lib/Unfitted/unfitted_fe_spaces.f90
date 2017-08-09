@@ -89,8 +89,8 @@ module unfitted_fe_spaces_names
     type(fe_map_t),            allocatable :: cut_fe_maps(:)
     type(cell_integrator_t),   allocatable :: cut_cell_integrators(:,:)
 
-    ! All the machinery for integrating in subfaces
-    type(quadrature_t)                     :: quadrature_subface
+    ! All the machinery for integrating in subfacets
+    type(quadrature_t)                     :: quadrature_subfacet
     type(quadrature_t),        allocatable :: cut_boundary_quadratures_cell_dim(:)
     type(piecewise_fe_map_t),  allocatable :: cut_boundary_piecewise_fe_maps(:)
     type(fe_map_t),            allocatable :: cut_boundary_fe_maps(:)

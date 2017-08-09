@@ -230,11 +230,11 @@ contains
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(serial_unfitted_triangulation_t), intent(in)    :: triangulation
   
-    integer(ip) :: num_subfaces, num_subface_nodes, num_dime
-    integer(ip) :: istat, iface, inode, ino, isubface
+    integer(ip) :: num_subfacets, num_subfacet_nodes, num_dime
+    integer(ip) :: istat, iface, inode, ino, isubfacet
     class(cell_iterator_t), allocatable  :: cell
-    type(point_t), allocatable, dimension(:) :: subface_coords
-    integer(ip) :: the_subface_type
+    type(point_t), allocatable, dimension(:) :: subfacet_coords
+    integer(ip) :: the_subfacet_type
 
     call this%free()
   
@@ -245,10 +245,10 @@ contains
 
   
     num_dime = triangulation%get_num_dims()
-    num_subfaces = triangulation%get_total_num_subfaces()
-    num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
-    this%Ne = num_subfaces
-    this%Nn = num_subface_nodes*num_subfaces
+    num_subfacets = triangulation%get_total_num_subfacets()
+    num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    this%Ne = num_subfacets
+    this%Nn = num_subfacet_nodes*num_subfacets
   
     call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
@@ -256,13 +256,13 @@ contains
     call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
     call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
-    allocate ( subface_coords(1:num_subface_nodes), stat = istat ); check(istat == 0)
+    allocate ( subfacet_coords(1:num_subfacet_nodes), stat = istat ); check(istat == 0)
   
     select case (num_dime)
       case(3)
-        the_subface_type = 5_I1P
+        the_subfacet_type = 5_I1P
       case(2)
-        the_subface_type = 3_I1P
+        the_subfacet_type = 3_I1P
       case default
       check(.false.)
     end select
@@ -280,19 +280,19 @@ contains
   
       call cell%update_sub_triangulation()
   
-      do isubface = 1, cell%get_num_subfaces()
-        call cell%get_phys_coords_of_subface(isubface,subface_coords)
+      do isubfacet = 1, cell%get_num_subfacets()
+        call cell%get_phys_coords_of_subfacet(isubfacet,subfacet_coords)
   
-        do ino = 1, num_subface_nodes
-          this%x(inode) = subface_coords(ino)%get(1)
-          this%y(inode) = subface_coords(ino)%get(2)
-          this%z(inode) = subface_coords(ino)%get(3)
+        do ino = 1, num_subfacet_nodes
+          this%x(inode) = subfacet_coords(ino)%get(1)
+          this%y(inode) = subfacet_coords(ino)%get(2)
+          this%z(inode) = subfacet_coords(ino)%get(3)
           this%connect(inode) = inode - 1
           inode = inode + 1
         end do
   
         this%offset(iface)        = inode - 1
-        this%cell_type(iface)     = the_subface_type
+        this%cell_type(iface)     = the_subfacet_type
   
         iface = iface + 1
   
@@ -304,7 +304,7 @@ contains
   
     if (num_dime == 2_ip) this%z(:) = 0
   
-    deallocate ( subface_coords, stat = istat ); check(istat == 0)
+    deallocate ( subfacet_coords, stat = istat ); check(istat == 0)
     call triangulation%free_cell_iterator(cell)
   
   end subroutine uvtkw_attach_boundary_faces
@@ -433,7 +433,7 @@ contains
     type(quadrature_t), pointer :: quadrature
     type(point_t), pointer :: quadrature_points_coordinates(:)
     type(piecewise_fe_map_t),     pointer :: fe_map
-    integer(ip) :: num_dime, num_subfaces, num_gp_subface
+    integer(ip) :: num_dime, num_subfacets, num_gp_subfacet
     integer(ip) :: qpoint, num_quad_points
     integer(ip) :: ipoint
     type(vector_field_t)  :: normal_vec
@@ -452,24 +452,24 @@ contains
 
     select type(triangulation)
       class is (serial_unfitted_triangulation_t)
-        num_subfaces   = triangulation%get_total_num_subfaces()
+        num_subfacets   = triangulation%get_total_num_subfacets()
       class default
       check(.false.)
     end select
   
     call fe_space%create_fe_iterator(fe)
 
-    num_gp_subface = 0
+    num_gp_subfacet = 0
     do while ( .not. fe%has_finished() )
        call fe%update_boundary_integration()
        quadrature => fe%get_boundary_quadrature()
-       num_gp_subface = quadrature%get_num_quadrature_points()
-       if (num_gp_subface > 0) exit
+       num_gp_subfacet = quadrature%get_num_quadrature_points()
+       if (num_gp_subfacet > 0) exit
        call fe%next()
     end do
   
-    this%Ne = num_subfaces*num_gp_subface
-    this%Nn = num_subfaces*num_gp_subface
+    this%Ne = num_subfacets*num_gp_subfacet
+    this%Nn = num_subfacets*num_gp_subfacet
   
     call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )

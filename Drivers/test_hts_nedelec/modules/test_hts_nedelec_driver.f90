@@ -300,12 +300,12 @@ contains
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
     type(fe_map_t)           , pointer     :: fe_map
-    type(face_maps_t)         , pointer     :: face_map 
+    type(facet_maps_t)         , pointer     :: facet_map 
     type(vector_field_t)                   :: rot_test_vector
     integer(ip)                            :: qpoin, num_qpoints, idof 
     type(i1p_t)              , pointer     :: elem2dof(:)
     type(cell_integrator_t), pointer     :: cell_int_H
-    type(face_integrator_t), pointer       :: face_int_H
+    type(facet_integrator_t), pointer       :: face_int_H
     integer(ip)                            :: i, inode, vector_size
     integer(ip)                            :: num_dofs, num_fields 
     integer(ip)              , pointer     :: num_dofs_x_field(:) 
@@ -395,8 +395,8 @@ contains
        call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
        quad            => fe_face%get_quadrature()
        num_qpoints  =  quad%get_num_quadrature_points()
-       face_map        => fe_face%get_face_maps()
-       face_int_H      => fe_face%get_face_integrator(1)
+       facet_map        => fe_face%get_facet_maps()
+       face_int_H      => fe_face%get_facet_integrator(1)
 
        do while ( .not. fe_face%has_finished() )
           facevec = 0.0_rp
@@ -407,7 +407,7 @@ contains
 
                 call fe_face%update_integration()    
                 do qpoin = 1, num_qpoints
-                   factor = face_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+                   factor = facet_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
                    do idof = 1, num_dofs_x_field(1) 
                       call face_int_H%get_curl(idof,qpoin,1,rot_test_vector)    
                       facevec(idof) = facevec(idof) + factor * rot_test_vector%get(3) 

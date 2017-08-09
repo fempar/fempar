@@ -64,13 +64,13 @@ subroutine fe_object_iterator_get_fe_face(this, face_lid, fe_face)
   call fe_face%set_lid(face_lid)
 end subroutine fe_object_iterator_get_fe_face
 
-function fe_object_iterator_get_num_faces(this)
+function fe_object_iterator_get_num_facets(this)
   implicit none
   class(fe_object_iterator_t), intent(in) :: this
-  integer(ip) :: fe_object_iterator_get_num_faces
+  integer(ip) :: fe_object_iterator_get_num_facets
   assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  fe_object_iterator_get_num_faces = this%fe_space%faces_object%get_sublist_size(this%get_lid())
-end function fe_object_iterator_get_num_faces
+  fe_object_iterator_get_num_facets = this%fe_space%faces_object%get_sublist_size(this%get_lid())
+end function fe_object_iterator_get_num_facets
 
 function fe_object_iterator_get_num_coarse_dofs(this, field_id)
   implicit none
