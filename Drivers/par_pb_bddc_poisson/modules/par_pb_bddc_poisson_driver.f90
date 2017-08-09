@@ -130,7 +130,7 @@ contains
       call this%setup_cell_set_ids() 
     end if  
     call this%triangulation%setup_coarse_triangulation()
-    !write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_number_objects()
+    !write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_num_objects()
     if ( this%test_params%get_coarse_fe_handler_type() == standard_bddc ) then
       call this%setup_cell_set_ids() 
     end if
@@ -484,7 +484,7 @@ contains
        reference_fe_geo => cell%get_reference_fe_geo()
        this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
             fe_type = fe_type_lagrangian, &
-            number_dimensions = this%triangulation%get_num_dimensions(), &
+            num_dimensions = this%triangulation%get_num_dimensions(), &
             order = this%test_params%get_reference_fe_order(), &
             field_type = field_type_scalar, &
             conformity = .true. )
@@ -808,7 +808,7 @@ contains
 
     if (environment%am_i_l1_task()) then
       num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
-      num_dofs         = real(this%fe_space%get_field_number_dofs(1),kind=rp)
+      num_dofs         = real(this%fe_space%get_field_num_dofs(1),kind=rp)
       call environment%l1_sum(num_total_cells )
       call environment%l1_sum(num_dofs        )
     end if
@@ -822,7 +822,7 @@ contains
 
     if (environment%am_i_lgt1_task()) then
       coarse_fe_space => this%fe_space%get_coarse_fe_space()
-      num_coarse_dofs = coarse_fe_space%get_field_number_dofs(1)
+      num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
       write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
     end if
 

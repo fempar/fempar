@@ -44,7 +44,7 @@ module hts_nedelec_conditions_names
      procedure :: set_boundary_function_Hy    => hts_nedelec_conditions_set_boundary_function_Hy
      procedure :: set_boundary_function_Hz    => hts_nedelec_conditions_set_boundary_function_Hz
      procedure :: set_boundary_function_p     => hts_nedelec_conditions_set_boundary_function_p
-     procedure :: get_number_components       => hts_nedelec_conditions_get_number_components  
+     procedure :: get_num_components       => hts_nedelec_conditions_get_num_components  
      procedure :: get_components_code         => hts_nedelec_conditions_get_components_code
      procedure :: get_function                => hts_nedelec_conditions_get_function
   end type hts_nedelec_conditions_t
@@ -88,13 +88,13 @@ contains
     this%boundary_function_p => scalar_function
   end subroutine hts_nedelec_conditions_set_boundary_function_p
 
-  function hts_nedelec_conditions_get_number_components(this)
+  function hts_nedelec_conditions_get_num_components(this)
     implicit none
     class(hts_nedelec_conditions_t), intent(in) :: this
-    integer(ip) :: hts_nedelec_conditions_get_number_components
+    integer(ip) :: hts_nedelec_conditions_get_num_components
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 .or. this%num_dimensions == 4) 
-    hts_nedelec_conditions_get_number_components = this%num_dimensions
-  end function hts_nedelec_conditions_get_number_components
+    hts_nedelec_conditions_get_num_components = this%num_dimensions
+  end function hts_nedelec_conditions_get_num_components
 
   subroutine hts_nedelec_conditions_get_components_code(this, boundary_id, components_code)
     implicit none

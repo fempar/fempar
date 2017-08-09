@@ -189,14 +189,14 @@ contains
     
     this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,                                          &
                                                  fe_type = fe_type_nedelec,                                        &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(),      &
+                                                 num_dimensions = this%triangulation%get_num_dimensions(),      &
                                                  order = this%test_params%get_magnetic_field_reference_fe_order(), &
                                                  field_type = field_type_vector,                                   &
                                                  conformity = .true. ) 
     
     this%reference_fes(2) =  make_reference_fe ( topology = topology_tet,                                             &
                                                  fe_type = fe_type_lagrangian,                                        &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(),         &
+                                                 num_dimensions = this%triangulation%get_num_dimensions(),         &
                                                  order = this%test_params%get_magnetic_pressure_reference_fe_order(), &
                                                  field_type = field_type_scalar,                                      &
                                                  conformity = .true. ) 
@@ -302,13 +302,13 @@ contains
     type(fe_map_t)           , pointer     :: fe_map
     type(face_maps_t)         , pointer     :: face_map 
     type(vector_field_t)                   :: rot_test_vector
-    integer(ip)                            :: qpoin, number_qpoints, idof 
+    integer(ip)                            :: qpoin, num_qpoints, idof 
     type(i1p_t)              , pointer     :: elem2dof(:)
     type(cell_integrator_t), pointer     :: cell_int_H
     type(face_integrator_t), pointer       :: face_int_H
     integer(ip)                            :: i, inode, vector_size
-    integer(ip)                            :: num_dofs, number_fields 
-    integer(ip)              , pointer     :: number_dofs_per_field(:) 
+    integer(ip)                            :: num_dofs, num_fields 
+    integer(ip)              , pointer     :: num_dofs_per_field(:) 
     real(rp)                 , allocatable :: elvec(:), facevec(:) 
     real(rp)                               :: factor 
     integer(ip)  :: istat 
@@ -335,11 +335,11 @@ contains
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%create_fe_iterator(fe)
     
-    number_fields         =  this%fe_space%get_number_fields()
-    num_dofs              =  fe%get_number_dofs()
-    number_dofs_per_field => fe%get_number_dofs_per_field()
+    num_fields         =  this%fe_space%get_num_fields()
+    num_dofs              =  fe%get_num_dofs()
+    num_dofs_per_field => fe%get_num_dofs_per_field()
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
+    allocate( elem2dof(num_fields), stat=istat); check(istat==0);
     
         ! ================================  2D CASE, integrate over entire HTS section ================
     if ( this%triangulation%get_num_dimensions() == 2) then  
@@ -347,7 +347,7 @@ contains
     quad           => fe%get_quadrature()
     fe_map         => fe%get_fe_map() 
     cell_int_H      => fe%get_cell_integrator(1)
-    number_qpoints =  quad%get_number_quadrature_points()
+    num_qpoints =  quad%get_num_quadrature_points()
     
     ! Loop over elements
     do while ( .not. fe%has_finished())
@@ -359,16 +359,16 @@ contains
 
           elvec      = 0.0_rp 
           ! Integrate J over the hts subdomain 
-          do qpoin=1, number_qpoints
+          do qpoin=1, num_qpoints
              factor = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						
-             do inode = 1, number_dofs_per_field(1)  
+             do inode = 1, num_dofs_per_field(1)  
                 call cell_int_H%get_curl(inode, qpoin, rot_test_vector)
                 elvec(inode) = elvec(inode) + factor * rot_test_vector%get(3) 
              end do
           end do
 
           ! Add element contribution to matrix and vector 
-          do i = 1, number_dofs_per_field(1) 
+          do i = 1, num_dofs_per_field(1) 
              idof = elem2dof(1)%p(i) 
              if ( idof > 0 ) then 
                  call this%constraint_matrix%insert( idof, 1, elvec(i) )
@@ -390,11 +390,11 @@ contains
           call fe_face%next()
        end do
 
-       num_dofs              =  fe%get_number_dofs() 
-       number_dofs_per_field => fe_face%get_number_dofs_per_field(1)
+       num_dofs              =  fe%get_num_dofs() 
+       num_dofs_per_field => fe_face%get_num_dofs_per_field(1)
        call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
        quad            => fe_face%get_quadrature()
-       number_qpoints  =  quad%get_number_quadrature_points()
+       num_qpoints  =  quad%get_num_quadrature_points()
        face_map        => fe_face%get_face_maps()
        face_int_H      => fe_face%get_face_integrator(1)
 
@@ -406,9 +406,9 @@ contains
              if ( fe%get_set_id() == hts ) then 
 
                 call fe_face%update_integration()    
-                do qpoin = 1, number_qpoints
+                do qpoin = 1, num_qpoints
                    factor = face_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
-                   do idof = 1, number_dofs_per_field(1) 
+                   do idof = 1, num_dofs_per_field(1) 
                       call face_int_H%get_curl(idof,qpoin,1,rot_test_vector)    
                       facevec(idof) = facevec(idof) + factor * rot_test_vector%get(3) 
                    end do
@@ -417,7 +417,7 @@ contains
                 call fe_face%get_elem2dof(1, elem2dof)
 
                 ! Add element contribution to vector 
-                do i = 1, number_dofs_per_field(1) 
+                do i = 1, num_dofs_per_field(1) 
                    idof = elem2dof(1)%p(i) 
                    if ( idof > 0 ) then 
                       call this%constraint_matrix%insert( idof, 1, facevec(i) )
@@ -468,7 +468,7 @@ contains
     call this%theta_method%create( this%test_params%get_theta_value(),          &               
                                    this%test_params%get_initial_time(),         &
                                    this%test_params%get_final_time(),           & 
-                                   this%test_params%get_number_time_steps(),    &
+                                   this%test_params%get_num_time_steps(),    &
                                    this%test_params%get_max_time_step(),        & 
                                    this%test_params%get_min_time_step(),        &
                                    this%test_params%get_save_solution_n_steps() )
@@ -580,7 +580,7 @@ contains
     integer(ip)                            :: qpoin, num_quad_points, idof 
     type(point_t)            , pointer     :: quad_coords(:)
     type(point_t)         , allocatable    :: aux_quad_coords(:)
-    integer(ip)                            :: inode, number_nodes 
+    integer(ip)                            :: inode, num_nodes 
     real(rp)                               :: factor 
     type(vector_field_t)                   :: H_value, H_curl 
     ! Hysteresis variables for final computations 
@@ -599,7 +599,7 @@ contains
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%create_fe_iterator(fe)
     quad             => fe%get_quadrature()
-    num_quad_points  = quad%get_number_quadrature_points()
+    num_quad_points  = quad%get_num_quadrature_points()
     fe_map           => fe%get_fe_map()
     quad_coords      => fe_map%get_quadrature_coordinates()
     aux_quad_coords  = quad_coords
