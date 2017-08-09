@@ -98,7 +98,7 @@ subroutine serial_fe_space_free (this)
   call this%free_at_strong_dirichlet_bound()
   call this%free_has_fixed_dofs()
   nullify(this%conditions)
-  call this%strong_dirichlet_values%free()
+  this%number_strong_dirichlet_dofs = 0
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
   call this%free_fe_face_integration()
@@ -112,7 +112,6 @@ subroutine serial_fe_space_print ( this )
   integer(ip)                      :: field_id, istat
 
   if (allocated(this%number_dofs_per_field)) write(*,'(a,i10,a)') '********* number_dofs_per_field ',this%number_dofs_per_field,'********'
-  write(*,'(a,i10,a)') '********* number_strong_dirichlet_dofs',this%strong_dirichlet_values%get_size(),'********'
 
   allocate ( elem2dof(this%get_number_fields()), stat=istat)
   check(istat==0)
@@ -128,9 +127,7 @@ subroutine serial_fe_space_print ( this )
      end do
      call fe%next()
   end do
-  call this%free_fe_iterator(fe) 
-
-  call this%strong_dirichlet_values%print(6)
+  call this%free_fe_iterator(fe)
 
   deallocate ( elem2dof, stat=istat)
   check(istat==0)
@@ -282,12 +279,11 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   logical              , allocatable :: components_code(:)
   integer(ip), allocatable           :: visited_vef_to_fe_map(:,:)
   integer(ip)                        :: previous_number_dirichlet_dofs
-  integer(ip)                        :: number_strong_dirichlet_dofs
   
-  call this%strong_dirichlet_values%free()
+  ! Count number_strong_dirichlet_dofs
+  this%number_strong_dirichlet_dofs = 0
   
   if ( .not. associated(this%conditions) ) then
-    call this%strong_dirichlet_values%create_and_allocate(0)
     return
   end if
   
@@ -300,9 +296,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
 
   call memalloc (this%get_number_fields()+1,offset_component_per_field,__FILE__,__LINE__)
   call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
-
-  ! Count number_strong_dirichlet_dofs
-  number_strong_dirichlet_dofs = 0
 
   call this%create_fe_iterator(fe)
   call this%create_fe_iterator(source_fe)
@@ -336,19 +329,18 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
                call this%conditions%get_components_code( vef%get_set_id(), components_code )
 
                ! Auxiliary function containing the work done at each innermost iteration
-               previous_number_dirichlet_dofs = number_strong_dirichlet_dofs
+               previous_number_dirichlet_dofs = this%number_strong_dirichlet_dofs
                call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
                                                                       vef,&
                                                                       ivef,&
                                                                       field_id,&
                                                                       components_code(offset_component_per_field(field_id):&
                                                                                       offset_component_per_field(field_id+1)-1),&
-                                                                      number_strong_dirichlet_dofs,&
                                                                       visited_vef_to_fe_map,&
                                                                       source_fe)
 
                if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 .and. &
-                    previous_number_dirichlet_dofs < number_strong_dirichlet_dofs ) then
+                    previous_number_dirichlet_dofs < this%number_strong_dirichlet_dofs ) then
                   visited_vef_to_fe_map ( 1, vef%get_lid() ) = fe%get_lid()
                   visited_vef_to_fe_map ( 2, vef%get_lid() ) = ivef
                end if
@@ -360,10 +352,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
     end do ! Loop in FEs
   end do ! Loop in fields
 
-
-  call this%strong_dirichlet_values%create_and_allocate(number_strong_dirichlet_dofs)
-  call this%strong_dirichlet_values%init(0.0_rp)
-  
   ! This second sweep over all cells cannot be integrated as part of the first one
   ! as the fe%determine_* TBPs have as a pre-condition that this%strong_dirichlet_values
   ! has at least been created (i.e., that it has at least size already set)
@@ -392,7 +380,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
                                                                         ivef, &
                                                                         field_id,&
                                                                         components_code,&
-                                                                        number_strong_dirichlet_dofs,&
                                                                         visited_vef_to_fe_map,&
                                                                         source_fe)
   implicit none
@@ -402,7 +389,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   integer(ip),              intent(in)    :: ivef
   integer(ip),              intent(in)    :: field_id
   logical,                  intent(in)    :: components_code(:)
-  integer(ip),              intent(inout) :: number_strong_dirichlet_dofs
   integer(ip),              intent(inout) :: visited_vef_to_fe_map(:,:)
   class(fe_iterator_t),     intent(inout) :: source_fe
 
@@ -421,7 +407,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
        if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
            call fe%fill_own_dofs_on_vef ( ivef, &
                                           field_id, &
-                                          number_strong_dirichlet_dofs, &
+                                          this%number_strong_dirichlet_dofs, &
                                           free_dofs_loop=.false.)
        end if
      end if
@@ -429,7 +415,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
      if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
        call fe%fill_own_dofs_on_vef_component_wise ( ivef, &
                                                      field_id, &
-                                                     number_strong_dirichlet_dofs, &
+                                                     this%number_strong_dirichlet_dofs, &
                                                      components_code, &
                                                      free_dofs_loop=.false. )
      end if
@@ -444,12 +430,12 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   end if
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
 
-subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time, fields_to_interpolate)
+subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time, fields_to_interpolate)
   implicit none
-  class(serial_fe_space_t), intent(inout)  :: this
-  class(conditions_t)     , intent(in)     :: conditions
-  real(rp)       , optional   , intent(in) :: time
-  integer(ip)    , optional   , intent(in) :: fields_to_interpolate(:)
+  class(serial_fe_space_t)          , intent(inout) :: this
+  class(fe_function_t)              , intent(inout) :: fe_function
+  real(rp)                , optional, intent(in)    :: time
+  integer(ip)             , optional, intent(in)    :: fields_to_interpolate(:)
 
   !  Locals
   integer(ip)                                :: field_id, istat, ifield, jfield
@@ -476,6 +462,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
 
   class(reference_fe_t)        , pointer     :: reference_fe
   class(scalar_function_t)     , pointer     :: scalar_function
+  type(serial_scalar_array_t)  , pointer     :: strong_dirichlet_values
 
   type(list_iterator_t)    :: own_dofs_on_vef_iterator
   class(fe_iterator_t), allocatable :: fe
@@ -517,7 +504,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
      offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_number_field_components() 
   end do
 
-  assert ( conditions%get_number_components() == number_components )
+  
+  assert ( associated(this%conditions) )
   call memalloc ( number_components, components_code, __FILE__, __LINE__ )
 
   call memalloc ( number_reference_fes, reference_fes_touched, __FILE__, __LINE__ )
@@ -532,6 +520,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
   allocate ( elem2dof(number_fields), stat=istat ) 
   check (istat==0)
 
+  strong_dirichlet_values => fe_function%get_fixed_dof_values()
+  
   ! IMPORTANT : The following code is implicitly assuming that the
   !             composition of reference FEs, for all cells on top of
   !             the same geometric reference FE, is the same.
@@ -585,12 +575,12 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
                     ! Get components code corresponding to set_id assigned to current vef
                     ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
                     ! a more clever strategy. Does it pay off to look carefully at this?
-                    call conditions%get_components_code( vef%get_set_id(), components_code )
+                    call this%conditions%get_components_code( vef%get_set_id(), components_code )
 
                     do icomp=1, reference_fe%get_number_field_components()
                        component_id = offset_component(field_id) + icomp
                        if (components_code(component_id)) then
-                          call conditions%get_function( vef%get_set_id(), component_id, scalar_function )
+                          call this%conditions%get_function( vef%get_set_id(), component_id, scalar_function )
                           assert(associated(scalar_function))
                           ! Evaluate function
                           if(present(time)) then
@@ -610,7 +600,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
                           if(fe%is_strong_dirichlet_dof(elem2dof(field_id)%p(local_within_ref_fe_dof_id))) then
                              local_within_ref_fe_scalar_dof_id = reference_fe%get_scalar_from_vector_node(local_within_ref_fe_dof_id)
                              strong_dirichlet_dof_id = -elem2dof(field_id)%p(local_within_ref_fe_dof_id)
-                             call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
+                             call strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
                           end if
                        end if
                        call own_dofs_on_vef_iterator%next()
@@ -635,7 +625,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
         call values(component_id, reference_fe_id)%free()
      end do
   end do
-
+  
   call memfree(offset_component, __FILE__, __LINE__) 
   deallocate(elem2dof, stat=istat ) 
   check (istat==0)
@@ -648,27 +638,20 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
   call memfree ( fields_to_interpolate_, __FILE__, __LINE__ ) 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
-
 subroutine serial_fe_space_update_fixed_dof_values(this, free_dof_values, fixed_dof_values)
   implicit none
   class(serial_fe_space_t)   , intent(in)       :: this
   class(vector_t)            , intent(in)       :: free_dof_values
   type(serial_scalar_array_t), intent(inout)    :: fixed_dof_values
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
-  real(rp), pointer :: strong_dirichlet_values_entries(:)
-  real(rp), pointer :: fixed_dof_values_entries(:)
-  strong_dirichlet_values         => this%get_strong_dirichlet_values()
-  strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
-  fixed_dof_values_entries        => fixed_dof_values%get_entries()
-  fixed_dof_values_entries(1:size(strong_dirichlet_values_entries)) = strong_dirichlet_values_entries
+  check(.false.)
 end subroutine serial_fe_space_update_fixed_dof_values
 
-subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time, fields_to_project)
+subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_function, time, fields_to_project)
   implicit none
-  class(serial_fe_space_t), intent(inout)  :: this
-  class(conditions_t)     , intent(in)     :: conditions
-  real(rp)       , optional   , intent(in) :: time
-  integer(ip)    , optional   , intent(in) :: fields_to_project(:) 
+  class(serial_fe_space_t)          , intent(inout) :: this
+  class(fe_function_t)              , intent(inout) :: fe_function
+  real(rp)                , optional, intent(in)    :: time
+  integer(ip)             , optional, intent(in)    :: fields_to_project(:)
 
   !  Locals
   integer(ip)                  , allocatable :: fields_to_project_(:)  
@@ -677,6 +660,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   integer(ip)                  , allocatable :: offset_component(:)
   integer(ip)                                :: number_components
   logical                      , allocatable :: components_code(:)
+  type(serial_scalar_array_t)  , pointer     :: strong_dirichlet_values
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
@@ -711,9 +695,8 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   integer(ip)            :: ifield, jfield, idof, idof_subset, idof_global
   integer(ip)            :: number_subset_strong_dirichlet_dofs
 
-  number_components = this%get_number_components()
-  assert ( conditions%get_number_components() == number_components )
-  call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+  assert ( associated(this%conditions) )
+  call memalloc ( this%get_number_components(), components_code, __FILE__, __LINE__ )
 
   call this%allocate_and_fill_fields_to_project_(fields_to_project_, &
                                                  fields_to_project)
@@ -763,7 +746,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
            call fe_face%update_integration() 
            call fe_face%get_cell_around(1,fe)
            call fe%get_elem2dof(elem2dof)
-           call conditions%get_components_code( fe_face%get_set_id(), components_code )
+           call this%conditions%get_components_code( fe_face%get_set_id(), components_code )
 
            do ifield = 1, size(fields_to_project_)    
               field_id = fields_to_project_(ifield) 
@@ -774,7 +757,6 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                                                           fe, &
                                                           field_id, &
                                                           component_id, &
-                                                          conditions, &
                                                           function_scalar_components)
                  
                  call this%evaluate_vector_function_scalar_components(fe_face, &
@@ -852,10 +834,11 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call parameter_list%free()
 
   ! Insert projected nodal values into strong_dirichlet_values array 
-  call this%strong_dirichlet_values%insert_subvector(iblock=1, &
-                                                     size_indices=number_subset_strong_dirichlet_dofs, &
-                                                     indices=subset2global_dirichlet_dofs,             &
-                                                     values=projected_nodal_values%get_entries())
+  strong_dirichlet_values => fe_function%get_fixed_dof_values()
+  call strong_dirichlet_values%insert_subvector(iblock=1, &
+                                                size_indices=number_subset_strong_dirichlet_dofs, &
+                                                indices=subset2global_dirichlet_dofs,             &
+                                                values=projected_nodal_values%get_entries())
 
   call matrix%free()
   call rhs%free()
@@ -951,7 +934,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   if (allocated(subset2global)) call memfree(subset2global,__FILE__,__LINE__)
   
   allocate( elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
-  call memalloc ( this%strong_dirichlet_values%get_size(), global2subset, __FILE__, __LINE__ ) 
+  call memalloc ( this%number_strong_dirichlet_dofs, global2subset, __FILE__, __LINE__ ) 
   global2subset=0
 
   ! Count number of Dirichlet DOFs to be projected
@@ -981,7 +964,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   call memalloc ( num_subset_strong_dirichlet_dofs, subset2global, __FILE__, __LINE__ ) 
 
   idof_subset=1
-  do idof_global=1, this%strong_dirichlet_values%get_size()
+  do idof_global=1, this%number_strong_dirichlet_dofs
      if (global2subset(idof_global) /= 0) then
         subset2global(global2subset(idof_global)) = idof_global
      end if
@@ -994,7 +977,6 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
                                                             fe, &
                                                             field_id, &
                                                             component_id, &
-                                                            conditions, & 
                                                             function_scalar_components )
   implicit none
   class(serial_fe_space_t)    , intent(in)    :: this
@@ -1002,7 +984,6 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
   class(fe_iterator_t)        , intent(inout) :: fe
   integer(ip)                 , intent(in)    :: field_id
   integer(ip)                 , intent(in)    :: component_id
-  class(conditions_t)         , intent(in)    :: conditions
   type(p_scalar_function_t)   , intent(inout) :: function_scalar_components(:)
   
   ! Locals
@@ -1014,13 +995,13 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
   
   assert ( reference_fe%get_number_field_components() <= size(function_scalar_components) )
   assert ( field_id >= 1 .and. field_id <= this%get_number_fields() )
-  assert ( component_id >= 1 .and. component_id <= conditions%get_number_components() )
+  assert ( component_id >= 1 .and. component_id <= this%conditions%get_number_components() )
   
   ! Retreive the scalar functions corresponding to the components of the function to be projected
   do icomp=1, reference_fe%get_number_field_components()
-       call conditions%get_function(fe_face%get_set_id(), &
-                                    component_id+icomp-1, &
-                                    function_scalar_components(icomp)%p)
+       call this%conditions%get_function(fe_face%get_set_id(), &
+                                         component_id+icomp-1, &
+                                         function_scalar_components(icomp)%p)
   end do
 end subroutine serial_fe_space_get_function_scalar_components
 
@@ -1146,6 +1127,296 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   end select
 end subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec
 
+
+  subroutine serial_fe_space_interpolate_scalar( this, &
+                                                 field_id, &
+                                                 function, &
+                                                 fe_function, &
+                                                 time )
+                                                           
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: field_id
+  class(scalar_function_t), intent(in)    :: function
+  class(fe_function_t)    , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time
+  
+  logical       , allocatable    :: fe_maps_created(:)
+  type(fe_map_t), allocatable    :: fe_maps(:)
+  
+  integer(ip)                    :: reference_fe_id
+  integer(ip)                    :: number_nodes
+  class(reference_fe_t), pointer :: reference_fe
+ 
+  integer(ip)                    :: n_nodal_q_points
+  type(quadrature_t), pointer    :: nodal_quadrature
+  integer(ip)                    :: block_id
+  
+  class(fe_iterator_t), allocatable :: fe
+  type(point_t)        , pointer :: nodal_coordinates(:)
+  type(point_t)        , pointer :: cell_coordinates(:)
+  real(rp), allocatable          :: fe_function_values(:,:)
+  real(rp), allocatable          :: nodal_values(:)
+  real(rp)                       :: time_(1)
+  type(i1p_t)      , allocatable :: elem2dof(:)
+  integer(ip)      , pointer     :: field_blocks(:)
+  integer(ip)                    :: i, istat
+  class(environment_t), pointer  :: environment
+  
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+  
+  if ( present(time) ) time_(1) = time
+  
+  allocate ( elem2dof(this%get_number_fields()), stat=istat)
+  check(istat==0)
+  
+  allocate(fe_maps(this%get_number_reference_fes()), stat=istat)
+  check(istat==0)
+  
+  call memalloc(this%get_number_reference_fes(), fe_maps_created, __FILE__, __LINE__)
+  fe_maps_created = .false.
+  
+  call memalloc(this%get_max_number_nodal_quadrature_points(), 1, fe_function_values, __FILE__, __LINE__ )
+  
+  call memalloc(this%get_max_number_shape_functions(), nodal_values, __FILE__, __LINE__ )
+  
+  field_blocks => this%get_field_blocks()
+  block_id = field_blocks(field_id)
+  
+  call this%create_fe_iterator(fe)
+  
+  ! Loop over the elements
+  do while ( .not. fe%has_finished())
+  
+     if ( fe%is_local() ) then
+     
+       ! Create FE_MAP for current cell + field_id if we didn't
+       reference_fe_id = fe%get_reference_fe_id(field_id)
+       reference_fe     => fe%get_reference_fe(field_id)
+       nodal_quadrature => reference_fe%get_nodal_quadrature()
+       if ( .not. fe_maps_created(reference_fe_id) ) then
+         call fe_maps(reference_fe_id)%create(nodal_quadrature,fe%get_reference_fe_geo())
+         fe_maps_created(reference_fe_id) = .true.
+       end if
+       
+       ! Map reference_fe nodal coordinates to actual domain 
+       cell_coordinates => fe_maps(reference_fe_id)%get_coordinates()
+       call fe%get_coordinates(cell_coordinates)
+       call fe_maps(reference_fe_id)%compute_quadrature_coordinates()
+       nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_coordinates()
+       
+       n_nodal_q_points = nodal_quadrature%get_number_quadrature_points()
+      
+       ! Evaluate scalar function
+       if(present(time)) then
+         call function%get_values_set_space_time(nodal_coordinates, &
+                                                        time_, &
+                                                        fe_function_values(1:n_nodal_q_points,1:1))
+       else
+         call function%get_values_set_space(nodal_coordinates, &
+                                            fe_function_values(1:n_nodal_q_points,1))
+       end if
+       
+       call fe%get_elem2dof(elem2dof)
+       number_nodes = reference_fe%get_number_shape_functions()
+       nodal_values(1:number_nodes) = fe_function_values(1:number_nodes,1)
+       
+       ! Update interior DoFs
+       call fe_function%dof_values%insert_subvector(block_id, &
+                                             number_nodes, &
+                                             elem2dof(field_id)%p, &
+                                             nodal_values(1:number_nodes))
+       
+       ! Update DoFs subject to strong Dirichlet BCs
+       if ( fe%at_strong_dirichlet_boundary(field_id) ) then
+           elem2dof(field_id)%p = -elem2dof(field_id)%p
+           call fe_function%fixed_dof_values%insert_subvector(1, &
+                                                              number_nodes, &
+                                                              elem2dof(field_id)%p, &
+                                                              nodal_values(1:number_nodes))
+           elem2dof(field_id)%p = -elem2dof(field_id)%p
+       end if
+     end if
+     
+     ! Go to next FE
+     call fe%next()
+  end do
+  call this%free_fe_iterator(fe)
+
+  do i=1, size(fe_maps)
+    call fe_maps(i)%free()
+  end do
+  deallocate(fe_maps, stat=istat)
+  check(istat==0)
+  
+  deallocate (elem2dof, stat=istat)
+  check(istat==0)
+  
+  call memfree(fe_maps_created, __FILE__, __LINE__)
+  call memfree(fe_function_values, __FILE__, __LINE__ )
+  call memfree(nodal_values, __FILE__, __LINE__ )
+  
+  end if
+end subroutine serial_fe_space_interpolate_scalar
+
+subroutine serial_fe_space_interpolate_vector( this, &
+                                               field_id, &
+                                               function, &
+                                               fe_function, &
+                                               time )
+                                                           
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: field_id
+  class(vector_function_t), intent(in)    :: function
+  class(fe_function_t)    , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time
+  
+  logical       , allocatable    :: fe_maps_created(:)
+  type(fe_map_t), allocatable    :: fe_maps(:)
+  
+  integer(ip)                    :: reference_fe_id
+  integer(ip)                    :: number_nodes
+  integer(ip)                    :: inode, inode_scalar, icomp
+  class(reference_fe_t), pointer :: reference_fe
+ 
+  integer(ip)                    :: n_nodal_q_points
+  type(quadrature_t), pointer    :: nodal_quadrature
+  integer(ip)                    :: block_id
+  
+  class(fe_iterator_t), allocatable :: fe
+  type(point_t)        , pointer :: nodal_coordinates(:)
+  type(point_t)        , pointer :: cell_coordinates(:)
+  type(vector_field_t) , allocatable :: fe_function_values(:,:)
+  real(rp), allocatable          :: nodal_values(:)
+  real(rp)                       :: time_(1)
+  type(i1p_t)      , allocatable :: elem2dof(:)
+  integer(ip)      , pointer     :: field_blocks(:)
+  integer(ip)                    :: i, istat
+  
+    class(environment_t), pointer  :: environment
+  
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+
+  if ( present(time) ) time_(1) = time
+  
+  allocate ( elem2dof(this%get_number_fields()), stat=istat)
+  check(istat==0)
+  
+  allocate(fe_maps(this%get_number_reference_fes()), stat=istat)
+  check(istat==0)
+  
+  call memalloc(this%get_number_reference_fes(), fe_maps_created, __FILE__, __LINE__)
+  fe_maps_created = .false.
+  
+  allocate ( fe_function_values(this%get_max_number_nodal_quadrature_points(), 1), stat=istat)
+  check(istat==0)
+  
+  call memalloc(this%get_max_number_shape_functions(), nodal_values, __FILE__, __LINE__ )
+  
+  field_blocks => this%get_field_blocks()
+  block_id = field_blocks(field_id)
+  
+  call this%create_fe_iterator(fe)
+  
+  ! Loop over the elements
+  do while ( .not. fe%has_finished())
+
+     if ( fe%is_local() ) then
+     
+       ! Create FE_MAP for current cell + field_id if we didn't
+       reference_fe_id = fe%get_reference_fe_id(field_id)
+       reference_fe     => fe%get_reference_fe(field_id)
+       nodal_quadrature => reference_fe%get_nodal_quadrature()
+       if ( .not. fe_maps_created(reference_fe_id) ) then
+         call fe_maps(reference_fe_id)%create(nodal_quadrature,fe%get_reference_fe_geo())
+         fe_maps_created(reference_fe_id) = .true.
+       end if
+       
+       ! Map reference_fe nodal coordinates to actual domain 
+       cell_coordinates => fe_maps(reference_fe_id)%get_coordinates()
+       call fe%get_coordinates(cell_coordinates)
+       call fe_maps(reference_fe_id)%compute_quadrature_coordinates()
+       nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_coordinates()
+       
+       n_nodal_q_points = nodal_quadrature%get_number_quadrature_points()
+      
+       ! Evaluate scalar function
+       if(present(time)) then
+         call function%get_values_set_space_time(nodal_coordinates, &
+                                                        time_, &
+                                                        fe_function_values(1:n_nodal_q_points,1:1))
+       else
+         call function%get_values_set_space(nodal_coordinates, &
+                                                   fe_function_values(1:n_nodal_q_points,1))
+       end if
+       
+       call fe%get_elem2dof(elem2dof)
+       number_nodes = reference_fe%get_number_shape_functions()
+       
+       ! Fill nodal_values from fe_function_values
+       do inode=1, number_nodes
+          icomp        = reference_fe%get_component_node(inode) 
+          inode_scalar = reference_fe%get_scalar_from_vector_node(inode)
+          nodal_values(inode) = fe_function_values(inode_scalar,1)%get(icomp)
+       end do   
+       
+       ! Update interior DoFs
+       call fe_function%dof_values%insert_subvector(block_id, &
+                                                    number_nodes, &
+                                                    elem2dof(field_id)%p, &
+                                                    nodal_values(1:number_nodes))
+       
+       ! Update DoFs subject to strong Dirichlet BCs
+       if ( fe%at_strong_dirichlet_boundary(field_id) ) then
+           elem2dof(field_id)%p = -elem2dof(field_id)%p
+           call fe_function%fixed_dof_values%insert_subvector(1, &
+                                                              number_nodes, &
+                                                              elem2dof(field_id)%p, &
+                                                              nodal_values(1:number_nodes))
+           elem2dof(field_id)%p = -elem2dof(field_id)%p
+       end if
+     end if
+     
+     
+     ! Go to next FE
+     call fe%next()
+  end do   
+  call this%free_fe_iterator(fe)
+
+  do i=1, size(fe_maps)
+    call fe_maps(i)%free()
+  end do
+  deallocate(fe_maps, stat=istat)
+  check(istat==0)
+  
+  deallocate (elem2dof, stat=istat)
+  check(istat==0)
+  
+  call memfree(fe_maps_created, __FILE__, __LINE__)
+  deallocate ( fe_function_values, stat=istat)
+  check(istat==0)  
+  call memfree(nodal_values, __FILE__, __LINE__ )
+  end if
+end subroutine serial_fe_space_interpolate_vector
+
+subroutine serial_fe_space_interpolate_tensor( this, &
+                                               field_id, &
+                                               function, &
+                                               fe_function, &
+                                               time )            
+  implicit none
+  
+  class(serial_fe_space_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: field_id
+  class(tensor_function_t), intent(in)    :: function
+  class(fe_function_t)    , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time   
+  ! Not implemented yet
+  check(.false.)
+end subroutine serial_fe_space_interpolate_tensor
 
 subroutine serial_fe_space_allocate_and_fill_reference_fes ( this, reference_fes )
   implicit none
@@ -1640,7 +1911,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   class(reference_fe_t), pointer :: reference_fe
 
   call this%free_fe_face_integration()
-  
+
   call this%compute_face_permutation_indices()
   
   call this%allocate_max_order_reference_fe_id_per_fe_face()
@@ -2285,13 +2556,6 @@ function serial_fe_space_get_environment(this) result(environment)
   environment => this%triangulation%get_par_environment()
 end function serial_fe_space_get_environment
 
-function serial_fe_space_get_number_strong_dirichlet_dofs(this)
-  implicit none
-  class(serial_fe_space_t), intent(in)    :: this 
-  integer(ip) :: serial_fe_space_get_number_strong_dirichlet_dofs
-  serial_fe_space_get_number_strong_dirichlet_dofs = this%strong_dirichlet_values%get_size()
-end function serial_fe_space_get_number_strong_dirichlet_dofs
-
 function serial_fe_space_get_vef_lids_of_fe_faces( this) result(vef_lids_of_fe_faces)
   implicit none
   class(serial_fe_space_t), target, intent(in) :: this 
@@ -2314,18 +2578,18 @@ subroutine serial_fe_space_set_conditions( this, conditions )
   this%conditions => conditions
 end subroutine serial_fe_space_set_conditions
 
-function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichlet_values)
+function serial_fe_space_get_number_strong_dirichlet_dofs(this) result(number_strong_dirichlet_dofs)
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this 
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
-  strong_dirichlet_values => this%strong_dirichlet_values
-end function serial_fe_space_get_strong_dirichlet_values
+  integer(ip) :: number_strong_dirichlet_dofs
+  number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs
+end function serial_fe_space_get_number_strong_dirichlet_dofs
 
 function serial_fe_space_get_number_fixed_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
   integer(ip) :: serial_fe_space_get_number_fixed_dofs
-  serial_fe_space_get_number_fixed_dofs = this%strong_dirichlet_values%get_size()
+  serial_fe_space_get_number_fixed_dofs = this%number_strong_dirichlet_dofs
 end function serial_fe_space_get_number_fixed_dofs
 
 function serial_fe_space_get_number_blocks( this)

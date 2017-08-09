@@ -94,7 +94,6 @@ module fempar_names
   use polynomial_names
   use fe_space_names
   use hp_adaptive_fe_space_names
-  use fe_function_names
   use cell_fe_function_names
   use face_fe_function_names
   use conditions_names

@@ -41,9 +41,11 @@ module poisson_unfitted_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: poisson_unfitted_cG_discrete_integration_t
      type(poisson_unfitted_analytical_functions_t), pointer :: analytical_functions => NULL()
-     type(par_test_poisson_unfitted_params_t), pointer :: test_params => null()
+     type(fe_function_t)                          , pointer :: fe_function          => NULL()
+     type(par_test_poisson_unfitted_params_t)     , pointer :: test_params => null()
    contains
      procedure :: set_analytical_functions
+     procedure :: set_fe_function
      procedure :: set_test_params
      procedure :: integrate_galerkin
   end type poisson_unfitted_cG_discrete_integration_t
@@ -65,7 +67,14 @@ contains
      type(par_test_poisson_unfitted_params_t), target, intent(in)    :: test_params
      this%test_params => test_params
   end subroutine set_test_params
-
+  
+  subroutine set_fe_function (this, fe_function)
+     implicit none
+     class(poisson_unfitted_cG_discrete_integration_t)       , intent(inout) :: this
+     type(fe_function_t)                             , target, intent(in)    :: fe_function
+     this%fe_function => fe_function
+  end subroutine set_fe_function
+  
   subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
@@ -100,13 +109,6 @@ contains
     real(rp)     :: volume, surface
     real(rp)     :: source_term_value
 
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:)
     class(scalar_function_t), pointer :: source_term
     class(scalar_function_t), pointer :: exact_sol
 
@@ -124,6 +126,7 @@ contains
 
     assert (associated(this%analytical_functions))
     assert (associated(this%test_params))
+    assert (associated(this%fe_function))
     beta_coef = this%test_params%get_nitsche_beta_factor()
 
     ! TODO We will delete this once implemented the fake methods in the father class
@@ -131,11 +134,6 @@ contains
 
     source_term => this%analytical_functions%get_source_term()
     exact_sol   => this%analytical_functions%get_solution_function()
-
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
 
     ! Find the first non-void FE
     call fe%first_local_non_void(field_id = 1)
@@ -150,8 +148,6 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
 
     !This is for the Nitsche's BCs
     ! TODO  We assume same ref element for all cells, and for all fields
@@ -184,10 +180,6 @@ contains
          fe_map          => fe%get_fe_map()
          cell_int         => fe%get_cell_integrator(1)
          num_dofs = fe%get_number_dofs()
-         call fe%get_number_dofs_per_field(num_dofs_per_field)
-
-         ! Get DoF numbering within current FE
-         call fe%get_elem2dof(elem2dof)
 
          ! Get quadrature coordinates to evaluate source_term
          quad_coords => fe_map%get_quadrature_coordinates()
@@ -336,9 +328,7 @@ contains
 
          end if ! Only for cut elems
 
-         ! Apply boundary conditions
-         call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-         call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+         call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
 
        end if
        call fe%next()
@@ -356,8 +346,6 @@ contains
     if (allocated(shape_gradients         )) deallocate  (shape_gradients         , stat=istat); check(istat==0);
     if (allocated(boundary_shape_gradients)) deallocate  (boundary_shape_gradients, stat=istat); check(istat==0);
 
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( elmatB_pre, __FILE__, __LINE__ )

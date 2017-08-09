@@ -132,7 +132,6 @@ contains
     call this%fe_space%create( triangulation       = this%triangulation, &
                                reference_fes       = this%reference_fes, &
                                conditions          = this%mixed_laplacian_rt_conditions )
-    call this%fe_space%interpolate_dirichlet_values(this%mixed_laplacian_rt_conditions)
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
@@ -148,6 +147,9 @@ contains
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_UNKNOWN ], &
                                           fe_space                          = this%fe_space,           &
                                           discrete_integration              = this%mixed_laplacian_rt_integration )
+    call this%solution%create(this%fe_space) 
+    call this%fe_space%interpolate_dirichlet_values(this%solution)
+    call this%mixed_laplacian_rt_integration%set_fe_function(this%solution)
   end subroutine setup_system
 
   subroutine setup_solver (this)
@@ -379,7 +381,6 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%solution%create(this%fe_space) 
     call this%solve_system()
     call this%check_solution()
     !call this%show_velocity()

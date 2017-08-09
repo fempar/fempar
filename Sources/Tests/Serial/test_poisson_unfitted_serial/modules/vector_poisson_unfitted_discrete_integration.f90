@@ -33,9 +33,11 @@ module vector_poisson_unfitted_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: vector_poisson_unfitted_discrete_integration_t
      private
-     class(vector_function_t), pointer :: source_term
+     class(vector_function_t), pointer :: source_term => NULL()
+     type(fe_function_t)     , pointer :: fe_function => NULL()
    contains
      procedure :: set_source_term
+     procedure :: set_fe_function
      procedure :: integrate_galerkin
   end type vector_poisson_unfitted_discrete_integration_t
   
@@ -49,6 +51,13 @@ contains
     class(vector_function_t)                    , target, intent(in)    :: vector_function
     this%source_term => vector_function
   end subroutine set_source_term
+
+  subroutine set_fe_function (this, fe_function)
+     implicit none
+     class(vector_poisson_unfitted_discrete_integration_t), intent(inout) :: this
+     type(fe_function_t)                          , target, intent(in)    :: fe_function
+     this%fe_function => fe_function
+  end subroutine set_fe_function
 
   subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
@@ -78,24 +87,11 @@ contains
     
     type(vector_field_t) :: source_term
 
-    integer(ip)  :: number_fields
+    assert (associated(this%fe_function)) 
 
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:)  
-
-    
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
-    
     max_num_dofs = fe_space%get_max_number_dofs_on_a_cell()
     call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
 
     call fe_space%create_fe_iterator(fe)
     do while ( .not. fe%has_finished())
@@ -109,10 +105,6 @@ contains
        fe_map          => fe%get_fe_map()
        cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_number_dofs()
-       call fe%get_number_dofs_per_field(num_dofs_per_field)
-       
-       ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
 
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => fe_map%get_quadrature_coordinates()
@@ -142,16 +134,12 @@ contains
           
        end do
        
-       ! Apply boundary conditions (IMPLEMENTATION PENDING)
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
        call fe%next()
     end do
     call fe_space%free_fe_iterator(fe)
     deallocate(shape_values, stat=istat); check(istat==0);
     deallocate(shape_gradients, stat=istat); check(istat==0);
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin

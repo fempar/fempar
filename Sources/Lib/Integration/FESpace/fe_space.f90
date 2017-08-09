@@ -174,7 +174,10 @@ module fe_space_names
   
   type, extends(base_fe_iterator_t) :: fe_iterator_t
     private
-    class(serial_fe_space_t), pointer    :: fe_space => NULL()
+    class(serial_fe_space_t), pointer     :: fe_space => NULL()
+    ! Scratch data to support FE integration
+    integer(ip)             , allocatable :: number_dofs_per_field(:)
+    type(i1p_t)             , allocatable :: elem2dof(:)
   contains
     procedure                           :: create                                     => fe_iterator_create
     procedure                           :: create_cell                                => fe_iterator_create_cell
@@ -192,6 +195,7 @@ module fe_space_names
     procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_iterator_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_iterator_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_iterator_renumber_dofs_field
+    procedure, non_overridable          :: update_number_dofs_per_field               => fe_iterator_update_number_dofs_per_field
     procedure                           :: update_integration                         => fe_iterator_update_integration
     procedure                           :: assemble                                   => fe_iterator_assemble
 
@@ -239,7 +243,15 @@ module fe_space_names
     procedure, non_overridable          :: set_reference_fe_id                        => fe_iterator_set_reference_fe_id
     procedure, non_overridable          :: is_void                                    => fe_iterator_is_void
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_iterator_create_own_dofs_on_vef_iterator
-    procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
+    procedure, non_overridable, private :: impose_strong_dirichlet_bcs                => fe_iterator_impose_strong_dirichlet_bcs
+    procedure, non_overridable, private :: fe_iterator_assembly_array
+    procedure, non_overridable, private :: fe_iterator_assembly_matrix
+    procedure, non_overridable, private :: fe_iterator_assembly_matrix_array
+    procedure, non_overridable, private :: fe_iterator_assembly_matrix_array_with_strong_bcs
+    generic                             :: assembly                                   => fe_iterator_assembly_array,        &
+                                                                                         fe_iterator_assembly_matrix,       &
+                                                                                         fe_iterator_assembly_matrix_array, &
+                                                                                         fe_iterator_assembly_matrix_array_with_strong_bcs
     procedure, non_overridable          :: first_local_non_void                       => fe_iterator_first_local_non_void
 
     ! Added by unfitted_fe_iterator
@@ -303,8 +315,11 @@ module fe_space_names
     
   type, extends(fe_vef_iterator_t) :: fe_face_iterator_t
     private
-    integer(ip)                         :: face_lid
-    class(fe_iterator_t)  , allocatable :: fe
+    integer(ip)                       :: face_lid
+    class(fe_iterator_t), allocatable :: fe
+    ! Scratch data to support FE face integration
+    integer(ip)         , allocatable :: number_dofs_per_cell_and_field(:,:)
+    type(i1p_t)         , allocatable :: elem2dof_per_cell(:,:)
    contains
     procedure                           :: create                         => fe_face_iterator_create
     procedure                           :: free                           => fe_face_iterator_free
@@ -313,9 +328,18 @@ module fe_space_names
     procedure                           :: has_finished                   => fe_face_iterator_has_finished
     procedure, non_overridable          :: set_lid                        => fe_face_iterator_set_lid
     procedure, non_overridable          :: get_lid                        => fe_face_iterator_get_lid
+    procedure, non_overridable, private :: update_number_dofs_per_field   => fe_face_iterator_update_number_dofs_per_field
+    procedure, non_overridable, private :: update_elem2dof_per_cell       => fe_face_iterator_update_elem2dof_per_cell
     procedure, non_overridable          :: update_integration             => fe_face_iterator_update_integration
     procedure                           :: assemble                       => fe_face_iterator_assemble
+    procedure, non_overridable, private :: fe_face_iterator_assembly_array
+    procedure, non_overridable, private :: fe_face_iterator_assembly_matrix
+    procedure, non_overridable, private :: fe_face_iterator_assembly_matrix_array
+    generic                             :: assembly                       => fe_face_iterator_assembly_array,  &
+                                                                             fe_face_iterator_assembly_matrix, &
+                                                                             fe_face_iterator_assembly_matrix_array
     procedure, non_overridable          :: get_fe_space                   => fe_face_iterator_get_fe_space
+    procedure, non_overridable          :: get_number_dofs_per_field      => fe_face_iterator_get_number_dofs_per_field
     procedure, non_overridable          :: get_elem2dof                   => fe_face_iterator_get_elem2dof
     procedure, non_overridable          :: get_default_quadrature_degree  => fe_face_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree          => fe_face_iterator_get_quadrature_degree
@@ -323,11 +347,10 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature                 => fe_face_iterator_get_quadrature
     procedure, non_overridable          :: get_face_maps                  => fe_face_iterator_get_face_map
     procedure, non_overridable          :: get_face_integrator            => fe_face_iterator_get_face_integrator
-    procedure, non_overridable          :: impose_strong_dirichlet_bcs    => fe_face_iterator_impose_strong_dirichlet_bcs
     procedure, non_overridable          :: compute_surface                => fe_face_iterator_compute_surface
     procedure                 , private :: compute_face_permutation_index => fe_face_iterator_compute_face_permutation_index
-    procedure, non_overridable          :: get_face_permutation_index     => fe_face_iterator_get_face_permutation_index
     procedure                           :: get_lpos_within_cell_around    => fe_face_iterator_get_lpos_within_cell_around
+    procedure, non_overridable          :: get_face_permutation_index     => fe_face_iterator_get_face_permutation_index
     procedure                 , private :: get_subface_lid_cell_around    => fe_face_iterator_get_subface_lid_cell_around
   end type fe_face_iterator_t
       
@@ -381,7 +404,7 @@ module fe_space_names
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
-     type(serial_scalar_array_t)                 :: strong_dirichlet_values
+     integer(ip)                                 :: number_strong_dirichlet_dofs
      logical                       , allocatable :: at_strong_dirichlet_boundary_per_fe(:,:)
      logical                       , allocatable :: has_fixed_dofs_per_fe(:,:)
      
@@ -426,6 +449,13 @@ module fe_space_names
      procedure, non_overridable, private :: get_function_scalar_components               => serial_fe_space_get_function_scalar_components
      procedure, non_overridable, private :: evaluate_vector_function_scalar_components   => serial_fe_space_evaluate_vector_function_scalar_components
      procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec
+     
+     procedure, private, non_overridable :: interpolate_scalar    => serial_fe_space_interpolate_scalar
+     procedure, private, non_overridable :: interpolate_vector    => serial_fe_space_interpolate_vector
+     procedure, private, non_overridable :: interpolate_tensor    => serial_fe_space_interpolate_tensor
+     generic                             :: interpolate           => interpolate_scalar, &
+                                                                     interpolate_vector, &
+                                                                     interpolate_tensor
      
      
      procedure, non_overridable          :: allocate_fe_quadratures_degree               => serial_fe_space_allocate_fe_quadratures_degree
@@ -483,12 +513,11 @@ module fe_space_names
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
-     procedure                           :: get_number_strong_dirichlet_dofs             => serial_fe_space_get_number_strong_dirichlet_dofs
      procedure, non_overridable          :: get_vef_lids_of_fe_faces                     => serial_fe_space_get_vef_lids_of_fe_faces
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
-     procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
-     procedure                           :: get_number_fixed_dofs                        => serial_fe_space_get_number_fixed_dofs     
+     procedure                           :: get_number_strong_dirichlet_dofs             => serial_fe_space_get_number_strong_dirichlet_dofs
+     procedure                           :: get_number_fixed_dofs                        => serial_fe_space_get_number_fixed_dofs
      procedure                           :: get_number_blocks                            => serial_fe_space_get_number_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
@@ -907,6 +936,28 @@ module fe_space_names
     procedure :: setup_coarse_dofs       => standard_lgt1_setup_coarse_dofs
  end type standard_lgt1_coarse_fe_handler_t
  
+  type fe_function_t
+   private
+   class(vector_t), allocatable  :: dof_values
+   type(serial_scalar_array_t)   :: fixed_dof_values
+  contains
+     procedure, non_overridable          :: create                               => fe_function_create
+     procedure, non_overridable          :: update_fixed_dof_values              => fe_function_update_fixed_dof_values
+     procedure, non_overridable          :: gather_nodal_values_through_iterator => fe_function_gather_nodal_values_through_iterator
+     procedure, non_overridable          :: gather_nodal_values_from_raw_data    => fe_function_gather_nodal_values_from_raw_data
+     generic                             :: gather_nodal_values                  => gather_nodal_values_through_iterator, &
+                                                                                    gather_nodal_values_from_raw_data
+     procedure, non_overridable          :: insert_nodal_values                  => fe_function_insert_nodal_values
+     procedure, non_overridable          :: copy                                 => fe_function_copy
+     procedure, non_overridable          :: get_dof_values                       => fe_function_get_dof_values
+     procedure, non_overridable          :: get_fixed_dof_values                 => fe_function_get_fixed_dof_values
+     procedure, non_overridable          :: free                                 => fe_function_free
+     generic                             :: assignment(=)                        => copy
+  end type fe_function_t 
+   
+  public :: fe_function_t  
+ 
+ 
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
@@ -928,5 +979,7 @@ contains
 #include "sbm_coarse_fe_object_iterator.i90"
 #include "sbm_coarse_fe_iterator.i90"
 #include "sbm_coarse_fe_vef_iterator.i90"
+
+#include "sbm_fe_function.i90"
 
 end module fe_space_names

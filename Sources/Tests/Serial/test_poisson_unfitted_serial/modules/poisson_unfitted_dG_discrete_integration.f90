@@ -110,14 +110,6 @@ contains
     integer(ip)  :: idof, jdof, num_dofs
     integer(ip)  :: ineigh, jneigh
     real(rp)     :: factor
-
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    
-    integer(ip), allocatable :: num_dofs_per_field(:)  
     
     assert (associated(this%analytical_functions))
     
@@ -125,13 +117,8 @@ contains
     call this%poisson_unfitted_conditions%get_function(1,1,boundary_function)
     
     call boundary_fe_function%create(fe_space)
-    call boundary_fe_function%interpolate_function(fe_space,1,boundary_function)
+    call fe_space%interpolate(1,boundary_function,boundary_fe_function)
     call boundary_face_fe_function%create(fe_space,1)
-
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
     
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)
@@ -139,8 +126,6 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
     fe_map          => fe%get_fe_map()
@@ -155,9 +140,6 @@ contains
        
          ! Update FE-integration related data structures
          call fe%update_integration()
-       
-         ! Get DoF numbering within current FE
-         call fe%get_elem2dof(elem2dof)
          
          ! Get quadrature coordinates to evaluate source_term
          quad_coords => fe_map%get_quadrature_coordinates()
@@ -183,7 +165,7 @@ contains
             end do  
          end do        
          
-         call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+         call fe%assembly( elmat, elvec, matrix_array_assembler )
        end if
        
        call fe%next()
@@ -194,8 +176,6 @@ contains
     
     call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
     call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
-    allocate( trial_elem2dof(number_fields), stat=istat); check(istat==0);
-    allocate( test_elem2dof(number_fields), stat=istat); check(istat==0);
     
     ! Search for the first interior face
     call fe_space%create_fe_face_iterator(fe_face)
@@ -212,7 +192,6 @@ contains
        
        if ( .not. fe_face%is_at_boundary() ) then
          facemat = 0.0_rp
-         facevec = 0.0_rp
          call fe_face%update_integration()    
          
          call face_int%get_values(1,shape_values_first)
@@ -260,21 +239,7 @@ contains
                end do
             end do
          end do
-         do ineigh = 1, fe_face%get_num_cells_around()
-            call fe_face%get_elem2dof(ineigh, test_elem2dof)
-            do jneigh = 1, fe_face%get_num_cells_around()
-               call fe_face%get_elem2dof(jneigh, trial_elem2dof)
-               call matrix_array_assembler%face_assembly(number_fields, &
-                                                         num_dofs_per_field, &
-                                                         num_dofs_per_field, &
-                                                         test_elem2dof, &
-                                                         trial_elem2dof, &
-                                                         field_blocks, &
-                                                         field_coupling, &
-                                                         facemat(:,:,ineigh,jneigh), &
-                                                         facevec(:,ineigh) )   
-            end do
-         end do
+         call fe_face%assembly( facemat, matrix_array_assembler )
        end if
          
        call fe_face%next()
@@ -309,10 +274,10 @@ contains
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
             call boundary_face_fe_function%get_value(qpoint,1,boundary_fe_function_value)
             boundary_value = 2*boundary_value - boundary_fe_function_value
-            do idof = 1, num_dofs_per_field(1)
+            do idof = 1, num_dofs
               !call face_int%get_value(idof,qpoint,1,shape_trial)
               !call face_int%get_gradient(idof,qpoint,1,grad_trial)   
-              do jdof = 1, num_dofs_per_field(1)
+              do jdof = 1, num_dofs
                  !call face_int%get_value(jdof,qpoint,1,shape_test)
                  !call face_int%get_gradient(jdof,qpoint,1,grad_test)
                  facemat(idof,jdof,1,1) = facemat(idof,jdof,1,1) + &
@@ -326,16 +291,7 @@ contains
                                       c_IP/h_length * boundary_value * shape_values_first(idof,qpoint) ) 
             end do   
          end do
-         call fe_face%get_elem2dof(1, test_elem2dof)
-         call matrix_array_assembler%face_assembly(number_fields, &
-                                                   num_dofs_per_field, &
-                                                   num_dofs_per_field, &
-                                                   test_elem2dof, &
-                                                   test_elem2dof, &
-                                                   field_blocks, &
-                                                   field_coupling, &
-                                                   facemat(:,:,1,1), &
-                                                   facevec(:,1) )            
+         call fe_face%assembly( facemat, facevec, matrix_array_assembler )
        end if
        call fe_face%next()
     end do
@@ -346,10 +302,6 @@ contains
     call memfree(shape_values_second, __FILE__, __LINE__) 
     deallocate(shape_gradients_first, stat=istat); check(istat==0);
     deallocate(shape_gradients_second, stat=istat); check(istat==0);
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    deallocate( trial_elem2dof, stat=istat); check(istat==0);
-    deallocate( test_elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( facemat, __FILE__, __LINE__ )

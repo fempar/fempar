@@ -44,235 +44,167 @@ module sparse_matrix_array_assembler_names
 
   type, extends(matrix_array_assembler_t) :: sparse_matrix_array_assembler_t
   contains
-    procedure :: assembly         => sparse_matrix_array_assembler_assembly
-    procedure :: face_assembly    => sparse_matrix_array_assembler_face_assembly
+    procedure :: assembly_array   => sparse_matrix_array_assembler_assembly_array
+    procedure :: assembly_matrix  => sparse_matrix_array_assembler_assembly_matrix
     procedure :: allocate         => sparse_matrix_array_assembler_allocate
     procedure :: compress_storage => sparse_matrix_array_assembler_compress_storage
   end type
 
 ! Data types
 public :: sparse_matrix_array_assembler_t
-public :: element_sparse_matrix_assembly, element_serial_scalar_array_assembly
 
 contains
-subroutine sparse_matrix_array_assembler_assembly( this, & 
-                                                   number_fields,    &
-                                                   number_dofs,     &
-                                                   elem2dof,         &
-                                                   field_blocks,     &
-                                                   field_coupling,   &
-                                                   elmat,            &
-                                                   elvec )
- implicit none
- class(sparse_matrix_array_assembler_t), intent(inout) :: this
- integer(ip)                           , intent(in)    :: number_fields
- integer(ip)                           , intent(in)    :: number_dofs(number_fields)
- type(i1p_t)                           , intent(in)    :: elem2dof(number_fields)
- integer(ip)                           , intent(in)    :: field_blocks(number_fields)
- logical                               , intent(in)    :: field_coupling(number_fields,number_fields)
- ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fields} number_dofs(i)
- real(rp)                              , intent(in)    :: elmat(:,:) 
- ! elvec MUST have as many entries as \sum_{i=1}^{number_fields} number_dofs(i)
- real(rp)                              , intent(in)    :: elvec(:)    
 
- class(matrix_t), pointer :: matrix
- class(array_t) , pointer :: array
+  subroutine sparse_matrix_array_assembler_assembly_array( this,           & 
+                                                           number_fields,  &
+                                                           field_blocks,   &
+                                                           field_coupling, &
+                                                           number_dofs,    &
+                                                           cell2dof,       &
+                                                           elvec )
+    implicit none
+    class(sparse_matrix_array_assembler_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: number_fields
+    integer(ip)                           , intent(in)    :: field_blocks(number_fields)
+    logical                               , intent(in)    :: field_coupling(number_fields,number_fields)
+    integer(ip)                           , intent(in)    :: number_dofs(number_fields)
+    type(i1p_t)                           , intent(in)    :: cell2dof(number_fields)
+    real(rp)                              , intent(in)    :: elvec(:)
 
- matrix => this%get_matrix()
- array  => this%get_array()
+    class(array_t) , pointer :: array
 
- select type(matrix)
-    class is(sparse_matrix_t)
-    call element_sparse_matrix_assembly( matrix, &
-                                         number_fields, &
-                                         number_dofs, &
-                                         elem2dof, &
-                                         field_blocks, &
-                                         field_coupling, &
-                                         elmat )
-    class default
-    check(.false.)
- end select
+    array  => this%get_array()
+    select type(array)
+      class is(serial_scalar_array_t)
+      call element_serial_scalar_array_assembly( array,         &
+                                                 number_fields, &
+                                                 number_dofs,   &
+                                                 cell2dof,      &
+                                                 elvec )
+      class default
+      check(.false.)
+    end select
+    
+  end subroutine sparse_matrix_array_assembler_assembly_array
+  
+  subroutine sparse_matrix_array_assembler_assembly_matrix( this,            &
+                                                            number_fields,   &
+                                                            field_blocks,    &
+                                                            field_coupling,  &
+                                                            number_row_dofs, &
+                                                            number_col_dofs, &
+                                                            cell2row_dofs,   &
+                                                            cell2col_dofs,   &
+                                                            elmat )
+    implicit none
+    class(sparse_matrix_array_assembler_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: number_fields
+    integer(ip)                           , intent(in)    :: field_blocks(number_fields)
+    logical                               , intent(in)    :: field_coupling(number_fields,number_fields)
+    integer(ip)                           , intent(in)    :: number_row_dofs(number_fields)
+    integer(ip)                           , intent(in)    :: number_col_dofs(number_fields)
+    type(i1p_t)                           , intent(in)    :: cell2row_dofs(number_fields)
+    type(i1p_t)                           , intent(in)    :: cell2col_dofs(number_fields)
+    real(rp)                              , intent(in)    :: elmat(:,:) 
 
- select type(array)
-    class is(serial_scalar_array_t)
-    call element_serial_scalar_array_assembly( array, &
-                                               number_fields, &
-                                               number_dofs, &
-                                               elem2dof, &
-                                               field_blocks, &
-                                               elvec )
-    class default
-    check(.false.)
- end select
-end subroutine sparse_matrix_array_assembler_assembly
+    class(matrix_t), pointer :: matrix
 
-subroutine sparse_matrix_array_assembler_allocate( this )
- implicit none
- class(sparse_matrix_array_assembler_t), intent(inout) :: this
- class(array_t), pointer :: array
- array=>this%get_array()
- call array%allocate()
-end subroutine sparse_matrix_array_assembler_allocate
+    matrix => this%get_matrix()
+    select type(matrix)
+      class is(sparse_matrix_t)
+      call element_sparse_matrix_assembly( matrix,          &
+                                           number_fields,   &
+                                           number_row_dofs, &
+                                           number_col_dofs, &
+                                           cell2row_dofs,   &
+                                           cell2col_dofs,   &
+                                           field_coupling,  &
+                                           elmat )
+      class default
+      check(.false.)
+    end select
 
-subroutine sparse_matrix_array_assembler_compress_storage( this, & 
-                                                           sparse_matrix_storage_format )
-  implicit none
-  class(sparse_matrix_array_assembler_t) , intent(inout) :: this
-  character(*)                              , intent(in)    :: sparse_matrix_storage_format
-  class(matrix_t), pointer :: matrix
-  matrix=>this%get_matrix() 
-   select type(matrix)
-    class is(sparse_matrix_t)
-    call matrix%convert(sparse_matrix_storage_format)
-    class default
-    check(.false.)
- end select
-end subroutine sparse_matrix_array_assembler_compress_storage
+  end subroutine sparse_matrix_array_assembler_assembly_matrix
 
+  subroutine sparse_matrix_array_assembler_allocate( this )
+    implicit none
+    class(sparse_matrix_array_assembler_t), intent(inout) :: this
+    class(array_t), pointer :: array
+    array=>this%get_array()
+    call array%allocate()
+  end subroutine sparse_matrix_array_assembler_allocate
 
-subroutine element_sparse_matrix_assembly( matrix, number_fe_spaces, number_nodes, elem2dof, field_blocks, field_coupling, elmat )
- implicit none
- ! Parameters
- type(sparse_matrix_t), intent(inout) :: matrix
- integer(ip)          , intent(in)    :: number_fe_spaces
- integer(ip)          , intent(in)    :: number_nodes(number_fe_spaces)
- type(i1p_t)          , intent(in)    :: elem2dof(number_fe_spaces)
- integer(ip)          , intent(in)    :: field_blocks(number_fe_spaces)
- logical              , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
- real(rp)             , intent(in)    :: elmat(:,:) 
- 
- integer(ip) :: ife_space, jfe_space
- integer(ip) :: idof, jdof 
- integer(ip) :: inode, jnode
- integer(ip) :: ielmat, jelmat
- 
- ielmat=0
- do ife_space=1, number_fe_spaces
-   jelmat=0
-   do jfe_space=1, number_fe_spaces
-     if ((field_coupling(ife_space,jfe_space))) then
-         call matrix%insert(number_nodes(ife_space), &
-                            number_nodes(jfe_space), &
-                            elem2dof(ife_space)%p, &
-                            elem2dof(jfe_space)%p, &
-                            ielmat, &
-                            jelmat, &
-                            elmat)
-     end if
-     jelmat=jelmat+number_nodes(jfe_space)
-   end do
-   ielmat=ielmat+number_nodes(ife_space)
- end do
- 
-end subroutine element_sparse_matrix_assembly
+  subroutine sparse_matrix_array_assembler_compress_storage( this, & 
+                                                             sparse_matrix_storage_format )
+    implicit none
+    class(sparse_matrix_array_assembler_t) , intent(inout) :: this
+    character(*)                              , intent(in)    :: sparse_matrix_storage_format
+    class(matrix_t), pointer :: matrix
+    matrix=>this%get_matrix() 
+    select type(matrix)
+      class is(sparse_matrix_t)
+      call matrix%convert(sparse_matrix_storage_format)
+      class default
+      check(.false.)
+    end select
+  end subroutine sparse_matrix_array_assembler_compress_storage
 
-subroutine element_serial_scalar_array_assembly( array, number_fe_spaces, number_nodes, elem2dof, field_blocks, elvec )
- implicit none
- ! Parameters
- type(serial_scalar_array_t), intent(inout) :: array
- integer(ip)                , intent(in)    :: number_fe_spaces
- integer(ip)                , intent(in)    :: number_nodes(number_fe_spaces)
- type(i1p_t)                , intent(in)    :: elem2dof(number_fe_spaces)
- integer(ip)                , intent(in)    :: field_blocks(number_fe_spaces)
- real(rp)                   , intent(in)    :: elvec(:) 
- 
- integer(ip) :: inode, idof, ielvec, ife_space
- 
- ielvec = 0
- do ife_space = 1, number_fe_spaces
-   call array%add( number_nodes(ife_space), &
-                   elem2dof(ife_space)%p, &
-                   ielvec, &
-                   elvec )
-   ielvec = ielvec + number_nodes(ife_space)
- end do
-end subroutine element_serial_scalar_array_assembly
+  subroutine element_serial_scalar_array_assembly( array, number_fields, number_dofs, cell2dof, elvec )
+    implicit none
+    ! Parameters
+    type(serial_scalar_array_t), intent(inout) :: array
+    integer(ip)                , intent(in)    :: number_fields
+    integer(ip)                , intent(in)    :: number_dofs(number_fields)
+    type(i1p_t)                , intent(in)    :: cell2dof(number_fields)
+    real(rp)                   , intent(in)    :: elvec(:) 
+    
+    integer(ip) :: inode, idof, ielvec, ife_space
+    
+    ielvec = 0
+    do ife_space = 1, number_fields
+      call array%add( number_dofs(ife_space), &
+                      cell2dof(ife_space)%p,   &
+                      ielvec,                  &
+                      elvec )
+      ielvec = ielvec + number_dofs(ife_space)
+    end do
+    
+  end subroutine element_serial_scalar_array_assembly
 
-!====================================================================================================
-subroutine sparse_matrix_array_assembler_face_assembly(this, &
-                                                       number_fields, &
-                                                       test_number_dofs, &
-                                                       trial_number_dofs, &
-                                                       test_elem2dof, &
-                                                       trial_elem2dof, &
-                                                       field_blocks, &
-                                                       field_coupling, &
-                                                       facemat, &
-                                                       facevec) 
-  implicit none
-  class(sparse_matrix_array_assembler_t), intent(inout) :: this
-  integer(ip)                           , intent(in)    :: number_fields
-  integer(ip)                           , intent(in)    :: test_number_dofs(number_fields)
-  integer(ip)                           , intent(in)    :: trial_number_dofs(number_fields)
-  type(i1p_t)                           , intent(in)    :: test_elem2dof(number_fields)
-  type(i1p_t)                           , intent(in)    :: trial_elem2dof(number_fields)
-  integer(ip)                           , intent(in)    :: field_blocks(number_fields)
-  logical                               , intent(in)    :: field_coupling(number_fields,number_fields)
-  real(rp)                              , intent(in)    :: facemat(:,:) 
-  real(rp)                              , intent(in)    :: facevec(:) 
+  subroutine element_sparse_matrix_assembly( matrix, number_fields, number_row_dofs,      &
+                                             number_col_dofs, cell2row_dofs, cell2col_dofs,  &
+                                             field_coupling, elmat )
+    implicit none
+    ! Parameters
+    type(sparse_matrix_t), intent(inout) :: matrix
+    integer(ip)          , intent(in)    :: number_fields
+    integer(ip)          , intent(in)    :: number_row_dofs(number_fields)
+    integer(ip)          , intent(in)    :: number_col_dofs(number_fields)
+    type(i1p_t)          , intent(in)    :: cell2row_dofs(number_fields)
+    type(i1p_t)          , intent(in)    :: cell2col_dofs(number_fields)
+    logical              , intent(in)    :: field_coupling(number_fields,number_fields)
+    real(rp)             , intent(in)    :: elmat(:,:) 
 
-  class(matrix_t), pointer :: matrix
-  class(array_t) , pointer :: array
+    integer(ip) :: ife_space, jfe_space
+    integer(ip) :: idof, jdof 
+    integer(ip) :: inode, jnode
+    integer(ip) :: ielmat, jelmat
 
-  matrix => this%get_matrix()
-  array  => this%get_array()
+    ielmat=0
+    do ife_space=1, number_fields
+       jelmat=0
+       do jfe_space=1, number_fields
+          if ((field_coupling(ife_space,jfe_space))) then
+             call matrix%insert(number_row_dofs(ife_space),number_col_dofs(jfe_space),                 &
+                  &             cell2row_dofs(ife_space)%p,cell2col_dofs(jfe_space)%p,ielmat,jelmat,   &
+                  &             elmat)
+          end if
+          jelmat=jelmat+number_col_dofs(jfe_space)
+       end do
+       ielmat=ielmat+number_row_dofs(ife_space)
+    end do
 
-  select type(matrix)
-     class is(sparse_matrix_t)
-     call element_sparse_matrix_face_assembly(matrix,number_fields,test_number_dofs,             &
-          &                              trial_number_dofs,test_elem2dof,trial_elem2dof,            &
-          &                              field_blocks,field_coupling,facemat )
-     class default
-     check(.false.)
-  end select
-
-  select type(array)
-     class is(serial_scalar_array_t)
-     call element_serial_scalar_array_assembly( array,number_fields,test_number_dofs,            &
-          &                                     test_elem2dof,field_blocks,facevec )
-     class default
-     check(.false.)
-  end select
-end subroutine sparse_matrix_array_assembler_face_assembly
-
-!====================================================================================================
-subroutine element_sparse_matrix_face_assembly( matrix, number_fe_spaces, test_number_nodes,        &
-     &                                          trial_number_nodes, test_elem2dof, trial_elem2dof,  &
-     &                                          field_blocks, field_coupling, facemat )
-  implicit none
-  ! Parameters
-  type(sparse_matrix_t), intent(inout) :: matrix
-  integer(ip)          , intent(in)    :: number_fe_spaces
-  integer(ip)          , intent(in)    :: test_number_nodes(number_fe_spaces)
-  integer(ip)          , intent(in)    :: trial_number_nodes(number_fe_spaces)
-  type(i1p_t)          , intent(in)    :: test_elem2dof(number_fe_spaces)
-  type(i1p_t)          , intent(in)    :: trial_elem2dof(number_fe_spaces)
-
-  integer(ip)          , intent(in)    :: field_blocks(number_fe_spaces)
-  logical              , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
-  real(rp)             , intent(in)    :: facemat(:,:) 
-
-  integer(ip) :: ife_space, jfe_space
-  integer(ip) :: idof, jdof 
-  integer(ip) :: inode, jnode
-  integer(ip) :: ielmat, jelmat
-
-  ielmat=0
-  do ife_space=1, number_fe_spaces
-     jelmat=0
-     do jfe_space=1, number_fe_spaces
-        if ((field_coupling(ife_space,jfe_space))) then
-           call matrix%insert(test_number_nodes(ife_space),trial_number_nodes(jfe_space),             &
-                &             test_elem2dof(ife_space)%p,trial_elem2dof(jfe_space)%p,ielmat,jelmat,   &
-                &             facemat)
-        end if
-        jelmat=jelmat+trial_number_nodes(jfe_space)
-     end do
-     ielmat=ielmat+test_number_nodes(ife_space)
-  end do
-
-end subroutine element_sparse_matrix_face_assembly
+  end subroutine element_sparse_matrix_assembly
 
 end module sparse_matrix_array_assembler_names
 

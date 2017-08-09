@@ -126,22 +126,11 @@ contains
     type(vector_field_t), allocatable :: source_term_values(:,:)
     real(rp), allocatable             :: current_time(:)
 
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:)
+    integer(ip), pointer :: num_dofs_per_field(:)
     
     assert ( associated(this%source_term) )
     assert ( associated(this%H_current) )
     assert ( associated(this%H_previous) )
-    
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
     
     call fe_space%initialize_fe_integration()
     call cell_fe_function_previous%create(fe_space, 1) 
@@ -151,8 +140,7 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
+    num_dofs_per_field => fe%get_number_dofs_per_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
@@ -171,9 +159,6 @@ contains
        call fe%update_integration()
        call cell_fe_function_previous%update(fe, this%H_previous)
        call cell_fe_function_current%update(fe, this%H_current)
-       
-       ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
 
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => fe_map%get_quadrature_coordinates()
@@ -248,17 +233,13 @@ contains
 
       end do ! Qpoint loop 
           
-       ! Apply boundary conditions
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       call fe%assembly( this%H_current, elmat, elvec, matrix_array_assembler )
        call fe%next()
     end do
     call fe_space%free_fe_iterator(fe)
 
     deallocate (source_term_values, stat=istat); check(istat==0)
     deallocate (H_current_curl_values, stat=istat); check(istat==0)
-    deallocate (elem2dof, stat=istat); check(istat==0)
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine hts_nedelec_discrete_integration_integrate

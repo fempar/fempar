@@ -34,21 +34,30 @@ module maxwell_nedelec_discrete_integration_names
   type, extends(discrete_integration_t) :: maxwell_nedelec_discrete_integration_t
      private
      class(vector_function_t), pointer :: source_term        => NULL()
+     type(fe_function_t)     , pointer :: fe_function        => NULL()
    contains
      procedure :: set_source_term
+     procedure :: set_fe_function
      procedure :: integrate_galerkin
   end type maxwell_nedelec_discrete_integration_t
   
   public :: maxwell_nedelec_discrete_integration_t
   
 contains
-   
+
   subroutine set_source_term (this, vector_function)
     implicit none
     class(maxwell_nedelec_discrete_integration_t), intent(inout) :: this
     class(vector_function_t), target, intent(in)    :: vector_function
     this%source_term => vector_function
   end subroutine set_source_term
+
+  subroutine set_fe_function (this, fe_function)
+    implicit none
+    class(maxwell_nedelec_discrete_integration_t), intent(inout) :: this
+    type(fe_function_t)                  , target, intent(in)    :: fe_function
+    this%fe_function => fe_function
+  end subroutine set_fe_function
 
   subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
     implicit none
@@ -75,21 +84,9 @@ contains
     integer(ip)  :: idof, jdof, num_dofs
     real(rp)     :: factor
     type(vector_field_t), allocatable :: source_term_values(:)
-
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:) 
     
     assert ( associated(this%source_term) )
-    
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
+    assert ( associated(this%fe_function) ) 
     
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)
@@ -97,8 +94,6 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_number_quadrature_points()
     fe_map           => fe%get_fe_map()
@@ -109,9 +104,6 @@ contains
        
        ! Update FE-integration related data structures
        call fe%update_integration()
-       
-       ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
 
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => fe_map%get_quadrature_coordinates()
@@ -127,8 +119,8 @@ contains
        do qpoint = 1, num_quad_points
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           ! \int_(curl(v).curl(u))
-          do idof=1, num_dofs_per_field(1)
-            do jdof=1, num_dofs_per_field(1)
+          do idof=1, num_dofs
+            do jdof=1, num_dofs
               elmat(idof,jdof) = elmat(idof,jdof) + &
                                  (H_shape_values(idof,qpoint)*H_shape_values(jdof,qpoint) + H_shape_curls(jdof,qpoint)*H_shape_curls(idof,qpoint))*factor
             end do
@@ -137,9 +129,7 @@ contains
           end do
        end do
        
-       ! Apply boundary conditions
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
        call fe%next()
     end do
     call fe_space%free_fe_iterator(fe)
@@ -147,8 +137,6 @@ contains
     deallocate(H_shape_curls, stat=istat); check(istat==0);
     deallocate(H_shape_values, stat=istat); check(istat==0);
     deallocate (source_term_values, stat=istat); check(istat==0);
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
