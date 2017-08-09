@@ -78,7 +78,7 @@ end subroutine lagrange_polynomial_get_values
 subroutine lagrange_polynomial_generate_basis ( order, basis )
   implicit none
   integer(ip)                         , intent(in)    :: order
-  type(polynomial_allocatable_array_t), intent(inout) :: basis
+  type(polynomial_basis_t), intent(inout) :: basis
   integer(ip) :: i,j,istat
   real(rp) :: node_coordinates(order+1)
   type(lagrange_polynomial_t) :: mold_polynomial
@@ -131,7 +131,7 @@ end subroutine monomial_get_values
 subroutine monomial_generate_basis ( order, basis )
   implicit none
   integer(ip)                         , intent(in)    :: order
-  type(polynomial_allocatable_array_t), intent(inout) :: basis
+  type(polynomial_basis_t), intent(inout) :: basis
   integer(ip) :: i
   type(monomial_t ) :: mold_monomial
 
@@ -141,21 +141,21 @@ subroutine monomial_generate_basis ( order, basis )
   end do
 end subroutine monomial_generate_basis
 
-! polynomial_allocatable_array_t TBPS
+! polynomial_basis_t TBPS
 !===================================================================================
-subroutine polynomial_allocatable_array_create ( this, num_polynomials, mold_polynomial )
+subroutine polynomial_basis_create ( this, num_polynomials, mold_polynomial )
   implicit none
-  class(polynomial_allocatable_array_t), intent(inout) :: this
+  class(polynomial_basis_t), intent(inout) :: this
   integer(ip)                          , intent(in)    :: num_polynomials
   class(polynomial_t)                  , intent(in)    :: mold_polynomial
   call this%free()
   allocate ( this%polynomials(num_polynomials), mold=mold_polynomial )
-end subroutine polynomial_allocatable_array_create
+end subroutine polynomial_basis_create
 
-subroutine polynomial_allocatable_array_copy (lhs, rhs)
+subroutine polynomial_basis_copy (lhs, rhs)
   implicit none
-  class(polynomial_allocatable_array_t), intent(inout) :: lhs
-  type(polynomial_allocatable_array_t) , intent(in)    :: rhs
+  class(polynomial_basis_t), intent(inout) :: lhs
+  type(polynomial_basis_t) , intent(in)    :: rhs
   integer(ip)                                          :: idx
   type(lagrange_polynomial_t)                          :: mold_polynomial
   call lhs%free()
@@ -169,11 +169,11 @@ subroutine polynomial_allocatable_array_copy (lhs, rhs)
         call lhs%create(0, mold_polynomial)
      end if
   endif
-end subroutine polynomial_allocatable_array_copy
+end subroutine polynomial_basis_copy
 
-subroutine polynomial_allocatable_array_free( this )
+subroutine polynomial_basis_free( this )
   implicit none
-  class(polynomial_allocatable_array_t), intent(inout) :: this
+  class(polynomial_basis_t), intent(inout) :: this
   integer(ip) :: istat,i
   if ( allocated(this%polynomials)) then
      do i = 1, size(this%polynomials)
@@ -182,4 +182,4 @@ subroutine polynomial_allocatable_array_free( this )
      deallocate( this%polynomials, stat=istat )
      check( istat == 0 )
   end if
-end subroutine polynomial_allocatable_array_free
+end subroutine polynomial_basis_free

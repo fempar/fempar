@@ -315,7 +315,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 
   type(truncated_tensor_product_polynomial_space_t)  :: tet_polynomial_prebase_1
   type(truncated_tensor_product_polynomial_space_t)  :: tet_polynomial_prebase_2
-  type(polynomial_allocatable_array_t)  :: monomial_1D_basis(SPACE_DIM)
+  type(polynomial_basis_t)  :: monomial_1D_basis(SPACE_DIM)
   type(monomial_t)                      :: monomial_1D
 
   real(rp), allocatable :: values(:)

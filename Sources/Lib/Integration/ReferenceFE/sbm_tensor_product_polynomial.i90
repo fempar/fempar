@@ -31,7 +31,7 @@
 subroutine tensor_product_polynomial_space_create( this, dim, polynomial_1D_basis )
   class(tensor_product_polynomial_space_t), intent(inout) :: this
   integer(ip)                             , intent(in)    :: dim
-  type(polynomial_allocatable_array_t)    , intent(in)        :: polynomial_1D_basis(:)
+  type(polynomial_basis_t)    , intent(in)        :: polynomial_1D_basis(:)
   integer(ip) :: i
   
   this%num_dimensions = dim
@@ -129,7 +129,7 @@ subroutine truncated_tensor_product_polynomial_space_create ( this, dim, polynom
   implicit none
   class(truncated_tensor_product_polynomial_space_t), intent(inout) :: this
   integer(ip)                         , intent(in)    :: dim
-  type(polynomial_allocatable_array_t), intent(in)    :: polynomial_1D_basis(:)
+  type(polynomial_basis_t), intent(in)    :: polynomial_1D_basis(:)
   integer(ip) :: i, j, work_array(3), max_polynomials, ijk(SPACE_DIM)
   
   this%num_dimensions = dim

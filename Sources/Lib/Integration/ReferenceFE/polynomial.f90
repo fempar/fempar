@@ -51,14 +51,14 @@ module polynomial_names
      ! generic(=) :: assign
   end type polynomial_t
   
-  type :: polynomial_allocatable_array_t
+  type :: polynomial_basis_t
      private
      class(polynomial_t), allocatable :: polynomials(:)
    contains
-     procedure, non_overridable          :: create        => polynomial_allocatable_array_create
-     procedure, non_overridable          :: copy          => polynomial_allocatable_array_copy
-     procedure, non_overridable          :: free          => polynomial_allocatable_array_free
-  end type polynomial_allocatable_array_t
+     procedure, non_overridable          :: create        => polynomial_basis_create
+     procedure, non_overridable          :: copy          => polynomial_basis_copy
+     procedure, non_overridable          :: free          => polynomial_basis_free
+  end type polynomial_basis_t
   
   abstract interface
     subroutine polynomial_get_values_interface( this, x, p_x)
@@ -70,10 +70,10 @@ module polynomial_names
     end subroutine polynomial_get_values_interface
     
     subroutine polynomial_generate_basis_interface( order, basis )
-      import :: polynomial_allocatable_array_t, ip
+      import :: polynomial_basis_t, ip
       implicit none
       integer(ip)                         , intent(in)    :: order
-      type(polynomial_allocatable_array_t), intent(inout) :: basis
+      type(polynomial_basis_t), intent(inout) :: basis
     end subroutine polynomial_generate_basis_interface
   end interface
   
@@ -94,7 +94,7 @@ module polynomial_names
      integer(ip)                          :: num_dimensions
      integer(ip)                          :: num_polynomials
      integer(ip)                          :: num_pols_dim(SPACE_DIM)
-     type(polynomial_allocatable_array_t) :: polynomial_1D_basis(SPACE_DIM)
+     type(polynomial_basis_t) :: polynomial_1D_basis(SPACE_DIM)
      type(allocatable_array_rp3_t)        :: work_shape_data(SPACE_DIM)
    contains
      procedure                  :: create   => tensor_product_polynomial_space_create
@@ -113,7 +113,7 @@ module polynomial_names
      procedure, non_overridable :: evaluate => truncated_tensor_product_polynomial_space_evaluate
   end type truncated_tensor_product_polynomial_space_t
   
-  public :: polynomial_t, lagrange_polynomial_t, monomial_t, polynomial_allocatable_array_t
+  public :: polynomial_t, lagrange_polynomial_t, monomial_t, polynomial_basis_t
   public :: tensor_product_polynomial_space_t, truncated_tensor_product_polynomial_space_t
 
 contains

@@ -702,7 +702,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
   type(interpolation_t)           , intent(inout) :: interpolation    
   integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
   type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
-  type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
+  type(polynomial_basis_t)    :: polynomial_1D_basis(SPACE_DIM)
   type(lagrange_polynomial_t)             :: polynomial_1D
 
   real(rp), allocatable :: tensor_product_values(:)

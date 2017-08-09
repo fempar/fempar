@@ -1221,7 +1221,7 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation_pre_basis ( this, quad
   integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
 
   type(truncated_tensor_product_polynomial_space_t)        :: tet_polynomial_prebase
-  type(polynomial_allocatable_array_t)  :: monomial_1D_basis(SPACE_DIM)
+  type(polynomial_basis_t)  :: monomial_1D_basis(SPACE_DIM)
   type(monomial_t)                      :: monomial_1D
 
   real(rp), allocatable :: values(:)
