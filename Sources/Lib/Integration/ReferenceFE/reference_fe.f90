@@ -1609,15 +1609,18 @@ public :: face_maps_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type face_integrator_t
   private
-  logical                                    :: is_boundary
+  logical                                  :: is_boundary
+  integer(ip)                              :: active_cell_id(2)
   type(cell_integrator_face_restriction_t) :: cell_integrator_face_restriction(2)
-  type(p_reference_fe_t)                     :: reference_fe(2)
-  integer(ip)                                :: current_qpoints_perm_cols(2)
-  type(allocatable_array_ip2_t)              :: qpoints_perm
+  type(p_reference_fe_t)                   :: reference_fe(2)
+  integer(ip)                              :: current_qpoints_perm_cols(2)
+  type(allocatable_array_ip2_t)            :: qpoints_perm
 contains
   procedure, non_overridable :: create            => face_integrator_create
   procedure, non_overridable :: update            => face_integrator_update
   procedure, non_overridable :: free              => face_integrator_free
+  procedure, non_overridable :: set_is_boundary_and_min_active_cell_id &
+    => face_integrator_set_is_boundary_and_min_active_cell_id
   procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
   procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
   generic                    :: get_value         => get_value_scalar, get_value_vector

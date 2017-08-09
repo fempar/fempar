@@ -313,16 +313,17 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
   
   call this%free()
-
-  this%is_boundary = (.not. associated(right_reference_fe))
+  
+  call this%set_is_boundary_and_min_active_cell_id(left_reference_fe,right_reference_fe)
+  
   this%reference_fe(1)%p => left_reference_fe
   call this%cell_integrator_face_restriction(1)%create(quadrature,this%reference_fe(1)%p)
-
+  
   if (.not. this%is_boundary) then
      this%reference_fe(2)%p => right_reference_fe
      call this%cell_integrator_face_restriction(2)%create(quadrature,this%reference_fe(2)%p)
   end if
-
+  
   this%current_qpoints_perm_cols = 1
   
   call left_reference_fe%fill_qpoints_permutations( quadrature, &
@@ -335,6 +336,8 @@ subroutine face_integrator_free(this)
   ! Parameters
   class(face_integrator_t)     , intent(inout) :: this
   integer(ip) :: i
+  this%is_boundary = .false.
+  this%active_cell_id = 0
   do i=1,2
      this%reference_fe(i)%p => NULL()
      call this%cell_integrator_face_restriction(i)%free()
@@ -358,6 +361,33 @@ subroutine face_integrator_update(this,face_lid,face_map,permutation_index)
 end subroutine face_integrator_update
 
 !==================================================================================================
+subroutine face_integrator_set_is_boundary_and_min_active_cell_id (this,left_reference_fe,right_reference_fe)
+  implicit none
+  class(face_integrator_t)         , intent(inout) :: this
+  class(reference_fe_t)   , pointer, intent(in)    :: left_reference_fe, right_reference_fe
+  this%active_cell_id(1) = 1
+  this%is_boundary = (.not. associated(right_reference_fe))
+  select type (left_reference_fe)
+    class is (lagrangian_reference_fe_t)
+      select type (right_reference_fe)
+      class is (void_reference_fe_t)
+        this%is_boundary = .true.
+      class default
+      end select
+    class is (void_reference_fe_t)
+      select type (right_reference_fe)
+      class is (lagrangian_reference_fe_t)
+        this%is_boundary = .true.
+        this%active_cell_id(1) = 2
+      class default
+      end select
+    class default
+    assert(.false.)
+  end select
+  if (.not. this%is_boundary) this%active_cell_id(2) = 2
+end subroutine face_integrator_set_is_boundary_and_min_active_cell_id
+
+!==================================================================================================
 subroutine face_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scalar_field)
   implicit none
   class(face_integrator_t), intent(in)    :: this
@@ -373,6 +403,7 @@ subroutine face_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scala
   actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(ineigh))
   call cell_integrator%get_value(ishape,actual_qpoint,scalar_field)
 end subroutine face_integrator_get_value_scalar
+
 
 !==================================================================================================
 subroutine face_integrator_get_value_vector (this, ishape, qpoint, ineigh, vector_field)
