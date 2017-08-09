@@ -88,7 +88,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
         coarse_dof_lid = own_coarse_dofs_iterator%get_current() 
 
         ! Face coarse DoF
-        if ( object%get_dimension () == triangulation%get_num_dimensions()-1) then
+        if ( object%get_dim () == triangulation%get_num_dims()-1) then
            faces_object_iterator = object%create_faces_object_iterator()
            do while ( .not. faces_object_iterator%is_upper_bound() )
               call object%get_face(faces_object_iterator%get_current(),fe_face)

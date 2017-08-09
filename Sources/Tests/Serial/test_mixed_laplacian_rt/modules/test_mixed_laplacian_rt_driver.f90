@@ -111,14 +111,14 @@ contains
 
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_raviart_thomas, &
-                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_vector, &
                                                  conformity = .true. ) 
     
     this%reference_fes(2) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
-                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_scalar, &
                                                  conformity = .false. ) 
@@ -128,7 +128,7 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
 
-    call this%mixed_laplacian_rt_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%mixed_laplacian_rt_conditions%set_num_dims(this%triangulation%get_num_dims())
     call this%fe_space%create( triangulation       = this%triangulation, &
                                reference_fes       = this%reference_fes, &
                                conditions          = this%mixed_laplacian_rt_conditions )
@@ -138,7 +138,7 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
         
-    call this%problem_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%mixed_laplacian_rt_integration%set_pressure_source_term(this%problem_functions%get_pressure_source_term())
     call this%mixed_laplacian_rt_integration%set_pressure_boundary_function(this%problem_functions%get_pressure_boundary_function())
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &

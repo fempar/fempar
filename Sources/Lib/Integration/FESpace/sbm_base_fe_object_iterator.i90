@@ -65,12 +65,12 @@ function base_fe_object_iterator_get_gid (this)
   base_fe_object_iterator_get_gid = this%object%get_gid()
 end function base_fe_object_iterator_get_gid
 
-function base_fe_object_iterator_get_dimension (this)
+function base_fe_object_iterator_get_dim (this)
   implicit none
   class(base_fe_object_iterator_t), intent(in) :: this
-  integer(igp) :: base_fe_object_iterator_get_dimension
-  base_fe_object_iterator_get_dimension = this%object%get_dimension()
-end function base_fe_object_iterator_get_dimension
+  integer(igp) :: base_fe_object_iterator_get_dim
+  base_fe_object_iterator_get_dim = this%object%get_dim()
+end function base_fe_object_iterator_get_dim
 
 function base_fe_object_iterator_get_num_parts_around(this)
   implicit none

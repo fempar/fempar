@@ -266,12 +266,12 @@ function marching_cubes_get_max_num_subnodes_in_cell( this ) result ( max_subnod
 end function marching_cubes_get_max_num_subnodes_in_cell
 
 !========================================================================================
-function marching_cubes_get_num_dimensions(this) result (val)
+function marching_cubes_get_num_dims(this) result (val)
   implicit none
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%triangulation%get_num_dimensions()
-end function marching_cubes_get_num_dimensions
+  val = this%triangulation%get_num_dims()
+end function marching_cubes_get_num_dims
 
 !========================================================================================
 function marching_cubes_get_num_mc_cases(this) result (mc_cases)
@@ -313,7 +313,7 @@ subroutine marching_cubes_print ( this )
   write(*,*) " "
   write (*,'(a)') '**** print type(marching_cubes_t) [begin] ****'
   write(*,*) " "
-  write (*,'(a,i10)') 'num_dimensions:           ', this%triangulation%get_num_dimensions()
+  write (*,'(a,i10)') 'num_dims:           ', this%triangulation%get_num_dims()
   write (*,'(a,i10)') 'num_cells:                ', this%triangulation%get_num_cells()
   write (*,'(a,i10)') 'num_local_cells:          ', this%triangulation%get_num_local_cells()
   write (*,'(a,i10)') 'num_ghost_cells:          ', this%triangulation%get_num_ghost_cells()
@@ -388,12 +388,12 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
   ! Hypothesis: All cells in the mesh are either bi-linear qua or tri-linear hex
   fulfills = .true.
   call this%triangulation%create_cell_iterator(cell)
-  num_dim  = this%triangulation%get_num_dimensions()
+  num_dim  = this%triangulation%get_num_dims()
   if ( (num_dim .ne. 2) .and. (num_dim .ne. 3) ) fulfills = .false.
   do while ( .not. cell%has_finished() )
     if (cell%is_local()) then
       reference_fe_geo => cell%get_reference_fe_geo()
-      num_dim_tmp  = reference_fe_geo%get_num_dimensions()
+      num_dim_tmp  = reference_fe_geo%get_num_dims()
       if (num_dim .ne. num_dim_tmp) fulfills = .false.
       p_order  = reference_fe_geo%get_order()
       if (p_order .ne. 1_ip) fulfills = .false.
@@ -418,7 +418,7 @@ subroutine marching_cubes_mc_tables_create(this)
   call this%mc_tables_free()
 
   ! Get element type, we assume hex-like topology
-  num_dim  = this%triangulation%get_num_dimensions()
+  num_dim  = this%triangulation%get_num_dims()
 
   ! Fill in the sizes of the tables
   if (num_dim == 2_ip) then
@@ -553,7 +553,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
   allocate(this%reference_fes(1),stat=istat); check(istat==0)
   this%reference_fes(1) =  make_reference_fe ( topology = ref_fe_geo%get_topology(), &
                                                fe_type = fe_type_lagrangian, &
-                                               num_dimensions = this%triangulation%get_num_dimensions(), &
+                                               num_dims = this%triangulation%get_num_dims(), &
                                                order = ref_fe_geo%get_max_order(), &
                                                field_type = field_type_scalar, &
                                                conformity = .true., &
@@ -671,7 +671,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
 
   ! Check that the length of the edge is ok
   DX = Xe_ref(1) - Xe_ref(2)
-  if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+  if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
   massert(abs(DX%nrm2() - edge_length)<1.0e-13,'The lenght of the edge is not 2.0!')
 
   call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
@@ -686,8 +686,8 @@ subroutine marching_cubes_discrete_levelset_fix(this)
 
       ! Prepare Loop in cell edges
       reference_fe_geo => fe%get_reference_fe_geo()
-      first_edge = reference_fe_geo%get_first_n_face_id_of_dimension(edge_dim)
-      last_edge  = first_edge + reference_fe_geo%get_num_n_faces_of_dimension(edge_dim) - 1
+      first_edge = reference_fe_geo%get_first_n_face_id_of_dim(edge_dim)
+      last_edge  = first_edge + reference_fe_geo%get_num_n_faces_of_dim(edge_dim) - 1
 
       ! Loop in cell edges
       do iedge = first_edge, last_edge
@@ -717,11 +717,11 @@ subroutine marching_cubes_discrete_levelset_fix(this)
           ! fix the levelset on the corresponding node
 
           DX = Xe_ref(nodes_in_edge(1)) - X_intersection
-          if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+          if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
           if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(1)) = 0.0_rp
 
           DX = Xe_ref(nodes_in_edge(2)) - X_intersection
-          if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+          if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
           if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(2)) = 0.0_rp
 
         end if
@@ -898,8 +898,8 @@ subroutine marching_cubes_mc_runtime_info_create(this)
 
       ! Prepare Loop in cell edges
       reference_fe_geo => fe%get_reference_fe_geo()
-      first_edge = reference_fe_geo%get_first_n_face_id_of_dimension(edge_dim)
-      last_edge  = first_edge + reference_fe_geo%get_num_n_faces_of_dimension(edge_dim) - 1
+      first_edge = reference_fe_geo%get_first_n_face_id_of_dim(edge_dim)
+      last_edge  = first_edge + reference_fe_geo%get_num_n_faces_of_dim(edge_dim) - 1
 
       ! Loop in cell edges
       do iedge = first_edge, last_edge
@@ -974,7 +974,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   call this%triangulation%create_cell_iterator(cell)
   do icase=1, this%get_num_mc_cases()
     n_subnodes =  this%mc_table_num_cut_edges_per_case(icase) + cell%get_num_nodes()
-    call this%subnodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dimensions(),n_subnodes)
+    call this%subnodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dims(),n_subnodes)
   end do
 
   ! Initialize each one of the fe_maps

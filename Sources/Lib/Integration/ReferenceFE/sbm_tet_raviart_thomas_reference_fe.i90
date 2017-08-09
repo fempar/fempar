@@ -44,12 +44,12 @@ function tet_raviart_thomas_check_compatibility_of_n_faces                   &
   select type(source_reference_fe)
      class is(tet_raviart_thomas_reference_fe_t)
         ! Get number nodes per dimension
-     assert (target_reference_fe%num_dimensions == source_reference_fe%num_dimensions)
-     do idime = 1, target_reference_fe%num_dimensions
+     assert (target_reference_fe%num_dims == source_reference_fe%num_dims)
+     do idime = 1, target_reference_fe%num_dims
         assert (target_reference_fe%order_vector(idime) == source_reference_fe%order_vector(idime))
      end do
-     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) ==  source_reference_fe%get_n_face_dimension(source_n_face_id))
-     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
+     assert (target_reference_fe%get_n_face_dim(target_n_face_id) ==  source_reference_fe%get_n_face_dim(source_n_face_id))
+     assert (target_reference_fe%get_n_face_dim(target_n_face_id) < 3)
      assert (target_reference_fe%num_field_components == source_reference_fe%num_field_components)
      assert (target_reference_fe%get_num_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_num_own_dofs_n_face(source_n_face_id))
      tet_raviart_thomas_check_compatibility_of_n_faces = .true.
@@ -65,7 +65,7 @@ function tet_raviart_thomas_get_characteristic_length ( this )
   class(tet_raviart_thomas_reference_fe_t), intent(in) :: this 
   real(rp)  :: tet_raviart_thomas_get_characteristic_length 
   tet_raviart_thomas_get_characteristic_length =   &
-       &   real(get_factorial(this%num_dimensions),rp)**(-1.0_rp/real(this%num_dimensions,rp))
+       &   real(get_factorial(this%num_dims),rp)**(-1.0_rp/real(this%num_dims,rp))
 end function tet_raviart_thomas_get_characteristic_length
 
 !==================================================================================================
@@ -77,9 +77,9 @@ subroutine tet_raviart_thomas_get_subelements_connectivity ( this, connectivity 
   integer(ip) :: subelem
   integer(ip) :: geo_nnodes
   integer(ip) :: local_node
-  integer(ip) :: first_coord(this%num_dimensions)
-  integer(ip) :: local_coord(this%num_dimensions)
-  integer(ip) :: global_coord(this%num_dimensions)
+  integer(ip) :: first_coord(this%num_dims)
+  integer(ip) :: local_coord(this%num_dims)
+  integer(ip) :: global_coord(this%num_dims)
 
   write(*,*) ' ERROR in: ',__FILE__,__LINE__
   write(*,*) ' Subroutine not implemented for triangles/tetrahedra '
@@ -128,7 +128,7 @@ subroutine tet_raviart_thomas_fill_quadrature ( this, quadrature )
   real(rp)    :: ex1,et1,ez1,ex2,et2,ez2
   integer(ip) :: ndime,ngaus
 
-  ndime = quadrature%num_dimensions
+  ndime = quadrature%num_dims
   ngaus = quadrature%num_quadrature_points
 
   ! Line integral (the same as for brick elements)
@@ -674,7 +674,7 @@ subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolati
   coord_ip => quadrature%get_coordinates()
 
   ! Create an auxiliary interpolation with num_nodes_scalar shape functions (scalar one)
-  call scalar_interpolation%create( interpolation%num_dimensions, this%node_array%num_nodes, &
+  call scalar_interpolation%create( interpolation%num_dims, this%node_array%num_nodes, &
        interpolation%num_quadrature_points, 0, .false. )
 
   if ( allocated( interpolation%hessian ) )  then 
@@ -683,7 +683,7 @@ subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolati
   else
      do iquad = 1,interpolation%num_quadrature_points
         call this%raviart_thomas_evaluate_interpolation( coord_ip(:,iquad),                             &
-             scalar_interpolation%num_dimensions,               &
+             scalar_interpolation%num_dims,               &
              scalar_interpolation%num_shape_functions,          &
              scalar_interpolation%num_entries_symmetric_tensor, &
              scalar_interpolation%shape_functions(1,:,iquad),        &
@@ -693,7 +693,7 @@ subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolati
 
   interpolation%shape_functions = 0.0_rp
   interpolation%shape_derivatives = 0.0_rp  
-  do idime = 1,this%num_dimensions
+  do idime = 1,this%num_dims
      do ishape = 1,this%num_shape_functions
         do iquad = 1, interpolation%num_quadrature_points
            interpolation%shape_functions(this%node_component_array(ishape,2),ishape,iquad) &
@@ -725,10 +725,10 @@ subroutine tet_raviart_thomas_fill_face_interpolation (this, local_quadrature, l
   type(interpolation_t)    :: scalar_interpolation
 
   ! Create an auxiliary interpolation with num_nodes_scalar shape functions (scalar one)
-  call scalar_interpolation%create( face_interpolation%num_dimensions, this%node_array%num_nodes, &
+  call scalar_interpolation%create( face_interpolation%num_dims, this%node_array%num_nodes, &
        face_interpolation%num_quadrature_points, 0, .false. )
 
-  call memalloc(face_interpolation%num_dimensions,global_coordinates,__FILE__,__LINE__)
+  call memalloc(face_interpolation%num_dims,global_coordinates,__FILE__,__LINE__)
 
   ! Evaluate shape functions and derivatives at the gauss points
   if ( allocated( face_interpolation%hessian ) )  then  
@@ -737,11 +737,11 @@ subroutine tet_raviart_thomas_fill_face_interpolation (this, local_quadrature, l
   else
      do iquad = 1,scalar_interpolation%num_quadrature_points
         ! Transform face local coordinates to element global coordinates
-        if (local_face_id <= scalar_interpolation%num_dimensions ) then 
+        if (local_face_id <= scalar_interpolation%num_dims ) then 
            ! Orthogonal face in the reference element
            p_local_coordinate = 1
-           do idime = 1, scalar_interpolation%num_dimensions
-              if (idime == scalar_interpolation%num_dimensions + 1 - local_face_id ) then
+           do idime = 1, scalar_interpolation%num_dims
+              if (idime == scalar_interpolation%num_dims + 1 - local_face_id ) then
                  global_coordinates(idime) = 0.0_rp
               else
                  global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
@@ -751,12 +751,12 @@ subroutine tet_raviart_thomas_fill_face_interpolation (this, local_quadrature, l
         else 
            ! Non-orthogonal face in the reference element
            global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
-           global_coordinates(2:scalar_interpolation%num_dimensions) = & 
+           global_coordinates(2:scalar_interpolation%num_dims) = & 
                 & local_quadrature%coordinates(:,iquad)
         end if
         ! Evaluate shape functions and derivatives at the gauss points
         call this%raviart_thomas_evaluate_interpolation( global_coordinates,                                 &
-             scalar_interpolation%num_dimensions,               &
+             scalar_interpolation%num_dims,               &
              scalar_interpolation%num_shape_functions,          &
              scalar_interpolation%num_entries_symmetric_tensor, &
              scalar_interpolation%shape_functions(1,:,iquad),        &
@@ -766,7 +766,7 @@ subroutine tet_raviart_thomas_fill_face_interpolation (this, local_quadrature, l
 
   face_interpolation%shape_functions = 0.0_rp
   face_interpolation%shape_derivatives = 0.0_rp  
-  do idime = 1,this%num_dimensions
+  do idime = 1,this%num_dims
      do ishape = 1,this%num_shape_functions
         do iquad = 1, face_interpolation%num_quadrature_points
            face_interpolation%shape_functions(this%node_component_array(ishape,2),ishape,iquad) &
@@ -791,11 +791,11 @@ end subroutine tet_raviart_thomas_reference_fe_change_basis
 
 !==================================================================================================
 function tet_raviart_thomas_get_node_local_id (this, local_coordinates, & 
-     & num_dimensions, order)
+     & num_dims, order)
   implicit none
   class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: local_coordinates(:)
-  integer(ip)                         , intent(in)    :: num_dimensions
+  integer(ip)                         , intent(in)    :: num_dims
   integer(ip)                         , intent(in)    :: order
   integer(ip) :: tet_raviart_thomas_get_node_local_id
   integer(ip) :: k,q
@@ -807,7 +807,7 @@ function tet_raviart_thomas_get_node_local_id (this, local_coordinates, &
   end if
 
   tet_raviart_thomas_get_node_local_id = 1
-  do k =1,num_dimensions-1
+  do k =1,num_dims-1
      q = order-local_coordinates(k+1)
      tet_raviart_thomas_get_node_local_id =   & 
           & tet_raviart_thomas_get_node_local_id + & 
@@ -815,7 +815,7 @@ function tet_raviart_thomas_get_node_local_id (this, local_coordinates, &
   end do
   tet_raviart_thomas_get_node_local_id =   & 
        & tet_raviart_thomas_get_node_local_id + & 
-       & this%raviart_thomas_compute_sum_of_dofs_in_simplices(k,order-local_coordinates(num_dimensions)+1,order)
+       & this%raviart_thomas_compute_sum_of_dofs_in_simplices(k,order-local_coordinates(num_dims)+1,order)
 
 end function tet_raviart_thomas_get_node_local_id
 
@@ -954,46 +954,46 @@ recursive subroutine tet_raviart_thomas_fill_nodes_n_face(this,ntxob,c3,ini,end,
 end subroutine tet_raviart_thomas_fill_nodes_n_face
 
 !==================================================================================================
-recursive subroutine tet_raviart_thomas_fill_n_face_dimension_and_vertices (this,       &
-     n_face_dimension,        &
+recursive subroutine tet_raviart_thomas_fill_n_face_dim_and_vertices (this,       &
+     n_face_dim,        &
      vertex_position,      &
-     num_dimensions, &
+     num_dims, &
      initial_vertex,       &
      num_n_faces,       &
      n_face_id,               &
      vertices_of_n_faces,      &
-     n_face_dimension_and_vertices)
+     n_face_dim_and_vertices)
   implicit none
   class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: n_face_dimension
+  integer(ip)                         , intent(in)    :: n_face_dim
   integer(ip)                         , intent(in)    :: vertex_position
-  integer(ip)                         , intent(in)    :: num_dimensions
+  integer(ip)                         , intent(in)    :: num_dims
   integer(ip)                         , intent(in)    :: initial_vertex
   integer(ip)                         , intent(in)    :: num_n_faces
-  integer(ip)                         , intent(inout) :: n_face_dimension_and_vertices(:,:)
+  integer(ip)                         , intent(inout) :: n_face_dim_and_vertices(:,:)
   integer(ip)                         , intent(inout) :: vertices_of_n_faces(:)
   integer(ip)                         , intent(inout) :: n_face_id
   integer(ip) :: vertex_id
 
-  do vertex_id=initial_vertex,num_dimensions+1
+  do vertex_id=initial_vertex,num_dims+1
      vertices_of_n_faces(vertex_position) = vertex_id
-     if(vertex_position+1<n_face_dimension+2) then
-        call this%raviart_thomas_fill_n_face_dimension_and_vertices(n_face_dimension,                      &
+     if(vertex_position+1<n_face_dim+2) then
+        call this%raviart_thomas_fill_n_face_dim_and_vertices(n_face_dim,                      &
              vertex_position+1,                  &
-             num_dimensions,               &
+             num_dims,               &
              vertices_of_n_faces(vertex_position)+1, &
              num_n_faces,                     &
              n_face_id,                             &
              vertices_of_n_faces,                    &
-             n_face_dimension_and_vertices)
+             n_face_dim_and_vertices)
      else
-        n_face_dimension_and_vertices(1,n_face_id) = n_face_dimension
-        n_face_dimension_and_vertices(2:n_face_dimension+2,n_face_id) = vertices_of_n_faces(1:n_face_dimension+1)
+        n_face_dim_and_vertices(1,n_face_id) = n_face_dim
+        n_face_dim_and_vertices(2:n_face_dim+2,n_face_id) = vertices_of_n_faces(1:n_face_dim+1)
         n_face_id = n_face_id + 1
      end if
   end do
 
-end subroutine tet_raviart_thomas_fill_n_face_dimension_and_vertices
+end subroutine tet_raviart_thomas_fill_n_face_dim_and_vertices
 
 !=================================================================================================
 recursive function tet_raviart_thomas_compute_num_interior_dofs(this,dimension,order)

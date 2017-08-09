@@ -77,7 +77,7 @@ module reference_fe_names
   type quadrature_t
      !private
      integer(ip)           ::   &
-          num_dimensions,    &
+          num_dims,    &
           num_quadrature_points
      real(rp), allocatable :: &
           coordinates(:,:),   &   
@@ -86,7 +86,7 @@ module reference_fe_names
      procedure, non_overridable :: create => quadrature_create
      procedure, non_overridable :: free   => quadrature_free
      procedure, non_overridable :: print  => quadrature_print
-     procedure, non_overridable :: get_num_dimensions => quadrature_get_num_dimensions
+     procedure, non_overridable :: get_num_dims => quadrature_get_num_dims
      procedure, non_overridable :: get_num_quadrature_points => quadrature_get_num_quadrature_points
      procedure, non_overridable :: get_coordinates => quadrature_get_coordinates
      procedure, non_overridable :: get_coordinates_as_points => quadrature_get_coordinates_as_points
@@ -108,7 +108,7 @@ module reference_fe_names
   type interpolation_t
      private
      integer(ip)                    ::  &
-          num_dimensions = 0,        &      
+          num_dims = 0,        &      
           num_shape_functions = 0,   &      
           num_quadrature_points = 0, &      
           num_entries_symmetric_tensor = 0
@@ -130,21 +130,21 @@ module reference_fe_names
   type base_map_t
     private
     ! Number of dimensions
-    integer(ip)                 :: num_dimensions
+    integer(ip)                 :: num_dims
     
     ! Number of quadrature points
     integer(ip)                 :: num_quadrature_points
     
-    ! Map's Jacobian (num_dimensions,num_dimensions,num_quadrature_points)
+    ! Map's Jacobian (num_dims,num_dims,num_quadrature_points)
     real(rp), allocatable       :: jacobian(:,:,:)
 
     ! Map's Jacobian det (num_quadrature_points)  
     real(rp), allocatable       :: det_jacobian(:) 
 
-    ! Coordinates of git points (num_dimensions,num_quadrature_points)       
+    ! Coordinates of git points (num_dims,num_quadrature_points)       
     type(point_t), allocatable  :: coordinates_quadrature(:)  
     
-    ! Coordinates of evaluation points (num_dimensions,num_corners of element/face)  
+    ! Coordinates of evaluation points (num_dims,num_corners of element/face)  
     type(point_t), allocatable  :: coordinates_nodes(:) 
     
     ! Geometry interpolation_t in the reference element domain    
@@ -168,7 +168,7 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  fe_map_t
      private
-     ! Map's Jacobian inverse (num_dimensions,num_dimensions,num_quadrature_points)       
+     ! Map's Jacobian inverse (num_dims,num_dims,num_quadrature_points)       
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
  
      ! Map's 2nd derivatives (num_dime,num_dime,num_dime,num_quadrature_points)         
@@ -243,7 +243,7 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
   type polytope_t
      private
-     integer(ip)              :: num_dimensions
+     integer(ip)              :: num_dims
      integer(ip)              :: topology
      integer(ip)              :: root
      integer(ip)              :: num_n_faces 
@@ -253,7 +253,7 @@ module reference_fe_names
      procedure          :: create                   => polytope_create 
      procedure          :: create_facet_iterator    => polytope_create_facet_iterator
      procedure          :: get_n_face               => polytope_get_n_face
-     procedure          :: get_n_face_dimension     => polytope_get_n_face_dimension
+     procedure          :: get_n_face_dim     => polytope_get_n_face_dim
      procedure          :: n_face_type              => polytope_n_face_type
      procedure          :: n_face_dir_is_fixed      => polytope_n_face_dir_is_fixed 
      procedure          :: n_face_dir_coordinate    => polytope_n_face_dir_coordinate
@@ -359,7 +359,7 @@ module reference_fe_names
           field_type                   ! 'scalar', 'vector', 'tensor', 'symmetric_tensor'
 
      integer(ip)              ::    &        
-          num_dimensions,        &
+          num_dims,        &
           order,                    &
           num_field_components
 
@@ -370,7 +370,7 @@ module reference_fe_names
      integer(ip)              ::    &
           num_n_faces,              &        
           num_shape_functions,             &        
-          num_n_faces_per_dimension(5)
+          num_n_faces_per_dim(5)
 
      type(polytope_t)              :: polytope
      type(node_array_t)            :: node_array
@@ -381,12 +381,12 @@ module reference_fe_names
      type(list_t)                   :: dofs_n_face      ! all DoFs per n-face
      type(list_t)                   :: own_dofs_n_face  ! owned DoFs per n-face
 
-     integer(ip), allocatable :: num_rotations_per_dimension(:)
-     integer(ip), allocatable :: num_orientations_per_dimension(:)
+     integer(ip), allocatable :: num_rotations_per_dim(:)
+     integer(ip), allocatable :: num_orientations_per_dim(:)
      type(allocatable_array_ip2_t), allocatable :: own_dof_permutations(:)
    contains
      ! TBPs
-     ! Fill topology, fe_type, num_dimensions, order, continuity                                                              
+     ! Fill topology, fe_type, num_dims, order, continuity                                                              
      procedure(create_interface), private, deferred :: create 
      ! TBP to create a quadrature for a reference_fe_t
      procedure(create_quadrature_interface)             , deferred :: create_quadrature
@@ -472,7 +472,7 @@ module reference_fe_names
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
 
-     ! Set num_dimensions, order, continuity, field_type, num_field_components
+     ! Set num_dims, order, continuity, field_type, num_field_components
      procedure :: set_common_data => reference_fe_set_common_data
      procedure :: set_topology => reference_fe_set_topology
      procedure :: set_fe_type => reference_fe_set_fe_type
@@ -481,7 +481,7 @@ module reference_fe_names
      procedure :: get_topology => reference_fe_get_topology
      !procedure :: get_fe_type => reference_fe_get_fe_type
      procedure :: get_field_type => reference_fe_get_field_type
-     procedure :: get_num_dimensions => reference_fe_get_num_dimensions
+     procedure :: get_num_dims => reference_fe_get_num_dims
      procedure :: get_order => reference_fe_get_order
      procedure :: get_continuity => reference_fe_get_continuity
      procedure :: get_conformity => reference_fe_get_conformity
@@ -495,10 +495,10 @@ module reference_fe_names
      !procedure :: get_first_edge_id => reference_fe_get_first_edge_id
      procedure :: get_num_faces => reference_fe_get_num_faces
      procedure :: get_first_face_id => reference_fe_get_first_face_id
-     procedure :: get_num_n_faces_of_dimension  => reference_fe_get_num_n_faces_of_dimension
-     procedure :: get_first_n_face_id_of_dimension => reference_fe_get_first_n_face_id_of_dimension 
+     procedure :: get_num_n_faces_of_dim  => reference_fe_get_num_n_faces_of_dim
+     procedure :: get_first_n_face_id_of_dim => reference_fe_get_first_n_face_id_of_dim 
      procedure :: get_num_shape_functions => reference_fe_get_num_shape_functions
-     procedure :: get_n_face_dimension  => reference_fe_get_n_face_dimension
+     procedure :: get_n_face_dim  => reference_fe_get_n_face_dim
      procedure :: get_vertices_n_face  =>   reference_fe_get_vertices_n_face
 
      procedure :: create_vertices_n_face_iterator => reference_fe_create_vertices_n_face_iterator
@@ -529,13 +529,13 @@ module reference_fe_names
   end type p_reference_fe_t
 
   abstract interface
-     subroutine create_interface ( this, topology, num_dimensions, order, field_type, &
+     subroutine create_interface ( this, topology, num_dims, order, field_type, &
           conformity, continuity )
        import :: reference_fe_t, ip, SPACE_DIM
        implicit none 
        class(reference_fe_t), intent(inout) :: this 
        character(*)         , intent(in)    :: topology
-       integer(ip)          , intent(in)    :: num_dimensions
+       integer(ip)          , intent(in)    :: num_dims
        integer(ip)          , intent(in)    :: order
        character(*)         , intent(in)    :: field_type
        logical              , intent(in)    :: conformity
@@ -1215,8 +1215,8 @@ contains
    procedure :: free    => tet_lagrangian_reference_fe_free
    procedure, private, non_overridable :: fill_nodes_n_face                             &
              & => tet_lagrangian_reference_fe_fill_nodes_n_face
-   procedure, private, non_overridable :: fill_n_face_dimension_and_vertices            &
-             & => tet_lagrangian_reference_fe_fill_n_face_dimension_and_vertices
+   procedure, private, non_overridable :: fill_n_face_dim_and_vertices            &
+             & => tet_lagrangian_reference_fe_fill_n_face_dim_and_vertices
    procedure, private, non_overridable :: compute_num_interior_dofs                 &
              & => tet_lagrangian_reference_fe_compute_num_interior_dofs
    procedure, private, non_overridable :: compute_sum_of_dofs_in_simplices             &
@@ -1266,8 +1266,8 @@ procedure, private :: get_node_local_id                   &
 ! Concrete TBPs of this derived data type
 procedure, private, non_overridable :: raviart_thomas_fill_nodes_n_face                    &
 & => tet_raviart_thomas_fill_nodes_n_face
-procedure, private, non_overridable :: raviart_thomas_fill_n_face_dimension_and_vertices   &
-& => tet_raviart_thomas_fill_n_face_dimension_and_vertices
+procedure, private, non_overridable :: raviart_thomas_fill_n_face_dim_and_vertices   &
+& => tet_raviart_thomas_fill_n_face_dim_and_vertices
 procedure, private, non_overridable :: compute_num_interior_dofs     &
 & => tet_raviart_thomas_compute_num_interior_dofs
 procedure, private, non_overridable :: raviart_thomas_compute_sum_of_dofs_in_simplices &
@@ -1586,7 +1586,7 @@ type face_maps_t
   logical                         :: is_boundary
   type(face_map_t)                :: face_map
   type(fe_map_face_restriction_t) :: fe_maps(2)
-  integer(ip)                     :: num_dimensions
+  integer(ip)                     :: num_dims
 contains
   procedure, non_overridable :: create               => face_maps_create
   procedure, non_overridable :: free                 => face_maps_free

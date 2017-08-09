@@ -60,7 +60,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   integer(ip) , allocatable :: lst_ext_neighs_part_ids(:)
 
   integer(igp), allocatable :: lst_vefs_gids_ghost_extended(:)
-  integer(ip) , allocatable :: lst_vefs_dimension_ghost_extended(:)
+  integer(ip) , allocatable :: lst_vefs_dim_ghost_extended(:)
 
   integer(ip)                     :: triangulation_generate
   character(len=:), allocatable   :: dir_path
@@ -132,7 +132,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         call io_close(lunio)
 
         ! Extract data from mesh
-        call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
+        call mesh%get_sizes(this%num_dims,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
         this%num_vefs=this%num_vertices
         call mesh%move_cells(ptr_vefs_per_cell,lst_vefs_lids, cells_set)
         call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
@@ -221,9 +221,9 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         call memfree (cell_coordinates_ghost_extended, __FILE__, __LINE__)
      else if(triangulation_generate==triangulation_generate_structured) then
 
-        ! Get num_dimensions from FPL
-        assert(parameters%isAssignable(num_dimensions_key, this%num_dimensions))
-        istat = parameters%get(key = num_dimensions_key, value = this%num_dimensions)
+        ! Get num_dims from FPL
+        assert(parameters%isAssignable(num_dims_key, this%num_dims))
+        istat = parameters%get(key = num_dims_key, value = this%num_dims)
         assert(istat==0)
 
         call uniform_hex_mesh%get_data_from_parameter_list(parameters)
@@ -279,17 +279,17 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         ! Generate reference fe
         call this%reference_fe_geo_index%init(1)
-        if(this%num_dimensions==2) then
+        if(this%num_dims==2) then
            call this%reference_fe_geo_index%put(key=8,val=1,stat=istat)
            reference_fe_geo_list(1) = &
                 &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-                &                        num_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
+                &                        num_dims = this%num_dims, order = geometry_interpolation_order, &
                 &                        field_type = field_type_scalar, conformity = .true. )
         else
            call this%reference_fe_geo_index%put(key=26,val=1,stat=istat)
            reference_fe_geo_list(1) = &
                 &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-                &                        num_dimensions = this%num_dimensions, order = geometry_interpolation_order, &
+                &                        num_dims = this%num_dims, order = geometry_interpolation_order, &
                 &                        field_type = field_type_scalar, conformity = .true. )
         end if
         ! Transfer allocated target from local variable to member variable of base_static_triangulation
@@ -305,7 +305,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
      call this%allocate_cells_set()
      call this%fill_cells_set(cells_set)
      call this%allocate_and_fill_cells_around()
-     call this%compute_vefs_dimension()
+     call this%compute_vefs_dim()
      call this%find_vefs_at_boundary()
      call this%find_and_list_vefs_at_interfaces()
      call this%allocate_and_fill_nodes()

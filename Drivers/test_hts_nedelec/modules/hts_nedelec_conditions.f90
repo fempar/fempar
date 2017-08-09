@@ -33,13 +33,13 @@ module hts_nedelec_conditions_names
   private
   type, extends(conditions_t) :: hts_nedelec_conditions_t
      private
-     integer(ip)                       :: num_dimensions
+     integer(ip)                       :: num_dims
      class(scalar_function_t), pointer :: boundary_function_Hx
      class(scalar_function_t), pointer :: boundary_function_Hy 
      class(scalar_function_t), pointer :: boundary_function_Hz
      class(scalar_function_t), pointer :: boundary_function_p
    contains
-     procedure :: set_num_dimensions          => hts_nedelec_conditions_set_num_dimensions
+     procedure :: set_num_dims          => hts_nedelec_conditions_set_num_dims
      procedure :: set_boundary_function_Hx    => hts_nedelec_conditions_set_boundary_function_Hx
      procedure :: set_boundary_function_Hy    => hts_nedelec_conditions_set_boundary_function_Hy
      procedure :: set_boundary_function_Hz    => hts_nedelec_conditions_set_boundary_function_Hz
@@ -53,12 +53,12 @@ module hts_nedelec_conditions_names
   
 contains
 
-  subroutine hts_nedelec_conditions_set_num_dimensions (this, num_dimensions)
+  subroutine hts_nedelec_conditions_set_num_dims (this, num_dims)
     implicit none
     class(hts_nedelec_conditions_t)       , intent(inout) :: this
-    integer(ip)                           , intent(in)    :: num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine hts_nedelec_conditions_set_num_dimensions 
+    integer(ip)                           , intent(in)    :: num_dims
+    this%num_dims = num_dims
+  end subroutine hts_nedelec_conditions_set_num_dims 
   
     subroutine hts_nedelec_conditions_set_boundary_function_Hx (this, scalar_function)
     implicit none
@@ -92,8 +92,8 @@ contains
     implicit none
     class(hts_nedelec_conditions_t), intent(in) :: this
     integer(ip) :: hts_nedelec_conditions_get_num_components
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 .or. this%num_dimensions == 4) 
-    hts_nedelec_conditions_get_num_components = this%num_dimensions
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 .or. this%num_dims == 4) 
+    hts_nedelec_conditions_get_num_components = this%num_dims
   end function hts_nedelec_conditions_get_num_components
 
   subroutine hts_nedelec_conditions_get_components_code(this, boundary_id, components_code)
@@ -116,7 +116,7 @@ contains
     class(scalar_function_t)          , pointer    , intent(out) :: function
     assert ( component_id == 1 .or. component_id == 2 .or. component_id == 3 .or. component_id == 4 )
     
-    if (this%num_dimensions == 3) then 
+    if (this%num_dims == 3) then 
        if ( component_id == 1) then 
           function => this%boundary_function_Hx
        else if ( component_id == 2 ) then 
@@ -125,7 +125,7 @@ contains
           function => this%boundary_function_p
        end if
 
-    else if (this%num_dimensions == 4) then 
+    else if (this%num_dims == 4) then 
        if ( component_id == 1) then 
           function => this%boundary_function_Hx
        else if ( component_id == 2 ) then 

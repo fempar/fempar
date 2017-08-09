@@ -130,9 +130,9 @@ contains
     class(level_set_function_t), pointer :: levset
 
     ! Get number of dimensions form input
-    assert( this%parameter_list%isPresent    (key = num_dimensions_key) )
-    assert( this%parameter_list%isAssignable (key = num_dimensions_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = num_dimensions_key, value=num_dime); check(istat==0)
+    assert( this%parameter_list%isPresent    (key = num_dims_key) )
+    assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = num_dims_key, value=num_dime); check(istat==0)
 
     !TODO we assume it is a sphere
     select case ('sphere')
@@ -148,7 +148,7 @@ contains
 
 
     ! Set options of the base class
-    call this%level_set_function%set_num_dimensions(num_dime)
+    call this%level_set_function%set_num_dims(num_dime)
     call this%level_set_function%set_tolerance(1.0e-6)
 
     ! Set options of the derived classes
@@ -245,19 +245,19 @@ contains
 
     ! BEGIN Checking new polytope_tree_t
     !if ( reference_fe_geo%get_topology() == topology_hex ) then
-    ! topology = 2**this%triangulation%get_num_dimensions()-1
+    ! topology = 2**this%triangulation%get_num_dims()-1
     !elseif ( reference_fe_geo%get_topology() == topology_tet ) then
     ! topology = 0
     !end if
-    !call poly_old%create_old(this%triangulation%get_num_dimensions(), topology )
-    !call poly%create(this%triangulation%get_num_dimensions(), topology )
+    !call poly_old%create_old(this%triangulation%get_num_dims(), topology )
+    !call poly%create(this%triangulation%get_num_dims(), topology )
     !call poly_old%print()
     !call poly%print()
     ! END Checking ...
 
     this%reference_fes(SERIAL_UNF_POISSON_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
-                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
                                                  conformity = .true., &
@@ -265,7 +265,7 @@ contains
 
     this%reference_fes(SERIAL_UNF_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_void, &
-                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = -1, & ! this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
                                                  conformity = .true., &
@@ -283,7 +283,7 @@ contains
     set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
 
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_unfitted_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
       call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
       call this%poisson_unfitted_analytical_functions%set_degree(this%test_params%get_reference_fe_order())
       call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())

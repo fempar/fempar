@@ -266,7 +266,7 @@ contains
     error = values_group%set(key = is_dir_periodic_key , value = [non_periodic,non_periodic,non_periodic]); check(error==0)
     ! Mesh characterization
     error = values_group%set(key = reference_fe_geo_order_key   , value = 1);                         check(error==0)
-    error = values_group%set(key = num_dimensions_key     , value = 2);                         check(error==0)
+    error = values_group%set(key = num_dims_key     , value = 2);                         check(error==0)
     error = values_group%set(key = num_cells_per_dir_key  , value = [2,2,2]);                   check(error==0)
     error = values_group%set(key = discretization_type_key      , value = [uniform,uniform,uniform]); check(error==0)
     error = values_group%set(key = mesh_stretching_parameter_key, value = [2.75_rp,2.75_rp,2.75_rp]); check(error==0)
@@ -284,7 +284,7 @@ contains
     error = switches_group%set(key = is_dir_periodic_key , value = '--periodicity')  ; check(error==0)
     ! Mesh characterization
     error = switches_group%set(key = reference_fe_geo_order_key   , value = '--reference-fe-geo-order'); check(error==0)
-    error = switches_group%set(key = num_dimensions_key     , value = '--dim')                   ; check(error==0)
+    error = switches_group%set(key = num_dims_key     , value = '--dim')                   ; check(error==0)
     error = switches_group%set(key = num_cells_per_dir_key  , value = '--num_cells')       ; check(error==0)
     error = switches_group%set(key = discretization_type_key      , value = '--discretization_type')   ; check(error==0)
     error = switches_group%set(key = mesh_stretching_parameter_key, value = '--stretching')            ; check(error==0)
@@ -302,7 +302,7 @@ contains
     error = switches_ab_group%set(key = is_dir_periodic_key , value = '-period'); check(error==0)
     ! Mesh characterization
     error = switches_ab_group%set(key = reference_fe_geo_order_key   , value = '-gorder'); check(error==0)
-    error = switches_ab_group%set(key = num_dimensions_key     , value = '-dm')    ; check(error==0)
+    error = switches_ab_group%set(key = num_dims_key     , value = '-dm')    ; check(error==0)
     error = switches_ab_group%set(key = num_cells_per_dir_key  , value = '-n')     ; check(error==0)
     error = switches_ab_group%set(key = discretization_type_key      , value = '-dt')    ; check(error==0)
     error = switches_ab_group%set(key = mesh_stretching_parameter_key, value = '-st')    ; check(error==0)
@@ -323,7 +323,7 @@ contains
     error = helpers_group%set(key = is_dir_periodic_key, value = 'Domain periodicity per direction'); check(error==0)
     ! Mesh characterization
     error = helpers_group%set(key = reference_fe_geo_order_key , value = 'Order of the triangulation reference Finite Element'); check(error==0)
-    error = helpers_group%set(key = num_dimensions_key   , value = 'Number of space dimensions')                         ; check(error==0)
+    error = helpers_group%set(key = num_dims_key   , value = 'Number of space dimensions')                         ; check(error==0)
     error = helpers_group%set(key = num_cells_per_dir_key, value = 'Number of cells per direction')                      ; check(error==0)
     msg = 'Discretization type: (*) uniform, (*) cubic, (*) tanh'
     write(msg(23:23),'(i1)') uniform
@@ -345,7 +345,7 @@ contains
     error = required_group%set(key = is_dir_periodic_key , value = .false.); check(error==0)
     ! Mesh characterization
     error = required_group%set(key = reference_fe_geo_order_key   , value = .false.); check(error==0)
-    error = required_group%set(key = num_dimensions_key     , value = .false.); check(error==0)
+    error = required_group%set(key = num_dims_key     , value = .false.); check(error==0)
     error = required_group%set(key = num_cells_per_dir_key  , value = .false.); check(error==0)
     error = required_group%set(key = discretization_type_key      , value = .false.); check(error==0)
     error = required_group%set(key = mesh_stretching_parameter_key, value = .false.); check(error==0)

@@ -262,13 +262,13 @@ subroutine unfitted_fe_iterator_update_cut_quadratures( this )
   quadrature_coordinates => quadrature%get_coordinates()
   quadrature_weights     => quadrature%get_weights()
   num_gp                 =  quadrature%get_num_quadrature_points()
-  num_dim                =  quadrature%get_num_dimensions()
+  num_dim                =  quadrature%get_num_dims()
 
   ! Recover info about the quadrature of the sub-element
   quadrature_subelem => this%unfitted_integration_manager%quadrature_subelem
   quadrature_weights_subelem     => quadrature_subelem%get_weights()
   num_gp_subelem                 =  quadrature_subelem%get_num_quadrature_points()
-  num_dim_subelem                =  quadrature_subelem%get_num_dimensions()
+  num_dim_subelem                =  quadrature_subelem%get_num_dims()
 
   ! Check that both quadratures are compatible in size
   assert( num_dim == num_dim_subelem )
@@ -387,7 +387,7 @@ subroutine unfitted_fe_iterator_update_cut_boundary_quadratures( this )
   quad_coords => pw_fe_map%get_quadrature_points_coordinates()
   quad_coords_aux => quad%get_coordinates()
   ! TODO its a nightmare that the quadrature does not work with point_t!
-  do idi = 1, quad%get_num_dimensions()
+  do idi = 1, quad%get_num_dims()
     do igp = 1, quad%get_num_quadrature_points()
       quad_coords_aux(idi,igp) = quad_coords(igp)%get(idi)
     end do

@@ -27,20 +27,20 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine interpolation_create( this, &
-                                 num_dimensions, &
+                                 num_dims, &
                                  num_shape_functions, &
                                  num_quadrature_points, & 
                                  num_entries_symmetric_tensor, &
                                  compute_hessian )
   implicit none
   class(interpolation_t), intent(inout) :: this
-  integer(ip)              , intent(in)    :: num_dimensions, & 
+  integer(ip)              , intent(in)    :: num_dims, & 
                                               num_shape_functions, & 
                                               num_quadrature_points
   integer(ip)              , intent(in)    :: num_entries_symmetric_tensor
   logical, optional        , intent(in)    :: compute_hessian
 
-  if (.not. this%is_needed_to_allocate( num_dimensions,        &
+  if (.not. this%is_needed_to_allocate( num_dims,        &
                                         num_shape_functions,   &
                                         num_quadrature_points, &
                                         num_entries_symmetric_tensor,&
@@ -49,7 +49,7 @@ subroutine interpolation_create( this, &
 
   call this%free()
 
-  this%num_dimensions = num_dimensions
+  this%num_dims = num_dims
   this%num_shape_functions = num_shape_functions
   this%num_quadrature_points = num_quadrature_points
   this%num_entries_symmetric_tensor = num_entries_symmetric_tensor
@@ -74,7 +74,7 @@ end subroutine interpolation_create
 subroutine interpolation_free( this)
   implicit none
   class(interpolation_t), intent(inout) :: this
-  this%num_dimensions = 0
+  this%num_dims = 0
   this%num_shape_functions = 0
   this%num_quadrature_points = 0
   this%num_entries_symmetric_tensor = 0
@@ -103,7 +103,7 @@ subroutine interpolation_clone(this, source_interpolation)
   class(interpolation_t), intent(inout) :: this
 		type(interpolation_t), intent(in)     :: source_interpolation
 
-  if (.not. this%is_needed_to_allocate( source_interpolation%num_dimensions,        & 
+  if (.not. this%is_needed_to_allocate( source_interpolation%num_dims,        & 
                                         source_interpolation%num_shape_functions,   &
                                         source_interpolation%num_quadrature_points, & 
                                         source_interpolation%num_entries_symmetric_tensor,&
@@ -111,7 +111,7 @@ subroutine interpolation_clone(this, source_interpolation)
                                         ) ) return
 	
   call this%free()
-  this%num_dimensions = source_interpolation%num_dimensions
+  this%num_dims = source_interpolation%num_dims
   this%num_shape_functions = source_interpolation%num_shape_functions
   this%num_quadrature_points = source_interpolation%num_quadrature_points
   this%num_entries_symmetric_tensor = source_interpolation%num_entries_symmetric_tensor
@@ -120,7 +120,7 @@ subroutine interpolation_clone(this, source_interpolation)
   call memalloc(SPACE_DIM,SPACE_DIM,this%num_shape_functions,&
 																this%num_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
   if ( allocated(source_interpolation%hessian) ) then
-    call memalloc(this%num_dimensions,this%num_entries_symmetric_tensor,this%num_shape_functions,&
+    call memalloc(this%num_dims,this%num_entries_symmetric_tensor,this%num_shape_functions,&
 																		this%num_quadrature_points,this%hessian,   __FILE__,__LINE__) 
   end if
 end subroutine interpolation_clone
@@ -131,7 +131,7 @@ subroutine interpolation_print ( this )
   implicit none
   class(interpolation_t), intent(in) :: this
   integer(ip) :: i,j,k,l
-  write(*,*) 'num_dimensions: ', this%num_dimensions
+  write(*,*) 'num_dims: ', this%num_dims
   write(*,*) 'num_shape_functions: ', this%num_shape_functions
   write(*,*) 'num_quadrature_points: ', this%num_quadrature_points
   write(*,*) 'num_entries_symmetric_tensor: ', this%num_entries_symmetric_tensor
@@ -165,14 +165,14 @@ end subroutine interpolation_print
 
 function interpolation_is_needed_to_allocate(              &
                                  this,                     &
-                                 num_dimensions,        &
+                                 num_dims,        &
                                  num_shape_functions,   &
                                  num_quadrature_points, &
                                  num_entries_symmetric_tensor,&
                                  compute_hessian ) result ( is_needed )
   implicit none
   class(interpolation_t), intent(inout) :: this
-  integer(ip),            intent(in)    :: num_dimensions
+  integer(ip),            intent(in)    :: num_dims
   integer(ip),            intent(in)    :: num_shape_functions
   integer(ip),            intent(in)    :: num_quadrature_points
   integer(ip),            intent(in)    :: num_entries_symmetric_tensor
@@ -183,7 +183,7 @@ function interpolation_is_needed_to_allocate(              &
   ! Its is important that calling free() will set them to 0.
   ! And that they always have a valid numerical value
   is_needed = .false.
-  if (this%num_dimensions .ne. num_dimensions)               is_needed = .true.
+  if (this%num_dims .ne. num_dims)               is_needed = .true.
   if (this%num_shape_functions .ne. num_shape_functions)     is_needed = .true.
   if (this%num_quadrature_points .ne. num_quadrature_points) is_needed = .true.
   if (present(compute_hessian)) then

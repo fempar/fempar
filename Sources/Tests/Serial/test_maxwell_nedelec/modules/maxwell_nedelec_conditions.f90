@@ -33,12 +33,12 @@ module maxwell_nedelec_conditions_names
   private
   type, extends(conditions_t) :: maxwell_nedelec_conditions_t
      private
-     integer(ip)                       :: num_dimensions
+     integer(ip)                       :: num_dims
 	 class(scalar_function_t), pointer :: boundary_function_Hx
 	 class(scalar_function_t), pointer :: boundary_function_Hy 
 	 class(scalar_function_t), pointer :: boundary_function_Hz 
    contains
-     procedure :: set_num_dimensions          => maxwell_nedelec_conditions_set_num_dimensions
+     procedure :: set_num_dims          => maxwell_nedelec_conditions_set_num_dims
 	 procedure :: set_boundary_function_Hx    => maxwell_nedelec_conditions_set_boundary_function_Hx
 	 procedure :: set_boundary_function_Hy    => maxwell_nedelec_conditions_set_boundary_function_Hy
 	 procedure :: set_boundary_function_Hz    => maxwell_nedelec_conditions_set_boundary_function_Hz
@@ -51,12 +51,12 @@ module maxwell_nedelec_conditions_names
   
 contains
 
-  subroutine maxwell_nedelec_conditions_set_num_dimensions (this, num_dimensions)
+  subroutine maxwell_nedelec_conditions_set_num_dims (this, num_dims)
     implicit none
     class(maxwell_nedelec_conditions_t), intent(inout) :: this
-    integer(ip)                           , intent(in)    :: num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine maxwell_nedelec_conditions_set_num_dimensions 
+    integer(ip)                           , intent(in)    :: num_dims
+    this%num_dims = num_dims
+  end subroutine maxwell_nedelec_conditions_set_num_dims 
   
     subroutine maxwell_nedelec_conditions_set_boundary_function_Hx (this, scalar_function)
     implicit none
@@ -83,8 +83,8 @@ contains
     implicit none
     class(maxwell_nedelec_conditions_t), intent(in) :: this
     integer(ip) :: maxwell_nedelec_conditions_get_num_components
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 ) 
-    maxwell_nedelec_conditions_get_num_components = this%num_dimensions
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 ) 
+    maxwell_nedelec_conditions_get_num_components = this%num_dims
   end function maxwell_nedelec_conditions_get_num_components
 
   subroutine maxwell_nedelec_conditions_get_components_code(this, boundary_id, components_code)

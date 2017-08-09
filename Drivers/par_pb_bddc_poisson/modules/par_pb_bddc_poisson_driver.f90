@@ -165,7 +165,7 @@ contains
              end do
              grav_center = (1.0_rp/cell%get_num_nodes())*grav_center
              cells_set( cell%get_lid() ) = cell_set_id( grav_center, &
-                  this%triangulation%get_num_dimensions(), &
+                  this%triangulation%get_num_dims(), &
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
                   this%test_params%get_nchannel_per_direction(), &
                   this%test_params%get_nparts_with_channels(), &
@@ -187,10 +187,10 @@ contains
     
   contains
     
-    function cell_set_id( coord, num_dimensions, jump, inclusion, nchannel_per_direction, nparts_with_channels,nparts)
+    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_per_direction, nparts_with_channels,nparts)
       implicit none
       type(point_t), intent(in)  :: coord
-      integer(ip)  , intent(in)  :: num_dimensions
+      integer(ip)  , intent(in)  :: num_dims
       integer(ip)  , intent(in)  :: jump
       integer(ip)  , intent(in)  :: inclusion
       integer(ip)  , intent(in)  :: nchannel_per_direction(3)
@@ -214,7 +214,7 @@ contains
       if ( inclusion == 1 ) then
          call origin%set(1,0.0_rp)  ; call origin%set(2, 0.25_rp) ; call origin%set(3,0.25_rp);
          call opposite%set(1,0.5_rp); call opposite%set(2,0.50_rp); call opposite%set(3,0.50_rp);
-         if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+         if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = jump
       else if ( inclusion == 2 ) then
          nchannel = 8
          do i = 1, nchannel
@@ -225,13 +225,13 @@ contains
             z_pos_1 = j/real(2*nchannel+1)
             call origin%set(1,y_pos_0)  ; call origin%set(2, y_pos_0) ; call origin%set(3,z_pos_0);
             call opposite%set(1,1.0_rp); call opposite%set(2,y_pos_1); call opposite%set(3,z_pos_1);
-            if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+            if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = jump
             ! 
             z_pos_0 = j/real(2*nchannel+1)
             z_pos_1 = (j+1)/real(2*nchannel+1)
             call origin%set(1,y_pos_0)  ; call origin%set(2, y_pos_0) ; call origin%set(3,z_pos_0);
             call opposite%set(1,y_pos_1); call opposite%set(2,1.0_rp); call opposite%set(3,z_pos_1);
-            if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump
+            if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = jump
          end do
       else if ( inclusion == 3 ) then
          ! Hieu's test in PB-BDDC article (two channels)
@@ -240,12 +240,12 @@ contains
          do i = 1, 6
             call origin%set(1,0.0_rp)  ; call origin%set(2, p1(i)) ; call origin%set(3,p1(7-i));
             call opposite%set(1,1.0_rp); call opposite%set(2,p2(i)); call opposite%set(3,p2(7-i));
-            if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
+            if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = jump + i - 1
          end do
          do i = 7, 12  
             call origin%set(2,0.0_rp)  ; call origin%set(1, p1(i-6)) ; call origin%set(3,p1(i-6));
             call opposite%set(2,1.0_rp); call opposite%set(1,p2(i-6)); call opposite%set(3,p2(i-6));
-            if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = jump + i - 1
+            if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = jump + i - 1
          end do
       else if ( inclusion == 4 ) then
          ! Hieu's test in PB-BDDC article (two channels)
@@ -258,7 +258,7 @@ contains
                call origin%set(1,0.0_rp)  ; call origin%set(2, p1_b(j)) ; call origin%set(3,p1_b(k));
                call opposite%set(1,1.0_rp); call opposite%set(2,p2_b(j)); call opposite%set(3,p2_b(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
          ! y edges
@@ -267,7 +267,7 @@ contains
                call origin%set(2,0.0_rp)  ; call origin%set(1, p1_b(j)) ; call origin%set(3,p1_b(k));
                call opposite%set(2,1.0_rp); call opposite%set(1,p2_b(j)); call opposite%set(3,p2_b(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
          ! z edges
@@ -276,7 +276,7 @@ contains
                call origin%set(3,0.0_rp)  ; call origin%set(2, p1_b(j)) ; call origin%set(1,p1_b(k));
                call opposite%set(3,1.0_rp); call opposite%set(2,p2_b(j)); call opposite%set(1,p2_b(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
       else if ( inclusion == 5 ) then
@@ -300,7 +300,7 @@ contains
                call origin%set(1,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(3,p1_c(k));
                call opposite%set(1,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(3,p2_c(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
          ! y edges
@@ -309,7 +309,7 @@ contains
                call origin%set(2,0.0_rp)  ; call origin%set(1, p1_c(j)) ; call origin%set(3,p1_c(k));
                call opposite%set(2,1.0_rp); call opposite%set(1,p2_c(j)); call opposite%set(3,p2_c(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
          ! z edges
@@ -318,7 +318,7 @@ contains
                call origin%set(3,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(1,p1_c(k));
                call opposite%set(3,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(1,p2_c(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
       else if ( inclusion == 6 ) then
@@ -344,7 +344,7 @@ contains
                call origin%set(1,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(3,p1_c(k));
                call opposite%set(1,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(3,p2_c(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
          ! y edges
@@ -353,7 +353,7 @@ contains
                call origin%set(2,0.0_rp)  ; call origin%set(1, p1_c(j)) ; call origin%set(3,p1_c(k));
                call opposite%set(2,1.0_rp); call opposite%set(1,p2_c(j)); call opposite%set(3,p2_c(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
          ! z edges
@@ -362,7 +362,7 @@ contains
                call origin%set(3,0.0_rp)  ; call origin%set(2, p1_c(j)) ; call origin%set(1,p1_c(k));
                call opposite%set(3,1.0_rp); call opposite%set(2,p2_c(j)); call opposite%set(1,p2_c(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
       else if ( inclusion == 7 ) then
@@ -411,7 +411,7 @@ contains
                call origin%set(1,0.0_rp)  ; call origin%set(2, py1(j)) ; call origin%set(3,pz1(k));
                call opposite%set(1,1.0_rp); call opposite%set(2,py2(j)); call opposite%set(3,pz2(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
          ! y edges
@@ -420,7 +420,7 @@ contains
                call origin%set(2,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(3,pz1(k));
                call opposite%set(2,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(3,pz2(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
          ! z edges
@@ -429,7 +429,7 @@ contains
                call origin%set(3,0.0_rp)  ; call origin%set(2, px1(j)) ; call origin%set(1,py1(k));
                call opposite%set(3,1.0_rp); call opposite%set(2,px2(j)); call opposite%set(1,py2(k));
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dimensions ) ) cell_set_id = nchannel
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
       else if ( inclusion == 8 ) then
@@ -449,16 +449,16 @@ contains
 
     end function cell_set_id
 
-    function is_point_in_rectangle( origin, opposite, coord, num_dimensions )
+    function is_point_in_rectangle( origin, opposite, coord, num_dims )
       implicit none
       type(point_t), intent(in)  :: origin
       type(point_t), intent(in)  :: opposite
       type(point_t), intent(in)  :: coord
-      integer(ip)  , intent(in)  :: num_dimensions
+      integer(ip)  , intent(in)  :: num_dims
       logical :: is_point_in_rectangle
       integer(ip) :: i
       is_point_in_rectangle = .true.
-      do i = 1, num_dimensions
+      do i = 1, num_dims
          if ( coord%get(i) < origin%get(i) .or. coord%get(i) > opposite%get(i) ) then
             is_point_in_rectangle = .false.
             exit
@@ -484,7 +484,7 @@ contains
        reference_fe_geo => cell%get_reference_fe_geo()
        this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
             fe_type = fe_type_lagrangian, &
-            num_dimensions = this%triangulation%get_num_dimensions(), &
+            num_dims = this%triangulation%get_num_dims(), &
             order = this%test_params%get_reference_fe_order(), &
             field_type = field_type_scalar, &
             conformity = .true. )
@@ -511,7 +511,7 @@ contains
     implicit none
     class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
-    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
     
     call this%fe_space%create( triangulation       = this%triangulation, &

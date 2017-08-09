@@ -110,7 +110,7 @@ contains
       check(.false.)
     end select
 
-    num_dime = triangulation%get_num_dimensions()
+    num_dime = triangulation%get_num_dims()
     num_cells = triangulation%get_num_local_cells()
     num_cell_nodes = cell%get_num_nodes()
     this%Ne = num_cells + num_subcells
@@ -244,7 +244,7 @@ contains
     call triangulation%create_cell_iterator(cell)
 
   
-    num_dime = triangulation%get_num_dimensions()
+    num_dime = triangulation%get_num_dims()
     num_subfaces = triangulation%get_total_num_subfaces()
     num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
     this%Ne = num_subfaces
@@ -348,7 +348,7 @@ contains
 
 
     num_elem_nodes = triangulation%get_max_num_shape_functions()
-    num_dime = triangulation%get_num_dimensions()
+    num_dime = triangulation%get_num_dims()
 
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
     call memalloc ( num_subelem_nodes, subelem_nodal_vals, __FILE__, __LINE__ )
@@ -448,7 +448,7 @@ contains
     this%environment => triangulation%get_par_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
 
-    num_dime       = triangulation%get_num_dimensions()
+    num_dime       = triangulation%get_num_dims()
 
     select type(triangulation)
       class is (serial_unfitted_triangulation_t)

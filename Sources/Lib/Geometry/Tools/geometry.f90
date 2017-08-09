@@ -36,7 +36,7 @@ module geometry_names
      ! which is detected checking when n==0
      integer(ip)               :: n = 0
      integer(ip)               :: p = 0               ! p as in sisl=order+1
-     real(rp), allocatable     :: control_points(:)   ! (num_space_dimensions+1)*n, including weights
+     real(rp), allocatable     :: control_points(:)   ! (num_space_dims+1)*n, including weights
      real(rp), allocatable     :: knots(:)            ! nu+pu+1
      type(c_ptr)               :: sisl_ptr = c_null_ptr
      type(geometry_t), pointer :: geometry => null()
@@ -327,7 +327,7 @@ contains
     real(rp)     , intent(in) :: tol
     real(rp)                  :: line_get_parameter
 
-    !real(rp)          :: point_coords(num_space_dimensions)
+    !real(rp)          :: point_coords(num_space_dims)
     integer(ip)       :: p_shape(1)
     real(rp), pointer :: param(:)
     type(c_ptr)       :: p_param
@@ -335,7 +335,7 @@ contains
     type(c_ptr)       :: wcurve
 
     !point_coords = point%get_value()
-    !call curve_point_intersection(line%sisl_ptr, point_coords, num_space_dimensions, tol, num_int, p_param, num_curves, wcurve, istat)
+    !call curve_point_intersection(line%sisl_ptr, point_coords, num_space_dims, tol, num_int, p_param, num_curves, wcurve, istat)
     call curve_point_intersection(this%sisl_ptr, point%get_value(), SPACE_DIM, tol, num_int, p_param, num_curves, wcurve, istat)
     !write(*,*) num_int, istat
     assert(istat==0)

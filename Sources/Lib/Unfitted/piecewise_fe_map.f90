@@ -56,7 +56,7 @@ module piecewise_fe_map_names
     type(point_t), allocatable    :: coordinates_quadrature(:)
     type(point_t), allocatable    :: coordinates_nodes(:)
     real(rp),      allocatable    :: normals(:,:)
-    integer(ip)                   :: num_dimensions
+    integer(ip)                   :: num_dims
     integer(ip)                   :: num_quadrature_points
 
   contains
@@ -96,7 +96,7 @@ contains
     this%num_quadrature_points_sub_map = quadrature%get_num_quadrature_points()
     this%num_sub_maps                  = num_sub_maps
     this%num_quadrature_points         = quadrature%get_num_quadrature_points() * num_sub_maps
-    this%num_dimensions                = reference_fe_geometry%get_num_dimensions()
+    this%num_dims                = reference_fe_geometry%get_num_dims()
 
     call this%fe_sub_map%create( quadrature, reference_fe_geometry )
 
@@ -108,7 +108,7 @@ contains
     allocate( this%coordinates_quadrature(1:this%num_quadrature_points), stat = istat ); check(istat==0)
 
     call memalloc( this%num_quadrature_points, this%det_jacobian, __FILE__,__LINE__ )
-    call memalloc( this%num_dimensions, this%num_quadrature_points, this%normals, __FILE__,__LINE__  )
+    call memalloc( this%num_dims, this%num_quadrature_points, this%normals, __FILE__,__LINE__  )
     
     this%reference_fe_geometry => reference_fe_geometry
 
@@ -118,7 +118,7 @@ contains
   subroutine piecewise_fe_map_free( this )
     implicit none
     class(piecewise_fe_map_t), intent(inout) :: this
-    this%num_dimensions                = -1
+    this%num_dims                = -1
     this%num_quadrature_points         = -1
     this%num_sub_maps                  = -1
     this%num_quadrature_points_sub_map = -1
@@ -239,7 +239,7 @@ contains
    type(vector_field_t), intent(inout) :: normal
    integer(ip) :: idime
    assert ( allocated(this%normals) )
-   do idime = 1, this%num_dimensions
+   do idime = 1, this%num_dims
      call normal%set(idime,this%normals(idime,qpoint))
    end do
   end subroutine  piecewise_fe_map_get_normal

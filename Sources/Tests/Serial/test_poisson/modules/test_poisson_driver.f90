@@ -160,7 +160,7 @@ contains
             case ('popcorn')
               do inode = 1,cell%get_num_nodes()
                 if ( this%popcorn_fun(cell_coords(inode),&
-                  this%triangulation%get_num_dimensions()) < 0.0 ) then
+                  this%triangulation%get_num_dims()) < 0.0 ) then
                   set_id = TEST_POISSON_FULL
                   exit
                 end if
@@ -198,7 +198,7 @@ contains
       do while ( .not. vef%has_finished() )
                                        
          ! If it is an INTERIOR face
-         if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
+         if( vef%get_dim() == this%triangulation%get_num_dims()-1 .and. vef%get_num_cells_around()==2 ) then
 
            ! Compute number of void neighbors
            num_void_neigs = 0
@@ -227,7 +227,7 @@ contains
                   call vef_of_vef%set_set_id(1)
 
                   ! If 3D, traverse vertices of current line
-                  if ( this%triangulation%get_num_dimensions() == 3 ) then
+                  if ( this%triangulation%get_num_dims() == 3 ) then
                     vertices_of_line          => reference_fe_geo%get_vertices_n_face()
                     vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
                     do while( .not. vertices_of_line_iterator%is_upper_bound() )
@@ -291,7 +291,7 @@ contains
     reference_fe_geo => cell%get_reference_fe_geo()
     this%reference_fes(TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                                  fe_type = fe_type_lagrangian, &
-                                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                 num_dims = this%triangulation%get_num_dims(), &
                                                                  order = this%test_params%get_reference_fe_order(), &
                                                                  field_type = field_type, &
                                                                  conformity = conformity )
@@ -299,7 +299,7 @@ contains
     if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
          this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                                       fe_type = fe_type_void, &
-                                                                      num_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                      num_dims = this%triangulation%get_num_dims(), &
                                                                       order = -1, &
                                                                       field_type = field_type, &
                                                                       conformity = conformity )
@@ -314,7 +314,7 @@ contains
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
       call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
       if ( this%test_params%get_fe_formulation() == 'cG' ) then
         if ( this%test_params%get_use_void_fes() ) then
@@ -334,7 +334,7 @@ contains
                                    reference_fes       = this%reference_fes )
       end if
     else
-      call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%vector_poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
       call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
       if ( this%test_params%get_fe_formulation() == 'cG' ) then
         if ( this%test_params%get_use_void_fes() ) then

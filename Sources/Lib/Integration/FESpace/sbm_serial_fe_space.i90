@@ -655,7 +655,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
   allocate ( scalar_function_values(this%get_max_num_face_quadrature_points(),1), & 
              stat=istat); check(istat==0);
 
-  allocate ( function_scalar_components(this%triangulation%get_num_dimensions()), & 
+  allocate ( function_scalar_components(this%triangulation%get_num_dims()), & 
              stat=istat); check(istat==0);
   
   allocate( elem2dof(this%get_num_fields()), stat=istat); check(istat==0);
@@ -2330,14 +2330,14 @@ subroutine serial_fe_space_renum_dofs_block (this, block_id, perm_old2new)
 
 end subroutine serial_fe_space_renum_dofs_block
 
-function serial_fe_space_get_num_dimensions ( this )
+function serial_fe_space_get_num_dims ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
-  integer(ip)                          :: serial_fe_space_get_num_dimensions
+  integer(ip)                          :: serial_fe_space_get_num_dims
   class(base_static_triangulation_t), pointer :: triangulation
   triangulation => this%get_triangulation()
-  serial_fe_space_get_num_dimensions = triangulation%get_num_dimensions()
-end function serial_fe_space_get_num_dimensions
+  serial_fe_space_get_num_dims = triangulation%get_num_dims()
+end function serial_fe_space_get_num_dims
 
 function serial_fe_space_get_num_reference_fes ( this )
   implicit none

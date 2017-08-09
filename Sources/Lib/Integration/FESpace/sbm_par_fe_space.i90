@@ -1176,16 +1176,16 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
 end function par_fe_space_compute_boundary_raw_interface_data_by_continuity
 
 
-function par_fe_space_get_num_dimensions ( this )
+function par_fe_space_get_num_dims ( this )
   implicit none
   class(par_fe_space_t), intent(in) :: this
-  integer(ip)                       :: par_fe_space_get_num_dimensions
+  integer(ip)                       :: par_fe_space_get_num_dims
   type(environment_t), pointer :: par_environment
   par_environment => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
-     par_fe_space_get_num_dimensions = this%serial_fe_space_t%get_num_dimensions()
+     par_fe_space_get_num_dims = this%serial_fe_space_t%get_num_dims()
   end if
-end function par_fe_space_get_num_dimensions
+end function par_fe_space_get_num_dims
 
 function par_fe_space_get_num_fe_objects ( this )
   implicit none
@@ -1665,7 +1665,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      allocate ( scalar_function_values(this%get_max_num_face_quadrature_points(),1), & 
                 stat=istat); check(istat==0);
 
-     allocate ( function_scalar_components(this%triangulation%get_num_dimensions()), & 
+     allocate ( function_scalar_components(this%triangulation%get_num_dims()), & 
                 stat=istat); check(istat==0);
   
      allocate( elem2dof(this%get_num_fields()), stat=istat); check(istat==0);

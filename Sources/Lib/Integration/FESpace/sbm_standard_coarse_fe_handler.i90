@@ -63,7 +63,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
   call par_fe_space%create_fe_iterator(fe)
   call par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
-     select case ( object%get_dimension() )
+     select case ( object%get_dim() )
      case (0)
        if (.not. use_vertices) then
          call object%next(); cycle

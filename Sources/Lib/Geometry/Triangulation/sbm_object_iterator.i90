@@ -101,13 +101,13 @@ function object_iterator_get_gid (this)
   object_iterator_get_gid = this%base_static_triangulation%objects_gids(this%lid)
 end function object_iterator_get_gid
 
-function object_iterator_get_dimension (this)
+function object_iterator_get_dim (this)
   implicit none
   class(object_iterator_t), intent(in) :: this
-  integer(igp) :: object_iterator_get_dimension
+  integer(igp) :: object_iterator_get_dim
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_get_dimension = this%base_static_triangulation%objects_dimension(this%lid)
-end function object_iterator_get_dimension
+  object_iterator_get_dim = this%base_static_triangulation%objects_dim(this%lid)
+end function object_iterator_get_dim
 
 function object_iterator_get_num_parts_around(this)
   implicit none

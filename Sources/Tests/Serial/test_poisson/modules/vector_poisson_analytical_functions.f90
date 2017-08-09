@@ -34,9 +34,9 @@ module vector_poisson_analytical_functions_names
   private
 
   type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dimensions = -1  
+    integer(ip) :: num_dims = -1  
   contains
-    procedure :: set_num_dimensions    => base_vector_function_set_num_dimensions
+    procedure :: set_num_dims    => base_vector_function_set_num_dims
   end type base_vector_function_t
   
   
@@ -62,7 +62,7 @@ module vector_poisson_analytical_functions_names
      type(boundary_function_t)   :: boundary_function
      type(solution_function_t)   :: solution_function
    contains
-     procedure :: set_num_dimensions    => poisson_analytical_functions_set_num_dimensions
+     procedure :: set_num_dims    => poisson_analytical_functions_set_num_dims
      procedure :: get_source_term       => poisson_analytical_functions_get_source_term
      procedure :: get_boundary_function   => poisson_analytical_functions_get_boundary_function
      procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
@@ -72,12 +72,12 @@ module vector_poisson_analytical_functions_names
 
 contains  
 
-  subroutine base_vector_function_set_num_dimensions ( this, num_dimensions )
+  subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine base_vector_function_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_vector_function_set_num_dims
 
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
@@ -85,7 +85,7 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
-    if ( this%num_dimensions == 2 ) then
+    if ( this%num_dims == 2 ) then
       call result%set(1,0.0_rp)
       call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
     else
@@ -101,7 +101,7 @@ contains
     class(boundary_function_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    if ( this%num_dimensions == 2 ) then
+    if ( this%num_dims == 2 ) then
       result = point%get(1)+point%get(2) !sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
     else
       result = point%get(1)+point%get(2)+point%get(3)
@@ -114,7 +114,7 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-    if ( this%num_dimensions == 2 ) then
+    if ( this%num_dims == 2 ) then
       call result%set(1, point%get(1)+point%get(2) ) 
       call result%set(2, point%get(1)+point%get(2) ) 
     else
@@ -130,7 +130,7 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
-    if ( this%num_dimensions == 2 ) then
+    if ( this%num_dims == 2 ) then
       call result%set( 1, 1, 1.0_rp ) 
       call result%set( 2, 1, 1.0_rp )
       call result%set( 1, 2, 1.0_rp ) 
@@ -138,7 +138,7 @@ contains
     else
       call result%init(1.0_rp)
     end if
-    !if ( this%num_dimensions == 2 ) then
+    !if ( this%num_dims == 2 ) then
     !  call result%set( 1, 1, 1.0_rp ) 
     !  call result%set( 2, 1, 0.0_rp )
     !  call result%set( 1, 2, 1.0_rp ) 
@@ -157,14 +157,14 @@ contains
   end subroutine solution_function_get_gradient_space
   
   !===============================================================================================
-  subroutine poisson_analytical_functions_set_num_dimensions ( this, num_dimensions )
+  subroutine poisson_analytical_functions_set_num_dims ( this, num_dims )
     implicit none
     class(vector_poisson_analytical_functions_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    call this%source_term%set_num_dimensions(num_dimensions)
-    call this%boundary_function%set_num_dimensions(num_dimensions)
-    call this%solution_function%set_num_dimensions(num_dimensions)
-  end subroutine poisson_analytical_functions_set_num_dimensions 
+    integer(ip), intent(in) ::  num_dims
+    call this%source_term%set_num_dims(num_dims)
+    call this%boundary_function%set_num_dims(num_dims)
+    call this%solution_function%set_num_dims(num_dims)
+  end subroutine poisson_analytical_functions_set_num_dims 
   
   !===============================================================================================
   function poisson_analytical_functions_get_source_term ( this )

@@ -44,12 +44,12 @@ function hex_lagrangian_reference_fe_check_compatibility_of_n_faces             
   select type(source_reference_fe)
      class is(hex_lagrangian_reference_fe_t)
         ! Get number nodes per dimension
-     assert (target_reference_fe%num_dimensions == source_reference_fe%num_dimensions)
-     do idime = 1, target_reference_fe%num_dimensions
+     assert (target_reference_fe%num_dims == source_reference_fe%num_dims)
+     do idime = 1, target_reference_fe%num_dims
         assert (target_reference_fe%order_vector(idime) == source_reference_fe%order_vector(idime))
      end do
-     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
-     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
+     assert (target_reference_fe%get_n_face_dim(target_n_face_id) == source_reference_fe%get_n_face_dim(source_n_face_id))
+     assert (target_reference_fe%get_n_face_dim(target_n_face_id) < 3)
      assert (target_reference_fe%num_field_components == source_reference_fe%num_field_components)
      assert (target_reference_fe%get_num_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_num_own_dofs_n_face(source_n_face_id))
      hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
@@ -76,7 +76,7 @@ function hex_lagrangian_reference_fe_get_num_subcells(this, num_refinements) res
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: num_refinements
   integer(ip)                                         :: num_subcells
-  num_subcells = (num_refinements+1)**this%num_dimensions
+  num_subcells = (num_refinements+1)**this%num_dims
 end function hex_lagrangian_reference_fe_get_num_subcells
 
 !==================================================================================================
@@ -85,15 +85,15 @@ subroutine hex_lagrangian_reference_fe_get_subcells_connectivity(this, num_refin
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: num_refinements
   integer(ip)                         , intent(inout) :: connectivity(:,:)
-  integer(ip) :: order_vector(this%num_dimensions)
+  integer(ip) :: order_vector(this%num_dims)
   integer(ip) :: num_subelems
   integer(ip) :: subelem
   integer(ip) :: geo_nnodes
   integer(ip) :: local_node
-  integer(ip) :: first_coord(this%num_dimensions)
-  integer(ip) :: local_coord(this%num_dimensions)
-  integer(ip) :: global_coord(this%num_dimensions)
-  integer(ip) :: ones_dim(this%num_dimensions)
+  integer(ip) :: first_coord(this%num_dims)
+  integer(ip) :: local_coord(this%num_dims)
+  integer(ip) :: global_coord(this%num_dims)
+  integer(ip) :: ones_dim(this%num_dims)
   ones_dim = 1
   num_subelems = this%get_num_subcells(num_refinements=num_refinements)
   geo_nnodes = this%get_num_vertices()
@@ -103,17 +103,17 @@ subroutine hex_lagrangian_reference_fe_get_subcells_connectivity(this, num_refin
 
   do subelem = 1, num_subelems
      !call this%get_node_local_coordinates(first_coord,subelem, & 
-     !                                      & this%num_dimensions,this%order(1)-1)
-     call index_to_ijk( subelem, this%num_dimensions, order_vector, first_coord )
+     !                                      & this%num_dims,this%order(1)-1)
+     call index_to_ijk( subelem, this%num_dims, order_vector, first_coord )
 
      do local_node = 1, geo_nnodes
-        !call this%get_node_local_coordinates(local_coord,local_node,this%num_dimensions,1)
-        call index_to_ijk( local_node, this%num_dimensions, 2*ones_dim, local_coord )
+        !call this%get_node_local_coordinates(local_coord,local_node,this%num_dims,1)
+        call index_to_ijk( local_node, this%num_dims, 2*ones_dim, local_coord )
 
         global_coord = first_coord + local_coord 
         !connectivity(local_node, subelem) = this%get_node_local_id(global_coord, &
-        !                                                   & this%num_dimensions,this%order(1)) ! 
-        connectivity(local_node, subelem) = ijk_to_index(global_coord, order_vector,this%num_dimensions)+1
+        !                                                   & this%num_dims,this%order(1)) ! 
+        connectivity(local_node, subelem) = ijk_to_index(global_coord, order_vector,this%num_dims)+1
      end do
   end do
 end subroutine hex_lagrangian_reference_fe_get_subcells_connectivity
@@ -136,8 +136,8 @@ subroutine hex_lagrangian_create_data_out_quadrature ( this, num_refinements, qu
   order_vector = num_refinements+1
   call node_array%create( this%polytope, order_vector ) 
 
-  call quadrature%create( this%num_dimensions, node_array%num_nodes )
-  do i=1,this%num_dimensions
+  call quadrature%create( this%num_dims, node_array%num_nodes )
+  do i=1,this%num_dims
      quadrature%coordinates(i,:) = node_array%coordinates(i,:)*(2.0_rp/order_vector(i))-1.0_rp
   end do
   quadrature%weight = 1.0_rp
@@ -174,7 +174,7 @@ subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
   real(rp)    :: posgl(20),weigl(20)
   integer(ip) :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,ngaus
 
-  ndime = quadrature%num_dimensions
+  ndime = quadrature%num_dims
   ngaus = quadrature%num_quadrature_points
 
   if(ndime==1) then
@@ -683,7 +683,7 @@ subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)                  , intent(inout) :: quadrature
   integer(ip) :: i
-  do i=1,this%num_dimensions
+  do i=1,this%num_dims
      if (this%order_vector(i) > 0 ) then 
      quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(2.0_rp/this%order_vector(i))-1.0_rp
 	 else 
@@ -710,11 +710,11 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
 
   integer(ip) :: idime, q_point
 
-  do idime=1,interpolation%num_dimensions
+  do idime=1,interpolation%num_dims
      call polynomial_1D%generate_basis( this%order_vector(idime), polynomial_1D_basis(idime) )
   end do
 
-  call tensor_product_polynomial_space%create(interpolation%num_dimensions,polynomial_1D_basis)
+  call tensor_product_polynomial_space%create(interpolation%num_dims,polynomial_1D_basis)
   call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
 
   !assert ( interpolation%num_shape_functions == tensor_product_polynomial_space%get_num_polynomials() )
@@ -723,7 +723,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
   call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_num_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
 
   do q_point=1, quadrature%get_num_quadrature_points()
-     do idime = 1, interpolation%num_dimensions
+     do idime = 1, interpolation%num_dims
         call tensor_product_polynomial_space%evaluate(q_point, &
              tensor_product_values, &
              tensor_product_gradients)
@@ -735,7 +735,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
   ! Free auxiliary memory
   if(allocated(tensor_product_values))    call memfree(tensor_product_values,__FILE__,__LINE__)
   if(allocated(tensor_product_gradients)) call memfree(tensor_product_gradients,__FILE__,__LINE__)
-  do idime=1,interpolation%num_dimensions
+  do idime=1,interpolation%num_dims
      call polynomial_1D_basis(idime)%free()
   end do
   call polynomial_1D%free()
@@ -757,9 +757,9 @@ subroutine hex_lagrangian_reference_fe_fill_face_interpolation( this, local_quad
   ! Add offset to have same numbering as in polytope
   n_face_index = local_face_id+this%get_first_face_id()-1
   ! Create a d-dimensional quadrature as follows
-  call aux_quadrature%create( this%num_dimensions, local_quadrature%num_quadrature_points )
+  call aux_quadrature%create( this%num_dims, local_quadrature%num_quadrature_points )
   c = 0
-  do idime = 0,this%num_dimensions-1
+  do idime = 0,this%num_dims-1
      if ( this%polytope%n_face_dir_is_fixed( n_face_index, idime ) == 1 ) then
         c = c+1
         aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(c,:)
@@ -810,7 +810,7 @@ subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations(this, quadratur
   type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
   integer(ip)    :: ndime, n_q_points, order
   
-  ndime      = quadrature%get_num_dimensions()
+  ndime      = quadrature%get_num_dims()
   n_q_points = quadrature%get_num_quadrature_points()
   order      = int(real(n_q_points,rp)**(1.0_rp/real(ndime,rp)),ip)+1
   
@@ -833,7 +833,7 @@ subroutine hex_lagrangian_reference_fe_blending(this,values)
 
   assert(size(values) == this%node_array%num_nodes)
 
-  ndime = this%num_dimensions
+  ndime = this%num_dims
   nnode = this%node_array%num_nodes
 
   if(ndime==1) then

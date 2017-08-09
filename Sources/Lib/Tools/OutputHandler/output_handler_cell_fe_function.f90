@@ -98,7 +98,7 @@ private
     !-----------------------------------------------------------------
     private
         logical                                        :: mixed_cell_topologies = .false.
-        integer(ip)                                    :: num_dimensions     = 0
+        integer(ip)                                    :: num_dims     = 0
         integer(ip)                                    :: num_nodes          = 0
         integer(ip)                                    :: num_cells          = 0
         class(fe_iterator_t), pointer                  :: current_fe            => NULL()
@@ -115,7 +115,7 @@ private
             procedure, non_overridable, public :: create                    => output_handler_cell_fe_function_create
             procedure, non_overridable, public :: get_num_nodes          => output_handler_cell_fe_function_get_num_nodes
             procedure, non_overridable, public :: get_num_cells          => output_handler_cell_fe_function_get_num_cells
-            procedure, non_overridable, public :: get_num_dimensions     => output_handler_cell_fe_function_get_num_dimensions
+            procedure, non_overridable, public :: get_num_dims     => output_handler_cell_fe_function_get_num_dims
             procedure, non_overridable, public :: has_mixed_cell_topologies => output_handler_cell_fe_function_has_mixed_cell_topologies
             procedure, non_overridable, public :: fill_patch                => output_handler_cell_fe_function_fill_patch
             procedure, non_overridable, public :: free                      => output_handler_cell_fe_function_free
@@ -172,7 +172,7 @@ contains
     !< Create output_handler_cell_fe_function. 
     !< This procedure must be called every time the mesh changes.
     !< It loops over the finite elements to precalculate some values
-    !< like *num_dimensions*, *num_cells*, *num_nodes*, 
+    !< like *num_dims*, *num_cells*, *num_nodes*, 
     !< *quadratures*, *mixed_cell_topologies*, etc.
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(inout) :: this
@@ -202,7 +202,7 @@ contains
         if (environment%am_i_l1_task()) then
             call this%free()
             triangulation => fe_space%get_triangulation()
-            this%num_dimensions = triangulation%get_num_dimensions()
+            this%num_dims = triangulation%get_num_dims()
             this%num_cells      = 0
             this%num_nodes      = 0
 
@@ -307,15 +307,15 @@ contains
     end function output_handler_cell_fe_function_get_num_cells
 
 
-    function output_handler_cell_fe_function_get_num_dimensions(this) result(num_dimensions)
+    function output_handler_cell_fe_function_get_num_dims(this) result(num_dims)
     !-----------------------------------------------------------------
     !< Return the number of dimensions
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t),  intent(in) :: this
-        integer(ip)                                           :: num_dimensions
+        integer(ip)                                           :: num_dims
     !-----------------------------------------------------------------
-        num_dimensions = this%num_dimensions
-    end function output_handler_cell_fe_function_get_num_dimensions
+        num_dims = this%num_dims
+    end function output_handler_cell_fe_function_get_num_dims
 
 
     function output_handler_cell_fe_function_has_mixed_cell_topologies(this) result(mixed_cell_topologies)
@@ -374,7 +374,7 @@ contains
 
             ! Set subcell information into patch
             call patch%set_cell_type(reference_fe_geo%get_topology())
-            call patch%set_num_dimensions(reference_fe_geo%get_num_dimensions())
+            call patch%set_num_dims(reference_fe_geo%get_num_dims())
             call patch%set_num_vertices_per_subcell(quadrature%get_num_quadrature_points())
             call patch%set_num_subcells(reference_fe_geo%get_num_subcells(num_refinements=max_order_within_fe-1))
             call patch%set_num_vertices_per_subcell(reference_fe_geo%get_num_vertices())
@@ -668,7 +668,7 @@ contains
         ! Calculate divergence
         scalar_function_values = 0._rp
         do qpoint = 1, quadrature%get_num_quadrature_points()
-            do dim = 1, this%num_dimensions
+            do dim = 1, this%num_dims
                 scalar_function_values(qpoint) = scalar_function_values(qpoint) + tensor_function_values(qpoint)%get(dim, dim)
             enddo
         enddo 
@@ -724,7 +724,7 @@ contains
         ! Calculate gradients
         call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
 
-        if(this%num_dimensions == 2) then
+        if(this%num_dims == 2) then
             call patch_field%set_field_type(field_type_scalar)
             patch_field_scalar_function_values => patch_field%get_scalar_function_values()
             call patch_field_scalar_function_values%move_alloc_out(scalar_function_values) 
@@ -740,7 +740,7 @@ contains
             enddo
             call patch_field_scalar_function_values%move_alloc_in(scalar_function_values)     
 
-        elseif(this%num_dimensions == 3) then
+        elseif(this%num_dims == 3) then
             call patch_field%set_field_type(field_type_vector)
             patch_field_vector_function_values => patch_field%get_vector_function_values()
             call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
@@ -862,7 +862,7 @@ contains
 
         this%num_cells          = 0
         this%num_nodes          = 0
-        this%num_dimensions     = 0
+        this%num_dims     = 0
         this%mixed_cell_topologies = .false.
     end subroutine output_handler_cell_fe_function_free
 

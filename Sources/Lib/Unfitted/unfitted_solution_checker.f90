@@ -110,7 +110,7 @@ contains
     h1_semi_norm = 0.0
     l2_norm = 0.0
 
-    num_dime = this%fe_space%get_num_dimensions()
+    num_dime = this%fe_space%get_num_dims()
     num_elem_nodes =  this%fe_space%get_max_num_shape_functions()
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
 

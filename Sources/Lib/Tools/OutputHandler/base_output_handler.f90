@@ -123,7 +123,7 @@ private
         procedure, non_overridable, public :: get_num_nodes              => base_output_handler_get_num_nodes
         procedure, non_overridable, public :: get_num_cells              => base_output_handler_get_num_cells
         procedure, non_overridable, public :: has_mixed_cell_topologies     => base_output_handler_has_mixed_cell_topologies
-        procedure, non_overridable, public :: get_num_dimensions         => base_output_handler_get_num_dimensions
+        procedure, non_overridable, public :: get_num_dims         => base_output_handler_get_num_dims
         procedure, non_overridable, public :: get_num_fields             => base_output_handler_get_num_fields
         procedure, non_overridable, public :: get_num_cell_vectors       => base_output_handler_get_num_cell_vectors
         procedure, non_overridable, public :: get_fe_field                  => base_output_handler_get_fe_field
@@ -263,16 +263,16 @@ contains
     end function base_output_handler_get_num_cells
 
 
-    function base_output_handler_get_num_dimensions(this) result(num_dimensions)
+    function base_output_handler_get_num_dims(this) result(num_dims)
     !-----------------------------------------------------------------
     !< Return the number of dimensions
     !-----------------------------------------------------------------
         class(base_output_handler_t), intent(in) :: this
-        integer(ip)                              :: num_dimensions
+        integer(ip)                              :: num_dims
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
-        num_dimensions = this%ohcff%get_num_dimensions()
-    end function base_output_handler_get_num_dimensions
+        num_dims = this%ohcff%get_num_dims()
+    end function base_output_handler_get_num_dims
 
     function base_output_handler_has_mixed_cell_topologies(this) result(mixed_cell_topologies)
     !-----------------------------------------------------------------

@@ -54,7 +54,7 @@ subroutine evaluate_monomials(points,monomials,degree)
   assert(size(monomials,1)==points%get_num_quadrature_points())
 
   quad_coords => points%get_coordinates()
-  select case(points%get_num_dimensions())
+  select case(points%get_num_dims())
     case(1)
       assert(size(monomials,2)==(degree+1))
       do q_point = 1, points%get_num_quadrature_points()

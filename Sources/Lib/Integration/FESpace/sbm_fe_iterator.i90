@@ -244,7 +244,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   integer(ip)                    :: target_dof_LID_vef
   integer(ip)                    :: source_dof_LID_vef
   integer(ip)                    :: permutation_index
-  integer(ip)                    :: source_ivef_dimension
+  integer(ip)                    :: source_ivef_dim
 
   assert ( target_ivef <= this%get_num_vefs() )
   assert ( source_ivef <= source_fe%get_num_vefs() )
@@ -255,7 +255,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   
   reference_fe_source => source_fe%get_reference_fe(field_id)
   base_pos_lst_dofs_lids_source = this%fe_space%ptr_dofs_per_fe(field_id, source_fe%get_lid())-1
-  source_ivef_dimension = reference_fe_source%get_n_face_dimension(source_ivef)
+  source_ivef_dim = reference_fe_source%get_n_face_dim(source_ivef)
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within target fe
   own_dofs_on_vef_iterator_target = reference_fe_target%create_own_dofs_on_n_face_iterator(target_ivef)
@@ -270,7 +270,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
       do while (.not. own_dofs_on_vef_iterator_target%is_upper_bound())
         target_dof_LID_vef = own_dofs_on_vef_iterator_target%get_distance_to_lower_bound()
         source_dof_LID_vef = reference_fe_source%permute_dof_LID_n_face(target_dof_LID_vef, &
-                                                                    source_ivef_dimension, & 
+                                                                    source_ivef_dim, & 
                                                                     permutation_index)
         target_dof_LID_cell = own_dofs_on_vef_iterator_target%get_current()
         source_dof_LID_cell = reference_fe_source%translate_dof_lid_n_face_to_dof_lid_cell(source_dof_LID_vef, source_ivef)
@@ -295,7 +295,7 @@ subroutine fe_iterator_fill_dofs_face_integration_coupling ( this, ivef, field_i
   type(list_iterator_t)          :: face_integration_coupling_dofs 
   
   reference_fe => this%get_reference_fe(field_id)
-  assert ( reference_fe%get_n_face_dimension(ivef) == reference_fe%get_num_dimensions()-1 )
+  assert ( reference_fe%get_n_face_dim(ivef) == reference_fe%get_num_dims()-1 )
   
   if ( reference_fe%get_continuity() ) then
     face_integration_coupling_dofs = reference_fe%create_dofs_on_n_face_iterator(ivef)

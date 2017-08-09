@@ -83,7 +83,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   assert(this%marching_cubes%mc_runtime_init)
   num_subnodes = this%get_num_subnodes()
   num_nodes = this%get_num_nodes()
-  num_dim = this%marching_cubes%triangulation%get_num_dimensions()
+  num_dim = this%marching_cubes%triangulation%get_num_dims()
   num_intersections = num_subnodes - num_nodes
   assert(num_subnodes > num_nodes)
 
@@ -113,7 +113,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   end do
 
   !Fix inverted sub-cells and sub-faces (only in 3D)
-  if (this%marching_cubes%triangulation%get_num_dimensions()==3) then
+  if (this%marching_cubes%triangulation%get_num_dims()==3) then
 
     ! Search for inverted sub-cells and reorient them
     this%marching_cubes%subcell_has_been_reoriented(:)=.false.
@@ -137,7 +137,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
 
   ! Update the quadrature
   quadrature => this%marching_cubes%subnodes_nodal_quadratures(mc_case)
-  assert(num_dim == quadrature%get_num_dimensions())
+  assert(num_dim == quadrature%get_num_dims())
   assert(num_subnodes == quadrature%get_num_quadrature_points())
   points_in_quadrature => quadrature%get_coordinates()
   do ipo = 1, num_subnodes
@@ -422,7 +422,7 @@ function unfitted_cell_iterator_subcell_has_been_reoriented(this,subcell) result
   ! Check it
   assert(1<=subcell .and. subcell <= this%get_num_subcells())
   assert(this%get_num_subcell_nodes()==4)
-  assert(this%marching_cubes%triangulation%get_num_dimensions() == 3)
+  assert(this%marching_cubes%triangulation%get_num_dims() == 3)
 
   ! Get connectivities and coordinates
   ! We assume that update_triangulation was called for this cell
@@ -456,7 +456,7 @@ function unfitted_cell_iterator_subface_touches_reoriented_subcell(this,subface)
   ! Check it
   assert(1<=subface .and. subface <= this%get_num_subfaces())
   assert(this%get_num_subcell_nodes()==4)
-  assert(this%marching_cubes%triangulation%get_num_dimensions() == 3)
+  assert(this%marching_cubes%triangulation%get_num_dims() == 3)
 
   ! Initialize result
   is_neighbour= .false.

@@ -31,19 +31,19 @@
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine void_reference_fe_create ( this, topology, num_dimensions, order, field_type, & 
+subroutine void_reference_fe_create ( this, topology, num_dims, order, field_type, & 
      &  conformity, continuity )
   implicit none 
   class(void_reference_fe_t), intent(inout) :: this
   character(*)                    , intent(in)    :: topology
-  integer(ip)                     , intent(in)    :: num_dimensions
+  integer(ip)                     , intent(in)    :: num_dims
   integer(ip)                     , intent(in)    :: order
   character(*)                    , intent(in)    :: field_type
   logical                         , intent(in)    :: conformity
   logical              , optional , intent(in)    :: continuity
 
   call this%free()
-  call this%set_common_data(num_dimensions, &
+  call this%set_common_data(num_dims, &
                             -1, & ! DIRTY :: order is equal to -1 for void FEs independently of the value passed by the user
                             field_type, &
                             conformity, &
@@ -59,7 +59,7 @@ subroutine void_reference_fe_create_quadrature ( this, quadrature, degree )
   class(void_reference_fe_t), intent(in)       :: this  
   type(quadrature_t)        , intent(inout)    :: quadrature
   integer(ip)           , optional, intent(in) :: degree
-  call quadrature%create( this%num_dimensions, 0 )
+  call quadrature%create( this%num_dims, 0 )
 end subroutine void_reference_fe_create_quadrature
 
 !==================================================================================================
@@ -68,9 +68,9 @@ subroutine void_reference_fe_create_face_quadrature ( this, quadrature, degree )
   class(void_reference_fe_t)      , intent(in)    :: this
   type(quadrature_t)              , intent(inout) :: quadrature
   integer(ip)           , optional, intent(in)    :: degree
-  integer(ip) :: face_dimensions
-  face_dimensions = this%num_dimensions - 1
-  call quadrature%create( face_dimensions, 0 )
+  integer(ip) :: face_dims
+  face_dims = this%num_dims - 1
+  call quadrature%create( face_dims, 0 )
 end subroutine void_reference_fe_create_face_quadrature
 
 !==================================================================================================
@@ -85,11 +85,11 @@ subroutine void_reference_fe_create_interpolation ( this, quadrature, &
   integer(ip) :: ntens, i
 
   ntens = 0
-  do i = 1, this%num_dimensions
+  do i = 1, this%num_dims
      ntens = ntens + i
   end do
 
-  call interpolation%create( this%num_dimensions, &
+  call interpolation%create( this%num_dims, &
                              this%num_shape_functions, &
                              quadrature%num_quadrature_points, &
                              ntens, &
@@ -110,7 +110,7 @@ subroutine void_reference_fe_create_face_interpolation( this,local_face_id, &
   type(interpolation_t)           , intent(inout) :: face_interpolation
 
   ! Allocate the arrays of the interpolation
-  call face_interpolation%create(this%num_dimensions,this%node_array%num_nodes, &
+  call face_interpolation%create(this%num_dims,this%node_array%num_nodes, &
        & local_quadrature%num_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
@@ -130,7 +130,7 @@ subroutine void_reference_fe_create_face_local_interpolation (this, quadrature, 
 
   aux_reference_fe = make_reference_fe ( this%topology, &
                                          this%fe_type, &
-                                         this%num_dimensions-1, &
+                                         this%num_dims-1, &
                                          this%order, &
                                          this%field_type, &
                                          this%conformity )
@@ -576,11 +576,11 @@ subroutine void_reference_fe_fill (this)
   
   ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
   if ( this%topology == topology_hex) then
-     topology = 2**this%num_dimensions-1
+     topology = 2**this%num_dims-1
   elseif ( this%topology == topology_tet ) then
      topology = 0
   end if
-  call this%polytope%create( this%num_dimensions, topology )  
+  call this%polytope%create( this%num_dims, topology )  
   
   !call this%node_array%create( this%polytope, this%order_vector ) 
   num_n_faces = this%polytope%get_num_n_faces()
@@ -588,15 +588,15 @@ subroutine void_reference_fe_fill (this)
   this%num_shape_functions = 0 !this%node_array%get_num_nodes()
   ! Number n-faces ( I don't like it, not volume included...)
   this%num_n_faces = num_n_faces-1
-  ! num_n-faces_dimension
-  this%num_n_faces_per_dimension = 0
-  this%num_n_faces_per_dimension(1) = 1
+  ! num_n-faces_dim
+  this%num_n_faces_per_dim = 0
+  this%num_n_faces_per_dim(1) = 1
   do i = 1,num_n_faces
-     n_face_dim = this%polytope%get_n_face_dimension(i)
-     this%num_n_faces_per_dimension( n_face_dim+2 ) = this%num_n_faces_per_dimension( n_face_dim+2 ) + 1
+     n_face_dim = this%polytope%get_n_face_dim(i)
+     this%num_n_faces_per_dim( n_face_dim+2 ) = this%num_n_faces_per_dim( n_face_dim+2 ) + 1
   end do
-  do i = 1,this%num_dimensions+1
-     this%num_n_faces_per_dimension(i+1) = this%num_n_faces_per_dimension(i+1) + this%num_n_faces_per_dimension(i)
+  do i = 1,this%num_dims+1
+     this%num_n_faces_per_dim(i+1) = this%num_n_faces_per_dim(i+1) + this%num_n_faces_per_dim(i)
   end do
   
   ! own_dofs_n-face
@@ -657,8 +657,8 @@ subroutine void_reference_fe_fill (this)
   ! orientation
   call this%orientation%create(num_n_faces)
   do i = 1,num_n_faces
-     if ( n_face_dimension( this%polytope%get_n_face(i), this%num_dimensions ) == this%num_dimensions-1 ) then
-        this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%num_dimensions )
+     if ( compute_n_face_dim( this%polytope%get_n_face(i), this%num_dims ) == this%num_dims-1 ) then
+        this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%num_dims )
      end if
   end do
   ! own_nodes_n-face and face_integration_coupling_nodes_n-face
@@ -678,11 +678,11 @@ subroutine void_reference_fe_fill (this)
   end if
 
   ! I (almost arbitrarily) decided NOT to allocate neither:
-  !  * num_rotations_per_dimension(:)
-  !  * num_orientations_per_dimension(:)
+  !  * num_rotations_per_dim(:)
+  !  * num_orientations_per_dim(:)
   !  * own_node_permutations(:)
   ! Up to my knowledge, they should never be queried on in case of void_reference_fe 
-  ! call memalloc (0, this%num_rotations_per_dimension,__FILE__,__LINE__)
-  ! call memalloc (0, this%num_orientations_per_dimension,__FILE__,__LINE__)
+  ! call memalloc (0, this%num_rotations_per_dim,__FILE__,__LINE__)
+  ! call memalloc (0, this%num_orientations_per_dim,__FILE__,__LINE__)
   ! allocate(this%own_node_permutations(0))
 end subroutine void_reference_fe_fill

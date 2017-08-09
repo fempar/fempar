@@ -152,7 +152,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   type(point_t)     , pointer   :: coordinates(:)
   real(rp)                      :: time_(1) 
   integer(ip)                   :: q_point, n_q_points
-  integer(ip)                   :: num_dimensions, idime, jdime
+  integer(ip)                   :: num_dims, idime, jdime
   real(rp)                      :: sum, gradient_component
   
   type(vector_field_t), pointer :: fe_function_values(:)

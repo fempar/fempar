@@ -46,7 +46,7 @@ module par_test_poisson_unfitted_params_names
        procedure, non_overridable, private    :: print_integer_switch
        procedure, non_overridable, private    :: print_real_switch
        procedure, non_overridable, private    :: print_logical_switch
-       !procedure, non_overridable             :: get_num_dimensions
+       !procedure, non_overridable             :: get_num_dims
        procedure, non_overridable             :: is_in_fe_space
        procedure, non_overridable             :: are_checks_active
   end type par_test_poisson_unfitted_params_t
@@ -73,7 +73,7 @@ contains
     error = list%set(key = dir_path_key            , value = '.') ; check(error==0)
     error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
     error = list%set(key = dir_path_out_key        , value = '.') ; check(error==0)
-    error = list%set(key = num_dimensions_key          , value =  2)                   ; check(error==0)
+    error = list%set(key = num_dims_key          , value =  2)                   ; check(error==0)
     error = list%set(key = num_cells_per_dir_key       , value =  [12,12,12])          ; check(error==0)
     error = list%set(key = is_dir_periodic_key               , value =  [0,0,0])             ; check(error==0)
     error = list%set(key = num_levels_key              , value =  3)                   ; check(error==0)
@@ -100,7 +100,7 @@ contains
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
     error = switches%set(key = prefix_key                    , value = '--prefix')                   ; check(error==0)
     error = switches%set(key = dir_path_out_key              , value = '--dir-path-out')             ; check(error==0)
-    error = switches%set(key = num_dimensions_key      , value = '--dim')                      ; check(error==0)
+    error = switches%set(key = num_dims_key      , value = '--dim')                      ; check(error==0)
     error = switches%set(key = num_cells_per_dir_key   , value = '--num_cells')          ; check(error==0)
     error = switches%set(key = num_levels_key          , value = '--num_levels')         ; check(error==0)
     error = switches%set(key = num_parts_per_dir_key   , value = '--num_parts_per_dir')  ; check(error==0)
@@ -125,7 +125,7 @@ contains
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
     error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
-    error = switches_ab%set(key = num_dimensions_key   , value = '-dm')      ; check(error==0)
+    error = switches_ab%set(key = num_dims_key   , value = '-dm')      ; check(error==0)
     error = switches_ab%set(key = num_cells_per_dir_key, value = '-n')        ; check(error==0) 
     error = switches_ab%set(key = num_levels_key       , value = '-l')        ; check(error==0)
     error = switches_ab%set(key = num_parts_per_dir_key, value = '-np')       ; check(error==0)
@@ -150,7 +150,7 @@ contains
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
     error = helpers%set(key = dir_path_out_key               , value = 'Output Directory')                         ; check(error==0)
-    error = helpers%set(key = num_dimensions_key       , value = 'Number of space dimensions')               ; check(error==0)
+    error = helpers%set(key = num_dims_key       , value = 'Number of space dimensions')               ; check(error==0)
     error = helpers%set(key = num_cells_per_dir_key    , value = 'Number of cells per dir')                  ; check(error==0)
     error = helpers%set(key = num_levels_key           , value = 'Number of levels')                         ; check(error==0)
     error = helpers%set(key = num_parts_per_dir_key    , value = 'Number of parts per dir and per level')    ; check(error==0)
@@ -187,7 +187,7 @@ contains
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
     error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
-    error = required%set(key = num_dimensions_key      , value = .false.) ; check(error==0)
+    error = required%set(key = num_dims_key      , value = .false.) ; check(error==0)
     error = required%set(key = num_cells_per_dir_key   , value = .false.) ; check(error==0)
     error = required%set(key = num_levels_key          , value = .false.) ; check(error==0)
     error = required%set(key = num_parts_per_dir_key   , value = .false.) ; check(error==0)

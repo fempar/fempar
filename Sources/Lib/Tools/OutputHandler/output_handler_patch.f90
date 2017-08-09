@@ -114,7 +114,7 @@ private
     !-----------------------------------------------------------------
     private
         character(len=:), allocatable              :: cell_type
-        integer(ip)                                :: num_dimensions           = 0
+        integer(ip)                                :: num_dims           = 0
         integer(ip)                                :: num_points               = 0
         integer(ip)                                :: num_fields               = 0
         integer(ip)                                :: num_cell_vectors         = 0
@@ -127,7 +127,7 @@ private
     contains
     private
         procedure, non_overridable, public :: set_cell_type                   => output_handler_patch_set_cell_type
-        procedure, non_overridable, public :: set_num_dimensions           => output_handler_patch_set_num_dimensions
+        procedure, non_overridable, public :: set_num_dims           => output_handler_patch_set_num_dims
         procedure, non_overridable, public :: set_num_points               => output_handler_patch_set_num_points
         procedure, non_overridable, public :: set_num_subcells             => output_handler_patch_set_num_subcells
         procedure, non_overridable, public :: set_num_vertices_per_subcell => output_handler_patch_set_num_vertices_per_subcell
@@ -135,7 +135,7 @@ private
         procedure, non_overridable, public :: create                          => output_handler_patch_create
         procedure, non_overridable, public :: free                            => output_handler_patch_free
         procedure, non_overridable, public :: get_cell_type                   => output_handler_patch_get_cell_type
-        procedure, non_overridable, public :: get_num_dimensions           => output_handler_patch_get_num_dimensions
+        procedure, non_overridable, public :: get_num_dims           => output_handler_patch_get_num_dims
         procedure, non_overridable, public :: get_subcells_connectivity       => output_handler_patch_get_subcells_connectivity
         procedure, non_overridable, public :: get_num_fields               => output_handler_patch_get_num_fields
         procedure, non_overridable, public :: get_num_cell_vectors         => output_handler_patch_get_num_cell_vectors
@@ -166,7 +166,7 @@ private
         procedure, non_overridable, public :: create                      => patch_subcell_accessor_create
         procedure, non_overridable, public :: free                        => patch_subcell_accessor_free
         procedure, non_overridable, public :: get_cell_type               => patch_subcell_accessor_get_cell_type
-        procedure, non_overridable, public :: get_num_dimensions       => patch_subcell_accessor_get_num_dimensions
+        procedure, non_overridable, public :: get_num_dims       => patch_subcell_accessor_get_num_dims
         procedure, non_overridable, public :: get_num_vertices         => patch_subcell_accessor_get_num_vertices
         procedure, non_overridable, public :: get_connectivity            => patch_subcell_accessor_get_connectivity
         procedure, non_overridable, public :: get_num_fields           => patch_subcell_accessor_get_num_fields
@@ -380,15 +380,15 @@ contains
     end subroutine output_handler_patch_set_cell_type
 
 
-    subroutine output_handler_patch_set_num_dimensions(this, num_dimensions)
+    subroutine output_handler_patch_set_num_dims(this, num_dims)
     !-----------------------------------------------------------------
     !< Set the number of dimensions of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(inout) :: this
-        integer(ip),                   intent(in)    :: num_dimensions
+        integer(ip),                   intent(in)    :: num_dims
     !-----------------------------------------------------------------
-        this%num_dimensions = num_dimensions
-    end subroutine output_handler_patch_set_num_dimensions
+        this%num_dims = num_dims
+    end subroutine output_handler_patch_set_num_dims
 
 
     subroutine output_handler_patch_set_num_points(this, num_points)
@@ -447,15 +447,15 @@ contains
     end function output_handler_patch_get_cell_type
 
 
-    pure function output_handler_patch_get_num_dimensions(this) result(num_dimensions)
+    pure function output_handler_patch_get_num_dims(this) result(num_dims)
     !-----------------------------------------------------------------
     !< Return the number of dimensions of the [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(output_handler_patch_t), intent(in) :: this
-        integer(ip)                               :: num_dimensions
+        integer(ip)                               :: num_dims
     !-----------------------------------------------------------------
-        num_dimensions = this%num_dimensions
-    end function output_handler_patch_get_num_dimensions
+        num_dims = this%num_dims
+    end function output_handler_patch_get_num_dims
 
 
     function output_handler_patch_get_num_subcells(this) result(num_subcells)
@@ -678,15 +678,15 @@ contains
     end function patch_subcell_accessor_get_cell_type
 
 
-    pure function patch_subcell_accessor_get_num_dimensions(this) result(num_dimensions)
+    pure function patch_subcell_accessor_get_num_dims(this) result(num_dims)
     !-----------------------------------------------------------------
     !< Return the number of dimensions of the current [[output_handler_patch_t(type)]]
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t), intent(in) :: this
-        integer(ip)                                 :: num_dimensions
+        integer(ip)                                 :: num_dims
     !-----------------------------------------------------------------
-        num_dimensions = this%patch%get_num_dimensions()
-    end function patch_subcell_accessor_get_num_dimensions
+        num_dims = this%patch%get_num_dims()
+    end function patch_subcell_accessor_get_num_dims
 
 
     pure function patch_subcell_accessor_get_num_vertices(this) result(num_vertices)
@@ -710,18 +710,18 @@ contains
         real(rp),                               intent(inout) :: Z(this%patch%get_num_vertices_per_subcell())
         type(point_t),                 pointer                :: patch_coordinates(:)
         type(allocatable_array_ip2_t), pointer                :: subcells_connectivity
-        integer(ip)                                           :: num_dimensions
+        integer(ip)                                           :: num_dims
         integer(ip)                                           :: num_vertices
         integer(ip)                                           :: vertex
     !-----------------------------------------------------------------
         num_vertices       =  this%get_num_vertices()
-        num_dimensions     =  this%get_num_dimensions()
+        num_dims     =  this%get_num_dims()
         patch_coordinates     => this%patch%get_coordinates()
         subcells_connectivity => this%patch%get_subcells_connectivity()
         do vertex = 1, num_vertices
-            if(num_dimensions>=1) X(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(1)
-            if(num_dimensions>=2) Y(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(2)
-            if(num_dimensions>=3) Z(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(3)
+            if(num_dims>=1) X(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(1)
+            if(num_dims>=2) Y(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(2)
+            if(num_dims>=3) Z(vertex) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(3)
         end do
     end subroutine patch_subcell_accessor_get_coordinates_X_Y_Z
 
@@ -731,7 +731,7 @@ contains
     !< Return [[patch_subcell_accessor_t(type)]] coordinates (x1,y1,z1,x2,y2,z2,...)
     !-----------------------------------------------------------------
         class(patch_subcell_accessor_t),        intent(in)    :: this
-        real(rp),                               intent(inout) :: XYZ(this%patch%get_num_vertices_per_subcell()*this%patch%get_num_dimensions())
+        real(rp),                               intent(inout) :: XYZ(this%patch%get_num_vertices_per_subcell()*this%patch%get_num_dims())
         type(point_t),                 pointer                :: patch_coordinates(:)
         type(allocatable_array_ip2_t), pointer                :: subcells_connectivity
         integer(ip)                                           :: num_vertices
@@ -744,7 +744,7 @@ contains
         subcells_connectivity => this%patch%get_subcells_connectivity()
         counter = 1
         do vertex = 1, num_vertices
-            do dim = 1, this%get_num_dimensions()
+            do dim = 1, this%get_num_dims()
                 XYZ(counter) = patch_coordinates(subcells_connectivity%a(vertex, this%current_subcell))%get(dim)
                 counter = counter + 1
             enddo

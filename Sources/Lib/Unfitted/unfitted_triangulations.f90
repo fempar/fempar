@@ -174,7 +174,7 @@ module unfitted_triangulations_names
     procedure, non_overridable :: get_max_num_nodes_in_subface  => marching_cubes_get_max_num_nodes_in_subface
     procedure, non_overridable :: get_total_num_subfaces     => marching_cubes_get_total_num_subfaces
     procedure, non_overridable :: get_max_num_subnodes_in_cell  => marching_cubes_get_max_num_subnodes_in_cell
-    procedure, non_overridable :: get_num_dimensions            => marching_cubes_get_num_dimensions
+    procedure, non_overridable :: get_num_dims            => marching_cubes_get_num_dims
     
     ! Getters related with the mc algorithm
     procedure, non_overridable :: get_num_mc_cases              => marching_cubes_get_num_mc_cases

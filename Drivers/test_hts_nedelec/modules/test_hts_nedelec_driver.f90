@@ -189,14 +189,14 @@ contains
     
     this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,                                          &
                                                  fe_type = fe_type_nedelec,                                        &
-                                                 num_dimensions = this%triangulation%get_num_dimensions(),      &
+                                                 num_dims = this%triangulation%get_num_dims(),      &
                                                  order = this%test_params%get_magnetic_field_reference_fe_order(), &
                                                  field_type = field_type_vector,                                   &
                                                  conformity = .true. ) 
     
     this%reference_fes(2) =  make_reference_fe ( topology = topology_tet,                                             &
                                                  fe_type = fe_type_lagrangian,                                        &
-                                                 num_dimensions = this%triangulation%get_num_dimensions(),         &
+                                                 num_dims = this%triangulation%get_num_dims(),         &
                                                  order = this%test_params%get_magnetic_pressure_reference_fe_order(), &
                                                  field_type = field_type_scalar,                                      &
                                                  conformity = .true. ) 
@@ -223,7 +223,7 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
 
-    call this%hts_nedelec_conditions%set_num_dimensions( this%triangulation%get_num_dimensions() + 1)
+    call this%hts_nedelec_conditions%set_num_dims( this%triangulation%get_num_dims() + 1)
     call this%problem_functions%initialize( H  = this%test_params%get_external_magnetic_field_amplitude(),  &
                                             wH = this%test_params%get_external_magnetic_field_frequency(),  &
                                             J  = this%test_params%get_external_current_amplitude(),         &
@@ -251,7 +251,7 @@ contains
     call dof_values_current%init(0.0_rp) 
     call dof_values_previous%init(0.0_rp) 
     
-    call this%problem_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%hts_nedelec_integration%create( this%theta_method, this%H_current, this%H_previous, &
                                               this%test_params, this%problem_functions%get_source_term() )
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -264,7 +264,7 @@ contains
     call this%hts_nedelec_conditions%set_boundary_function_p(this%problem_functions%get_boundary_function_p())
     call this%hts_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
     call this%hts_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
-    if ( this%triangulation%get_num_dimensions() == 3) then 
+    if ( this%triangulation%get_num_dims() == 3) then 
        call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
     end if
     ! Create H_previous with initial time (t0) boundary conditions 
@@ -342,7 +342,7 @@ contains
     allocate( elem2dof(num_fields), stat=istat); check(istat==0);
     
         ! ================================  2D CASE, integrate over entire HTS section ================
-    if ( this%triangulation%get_num_dimensions() == 2) then  
+    if ( this%triangulation%get_num_dims() == 2) then  
     
     quad           => fe%get_quadrature()
     fe_map         => fe%get_fe_map() 
@@ -380,7 +380,7 @@ contains
        call fe%next()
     end do    
     ! ================================   3D CASE, only integrate over z-normal faces ===================
-    elseif ( this%triangulation%get_num_dimensions() == 3) then 
+    elseif ( this%triangulation%get_num_dims() == 3) then 
     
        call this%fe_space%initialize_fe_face_integration()
 

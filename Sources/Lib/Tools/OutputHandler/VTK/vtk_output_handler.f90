@@ -306,14 +306,14 @@ contains
         real(rp),                        pointer   :: FieldValue(:,:)
         real(rp),                        pointer   :: CellValue(:)
         integer(ip)                                :: num_vertices
-        integer(ip)                                :: num_dimensions
+        integer(ip)                                :: num_dims
         integer(ip)                                :: num_fields
         integer(ip)                                :: num_cell_vectors
         integer(ip)                                :: num_components
         integer(ip)                                :: i
     !-----------------------------------------------------------------
         num_vertices     = subcell_accessor%get_num_vertices()
-        num_dimensions   = subcell_accessor%get_num_dimensions()
+        num_dims   = subcell_accessor%get_num_dims()
         num_fields       = this%get_num_fields()
         num_cell_vectors = this%get_num_cell_vectors()
 
@@ -341,7 +341,7 @@ contains
         enddo
 
         this%Offset(this%cell_offset) = this%node_offset
-        this%CellTypes(this%cell_offset) = topology_to_vtk_celltype(subcell_accessor%get_cell_type(), num_dimensions)
+        this%CellTypes(this%cell_offset) = topology_to_vtk_celltype(subcell_accessor%get_cell_type(), num_dims)
 
     end subroutine vtk_output_handler_append_cell
 

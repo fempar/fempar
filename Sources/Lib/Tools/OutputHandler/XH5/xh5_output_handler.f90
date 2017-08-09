@@ -261,17 +261,17 @@ contains
         class(xh5_output_handler_t), intent(inout) :: this
         integer(ip)                                :: num_nodes
         integer(ip)                                :: num_cells
-        integer(ip)                                :: num_dimensions
+        integer(ip)                                :: num_dims
         type(output_handler_fe_field_t), pointer   :: field
         integer(ip)                                :: i
     !-----------------------------------------------------------------
         num_nodes      = this%get_num_nodes()
         num_cells      = this%get_num_cells()
-        num_dimensions = this%get_num_dimensions()
+        num_dims = this%get_num_dims()
         if(allocated(this%XYZ)) then
-            call memrealloc(num_nodes*num_dimensions, this%XYZ,            __FILE__, __LINE__)
+            call memrealloc(num_nodes*num_dims, this%XYZ,            __FILE__, __LINE__)
         else
-            call memalloc(  num_nodes*num_dimensions, this%XYZ,            __FILE__, __LINE__)
+            call memalloc(  num_nodes*num_dims, this%XYZ,            __FILE__, __LINE__)
         endif
         if(this%has_mixed_cell_topologies()) then
             if(allocated(this%Connectivities)) then
@@ -308,7 +308,7 @@ contains
         integer(ip), allocatable                   :: Connectivity(:)
         real(rp),                        pointer   :: Value(:)
         integer(ip)                                :: num_vertices
-        integer(ip)                                :: num_dimensions
+        integer(ip)                                :: num_dims
         integer(ip)                                :: num_fields
         integer(ip)                                :: num_cell_vectors
         integer(ip)                                :: num_components
@@ -316,19 +316,19 @@ contains
         integer(ip)                                :: i
     !-----------------------------------------------------------------
         num_vertices   = subcell_accessor%get_num_vertices()
-        num_dimensions = subcell_accessor%get_num_dimensions()
+        num_dims = subcell_accessor%get_num_dims()
         num_fields     = this%get_num_fields()
         num_cell_vectors = this%get_num_cell_vectors()
 
 
         if(.not. this%StaticGrid .or. this%num_steps <= 1) then
             call subcell_accessor%get_coordinates(this%XYZ( &
-                                this%node_offset*num_dimensions+1:(this%node_offset+num_vertices)*num_dimensions) )
+                                this%node_offset*num_dims+1:(this%node_offset+num_vertices)*num_dims) )
 
             if(this%has_mixed_cell_topologies()) then
                 ! Add element topology ID before its connectivities
                 connectivities_offset = this%node_offset+this%cell_offset
-                this%Connectivities(connectivities_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), num_dimensions)
+                this%Connectivities(connectivities_offset+1) = topology_to_xh5_celltype(subcell_accessor%get_cell_type(), num_dims)
                 connectivities_offset = connectivities_offset+1
             else
                 connectivities_offset = this%node_offset
@@ -337,7 +337,7 @@ contains
 
             select case (subcell_accessor%get_cell_type())
                 case (topology_hex) 
-                    select case (num_dimensions)
+                    select case (num_dims)
                         case (2)
                             this%Connectivities(connectivities_offset+1:connectivities_offset+num_vertices) = &
                                     [0,1,3,2]+this%node_offset
@@ -404,9 +404,9 @@ contains
             np = environment%get_l1_size()
 
             if(.not. this%StaticGrid .or. this%num_steps <= 1) then                 
-                geometry_type = dimensions_to_xh5_unstructured_GeometryType(this%get_num_dimensions())
+                geometry_type = dimensions_to_xh5_unstructured_GeometryType(this%get_num_dims())
                 if(allocated(this%CellType) .and.  .not. this%has_mixed_cell_topologies()) then
-                    topology_type = topology_to_xh5_topologytype(this%CellType, this%get_num_dimensions())
+                    topology_type = topology_to_xh5_topologytype(this%CellType, this%get_num_dims())
                 else
                     topology_type = XDMF_TOPOLOGY_TYPE_MIXED
                 endif

@@ -91,7 +91,7 @@ module polynomial_names
  
   type :: tensor_product_polynomial_space_t
      private
-     integer(ip)                          :: num_dimensions
+     integer(ip)                          :: num_dims
      integer(ip)                          :: num_polynomials
      integer(ip)                          :: num_pols_dim(SPACE_DIM)
      type(polynomial_basis_t) :: polynomial_1D_basis(SPACE_DIM)

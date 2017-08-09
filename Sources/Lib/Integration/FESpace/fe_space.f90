@@ -264,7 +264,7 @@ module fe_space_names
      procedure, non_overridable          :: get_coordinates           => base_fe_vef_iterator_get_coordinates
      procedure, non_overridable          :: get_set_id                => base_fe_vef_iterator_get_set_id
      
-     procedure, non_overridable          :: get_dimension             => base_fe_vef_iterator_get_dimension
+     procedure, non_overridable          :: get_dim             => base_fe_vef_iterator_get_dim
      procedure, non_overridable          :: is_at_boundary            => base_fe_vef_iterator_is_at_boundary
      procedure, non_overridable          :: is_local                  => base_fe_vef_iterator_is_local
      procedure, non_overridable          :: is_ghost                  => base_fe_vef_iterator_is_ghost
@@ -468,7 +468,7 @@ module fe_space_names
      procedure                 , private :: renum_dofs_block                          => serial_fe_space_renum_dofs_block
  
      ! Getters
-     procedure                           :: get_num_dimensions                           => serial_fe_space_get_num_dimensions
+     procedure                           :: get_num_dims                           => serial_fe_space_get_num_dims
      procedure, non_overridable          :: get_num_reference_fes                     => serial_fe_space_get_num_reference_fes
      procedure, non_overridable          :: get_reference_fe                             => serial_fe_space_get_reference_fe
      procedure, non_overridable          :: get_field_type                               => serial_fe_space_get_field_type 
@@ -515,7 +515,7 @@ module fe_space_names
    procedure                            :: has_finished                          => base_fe_object_iterator_has_finished
    procedure, non_overridable           :: get_lid                               => base_fe_object_iterator_get_lid
    procedure, non_overridable           :: get_gid                               => base_fe_object_iterator_get_gid
-   procedure, non_overridable           :: get_dimension                         => base_fe_object_iterator_get_dimension
+   procedure, non_overridable           :: get_dim                         => base_fe_object_iterator_get_dim
    procedure, non_overridable           :: get_num_parts_around               => base_fe_object_iterator_get_num_parts_around
    procedure, non_overridable           :: get_num_subparts_around            => base_fe_object_iterator_get_num_subparts_around
    procedure, non_overridable           :: create_parts_around_iterator          => base_fe_object_iterator_create_parts_around_iterator

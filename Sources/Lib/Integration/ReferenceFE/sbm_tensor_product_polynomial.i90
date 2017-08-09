@@ -34,7 +34,7 @@ subroutine tensor_product_polynomial_space_create( this, dim, polynomial_1D_basi
   type(polynomial_basis_t)    , intent(in)        :: polynomial_1D_basis(:)
   integer(ip) :: i
   
-  this%num_dimensions = dim
+  this%num_dims = dim
   this%num_polynomials = 1
   do i = 1, dim
      call this%polynomial_1D_basis(i)%copy(polynomial_1D_basis(i))
@@ -47,7 +47,7 @@ subroutine tensor_product_polynomial_space_free( this )
   implicit none
   class(tensor_product_polynomial_space_t), intent(inout)    :: this
   integer(ip) :: i
-  do i=1,this%num_dimensions
+  do i=1,this%num_dims
   call this%work_shape_data(i)%free()
   call this%polynomial_1D_basis(i)%free()
   end do
@@ -66,17 +66,17 @@ subroutine tensor_product_polynomial_space_fill( this, points )
   real(rp)                                , intent(in)    :: points(:,:)
   integer(ip)                 :: n_q_points, i, j, q
   
-  do i=1,this%num_dimensions
+  do i=1,this%num_dims
   call this%work_shape_data(i)%free()
   end do
   n_q_points = size(points,2)
-  do i=1, this%num_dimensions
+  do i=1, this%num_dims
      call this%work_shape_data(i)%create(NUM_POLY_DERIV, &
                                         size(this%polynomial_1D_basis(i)%polynomials), &
                                         n_q_points)
   end do
   ! Can we make it more efficient having an array of points
-  do i = 1,this%num_dimensions
+  do i = 1,this%num_dims
      do j = 1,size(this%polynomial_1D_basis(i)%polynomials)
           do q = 1,n_q_points
              call this%polynomial_1D_basis(i)%polynomials(j)%get_values(points(i,q),this%work_shape_data(i)%a(:,j,q))
@@ -96,10 +96,10 @@ subroutine tensor_product_polynomial_space_evaluate( this, q_point, values, grad
   
   !write(*,*) 'iq',q_point
   do ishape = 1, this%num_polynomials
-     call index_to_ijk(ishape, this%num_dimensions, this%num_pols_dim, ijk)
+     call index_to_ijk(ishape, this%num_dims, this%num_pols_dim, ijk)
         !write(*,*) 'ishape',ishape
         !write(*,*) 'ishape_ijk',ijk
-     do idime = 1, this%num_dimensions
+     do idime = 1, this%num_dims
         !write(*,*) 'iq',q_point
         !write(*,*) 'dim_tensor',idime
         !write(*,*) 'value pol scalar', this%work_shape_data(idime)%a(1,ijk(idime),q_point)          
@@ -110,10 +110,10 @@ subroutine tensor_product_polynomial_space_evaluate( this, q_point, values, grad
      !write(*,*) 'final value',values(ishape)
   end do
   do ishape = 1, this%num_polynomials
-     call index_to_ijk(ishape, this%num_dimensions, this%num_pols_dim, ijk)
-     do idime = 1, this%num_dimensions
+     call index_to_ijk(ishape, this%num_dims, this%num_pols_dim, ijk)
+     do idime = 1, this%num_dims
         gradients(idime,ishape) = this%work_shape_data(idime)%a(2,ijk(idime),q_point)
-        do jdime = 1, this%num_dimensions
+        do jdime = 1, this%num_dims
            if ( jdime /= idime ) then
               gradients(idime,ishape) = & 
                  gradients(idime,ishape) * this%work_shape_data(jdime)%a(1,ijk(jdime),q_point)
@@ -132,7 +132,7 @@ subroutine truncated_tensor_product_polynomial_space_create ( this, dim, polynom
   type(polynomial_basis_t), intent(in)    :: polynomial_1D_basis(:)
   integer(ip) :: i, j, work_array(3), max_polynomials, ijk(SPACE_DIM)
   
-  this%num_dimensions = dim
+  this%num_dims = dim
   this%num_polynomials = 1
   this%num_pols_dim = 1
   max_polynomials = 1
@@ -147,7 +147,7 @@ subroutine truncated_tensor_product_polynomial_space_create ( this, dim, polynom
   i = 0
   this%num_polynomials = 0
   countp : do i=1,max_polynomials
-     call index_to_ijk(i,this%num_dimensions, this%num_pols_dim, ijk)
+     call index_to_ijk(i,this%num_dims, this%num_pols_dim, ijk)
      do j=1,dim
         if (ijk(j) > this%num_pols_dim(j))  cycle countp
      end do
@@ -167,23 +167,23 @@ subroutine truncated_tensor_product_polynomial_space_evaluate(this, q_point, val
   
   
   max_polynomials = 1
-  do i = 1, this%num_dimensions
+  do i = 1, this%num_dims
      max_polynomials = max_polynomials*this%num_pols_dim(i)
   end do
   values = 1.0_rp
   gradients = 0.0_rp
-  gradients(1:this%num_dimensions,:) = 1.0_rp
+  gradients(1:this%num_dims,:) = 1.0_rp
   ishape = 1
   countp : do i=1,max_polynomials
-     call index_to_ijk(i,this%num_dimensions, this%num_pols_dim, ijk)
-     do j=1,this%num_dimensions
+     call index_to_ijk(i,this%num_dims, this%num_pols_dim, ijk)
+     do j=1,this%num_dims
         if (ijk(j) > this%num_pols_dim(j))  cycle countp
      end do
      if (sum(ijk)-SPACE_DIM < maxval(this%num_pols_dim)) then
-        do idime=1,this%num_dimensions
+        do idime=1,this%num_dims
            values(ishape) = values(ishape)*this%work_shape_data(idime)%a(1,ijk(idime),q_point) 
            gradients(idime,ishape) = gradients(idime,ishape)*this%work_shape_data(idime)%a(2,ijk(idime),q_point)
-           do jdime=1,this%num_dimensions
+           do jdime=1,this%num_dims
               if (idime /= jdime) then
                  gradients(idime,ishape) = gradients(idime,ishape)*this%work_shape_data(jdime)%a(1,ijk(jdime),q_point)
               end if

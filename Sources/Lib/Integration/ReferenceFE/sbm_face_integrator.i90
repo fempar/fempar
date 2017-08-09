@@ -108,7 +108,7 @@ subroutine face_maps_create(this, quadrature, left_geo_reference_fe, right_geo_r
 
   this%is_boundary = (.not. associated(right_geo_reference_fe))
 
-  this%num_dimensions = left_geo_reference_fe%get_num_dimensions()
+  this%num_dims = left_geo_reference_fe%get_num_dims()
   call this%face_map%create(quadrature,left_geo_reference_fe)
   call this%fe_maps(1)%create(quadrature,left_geo_reference_fe)
   if (associated(right_geo_reference_fe)) then
@@ -228,7 +228,7 @@ subroutine face_maps_get_normals (this, qpoint, normal)
   integer(ip) :: idime
   call normal(1)%init(0.0_rp)
   call normal(2)%init(0.0_rp)
-  do idime = 1, this%num_dimensions
+  do idime = 1, this%num_dims
      call normal(1)%set(idime,this%face_map%normals(idime,qpoint))
      call normal(2)%set(idime,- this%face_map%normals(idime,qpoint))
   end do

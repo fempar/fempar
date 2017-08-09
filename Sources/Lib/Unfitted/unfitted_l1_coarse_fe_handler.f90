@@ -336,7 +336,7 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
   do while ( .not. object%has_finished() )
 
     ! Check if c, ce, or cef, and skip object accordingly
-    select case ( object%get_dimension() )
+    select case ( object%get_dim() )
     case (0)
       if (.not. use_vertices) then
         call object%next(); cycle
@@ -479,7 +479,7 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   do while ( .not. object%has_finished() )
 
     ! Skip objects that are not edges
-    if (object%get_dimension() .ne. 1) then
+    if (object%get_dim() .ne. 1) then
       call object%next(); cycle
     end if
 

@@ -157,13 +157,13 @@ function vef_iterator_get_geom_id(this)
   vef_iterator_get_geom_id = this%base_static_triangulation%vefs_geometry(this%lid)
 end function vef_iterator_get_geom_id  
 
-subroutine vef_iterator_set_dimension(this,vef_dim)
+subroutine vef_iterator_set_dim(this,vef_dim)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: vef_dim
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
   this%base_static_triangulation%vefs_type(this%lid) = (this%base_static_triangulation%vefs_type(this%lid)/10) * 10 + vef_dim
-end subroutine vef_iterator_set_dimension
+end subroutine vef_iterator_set_dim
 
 subroutine vef_iterator_set_it_at_boundary(this)
   implicit none
@@ -201,13 +201,13 @@ subroutine vef_iterator_set_it_as_ghost(this)
   this%base_static_triangulation%vefs_type(this%lid) = 200 + vef_dim_and_bound
 end subroutine vef_iterator_set_it_as_ghost
 
-function vef_iterator_get_dimension(this)
+function vef_iterator_get_dim(this)
   implicit none
   class(vef_iterator_t), intent(in) :: this
-  integer(ip) :: vef_iterator_get_dimension
+  integer(ip) :: vef_iterator_get_dim
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  vef_iterator_get_dimension  = mod(this%base_static_triangulation%vefs_type(this%lid),10)
-end function vef_iterator_get_dimension
+  vef_iterator_get_dim  = mod(this%base_static_triangulation%vefs_type(this%lid),10)
+end function vef_iterator_get_dim
 
 function vef_iterator_is_at_boundary (this)
   implicit none
@@ -238,7 +238,7 @@ function vef_iterator_is_face (this)
   class(vef_iterator_t), intent(in) :: this
   logical :: vef_iterator_is_face
   assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  vef_iterator_is_face  = (this%base_static_triangulation%get_num_dimensions()-1 == this%get_dimension())
+  vef_iterator_is_face  = (this%base_static_triangulation%get_num_dims()-1 == this%get_dim())
 end function vef_iterator_is_face
 
 function vef_iterator_is_ghost (this)

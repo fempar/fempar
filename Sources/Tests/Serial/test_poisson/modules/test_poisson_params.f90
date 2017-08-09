@@ -44,7 +44,7 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_write_solution
      character(len=:), allocatable :: default_laplacian_type
      character(len=:), allocatable :: default_triangulation_type
-     character(len=:), allocatable :: default_num_dimensions
+     character(len=:), allocatable :: default_num_dims
      character(len=:), allocatable :: default_nx
      character(len=:), allocatable :: default_ny
      character(len=:), allocatable :: default_nz
@@ -67,7 +67,7 @@ module test_poisson_params_names
      character(len=str_cla_len)    :: laplacian_type
 
      character(len=str_cla_len)    :: triangulation_type
-     integer(ip) :: num_dimensions     
+     integer(ip) :: num_dims     
      integer(ip) :: num_cells_per_dir(0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
      
@@ -89,7 +89,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
-     procedure, non_overridable             :: get_num_dimensions
+     procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_use_void_fes
      procedure, non_overridable             :: get_use_void_fes_case
   end type test_poisson_params_t  
@@ -132,7 +132,7 @@ contains
     this%default_laplacian_type = 'scalar'
     
     this%default_triangulation_type = 'unstructured'
-    this%default_num_dimensions = '2'
+    this%default_num_dims = '2'
     this%default_nx = '1'
     this%default_ny = '1'
     this%default_nz = '1'
@@ -183,8 +183,8 @@ contains
     call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
          &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
     check(error==0) 
-    call this%cli%add(switch='--num_dimensions',switch_ab='-dim',help='Number of space dimensions',&
-         &            required=.false.,act='store',def=trim(this%default_num_dimensions),error=error) 
+    call this%cli%add(switch='--num_dims',switch_ab='-dim',help='Number of space dimensions',&
+         &            required=.false.,act='store',def=trim(this%default_num_dims),error=error) 
     check(error==0) 
     call this%cli%add(switch='--num_cells_in_x',switch_ab='-nx',help='Number of cells in x',&
          &            required=.false.,act='store',def=trim(this%default_nx),error=error) 
@@ -234,7 +234,7 @@ contains
     call this%cli%get(switch='-lt',val=this%laplacian_type,error=istat); check(istat==0)
 
     call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
-    call this%cli%get(switch='-dim',val=this%num_dimensions,error=istat); check(istat==0)
+    call this%cli%get(switch='-dim',val=this%num_dims,error=istat); check(istat==0)
     call this%cli%get(switch='-nx',val=this%num_cells_per_dir(0),error=istat); check(istat==0)
     call this%cli%get(switch='-ny',val=this%num_cells_per_dir(1),error=istat); check(istat==0)
     call this%cli%get(switch='-nz',val=this%num_cells_per_dir(2),error=istat); check(istat==0)
@@ -255,7 +255,7 @@ contains
        istat = parameter_list%set(key = triangulation_generate_key, value = triangulation_generate_from_mesh)
     else if(trim(this%triangulation_type)=='structured') then
        istat = parameter_list%set(key = triangulation_generate_key         , value = triangulation_generate_structured)
-       istat = istat + parameter_list%set(key = num_dimensions_key   , value = this%num_dimensions)
+       istat = istat + parameter_list%set(key = num_dims_key   , value = this%num_dims)
        istat = istat + parameter_list%set(key = num_cells_per_dir_key, value = this%num_cells_per_dir)
        istat = istat + parameter_list%set(key = is_dir_periodic_key        , value = this%is_dir_periodic)
     end if
@@ -351,12 +351,12 @@ contains
   end function get_triangulation_type 
   
   !==================================================================================================
-  function get_num_dimensions(this)
+  function get_num_dims(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
-    integer(ip) :: get_num_dimensions
-    get_num_dimensions = this%num_dimensions
-  end function get_num_dimensions
+    integer(ip) :: get_num_dims
+    get_num_dims = this%num_dims
+  end function get_num_dims
   
   !==================================================================================================
   function get_use_void_fes(this)

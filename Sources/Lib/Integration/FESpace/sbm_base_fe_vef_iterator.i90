@@ -81,13 +81,13 @@ subroutine base_fe_vef_iterator_get_coordinates (this, vef_coordinates)
   call this%vef%get_coordinates(vef_coordinates)
 end subroutine base_fe_vef_iterator_get_coordinates
 
-function base_fe_vef_iterator_get_dimension(this)
+function base_fe_vef_iterator_get_dim(this)
   implicit none
   class(base_fe_vef_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_vef_iterator_get_dimension
+  integer(ip) :: base_fe_vef_iterator_get_dim
   assert(allocated(this%vef))
-  base_fe_vef_iterator_get_dimension  = this%vef%get_dimension()
-end function base_fe_vef_iterator_get_dimension
+  base_fe_vef_iterator_get_dim  = this%vef%get_dim()
+end function base_fe_vef_iterator_get_dim
 
 function base_fe_vef_iterator_is_at_boundary (this)
   implicit none
