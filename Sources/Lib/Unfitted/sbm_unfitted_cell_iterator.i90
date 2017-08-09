@@ -71,7 +71,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   type(quadrature_t), pointer :: quadrature
   real(rp), pointer :: points_in_quadrature(:,:)
   type(point_t),  pointer :: phys_cell_coords(:)
-  type(fe_map_t), pointer :: fe_map
+  type(cell_map_t), pointer :: cell_map
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: subcell_nodes(4)
   integer(ip) :: subfacet_nodes(3)
@@ -147,14 +147,14 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   end do
 
   ! Prepare the fe map
-  fe_map => this%marching_cubes%subnodes_fe_maps(mc_case)
+  cell_map => this%marching_cubes%subnodes_cell_maps(mc_case)
   reference_fe_geo => this%get_reference_fe_geo()
-  call fe_map%update_interpolation( quadrature, reference_fe_geo )
-  phys_cell_coords => fe_map%get_coordinates()
+  call cell_map%update_interpolation( quadrature, reference_fe_geo )
+  phys_cell_coords => cell_map%get_coordinates()
   call this%get_coordinates(phys_cell_coords)
-  call fe_map%compute_quadrature_points_coordinates()
+  call cell_map%compute_quadrature_points_coordinates()
 
-  ! At this point we can extract the physical coordinates of the sub-nodes from the fe_maps
+  ! At this point we can extract the physical coordinates of the sub-nodes from the cell_maps
 
 end subroutine unfitted_cell_iterator_update_sub_triangulation
 
@@ -201,7 +201,7 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subcell( this, subcell, poi
 
   integer(ip) :: num_nodes_subcell, mc_case
   type(point_t), pointer :: subnodes_phys_coords(:)
-  type(fe_map_t), pointer :: fe_map
+  type(cell_map_t), pointer :: cell_map
   integer(ip), pointer ::  subcell_node_ids(:)
 
   assert(this%is_local())
@@ -212,8 +212,8 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subcell( this, subcell, poi
   assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells())  )
 
   mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
-  fe_map => this%marching_cubes%subnodes_fe_maps(mc_case)
-  subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
+  cell_map => this%marching_cubes%subnodes_cell_maps(mc_case)
+  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
   subcell_node_ids =>  this%marching_cubes%subcells_nodal_connectivities(:,subcell)
   points(:) = subnodes_phys_coords(subcell_node_ids(:))
 
@@ -277,7 +277,7 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet( this, subfacet, p
 
   integer(ip) :: num_nodes_subfacet, mc_case
   type(point_t), pointer :: subnodes_phys_coords(:)
-  type(fe_map_t), pointer :: fe_map
+  type(cell_map_t), pointer :: cell_map
   integer(ip), pointer ::  subfacet_node_ids(:)
 
   assert(this%is_local())
@@ -288,8 +288,8 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet( this, subfacet, p
   assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets())  )
 
   mc_case = this%marching_cubes%mc_case_x_cell(this%get_lid())
-  fe_map => this%marching_cubes%subnodes_fe_maps(mc_case)
-  subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
+  cell_map => this%marching_cubes%subnodes_cell_maps(mc_case)
+  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
   subfacet_node_ids =>  this%marching_cubes%subfacets_nodal_connectivities(:,subfacet)
   points(:) = subnodes_phys_coords(subfacet_node_ids(:))
 

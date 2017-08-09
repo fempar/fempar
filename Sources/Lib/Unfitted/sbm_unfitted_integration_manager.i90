@@ -160,7 +160,7 @@ subroutine uim_init_reference_subelem( this )
   call this%geo_reference_subelem%create_facet_quadrature(this%quadrature_subfacet,degree=2*num_dim*p)
   
   ! Create the fe map
-  call this%fe_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
+  call this%cell_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
 
 end subroutine uim_init_reference_subelem
 
@@ -168,7 +168,7 @@ end subroutine uim_init_reference_subelem
 subroutine uim_free_reference_subelem( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
-  call this%fe_map_subelem%free()
+  call this%cell_map_subelem%free()
   call this%geo_reference_subelem%free()
   call this%quadrature_subelem%free()
   call this%quadrature_subfacet%free()
@@ -206,9 +206,9 @@ subroutine uim_init_cut_integration( this )
   ! Now we allocate in function of the number of mc cases. 
   ! But this can be heavitly improved, since many mc cases have the same number of subcells
   ! TODO we whant to make it independent of the method used for sub-dividing the cells
-  allocate( this%cut_fe_maps(1:mc_num_cases), stat=istat ); check(istat==0_ip)
+  allocate( this%cut_cell_maps(1:mc_num_cases), stat=istat ); check(istat==0_ip)
   do mc_case = 1, mc_num_cases
-    call this%cut_fe_maps(mc_case)%create( this%cut_quadratures(mc_case), geo_reference_elem )
+    call this%cut_cell_maps(mc_case)%create( this%cut_quadratures(mc_case), geo_reference_elem )
   end do
 
   ! cell integrators
@@ -229,7 +229,7 @@ subroutine uim_init_cut_integration( this )
 
   ! Create empty dummy objects
   call this%empty_quadrature%create(num_dim,0)
-  call this%empty_fe_map%create( this%empty_quadrature, geo_reference_elem )
+  call this%empty_cell_map%create( this%empty_quadrature, geo_reference_elem )
   allocate (this%empty_cell_integrator(1:num_fields), stat=istat); check(istat==0)
   do ifield = 1,num_fields
 
@@ -259,11 +259,11 @@ subroutine uim_free_cut_integration( this )
     deallocate( this%cut_quadratures, stat=istat ); check(istat==0_ip)
   end if
 
-  if ( allocated(this%cut_fe_maps) ) then
-    do ind = 1,size(this%cut_fe_maps)
-      call this%cut_fe_maps(ind)%free()
+  if ( allocated(this%cut_cell_maps) ) then
+    do ind = 1,size(this%cut_cell_maps)
+      call this%cut_cell_maps(ind)%free()
     end do
-    deallocate( this%cut_fe_maps, stat=istat ); check(istat==0_ip)
+    deallocate( this%cut_cell_maps, stat=istat ); check(istat==0_ip)
   end if
 
   if ( allocated(this%cut_cell_integrators) ) then
@@ -276,7 +276,7 @@ subroutine uim_free_cut_integration( this )
   end if
 
   call this%empty_quadrature%free()
-  call this%empty_fe_map%free()
+  call this%empty_cell_map%free()
 
   if ( allocated(this%empty_cell_integrator) ) then
     do ind = 1,size(this%empty_cell_integrator)
@@ -312,8 +312,8 @@ subroutine uim_init_cut_boundary_integration( this )
 
   !TODO not needed to allocate for all the mc cases
   allocate( this%cut_boundary_quadratures_cell_dim    (1:mc_num_cases), stat = istat ); check(istat==0)
-  allocate( this%cut_boundary_piecewise_fe_maps       (1:mc_num_cases), stat = istat ); check(istat==0)
-  allocate( this%cut_boundary_fe_maps                 (1:mc_num_cases), stat = istat ); check(istat==0)
+  allocate( this%cut_boundary_piecewise_cell_maps       (1:mc_num_cases), stat = istat ); check(istat==0)
+  allocate( this%cut_boundary_cell_maps                 (1:mc_num_cases), stat = istat ); check(istat==0)
   allocate( this%cut_boundary_cell_integrators        (1:mc_num_cases,1:num_fields), stat = istat ); check(istat==0)
 
   do mc_case = 1, mc_num_cases
@@ -342,13 +342,13 @@ subroutine uim_init_cut_boundary_integration( this )
 
   do mc_case = 1, mc_num_cases
     num_subfacets = this%marching_cubes%get_num_subfacets_mc_case(mc_case)
-    call this%cut_boundary_piecewise_fe_maps(mc_case)%create_facet_map(&
+    call this%cut_boundary_piecewise_cell_maps(mc_case)%create_facet_map(&
          this%quadrature_subfacet, this%geo_reference_subelem, num_subfacets  )
   end do
 
   do mc_case = 1, mc_num_cases
     num_subfacets = this%marching_cubes%get_num_subfacets_mc_case(mc_case)
-    call this%cut_boundary_fe_maps(mc_case)%create(&
+    call this%cut_boundary_cell_maps(mc_case)%create(&
          this%cut_boundary_quadratures_cell_dim(mc_case), geo_reference_elem)
   end do
 
@@ -366,7 +366,7 @@ subroutine uim_init_cut_boundary_integration( this )
 
   end do
 
-  call this%empty_piecewise_fe_map%create_facet_map( this%empty_quadrature, geo_reference_elem, 0 )
+  call this%empty_piecewise_cell_map%create_facet_map( this%empty_quadrature, geo_reference_elem, 0 )
 
   call this%fe_space%free_fe_iterator(fe)
 
@@ -387,18 +387,18 @@ subroutine uim_free_cut_boundary_integration( this )
     deallocate( this%cut_boundary_quadratures_cell_dim , stat = istat ); check(istat==0)
   end if
 
-  if ( allocated( this%cut_boundary_piecewise_fe_maps ) ) then
-    do id = 1, size(this%cut_boundary_piecewise_fe_maps )
-      call this%cut_boundary_piecewise_fe_maps(id)%free()
+  if ( allocated( this%cut_boundary_piecewise_cell_maps ) ) then
+    do id = 1, size(this%cut_boundary_piecewise_cell_maps )
+      call this%cut_boundary_piecewise_cell_maps(id)%free()
     end do
-    deallocate( this%cut_boundary_piecewise_fe_maps , stat = istat ); check(istat==0)
+    deallocate( this%cut_boundary_piecewise_cell_maps , stat = istat ); check(istat==0)
   end if
 
-  if ( allocated( this%cut_boundary_fe_maps ) ) then
-    do id = 1, size(this%cut_boundary_fe_maps )
-      call this%cut_boundary_fe_maps(id)%free()
+  if ( allocated( this%cut_boundary_cell_maps ) ) then
+    do id = 1, size(this%cut_boundary_cell_maps )
+      call this%cut_boundary_cell_maps(id)%free()
     end do
-    deallocate( this%cut_boundary_fe_maps , stat = istat ); check(istat==0)
+    deallocate( this%cut_boundary_cell_maps , stat = istat ); check(istat==0)
   end if
 
   if ( allocated( this%cut_boundary_cell_integrators ) ) then
@@ -410,6 +410,6 @@ subroutine uim_free_cut_boundary_integration( this )
     deallocate( this%cut_boundary_cell_integrators , stat = istat ); check(istat==0)
   end if
 
-  call this%empty_piecewise_fe_map%free()
+  call this%empty_piecewise_cell_map%free()
 
 end subroutine uim_free_cut_boundary_integration

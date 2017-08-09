@@ -72,7 +72,7 @@ contains
     class(fe_face_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
-    type(fe_map_t)           , pointer     :: fe_map
+    type(cell_map_t)           , pointer     :: cell_map
     type(quadrature_t)       , pointer     :: quad
     type(point_t)            , pointer     :: quad_coords(:)
     type(cell_integrator_t), pointer     :: cell_int
@@ -128,7 +128,7 @@ contains
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
-    fe_map          => fe%get_fe_map()
+    cell_map          => fe%get_cell_map()
     cell_int         => fe%get_cell_integrator(1)
     
     viscosity = 1.0_rp
@@ -142,7 +142,7 @@ contains
          call fe%update_integration()
          
          ! Get quadrature coordinates to evaluate source_term
-         quad_coords => fe_map%get_quadrature_points_coordinates()
+         quad_coords => cell_map%get_quadrature_points_coordinates()
 
          ! Compute element matrix and vector
          elmat = 0.0_rp
@@ -150,7 +150,7 @@ contains
          call cell_int%get_gradients(shape_gradients_first)
          call cell_int%get_values(shape_values_first)
          do qpoint = 1, num_quad_points
-            factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do idof = 1, num_dofs
                do jdof = 1, num_dofs
                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))

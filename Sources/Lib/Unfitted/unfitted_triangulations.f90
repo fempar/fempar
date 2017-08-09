@@ -155,7 +155,7 @@ module unfitted_triangulations_names
     
     ! Auxiliary work data
     type(quadrature_t), allocatable :: subnodes_nodal_quadratures(:)
-    type(fe_map_t),     allocatable :: subnodes_fe_maps(:)
+    type(cell_map_t),     allocatable :: subnodes_cell_maps(:)
 
   contains
 

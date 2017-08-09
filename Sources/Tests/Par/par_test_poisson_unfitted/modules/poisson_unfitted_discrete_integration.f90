@@ -32,7 +32,7 @@ module poisson_unfitted_discrete_integration_names
   use par_test_poisson_unfitted_params_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
   use blas77_interfaces_names
   use gen_eigenvalue_solver_names
   
@@ -86,8 +86,8 @@ contains
     class(fe_iterator_t), allocatable  :: fe
 
     ! FE integration-related data types
-    type(fe_map_t)           , pointer :: fe_map
-    type(piecewise_fe_map_t) , pointer :: pw_fe_map
+    type(cell_map_t)           , pointer :: cell_map
+    type(piecewise_cell_map_t) , pointer :: pw_cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int
@@ -177,12 +177,12 @@ contains
          !WARNING This has to be inside the loop
          quad            => fe%get_quadrature()
          num_quad_points = quad%get_num_quadrature_points()
-         fe_map          => fe%get_fe_map()
+         cell_map          => fe%get_cell_map()
          cell_int         => fe%get_cell_integrator(1)
          num_dofs = fe%get_num_dofs()
 
          ! Get quadrature coordinates to evaluate source_term
-         quad_coords => fe_map%get_quadrature_points_coordinates()
+         quad_coords => cell_map%get_quadrature_points_coordinates()
 
          ! Compute element matrix and vector
          elmat = 0.0_rp
@@ -190,7 +190,7 @@ contains
          call cell_int%get_gradients(shape_gradients)
          call cell_int%get_values(shape_values)
          do qpoint = 1, num_quad_points
-            dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            dV = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             volume = volume + dV
             do idof = 1, num_dofs
                do jdof = 1, num_dofs
@@ -217,8 +217,8 @@ contains
            ! Get info on the unfitted boundary for integrating BCs
            quad            => fe%get_boundary_quadrature()
            num_quad_points = quad%get_num_quadrature_points()
-           pw_fe_map       => fe%get_boundary_piecewise_fe_map()
-           quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
+           pw_cell_map       => fe%get_boundary_piecewise_cell_map()
+           quad_coords     => pw_cell_map%get_quadrature_points_coordinates()
            cell_int         => fe%get_boundary_cell_integrator(1)
            call cell_int%get_values(boundary_shape_values)
            call cell_int%get_gradients(boundary_shape_gradients)
@@ -230,13 +230,13 @@ contains
              do qpoint = 1, num_quad_points
 
                ! Surface measure
-               dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+               dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
 
                ! Value of the gradient of the solution at the boundary
                call exact_sol%get_gradient(quad_coords(qpoint),exact_gradient_gp)
 
                ! Get the boundary normals
-               call pw_fe_map%get_normal(qpoint,normal_vec)
+               call pw_cell_map%get_normal(qpoint,normal_vec)
 
                ! Normal derivative
                ! It is save to do so in 2d only if the 3rd component is set to 0
@@ -257,8 +257,8 @@ contains
              ! Integrate the matrix associated with the normal derivatives
              elmatB_pre(:,:)=0.0_rp
              do qpoint = 1, num_quad_points
-               dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-               call pw_fe_map%get_normal(qpoint,normal_vec)
+               dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+               call pw_cell_map%get_normal(qpoint,normal_vec)
                 do idof = 1, num_dofs
                    do jdof = 1, num_dofs
                       ! B_K(i,j) = (n*grad(phi_i),n*grad(phi_j))_{\partial\Omega}
@@ -296,9 +296,9 @@ contains
              do qpoint = 1, num_quad_points
 
                ! Get info at quadrature point
-               dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+               dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
                surface = surface + dS
-               call pw_fe_map%get_normal(qpoint,normal_vec)
+               call pw_cell_map%get_normal(qpoint,normal_vec)
                call exact_sol%get_value(quad_coords(qpoint),exact_sol_gp)
 
                ! Elem matrix

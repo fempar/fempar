@@ -42,7 +42,7 @@ module test_poisson_unfitted_driver_names
   use vector_poisson_unfitted_discrete_integration_names
   use vector_poisson_unfitted_conditions_names
   use vector_poisson_unfitted_analytical_functions_names
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
 
 # include "debug.i90"
 
@@ -623,7 +623,7 @@ subroutine compute_domain_volume( this )
     class(fe_iterator_t), allocatable :: fe
     real(rp) :: volume, dV
     type(quadrature_t), pointer :: quadrature
-    type(fe_map_t),     pointer :: fe_map
+    type(cell_map_t),     pointer :: cell_map
     integer(ip) :: qpoint, num_quad_points
     type(point_t), pointer :: quadrature_points_coordinates(:)
 
@@ -640,14 +640,14 @@ subroutine compute_domain_volume( this )
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_quadrature()
        num_quad_points = quadrature%get_num_quadrature_points()
-       fe_map => fe%get_fe_map()
+       cell_map => fe%get_cell_map()
 
        ! Physical coordinates of the quadrature points
-       quadrature_points_coordinates => fe_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
 
        ! Integrate!
        do qpoint = 1, num_quad_points
-         dV = fe_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+         dV = cell_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
          volume = volume + dV
        end do
 
@@ -670,7 +670,7 @@ subroutine compute_domain_surface( this )
     class(fe_iterator_t), allocatable, target :: fe_std
     real(rp) :: surface, dS
     type(quadrature_t), pointer :: quadrature
-    type(piecewise_fe_map_t),     pointer :: fe_map
+    type(piecewise_cell_map_t),     pointer :: cell_map
     integer(ip) :: qpoint, num_quad_points
     type(point_t), pointer :: quadrature_points_coordinates(:)
 
@@ -694,14 +694,14 @@ subroutine compute_domain_surface( this )
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_boundary_quadrature()
        num_quad_points = quadrature%get_num_quadrature_points()
-       fe_map => fe%get_boundary_piecewise_fe_map()
+       cell_map => fe%get_boundary_piecewise_cell_map()
 
        ! Physical coordinates of the quadrature points
-       quadrature_points_coordinates => fe_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
 
        ! Integrate!
        do qpoint = 1, num_quad_points
-         dS = fe_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+         dS = cell_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
          surface = surface + dS !quadrature_points_coordinates(qpoint)%get(1)*quadrature_points_coordinates(qpoint)%get(2)*dS
        end do
 

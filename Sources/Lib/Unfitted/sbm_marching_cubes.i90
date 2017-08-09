@@ -968,7 +968,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   
   ! TODO we don't really need to allocate for all the mc cases
   allocate( this%subnodes_nodal_quadratures(1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
-  allocate( this%subnodes_fe_maps          (1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
+  allocate( this%subnodes_cell_maps          (1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
 
   ! Initialize each one of the quadratures
   call this%triangulation%create_cell_iterator(cell)
@@ -977,10 +977,10 @@ subroutine marching_cubes_subnodes_data_create( this )
     call this%subnodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dims(),n_subnodes)
   end do
 
-  ! Initialize each one of the fe_maps
+  ! Initialize each one of the cell_maps
   reference_fe_geo => cell%get_reference_fe_geo()
   do icase=1, this%get_num_mc_cases()
-    call this%subnodes_fe_maps(icase)%create( this%subnodes_nodal_quadratures(icase), reference_fe_geo)
+    call this%subnodes_cell_maps(icase)%create( this%subnodes_nodal_quadratures(icase), reference_fe_geo)
   end do
 
   !Allocate place holders for the sub-mesh
@@ -1015,11 +1015,11 @@ subroutine marching_cubes_subnodes_data_free( this )
     deallocate( this%subnodes_nodal_quadratures, stat=istat ); check( istat==0_ip )
   end if
 
-  if ( allocated(this%subnodes_fe_maps) ) then
-    do i=1,size(this%subnodes_fe_maps)
-      call this%subnodes_fe_maps(i)%free()
+  if ( allocated(this%subnodes_cell_maps) ) then
+    do i=1,size(this%subnodes_cell_maps)
+      call this%subnodes_cell_maps(i)%free()
     end do
-    deallocate( this%subnodes_fe_maps, stat=istat ); check( istat==0_ip )
+    deallocate( this%subnodes_cell_maps, stat=istat ); check( istat==0_ip )
   end if
 
   if(allocated(this%subcells_nodal_connectivities  )) call memfree(this%subcells_nodal_connectivities  ,__FILE__,__LINE__)

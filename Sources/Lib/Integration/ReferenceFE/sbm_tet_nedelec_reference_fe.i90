@@ -418,12 +418,12 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 end subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis
 
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id, local_quadrature, edge_interpolation )
+subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
   implicit none
   class(tet_nedelec_reference_fe_t)       , intent(in)    :: this
   integer(ip)                             , intent(in)    :: local_edge_id
   type(quadrature_t)                      , intent(in)    :: local_quadrature
-  type(interpolation_t)                   , intent(inout) :: edge_interpolation
+  type(interpolation_t)                   , intent(inout) :: edget_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: c, idime, n_face_index, qpoin
 
@@ -446,33 +446,33 @@ subroutine tet_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id
      end if
   end do
 
-  call this%fill_interpolation( aux_quadrature, edge_interpolation ) 
+  call this%fill_interpolation( aux_quadrature, edget_interpolation ) 
   call aux_quadrature%free()
 
-end subroutine tet_nedelec_reference_fe_fill_edge_interpolation
+end subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget
 
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_face_interpolation( this, local_quadrature, local_face_id, face_interpolation )
+subroutine tet_nedelec_reference_fe_fill_facet_interpolation( this, local_quadrature, facet_lid, facet_interpolation )
   implicit none
   class(tet_nedelec_reference_fe_t)       , intent(in)    :: this
   type(quadrature_t)                      , intent(in)    :: local_quadrature
-  integer(ip)                             , intent(in)    :: local_face_id
-  type(interpolation_t)                   , intent(inout) :: face_interpolation
+  integer(ip)                             , intent(in)    :: facet_lid
+  type(interpolation_t)                   , intent(inout) :: facet_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: idime,iface,n_face_index, qpoin,p_local_coordinate
 
   ! Add offset to have same numbering as in polytope
-  n_face_index = local_face_id+this%get_first_facet_id()-1
+  n_face_index = facet_lid+this%get_first_facet_id()-1
 
   ! Create a d-dimensional quadrature as follows
   call aux_quadrature%create( this%num_dims, local_quadrature%num_quadrature_points )
-  do qpoin = 1,face_interpolation%num_quadrature_points
+  do qpoin = 1,facet_interpolation%num_quadrature_points
      ! Transform face local coordinates to element global coordinates
-     if (local_face_id <= face_interpolation%num_dims ) then 
+     if (facet_lid <= facet_interpolation%num_dims ) then 
         ! Orthogonal face in the reference element
         p_local_coordinate = 1
-        do idime = 1, face_interpolation%num_dims
-           if (idime == face_interpolation%num_dims + 1 - local_face_id ) then
+        do idime = 1, facet_interpolation%num_dims
+           if (idime == facet_interpolation%num_dims + 1 - facet_lid ) then
               aux_quadrature%coordinates(idime,qpoin) = 0.0_rp
            else
               aux_quadrature%coordinates(idime,qpoin) = local_quadrature%coordinates(p_local_coordinate, qpoin)
@@ -482,14 +482,14 @@ subroutine tet_nedelec_reference_fe_fill_face_interpolation( this, local_quadrat
      else 
         ! Non-orthogonal face in the reference element
         aux_quadrature%coordinates(1,qpoin) = 1 - sum(local_quadrature%coordinates(:,qpoin))
-        aux_quadrature%coordinates(2:face_interpolation%num_dims, qpoin) = & 
-             & local_quadrature%coordinates(1:face_interpolation%num_dims-1,qpoin)
+        aux_quadrature%coordinates(2:facet_interpolation%num_dims, qpoin) = & 
+             & local_quadrature%coordinates(1:facet_interpolation%num_dims-1,qpoin)
      end if
   end do
 
-  call this%fill_interpolation( aux_quadrature, face_interpolation ) 
+  call this%fill_interpolation( aux_quadrature, facet_interpolation ) 
   call aux_quadrature%free()
-end subroutine tet_nedelec_reference_fe_fill_face_interpolation
+end subroutine tet_nedelec_reference_fe_fill_facet_interpolation
 
 !=================================================================================================
 function tet_nedelec_reference_fe_compute_num_quadrature_points( this, degree, dimension )
@@ -1100,7 +1100,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   ! Local variables required by edge boundary moments integration
   type(tet_lagrangian_reference_fe_t)     :: fe_1D
   type(quadrature_t)                      :: edge_quadrature
-  type(interpolation_t)                   :: interpolation_1D, edge_interpolation
+  type(interpolation_t)                   :: interpolation_1D, edget_interpolation
   type(edge_map_t)                        :: edge_map
   type(point_t), pointer                  :: edge_map_coordinates(:)
   real(rp)                                :: shape_test
@@ -1109,8 +1109,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   ! Local variables required by face boundary moments integration
   type(tet_lagrangian_reference_fe_t) :: fe_2D
   type(quadrature_t)                  :: face_quadrature
-  type(interpolation_t)               :: interpolation_2D, face_interpolation
-  integer(ip)                         :: local_face_id
+  type(interpolation_t)               :: interpolation_2D, facet_interpolation
+  integer(ip)                         :: facet_lid
   type(facet_map_t)                    :: facet_map
   type(point_t), pointer              :: facet_map_coordinates(:)
   real(rp)                            :: v_scalar_shape_test, face_area  
@@ -1120,7 +1120,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   type(tet_lagrangian_reference_fe_t) :: fe
   type(quadrature_t)                  :: cell_quadrature
   type(interpolation_t)               :: interpolation, cell_interpolation
-  type(fe_map_t)                      :: cell_map
+  type(cell_map_t)                      :: cell_map
   type(point_t), pointer              :: cell_map_coordinates(:)
   integer(ip)                         :: reduced_order_vector(SPACE_DIM)
   integer(ip)                         :: num_interior_moments
@@ -1208,9 +1208,9 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
           quadrature    = edge_quadrature ) 
 
      ! Edge quadrature is updated to every edge of the reference_fe 
-     call this%create_edge_interpolation (edge_id - d_fe_geo%get_first_n_face_id_of_dim(1)+1, &
+     call this%create_interpolation_restricted_to_edget (edge_id - d_fe_geo%get_first_n_face_id_of_dim(1)+1, &
           edge_quadrature,                                          &
-          edge_interpolation )
+          edget_interpolation )
 
      ! Integrate edge boundary moments int_edge(u.t q), q \in P_k-1
      do qpoint = 1, edge_quadrature%num_quadrature_points
@@ -1219,8 +1219,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
         do ishape=1, interpolation_1D%num_shape_functions
            call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
-           do jshape=1, edge_interpolation%num_shape_functions
-              call this%get_value(edge_interpolation, jshape, qpoint, v_shape_trial)
+           do jshape=1, edget_interpolation%num_shape_functions
+              call this%get_value(edget_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
                    + shape_test * v_shape_trial * tangent * factor
            end do
@@ -1257,13 +1257,13 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
         end do
 
         ! Update facet_map on current face
-        local_face_id = facet_id - d_fe_geo%get_first_facet_id()+1
-        call facet_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
+        facet_lid = facet_id - d_fe_geo%get_first_facet_id()+1
+        call facet_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(facet_lid), &
              quadrature             = face_quadrature ) 
 
         call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_facet_id()+1, &
              face_quadrature,                           &
-             face_interpolation )
+             facet_interpolation )
 
         ! Integrate face boundary moments int_Face(u^n q), q \in P_{k-2,k-2} P_{k-2,k-2}
         do qpoint = 1, face_quadrature%num_quadrature_points
@@ -1276,8 +1276,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
               call facet_map%get_jacobian_column(direction,qpoint,tangent) ! x_i - x^0_i (not normalized)
               do ishape=1, interpolation_2D%num_shape_functions
                  call fe_2D%get_value(interpolation_2D, ishape, qpoint, v_scalar_shape_test)   
-                 do jshape=1, face_interpolation%num_shape_functions
-                    call this%get_value(face_interpolation, jshape, qpoint, v_shape_trial)   	
+                 do jshape=1, facet_interpolation%num_shape_functions
+                    call this%get_value(facet_interpolation, jshape, qpoint, v_shape_trial)   	
                     this%change_basis_matrix(d+ishape+c,jshape) = this%change_basis_matrix(d+ishape+c,jshape) &
                          + 1/face_area * v_shape_trial * v_scalar_shape_test * tangent * factor
                  end do
@@ -1393,14 +1393,14 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   call fe_1D%free()
   call edge_quadrature%free()
   call interpolation_1D%free()
-  call edge_interpolation%free()
+  call edget_interpolation%free()
   call edge_map%free()
 
   ! Free all local data structures required for face moments integration
   call fe_2D%free()
   call face_quadrature%free()
   call interpolation_2D%free()
-  call face_interpolation%free()
+  call facet_interpolation%free()
   call facet_map%free()
 
   ! Free all local data structures required for element itself moments integration 

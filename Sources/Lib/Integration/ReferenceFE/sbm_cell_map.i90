@@ -26,11 +26,11 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!fe_map_t type procedures
-subroutine fe_map_create( this, quadrature, reference_fe_geometry )
+!cell_map_t type procedures
+subroutine cell_map_create( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(fe_map_t)      , intent(inout) :: this
+  class(cell_map_t)      , intent(inout) :: this
   type(quadrature_t)   , intent(in)    :: quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
 
@@ -65,14 +65,14 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
-end subroutine fe_map_create
+end subroutine cell_map_create
 
 !==================================================================================================
-subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_geometry )
+subroutine cell_map_restricted_to_facet( this, facet_lid, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(fe_map_t)      , intent(inout) :: this
-  integer(ip)          , intent(in)    :: local_face_id
+  class(cell_map_t)      , intent(inout) :: this
+  integer(ip)          , intent(in)    :: facet_lid
   type(quadrature_t), intent(in)    :: quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
 
@@ -83,7 +83,7 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   this%num_dims        = reference_fe_geometry%num_dims
   this%num_quadrature_points = quadrature%num_quadrature_points
 
-  call reference_fe_geometry%create_interpolation_restricted_to_facet( local_face_id, quadrature,                &
+  call reference_fe_geometry%create_interpolation_restricted_to_facet( facet_lid, quadrature,                &
        &                                                this%interpolation )
 
   call memalloc(this%num_dims, &
@@ -107,24 +107,24 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
-end subroutine fe_map_create_on_face
+end subroutine cell_map_restricted_to_facet
 
 !==================================================================================================
-subroutine fe_map_free( this )
+subroutine cell_map_free( this )
   implicit none
-  class(fe_map_t), intent(inout) :: this
+  class(cell_map_t), intent(inout) :: this
   call this%base_map_t%free()
   if ( allocated(this%inv_jacobian) ) call memfree(this%inv_jacobian,__FILE__,__LINE__)
   if ( allocated(this%d2sdx) ) call memfree(this%d2sdx,__FILE__,__LINE__)
-end subroutine fe_map_free
+end subroutine cell_map_free
 
 !==================================================================================================
-subroutine fe_map_update( this, quadrature)
+subroutine cell_map_update( this, quadrature)
   !-----------------------------------------------------------------------
   ! A map obtained from the (usually isoparametric) interpolation of the geometry
   !-----------------------------------------------------------------------
   implicit none    
-  class(fe_map_t)      , intent(inout) :: this
+  class(cell_map_t)      , intent(inout) :: this
   type(quadrature_t), intent(in)    :: quadrature
 
   ! Locals
@@ -229,20 +229,20 @@ subroutine fe_map_update( this, quadrature)
      call memfree(wmat2,__FILE__,__LINE__)
   end if
 
-end subroutine fe_map_update
+end subroutine cell_map_update
 
 !==================================================================================================
-subroutine fe_map_update_interpolation( this, quadrature, reference_fe_geometry )
+subroutine cell_map_update_interpolation( this, quadrature, reference_fe_geometry )
   implicit none
-  class(fe_map_t)                 , intent(inout) :: this
+  class(cell_map_t)                 , intent(inout) :: this
   type(quadrature_t)              , intent(in)    :: quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
   call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
-end subroutine fe_map_update_interpolation
+end subroutine cell_map_update_interpolation
 
-subroutine fe_map_print( this )
+subroutine cell_map_print( this )
   implicit none
-  class(fe_map_t) :: this
+  class(cell_map_t) :: this
   integer(ip) :: i,j,k
   call this%interpolation%print()
   write(*,*) '%%%%%%%%%%%%%%%% JACOBIAN: %%%%%%%%%%%%%%%%'
@@ -254,29 +254,29 @@ subroutine fe_map_print( this )
         end do
      end do
   end do
-end subroutine fe_map_print
+end subroutine cell_map_print
 
-function fe_map_get_det_jacobian ( this, i )
+function cell_map_get_det_jacobian ( this, i )
   implicit none
-  class(fe_map_t), intent(in) :: this
+  class(cell_map_t), intent(in) :: this
   integer(ip)    , intent(in) :: i
-  real(rp) :: fe_map_get_det_jacobian
-  fe_map_get_det_jacobian = this%det_jacobian(i)
-end function fe_map_get_det_jacobian
+  real(rp) :: cell_map_get_det_jacobian
+  cell_map_get_det_jacobian = this%det_jacobian(i)
+end function cell_map_get_det_jacobian
 
-function fe_map_get_det_jacobians ( this )
+function cell_map_get_det_jacobians ( this )
   implicit none
-  class(fe_map_t), target, intent(in) :: this
-  real(rp), pointer :: fe_map_get_det_jacobians(:)
-  fe_map_get_det_jacobians => this%det_jacobian
-end function fe_map_get_det_jacobians
+  class(cell_map_t), target, intent(in) :: this
+  real(rp), pointer :: cell_map_get_det_jacobians(:)
+  cell_map_get_det_jacobians => this%det_jacobian
+end function cell_map_get_det_jacobians
 
 !==================================================================================================
-function fe_map_compute_h ( this, qpoin)
+function cell_map_compute_h ( this, qpoin)
   implicit none
-  class(fe_map_t), intent(in) :: this
+  class(cell_map_t), intent(in) :: this
   integer(ip)    , intent(in) :: qpoin
-  real(rp)                    :: fe_map_compute_h
+  real(rp)                    :: cell_map_compute_h
 
   integer(ip) :: idime, jdime
   real(rp)    :: inverse_h(SPACE_DIM), volumetric_h
@@ -298,15 +298,15 @@ function fe_map_compute_h ( this, qpoin)
   end do
   volumetric_h = 1.0_rp / volumetric_h
   volumetric_h = volumetric_h**(1.0_rp/real(this%num_dims))
-  fe_map_compute_h = this%reference_fe_characteristic_length*volumetric_h
-end function fe_map_compute_h
+  cell_map_compute_h = this%reference_fe_characteristic_length*volumetric_h
+end function cell_map_compute_h
 
 !==================================================================================================
-function fe_map_compute_h_min ( this, qpoin)
+function cell_map_compute_h_min ( this, qpoin)
   implicit none
-  class(fe_map_t), intent(in) :: this
+  class(cell_map_t), intent(in) :: this
   integer(ip)    , intent(in) :: qpoin
-  real(rp)                    :: fe_map_compute_h_min
+  real(rp)                    :: cell_map_compute_h_min
 
   integer(ip) :: idime, jdime
   real(rp)    :: inverse_h(SPACE_DIM), minimum_h
@@ -326,15 +326,15 @@ function fe_map_compute_h_min ( this, qpoin)
   do j = 2, this%num_dims
      minimum_h = min(minimum_h, 1.0_rp/inverse_h(j))
   end do
-  fe_map_compute_h_min = this%reference_fe_characteristic_length*minimum_h
-end function fe_map_compute_h_min
+  cell_map_compute_h_min = this%reference_fe_characteristic_length*minimum_h
+end function cell_map_compute_h_min
 
 !==================================================================================================
-function fe_map_compute_h_max ( this, qpoin)
+function cell_map_compute_h_max ( this, qpoin)
   implicit none
-  class(fe_map_t), intent(in) :: this
+  class(cell_map_t), intent(in) :: this
   integer(ip)    , intent(in) :: qpoin
-  real(rp)                    :: fe_map_compute_h_max
+  real(rp)                    :: cell_map_compute_h_max
 
   integer(ip) :: idime, jdime
   real(rp)    :: inverse_h(SPACE_DIM), maximum_h
@@ -354,28 +354,28 @@ function fe_map_compute_h_max ( this, qpoin)
   do j = 2, this%num_dims
      maximum_h = max(maximum_h, 1.0_rp/inverse_h(j))
   end do
-  fe_map_compute_h_max = this%reference_fe_characteristic_length*maximum_h
-end function fe_map_compute_h_max
+  cell_map_compute_h_max = this%reference_fe_characteristic_length*maximum_h
+end function cell_map_compute_h_max
 
 !==================================================================================================
-function fe_map_get_coordinates(this)
+function cell_map_get_coordinates(this)
   implicit none
-  class(fe_map_t)   , target, intent(in) :: this
-  type(point_t), pointer :: fe_map_get_coordinates(:)
-  fe_map_get_coordinates => this%nodes_coordinates
-end function fe_map_get_coordinates
+  class(cell_map_t)   , target, intent(in) :: this
+  type(point_t), pointer :: cell_map_get_coordinates(:)
+  cell_map_get_coordinates => this%nodes_coordinates
+end function cell_map_get_coordinates
 
-function fe_map_get_quadrature_points_coordinates(this)
+function cell_map_get_quadrature_points_coordinates(this)
   implicit none
-  class(fe_map_t)   , target, intent(in) :: this
-  type(point_t), pointer :: fe_map_get_quadrature_points_coordinates(:)
-  fe_map_get_quadrature_points_coordinates => this%quadrature_points_coordinates
-end function fe_map_get_quadrature_points_coordinates
+  class(cell_map_t)   , target, intent(in) :: this
+  type(point_t), pointer :: cell_map_get_quadrature_points_coordinates(:)
+  cell_map_get_quadrature_points_coordinates => this%quadrature_points_coordinates
+end function cell_map_get_quadrature_points_coordinates
 
 !==================================================================================================
-subroutine fe_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )
+subroutine cell_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )
   implicit none
-  class(fe_map_t)        , intent(in)  :: this
+  class(cell_map_t)        , intent(in)  :: this
   integer(ip)            , intent(in)  :: qpoin
   type(tensor_field_t)   , intent(out) :: inv_jacobian
   ! Locals
@@ -388,12 +388,12 @@ subroutine fe_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )
      end do
   end do
 
-end subroutine fe_map_get_inv_jacobian_tensor
+end subroutine cell_map_get_inv_jacobian_tensor
 
 !==================================================================================================
-function fe_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
+function cell_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
   implicit none
-  class(fe_map_t)     , intent(in) :: this
+  class(cell_map_t)     , intent(in) :: this
   integer(ip)         , intent(in) :: qpoin
   type(vector_field_t), intent(in) :: v_in
   type(vector_field_t) :: v_out
@@ -407,20 +407,20 @@ function fe_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
         call v_out%add(idime, this%inv_jacobian(idime,jdime,qpoin)*vector_value)
      end do
   end do  
-end function fe_map_apply_inv_jacobian
+end function cell_map_apply_inv_jacobian
 
 !==================================================================================================
-function fe_map_get_reference_h ( this )
+function cell_map_get_reference_h ( this )
   implicit none
-  class(fe_map_t), intent(in) :: this
-  real(rp) :: fe_map_get_reference_h
-  fe_map_get_reference_h = this%reference_fe_characteristic_length
-end function fe_map_get_reference_h
+  class(cell_map_t), intent(in) :: this
+  real(rp) :: cell_map_get_reference_h
+  cell_map_get_reference_h = this%reference_fe_characteristic_length
+end function cell_map_get_reference_h
 
 !==================================================================================================
-subroutine fe_map_compute_quadrature_points_coordinates(this)
+subroutine cell_map_compute_quadrature_points_coordinates(this)
   implicit none
-  class(fe_map_t), intent(inout) :: this
+  class(cell_map_t), intent(inout) :: this
   integer(ip)   :: qpoin,inode,nnode,nquad
 
   nnode = this%interpolation%num_shape_functions
@@ -433,12 +433,12 @@ subroutine fe_map_compute_quadrature_points_coordinates(this)
      end do
   end do
   
-end subroutine fe_map_compute_quadrature_points_coordinates
+end subroutine cell_map_compute_quadrature_points_coordinates
 
 !==================================================================================================
-subroutine fe_map_get_jacobian_normalized_column ( this, column_id, qpoint, normalized_column )
+subroutine cell_map_get_jacobian_normalized_column ( this, column_id, qpoint, normalized_column )
   implicit none
-  class(fe_map_t)     , intent(in)    :: this
+  class(cell_map_t)     , intent(in)    :: this
   integer(ip)         , intent(in)    :: column_id
   integer(ip)         , intent(in)    :: qpoint
   type(vector_field_t), intent(out)   :: normalized_column 
@@ -450,26 +450,26 @@ subroutine fe_map_get_jacobian_normalized_column ( this, column_id, qpoint, norm
     call normalized_column%set(idime, this%jacobian(idime, column_id, qpoint))
   end do
   normalized_column = normalized_column * (1.0_rp/normalized_column%nrm2())
-end subroutine fe_map_get_jacobian_normalized_column
+end subroutine cell_map_get_jacobian_normalized_column
 
-function fe_map_is_det_jacobian_positive ( this )
+function cell_map_is_det_jacobian_positive ( this )
   implicit none
-  class(fe_map_t)     , intent(in)    :: this
-  logical  ::  fe_map_is_det_jacobian_positive
-  fe_map_is_det_jacobian_positive = this%det_jacobian_positiveness
-end function fe_map_is_det_jacobian_positive
+  class(cell_map_t)     , intent(in)    :: this
+  logical  ::  cell_map_is_det_jacobian_positive
+  cell_map_is_det_jacobian_positive = this%det_jacobian_positiveness
+end function cell_map_is_det_jacobian_positive
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-! p_fe_map_t type procedures
-subroutine p_fe_map_allocate( this )
+! p_cell_map_t type procedures
+subroutine p_cell_map_allocate( this )
   implicit none
-  class(p_fe_map_t), intent(inout) :: this
+  class(p_cell_map_t), intent(inout) :: this
   allocate(this%p)
-end subroutine p_fe_map_allocate
+end subroutine p_cell_map_allocate
 
-subroutine p_fe_map_free( this )
+subroutine p_cell_map_free( this )
   implicit none
-  class(p_fe_map_t), intent(inout) :: this
+  class(p_cell_map_t), intent(inout) :: this
   call this%p%free()
   deallocate(this%p)
-end subroutine p_fe_map_free
+end subroutine p_cell_map_free

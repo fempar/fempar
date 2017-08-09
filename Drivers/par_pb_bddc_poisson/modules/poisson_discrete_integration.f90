@@ -70,7 +70,7 @@ contains
     class(fe_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
-    type(fe_map_t)           , pointer :: fe_map
+    type(cell_map_t)           , pointer :: cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int
@@ -103,7 +103,7 @@ contains
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
-    fe_map          => fe%get_fe_map()
+    cell_map          => fe%get_cell_map()
     cell_int         => fe%get_cell_integrator(1)
     do while ( .not. fe%has_finished())
        if ( fe%is_local() ) then
@@ -111,7 +111,7 @@ contains
           call fe%update_integration()
           
           ! Get quadrature coordinates to evaluate source_term
-          quad_coords => fe_map%get_quadrature_points_coordinates()
+          quad_coords => cell_map%get_quadrature_points_coordinates()
           
           ! Get subset_id
           if ( fe%get_set_id() <= 1 ) then
@@ -126,7 +126,7 @@ contains
           elmat = 0.0_rp
           elvec = 0.0_rp
           do qpoint = 1, num_quad_points
-             factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+             factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
              do idof = 1, num_dofs
                 call cell_int%get_gradient(idof, qpoint, grad_trial)
                 do jdof = 1, num_dofs

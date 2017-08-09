@@ -45,7 +45,7 @@ subroutine cell_integrator_create( this, quadrature, reference_fe )
   call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
 end subroutine cell_integrator_create
 
-subroutine cell_integrator_create_on_face( this, quadrature, reference_fe, face_lid )
+subroutine cell_integrator_restricted_to_facet( this, quadrature, reference_fe, face_lid )
   implicit none
   ! Parameters
   class(cell_integrator_t)    , intent(inout) :: this 
@@ -58,7 +58,7 @@ subroutine cell_integrator_create_on_face( this, quadrature, reference_fe, face_
   this%reference_fe             => reference_fe
   call reference_fe%create_interpolation_restricted_to_facet( face_lid, quadrature, this%interpolation_reference_cell )
   call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
-end subroutine cell_integrator_create_on_face
+end subroutine cell_integrator_restricted_to_facet
 
 subroutine cell_integrator_free( this )
   implicit none
@@ -71,12 +71,12 @@ subroutine cell_integrator_free( this )
 end subroutine cell_integrator_free
 
 !==================================================================================================
-subroutine cell_integrator_update( this, fe_map )
+subroutine cell_integrator_update( this, cell_map )
   implicit none
   class(cell_integrator_t), intent(inout) :: this
-  type(fe_map_t)               , intent(in)    :: fe_map
+  type(cell_map_t)               , intent(in)    :: cell_map
 
-  call this%reference_fe%apply_cell_map(fe_map, this%interpolation_reference_cell,this%interpolation_real_cell)
+  call this%reference_fe%apply_cell_map(cell_map, this%interpolation_reference_cell,this%interpolation_real_cell)
   end subroutine cell_integrator_update
 
 !==================================================================================================

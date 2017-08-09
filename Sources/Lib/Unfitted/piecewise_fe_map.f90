@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !****************************************************************************************
-module piecewise_fe_map_names
+module piecewise_cell_map_names
   !use fempar_names
   use types_names
   use reference_fe_names
@@ -39,8 +39,8 @@ module piecewise_fe_map_names
 
   ! This type encapsulates maps from a common reference element to several physical elements of the same type
   ! The user sees it as a single fe map
-  ! TODO define this type as an extension of fe_map_t. Is this type actually needed?
-  type :: piecewise_fe_map_t
+  ! TODO define this type as an extension of cell_map_t. Is this type actually needed?
+  type :: piecewise_cell_map_t
 
     private
 
@@ -51,7 +51,7 @@ module piecewise_fe_map_names
     integer(ip)        :: num_nodes
     class  (lagrangian_reference_fe_t), pointer:: reference_fe_geometry => null()
 
-    ! The same as in fe_map_t (this can be inherited form fe_map_t)
+    ! The same as in cell_map_t (this can be inherited form cell_map_t)
     real(rp),      allocatable    :: det_jacobian(:)
     type(point_t), allocatable    :: coordinates_quadrature(:)
     type(point_t), allocatable    :: nodes_coordinates(:)
@@ -61,29 +61,29 @@ module piecewise_fe_map_names
 
   contains
 
-    ! This are thought as an extension of the same methods in fe_map_t
-    procedure, non_overridable :: create_facet_map                => piecewise_fe_map_create_facet_map
-    procedure, non_overridable :: free                           => piecewise_fe_map_free
-    procedure, non_overridable :: update_facet_map                => piecewise_fe_map_update_facet_map
-    procedure, non_overridable :: compute_quadrature_points_coordinates => piecewise_fe_map_compute_quadrature_points_coordinates
+    ! This are thought as an extension of the same methods in cell_map_t
+    procedure, non_overridable :: create_facet_map                => piecewise_cell_map_create_facet_map
+    procedure, non_overridable :: free                           => piecewise_cell_map_free
+    procedure, non_overridable :: update_facet_map                => piecewise_cell_map_update_facet_map
+    procedure, non_overridable :: compute_quadrature_points_coordinates => piecewise_cell_map_compute_quadrature_points_coordinates
 
-    ! The same as in fe_map_t (this can be inherited form fe_map_t)
-    procedure, non_overridable :: get_det_jacobian                  => piecewise_fe_map_get_det_jacobian
-    procedure, non_overridable :: get_coordinates                   => piecewise_fe_map_get_coordinates
-    procedure, non_overridable :: get_quadrature_points_coordinates => piecewise_fe_map_get_quadrature_points_coordinates
-    procedure, non_overridable :: get_normal                        => piecewise_fe_map_get_normal
+    ! The same as in cell_map_t (this can be inherited form cell_map_t)
+    procedure, non_overridable :: get_det_jacobian                  => piecewise_cell_map_get_det_jacobian
+    procedure, non_overridable :: get_coordinates                   => piecewise_cell_map_get_coordinates
+    procedure, non_overridable :: get_quadrature_points_coordinates => piecewise_cell_map_get_quadrature_points_coordinates
+    procedure, non_overridable :: get_normal                        => piecewise_cell_map_get_normal
 
-  end type piecewise_fe_map_t
+  end type piecewise_cell_map_t
 
-  public :: piecewise_fe_map_t
+  public :: piecewise_cell_map_t
 
 contains
 
 !========================================================================================
-  subroutine piecewise_fe_map_create_facet_map( this, quadrature, reference_fe_geometry, num_sub_maps )
+  subroutine piecewise_cell_map_create_facet_map( this, quadrature, reference_fe_geometry, num_sub_maps )
 
     implicit none
-    class  (piecewise_fe_map_t),        intent(inout) :: this
+    class  (piecewise_cell_map_t),        intent(inout) :: this
     type   (quadrature_t),              intent(in)    :: quadrature
     class  (lagrangian_reference_fe_t), target, intent(in)    :: reference_fe_geometry
     integer(ip),                        intent(in)    :: num_sub_maps
@@ -112,12 +112,12 @@ contains
     
     this%reference_fe_geometry => reference_fe_geometry
 
-  end subroutine piecewise_fe_map_create_facet_map
+  end subroutine piecewise_cell_map_create_facet_map
 
 !========================================================================================
-  subroutine piecewise_fe_map_free( this )
+  subroutine piecewise_cell_map_free( this )
     implicit none
-    class(piecewise_fe_map_t), intent(inout) :: this
+    class(piecewise_cell_map_t), intent(inout) :: this
     this%num_dims                = -1
     this%num_quadrature_points         = -1
     this%num_sub_maps                  = -1
@@ -130,17 +130,17 @@ contains
     if (allocated(this%normals     ))           call memfree( this%normals,      __FILE__,__LINE__  )
     call this%fe_sub_map%free()
     this%reference_fe_geometry => null()
-  end subroutine piecewise_fe_map_free
+  end subroutine piecewise_cell_map_free
 
 !========================================================================================
-  subroutine piecewise_fe_map_update_facet_map( this, quadrature )
+  subroutine piecewise_cell_map_update_facet_map( this, quadrature )
 
     implicit none
-    class  (piecewise_fe_map_t),        intent(inout) :: this
+    class  (piecewise_cell_map_t),        intent(inout) :: this
     type   (quadrature_t),              intent(in)    :: quadrature
 
     ! The arguments quadrature is needed only
-    ! because the fe_map_update_facet_map requires them, ...
+    ! because the cell_map_update_facet_map requires them, ...
 
     integer(ip) :: imap, nini, nend, pini, pend
     type(point_t), pointer :: nod_coords(:), quad_coords(:)
@@ -173,13 +173,13 @@ contains
 
     end do
 
-  end subroutine piecewise_fe_map_update_facet_map
+  end subroutine piecewise_cell_map_update_facet_map
 
 !========================================================================================
-  subroutine piecewise_fe_map_compute_quadrature_points_coordinates( this )
+  subroutine piecewise_cell_map_compute_quadrature_points_coordinates( this )
 
     implicit none
-    class(piecewise_fe_map_t), intent(inout) :: this
+    class(piecewise_cell_map_t), intent(inout) :: this
 
     integer(ip) :: imap, nini, nend, pini, pend
     type(point_t), pointer :: nod_coord(:), quad_coord(:)
@@ -204,37 +204,37 @@ contains
 
     end do
 
-  end subroutine piecewise_fe_map_compute_quadrature_points_coordinates
+  end subroutine piecewise_cell_map_compute_quadrature_points_coordinates
 
 !========================================================================================
-  function piecewise_fe_map_get_det_jacobian ( this, i )
+  function piecewise_cell_map_get_det_jacobian ( this, i )
     implicit none
-    class(piecewise_fe_map_t), intent(in) :: this
+    class(piecewise_cell_map_t), intent(in) :: this
     integer(ip)    , intent(in) :: i
-    real(rp) :: piecewise_fe_map_get_det_jacobian
-    piecewise_fe_map_get_det_jacobian = this%det_jacobian(i)
-  end function piecewise_fe_map_get_det_jacobian
+    real(rp) :: piecewise_cell_map_get_det_jacobian
+    piecewise_cell_map_get_det_jacobian = this%det_jacobian(i)
+  end function piecewise_cell_map_get_det_jacobian
 
 !========================================================================================
-  function piecewise_fe_map_get_coordinates(this)
+  function piecewise_cell_map_get_coordinates(this)
     implicit none
-    class(piecewise_fe_map_t)   , target, intent(in) :: this
-    type(point_t), pointer :: piecewise_fe_map_get_coordinates(:)
-    piecewise_fe_map_get_coordinates => this%nodes_coordinates
-  end function piecewise_fe_map_get_coordinates
+    class(piecewise_cell_map_t)   , target, intent(in) :: this
+    type(point_t), pointer :: piecewise_cell_map_get_coordinates(:)
+    piecewise_cell_map_get_coordinates => this%nodes_coordinates
+  end function piecewise_cell_map_get_coordinates
 
 !========================================================================================
-  function piecewise_fe_map_get_quadrature_points_coordinates(this)
+  function piecewise_cell_map_get_quadrature_points_coordinates(this)
     implicit none
-    class(piecewise_fe_map_t)   , target, intent(in) :: this
-    type(point_t), pointer :: piecewise_fe_map_get_quadrature_points_coordinates(:)
-    piecewise_fe_map_get_quadrature_points_coordinates => this%coordinates_quadrature
-  end function piecewise_fe_map_get_quadrature_points_coordinates
+    class(piecewise_cell_map_t)   , target, intent(in) :: this
+    type(point_t), pointer :: piecewise_cell_map_get_quadrature_points_coordinates(:)
+    piecewise_cell_map_get_quadrature_points_coordinates => this%coordinates_quadrature
+  end function piecewise_cell_map_get_quadrature_points_coordinates
 
 !========================================================================================
-  subroutine piecewise_fe_map_get_normal(this, qpoint, normal)
+  subroutine piecewise_cell_map_get_normal(this, qpoint, normal)
    implicit none
-   class(piecewise_fe_map_t)     , intent(in)    :: this
+   class(piecewise_cell_map_t)     , intent(in)    :: this
    integer(ip)         , intent(in)    :: qpoint
    type(vector_field_t), intent(inout) :: normal
    integer(ip) :: idime
@@ -242,7 +242,7 @@ contains
    do idime = 1, this%num_dims
      call normal%set(idime,this%normals(idime,qpoint))
    end do
-  end subroutine  piecewise_fe_map_get_normal
+  end subroutine  piecewise_cell_map_get_normal
 
 !****************************************************************************************
-end module piecewise_fe_map_names
+end module piecewise_cell_map_names

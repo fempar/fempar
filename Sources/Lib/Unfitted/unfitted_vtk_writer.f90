@@ -31,7 +31,7 @@ module unfitted_vtk_writer_names
   use fempar_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO ! VTK_IO
 
@@ -432,7 +432,7 @@ contains
     class(fe_iterator_t),allocatable :: fe
     type(quadrature_t), pointer :: quadrature
     type(point_t), pointer :: quadrature_points_coordinates(:)
-    type(piecewise_fe_map_t),     pointer :: fe_map
+    type(piecewise_cell_map_t),     pointer :: cell_map
     integer(ip) :: num_dime, num_subfacets, num_gp_subfacet
     integer(ip) :: qpoint, num_quad_points
     integer(ip) :: ipoint
@@ -496,16 +496,16 @@ contains
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_boundary_quadrature()
        num_quad_points = quadrature%get_num_quadrature_points()
-       fe_map => fe%get_boundary_piecewise_fe_map()
+       cell_map => fe%get_boundary_piecewise_cell_map()
   
        ! Physical coordinates of the quadrature points
-       quadrature_points_coordinates => fe_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
   
        do qpoint = 1, num_quad_points
          this%x(ipoint) = quadrature_points_coordinates(qpoint)%get(1)
          this%y(ipoint) = quadrature_points_coordinates(qpoint)%get(2)
          this%z(ipoint) = quadrature_points_coordinates(qpoint)%get(3)
-         call fe_map%get_normal(qpoint,normal_vec)
+         call cell_map%get_normal(qpoint,normal_vec)
          this%v_x(ipoint) = normal_vec%get(1)
          this%v_y(ipoint) = normal_vec%get(2)
          this%v_z(ipoint) = normal_vec%get(3)

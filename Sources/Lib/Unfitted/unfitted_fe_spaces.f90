@@ -29,7 +29,7 @@
 module unfitted_fe_spaces_names
   use fempar_names
   use unfitted_triangulations_names
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
 
   implicit none
 # include "debug.i90"
@@ -48,13 +48,13 @@ module unfitted_fe_spaces_names
 
     ! Getters that override
     procedure          :: get_quadrature        => unfitted_fe_iterator_get_quadrature
-    procedure          :: get_fe_map            => unfitted_fe_iterator_get_fe_map
+    procedure          :: get_cell_map            => unfitted_fe_iterator_get_cell_map
     procedure          :: get_cell_integrator   => unfitted_fe_iterator_get_cell_integrator
 
     ! Getters that extend
     procedure          :: get_boundary_quadrature          => unfitted_fe_iterator_get_boundary_quadrature
-    procedure          :: get_boundary_piecewise_fe_map    => unfitted_fe_iterator_get_boundary_piecewise_fe_map
-    procedure          :: get_boundary_fe_map              => unfitted_fe_iterator_get_boundary_fe_map
+    procedure          :: get_boundary_piecewise_cell_map    => unfitted_fe_iterator_get_boundary_piecewise_cell_map
+    procedure          :: get_boundary_cell_map              => unfitted_fe_iterator_get_boundary_cell_map
     procedure          :: get_boundary_cell_integrator     => unfitted_fe_iterator_get_boundary_cell_integrator
 
     ! Updater that overrides
@@ -65,10 +65,10 @@ module unfitted_fe_spaces_names
 
     ! Private TBPs
     procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_iterator_update_cut_quadratures
-    procedure, non_overridable, private :: update_cut_fe_maps     => unfitted_fe_iterator_update_cut_fe_maps
+    procedure, non_overridable, private :: update_cut_cell_maps     => unfitted_fe_iterator_update_cut_cell_maps
     procedure, non_overridable, private :: update_cut_cell_integrators  => unfitted_fe_iterator_update_cut_cell_integrators
     procedure, non_overridable, private :: update_cut_boundary_quadratures => unfitted_fe_iterator_update_cut_boundary_quadratures
-    procedure, non_overridable, private :: update_cut_boundary_fe_maps     => unfitted_fe_iterator_update_cut_boundary_fe_maps
+    procedure, non_overridable, private :: update_cut_boundary_cell_maps     => unfitted_fe_iterator_update_cut_boundary_cell_maps
     procedure, non_overridable, private :: update_cut_boundary_cell_integrators  => &
     unfitted_fe_iterator_update_cut_boundary_cell_integrators
 
@@ -84,22 +84,22 @@ module unfitted_fe_spaces_names
     ! All the machinery for integrating in subcells
     type(quadrature_t)                     :: quadrature_subelem
     type(tet_lagrangian_reference_fe_t)    :: geo_reference_subelem
-    type(fe_map_t)                         :: fe_map_subelem
+    type(cell_map_t)                         :: cell_map_subelem
     type(quadrature_t),        allocatable :: cut_quadratures(:)
-    type(fe_map_t),            allocatable :: cut_fe_maps(:)
+    type(cell_map_t),            allocatable :: cut_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_cell_integrators(:,:)
 
     ! All the machinery for integrating in subfacets
     type(quadrature_t)                     :: quadrature_subfacet
     type(quadrature_t),        allocatable :: cut_boundary_quadratures_cell_dim(:)
-    type(piecewise_fe_map_t),  allocatable :: cut_boundary_piecewise_fe_maps(:)
-    type(fe_map_t),            allocatable :: cut_boundary_fe_maps(:)
+    type(piecewise_cell_map_t),  allocatable :: cut_boundary_piecewise_cell_maps(:)
+    type(cell_map_t),            allocatable :: cut_boundary_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_boundary_cell_integrators(:,:)    
 
     ! Auxiliary dummy empty quadratures
     type(quadrature_t)             :: empty_quadrature
-    type(fe_map_t)                 :: empty_fe_map
-    type(piecewise_fe_map_t)       :: empty_piecewise_fe_map
+    type(cell_map_t)                 :: empty_cell_map
+    type(piecewise_cell_map_t)       :: empty_piecewise_cell_map
     type(cell_integrator_t), allocatable  :: empty_cell_integrator(:)
     
     contains

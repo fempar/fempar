@@ -79,7 +79,7 @@ contains
     class(fe_face_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
-    type(fe_map_t)           , pointer :: fe_map
+    type(cell_map_t)           , pointer :: cell_map
     type(facet_maps_t)         , pointer :: facet_map
     type(facet_integrator_t)  , pointer :: face_int_velocity
     type(vector_field_t)               :: normals(2)
@@ -118,7 +118,7 @@ contains
     num_dofs_x_field => fe%get_num_dofs_x_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
-    fe_map           => fe%get_fe_map()
+    cell_map           => fe%get_cell_map()
     cell_int_velocity => fe%get_cell_integrator(1)
     cell_int_pressure => fe%get_cell_integrator(2)
     
@@ -129,7 +129,7 @@ contains
        call fe%update_integration()
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => fe_map%get_quadrature_points_coordinates()
+       quad_coords => cell_map%get_quadrature_points_coordinates()
        
        ! Evaluate pressure source term at quadrature points
        call this%pressure_source_term%get_values_set(quad_coords, pressure_source_term_values)
@@ -141,7 +141,7 @@ contains
        call cell_int_velocity%get_divergences(velocity_shape_divs)
        call cell_int_pressure%get_values(pressure_shape_values)
        do qpoint = 1, num_quad_points
-          factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! \int_(v.u)
           do idof=1, num_dofs_x_field(1)

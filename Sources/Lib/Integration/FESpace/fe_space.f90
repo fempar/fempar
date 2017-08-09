@@ -62,7 +62,7 @@ module fe_space_names
   use iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
   
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
 
  ! Parallel modules
   use environment_names
@@ -220,7 +220,7 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature_degree                      => fe_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree                      => fe_iterator_set_quadrature_degree
     procedure                           :: get_quadrature                             => fe_iterator_get_quadrature
-    procedure                           :: get_fe_map                                 => fe_iterator_get_fe_map
+    procedure                           :: get_cell_map                                 => fe_iterator_get_cell_map
     procedure                           :: get_cell_integrator                        => fe_iterator_get_cell_integrator
     
     procedure, non_overridable, private :: fe_iterator_get_fe_vef
@@ -244,8 +244,8 @@ module fe_space_names
 
     ! Added by unfitted_fe_iterator
     procedure                           :: get_boundary_quadrature                    => fe_iterator_get_boundary_quadrature
-    procedure                           :: get_boundary_piecewise_fe_map              => fe_iterator_get_boundary_piecewise_fe_map
-    procedure                           :: get_boundary_fe_map                        => fe_iterator_get_boundary_fe_map
+    procedure                           :: get_boundary_piecewise_cell_map              => fe_iterator_get_boundary_piecewise_cell_map
+    procedure                           :: get_boundary_cell_map                        => fe_iterator_get_boundary_cell_map
     procedure                           :: get_boundary_cell_integrator               => fe_iterator_get_boundary_cell_integrator
     procedure                           :: update_boundary_integration                => fe_iterator_update_boundary_integration
 
@@ -339,7 +339,7 @@ module fe_space_names
      
      ! Finite Element-related integration containers
      type(quadrature_t)            , allocatable :: fe_quadratures(:)
-     type(fe_map_t)                , allocatable :: fe_maps(:)
+     type(cell_map_t)                , allocatable :: cell_maps(:)
      type(cell_integrator_t)       , allocatable :: fe_cell_integrators(:)
      integer(ip)                   , allocatable :: fe_quadratures_degree(:)
      

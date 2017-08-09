@@ -673,7 +673,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   integer(ip)                         :: ivef, vef_lid, ielem
   integer(ip)                         :: iblock, init_dof_block, current_dof_block
   integer(ip)                         :: previous_dof_block
-  integer(ip), allocatable            :: visited_vef_to_coarse_fe_map(:,:)
+  integer(ip), allocatable            :: visited_vef_to_coarse_cell_map(:,:)
   type(coarse_fe_iterator_t)          :: coarse_fe
   type(coarse_fe_iterator_t)          :: source_fe
   integer(ip) :: source_ivef
@@ -684,8 +684,8 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   init_dof_block    = this%num_dofs_x_block(iblock)
   current_dof_block = init_dof_block
 
-  call memalloc ( 2, this%coarse_triangulation%get_num_vefs(), visited_vef_to_coarse_fe_map,  __FILE__, __LINE__ )
-  visited_vef_to_coarse_fe_map = -1
+  call memalloc ( 2, this%coarse_triangulation%get_num_vefs(), visited_vef_to_coarse_cell_map,  __FILE__, __LINE__ )
+  visited_vef_to_coarse_cell_map = -1
 
   call this%create_coarse_fe_iterator(coarse_fe)
   call this%create_coarse_fe_iterator(source_fe)
@@ -697,21 +697,21 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
         if ( coarse_fe%is_local() ) then
            do ivef = 1, coarse_fe%get_num_vefs()
               vef_lid = coarse_fe%get_vef_lid(ivef)
-              if ( visited_vef_to_coarse_fe_map ( 1, vef_lid ) == -1 ) then
+              if ( visited_vef_to_coarse_cell_map ( 1, vef_lid ) == -1 ) then
                  previous_dof_block = current_dof_block
                  call coarse_fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block  ) 
 
                  ! Only mark as visited if we have assigned at least one dof
                  if (previous_dof_block < current_dof_block) then
-                   visited_vef_to_coarse_fe_map ( 1, vef_lid ) = coarse_fe%get_lid()
-                   visited_vef_to_coarse_fe_map ( 2, vef_lid ) = ivef
+                   visited_vef_to_coarse_cell_map ( 1, vef_lid ) = coarse_fe%get_lid()
+                   visited_vef_to_coarse_cell_map ( 2, vef_lid ) = ivef
                  end if
 
               else 
-                 call source_fe%set_lid(visited_vef_to_coarse_fe_map(1,vef_lid))
+                 call source_fe%set_lid(visited_vef_to_coarse_cell_map(1,vef_lid))
                  call coarse_fe%fill_own_dofs_on_vef_from_source_coarse_fe ( ivef, &
                                                                              source_fe, &
-                                                                             visited_vef_to_coarse_fe_map(2,vef_lid), &
+                                                                             visited_vef_to_coarse_cell_map(2,vef_lid), &
                                                                              field_id) 
               end if
            end do
@@ -754,7 +754,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   call this%free_coarse_fe_iterator(coarse_fe)
   call this%free_coarse_fe_iterator(source_fe)
 
-  call memfree ( visited_vef_to_coarse_fe_map,  __FILE__, __LINE__ )  
+  call memfree ( visited_vef_to_coarse_cell_map,  __FILE__, __LINE__ )  
   this%num_dofs_x_field(field_id) = current_dof_block - init_dof_block
   this%num_dofs_x_block(iblock) = this%num_dofs_x_block(iblock) + &
        this%num_dofs_x_field(field_id)   

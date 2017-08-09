@@ -26,11 +26,11 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-! fe_map_facet_restriction_t type procedures
-subroutine fe_map_facet_restriction_create( this, quadrature, reference_fe_geometry )
+! cell_map_facet_restriction_t type procedures
+subroutine cell_map_facet_restriction_create( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(fe_map_facet_restriction_t), intent(inout) :: this
+  class(cell_map_facet_restriction_t), intent(inout) :: this
   type(quadrature_t)           , intent(in)    :: quadrature
   class(lagrangian_reference_fe_t)           , intent(in)    :: reference_fe_geometry
 
@@ -38,62 +38,62 @@ subroutine fe_map_facet_restriction_create( this, quadrature, reference_fe_geome
 
   call this%free()
   this%num_facets = reference_fe_geometry%get_num_facets()
-  allocate(this%fe_map(this%num_facets),stat = istat)
+  allocate(this%cell_map(this%num_facets),stat = istat)
   check(istat == 0)
   do face_lid = 1,  this%num_facets
-     call this%fe_map(face_lid)%create_on_face(face_lid,quadrature,reference_fe_geometry)
+     call this%cell_map(face_lid)%restricted_to_facet(face_lid,quadrature,reference_fe_geometry)
   end do
-end subroutine fe_map_facet_restriction_create
+end subroutine cell_map_facet_restriction_create
 
 !==================================================================================================
-subroutine fe_map_facet_restriction_update( this, face_lid, quadrature)
+subroutine cell_map_facet_restriction_update( this, face_lid, quadrature)
   implicit none
   ! Parameters
-  class(fe_map_facet_restriction_t), intent(inout) :: this
+  class(cell_map_facet_restriction_t), intent(inout) :: this
   integer(ip)                     , intent(in)    :: face_lid
   type(quadrature_t)           , intent(in)    :: quadrature
 
   this%active_face_lid = face_lid
-  call this%fe_map(face_lid)%update(quadrature)
+  call this%cell_map(face_lid)%update(quadrature)
 
-end subroutine fe_map_facet_restriction_update
+end subroutine cell_map_facet_restriction_update
 
 !==================================================================================================
-subroutine fe_map_facet_restriction_free( this)
+subroutine cell_map_facet_restriction_free( this)
   implicit none
   ! Parameters
-  class(fe_map_facet_restriction_t), intent(inout) :: this
+  class(cell_map_facet_restriction_t), intent(inout) :: this
   integer(ip) :: face_lid , istat
   do face_lid = 1, this%num_facets
-     call this%fe_map(face_lid)%free()
+     call this%cell_map(face_lid)%free()
   end do
-  if (allocated(this%fe_map)) then
-     deallocate(this%fe_map, stat = istat)
+  if (allocated(this%cell_map)) then
+     deallocate(this%cell_map, stat = istat)
      check(istat == 0)
   end if
   this%num_facets = 0
   this%active_face_lid = 0
-end subroutine fe_map_facet_restriction_free
+end subroutine cell_map_facet_restriction_free
 
 !==================================================================================================
-function fe_map_facet_restriction_get_coordinates(this,face_lid)
+function cell_map_facet_restriction_get_coordinates(this,face_lid)
   implicit none
   ! Parameters
-  class(fe_map_facet_restriction_t), intent(in) :: this
+  class(cell_map_facet_restriction_t), intent(in) :: this
   integer(ip)                     , intent(in) :: face_lid
-  type(point_t), pointer :: fe_map_facet_restriction_get_coordinates(:)
-  fe_map_facet_restriction_get_coordinates => this%fe_map(face_lid)%get_coordinates()
-end function fe_map_facet_restriction_get_coordinates
+  type(point_t), pointer :: cell_map_facet_restriction_get_coordinates(:)
+  cell_map_facet_restriction_get_coordinates => this%cell_map(face_lid)%get_coordinates()
+end function cell_map_facet_restriction_get_coordinates
 
 !==================================================================================================
-function fe_map_facet_restriction_get_active_fe_map(this)
+function cell_map_facet_restriction_get_active_cell_map(this)
   implicit none
   ! Parameters
-  class(fe_map_facet_restriction_t), target, intent(in) :: this
-  type(fe_map_t), pointer :: fe_map_facet_restriction_get_active_fe_map
+  class(cell_map_facet_restriction_t), target, intent(in) :: this
+  type(cell_map_t), pointer :: cell_map_facet_restriction_get_active_cell_map
   assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%num_facets )
-  fe_map_facet_restriction_get_active_fe_map => this%fe_map(this%active_face_lid)
-end function fe_map_facet_restriction_get_active_fe_map
+  cell_map_facet_restriction_get_active_cell_map => this%cell_map(this%active_face_lid)
+end function cell_map_facet_restriction_get_active_cell_map
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! facet_maps_t procedures
@@ -110,9 +110,9 @@ subroutine facet_maps_create(this, quadrature, left_geo_reference_fe, right_geo_
 
   this%num_dims = left_geo_reference_fe%get_num_dims()
   call this%facet_map%create(quadrature,left_geo_reference_fe)
-  call this%fe_maps(1)%create(quadrature,left_geo_reference_fe)
+  call this%cell_maps(1)%create(quadrature,left_geo_reference_fe)
   if (associated(right_geo_reference_fe)) then
-     call this%fe_maps(2)%create(quadrature,right_geo_reference_fe)
+     call this%cell_maps(2)%create(quadrature,right_geo_reference_fe)
   end if
 end subroutine facet_maps_create
 
@@ -124,7 +124,7 @@ subroutine facet_maps_free(this)
   integer(ip) :: i
   call this%facet_map%free()
   do i=1,2
-     call this%fe_maps(i)%free()
+     call this%cell_maps(i)%free()
   end do
 end subroutine facet_maps_free
 
@@ -138,15 +138,15 @@ subroutine facet_maps_update(this,face_lid,face_quadrature,left_reference_fe_geo
   class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
   real   (rp)             :: reorientation_factor
 
-  ! Update fe_maps
-  call this%fe_maps(1)%update(face_lid(1),face_quadrature)
+  ! Update cell_maps
+  call this%cell_maps(1)%update(face_lid(1),face_quadrature)
   if (.not. this%is_at_boundary) then
      assert ( face_lid(2) >= 1 )
-     call this%fe_maps(2)%update(face_lid(2),face_quadrature)
+     call this%cell_maps(2)%update(face_lid(2),face_quadrature)
   end if
   
   ! Compute normals reorientation factors from |J|'s original sign and face orientation
-  reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(face_lid(1),this%fe_maps(1)%fe_map(face_lid(1)))
+  reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(face_lid(1),this%cell_maps(1)%cell_map(face_lid(1)))
   ! Update facet_map
   call this%facet_map%update(reorientation_factor,face_quadrature)
 end subroutine facet_maps_update
@@ -160,15 +160,15 @@ function facet_maps_compute_characteristic_length(this,qpoin)
 
   real(rp)    :: h
   integer(ip) :: i
-  type(fe_map_t), pointer :: fe_map
+  type(cell_map_t), pointer :: cell_map
   
-  fe_map => this%fe_maps(1)%fe_map(this%fe_maps(1)%active_face_lid)
-  facet_maps_compute_characteristic_length = fe_map%compute_h(qpoin)
+  cell_map => this%cell_maps(1)%cell_map(this%cell_maps(1)%active_face_lid)
+  facet_maps_compute_characteristic_length = cell_map%compute_h(qpoin)
 
   if (.not. this%is_at_boundary) then
      i = 2
-     fe_map => this%fe_maps(i)%fe_map(this%fe_maps(i)%active_face_lid)
-     h = fe_map%compute_h(qpoin) 
+     cell_map => this%cell_maps(i)%cell_map(this%cell_maps(i)%active_face_lid)
+     h = cell_map%compute_h(qpoin) 
      facet_maps_compute_characteristic_length = min(facet_maps_compute_characteristic_length, h)
   end if
 
@@ -203,20 +203,20 @@ function facet_maps_get_coordinates_neighbour(this,neighbour_id,face_lid)
   integer(ip)              , intent(in)    :: face_lid
   type(point_t), pointer :: facet_maps_get_coordinates_neighbour(:)
   assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_at_boundary)))
-  facet_maps_get_coordinates_neighbour => this%fe_maps(neighbour_id)%get_coordinates(face_lid)
+  facet_maps_get_coordinates_neighbour => this%cell_maps(neighbour_id)%get_coordinates(face_lid)
 end function facet_maps_get_coordinates_neighbour
 
 !==================================================================================================
-function facet_maps_get_neighbour_fe_map(this,neighbour_id)
+function facet_maps_get_neighbour_cell_map(this,neighbour_id)
   implicit none
   ! Parameters
   class(facet_maps_t), target, intent(in) :: this
   integer(ip)                           :: neighbour_id
-  type(fe_map_facet_restriction_t), pointer :: facet_maps_get_neighbour_fe_map
+  type(cell_map_facet_restriction_t), pointer :: facet_maps_get_neighbour_cell_map
 
   assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_at_boundary)))
-  facet_maps_get_neighbour_fe_map => this%fe_maps(neighbour_id)
-end function facet_maps_get_neighbour_fe_map
+  facet_maps_get_neighbour_cell_map => this%cell_maps(neighbour_id)
+end function facet_maps_get_neighbour_cell_map
 
 !=================================================================================================
 subroutine facet_maps_get_normals (this, qpoint, normal)
@@ -264,18 +264,18 @@ subroutine cell_integrator_facet_restriction_create(this, quadrature, reference_
   this%num_facets = reference_fe%get_num_facets()
   allocate(this%cell_integrator(this%num_facets), stat = istat); check(istat==0);
   do face_lid =1, this%num_facets
-     call this%cell_integrator(face_lid)%create_on_face(quadrature, reference_fe, face_lid)
+     call this%cell_integrator(face_lid)%restricted_to_facet(quadrature, reference_fe, face_lid)
   end do
 end subroutine cell_integrator_facet_restriction_create
 
 !==================================================================================================
-subroutine cell_integrator_facet_restriction_update(this, fe_map, face_lid)
+subroutine cell_integrator_facet_restriction_update(this, cell_map, face_lid)
   implicit none
   class(cell_integrator_facet_restriction_t), intent(inout) :: this
-  type(fe_map_t)                             , intent(in)    :: fe_map
+  type(cell_map_t)                             , intent(in)    :: cell_map
   integer(ip)                                , intent(in)    :: face_lid
   this%active_face_lid = face_lid
-  call this%cell_integrator(face_lid)%update(fe_map)
+  call this%cell_integrator(face_lid)%update(cell_map)
 end subroutine cell_integrator_facet_restriction_update
 
 !==================================================================================================
@@ -350,10 +350,10 @@ subroutine facet_integrator_update(this,face_lid,facet_map,permutation_index)
   integer(ip)             , intent(in)    :: face_lid(2)
   integer(ip)             , intent(in)    :: permutation_index
   type(facet_maps_t)        , intent(in)    :: facet_map
-  call this%cell_integrator_facet_restriction(1)%update(facet_map%fe_maps(1)%get_active_fe_map(),face_lid(1))
+  call this%cell_integrator_facet_restriction(1)%update(facet_map%cell_maps(1)%get_active_cell_map(),face_lid(1))
   if (.not. this%is_at_boundary) then
      this%current_qpoints_perm_cols(2) = permutation_index
-     call this%cell_integrator_facet_restriction(2)%update(facet_map%fe_maps(2)%get_active_fe_map(),face_lid(2))
+     call this%cell_integrator_facet_restriction(2)%update(facet_map%cell_maps(2)%get_active_cell_map(),face_lid(2))
   end if
 end subroutine facet_integrator_update
 

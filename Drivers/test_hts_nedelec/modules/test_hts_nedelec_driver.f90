@@ -299,7 +299,7 @@ contains
     class(fe_face_iterator_t), allocatable :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
-    type(fe_map_t)           , pointer     :: fe_map
+    type(cell_map_t)           , pointer     :: cell_map
     type(facet_maps_t)         , pointer     :: facet_map 
     type(vector_field_t)                   :: rot_test_vector
     integer(ip)                            :: qpoin, num_qpoints, idof 
@@ -345,7 +345,7 @@ contains
     if ( this%triangulation%get_num_dims() == 2) then  
     
     quad           => fe%get_quadrature()
-    fe_map         => fe%get_fe_map() 
+    cell_map         => fe%get_cell_map() 
     cell_int_H      => fe%get_cell_integrator(1)
     num_qpoints =  quad%get_num_quadrature_points()
     
@@ -360,7 +360,7 @@ contains
           elvec      = 0.0_rp 
           ! Integrate J over the hts subdomain 
           do qpoin=1, num_qpoints
-             factor = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						
+             factor = cell_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						
              do inode = 1, num_dofs_x_field(1)  
                 call cell_int_H%get_curl(inode, qpoin, rot_test_vector)
                 elvec(inode) = elvec(inode) + factor * rot_test_vector%get(3) 
@@ -575,7 +575,7 @@ contains
     class(fe_iterator_t), allocatable :: fe
     ! Integration loop 
     type(quadrature_t)       , pointer     :: quad
-    type(fe_map_t)           , pointer     :: fe_map
+    type(cell_map_t)           , pointer     :: cell_map
     type(cell_fe_function_vector_t)        :: cell_fe_function_current
     integer(ip)                            :: qpoin, num_quad_points, idof 
     type(point_t)            , pointer     :: quad_coords(:)
@@ -600,8 +600,8 @@ contains
     call this%fe_space%create_fe_iterator(fe)
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
-    fe_map           => fe%get_fe_map()
-    quad_coords      => fe_map%get_quadrature_points_coordinates()
+    cell_map           => fe%get_cell_map()
+    quad_coords      => cell_map%get_quadrature_points_coordinates()
     aux_quad_coords  = quad_coords
 
     ! Loop over elements
@@ -616,11 +616,11 @@ contains
           call cell_fe_function_current%update(fe, this%H_current)
 
           ! Get quadrature coordinates to evaluate boundary value
-          quad_coords => fe_map%get_quadrature_points_coordinates()
+          quad_coords => cell_map%get_quadrature_points_coordinates()
 
           ! Integrate cell contribution to H_y, x·J_z average 
           do qpoin=1, num_quad_points
-             factor = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						         
+             factor = cell_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						         
              call cell_fe_function_current%get_value(qpoin, H_value)
              call cell_fe_function_current%compute_curl(qpoin, H_curl)
              Hy_average  = Hy_average + factor*H_value%get(2)          

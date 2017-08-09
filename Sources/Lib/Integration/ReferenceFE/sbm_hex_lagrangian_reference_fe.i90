@@ -746,16 +746,16 @@ end subroutine hex_lagrangian_reference_fe_fill_interpolation
 ! Here we define the dim-1 quadrature and next translate the nodes
 ! using the facet type to dim. Next, use the same machinary as for the volume with this new quadrature.
 !!==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_face_interpolation( this, local_quadrature, local_face_id, face_interpolation )
+subroutine hex_lagrangian_reference_fe_fill_facet_interpolation( this, local_quadrature, facet_lid, facet_interpolation )
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(in)    :: local_quadrature
-  integer(ip)                         , intent(in)    :: local_face_id
-  type(interpolation_t)               , intent(inout) :: face_interpolation
+  integer(ip)                         , intent(in)    :: facet_lid
+  type(interpolation_t)               , intent(inout) :: facet_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: c,idime,iface,n_face_index
   ! Add offset to have same numbering as in polytope
-  n_face_index = local_face_id+this%get_first_facet_id()-1
+  n_face_index = facet_lid+this%get_first_facet_id()-1
   ! Create a d-dimensional quadrature as follows
   call aux_quadrature%create( this%num_dims, local_quadrature%num_quadrature_points )
   c = 0
@@ -769,9 +769,9 @@ subroutine hex_lagrangian_reference_fe_fill_face_interpolation( this, local_quad
         aux_quadrature%coordinates(idime+1,:) = 1.0_rp
      end if
   end do
-  call this%fill_interpolation( aux_quadrature, face_interpolation ) 
+  call this%fill_interpolation( aux_quadrature, facet_interpolation ) 
   call aux_quadrature%free()
-end subroutine hex_lagrangian_reference_fe_fill_face_interpolation
+end subroutine hex_lagrangian_reference_fe_fill_facet_interpolation
 
 !==================================================================================================
 subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )

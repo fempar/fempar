@@ -133,7 +133,7 @@ subroutine error_norms_scalar_compute_cell_contribution (this, &
   ! Locals 
   logical                       :: norm_requires_values
   logical                       :: norm_requires_gradients
-  type(fe_map_t)    , pointer   :: fe_map 
+  type(cell_map_t)    , pointer   :: cell_map 
   type(quadrature_t), pointer   :: quadrature 
   type(point_t)     , pointer   :: coordinates(:)
   real(rp)                      :: time_(1) 
@@ -148,9 +148,9 @@ subroutine error_norms_scalar_compute_cell_contribution (this, &
 
   norm_requires_values    = error_norm_requires_values(norm_type)
   norm_requires_gradients = error_norm_requires_gradients(norm_type) 
-  fe_map                  => fe%get_fe_map()
+  cell_map                  => fe%get_cell_map()
   quadrature              => fe%get_quadrature()
-  coordinates             => fe_map%get_quadrature_points_coordinates()
+  coordinates             => cell_map%get_quadrature_points_coordinates()
   n_q_points              = quadrature%get_num_quadrature_points() 
 
   if (norm_requires_values) then
@@ -192,24 +192,24 @@ subroutine error_norms_scalar_compute_cell_contribution (this, &
   case (mean_norm)
      do q_point=1, n_q_points
         values_cell_contribution = values_cell_contribution + & 
-             this%work_array_values(q_point,1)*fe_map%get_det_jacobian(q_point)*quadrature%get_weight(q_point)
+             this%work_array_values(q_point,1)*cell_map%get_det_jacobian(q_point)*quadrature%get_weight(q_point)
      end do
   case (l1_norm)
      do q_point=1, n_q_points
         values_cell_contribution = values_cell_contribution + & 
-             abs(this%work_array_values(q_point,1))*fe_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+             abs(this%work_array_values(q_point,1))*cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (l2_norm,h1_norm)
      do q_point=1, n_q_points
         values_cell_contribution = values_cell_contribution + & 
              (this%work_array_values(q_point,1)*this%work_array_values(q_point,1))*&
-             fe_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+             cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (lp_norm,w1p_norm)
      do q_point=1, n_q_points
         values_cell_contribution = values_cell_contribution + & 
              (abs(this%work_array_values(q_point,1))**exponent)*&
-             fe_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+             cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (linfty_norm,w1infty_norm)
      do q_point=1, n_q_points
@@ -223,13 +223,13 @@ subroutine error_norms_scalar_compute_cell_contribution (this, &
      do q_point=1, n_q_points
         gradients_cell_contribution = gradients_cell_contribution + & 
              (this%work_array_gradients(q_point,1)*this%work_array_gradients(q_point,1))*&
-             fe_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+             cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (w1p_norm, w1p_seminorm)
      do q_point=1, n_q_points
         gradients_cell_contribution = gradients_cell_contribution + & 
              (this%work_array_gradients(q_point,1)*this%work_array_gradients(q_point,1))**(exponent/2.0_rp)*&
-             fe_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+             cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (w1infty_norm,w1infty_seminorm)
      do q_point=1, n_q_points

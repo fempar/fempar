@@ -92,50 +92,50 @@ end subroutine nedelec_create_interpolation
 
 !==================================================================================================
 ! This routine creates the interpolation corresponding to the evaluation of the shape functions on
-! integration points given by local_quadrature either on the face 'local_face_id' of the element or
+! integration points given by local_quadrature either on the face 'facet_lid' of the element or
 ! in all the faces of the element.
-subroutine nedelec_create_interpolation_restricted_to_facet( this, local_face_id, local_quadrature, face_interpolation)
+subroutine nedelec_create_interpolation_restricted_to_facet( this, facet_lid, local_quadrature, facet_interpolation)
   implicit none 
   class(nedelec_reference_fe_t)   , intent(in)    :: this 
-  integer(ip)                     , intent(in)    :: local_face_id
+  integer(ip)                     , intent(in)    :: facet_lid
   type(quadrature_t)              , intent(in)    :: local_quadrature
-  type(interpolation_t)           , intent(inout) :: face_interpolation
+  type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   ! Allocate the arrays of the interpolation
-  call face_interpolation%create(this%num_dims, &
+  call facet_interpolation%create(this%num_dims, &
                                  this%num_shape_functions, &
                                  local_quadrature%num_quadrature_points, &
                                  0 )
 
   ! Fill the values of the shape functions
-  call this%fill_face_interpolation(local_quadrature, &
-                                    local_face_id, &
-                                    face_interpolation)
+  call this%fill_facet_interpolation(local_quadrature, &
+                                    facet_lid, &
+                                    facet_interpolation)
 
 end subroutine nedelec_create_interpolation_restricted_to_facet
 
 !==================================================================================================
 ! This routine creates the interpolation corresponding to the evaluation of the shape functions on
 ! integration points given by local_quadrature on the edge 'local_edge_id' of the element
-subroutine nedelec_create_edge_interpolation( this, local_edge_id, local_quadrature, edge_interpolation)
+subroutine nedelec_create_interpolation_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation)
   implicit none 
   class(nedelec_reference_fe_t)   , intent(in)    :: this 
   integer(ip)                     , intent(in)    :: local_edge_id
   type(quadrature_t)              , intent(in)    :: local_quadrature
-  type(interpolation_t)           , intent(inout) :: edge_interpolation
+  type(interpolation_t)           , intent(inout) :: edget_interpolation
   
   ! Allocate the arrays of the interpolation
-  call edge_interpolation%create(this%num_dims, &
+  call edget_interpolation%create(this%num_dims, &
                                  this%num_shape_functions, &
                                  local_quadrature%num_quadrature_points, &
                                  0 )
 
   ! Fill the values of the shape functions, gradients, etc.
-  call this%fill_edge_interpolation(local_edge_id, &
+  call this%fill_interpolation_restricted_to_edget(local_edge_id, &
                                     local_quadrature, &
-                                    edge_interpolation)
+                                    edget_interpolation)
 
-end subroutine nedelec_create_edge_interpolation
+end subroutine nedelec_create_interpolation_restricted_to_edget
 
 !==================================================================================================
 subroutine nedelec_create_edge_quadrature ( this, quadrature, degree )
@@ -767,7 +767,7 @@ end subroutine nedelec_get_subelements_connectivity
 subroutine nedelec_apply_cell_map_to_interpolation(this,map,ref,phy)
   implicit none
   class(nedelec_reference_fe_t), intent(in)    :: this 
-  type(fe_map_t)                  , intent(in)    :: map
+  type(cell_map_t)                  , intent(in)    :: map
   type(interpolation_t)           , intent(in)    :: ref
   type(interpolation_t)           , intent(inout) :: phy
   real(rp), allocatable :: wmat1(:,:,:)
