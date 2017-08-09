@@ -36,7 +36,7 @@ module mesh_distribution_names
   private
 
   character(len=*), parameter :: num_parts_key  = 'num_parts'
-  character(len=*), parameter :: num_levels_key = 'num_levels'
+  character(len=*), parameter :: num_levels_distribution_key = 'num_levels'
   character(len=*), parameter :: num_parts_per_level_key = 'num_parts_per_level'
   character(len=*), parameter :: debug_key     = 'debug'
   character(len=*), parameter :: strategy_key  = 'strategy'
@@ -140,7 +140,7 @@ module mesh_distribution_names
 
   ! Constants
   public :: num_parts_key
-  public :: num_levels_key
+  public :: num_levels_distribution_key
   public :: num_parts_per_level_key
   public :: debug_key
   public :: strategy_key
@@ -171,15 +171,15 @@ contains
     integer(ip), allocatable :: param_size(:), param(:)
 
     ! Mandatory parameters: either nparts or num_levels
-    assert(parameter_list%isPresent(key = num_parts_key).or.parameter_list%isPresent(key = num_levels_key))
+    assert(parameter_list%isPresent(key = num_parts_key).or.parameter_list%isPresent(key = num_levels_distribution_key))
     if( parameter_list%isPresent(num_parts_key)) then
        assert(parameter_list%isAssignable(num_parts_key, this%nparts))
        istat = parameter_list%get(key = num_parts_key , value = this%nparts)
        assert(istat==0)
     end if
-    if( parameter_list%isPresent(num_levels_key) ) then
-       assert(parameter_list%isAssignable(num_levels_key, this%num_levels))
-       istat = parameter_list%get(key = num_levels_key  , value = this%num_levels)
+    if( parameter_list%isPresent(num_levels_distribution_key) ) then
+       assert(parameter_list%isAssignable(num_levels_distribution_key, this%num_levels))
+       istat = parameter_list%get(key = num_levels_distribution_key  , value = this%num_levels)
        assert(istat==0)
        
        assert(parameter_list%isPresent(key = num_parts_per_level_key ))
