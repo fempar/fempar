@@ -1589,9 +1589,7 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
   class(fe_face_iterator_t)       , allocatable :: fe_face
   class(fe_iterator_t)            , allocatable :: first_fe
   class(fe_iterator_t)            , allocatable :: second_fe
-  class(lagrangian_reference_fe_t), pointer     :: first_reference_fe_geo
-  class(lagrangian_reference_fe_t), pointer     :: second_reference_fe_geo
-  integer(ip)                                   :: fe_face_permutation_index
+  integer(ip)                                   :: face_permutation_index
   
   call this%face_permutation_indices%resize(this%vef_lids_of_fe_faces%size(),-1)
   call this%create_fe_iterator(first_fe)
@@ -1599,18 +1597,8 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
   call this%create_fe_face_iterator(fe_face)
   do while ( .not. fe_face%has_finished() )
     if ( .not. fe_face%is_ghost() .and. fe_face%get_num_cells_around() == 2 ) then
-      call fe_face%get_cell_around(1,first_fe)
-      first_reference_fe_geo => first_fe%get_reference_fe_geo()
-      call fe_face%get_cell_around(2,second_fe)
-      second_reference_fe_geo => second_fe%get_reference_fe_geo()
-      fe_face_permutation_index = &
-        first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,                &
-                                                          fe_face%get_lpos_within_cell_around(1), &
-                                                          fe_face%get_lpos_within_cell_around(2), &
-                                                          first_fe%get_vef_lids(),                &
-                                                          second_fe%get_vef_lids() )
-      call this%face_permutation_indices%set(fe_face%face_lid, &
-                                             fe_face_permutation_index)
+      face_permutation_index = fe_face%compute_face_permutation_index(first_fe,second_fe)
+      call this%face_permutation_indices%set(fe_face%face_lid,face_permutation_index)
     end if
     call fe_face%next()
   end do

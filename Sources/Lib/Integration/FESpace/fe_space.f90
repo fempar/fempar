@@ -306,28 +306,29 @@ module fe_space_names
     integer(ip)                         :: face_lid
     class(fe_iterator_t)  , allocatable :: fe
    contains
-    procedure                           :: create                        => fe_face_iterator_create
-    procedure                           :: free                          => fe_face_iterator_free
-    procedure                           :: first                         => fe_face_iterator_first
-    procedure                           :: next                          => fe_face_iterator_next
-    procedure                           :: has_finished                  => fe_face_iterator_has_finished
-    procedure, non_overridable          :: set_lid                       => fe_face_iterator_set_lid
-    procedure, non_overridable          :: get_lid                       => fe_face_iterator_get_lid
-    procedure, non_overridable          :: update_integration            => fe_face_iterator_update_integration
-    procedure                           :: assemble                      => fe_face_iterator_assemble
-    procedure, non_overridable          :: get_fe_space                  => fe_face_iterator_get_fe_space
-    procedure, non_overridable          :: get_elem2dof                  => fe_face_iterator_get_elem2dof
-    procedure, non_overridable          :: get_default_quadrature_degree => fe_face_iterator_get_default_quadrature_degree
-    procedure, non_overridable          :: get_quadrature_degree         => fe_face_iterator_get_quadrature_degree
-    procedure, non_overridable          :: set_quadrature_degree         => fe_face_iterator_set_quadrature_degree
-    procedure, non_overridable          :: get_quadrature                => fe_face_iterator_get_quadrature
-    procedure, non_overridable          :: get_face_maps                 => fe_face_iterator_get_face_map
-    procedure, non_overridable          :: get_face_integrator           => fe_face_iterator_get_face_integrator
-    procedure, non_overridable          :: impose_strong_dirichlet_bcs   => fe_face_iterator_impose_strong_dirichlet_bcs
-    procedure, non_overridable          :: compute_surface               => fe_face_iterator_compute_surface
-    procedure, non_overridable          :: get_face_permutation_index    => fe_face_iterator_get_face_permutation_index
-    procedure                           :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
-    procedure                 , private :: get_subface_lid_cell_around   => fe_face_iterator_get_subface_lid_cell_around
+    procedure                           :: create                         => fe_face_iterator_create
+    procedure                           :: free                           => fe_face_iterator_free
+    procedure                           :: first                          => fe_face_iterator_first
+    procedure                           :: next                           => fe_face_iterator_next
+    procedure                           :: has_finished                   => fe_face_iterator_has_finished
+    procedure, non_overridable          :: set_lid                        => fe_face_iterator_set_lid
+    procedure, non_overridable          :: get_lid                        => fe_face_iterator_get_lid
+    procedure, non_overridable          :: update_integration             => fe_face_iterator_update_integration
+    procedure                           :: assemble                       => fe_face_iterator_assemble
+    procedure, non_overridable          :: get_fe_space                   => fe_face_iterator_get_fe_space
+    procedure, non_overridable          :: get_elem2dof                   => fe_face_iterator_get_elem2dof
+    procedure, non_overridable          :: get_default_quadrature_degree  => fe_face_iterator_get_default_quadrature_degree
+    procedure, non_overridable          :: get_quadrature_degree          => fe_face_iterator_get_quadrature_degree
+    procedure, non_overridable          :: set_quadrature_degree          => fe_face_iterator_set_quadrature_degree
+    procedure, non_overridable          :: get_quadrature                 => fe_face_iterator_get_quadrature
+    procedure, non_overridable          :: get_face_maps                  => fe_face_iterator_get_face_map
+    procedure, non_overridable          :: get_face_integrator            => fe_face_iterator_get_face_integrator
+    procedure, non_overridable          :: impose_strong_dirichlet_bcs    => fe_face_iterator_impose_strong_dirichlet_bcs
+    procedure, non_overridable          :: compute_surface                => fe_face_iterator_compute_surface
+    procedure                 , private :: compute_face_permutation_index => fe_face_iterator_compute_face_permutation_index
+    procedure, non_overridable          :: get_face_permutation_index     => fe_face_iterator_get_face_permutation_index
+    procedure                           :: get_lpos_within_cell_around    => fe_face_iterator_get_lpos_within_cell_around
+    procedure                 , private :: get_subface_lid_cell_around    => fe_face_iterator_get_subface_lid_cell_around
   end type fe_face_iterator_t
       
   integer(ip), parameter :: fe_space_type_cg                        = 0 ! H^1 conforming FE space
@@ -448,7 +449,7 @@ module fe_space_names
      procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe_face     => serial_fe_space_free_max_order_reference_fe_id_per_fe_face
      procedure, non_overridable          :: compute_max_order_reference_fe_id_per_fe_face  => serial_fe_space_compute_max_order_reference_fe_id_per_fe_face   
      
-     procedure                 , private :: allocate_and_fill_vef_lids_of_fe_faces       => serial_fe_space_allocate_and_fill_vef_lids_of_fe_faces
+     procedure, non_overridable, private :: allocate_and_fill_vef_lids_of_fe_faces       => serial_fe_space_allocate_and_fill_vef_lids_of_fe_faces
      procedure, non_overridable, private :: free_vef_lids_of_fe_faces                    => serial_fe_space_free_vef_lids_of_fe_faces
      
      procedure, non_overridable, private :: compute_face_permutation_indices             => serial_fe_space_compute_face_permutation_indices

@@ -114,15 +114,16 @@ module hp_adaptive_fe_space_names
    private 
    type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
  contains
-   procedure          :: create                        => hp_adaptive_fe_face_iterator_create
-   procedure          :: free                          => hp_adaptive_fe_face_iterator_free
-   procedure          :: get_num_cells_around          => hp_adaptive_fe_face_iterator_get_num_cells_around
-   procedure, private :: fe_vef_iterator_get_fe_around => hp_adaptive_fe_face_iterator_get_fe_around
-   procedure          :: get_lpos_within_cell_around   => hp_adaptive_fe_face_iterator_get_lpos_within_cell_around
-   procedure, private :: get_subface_lid_cell_around   => hp_adaptive_fe_face_iterator_get_subface_lid_cell_around
-   procedure          :: assemble                      => hp_adaptive_fe_face_iterator_assemble
-   procedure, private :: recursive_matrix_assembly     => hp_adaptive_fe_face_iterator_recursive_matrix_assembly
-   procedure, private :: recursive_vector_assembly     => hp_adaptive_fe_face_iterator_recursive_vector_assembly
+   procedure          :: create                         => hp_adaptive_fe_face_iterator_create
+   procedure          :: free                           => hp_adaptive_fe_face_iterator_free
+   procedure          :: get_num_cells_around           => hp_adaptive_fe_face_iterator_get_num_cells_around
+   procedure, private :: fe_vef_iterator_get_fe_around  => hp_adaptive_fe_face_iterator_get_fe_around
+   procedure          :: compute_face_permutation_index => hp_adaptive_fe_face_iterator_compute_face_permutation_index
+   procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_face_iterator_get_lpos_within_cell_around
+   procedure, private :: get_subface_lid_cell_around    => hp_adaptive_fe_face_iterator_get_subface_lid_cell_around
+   procedure          :: assemble                       => hp_adaptive_fe_face_iterator_assemble
+   procedure, private :: recursive_matrix_assembly      => hp_adaptive_fe_face_iterator_recursive_matrix_assembly
+   procedure, private :: recursive_vector_assembly      => hp_adaptive_fe_face_iterator_recursive_vector_assembly
  end type hp_adaptive_fe_face_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t
@@ -379,6 +380,16 @@ subroutine hp_adaptive_fe_face_iterator_get_fe_around (this, ife_around, fe)
     call this%fe_vef_iterator_t%get_cell_around(ife_around,fe)
   end if
 end subroutine hp_adaptive_fe_face_iterator_get_fe_around
+
+function hp_adaptive_fe_face_iterator_compute_face_permutation_index (this,first_fe,second_fe) result (face_permutation_index)
+  implicit none
+  class(hp_adaptive_fe_face_iterator_t), intent(inout) :: this
+  class(fe_iterator_t)                 , intent(inout) :: first_fe
+  class(fe_iterator_t)                 , intent(inout) :: second_fe
+  integer(ip)                                          :: face_permutation_index
+  assert( .not. this%is_ghost() .and. this%get_num_cells_around() == 2 )
+  face_permutation_index = 1
+end function hp_adaptive_fe_face_iterator_compute_face_permutation_index
 
 function hp_adaptive_fe_face_iterator_get_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
   implicit none
