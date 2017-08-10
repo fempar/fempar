@@ -59,17 +59,17 @@ contains
      this%fe_function => fe_function
   end subroutine set_fe_function
 
-  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(poisson_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
+    class(assembler_t)      , intent(inout) :: assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
-    type(fe_map_t)           , pointer :: fe_map
+    type(cell_map_t)           , pointer :: cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int
@@ -92,11 +92,11 @@ contains
     
     source_term => this%analytical_functions%get_source_term()
     
-    max_num_dofs = fe_space%get_max_number_dofs_on_a_cell()
+    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
     call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
     
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished() )
        
        ! Update FE-integration related data structures
@@ -104,13 +104,13 @@ contains
           
        ! Very important: this has to be inside the loop, as different FEs can be present!
        quad            => fe%get_quadrature()
-       num_quad_points = quad%get_number_quadrature_points()
-       fe_map          => fe%get_fe_map()
+       num_quad_points = quad%get_num_quadrature_points()
+       cell_map          => fe%get_cell_map()
        cell_int         => fe%get_cell_integrator(1)
-       num_dofs = fe%get_number_dofs()
+       num_dofs = fe%get_num_dofs()
        
        ! Get quadrature coordinates to evaluate source_term
-       quad_coords => fe_map%get_quadrature_coordinates()
+       quad_coords => cell_map%get_quadrature_points_coordinates()
 
        ! Compute element matrix and vector
        elmat = 0.0_rp
@@ -118,7 +118,7 @@ contains
        call cell_int%get_gradients(shape_gradients)
        call cell_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
-          factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))
@@ -133,10 +133,10 @@ contains
           end do 
        end do
        
-       call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
+       call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
     end do
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
 
     call memfree(shape_values, __FILE__, __LINE__)
     deallocate (shape_gradients, stat=istat); check(istat==0);

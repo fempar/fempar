@@ -92,11 +92,11 @@ module fempar_names
   use field_names
   use polynomial_names
   use fe_space_names
-  use cell_fe_function_names
-  use face_fe_function_names
+  use fe_cell_function_names
+  use fe_facet_function_names
   use conditions_names
   use discrete_integration_names
-  use matrix_array_assembler_names
+  use assembler_names
   use fe_affine_operator_names
   use function_names
   use function_library_names

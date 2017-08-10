@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module cell_fe_function_names
+module fe_cell_function_names
   use types_names
   use list_types_names
   use reference_fe_names
@@ -38,87 +38,87 @@ module cell_fe_function_names
   private
  
   
-  type cell_fe_function_scalar_t
+  type fe_cell_function_scalar_t
    private
    integer(ip)                       :: field_id
-   integer(ip)                       :: current_number_nodes             
-   integer(ip)                       :: current_number_quadrature_points
+   integer(ip)                       :: current_num_nodes             
+   integer(ip)                       :: current_num_quadrature_points
    real(rp)            , allocatable :: nodal_values(:)  
    real(rp)            , allocatable :: quadrature_points_values(:)
    type(vector_field_t), allocatable :: quadrature_points_gradients(:)
   contains
-     procedure, non_overridable :: create                                => cell_fe_function_scalar_create
-     procedure, non_overridable :: update                                => cell_fe_function_scalar_update
-     procedure, non_overridable :: move_alloc_values_in                  => cell_fe_function_scalar_move_alloc_values_in
-     procedure, non_overridable :: move_alloc_values_out                 => cell_fe_function_scalar_move_alloc_values_out
-     procedure, non_overridable :: move_alloc_gradients_in               => cell_fe_function_scalar_move_alloc_gradients_in
-     procedure, non_overridable :: move_alloc_gradients_out              => cell_fe_function_scalar_move_alloc_gradients_out
-     procedure, non_overridable :: get_field_id                          => cell_fe_function_scalar_get_field_id
-     procedure, non_overridable :: get_nodal_values                      => cell_fe_function_scalar_get_nodal_values
-     procedure, non_overridable :: get_quadrature_points_values          => cell_fe_function_scalar_get_quadrature_points_values
-     procedure, non_overridable :: get_quadrature_points_gradients       => cell_fe_function_scalar_get_quadrature_points_gradients
-     procedure, non_overridable :: get_value                             => cell_fe_function_scalar_get_value
-     procedure, non_overridable :: get_gradient                          => cell_fe_function_scalar_get_gradient
-     procedure, non_overridable :: set_current_number_nodes              => cell_fe_function_scalar_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => cell_fe_function_scalar_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                  => cell_fe_function_scalar_free
-  end type cell_fe_function_scalar_t
+     procedure, non_overridable :: create                                => fe_cell_function_scalar_create
+     procedure, non_overridable :: update                                => fe_cell_function_scalar_update
+     procedure, non_overridable :: move_alloc_values_in                  => fe_cell_function_scalar_move_alloc_values_in
+     procedure, non_overridable :: move_alloc_values_out                 => fe_cell_function_scalar_move_alloc_values_out
+     procedure, non_overridable :: move_alloc_gradients_in               => fe_cell_function_scalar_move_alloc_gradients_in
+     procedure, non_overridable :: move_alloc_gradients_out              => fe_cell_function_scalar_move_alloc_gradients_out
+     procedure, non_overridable :: get_field_id                          => fe_cell_function_scalar_get_field_id
+     procedure, non_overridable :: get_nodal_values                      => fe_cell_function_scalar_get_nodal_values
+     procedure, non_overridable :: get_quadrature_points_values          => fe_cell_function_scalar_get_quadrature_points_values
+     procedure, non_overridable :: get_quadrature_points_gradients       => fe_cell_function_scalar_get_quadrature_points_gradients
+     procedure, non_overridable :: get_value                             => fe_cell_function_scalar_get_value
+     procedure, non_overridable :: get_gradient                          => fe_cell_function_scalar_get_gradient
+     procedure, non_overridable :: set_current_num_nodes              => fe_cell_function_scalar_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points  => fe_cell_function_scalar_set_current_num_quadrature_points
+     procedure, non_overridable :: free                                  => fe_cell_function_scalar_free
+  end type fe_cell_function_scalar_t
   
-  type cell_fe_function_vector_t
+  type fe_cell_function_vector_t
    private
    integer(ip)                       :: field_id
-   integer(ip)                       :: current_number_nodes             
-   integer(ip)                       :: current_number_quadrature_points           
+   integer(ip)                       :: current_num_nodes             
+   integer(ip)                       :: current_num_quadrature_points           
    real(rp)            , allocatable :: nodal_values(:)  
    type(vector_field_t), allocatable :: quadrature_points_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_gradients(:)
   contains
-     procedure, non_overridable :: create                                => cell_fe_function_vector_create
-     procedure, non_overridable :: update                                => cell_fe_function_vector_update
-     procedure, non_overridable :: move_alloc_values_in                  => cell_fe_function_vector_move_alloc_values_in
-     procedure, non_overridable :: move_alloc_values_out                 => cell_fe_function_vector_move_alloc_values_out
-     procedure, non_overridable :: move_alloc_gradients_in               => cell_fe_function_vector_move_alloc_gradients_in
-     procedure, non_overridable :: move_alloc_gradients_out              => cell_fe_function_vector_move_alloc_gradients_out
-     procedure, non_overridable :: get_field_id                          => cell_fe_function_vector_get_field_id
-     procedure, non_overridable :: get_nodal_values                      => cell_fe_function_vector_get_nodal_values      
-     procedure, non_overridable :: get_quadrature_points_values          => cell_fe_function_vector_get_quadrature_points_values
-     procedure, non_overridable :: get_quadrature_points_gradients       => cell_fe_function_vector_get_quadrature_points_gradients
-     procedure, non_overridable :: compute_quadrature_points_curl_values => cell_fe_function_vector_compute_quadrature_points_curl_values
-     procedure, non_overridable :: get_value                             => cell_fe_function_vector_get_value
-     procedure, non_overridable :: get_gradient                          => cell_fe_function_vector_get_gradient 
-     procedure, non_overridable :: compute_curl                          => cell_fe_function_vector_compute_curl 
-     procedure, non_overridable :: compute_divergence                    => cell_fe_function_vector_compute_divergence 
-     procedure, non_overridable :: set_current_number_nodes              => cell_fe_function_vector_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => cell_fe_function_vector_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                  => cell_fe_function_vector_free
-  end type cell_fe_function_vector_t
+     procedure, non_overridable :: create                                => fe_cell_function_vector_create
+     procedure, non_overridable :: update                                => fe_cell_function_vector_update
+     procedure, non_overridable :: move_alloc_values_in                  => fe_cell_function_vector_move_alloc_values_in
+     procedure, non_overridable :: move_alloc_values_out                 => fe_cell_function_vector_move_alloc_values_out
+     procedure, non_overridable :: move_alloc_gradients_in               => fe_cell_function_vector_move_alloc_gradients_in
+     procedure, non_overridable :: move_alloc_gradients_out              => fe_cell_function_vector_move_alloc_gradients_out
+     procedure, non_overridable :: get_field_id                          => fe_cell_function_vector_get_field_id
+     procedure, non_overridable :: get_nodal_values                      => fe_cell_function_vector_get_nodal_values      
+     procedure, non_overridable :: get_quadrature_points_values          => fe_cell_function_vector_get_quadrature_points_values
+     procedure, non_overridable :: get_quadrature_points_gradients       => fe_cell_function_vector_get_quadrature_points_gradients
+     procedure, non_overridable :: compute_quadrature_points_curl_values => fe_cell_function_vector_compute_quadrature_points_curl_values
+     procedure, non_overridable :: get_value                             => fe_cell_function_vector_get_value
+     procedure, non_overridable :: get_gradient                          => fe_cell_function_vector_get_gradient 
+     procedure, non_overridable :: compute_curl                          => fe_cell_function_vector_compute_curl 
+     procedure, non_overridable :: compute_divergence                    => fe_cell_function_vector_compute_divergence 
+     procedure, non_overridable :: set_current_num_nodes              => fe_cell_function_vector_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points  => fe_cell_function_vector_set_current_num_quadrature_points
+     procedure, non_overridable :: free                                  => fe_cell_function_vector_free
+  end type fe_cell_function_vector_t
   
-  type cell_fe_function_tensor_t
+  type fe_cell_function_tensor_t
    private
    integer(ip)                       :: field_id
-   integer(ip)                       :: current_number_nodes            
-   integer(ip)                       :: current_number_quadrature_points     
+   integer(ip)                       :: current_num_nodes            
+   integer(ip)                       :: current_num_quadrature_points     
    real(rp)            , allocatable :: nodal_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_values(:)
   contains
-     procedure, non_overridable :: create                               => cell_fe_function_tensor_create
-     procedure, non_overridable :: update                               => cell_fe_function_tensor_update
-     procedure, non_overridable :: move_alloc_values_in                 => cell_fe_function_tensor_move_alloc_values_in
-     procedure, non_overridable :: move_alloc_values_out                => cell_fe_function_tensor_move_alloc_values_out
-     procedure, non_overridable :: get_field_id                         => cell_fe_function_tensor_get_field_id
-     procedure, non_overridable :: get_nodal_values                     => cell_fe_function_tensor_get_nodal_values  
-     procedure, non_overridable :: get_quadrature_points_values         => cell_fe_function_tensor_get_quadrature_points_values          
-     procedure, non_overridable :: get_value                            => cell_fe_function_tensor_get_value      
-     procedure, non_overridable :: set_current_number_nodes             => cell_fe_function_tensor_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points => cell_fe_function_tensor_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                 => cell_fe_function_tensor_free
-  end type cell_fe_function_tensor_t
+     procedure, non_overridable :: create                               => fe_cell_function_tensor_create
+     procedure, non_overridable :: update                               => fe_cell_function_tensor_update
+     procedure, non_overridable :: move_alloc_values_in                 => fe_cell_function_tensor_move_alloc_values_in
+     procedure, non_overridable :: move_alloc_values_out                => fe_cell_function_tensor_move_alloc_values_out
+     procedure, non_overridable :: get_field_id                         => fe_cell_function_tensor_get_field_id
+     procedure, non_overridable :: get_nodal_values                     => fe_cell_function_tensor_get_nodal_values  
+     procedure, non_overridable :: get_quadrature_points_values         => fe_cell_function_tensor_get_quadrature_points_values          
+     procedure, non_overridable :: get_value                            => fe_cell_function_tensor_get_value      
+     procedure, non_overridable :: set_current_num_nodes             => fe_cell_function_tensor_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points => fe_cell_function_tensor_set_current_num_quadrature_points
+     procedure, non_overridable :: free                                 => fe_cell_function_tensor_free
+  end type fe_cell_function_tensor_t
   
- public :: cell_fe_function_scalar_t, cell_fe_function_vector_t, cell_fe_function_tensor_t  
+ public :: fe_cell_function_scalar_t, fe_cell_function_vector_t, fe_cell_function_tensor_t  
  
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
-#include "sbm_cell_fe_function.i90"
+#include "sbm_fe_cell_function.i90"
 
-end module cell_fe_function_names
+end module fe_cell_function_names

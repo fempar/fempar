@@ -38,11 +38,11 @@ module poisson_unfitted_analytical_functions_names
   real(rp), parameter :: val_k    = 4.0*PI
 
   type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dimensions = -1  
+    integer(ip) :: num_dims = -1  
     logical     :: in_fe_space = .true.
     integer(ip) :: degree = 1
   contains
-    procedure :: set_num_dimensions    => base_scalar_function_set_num_dimensions 
+    procedure :: set_num_dims    => base_scalar_function_set_num_dims 
     procedure :: set_is_in_fe_space    => base_scalar_function_set_is_in_fe_space
     procedure :: set_degree            => base_scalar_function_set_degree
     procedure :: is_in_fe_space        => base_scalar_function_is_in_fe_space
@@ -73,7 +73,7 @@ module poisson_unfitted_analytical_functions_names
      type(boundary_function_t) :: boundary_function
      type(solution_function_t) :: solution_function
    contains
-     procedure :: set_num_dimensions      => poisson_unfitted_analytical_functions_set_num_dimensions
+     procedure :: set_num_dims      => poisson_unfitted_analytical_functions_set_num_dims
      procedure :: set_is_in_fe_space      => poisson_unfitted_analytical_functions_set_is_in_fe_space
      procedure :: set_degree              => poisson_unfitted_analytical_functions_set_degree
      procedure :: get_source_term         => poisson_unfitted_analytical_functions_get_source_term
@@ -263,12 +263,12 @@ contains
   end subroutine sol_ex002_3d_lapl_u
 
   !===============================================================================================
-  subroutine base_scalar_function_set_num_dimensions ( this, num_dimensions )
+  subroutine base_scalar_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine base_scalar_function_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_scalar_function_set_num_dims
 
   !===============================================================================================
   subroutine base_scalar_function_set_is_in_fe_space(this,val)
@@ -300,8 +300,8 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_2d_lapl_u(point,result,this%degree)
         result = -1.0*result
@@ -309,7 +309,7 @@ contains
         call sol_ex002_2d_lapl_u(point,result)
         result = -1.0*result
       end if
-    else if ( this%num_dimensions == 3 ) then
+    else if ( this%num_dims == 3 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_3d_lapl_u(point,result,this%degree)
         result = -1.0*result
@@ -326,14 +326,14 @@ contains
     class(boundary_function_t), intent(in)  :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_2d_u(point,result,this%degree)
       else
         call sol_ex002_2d_u(point,result)
       end if
-    else if ( this%num_dimensions == 3 ) then
+    else if ( this%num_dims == 3 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_3d_u(point,result,this%degree)
       else
@@ -348,14 +348,14 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_2d_u(point,result,this%degree)
       else
         call sol_ex002_2d_u(point,result)
       end if
-    else if ( this%num_dimensions == 3 ) then
+    else if ( this%num_dims == 3 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_3d_u(point,result,this%degree)
       else
@@ -370,14 +370,14 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_2d_grad_u(point,result,this%degree)
       else
         call sol_ex002_2d_grad_u(point,result)
       end if
-    else if ( this%num_dimensions == 3 ) then
+    else if ( this%num_dims == 3 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_3d_grad_u(point,result,this%degree)
       else
@@ -387,14 +387,14 @@ contains
   end subroutine solution_function_get_gradient_space
   
   !===============================================================================================
-  subroutine poisson_unfitted_analytical_functions_set_num_dimensions ( this, num_dimensions )
+  subroutine poisson_unfitted_analytical_functions_set_num_dims ( this, num_dims )
     implicit none
     class(poisson_unfitted_analytical_functions_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    call this%source_term%set_num_dimensions(num_dimensions)
-    call this%boundary_function%set_num_dimensions(num_dimensions)
-    call this%solution_function%set_num_dimensions(num_dimensions)
-  end subroutine poisson_unfitted_analytical_functions_set_num_dimensions 
+    integer(ip), intent(in) ::  num_dims
+    call this%source_term%set_num_dims(num_dims)
+    call this%boundary_function%set_num_dims(num_dims)
+    call this%solution_function%set_num_dims(num_dims)
+  end subroutine poisson_unfitted_analytical_functions_set_num_dims 
 
   !===============================================================================================
   subroutine poisson_unfitted_analytical_functions_set_is_in_fe_space(this,val)

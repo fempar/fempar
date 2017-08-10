@@ -111,14 +111,14 @@ contains
 
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_raviart_thomas, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_vector, &
                                                  conformity = .true. ) 
     
     this%reference_fes(2) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_scalar, &
                                                  conformity = .false. ) 
@@ -128,7 +128,7 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
 
-    call this%mixed_laplacian_rt_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%mixed_laplacian_rt_conditions%set_num_dims(this%triangulation%get_num_dims())
     call this%fe_space%create( triangulation       = this%triangulation, &
                                reference_fes       = this%reference_fes, &
                                conditions          = this%mixed_laplacian_rt_conditions )
@@ -138,7 +138,7 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
         
-    call this%problem_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%mixed_laplacian_rt_integration%set_pressure_source_term(this%problem_functions%get_pressure_source_term())
     call this%mixed_laplacian_rt_integration%set_pressure_boundary_function(this%problem_functions%get_pressure_boundary_function())
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -320,36 +320,36 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(in) :: this
     class(vector_t), pointer :: dof_values
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
 
     real(rp), allocatable :: nodal_values_rt(:)
     real(rp), allocatable :: nodal_values_pre_basis(:)
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip) :: number_fields, istat
+    type(i1p_t), allocatable :: fe_dofs(:)
+    integer(ip) :: num_fields, istat
 
     
-    call memalloc ( this%reference_fes(1)%p%get_number_shape_functions(), &
+    call memalloc ( this%reference_fes(1)%p%get_num_shape_functions(), &
                     nodal_values_rt, &
                     __FILE__, __LINE__ )
     
-    call memalloc ( this%reference_fes(1)%p%get_number_shape_functions(), &
+    call memalloc ( this%reference_fes(1)%p%get_num_shape_functions(), &
                     nodal_values_pre_basis, &
                     __FILE__, __LINE__ )
     
     dof_values => this%solution%get_dof_values()
     
-    number_fields = this%fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
+    num_fields = this%fe_space%get_num_fields()
+    allocate( fe_dofs(num_fields), stat=istat); check(istat==0);
     
-    call this%fe_space%create_fe_iterator(fe)
+    call this%fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished())
        
        ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
+       call fe%get_fe_dofs(fe_dofs)
        
        call dof_values%extract_subvector ( 1, &
                                            size(nodal_values_rt), &
-                                           elem2dof(1)%p, & 
+                                           fe_dofs(1)%p, & 
                                            nodal_values_rt)
               
        select type(rt_ref_fe => this%reference_fes(1)%p)
@@ -357,14 +357,14 @@ contains
          call rt_ref_fe%apply_change_basis_matrix_to_nodal_values(nodal_values_rt, nodal_values_pre_basis)
        end select
        
-       write(*,*) 'ELEMENT ID', fe%get_lid()
+       write(*,*) 'ELEMENT ID', fe%get_gid()
        write(*,*) nodal_values_pre_basis
        
        call fe%next()
     end do
-    call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_cell_iterator(fe)
 
-    deallocate( elem2dof, stat=istat); check(istat==0);
+    deallocate( fe_dofs, stat=istat); check(istat==0);
     call memfree ( nodal_values_rt, __FILE__, __LINE__ )
     call memfree ( nodal_values_pre_basis, __FILE__, __LINE__ )
   end subroutine  show_velocity

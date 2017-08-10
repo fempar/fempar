@@ -49,7 +49,7 @@ module hts_nonlinear_solver_names
   type :: hts_nonlinear_solver_t
      integer(ip)                                :: current_iteration 
      integer(ip)                                :: ideal_num_iterations 
-     integer(ip)                                :: max_number_iterations
+     integer(ip)                                :: max_num_iterations
 	    real(rp)                                   :: absolute_tolerance
      real(rp)                                   :: relative_tolerance
      type(hts_line_search_t)                    :: line_search  
@@ -117,7 +117,7 @@ this%current_iteration     = 0
 this%convergence_criteria  = convergence_criteria 
 this%absolute_tolerance    = abs_tol
 this%relative_tolerance    = rel_tol
-this%max_number_iterations = max_iters 
+this%max_num_iterations = max_iters 
 this%ideal_num_iterations  = ideal_iters 
 this%apply_current_constraint = apply_constraint 
 
@@ -452,7 +452,7 @@ implicit none
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 logical                                                :: hts_nonlinear_solver_finished
 
-hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_number_iterations) .or. (this%residual%nrm2()>1e15_rp) )  &
+hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_num_iterations) .or. (this%residual%nrm2()>1e15_rp) )  &
                                    .and. this%current_iteration .gt. 0 )
 
 end function hts_nonlinear_solver_finished

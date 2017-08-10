@@ -37,46 +37,46 @@ subroutine cell_integrator_create( this, quadrature, reference_fe )
 
   call this%free()
   
-  this%number_quadrature_points = quadrature%number_quadrature_points
-  this%number_shape_functions   = reference_fe%number_shape_functions
+  this%num_quadrature_points = quadrature%num_quadrature_points
+  this%num_shape_functions   = reference_fe%num_shape_functions
   this%reference_fe             => reference_fe
 
-  call reference_fe%create_interpolation( quadrature, this%interpolation )
-  call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
+  call reference_fe%create_interpolation( quadrature, this%interpolation_reference_cell )
+  call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
 end subroutine cell_integrator_create
 
-subroutine cell_integrator_create_on_face( this, quadrature, reference_fe, face_lid )
+subroutine cell_integrator_restricted_to_facet( this, quadrature, reference_fe, facet_lid )
   implicit none
   ! Parameters
   class(cell_integrator_t)    , intent(inout) :: this 
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), target , intent(in)    :: reference_fe  
-  integer(ip)                   , intent(in)    :: face_lid
+  integer(ip)                   , intent(in)    :: facet_lid
   call this%free()
-  this%number_quadrature_points = quadrature%number_quadrature_points
-  this%number_shape_functions   = reference_fe%number_shape_functions
+  this%num_quadrature_points = quadrature%num_quadrature_points
+  this%num_shape_functions   = reference_fe%num_shape_functions
   this%reference_fe             => reference_fe
-  call reference_fe%create_face_interpolation( face_lid, quadrature, this%interpolation )
-  call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
-end subroutine cell_integrator_create_on_face
+  call reference_fe%create_interpolation_restricted_to_facet( facet_lid, quadrature, this%interpolation_reference_cell )
+  call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
+end subroutine cell_integrator_restricted_to_facet
 
 subroutine cell_integrator_free( this )
   implicit none
   class(cell_integrator_t), intent(inout) :: this
-  call this%interpolation%free()
-  call this%interpolation_o_map%free()
+  call this%interpolation_reference_cell%free()
+  call this%interpolation_real_cell%free()
   nullify(this%reference_fe)
-  this%number_quadrature_points = 0
-  this%number_shape_functions = 0
+  this%num_quadrature_points = 0
+  this%num_shape_functions = 0
 end subroutine cell_integrator_free
 
 !==================================================================================================
-subroutine cell_integrator_update( this, fe_map )
+subroutine cell_integrator_update( this, cell_map )
   implicit none
   class(cell_integrator_t), intent(inout) :: this
-  type(fe_map_t)               , intent(in)    :: fe_map
+  type(cell_map_t)               , intent(in)    :: cell_map
 
-  call this%reference_fe%update_interpolation(fe_map, this%interpolation,this%interpolation_o_map)
+  call this%reference_fe%apply_cell_map(cell_map, this%interpolation_reference_cell,this%interpolation_real_cell)
   end subroutine cell_integrator_update
 
 !==================================================================================================
@@ -85,9 +85,9 @@ subroutine cell_integrator_print( this )
   class(cell_integrator_t), intent(in) :: this
   write(*,*) 'PRINT VOLUME INTEGRATOR: '
   write(*,*) '%%%%%%%%%%%%%%%% interpolation: %%%%%%%%%%%%%%%%'
-  call this%interpolation%print()
-  write(*,*) '%%%%%%%%%%%%%%%% interpolation_o_map: %%%%%%%%%%%%%%%%'
-  call this%interpolation_o_map%print()
+  call this%interpolation_reference_cell%print()
+  write(*,*) '%%%%%%%%%%%%%%%% interpolation_real_cell: %%%%%%%%%%%%%%%%'
+  call this%interpolation_real_cell%print()
 end subroutine cell_integrator_print
 
 !==================================================================================================
@@ -96,8 +96,8 @@ subroutine cell_integrator_update_interpolation( this, quadrature )
   ! Parameters
   class(cell_integrator_t), intent(inout) :: this 
   type(quadrature_t)        ,  intent(in)   :: quadrature
-  call this%reference_fe%create_interpolation( quadrature, this%interpolation )
-  call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
+  call this%reference_fe%create_interpolation( quadrature, this%interpolation_reference_cell )
+  call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
 end subroutine cell_integrator_update_interpolation
 
 !==================================================================================================
@@ -106,7 +106,7 @@ function cell_integrator_get_interpolation_reference_cell(this)
   class(cell_integrator_t), target, intent(in):: this
   type(interpolation_t), pointer ::  cell_integrator_get_interpolation_reference_cell
 
-  cell_integrator_get_interpolation_reference_cell => this%interpolation
+  cell_integrator_get_interpolation_reference_cell => this%interpolation_reference_cell
 end function cell_integrator_get_interpolation_reference_cell
 
 !==================================================================================================
@@ -115,7 +115,7 @@ function cell_integrator_get_interpolation_real_cell(this)
   class(cell_integrator_t), target, intent(in) :: this
   type(interpolation_t), pointer ::  cell_integrator_get_interpolation_real_cell
 
-  cell_integrator_get_interpolation_real_cell => this%interpolation_o_map
+  cell_integrator_get_interpolation_real_cell => this%interpolation_real_cell
 end function cell_integrator_get_interpolation_real_cell
 
 !==================================================================================================
@@ -126,7 +126,7 @@ subroutine cell_integrator_get_value_scalar (this, ishape, qpoint, scalar_field)
   integer(ip)                  , intent(in)    :: qpoint
   real(rp)                     , intent(out)   :: scalar_field
   assert( this%reference_fe%field_type == field_type_scalar )
-  call this%reference_fe%get_value(this%interpolation_o_map,ishape,qpoint,scalar_field)
+  call this%reference_fe%get_value(this%interpolation_real_cell,ishape,qpoint,scalar_field)
 end subroutine cell_integrator_get_value_scalar
 
 subroutine cell_integrator_get_value_vector (this, ishape, qpoint, vector_field)
@@ -136,7 +136,7 @@ subroutine cell_integrator_get_value_vector (this, ishape, qpoint, vector_field)
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
   assert( this%reference_fe%field_type == field_type_vector )
-  call this%reference_fe%get_value(this%interpolation_o_map,ishape,qpoint,vector_field)
+  call this%reference_fe%get_value(this%interpolation_real_cell,ishape,qpoint,vector_field)
 end subroutine cell_integrator_get_value_vector
 
 subroutine cell_integrator_get_value_tensor (this, ishape, qpoint, tensor_field)
@@ -166,7 +166,7 @@ subroutine cell_integrator_get_values_scalar (this, values, qpoints_perm)
   integer(ip)     , optional   , intent(in)    :: qpoints_perm(:)
 
   assert( this%reference_fe%field_type == field_type_scalar )
-  call this%reference_fe%get_values(this%interpolation_o_map,values,qpoints_perm)
+  call this%reference_fe%get_values(this%interpolation_real_cell,values,qpoints_perm)
 end subroutine cell_integrator_get_values_scalar
 
 subroutine cell_integrator_get_values_vector (this, values, qpoints_perm)
@@ -175,7 +175,7 @@ subroutine cell_integrator_get_values_vector (this, values, qpoints_perm)
   type(vector_field_t), allocatable, intent(inout) :: values(:,:)
   integer(ip)     , optional       , intent(in)    :: qpoints_perm(:)
   assert( this%reference_fe%field_type == field_type_vector )
-  call this%reference_fe%get_values(this%interpolation_o_map,values,qpoints_perm)
+  call this%reference_fe%get_values(this%interpolation_real_cell,values,qpoints_perm)
 end subroutine cell_integrator_get_values_vector
 
 subroutine cell_integrator_get_gradient_scalar (this, ishape, qpoint, vector_field)
@@ -185,7 +185,7 @@ subroutine cell_integrator_get_gradient_scalar (this, ishape, qpoint, vector_fie
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
   assert( this%reference_fe%field_type == field_type_scalar )
-  call this%reference_fe%get_gradient(this%interpolation_o_map,ishape,qpoint,vector_field)
+  call this%reference_fe%get_gradient(this%interpolation_real_cell,ishape,qpoint,vector_field)
 end subroutine cell_integrator_get_gradient_scalar
 
 subroutine cell_integrator_get_gradient_vector (this, ishape, qpoint, tensor_field)
@@ -195,7 +195,7 @@ subroutine cell_integrator_get_gradient_vector (this, ishape, qpoint, tensor_fie
   integer(ip)                  , intent(in)    :: qpoint
   type(tensor_field_t)         , intent(out)   :: tensor_field
   assert( this%reference_fe%field_type == field_type_vector )
-  call this%reference_fe%get_gradient(this%interpolation_o_map,ishape,qpoint,tensor_field)
+  call this%reference_fe%get_gradient(this%interpolation_real_cell,ishape,qpoint,tensor_field)
 end subroutine cell_integrator_get_gradient_vector
 
 subroutine cell_integrator_get_gradients_scalar (this, gradients, qpoints_perm)
@@ -204,7 +204,7 @@ subroutine cell_integrator_get_gradients_scalar (this, gradients, qpoints_perm)
   type(vector_field_t),        allocatable, intent(inout) :: gradients(:,:)
   integer(ip)     , optional              , intent(in)    :: qpoints_perm(:)
   assert( this%reference_fe%field_type == field_type_scalar )
-  call this%reference_fe%get_gradients(this%interpolation_o_map,gradients,qpoints_perm)
+  call this%reference_fe%get_gradients(this%interpolation_real_cell,gradients,qpoints_perm)
 end subroutine cell_integrator_get_gradients_scalar
 
 subroutine cell_integrator_get_gradients_vector (this, gradients, qpoints_perm)
@@ -213,7 +213,7 @@ subroutine cell_integrator_get_gradients_vector (this, gradients, qpoints_perm)
   type(tensor_field_t),     allocatable, intent(inout)  :: gradients(:,:)
   integer(ip)     , optional           , intent(in)     :: qpoints_perm(:)
   assert( this%reference_fe%field_type == field_type_vector )
-  call this%reference_fe%get_gradients(this%interpolation_o_map,gradients,qpoints_perm)
+  call this%reference_fe%get_gradients(this%interpolation_real_cell,gradients,qpoints_perm)
 end subroutine cell_integrator_get_gradients_vector
 
 subroutine cell_integrator_get_symmetric_gradient_vector (this, ishape, qpoint, tensor_field)
@@ -233,7 +233,7 @@ subroutine cell_integrator_get_divergence_vector (this, ishape, qpoint, scalar_f
   integer(ip)                  , intent(in)    :: qpoint
   real(rp)                     , intent(out)   :: scalar_field
   assert( this%reference_fe%field_type == field_type_vector ) 
-  call this%reference_fe%get_divergence(this%interpolation_o_map,ishape,qpoint,scalar_field)
+  call this%reference_fe%get_divergence(this%interpolation_real_cell,ishape,qpoint,scalar_field)
 end subroutine cell_integrator_get_divergence_vector
 
 subroutine cell_integrator_get_divergence_tensor (this, ishape, qpoint, vector_field)
@@ -252,7 +252,7 @@ subroutine cell_integrator_get_divergences_vector (this, divergences, qpoints_pe
   real(rp), allocatable     , intent(inout) :: divergences(:,:)
   integer(ip)  , optional   , intent(in)    :: qpoints_perm(:)
   assert( this%reference_fe%field_type == field_type_vector ) 
-  call this%reference_fe%get_divergences(this%interpolation_o_map,divergences,qpoints_perm)
+  call this%reference_fe%get_divergences(this%interpolation_real_cell,divergences,qpoints_perm)
 end subroutine cell_integrator_get_divergences_vector
 
 subroutine cell_integrator_get_curl_vector (this, ishape, qpoint, vector_field)
@@ -262,7 +262,7 @@ subroutine cell_integrator_get_curl_vector (this, ishape, qpoint, vector_field)
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
   assert( this%reference_fe%field_type == field_type_vector ) 
-  call this%reference_fe%get_curl(this%interpolation_o_map,ishape,qpoint,vector_field)
+  call this%reference_fe%get_curl(this%interpolation_real_cell,ishape,qpoint,vector_field)
 end subroutine cell_integrator_get_curl_vector
 
 subroutine cell_integrator_get_curls_vector (this, curls, qpoints_perm)
@@ -271,7 +271,7 @@ subroutine cell_integrator_get_curls_vector (this, curls, qpoints_perm)
   type(vector_field_t), allocatable, intent(inout) :: curls(:,:)
   integer(ip)     , optional       , intent(in)    :: qpoints_perm(:)
   assert( this%reference_fe%field_type == field_type_vector )
-  call this%reference_fe%get_curls(this%interpolation_o_map,curls,qpoints_perm)
+  call this%reference_fe%get_curls(this%interpolation_real_cell,curls,qpoints_perm)
 end subroutine cell_integrator_get_curls_vector
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -282,7 +282,7 @@ subroutine cell_integrator_evaluate_fe_function_scalar ( this, nodal_values, qua
   class(cell_integrator_t), intent(in)    :: this
   real(rp)                  , intent(in)    :: nodal_values(:)
   real(rp), allocatable     , intent(inout) :: quadrature_points_values(:)
-  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
 end subroutine cell_integrator_evaluate_fe_function_scalar
 
 subroutine cell_integrator_evaluate_fe_function_vector ( this, nodal_values, quadrature_points_values )
@@ -290,7 +290,7 @@ subroutine cell_integrator_evaluate_fe_function_vector ( this, nodal_values, qua
   class(cell_integrator_t)       , intent(in)    :: this
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
 end subroutine cell_integrator_evaluate_fe_function_vector
 
 subroutine cell_integrator_evaluate_fe_function_tensor ( this, nodal_values, quadrature_points_values )
@@ -298,7 +298,7 @@ subroutine cell_integrator_evaluate_fe_function_tensor ( this, nodal_values, qua
   class(cell_integrator_t)       , intent(in)    :: this
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
 end subroutine cell_integrator_evaluate_fe_function_tensor
 
 subroutine cell_integrator_evaluate_gradient_fe_function_scalar ( this, nodal_values, quadrature_points_values )
@@ -306,7 +306,7 @@ subroutine cell_integrator_evaluate_gradient_fe_function_scalar ( this, nodal_va
   class(cell_integrator_t)       , intent(in)    :: this
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
 end subroutine cell_integrator_evaluate_gradient_fe_function_scalar
 
 subroutine cell_integrator_evaluate_gradient_fe_function_vector ( this, nodal_values, quadrature_points_values )
@@ -314,7 +314,7 @@ subroutine cell_integrator_evaluate_gradient_fe_function_vector ( this, nodal_va
   class(cell_integrator_t)       , intent(in)    :: this
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
 end subroutine cell_integrator_evaluate_gradient_fe_function_vector
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

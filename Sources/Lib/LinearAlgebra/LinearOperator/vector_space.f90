@@ -51,7 +51,7 @@ module vector_space_names
      procedure :: equal_to      => vector_space_equal_to
      procedure :: clone         => vector_space_clone 
      procedure :: free          => vector_space_free
-     procedure :: get_number_blocks
+     procedure :: get_num_blocks
   end type vector_space_t
 
   public :: vector_space_t
@@ -144,11 +144,11 @@ contains
        end if  
      end subroutine vector_space_free
 					
-			function get_number_blocks(this) result(res)
+			function get_num_blocks(this) result(res)
      implicit none 
      class(vector_space_t), intent(in) :: this
      integer(ip) :: res
-			  res = this%vector%get_number_blocks()
-   end function get_number_blocks
+			  res = this%vector%get_num_blocks()
+   end function get_num_blocks
      
 end module vector_space_names
