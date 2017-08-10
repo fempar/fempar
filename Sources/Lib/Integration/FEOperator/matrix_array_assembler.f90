@@ -79,8 +79,8 @@ module assembler_names
                                            field_coupling,  &
                                            num_row_dofs, &
                                            num_col_dofs, &
-                                           cell2row_dofs,   &
-                                           cell2col_dofs,   &
+                                           fe_dofs_row,   &
+                                           fe_dofs_col,   &
                                            elmat )
        import :: assembler_t, rp, ip, i1p_t
        implicit none
@@ -90,8 +90,8 @@ module assembler_names
        logical                        , intent(in)    :: field_coupling(num_fields,num_fields)
        integer(ip)                    , intent(in)    :: num_row_dofs(num_fields)
        integer(ip)                    , intent(in)    :: num_col_dofs(num_fields)
-       type(i1p_t)                    , intent(in)    :: cell2row_dofs(num_fields)
-       type(i1p_t)                    , intent(in)    :: cell2col_dofs(num_fields)
+       type(i1p_t)                    , intent(in)    :: fe_dofs_row(num_fields)
+       type(i1p_t)                    , intent(in)    :: fe_dofs_col(num_fields)
        real(rp)                       , intent(in)    :: elmat(:,:) 
      end subroutine assembly_matrix_interface
 
