@@ -32,7 +32,6 @@ module hp_adaptive_fe_space_names
   use p4est_serial_triangulation_names
   use reference_fe_names
   use fe_space_names
-  use fe_function_names
   use environment_names
   use conditions_names
   use std_vector_integer_ip_names
@@ -81,7 +80,6 @@ module hp_adaptive_fe_space_names
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
      procedure          :: transfer_dirichlet_to_constraint_dof_coefficients      => shpafs_transfer_dirichlet_to_constraint_dof_coefficients
-     procedure          :: transfer_dirichlet_to_fe_space                         => shpafs_transfer_dirichlet_to_fe_space
      procedure          :: free_ptr_constraint_dofs                               => shpafs_free_ptr_constraint_dofs
      procedure          :: free_constraint_dofs_dependencies                      => shpafs_free_constraint_dofs_dependencies
      procedure          :: free_constraint_dofs_coefficients                      => shpafs_free_constraint_dofs_coefficients
@@ -144,6 +142,7 @@ subroutine hp_adaptive_fe_iterator_create ( this, fe_space )
     assert(.false.)
   end select
   call this%create_cell(this%hp_adaptive_fe_space%p4est_triangulation)
+  call this%allocate_scratch_data()
 end subroutine hp_adaptive_fe_iterator_create
 
 subroutine hp_adaptive_fe_iterator_free (this)
@@ -156,6 +155,7 @@ subroutine hp_adaptive_fe_iterator_free (this)
   end if
   call this%nullify_fe_space()
   nullify(this%hp_adaptive_fe_space)
+  call this%free_scratch_data()
 end subroutine hp_adaptive_fe_iterator_free
 
 !! Assembly of local matrices for hp-adaptivity
@@ -788,14 +788,14 @@ subroutine shpafs_update_fixed_dof_values(this, free_dof_values, fixed_dof_value
   end do
 end subroutine shpafs_update_fixed_dof_values
 
-subroutine shpafs_interpolate_dirichlet_values (this, conditions, time, fields_to_interpolate)
+subroutine shpafs_interpolate_dirichlet_values (this, fe_function, time, fields_to_interpolate)
   implicit none
-  class(serial_hp_adaptive_fe_space_t), intent(inout)  :: this
-  class(conditions_t)     , intent(in)     :: conditions
-  real(rp)       , optional   , intent(in) :: time
-  integer(ip)    , optional   , intent(in) :: fields_to_interpolate(:)
-  call serial_fe_space_interpolate_dirichlet_values(this, conditions, time, fields_to_interpolate)
-  call this%transfer_dirichlet_to_constraint_dof_coefficients()
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
+  class(fe_function_t)                , intent(inout) :: fe_function
+  real(rp)               , optional   , intent(in)    :: time
+  integer(ip)            , optional   , intent(in)    :: fields_to_interpolate(:)
+  call serial_fe_space_interpolate_dirichlet_values(this, fe_function, time, fields_to_interpolate)
+  call this%transfer_dirichlet_to_constraint_dof_coefficients(fe_function)
 end subroutine shpafs_interpolate_dirichlet_values 
 
 subroutine shpafs_fill_vef_lids_of_fe_faces ( this )
@@ -1212,37 +1212,19 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%free_fe_vef_iterator(coarser_vef)
 end subroutine shpafs_setup_hanging_node_constraints 
 
-subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients(this)
+subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients(this,fe_function)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
-  integer(ip) :: improper_dof_lid
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
-  real(rp), pointer :: strong_dirichlet_values_entries(:)
-  strong_dirichlet_values         => this%get_strong_dirichlet_values()
-  strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+  class(fe_function_t)                , intent(in)    :: fe_function
+  integer(ip)                          :: improper_dof_lid
+  type(serial_scalar_array_t), pointer :: fixed_dof_values
+  real(rp)                   , pointer :: fixed_dof_values_entries(:)
+  fixed_dof_values         => fe_function%get_fixed_dof_values()
+  fixed_dof_values_entries => fixed_dof_values%get_entries()
   do improper_dof_lid=1, this%get_number_strong_dirichlet_dofs()
-     call this%constraint_dofs_coefficients%set(improper_dof_lid, strong_dirichlet_values_entries(improper_dof_lid) )
+     call this%constraint_dofs_coefficients%set(improper_dof_lid, fixed_dof_values_entries(improper_dof_lid) )
   end do
 end subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients
-
-subroutine shpafs_transfer_dirichlet_to_fe_space(this,fixed_dof_values)
-  implicit none
-  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
-  type(serial_scalar_array_t)         , intent(in)    :: fixed_dof_values
-  type(serial_scalar_array_t), pointer     :: strong_dirichlet_values
-  real(rp)                   , pointer     :: strong_dirichlet_values_entries(:)
-  integer(ip)                              :: i, num_strong_dirichlet_dofs
-  integer(ip)                , allocatable :: indices(:)
-  num_strong_dirichlet_dofs = this%get_number_strong_dirichlet_dofs()
-  call memalloc(num_strong_dirichlet_dofs,indices,__FILE__,__LINE__)
-  indices = (/ (i, i=1,num_strong_dirichlet_dofs) /)
-  strong_dirichlet_values => this%get_strong_dirichlet_values()
-  strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
-  call fixed_dof_values%extract_subvector( 1, num_strong_dirichlet_dofs, &
-                                           indices, strong_dirichlet_values_entries )
-  call this%transfer_dirichlet_to_constraint_dof_coefficients()
-  call memfree(indices,__FILE__,__LINE__)
-end subroutine shpafs_transfer_dirichlet_to_fe_space
 
 subroutine shpafs_project_ref_fe_id_per_fe(this)
   implicit none
@@ -1470,7 +1452,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   call fe_function%create(this)
   fe_function = transformed_fe_function
   
-  call this%transfer_dirichlet_to_fe_space( fe_function%get_fixed_dof_values() )
+  call this%transfer_dirichlet_to_constraint_dof_coefficients( fe_function )
   
   select type(triangulation)
   class is (p4est_serial_triangulation_t)

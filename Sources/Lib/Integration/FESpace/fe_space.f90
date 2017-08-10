@@ -186,6 +186,8 @@ module fe_space_names
     final                               :: fe_iterator_free_final
     procedure                           :: set_fe_space                               => fe_iterator_set_fe_space
     procedure                           :: nullify_fe_space                           => fe_iterator_nullify_fe_space
+    procedure, non_overridable          :: allocate_scratch_data                      => fe_iterator_allocate_scratch_data
+    procedure, non_overridable          :: free_scratch_data                          => fe_iterator_free_scratch_data
     procedure, non_overridable          :: count_own_dofs                             => fe_iterator_count_own_dofs
     procedure, non_overridable          :: fill_own_dofs                              => fe_iterator_fill_own_dofs
     procedure, non_overridable          :: count_own_dofs_on_vef                      => fe_iterator_count_own_dofs_on_vef
@@ -323,6 +325,8 @@ module fe_space_names
    contains
     procedure                           :: create                         => fe_face_iterator_create
     procedure                           :: free                           => fe_face_iterator_free
+    procedure, non_overridable          :: allocate_scratch_data          => fe_face_iterator_allocate_scratch_data
+    procedure, non_overridable          :: free_scratch_data              => fe_face_iterator_free_scratch_data
     procedure                           :: first                          => fe_face_iterator_first
     procedure                           :: next                           => fe_face_iterator_next
     procedure                           :: has_finished                   => fe_face_iterator_has_finished

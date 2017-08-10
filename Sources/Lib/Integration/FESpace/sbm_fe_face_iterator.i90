@@ -31,15 +31,11 @@ subroutine fe_face_iterator_create ( this, fe_space, vef )
   class(fe_face_iterator_t), target, intent(inout) :: this
   class(serial_fe_space_t) , target, intent(in)    :: fe_space
   class(vef_iterator_t)    , intent(in)            :: vef
-  integer(ip) :: istat
   call this%free()
   call this%fe_vef_iterator_t%create(fe_space,vef)
   call this%fe_space%create_fe_iterator(this%fe)
   call this%first()
-  call memalloc ( 2, this%fe_space%number_fields,      &
-                  this%number_dofs_per_cell_and_field, &
-                  __FILE__, __LINE__ )
-  allocate( this%elem2dof_per_cell(2,this%fe_space%number_fields), stat=istat); check(istat==0);
+  call this%allocate_scratch_data()
 end subroutine fe_face_iterator_create
 
 subroutine fe_face_iterator_free ( this )
@@ -52,13 +48,30 @@ subroutine fe_face_iterator_free ( this )
     deallocate(this%fe, stat=istat); check(istat==0);
   end if
   this%face_lid = -1
+  call this%free_scratch_data()
+end subroutine fe_face_iterator_free
+
+subroutine fe_face_iterator_allocate_scratch_data ( this )
+  implicit none
+  class(fe_face_iterator_t), target, intent(inout) :: this
+  integer(ip) :: istat
+  call memalloc ( 2, this%fe_space%number_fields,      &
+                  this%number_dofs_per_cell_and_field, &
+                  __FILE__, __LINE__ )
+  allocate( this%elem2dof_per_cell(2,this%fe_space%number_fields), stat=istat); check(istat==0);
+end subroutine fe_face_iterator_allocate_scratch_data
+
+subroutine fe_face_iterator_free_scratch_data ( this )
+  implicit none
+  class(fe_face_iterator_t), target, intent(inout) :: this
+  integer(ip) :: istat
   if ( allocated(this%number_dofs_per_cell_and_field) ) then
     call memfree ( this%number_dofs_per_cell_and_field, __FILE__, __LINE__ )
   end if
   if ( allocated(this%elem2dof_per_cell) ) then
     deallocate ( this%elem2dof_per_cell, stat=istat ); check(istat==0);
   end if
-end subroutine fe_face_iterator_free
+end subroutine fe_face_iterator_free_scratch_data
 
 subroutine fe_face_iterator_first ( this )
   implicit none

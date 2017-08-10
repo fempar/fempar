@@ -80,7 +80,6 @@ contains
     type(vector_field_t)     , pointer     :: shape_gradients_ineigh(:,:),shape_gradients_jneigh(:,:)
     real(rp)                 , allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
     real(rp)                 , pointer     :: shape_values_ineigh(:,:),shape_values_jneigh(:,:)
-    type(i1p_t)              , allocatable :: elem2dof(:)
     
     ! Face integration-related data types
     type(face_maps_t)       , pointer :: face_map
@@ -88,7 +87,6 @@ contains
     type(vector_field_t)             :: normals(2)
     real(rp)                         :: shape_test, shape_trial
     real(rp)                         :: h_length
-    type(i1p_t)        , allocatable :: trial_elem2dof(:), test_elem2dof(:)
     
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -111,27 +109,14 @@ contains
     integer(ip)  :: ineigh, jneigh
     real(rp)     :: factor
 
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    
-    integer(ip), allocatable :: num_dofs_per_field(:)  
-    
     assert (associated(this%analytical_functions))
     
     source_term => this%analytical_functions%get_source_term()
     call this%poisson_conditions%get_function(1,1,boundary_function)
     
     call boundary_fe_function%create(fe_space)
-    call boundary_fe_function%interpolate_function(fe_space,1,boundary_function)
+    call fe_space%interpolate(1,boundary_function,boundary_fe_function)
     call boundary_face_fe_function%create(fe_space,1)
-
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
     
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)
@@ -139,8 +124,6 @@ contains
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
     fe_map          => fe%get_fe_map()
@@ -155,9 +138,6 @@ contains
        
          ! Update FE-integration related data structures
          call fe%update_integration()
-       
-         ! Get DoF numbering within current FE
-         call fe%get_elem2dof(elem2dof)
          
          ! Get quadrature coordinates to evaluate source_term
          quad_coords => fe_map%get_quadrature_coordinates()
@@ -194,8 +174,6 @@ contains
     
     call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
     call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
-    allocate( trial_elem2dof(number_fields), stat=istat); check(istat==0);
-    allocate( test_elem2dof(number_fields), stat=istat); check(istat==0);
     
     ! Search for the first interior face
     call fe_space%create_fe_face_iterator(fe_face)
@@ -260,6 +238,7 @@ contains
                end do
             end do
          end do
+         ! (TODO) To be substituted by overriden fe_face%assembly (matrix)
          call fe_face%assemble( facemat, facevec, matrix_array_assembler )
        end if
          
@@ -295,10 +274,10 @@ contains
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
             call boundary_face_fe_function%get_value(qpoint,1,boundary_fe_function_value)
             boundary_value = 2*boundary_value - boundary_fe_function_value
-            do idof = 1, num_dofs_per_field(1)
+            do idof = 1, num_dofs
               !call face_int%get_value(idof,qpoint,1,shape_trial)
               !call face_int%get_gradient(idof,qpoint,1,grad_trial)   
-              do jdof = 1, num_dofs_per_field(1)
+              do jdof = 1, num_dofs
                  !call face_int%get_value(jdof,qpoint,1,shape_test)
                  !call face_int%get_gradient(jdof,qpoint,1,grad_test)
                  facemat(idof,jdof,1,1) = facemat(idof,jdof,1,1) + &
@@ -312,6 +291,7 @@ contains
                                       c_IP/h_length * boundary_value * shape_values_first(idof,qpoint) ) 
             end do   
          end do
+         ! (TODO) To be substituted by overriden fe_face%assembly (matrix_array)
          call fe_face%assemble( facemat, facevec, matrix_array_assembler )
        end if
        call fe_face%next()
@@ -323,10 +303,6 @@ contains
     call memfree(shape_values_second, __FILE__, __LINE__) 
     deallocate(shape_gradients_first, stat=istat); check(istat==0);
     deallocate(shape_gradients_second, stat=istat); check(istat==0);
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    deallocate( trial_elem2dof, stat=istat); check(istat==0);
-    deallocate( test_elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( facemat, __FILE__, __LINE__ )

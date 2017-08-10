@@ -34,8 +34,7 @@ subroutine fe_iterator_create ( this, fe_space )
   call this%free()
   call this%set_fe_space(fe_space)
   call this%create_cell(fe_space%triangulation)
-  call memalloc ( this%fe_space%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
-  allocate( this%elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
+  call this%allocate_scratch_data()
 end subroutine fe_iterator_create
 
 subroutine fe_iterator_create_cell ( this, triangulation )
@@ -55,20 +54,35 @@ end subroutine fe_iterator_free_cell
 subroutine fe_iterator_free (this)
   implicit none
   class(fe_iterator_t), intent(inout) :: this
-  integer(ip) :: istat
   if ( associated(this%fe_space) ) then
     if ( associated(this%fe_space%triangulation) ) then
       call this%free_cell(this%fe_space%triangulation)
     end if
   end if
   call this%nullify_fe_space()
+  call this%free_scratch_data()
+end subroutine fe_iterator_free
+
+subroutine fe_iterator_allocate_scratch_data ( this )
+  implicit none
+  class(fe_iterator_t), intent(inout) :: this
+  integer(ip) :: istat
+  assert( associated(this%fe_space) )
+  call memalloc ( this%fe_space%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
+  allocate( this%elem2dof(this%fe_space%number_fields), stat=istat); check(istat==0);
+end subroutine fe_iterator_allocate_scratch_data
+
+subroutine fe_iterator_free_scratch_data ( this )
+  implicit none
+  class(fe_iterator_t), intent(inout) :: this
+  integer(ip) :: istat
   if ( allocated(this%number_dofs_per_field) ) then
     call memfree ( this%number_dofs_per_field, __FILE__, __LINE__ )
   end if
   if ( allocated(this%elem2dof) ) then
     deallocate ( this%elem2dof, stat=istat ); check(istat==0);
   end if
-end subroutine fe_iterator_free
+end subroutine fe_iterator_free_scratch_data
 
 subroutine fe_iterator_free_final(this)
   implicit none
