@@ -89,7 +89,7 @@ module base_static_triangulation_names
   
   type cell_iterator_t
     private
-    integer(ip)                                 :: lid = -1
+    integer(ip)                                 :: gid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
     ! create/free/next/set_lid CANNOT longer be private as type(coarse_fe_iterator_t)
