@@ -281,7 +281,7 @@ subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe ( this, target_ive
   end if
 end subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
 
-subroutine fe_cell_iterator_genrate_dofs_facet_integration_coupling ( this, ivef, field_id, dof_count )
+subroutine fe_cell_iterator_generate_dofs_facet_integration_coupling ( this, ivef, field_id, dof_count )
   implicit none
   ! Parameters
   class(fe_cell_iterator_t), intent(inout)   :: this
@@ -307,7 +307,7 @@ subroutine fe_cell_iterator_genrate_dofs_facet_integration_coupling ( this, ivef
       call face_integration_coupling_dofs%next()
     end do
   end if
-end subroutine fe_cell_iterator_genrate_dofs_facet_integration_coupling
+end subroutine fe_cell_iterator_generate_dofs_facet_integration_coupling
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
 subroutine fe_cell_iterator_renum_dofs_block ( this, block_id, perm_old2new )

@@ -181,12 +181,12 @@ module fe_space_names
     procedure                           :: free                                       => fe_cell_iterator_free
     final                               :: fe_cell_iterator_free_final
     procedure, non_overridable, private :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
-    procedure, non_overridable, private :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
     procedure, non_overridable, private :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
+    procedure, non_overridable, private :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
     procedure, non_overridable, private :: generate_own_dofs_vef                      => fe_cell_iterator_generate_own_dofs_vef
     procedure, non_overridable, private :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
     procedure, non_overridable, private :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
-    procedure, non_overridable, private :: genrate_dofs_facet_integration_coupling        => fe_cell_iterator_genrate_dofs_facet_integration_coupling
+    procedure, non_overridable, private :: generate_dofs_facet_integration_coupling    => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
     procedure, non_overridable          :: update_num_dofs_x_field                    => fe_cell_iterator_update_num_dofs_x_field
