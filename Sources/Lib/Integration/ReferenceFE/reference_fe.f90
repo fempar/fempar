@@ -200,7 +200,7 @@ module reference_fe_names
      procedure, non_overridable :: update            => face_map_update
      procedure                  :: free              => face_map_free
      procedure, non_overridable :: get_normal        => face_map_get_normal
-     procedure, non_overridable :: get_normals       => face_map_get_normals
+     procedure, non_overridable :: get_raw_normal    => face_map_get_raw_normal
   end type face_map_t
   
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1616,23 +1616,24 @@ type face_integrator_t
   integer(ip)                              :: current_qpoints_perm_cols(2)
   type(allocatable_array_ip2_t)            :: qpoints_perm
 contains
-  procedure, non_overridable :: create            => face_integrator_create
-  procedure, non_overridable :: update            => face_integrator_update
-  procedure, non_overridable :: free              => face_integrator_free
+  procedure, non_overridable :: create             => face_integrator_create
+  procedure, non_overridable :: update             => face_integrator_update
+  procedure, non_overridable :: free               => face_integrator_free
   procedure, non_overridable :: set_is_boundary_and_min_active_cell_id &
     => face_integrator_set_is_boundary_and_min_active_cell_id
-  procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
-  procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
-  generic                    :: get_value         => get_value_scalar, get_value_vector
-  procedure, non_overridable :: get_values_scalar => face_integrator_get_values_scalar
-  procedure, non_overridable :: get_values_vector => face_integrator_get_values_vector
-  generic                    :: get_values        => get_values_scalar, get_values_vector
+  procedure, non_overridable :: get_active_cell_id => face_integrator_get_active_cell_id
+  procedure, non_overridable :: get_value_scalar   => face_integrator_get_value_scalar
+  procedure, non_overridable :: get_value_vector   => face_integrator_get_value_vector
+  generic                    :: get_value          => get_value_scalar, get_value_vector
+  procedure, non_overridable :: get_values_scalar  => face_integrator_get_values_scalar
+  procedure, non_overridable :: get_values_vector  => face_integrator_get_values_vector
+  generic                    :: get_values         => get_values_scalar, get_values_vector
   procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
   generic                    :: get_gradient => get_gradient_scalar
   procedure, non_overridable :: get_gradients_scalar  => face_integrator_get_gradients_scalar
   generic                    :: get_gradients => get_gradients_scalar
-  procedure, non_overridable :: get_curl          => face_integrator_get_curl_vector 
-  procedure, non_overridable :: get_curls         => face_integrator_get_curls_vector 
+  procedure, non_overridable :: get_curl           => face_integrator_get_curl_vector 
+  procedure, non_overridable :: get_curls          => face_integrator_get_curls_vector 
   procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
 
   procedure, non_overridable, private :: face_integrator_evaluate_fe_function_scalar

@@ -391,6 +391,15 @@ subroutine face_integrator_set_is_boundary_and_min_active_cell_id (this,left_ref
 end subroutine face_integrator_set_is_boundary_and_min_active_cell_id
 
 !==================================================================================================
+function face_integrator_get_active_cell_id (this,neighbour_id)
+  implicit none
+  class(face_integrator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  integer(ip)                             :: face_integrator_get_active_cell_id
+  face_integrator_get_active_cell_id = this%active_cell_id(neighbour_id)
+end function face_integrator_get_active_cell_id
+
+!==================================================================================================
 subroutine face_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scalar_field)
   implicit none
   class(face_integrator_t), intent(in)    :: this

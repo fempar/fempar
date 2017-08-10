@@ -164,7 +164,7 @@ contains
       ! Recover the computed quantities in the sub map, and put them in the arrays
       quad_coords => this%fe_sub_map%get_quadrature_points_coordinates()
       det_jacobs => this%fe_sub_map%get_det_jacobians()
-      normal_vecs => this%fe_sub_map%get_normals()
+      normal_vecs => this%fe_sub_map%get_raw_normal()
       pend = imap * this%number_quadrature_points_sub_map
       pini = pend - this%number_quadrature_points_sub_map + 1
       this%coordinates_quadrature(pini:pend) = quad_coords(:)

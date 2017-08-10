@@ -128,7 +128,7 @@ subroutine fe_face_iterator_update_integration( this )
   integer(ip)                      :: face_lpos_within_cells_around(2)
   type(point_t)          , pointer :: coords(:)
   type(quadrature_t)     , pointer :: quadrature
-  type(face_maps_t)       , pointer :: face_map
+  type(face_maps_t)      , pointer :: face_map
   type(face_integrator_t), pointer :: face_integrator
   
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
@@ -401,6 +401,24 @@ function fe_face_iterator_get_face_integrator(this, field_id)
   
   fe_face_iterator_get_face_integrator => this%fe_space%fe_face_integrators(fe_face_integrators_position)
 end function fe_face_iterator_get_face_integrator
+
+subroutine fe_face_iterator_get_outward_normal(this,field_id,qpoint,outward_normal)
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id
+  integer(ip)              , intent(in)    :: qpoint
+  type(vector_field_t)     , intent(inout) :: outward_normal
+  type(face_maps_t)      , pointer :: face_maps
+  type(face_map_t)       , pointer :: face_map
+  type(face_integrator_t), pointer :: face_int
+  face_maps => this%get_face_maps()
+  face_map  => face_maps%get_face_map()
+  face_int  => this%get_face_integrator(field_id)
+  call face_map%get_normal(qpoint,outward_normal)
+  if ( face_int%get_active_cell_id(1) == 2 ) then
+    outward_normal = (-1.0_rp) * outward_normal
+  end if
+end subroutine fe_face_iterator_get_outward_normal
 
 !==================================================================================================
 function fe_face_iterator_compute_surface ( this )

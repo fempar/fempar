@@ -320,6 +320,7 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature                => fe_face_iterator_get_quadrature
     procedure, non_overridable          :: get_face_maps                 => fe_face_iterator_get_face_map
     procedure, non_overridable          :: get_face_integrator           => fe_face_iterator_get_face_integrator
+    procedure, non_overridable          :: get_outward_normal            => fe_face_iterator_get_outward_normal
     procedure, non_overridable          :: compute_surface               => fe_face_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_face_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_face_permutation_index    => fe_face_iterator_get_face_permutation_index
