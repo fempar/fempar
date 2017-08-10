@@ -177,18 +177,16 @@ contains
     
     ! Search for the first interior face
     call fe_space%create_fe_face_iterator(fe_face)
-    do while ( fe_face%is_at_boundary() ) 
-       call fe_face%next()
-    end do
-    
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_number_quadrature_points()
-    face_map        => fe_face%get_face_maps()
-    face_int        => fe_face%get_face_integrator(1)
     
     do while ( .not. fe_face%has_finished() ) 
        
-       if ( .not. fe_face%is_at_boundary() ) then
+       face_map        => fe_face%get_face_maps()
+       face_int        => fe_face%get_face_integrator(1)
+       
+       if ( .not. fe_face%is_at_field_boundary(1) ) then
+         
          facemat = 0.0_rp
          call fe_face%update_integration()    
          
@@ -238,35 +236,19 @@ contains
             end do
          end do
          call fe_face%assembly( facemat, matrix_array_assembler )
-       end if
          
-       call fe_face%next()
-    end do
-    
-    ! Search for the first boundary face
-    call fe_face%first()
-    do while ( .not. fe_face%is_at_boundary() ) 
-       call fe_face%next()
-    end do
-
-    quad            => fe_face%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
-    face_map        => fe_face%get_face_maps()
-    face_int        => fe_face%get_face_integrator(1)
-   
-    do while ( .not. fe_face%has_finished() )
-       
-       if ( fe_face%is_at_boundary() ) then
+       else
+         
          facemat = 0.0_rp
          facevec = 0.0_rp
-         assert( fe_face%get_set_id() == 1 )
+         !assert( fe_face%get_set_id() == 1 )
          call fe_face%update_integration()
          call boundary_face_fe_function%update(fe_face,boundary_fe_function)
          quad_coords => face_map%get_quadrature_coordinates()
          call face_int%get_values(1,shape_values_first)
          call face_int%get_gradients(1,shape_gradients_first)
          do qpoint = 1, num_quad_points
-            call face_map%get_normals(qpoint,normals)
+            call fe_face%get_outward_normal(1,qpoint,normals(1))
             h_length = face_map%compute_characteristic_length(qpoint)
             factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
@@ -286,13 +268,17 @@ contains
               end do
               facevec(idof,1) = facevec(idof,1) + factor * viscosity * &
                                       (-boundary_value * shape_gradients_first(idof,qpoint) * normals(1) + &
-                                      c_IP/h_length * boundary_value * shape_values_first(idof,qpoint) ) 
+                                      c_IP / h_length * boundary_value * shape_values_first(idof,qpoint) ) 
             end do   
          end do
          call fe_face%assembly( facemat, facevec, matrix_array_assembler )
+         
        end if
+       
        call fe_face%next()
+    
     end do
+    
     call fe_space%free_fe_face_iterator(fe_face)
     call boundary_fe_function%free()
     call boundary_face_fe_function%free()
