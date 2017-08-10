@@ -72,17 +72,17 @@ contains
     class(fe_face_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
-    type(fe_map_t)           , pointer     :: fe_map
-    type(quadrature_t)       , pointer     :: quad
-    type(point_t)            , pointer     :: quad_coords(:)
+    type(fe_map_t)         , pointer     :: fe_map
+    type(quadrature_t)     , pointer     :: quad
+    type(point_t)          , pointer     :: quad_coords(:)
     type(cell_integrator_t), pointer     :: cell_int
-    type(vector_field_t)     , allocatable, target :: shape_gradients_first(:,:), shape_gradients_second(:,:)
-    type(vector_field_t)     , pointer     :: shape_gradients_ineigh(:,:),shape_gradients_jneigh(:,:)
-    real(rp)                 , allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
-    real(rp)                 , pointer     :: shape_values_ineigh(:,:),shape_values_jneigh(:,:)
+    type(vector_field_t)   , allocatable, target :: shape_gradients_first(:,:), shape_gradients_second(:,:)
+    type(vector_field_t)   , pointer     :: shape_gradients_ineigh(:,:),shape_gradients_jneigh(:,:)
+    real(rp)               , allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
+    real(rp)               , pointer     :: shape_values_ineigh(:,:),shape_values_jneigh(:,:)
     
     ! Face integration-related data types
-    type(face_maps_t)       , pointer :: face_map
+    type(face_maps_t)      , pointer :: face_map
     type(face_integrator_t), pointer :: face_int
     type(vector_field_t)             :: normals(2)
     real(rp)                         :: shape_test, shape_trial
@@ -105,7 +105,7 @@ contains
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs
+    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     integer(ip)  :: ineigh, jneigh
     real(rp)     :: factor
     
@@ -120,14 +120,12 @@ contains
     
     call fe_space%initialize_fe_integration()
     call fe_space%create_fe_iterator(fe)
+    call fe%first_local_non_void(1)
+    num_dofs        =  fe%get_number_dofs()
     
-    num_dofs = fe%get_number_dofs()
-    call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
-    call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
-    fe_map          => fe%get_fe_map()
-    cell_int         => fe%get_cell_integrator(1)
+    max_num_dofs = fe_space%get_max_number_dofs_on_a_cell()
+    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
+    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
     
     viscosity = 1.0_rp
     C_IP      = 10.0_rp * fe%get_order(1)**2
@@ -138,6 +136,13 @@ contains
        
          ! Update FE-integration related data structures
          call fe%update_integration()
+
+         ! Very important: this has to be inside the loop, as different FEs can be present!
+         quad            => fe%get_quadrature()
+         num_quad_points =  quad%get_number_quadrature_points()
+         fe_map          => fe%get_fe_map()
+         cell_int        => fe%get_cell_integrator(1)
+         !num_dofs        =  fe%get_number_dofs()
          
          ! Get quadrature coordinates to evaluate source_term
          quad_coords => fe_map%get_quadrature_coordinates()
@@ -172,16 +177,17 @@ contains
     
     call fe_space%initialize_fe_face_integration()
     
-    call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
-    call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
+    call memalloc ( max_num_dofs, max_num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
+    call memalloc ( max_num_dofs,                  2, facevec, __FILE__, __LINE__ )
     
     ! Search for the first interior face
     call fe_space%create_fe_face_iterator(fe_face)
-    quad            => fe_face%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
     
     do while ( .not. fe_face%has_finished() ) 
        
+       ! Very important: this has to be inside the loop, as different FEs can be present!
+       quad            => fe_face%get_quadrature()
+       num_quad_points = quad%get_number_quadrature_points()
        face_map        => fe_face%get_face_maps()
        face_int        => fe_face%get_face_integrator(1)
        
@@ -191,8 +197,8 @@ contains
          call fe_face%update_integration()    
          
          call face_int%get_values(1,shape_values_first)
-         call face_int%get_values(2,shape_values_second)
          call face_int%get_gradients(1,shape_gradients_first)
+         call face_int%get_values(2,shape_values_second)
          call face_int%get_gradients(2,shape_gradients_second)
          do qpoint = 1, num_quad_points
             call face_map%get_normals(qpoint,normals)
@@ -247,6 +253,7 @@ contains
          quad_coords => face_map%get_quadrature_coordinates()
          call face_int%get_values(1,shape_values_first)
          call face_int%get_gradients(1,shape_gradients_first)
+         ineigh = face_int%get_active_cell_id(1)
          do qpoint = 1, num_quad_points
             call fe_face%get_outward_normal(1,qpoint,normals(1))
             h_length = face_map%compute_characteristic_length(qpoint)
@@ -260,13 +267,13 @@ contains
               do jdof = 1, num_dofs
                  !call face_int%get_value(jdof,qpoint,1,shape_test)
                  !call face_int%get_gradient(jdof,qpoint,1,grad_test)
-                 facemat(idof,jdof,1,1) = facemat(idof,jdof,1,1) + &
+                 facemat(idof,jdof,ineigh,ineigh) = facemat(idof,jdof,ineigh,ineigh) + &
                                      &  factor * viscosity *   &
                                      (-shape_gradients_first(jdof,qpoint)*normals(1)*shape_values_first(idof,qpoint) - &
                                       shape_gradients_first(idof,qpoint)*normals(1)*shape_values_first(jdof,qpoint)  + &
                                       c_IP / h_length * shape_values_first(idof,qpoint)*shape_values_first(jdof,qpoint))
               end do
-              facevec(idof,1) = facevec(idof,1) + factor * viscosity * &
+              facevec(idof,ineigh) = facevec(idof,ineigh) + factor * viscosity * &
                                       (-boundary_value * shape_gradients_first(idof,qpoint) * normals(1) + &
                                       c_IP / h_length * boundary_value * shape_values_first(idof,qpoint) ) 
             end do   
