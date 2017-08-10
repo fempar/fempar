@@ -106,7 +106,7 @@ contains
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_number_quadrature_points()
        fe_map          => fe%get_fe_map()
-       cell_int         => fe%get_cell_integrator(1)
+       cell_int        => fe%get_cell_integrator(1)
        num_dofs = fe%get_number_dofs()
        
        ! Get quadrature coordinates to evaluate source_term

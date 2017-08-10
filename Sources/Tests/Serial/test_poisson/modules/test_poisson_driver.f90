@@ -141,7 +141,7 @@ contains
     !call this%triangulation%print()
     
     ! Set the cell ids to use void fes
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
         call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
         call this%triangulation%create_cell_iterator(cell)
         allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
@@ -191,7 +191,7 @@ contains
     end if
     
     ! Set all the vefs on the interface between full/void if there are void fes
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
       call this%triangulation%create_vef_iterator(vef)
       call this%triangulation%create_vef_iterator(vef_of_vef)
       call this%triangulation%create_cell_iterator(cell)
@@ -270,7 +270,7 @@ contains
     character(:), allocatable :: field_type
     
 
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
       allocate(this%reference_fes(2), stat=istat)
     else
       allocate(this%reference_fes(1), stat=istat)
@@ -296,7 +296,7 @@ contains
                                                                  field_type = field_type, &
                                                                  conformity = conformity )
     
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
          this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                                       fe_type = fe_type_void, &
                                                                       number_dimensions = this%triangulation%get_num_dimensions(), &
@@ -329,9 +329,6 @@ contains
                                      reference_fes       = this%reference_fes, &
                                      conditions          = this%poisson_conditions )
         end if
-      else
-        call this%fe_space%create( triangulation       = this%triangulation, &
-                                   reference_fes       = this%reference_fes )
       end if
     else
       call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
@@ -349,11 +346,22 @@ contains
                                      reference_fes       = this%reference_fes, &
                                      conditions          = this%vector_poisson_conditions )
         end if
-      else
+      end if
+    end if
+    
+    if ( this%test_params%get_fe_formulation() == 'dG' ) then
+      if ( this%test_params%get_use_void_fes() ) then
+        set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
+        set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
+        call this%fe_space%create( triangulation            = this%triangulation,       &
+                                   reference_fes            = this%reference_fes,       &
+                                   set_ids_to_reference_fes = set_ids_to_reference_fes )
+      else 
         call this%fe_space%create( triangulation       = this%triangulation, &
                                    reference_fes       = this%reference_fes )
       end if
     end if
+    
     call this%fe_space%initialize_fe_integration()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
       call this%fe_space%initialize_fe_face_integration()
@@ -630,7 +638,7 @@ contains
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-        if (this%test_params%get_use_void_fes() .and.  this%test_params%get_fe_formulation() == 'cG') then
+        if (this%test_params%get_use_void_fes()) then
            call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
            cell_vector(:) = this%cell_set_ids(:)
            call oh%add_cell_vector(cell_vector,'cell_set_ids')
