@@ -299,7 +299,7 @@ contains
       mcheck(.false.,'Test only runs for Scalar Problems')
     end if
 
-    call this%fe_space%initialize_fe_integration()
+    call this%fe_space%set_up_cell_integration()
 
   end subroutine setup_fe_space
 
@@ -620,7 +620,7 @@ subroutine compute_domain_volume( this )
     implicit none
     class(test_poisson_unfitted_driver_t), intent(in) :: this
 
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
     real(rp) :: volume, dV
     type(quadrature_t), pointer :: quadrature
     type(cell_map_t),     pointer :: cell_map
@@ -629,7 +629,7 @@ subroutine compute_domain_volume( this )
 
     write(*,*) "Computing domain volume ..."
 
-    call this%fe_space%create_fe_iterator(fe)
+    call this%fe_space%create_fe_cell_iterator(fe)
 
     volume = 0.0_rp
     do while ( .not. fe%has_finished() )
@@ -654,7 +654,7 @@ subroutine compute_domain_volume( this )
        call fe%next()
     end do
 
-    call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_cell_iterator(fe)
 
     write(*,*) "Computing domain volume ... OK"
     write(*,*) "Domain volume   = ", volume
@@ -666,8 +666,8 @@ subroutine compute_domain_surface( this )
     implicit none
     class(test_poisson_unfitted_driver_t), intent(in) :: this
 
-    class(unfitted_fe_iterator_t), pointer :: fe
-    class(fe_iterator_t), allocatable, target :: fe_std
+    class(unfitted_fe_cell_iterator_t), pointer :: fe
+    class(fe_cell_iterator_t), allocatable, target :: fe_std
     real(rp) :: surface, dS
     type(quadrature_t), pointer :: quadrature
     type(piecewise_cell_map_t),     pointer :: cell_map
@@ -676,10 +676,10 @@ subroutine compute_domain_surface( this )
 
     write(*,*) "Computing domain surface..."
 
-    call this%fe_space%create_fe_iterator(fe_std)
+    call this%fe_space%create_fe_cell_iterator(fe_std)
     
     select type (fe_std)
-    class is (unfitted_fe_iterator_t)
+    class is (unfitted_fe_cell_iterator_t)
       fe => fe_std
     class default
       check(.false.)
@@ -708,7 +708,7 @@ subroutine compute_domain_surface( this )
        call fe%next()
     end do
 
-    call this%fe_space%free_fe_iterator(fe_std)
+    call this%fe_space%free_fe_cell_iterator(fe_std)
 
     write(*,*) "Computing domain surface ... OK"
     write(*,*) "Domain surface = ", surface

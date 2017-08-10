@@ -92,7 +92,7 @@ module base_static_triangulation_names
     integer(ip)                                 :: gid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
-    ! create/free/next/set_lid CANNOT longer be private as type(coarse_fe_iterator_t)
+    ! create/free/next/set_lid CANNOT longer be private as type(coarse_fe_cell_iterator_t)
     ! extends type(cell_iterator_t), requires to call these TBPs and cannot be placed
     ! either within this module or within a submodule of base_static_triangulation_names
     ! due to module dependencies cycle

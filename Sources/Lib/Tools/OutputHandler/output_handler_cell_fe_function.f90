@@ -101,7 +101,7 @@ private
         integer(ip)                                    :: num_dims     = 0
         integer(ip)                                    :: num_nodes          = 0
         integer(ip)                                    :: num_cells          = 0
-        class(fe_iterator_t), pointer                  :: current_fe            => NULL()
+        class(fe_cell_iterator_t), pointer                  :: current_fe            => NULL()
         type(quadrature_t),        allocatable         :: quadratures(:)
         type(cell_map_t),            allocatable         :: cell_maps(:)
         type(cell_integrator_t), allocatable         :: cell_integrators(:)
@@ -176,7 +176,7 @@ contains
     !< *quadratures*, *mixed_cell_topologies*, etc.
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t), intent(inout) :: this
-        class(fe_iterator_t)                    , intent(inout) :: fe
+        class(fe_cell_iterator_t)                    , intent(inout) :: fe
         integer(ip),                              intent(in)    :: num_fields
         type(output_handler_fe_field_t),          intent(in)    :: fe_fields(1:num_fields)
         integer(ip), optional,                    intent(in)    :: num_refinements
@@ -329,14 +329,14 @@ contains
     end function output_handler_cell_fe_function_has_mixed_cell_topologies
 
 
-    subroutine output_handler_cell_fe_function_fill_patch(this, fe_iterator, num_fields, fe_fields, num_cell_vectors, cell_vectors, patch)
+    subroutine output_handler_cell_fe_function_fill_patch(this, fe_cell_iterator, num_fields, fe_fields, num_cell_vectors, cell_vectors, patch)
     !-----------------------------------------------------------------
-    !< Fill a [[output_handler_patch_t(type)]] from a given [[fe_iterator_t(type)]].
+    !< Fill a [[output_handler_patch_t(type)]] from a given [[fe_cell_iterator_t(type)]].
     !< The **pach** contains a local view of the coordinates, connectivities 
     !< and field data per cell.
     !-----------------------------------------------------------------
         class(output_handler_cell_fe_function_t),  intent(inout) :: this
-        class(fe_iterator_t),             target,  intent(in)    :: fe_iterator
+        class(fe_cell_iterator_t),             target,  intent(in)    :: fe_cell_iterator
         integer(ip),                               intent(in)    :: num_fields
         type(output_handler_fe_field_t),           intent(in)    :: fe_fields(1:num_fields)
         integer(ip),                               intent(in)    :: num_cell_vectors
@@ -359,12 +359,12 @@ contains
         character(len=:), allocatable                            :: field_type
         character(len=:), allocatable                            :: diff_operator
     !-----------------------------------------------------------------
-        this%current_fe => fe_iterator
-        fe_space => fe_iterator%get_fe_space()
+        this%current_fe => fe_cell_iterator
+        fe_space => fe_cell_iterator%get_fe_space()
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
-            max_order_within_fe = max(fe_iterator%get_max_order_all_fields(),1)
-            reference_fe_geo    => fe_iterator%get_reference_fe_geo()
+            max_order_within_fe = max(fe_cell_iterator%get_max_order_all_fields(),1)
+            reference_fe_geo    => fe_cell_iterator%get_reference_fe_geo()
             cell_map              => this%get_cell_map()
             coordinates         => cell_map%get_coordinates()
             call this%current_fe%get_coordinates(coordinates)

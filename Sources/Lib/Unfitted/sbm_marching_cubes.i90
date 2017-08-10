@@ -591,7 +591,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
 
   ! Fill the dof info
   call this%block_layout%create(1)
-  call this%fe_space%fill_dof_info(this%block_layout)
+  call this%fe_space%generate_global_dof_numbering(this%block_layout)
 
   ! Create the discrete levelset function
   call this%fe_levelset%create(this%fe_space)
@@ -634,7 +634,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
   implicit none
   class(marching_cubes_t), intent(inout) :: this
 
-  class(fe_iterator_t),   allocatable  :: fe
+  class(fe_cell_iterator_t),   allocatable  :: fe
   class(cell_iterator_t), allocatable  :: cell
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   type(point_t), allocatable :: Xe_ref(:)
@@ -661,7 +661,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
   field_id = 1
 
   ! Get the nodal coordinates in the reference element
-  call this%fe_space%create_fe_iterator(fe)
+  call this%fe_space%create_fe_cell_iterator(fe)
   call this%triangulation%create_cell_iterator(cell)
   reference_fe_geo => fe%get_reference_fe_geo()
   num_nodes = cell%get_num_nodes()
@@ -737,7 +737,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
 
   deallocate( Xe_ref, stat=istat );  check(istat == 0)
   call memfree(nodal_vals,__FILE__,__LINE__)
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
 
 end subroutine marching_cubes_discrete_levelset_fix
 
@@ -810,7 +810,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
   implicit none
   class(marching_cubes_t), intent(inout) :: this
 
-  class(fe_iterator_t), allocatable  :: fe
+  class(fe_cell_iterator_t), allocatable  :: fe
   class(cell_iterator_t), allocatable  :: cell
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   type(point_t), allocatable :: Xe_ref(:)
@@ -833,7 +833,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
   field_id = 1
 
   ! Get the nodal coordinates in the reference element
-  call this%fe_space%create_fe_iterator(fe)
+  call this%fe_space%create_fe_cell_iterator(fe)
   call this%triangulation%create_cell_iterator(cell)
   reference_fe_geo => fe%get_reference_fe_geo()
   num_nodes = cell%get_num_nodes()
@@ -932,7 +932,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
 
   deallocate( Xe_ref, stat=istat );  check(istat == 0)
   call memfree(nodal_vals,__FILE__,__LINE__)
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
   this%mc_runtime_init = .true.
 
 end subroutine marching_cubes_mc_runtime_info_create

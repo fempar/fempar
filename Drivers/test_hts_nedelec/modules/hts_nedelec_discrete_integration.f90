@@ -90,14 +90,14 @@ contains
   this%source_term   => source_term 
   end subroutine hts_nedelec_discrete_integration_create
     
-  subroutine hts_nedelec_discrete_integration_integrate ( this, fe_space, matrix_array_assembler )
+  subroutine hts_nedelec_discrete_integration_integrate ( this, fe_space, assembler )
     implicit none
     class(hts_nedelec_discrete_integration_t)   , intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
+    class(assembler_t)             , intent(inout) :: assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
     
     ! FE integration-related data types
     type(cell_map_t)           , pointer :: cell_map
@@ -132,11 +132,11 @@ contains
     assert ( associated(this%H_current) )
     assert ( associated(this%H_previous) )
     
-    call fe_space%initialize_fe_integration()
+    call fe_space%set_up_cell_integration()
     call cell_fe_function_previous%create(fe_space, 1) 
     call cell_fe_function_current%create(fe_space,  1) 
 
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
     num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
@@ -233,10 +233,10 @@ contains
 
       end do ! Qpoint loop 
           
-       call fe%assembly( this%H_current, elmat, elvec, matrix_array_assembler )
+       call fe%assembly( this%H_current, elmat, elvec, assembler )
        call fe%next()
     end do
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
 
     deallocate (source_term_values, stat=istat); check(istat==0)
     deallocate (H_current_curl_values, stat=istat); check(istat==0)

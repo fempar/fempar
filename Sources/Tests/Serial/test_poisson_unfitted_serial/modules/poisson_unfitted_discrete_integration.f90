@@ -68,15 +68,15 @@ contains
   end subroutine set_fe_function
 
 !========================================================================================
-  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
+    class(assembler_t)      , intent(inout) :: assembler
 
     ! FE space traversal-related data types
     ! TODO We need this because the accesors and iterators are not polymorphic
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
     type(cell_map_t)           , pointer :: cell_map
@@ -120,7 +120,7 @@ contains
     assert (associated(this%fe_function)) 
 
     ! TODO We will delete this once implemented the fake methods in the father class
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
 
     source_term => this%analytical_functions%get_source_term()
     exact_sol   => this%analytical_functions%get_solution_function()
@@ -310,7 +310,7 @@ contains
 
        end if ! Only for cut elems
 
-       call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
+       call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
 
     end do
@@ -328,7 +328,7 @@ contains
     call memfree ( elmatV, __FILE__, __LINE__ )
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call eigs%free()
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
   end subroutine integrate_galerkin
 
 end module poisson_unfitted_cG_discrete_integration_names

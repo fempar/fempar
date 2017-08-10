@@ -68,14 +68,14 @@ contains
     this%fe_function => fe_function
   end subroutine set_fe_function
 
-  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(mixed_laplacian_rt_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
+    class(assembler_t)             , intent(inout) :: assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t)     , allocatable :: fe
+    class(fe_cell_iterator_t)     , allocatable :: fe
     class(fe_facet_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
@@ -109,8 +109,8 @@ contains
     assert ( associated(this%pressure_boundary_function) )
     assert ( associated(this%fe_function) ) 
     
-    call fe_space%initialize_fe_integration()
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%set_up_cell_integration()
+    call fe_space%create_fe_cell_iterator(fe)
 
     num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -173,13 +173,13 @@ contains
           end do
        end do
        
-       call fe%assembly( this%fe_function, elmat, elvec, matrix_array_assembler )
+       call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
     end do
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
     call memfree ( pressure_source_term_values, __FILE__, __LINE__ )
     
-    call fe_space%initialize_facet_integration()
+    call fe_space%set_up_facet_integration()
 
     call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
     
@@ -212,7 +212,7 @@ contains
                                 pressure_boundary_function_values(qpoint)*velocity_shape_values(idof,qpoint)*normals(1)*factor
             end do   
          end do
-         call fe_face%assembly( facevec, matrix_array_assembler )
+         call fe_face%assembly( facevec, assembler )
        end if
        call fe_face%next()
     end do

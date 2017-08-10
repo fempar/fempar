@@ -320,11 +320,11 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(in) :: this
     class(vector_t), pointer :: dof_values
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
 
     real(rp), allocatable :: nodal_values_rt(:)
     real(rp), allocatable :: nodal_values_pre_basis(:)
-    type(i1p_t), allocatable :: elem2dof(:)
+    type(i1p_t), allocatable :: fe_dofs(:)
     integer(ip) :: num_fields, istat
 
     
@@ -339,17 +339,17 @@ contains
     dof_values => this%solution%get_dof_values()
     
     num_fields = this%fe_space%get_num_fields()
-    allocate( elem2dof(num_fields), stat=istat); check(istat==0);
+    allocate( fe_dofs(num_fields), stat=istat); check(istat==0);
     
-    call this%fe_space%create_fe_iterator(fe)
+    call this%fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished())
        
        ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
+       call fe%get_fe_dofs(fe_dofs)
        
        call dof_values%extract_subvector ( 1, &
                                            size(nodal_values_rt), &
-                                           elem2dof(1)%p, & 
+                                           fe_dofs(1)%p, & 
                                            nodal_values_rt)
               
        select type(rt_ref_fe => this%reference_fes(1)%p)
@@ -362,9 +362,9 @@ contains
        
        call fe%next()
     end do
-    call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_cell_iterator(fe)
 
-    deallocate( elem2dof, stat=istat); check(istat==0);
+    deallocate( fe_dofs, stat=istat); check(istat==0);
     call memfree ( nodal_values_rt, __FILE__, __LINE__ )
     call memfree ( nodal_values_pre_basis, __FILE__, __LINE__ )
   end subroutine  show_velocity

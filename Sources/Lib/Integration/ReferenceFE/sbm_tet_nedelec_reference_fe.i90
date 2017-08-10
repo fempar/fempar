@@ -91,10 +91,10 @@ function tet_nedelec_reference_fe_get_characteristic_length ( this )
 end function tet_nedelec_reference_fe_get_characteristic_length
 
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_own_dofs_permutations (this)
+subroutine tet_nedelec_reference_fe_generate_own_dofs_cell_permutations (this)
   implicit none
   class(tet_nedelec_reference_fe_t), intent(inout) :: this
-end subroutine tet_nedelec_reference_fe_fill_own_dofs_permutations
+end subroutine tet_nedelec_reference_fe_generate_own_dofs_cell_permutations
 
 !==================================================================================================
 subroutine tet_nedelec_reference_fe_fill_qpoints_permutations (this, quadrature, qpoints_perm)

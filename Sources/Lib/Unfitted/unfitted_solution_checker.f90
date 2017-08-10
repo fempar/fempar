@@ -80,7 +80,7 @@ contains
     real(rp), intent(inout) :: h1_semi_norm
     real(rp), intent(inout) :: l2_norm
 
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
     real(rp), allocatable :: nodal_vals(:)
     real(rp), allocatable :: element_vals(:)
     type(vector_field_t), allocatable :: grad_element_vals(:)
@@ -115,7 +115,7 @@ contains
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
 
 
-    call this%fe_space%create_fe_iterator(fe)
+    call this%fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished() )
 
        ! Skip ghost cells
@@ -180,7 +180,7 @@ contains
 
        call fe%next()
     end do
-    call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_cell_iterator(fe)
 
     call memfree ( nodal_vals, __FILE__, __LINE__ )
 

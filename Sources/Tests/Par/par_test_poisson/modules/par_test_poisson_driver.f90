@@ -384,7 +384,7 @@ end subroutine free_timers
                                  conditions          = this%poisson_conditions )
     end if
     
-    call this%fe_space%initialize_fe_integration()
+    call this%fe_space%set_up_cell_integration()
     !call this%fe_space%print()
   end subroutine setup_fe_space
   

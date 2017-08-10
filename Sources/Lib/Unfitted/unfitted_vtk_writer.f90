@@ -318,7 +318,7 @@ contains
     class(serial_fe_space_t),      intent(in)    :: fe_space
 
     class(base_static_triangulation_t), pointer :: triangulation
-    class(fe_iterator_t), allocatable  :: fe
+    class(fe_cell_iterator_t), allocatable  :: fe
     class(reference_fe_t), pointer :: ref_fe
     type(quadrature_t) :: subcel_nodal_quad
     type(interpolation_t) :: fe_interpol
@@ -358,7 +358,7 @@ contains
     call subcel_nodal_quad%create(num_dime,num_subelem_nodes)
     subcell_coords => subcel_nodal_quad%get_coordinates()
 
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
 
     ipoint = 1
     do while ( .not. fe%has_finished() )
@@ -417,7 +417,7 @@ contains
     deallocate(subcell_points,stat = istat); check(istat == 0)
     call subcel_nodal_quad%free()
     call fe_interpol%free()
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
 
 
   end subroutine  uvtkw_attach_fe_function
@@ -429,7 +429,7 @@ contains
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
   
-    class(fe_iterator_t),allocatable :: fe
+    class(fe_cell_iterator_t),allocatable :: fe
     type(quadrature_t), pointer :: quadrature
     type(point_t), pointer :: quadrature_points_coordinates(:)
     type(piecewise_cell_map_t),     pointer :: cell_map
@@ -457,7 +457,7 @@ contains
       check(.false.)
     end select
   
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
 
     num_gp_subfacet = 0
     do while ( .not. fe%has_finished() )
@@ -520,7 +520,7 @@ contains
   
     if (num_dime == 2_ip) this%z(:) = 0
     if (num_dime == 2_ip) this%v_z(:) = 0
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
   
   end subroutine uvtkw_attach_boundary_quadrature_points
 

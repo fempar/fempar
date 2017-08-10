@@ -410,8 +410,8 @@ end subroutine free_timers
                                coarse_fe_handlers       = this%l1_coarse_fe_handlers, &
                                conditions               = this%poisson_unfitted_conditions )
     
-    !call this%fe_space%fill_dof_info() 
-    call this%fe_space%initialize_fe_integration()
+    !call this%fe_space%generate_global_dof_numbering() 
+    call this%fe_space%set_up_cell_integration()
     !call this%fe_space%print()
   end subroutine setup_fe_space
   

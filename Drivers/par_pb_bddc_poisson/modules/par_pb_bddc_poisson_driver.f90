@@ -519,8 +519,8 @@ contains
                                coarse_fe_handlers  = this%coarse_fe_handlers, &
                                conditions          = this%poisson_conditions )
 
-    call this%fe_space%initialize_fe_integration()
-    call this%fe_space%initialize_facet_integration()
+    call this%fe_space%set_up_cell_integration()
+    call this%fe_space%set_up_facet_integration()
 
     !call this%fe_space%print()
   end subroutine setup_fe_space
@@ -698,7 +698,7 @@ contains
     type(output_handler_t)                             :: oh
     type(parameterlist_t)                              :: parameter_list
     class(base_static_triangulation_t), pointer        :: triangulation
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
     real(rp), allocatable                              :: set_id_cell_vector(:)
     integer(ip)                                        :: i, istat
     if(this%test_params%get_write_solution()) then
@@ -723,7 +723,7 @@ contains
       triangulation => this%fe_space%get_triangulation()
       call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
       i = 1
-      call this%fe_space%create_fe_iterator(fe)  
+      call this%fe_space%create_fe_cell_iterator(fe)  
       do while ( .not. fe%has_finished())
          if (fe%is_local()) then
             set_id_cell_vector(i) = fe%get_set_id()
@@ -731,7 +731,7 @@ contains
          end if
          call fe%next()
       enddo
-      call this%fe_space%free_fe_iterator(fe)  
+      call this%fe_space%free_fe_cell_iterator(fe)  
     end subroutine build_set_id_cell_vector
 
     subroutine free_set_id_cell_vector()

@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module sparse_matrix_array_assembler_names
+module sparse_assembler_names
   use types_names
   use allocatable_array_names
 
   ! Abstract modules
-  use matrix_array_assembler_names
+  use assembler_names
   use matrix_names
   use array_names
 
@@ -42,20 +42,20 @@ module sparse_matrix_array_assembler_names
 # include "debug.i90"
   private
 
-  type, extends(matrix_array_assembler_t) :: sparse_matrix_array_assembler_t
+  type, extends(assembler_t) :: sparse_assembler_t
   contains
-    procedure :: assembly_array   => sparse_matrix_array_assembler_assembly_array
-    procedure :: assembly_matrix  => sparse_matrix_array_assembler_assembly_matrix
-    procedure :: allocate         => sparse_matrix_array_assembler_allocate
-    procedure :: compress_storage => sparse_matrix_array_assembler_compress_storage
+    procedure :: assembly_array   => sparse_assembler_assembly_array
+    procedure :: assembly_matrix  => sparse_assembler_assembly_matrix
+    procedure :: allocate         => sparse_assembler_allocate
+    procedure :: compress_storage => sparse_assembler_compress_storage
   end type
 
 ! Data types
-public :: sparse_matrix_array_assembler_t
+public :: sparse_assembler_t
 
 contains
 
-  subroutine sparse_matrix_array_assembler_assembly_array( this,           & 
+  subroutine sparse_assembler_assembly_array( this,           & 
                                                            num_fields,  &
                                                            field_blocks,   &
                                                            field_coupling, &
@@ -63,7 +63,7 @@ contains
                                                            cell2dof,       &
                                                            elvec )
     implicit none
-    class(sparse_matrix_array_assembler_t), intent(inout) :: this
+    class(sparse_assembler_t), intent(inout) :: this
     integer(ip)                           , intent(in)    :: num_fields
     integer(ip)                           , intent(in)    :: field_blocks(num_fields)
     logical                               , intent(in)    :: field_coupling(num_fields,num_fields)
@@ -85,9 +85,9 @@ contains
       check(.false.)
     end select
     
-  end subroutine sparse_matrix_array_assembler_assembly_array
+  end subroutine sparse_assembler_assembly_array
   
-  subroutine sparse_matrix_array_assembler_assembly_matrix( this,            &
+  subroutine sparse_assembler_assembly_matrix( this,            &
                                                             num_fields,   &
                                                             field_blocks,    &
                                                             field_coupling,  &
@@ -97,7 +97,7 @@ contains
                                                             cell2col_dofs,   &
                                                             elmat )
     implicit none
-    class(sparse_matrix_array_assembler_t), intent(inout) :: this
+    class(sparse_assembler_t), intent(inout) :: this
     integer(ip)                           , intent(in)    :: num_fields
     integer(ip)                           , intent(in)    :: field_blocks(num_fields)
     logical                               , intent(in)    :: field_coupling(num_fields,num_fields)
@@ -124,20 +124,20 @@ contains
       check(.false.)
     end select
 
-  end subroutine sparse_matrix_array_assembler_assembly_matrix
+  end subroutine sparse_assembler_assembly_matrix
 
-  subroutine sparse_matrix_array_assembler_allocate( this )
+  subroutine sparse_assembler_allocate( this )
     implicit none
-    class(sparse_matrix_array_assembler_t), intent(inout) :: this
+    class(sparse_assembler_t), intent(inout) :: this
     class(array_t), pointer :: array
     array=>this%get_array()
     call array%allocate()
-  end subroutine sparse_matrix_array_assembler_allocate
+  end subroutine sparse_assembler_allocate
 
-  subroutine sparse_matrix_array_assembler_compress_storage( this, & 
+  subroutine sparse_assembler_compress_storage( this, & 
                                                              sparse_matrix_storage_format )
     implicit none
-    class(sparse_matrix_array_assembler_t) , intent(inout) :: this
+    class(sparse_assembler_t) , intent(inout) :: this
     character(*)                              , intent(in)    :: sparse_matrix_storage_format
     class(matrix_t), pointer :: matrix
     matrix=>this%get_matrix() 
@@ -147,7 +147,7 @@ contains
       class default
       check(.false.)
     end select
-  end subroutine sparse_matrix_array_assembler_compress_storage
+  end subroutine sparse_assembler_compress_storage
 
   subroutine element_serial_scalar_array_assembly( array, num_fields, num_dofs, cell2dof, elvec )
     implicit none
@@ -206,5 +206,5 @@ contains
 
   end subroutine element_sparse_matrix_assembly
 
-end module sparse_matrix_array_assembler_names
+end module sparse_assembler_names
 

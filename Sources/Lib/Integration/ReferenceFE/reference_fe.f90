@@ -461,7 +461,7 @@ module reference_fe_names
           &     check_compatibility_of_n_faces
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
      
-     procedure(fill_own_dofs_permutations_interface), deferred :: fill_own_dofs_permutations
+     procedure(generate_own_dofs_cell_permutations_interface), deferred :: generate_own_dofs_cell_permutations
      procedure(fill_qpoints_permutations_interface), deferred :: fill_qpoints_permutations
      
      procedure(get_default_quadrature_degree_interface), deferred :: get_default_quadrature_degree
@@ -817,7 +817,7 @@ module reference_fe_names
        class(reference_fe_t), intent(inout) :: this 
      end subroutine create_nodal_quadrature_interface
      
-     subroutine fill_own_dofs_permutations_interface (this)
+     subroutine generate_own_dofs_cell_permutations_interface (this)
         import :: reference_fe_t
         implicit none
         class(reference_fe_t), intent(inout) :: this 
@@ -917,8 +917,8 @@ contains
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
        & => lagrangian_reference_fe_fill
-  procedure :: fill_own_dofs_permutations           &
-       & => lagrangian_reference_fe_fill_own_dofs_permutations
+  procedure :: generate_own_dofs_cell_permutations           &
+       & => lagrangian_reference_fe_generate_own_dofs_cell_permutations
   procedure :: fill_qpoints_permutations           &
        & => lagrangian_fill_qpoints_permutations
   procedure, private, non_overridable :: fill_field_components        & 
@@ -1187,8 +1187,8 @@ contains
              &  => tet_lagrangian_reference_fe_get_subcells_connectivity
    procedure :: blending                                                                &
              &  => tet_lagrangian_reference_fe_blending 
-   procedure :: fill_own_dofs_permutations                                               &
-             &  => tet_lagrangian_reference_fe_fill_own_dofs_permutations
+   procedure :: generate_own_dofs_cell_permutations                                               &
+             &  => tet_lagrangian_reference_fe_generate_own_dofs_cell_permutations
    procedure :: fill_qpoints_permutations                                               &
              &  => tet_lagrangian_reference_fe_fill_qpoints_permutations
    ! Deferred TBP implementors from lagrangian_reference_fe_t
@@ -1390,8 +1390,8 @@ procedure :: check_compatibility_of_n_faces                              &
 &   => tet_nedelec_reference_fe_check_compatibility_of_n_faces
 procedure :: get_characteristic_length                                   &
 &   => tet_nedelec_reference_fe_get_characteristic_length
-procedure :: fill_own_dofs_permutations                                   &
-&  => tet_nedelec_reference_fe_fill_own_dofs_permutations
+procedure :: generate_own_dofs_cell_permutations                                   &
+&  => tet_nedelec_reference_fe_generate_own_dofs_cell_permutations
 procedure :: fill_qpoints_permutations                                   &
 &  => tet_nedelec_reference_fe_fill_qpoints_permutations
 procedure, private :: fill                                               & 
@@ -1456,7 +1456,7 @@ contains
   procedure :: evaluate_gradient_fe_function_vector => void_reference_fe_evaluate_gradient_fe_function_vector
   procedure :: check_compatibility_of_n_faces       => void_reference_fe_check_compatibility_of_n_faces
   procedure :: get_characteristic_length            => void_reference_fe_get_characteristic_length  
-  procedure :: fill_own_dofs_permutations            => void_reference_fe_fill_own_dofs_permutations
+  procedure :: generate_own_dofs_cell_permutations            => void_reference_fe_generate_own_dofs_cell_permutations
   procedure :: fill_qpoints_permutations            => void_reference_fe_fill_qpoints_permutations     
   procedure :: free                                 => void_reference_fe_free
   procedure :: get_default_quadrature_degree        => void_reference_fe_get_default_quadrature_degree

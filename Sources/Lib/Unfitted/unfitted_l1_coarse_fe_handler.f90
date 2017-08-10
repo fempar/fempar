@@ -294,9 +294,9 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
   type(environment_t), pointer       :: par_environment
   type(fe_object_iterator_t)         :: object
   type(fe_vef_iterator_t)            :: vef
-  class(fe_iterator_t), allocatable  :: fe
+  class(fe_cell_iterator_t), allocatable  :: fe
   type(list_iterator_t)              :: own_dofs_on_vef_iterator
-  integer(ip), pointer               :: elem2dof(:)
+  integer(ip), pointer               :: fe_dofs(:)
   logical                            :: use_vertices, use_edges, use_faces
   logical, allocatable               :: visited_dofs(:)
   integer(ip)                        :: field_id, block_id
@@ -331,7 +331,7 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
 
   ! Fill the auxiliary data
   call this%par_fe_space%create_fe_object_iterator(object)
-  call this%par_fe_space%create_fe_iterator(fe)
+  call this%par_fe_space%create_fe_cell_iterator(fe)
   call this%par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
 
@@ -362,14 +362,14 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
         call vef%get_cell_around(icell_around,fe)
         if ( fe%is_ghost() ) then
 
-          call fe%get_field_elem2dof(field_id, elem2dof)
+          call fe%get_field_fe_dofs(field_id, fe_dofs)
           ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
 
           ! Loop in own dofs in the vef as seen from the ghost element
           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
             idof    = own_dofs_on_vef_iterator%get_current()
-            dof_lid = elem2dof(idof)
+            dof_lid = fe_dofs(idof)
             if ( dof_lid > 0 ) then
               if(.not. visited_dofs(dof_lid)) then
 
@@ -429,7 +429,7 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
   call memfree(dof_lids,__FILE__,__LINE__)
   call memfree(visited_dofs,__FILE__,__LINE__)
   call this%par_fe_space%free_fe_vef_iterator(vef)
-  call this%par_fe_space%free_fe_iterator(fe)
+  call this%par_fe_space%free_fe_cell_iterator(fe)
   call this%par_fe_space%free_fe_object_iterator(object)
 
 end subroutine unfitted_l1_setup_object_lid_to_dof_lids
@@ -532,11 +532,11 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   class(par_fe_space_t), pointer :: par_fe_space
   class(par_unfitted_fe_space_t), pointer :: par_unf_fe_space
   class(base_static_triangulation_t), pointer :: triangulation
-  class(fe_iterator_t), allocatable  :: fe
+  class(fe_cell_iterator_t), allocatable  :: fe
   integer(ip) :: num_total_cells
   type(environment_t), pointer :: par_environment
   type(cell_import_t), pointer :: cell_import
-  integer(ip), pointer :: elem2dof(:)
+  integer(ip), pointer :: fe_dofs(:)
 
   ! We assume a single field for the moment
   field_id = 1
@@ -557,7 +557,7 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   num_total_cells = triangulation%get_num_local_cells() + triangulation%get_num_ghost_cells()
   call memalloc(num_total_cells,is_cut_cell,__FILE__,__LINE__)
   is_cut_cell(:) = 0
-  call par_unf_fe_space%create_fe_iterator(fe)
+  call par_unf_fe_space%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished() )
     if ( fe%is_ghost() ) then
       call fe%next(); cycle
@@ -586,15 +586,15 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   is_problematic_dof(:) = .false.
   call fe%first()
   do while ( .not. fe%has_finished() )
-    call fe%get_field_elem2dof(field_id, elem2dof)
-    if (is_cut_cell(fe%get_lid())==1) is_problematic_dof(pack(elem2dof,elem2dof>0)) = .true.
+    call fe%get_field_fe_dofs(field_id, fe_dofs)
+    if (is_cut_cell(fe%get_lid())==1) is_problematic_dof(pack(fe_dofs,fe_dofs>0)) = .true.
     call fe%next()
   end do
 
 
   ! Clean up
   call memfree(is_cut_cell,__FILE__,__LINE__)
-  call par_unf_fe_space%free_fe_iterator(fe)
+  call par_unf_fe_space%free_fe_cell_iterator(fe)
 
 end subroutine unfitted_l1_identify_problematic_dofs
 

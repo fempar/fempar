@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module matrix_array_assembler_names
+module assembler_names
   use types_names
   use matrix_names
   use array_names
@@ -34,7 +34,7 @@ module matrix_array_assembler_names
 # include "debug.i90"
   private
 
-  type, abstract :: matrix_array_assembler_t
+  type, abstract :: assembler_t
      private
      class(matrix_t), pointer :: matrix
      class(array_t) , pointer :: array
@@ -42,16 +42,16 @@ module matrix_array_assembler_names
      procedure (assembly_array_interface)  , deferred :: assembly_array
      procedure (assembly_matrix_interface) , deferred :: assembly_matrix
      procedure (compress_storage_interface), deferred :: compress_storage
-     procedure                                        :: set_matrix       => matrix_array_assembler_set_matrix
-     procedure                                        :: set_array        => matrix_array_assembler_set_array
-     procedure                                        :: allocate_array   => matrix_array_assembler_allocate_array
-     procedure                                        :: allocate_matrix  => matrix_array_assembler_allocate_matrix
-     procedure                                        :: init_array       => matrix_array_assembler_init_array
-     procedure                                        :: init_matrix      => matrix_array_assembler_init_matrix
-     procedure                                        :: free_in_stages   => matrix_array_assembler_free_in_stages
-     procedure                                        :: get_matrix       => matrix_array_assembler_get_matrix
-     procedure                                        :: get_array        => matrix_array_assembler_get_array
-  end type matrix_array_assembler_t
+     procedure                                        :: set_matrix       => assembler_set_matrix
+     procedure                                        :: set_array        => assembler_set_array
+     procedure                                        :: allocate_array   => assembler_allocate_array
+     procedure                                        :: allocate_matrix  => assembler_allocate_matrix
+     procedure                                        :: init_array       => assembler_init_array
+     procedure                                        :: init_matrix      => assembler_init_matrix
+     procedure                                        :: free_in_stages   => assembler_free_in_stages
+     procedure                                        :: get_matrix       => assembler_get_matrix
+     procedure                                        :: get_array        => assembler_get_array
+  end type assembler_t
 		 
   abstract interface
      
@@ -62,9 +62,9 @@ module matrix_array_assembler_names
                                           num_dofs,    &
                                           cell2dof,       &
                                           elvec )
-       import :: matrix_array_assembler_t, rp, ip, i1p_t
+       import :: assembler_t, rp, ip, i1p_t
        implicit none
-       class(matrix_array_assembler_t) , intent(inout) :: this
+       class(assembler_t) , intent(inout) :: this
        integer(ip)                     , intent(in)    :: num_fields
        integer(ip)                     , intent(in)    :: field_blocks(num_fields)
        logical                         , intent(in)    :: field_coupling(num_fields,num_fields)
@@ -82,9 +82,9 @@ module matrix_array_assembler_names
                                            cell2row_dofs,   &
                                            cell2col_dofs,   &
                                            elmat )
-       import :: matrix_array_assembler_t, rp, ip, i1p_t
+       import :: assembler_t, rp, ip, i1p_t
        implicit none
-       class(matrix_array_assembler_t), intent(inout) :: this
+       class(assembler_t), intent(inout) :: this
        integer(ip)                    , intent(in)    :: num_fields
        integer(ip)                    , intent(in)    :: field_blocks(num_fields)
        logical                        , intent(in)    :: field_coupling(num_fields,num_fields)
@@ -97,65 +97,65 @@ module matrix_array_assembler_names
 
      subroutine compress_storage_interface( this, & 
           &                                 sparse_matrix_storage_format )
-       import :: matrix_array_assembler_t
+       import :: assembler_t
        implicit none
-       class(matrix_array_assembler_t) , intent(inout) :: this
+       class(assembler_t) , intent(inout) :: this
        character(*)          , intent(in)    :: sparse_matrix_storage_format
      end subroutine compress_storage_interface
      
     end interface
     
   ! Data types
-  public :: matrix_array_assembler_t
+  public :: assembler_t
   
 contains
   ! Sets the pointer to class(matrix_t) in such a way that this 
   ! can become reponsible to free it later on 
-  subroutine matrix_array_assembler_set_matrix(this,matrix)
+  subroutine assembler_set_matrix(this,matrix)
     implicit none
-    class(matrix_array_assembler_t), intent(inout) :: this
+    class(assembler_t), intent(inout) :: this
     class(matrix_t), pointer, intent(in) :: matrix
     this%matrix => matrix
-  end subroutine matrix_array_assembler_set_matrix
+  end subroutine assembler_set_matrix
   
   ! Sets the pointer to class(array_t) in such a way that this 
   ! can become reponsible to free it later on 
-  subroutine matrix_array_assembler_set_array(this,array)
+  subroutine assembler_set_array(this,array)
     implicit none
-    class(matrix_array_assembler_t), intent(inout) :: this
+    class(assembler_t), intent(inout) :: this
     class(array_t), pointer, intent(in) :: array
     this%array => array
-  end subroutine matrix_array_assembler_set_array
+  end subroutine assembler_set_array
   
-  subroutine matrix_array_assembler_allocate_array(this)
+  subroutine assembler_allocate_array(this)
     implicit none
-    class(matrix_array_assembler_t), intent(inout) :: this
+    class(assembler_t), intent(inout) :: this
     call this%array%allocate()  
-  end subroutine matrix_array_assembler_allocate_array
+  end subroutine assembler_allocate_array
 
-  subroutine matrix_array_assembler_allocate_matrix(this)
+  subroutine assembler_allocate_matrix(this)
     implicit none
-    class(matrix_array_assembler_t), intent(inout) :: this
+    class(assembler_t), intent(inout) :: this
     call this%matrix%allocate()
-  end subroutine matrix_array_assembler_allocate_matrix
+  end subroutine assembler_allocate_matrix
 
-  subroutine matrix_array_assembler_init_array(this, value)
+  subroutine assembler_init_array(this, value)
     implicit none
-    class(matrix_array_assembler_t), intent(inout) :: this
+    class(assembler_t), intent(inout) :: this
     real(rp),                        intent(in)    :: value
     call this%array%init(value)  
-  end subroutine matrix_array_assembler_init_array
+  end subroutine assembler_init_array
 
-  subroutine matrix_array_assembler_init_matrix(this, value)
+  subroutine assembler_init_matrix(this, value)
     implicit none
-    class(matrix_array_assembler_t), intent(inout) :: this
+    class(assembler_t), intent(inout) :: this
     real(rp),                        intent(in)    :: value
     call this%matrix%init(value)  
-  end subroutine matrix_array_assembler_init_matrix
+  end subroutine assembler_init_matrix
   
-  subroutine matrix_array_assembler_free_in_stages(this,action)
+  subroutine assembler_free_in_stages(this,action)
     implicit none
-    class(matrix_array_assembler_t), intent(inout) :: this
+    class(assembler_t), intent(inout) :: this
     integer(ip)                       , intent(in)    :: action
     call this%matrix%free_in_stages(action)
     call this%array%free_in_stages(action)
@@ -165,20 +165,20 @@ contains
        deallocate(this%array)
        nullify(this%array)
     end if
-  end subroutine matrix_array_assembler_free_in_stages
+  end subroutine assembler_free_in_stages
   
-    function matrix_array_assembler_get_matrix(this)
+    function assembler_get_matrix(this)
     implicit none
-    class(matrix_array_assembler_t), target, intent(in) :: this
-    class(matrix_t), pointer :: matrix_array_assembler_get_matrix
-    matrix_array_assembler_get_matrix => this%matrix 
-  end function matrix_array_assembler_get_matrix
+    class(assembler_t), target, intent(in) :: this
+    class(matrix_t), pointer :: assembler_get_matrix
+    assembler_get_matrix => this%matrix 
+  end function assembler_get_matrix
   
-  function matrix_array_assembler_get_array(this)
+  function assembler_get_array(this)
     implicit none
-    class(matrix_array_assembler_t), target, intent(in) :: this
-    class(array_t), pointer :: matrix_array_assembler_get_array
-    matrix_array_assembler_get_array => this%array 
-  end function matrix_array_assembler_get_array
+    class(assembler_t), target, intent(in) :: this
+    class(array_t), pointer :: assembler_get_array
+    assembler_get_array => this%array 
+  end function assembler_get_array
   
-end module matrix_array_assembler_names
+end module assembler_names

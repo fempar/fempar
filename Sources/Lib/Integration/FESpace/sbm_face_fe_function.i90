@@ -40,7 +40,7 @@ subroutine face_fe_function_scalar_create ( this, fe_space, field_id )
   call this%free()
   call this%cell_fe_function(1)%create(fe_space, field_id)
   call this%cell_fe_function(2)%create(fe_space, field_id)
-  call fe_space%create_fe_iterator(this%fe)
+  call fe_space%create_fe_cell_iterator(this%fe)
   this%fe_space => fe_space
 end subroutine face_fe_function_scalar_create
 
@@ -204,7 +204,7 @@ subroutine face_fe_function_scalar_free ( this )
   call this%cell_fe_function(1)%free()
   call this%cell_fe_function(2)%free()
   if (associated(this%fe_space)) then
-    call this%fe_space%free_fe_iterator(this%fe)
+    call this%fe_space%free_fe_cell_iterator(this%fe)
   end if
   nullify(this%fe_space)
 end subroutine face_fe_function_scalar_free
@@ -222,7 +222,7 @@ subroutine face_fe_function_vector_create ( this, fe_space, field_id )
   call this%free()
   call this%cell_fe_function(1)%create(fe_space, field_id)
   call this%cell_fe_function(2)%create(fe_space, field_id)
-  call fe_space%create_fe_iterator(this%fe)
+  call fe_space%create_fe_cell_iterator(this%fe)
   this%fe_space => fe_space
 end subroutine face_fe_function_vector_create
 
@@ -387,7 +387,7 @@ subroutine face_fe_function_vector_free ( this )
   call this%cell_fe_function(1)%free()
   call this%cell_fe_function(2)%free()
   if (associated(this%fe_space)) then
-    call this%fe_space%free_fe_iterator(this%fe)
+    call this%fe_space%free_fe_cell_iterator(this%fe)
   end if
   nullify(this%fe_space)
 end subroutine face_fe_function_vector_free
@@ -405,7 +405,7 @@ subroutine face_fe_function_tensor_create ( this, fe_space, field_id )
   call this%free()
   call this%cell_fe_function(1)%create(fe_space, field_id)
   call this%cell_fe_function(2)%create(fe_space, field_id)
-  call fe_space%create_fe_iterator(this%fe)
+  call fe_space%create_fe_cell_iterator(this%fe)
   this%fe_space => fe_space
 end subroutine face_fe_function_tensor_create
 
@@ -542,7 +542,7 @@ subroutine face_fe_function_tensor_free ( this )
   call this%cell_fe_function(1)%free()
   call this%cell_fe_function(2)%free()
   if (associated(this%fe_space)) then
-    call this%fe_space%free_fe_iterator(this%fe)
+    call this%fe_space%free_fe_cell_iterator(this%fe)
    end if
   nullify(this%fe_space)
 end subroutine face_fe_function_tensor_free

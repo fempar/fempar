@@ -529,12 +529,12 @@ end function void_reference_fe_get_characteristic_length
 
 
 !=================================================================================================
-subroutine void_reference_fe_fill_own_dofs_permutations  ( this )
+subroutine void_reference_fe_generate_own_dofs_cell_permutations  ( this )
   implicit none 
   class(void_reference_fe_t), intent(inout) :: this 
   real(rp)  :: void_reference_fe_get_characteristic_length 
   check(.false.)
-end subroutine void_reference_fe_fill_own_dofs_permutations 
+end subroutine void_reference_fe_generate_own_dofs_cell_permutations 
 
 !=================================================================================================
 subroutine void_reference_fe_fill_qpoints_permutations  ( this, quadrature, qpoints_perm )

@@ -354,9 +354,9 @@ contains
                                    reference_fes       = this%reference_fes )
       end if
     end if
-    call this%fe_space%initialize_fe_integration()
+    call this%fe_space%set_up_cell_integration()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
-      call this%fe_space%initialize_facet_integration()
+      call this%fe_space%set_up_facet_integration()
     end if
     call this%setup_cell_quadratures_degree()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
@@ -367,14 +367,14 @@ contains
   subroutine setup_cell_quadratures_degree (this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    class(fe_iterator_t), allocatable :: fe
-    call this%fe_space%create_fe_iterator(fe)
+    class(fe_cell_iterator_t), allocatable :: fe
+    call this%fe_space%create_fe_cell_iterator(fe)
     ! Set first FE is enough for testing. Leaving loop as snippet for user-customization
     do while ( .not. fe%has_finished() )
        call fe%set_quadrature_degree(fe%get_default_quadrature_degree())
        call fe%next()
     end do
-    call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_cell_iterator(fe)
   end subroutine setup_cell_quadratures_degree
   
   subroutine setup_facet_quadratures_degree (this)

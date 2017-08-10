@@ -65,7 +65,7 @@ subroutine uim_check_assumptions(this)
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
 
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   integer(ip) :: num_fields, ifield
   class(reference_fe_t), pointer :: ref_fe
   class(reference_fe_t), pointer :: ref_fe_1
@@ -76,7 +76,7 @@ subroutine uim_check_assumptions(this)
   ! Same geom ref element in all cells
   ! Same ref elem in all cells, but possibly different among fields
 
-  call this%fe_space%create_fe_iterator(fe)
+  call this%fe_space%create_fe_cell_iterator(fe)
   num_fields = this%fe_space%get_num_fields()
 
   ! Check geom ref element
@@ -119,7 +119,7 @@ subroutine uim_check_assumptions(this)
 
   end do
 
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
 
 end subroutine uim_check_assumptions
 
@@ -182,7 +182,7 @@ subroutine uim_init_cut_integration( this )
   integer(ip) :: num_dim, num_gp, num_gp_subelem, num_subelems, num_fields
   integer(ip) :: mc_case, mc_num_cases, istat, ifield
 
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t),     pointer        :: reference_elem
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
@@ -199,7 +199,7 @@ subroutine uim_init_cut_integration( this )
 
   ! We assume that the same geom ref element is in all the mesh
   ! We assume that the same ref element is in all the mesh (but can be different amnong fields)
-  call this%fe_space%create_fe_iterator(fe)
+  call this%fe_space%create_fe_cell_iterator(fe)
   geo_reference_elem => fe%get_reference_fe_geo() !This is safe since the geo_reference_elem is always non void
 
   ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
@@ -240,7 +240,7 @@ subroutine uim_init_cut_integration( this )
     call this%empty_cell_integrator(ifield)%create( this%empty_quadrature, reference_elem )
   end do
 
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
 
 end subroutine uim_init_cut_integration
 
@@ -293,7 +293,7 @@ subroutine uim_init_cut_boundary_integration( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
 
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t),     pointer        :: reference_elem
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
@@ -337,7 +337,7 @@ subroutine uim_init_cut_boundary_integration( this )
   end do
 
   !We assume that the same ref element is in all the mesh (discarding void FEs), but possibly different in all fields
-  call this%fe_space%create_fe_iterator(fe)
+  call this%fe_space%create_fe_cell_iterator(fe)
   geo_reference_elem => fe%get_reference_fe_geo() ! This is safe since the geo_reference_fe is always non-void
 
   do mc_case = 1, mc_num_cases
@@ -368,7 +368,7 @@ subroutine uim_init_cut_boundary_integration( this )
 
   call this%empty_piecewise_cell_map%create_facet_map( this%empty_quadrature, geo_reference_elem, 0 )
 
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
 
 end subroutine uim_init_cut_boundary_integration
 

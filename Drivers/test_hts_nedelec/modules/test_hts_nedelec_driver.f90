@@ -232,9 +232,9 @@ contains
     call this%fe_space%create( triangulation = this%triangulation, &
                                reference_fes = this%reference_fes, &
                                conditions    = this%hts_nedelec_conditions )
-    call this%fe_space%fill_dof_info() 
-    call this%fe_space%initialize_fe_integration()
-    call this%fe_space%initialize_facet_integration() 
+    call this%fe_space%generate_global_dof_numbering() 
+    call this%fe_space%set_up_cell_integration()
+    call this%fe_space%set_up_facet_integration() 
        
   end subroutine setup_fe_space 
     
@@ -295,7 +295,7 @@ contains
     type(sparse_matrix_t), pointer :: coefficient_matrix
 
     ! Integration loop 
-    class(fe_iterator_t)     , allocatable :: fe
+    class(fe_cell_iterator_t)     , allocatable :: fe
     class(fe_facet_iterator_t), allocatable :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
@@ -303,7 +303,7 @@ contains
     type(facet_maps_t)         , pointer     :: facet_map 
     type(vector_field_t)                   :: rot_test_vector
     integer(ip)                            :: qpoin, num_qpoints, idof 
-    type(i1p_t)              , pointer     :: elem2dof(:)
+    type(i1p_t)              , pointer     :: fe_dofs(:)
     type(cell_integrator_t), pointer     :: cell_int_H
     type(facet_integrator_t), pointer       :: face_int_H
     integer(ip)                            :: i, inode, vector_size
@@ -332,14 +332,14 @@ contains
     call this%constraint_vector%init(0.0_rp) 
 
         ! Initialize
-    call this%fe_space%initialize_fe_integration()
-    call this%fe_space%create_fe_iterator(fe)
+    call this%fe_space%set_up_cell_integration()
+    call this%fe_space%create_fe_cell_iterator(fe)
     
     num_fields         =  this%fe_space%get_num_fields()
     num_dofs              =  fe%get_num_dofs()
     num_dofs_x_field => fe%get_num_dofs_x_field()
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    allocate( elem2dof(num_fields), stat=istat); check(istat==0);
+    allocate( fe_dofs(num_fields), stat=istat); check(istat==0);
     
         ! ================================  2D CASE, integrate over entire HTS section ================
     if ( this%triangulation%get_num_dims() == 2) then  
@@ -355,7 +355,7 @@ contains
        if ( fe%get_set_id() == hts ) then  
           ! Update finite structures
           call fe%update_integration()		               
-          call fe%get_elem2dof(elem2dof) 
+          call fe%get_fe_dofs(fe_dofs) 
 
           elvec      = 0.0_rp 
           ! Integrate J over the hts subdomain 
@@ -369,7 +369,7 @@ contains
 
           ! Add element contribution to matrix and vector 
           do i = 1, num_dofs_x_field(1) 
-             idof = elem2dof(1)%p(i) 
+             idof = fe_dofs(1)%p(i) 
              if ( idof > 0 ) then 
                  call this%constraint_matrix%insert( idof, 1, elvec(i) )
                  call this%constraint_vector%add(idof, elvec(i))
@@ -382,7 +382,7 @@ contains
     ! ================================   3D CASE, only integrate over z-normal faces ===================
     elseif ( this%triangulation%get_num_dims() == 3) then 
     
-       call this%fe_space%initialize_facet_integration()
+       call this%fe_space%set_up_facet_integration()
 
        ! Search for the first boundary face
        call this%fe_space%create_fe_facet_iterator(fe_face)
@@ -414,11 +414,11 @@ contains
                    end do
                 end do
 
-                call fe_face%get_elem2dof(1, elem2dof)
+                call fe_face%get_fe_dofs(1, fe_dofs)
 
                 ! Add element contribution to vector 
                 do i = 1, num_dofs_x_field(1) 
-                   idof = elem2dof(1)%p(i) 
+                   idof = fe_dofs(1)%p(i) 
                    if ( idof > 0 ) then 
                       call this%constraint_matrix%insert( idof, 1, facevec(i) )
                       call this%constraint_vector%add(idof, facevec(i))
@@ -431,14 +431,14 @@ contains
        end do
        call memfree ( facevec, __FILE__, __LINE__ )
     end if 
-    call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_cell_iterator(fe)
     call this%fe_space%free_fe_facet_iterator(fe_face)
     ! Sum duplicates, re-order by rows, and leave the matrix in a final state
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 
     ! =============================================================================================
     call memfree ( elvec, __FILE__, __LINE__ )
-    deallocate (elem2dof, stat=istat); check(istat==0)
+    deallocate (fe_dofs, stat=istat); check(istat==0)
 
   end subroutine setup_constraint_matrix
   
@@ -572,7 +572,7 @@ contains
     implicit none 
     class(test_hts_nedelec_driver_t)   , intent(inout) :: this
     class(vector_t),      pointer                      :: dof_values_current_solution     
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
     ! Integration loop 
     type(quadrature_t)       , pointer     :: quad
     type(cell_map_t)           , pointer     :: cell_map
@@ -596,8 +596,8 @@ contains
 
     ! Integrate structures needed 
     call cell_fe_function_current%create(this%fe_space,  1)
-    call this%fe_space%initialize_fe_integration()
-    call this%fe_space%create_fe_iterator(fe)
+    call this%fe_space%set_up_cell_integration()
+    call this%fe_space%create_fe_cell_iterator(fe)
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
     cell_map           => fe%get_cell_map()
@@ -631,7 +631,7 @@ contains
        end if
        call fe%next()
     end do
-    call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_cell_iterator(fe)
 
     ! Coordinates of quadrature does influence the constant value Happ(t) 
     boundary_function_Hy => this%problem_functions%get_boundary_function_Hy()

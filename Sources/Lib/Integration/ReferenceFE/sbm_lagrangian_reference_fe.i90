@@ -824,7 +824,7 @@ subroutine lagrangian_reference_fe_fill (this)
 
   if ( this%conformity .and. this%continuity ) then
      allocate(this%own_dof_permutations(this%num_dims-1))
-     call this%fill_own_dofs_permutations()
+     call this%generate_own_dofs_cell_permutations()
   end if
 
   if ( this%num_field_components /= 1 ) then
@@ -884,7 +884,7 @@ subroutine lagrangian_reference_fe_fill (this)
 end subroutine lagrangian_reference_fe_fill
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_fill_own_dofs_permutations (this)
+subroutine lagrangian_reference_fe_generate_own_dofs_cell_permutations (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout) :: this
   integer(ip) :: idime
@@ -895,7 +895,7 @@ subroutine lagrangian_reference_fe_fill_own_dofs_permutations (this)
                                              this%polytope, &
                                              this%own_dof_permutations(idime) )
   end do
-end subroutine lagrangian_reference_fe_fill_own_dofs_permutations
+end subroutine lagrangian_reference_fe_generate_own_dofs_cell_permutations
 
 subroutine lagrangian_fill_qpoints_permutations (this, quadrature, qpoints_perm)
   implicit none
