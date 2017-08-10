@@ -227,11 +227,11 @@ subroutine bst_free_ptr_vefs_x_cell (this)
   if (allocated (this%ptr_vefs_x_cell)) call memfree ( this%ptr_vefs_x_cell, __FILE__, __LINE__ )
 end subroutine bst_free_ptr_vefs_x_cell
 
-subroutine bst_free_lst_vefs_lids ( this )
+subroutine bst_free_lst_vefs_gids ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
-  if ( allocated(this%lst_vefs_lids) ) call memfree( this%lst_vefs_lids, __FILE__, __LINE__ )
-end subroutine bst_free_lst_vefs_lids
+  if ( allocated(this%lst_vefs_gids) ) call memfree( this%lst_vefs_gids, __FILE__, __LINE__ )
+end subroutine bst_free_lst_vefs_gids
 
 subroutine bst_free_cells_gid (this)
   implicit none
@@ -270,9 +270,9 @@ subroutine bst_orient_tet_mesh(this,lst_vefs_gids_ghost_extended)
        gids = lst_vefs_gids_ghost_extended(spos:epos)
        perm = (/(i, i=1,nnode, 1)/)
        call sort(nnode, gids, index=perm)
-       this%lst_vefs_lids(spos:epos) = this%lst_vefs_lids(spos+perm(1:nnode)-1)
+       this%lst_vefs_gids(spos:epos) = this%lst_vefs_gids(spos+perm(1:nnode)-1)
      else
-       call sort(nnode, this%lst_vefs_lids(spos:epos))
+       call sort(nnode, this%lst_vefs_gids(spos:epos))
      end if
   end do
   
@@ -376,7 +376,7 @@ end subroutine bst_orient_tet_mesh
     do i=1, num_neighbours
      do j=snd_ptrs(i),snd_ptrs(i+1)-1
        icell = snd_leids(j)
-       call cell%set_lid(icell)
+       call cell%set_gid(icell)
        cell_sizes(icell) = this%cell_size(cell) + extra_data_size_x_vef*(cell%get_num_vefs())
        snd_ptrs_buf(i+1) = snd_ptrs_buf(i+1) + cell_sizes(icell)
      end do
@@ -391,7 +391,7 @@ end subroutine bst_orient_tet_mesh
      do i=1, num_neighbours
       do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
        icell = rcv_leids(j)
-       call cell%set_lid(icell)
+       call cell%set_gid(icell)
        cell_sizes(icell) = this%cell_size(cell) + extra_data_size_x_vef*(cell%get_num_vefs())
        rcv_ptrs_buf(i+1) = rcv_ptrs_buf(i+1) + cell_sizes(icell)
       end do
@@ -412,7 +412,7 @@ end subroutine bst_orient_tet_mesh
             current = snd_ptrs_buf(i)
             do j=snd_ptrs(i),snd_ptrs(i+1)-1
               icell = snd_leids(j)
-              call cell%set_lid(icell)
+              call cell%set_gid(icell)
               first     = this%ptr_vefs_x_cell(icell)
               last      = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
@@ -429,7 +429,7 @@ end subroutine bst_orient_tet_mesh
             current = snd_ptrs_buf(i)
             do j=snd_ptrs(i),snd_ptrs(i+1)-1
               icell = snd_leids(j)
-              call cell%set_lid(icell)
+              call cell%set_gid(icell)
               first     = this%ptr_vefs_x_cell(icell)
               last      = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
@@ -446,7 +446,7 @@ end subroutine bst_orient_tet_mesh
             current = snd_ptrs_buf(i)
             do j=snd_ptrs(i),snd_ptrs(i+1)-1
               icell = snd_leids(j)
-              call cell%set_lid(icell)
+              call cell%set_gid(icell)
               first     = this%ptr_vefs_x_cell(icell)
               last      = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
@@ -473,7 +473,7 @@ end subroutine bst_orient_tet_mesh
          do i=1, num_neighbours
             do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
               icell = rcv_leids(j)
-              call cell%set_lid(icell)
+              call cell%set_gid(icell)
               first     = this%ptr_vefs_x_cell(icell)
               last       = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
@@ -489,7 +489,7 @@ end subroutine bst_orient_tet_mesh
          do i=1, num_neighbours
             do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
               icell = rcv_leids(j)
-              call cell%set_lid(icell)
+              call cell%set_gid(icell)
               first     = this%ptr_vefs_x_cell(icell)
               last       = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
@@ -505,7 +505,7 @@ end subroutine bst_orient_tet_mesh
          do i=1, num_neighbours
             do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
               icell = rcv_leids(j)
-              call cell%set_lid(icell)
+              call cell%set_gid(icell)
               first     = this%ptr_vefs_x_cell(icell)
               last       = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
@@ -543,7 +543,7 @@ end subroutine bst_orient_tet_mesh
         
     first = 1
     last   = first + size_of_igp -1
-    buffer(first:last) = transfer(cell%get_gid(),buffer(first:last))
+    buffer(first:last) = transfer(cell%get_ggid(),buffer(first:last))
     first = last + 1
     last   = first + size_of_ip -1
     buffer(first:last) = transfer(cell%get_my_part(),buffer(first:last))
@@ -601,7 +601,7 @@ end subroutine bst_orient_tet_mesh
     first = 1
     last = first + size_of_igp -1
     gid = transfer(buffer(first:last), gid) 
-    call cell%set_gid(gid)
+    call cell%set_ggid(gid)
     
     first = last + 1
     last = first + size_of_ip - 1
@@ -667,7 +667,7 @@ subroutine bst_compute_num_vefs ( this )
   call this%create_cell_iterator(cell)
   do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid(ivef)
+        vef_lid = cell%get_vef_gid(ivef)
         call visited_vefs%put(key=vef_lid, val=1, stat=istat)
         if (istat == now_stored) this%num_vefs = this%num_vefs + 1
      end do
@@ -695,7 +695,7 @@ subroutine bst_allocate_and_fill_vefs_gid ( this, lst_vefs_gid )
   current = 1
   do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid(ivef)
+        vef_lid = cell%get_vef_gid(ivef)
         vef_gid = lst_vefs_gid(current)
         this%vefs_gid(vef_lid) = vef_gid
         current = current + 1 
@@ -731,7 +731,7 @@ subroutine bst_allocate_and_fill_cells_around ( this )
   call this%create_cell_iterator(cell)
   do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid(ivef)
+        vef_lid = cell%get_vef_gid(ivef)
         this%ptrs_cells_around(vef_lid +1) = this%ptrs_cells_around(vef_lid+1) + 1
      end do
      call cell%next()
@@ -747,8 +747,8 @@ subroutine bst_allocate_and_fill_cells_around ( this )
   call cell%first()
   do while ( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid(ivef)
-        this%lst_cells_around(this%ptrs_cells_around(vef_lid)) = cell%get_lid()
+        vef_lid = cell%get_vef_gid(ivef)
+        this%lst_cells_around(this%ptrs_cells_around(vef_lid)) = cell%get_gid()
         this%ptrs_cells_around(vef_lid) = this%ptrs_cells_around(vef_lid) + 1
      end do
      call cell%next()
@@ -814,7 +814,7 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
   call vef%first()
   do while ( .not. vef%has_finished() )
      if(vef%is_at_interface()) then
-        ivef = vef%get_lid()
+        ivef = vef%get_gid()
         this%num_itfc_vefs = this%num_itfc_vefs + 1
         this%lst_itfc_vefs(this%num_itfc_vefs) = ivef
      end if
@@ -1238,7 +1238,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       do while(.not. vefs_object_iterator%is_upper_bound())
         vef_lid = vefs_object_iterator%get_current()
         !this%objects_dim(iobj) = max ( this%objects_dim(iobj), this%vefs_dim(vef_lid) )  
-        call vef%set_lid(vef_lid)
+        call vef%set_gid(vef_lid)
         this%objects_dim(iobj) = max ( this%objects_dim(iobj), vef%get_dim() )  
         call vefs_object_iterator%next()
        end do
@@ -1988,7 +1988,7 @@ subroutine bst_print ( this )
    call this%create_cell_iterator(cell)
    write (*,'(a)') '       id      is_local   is_ghost  num_vefs    vef        vef  ....'
    do while ( .not. cell%has_finished() )
-       write(*,'(i10,2l10,10(2x,i10))') cell%get_lid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_lid(ivef),ivef=1,cell%get_num_vefs())
+       write(*,'(i10,2l10,10(2x,i10))') cell%get_gid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_gid(ivef),ivef=1,cell%get_num_vefs())
        call cell%next()
    end do
 
@@ -2002,7 +2002,7 @@ subroutine bst_print ( this )
        if(cell%is_local()) then
           call memrealloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
           call cell%get_coordinates (cell_coordinates)
-          write (*,'(i10,20(2x,e15.7))'  ) cell%get_lid(), (cell_coordinates(inode)%get_value(),inode=1,cell%get_num_nodes())
+          write (*,'(i10,20(2x,e15.7))'  ) cell%get_gid(), (cell_coordinates(inode)%get_value(),inode=1,cell%get_num_nodes())
        end if
        call cell%next()
     end do
@@ -2012,7 +2012,7 @@ subroutine bst_print ( this )
     write (*,'(a)') '        id          dim    is_local    is_at_interface  is_ghost   is_at_bound       set        geom '
     call this%create_vef_iterator(vef)
     do while ( .not. vef%has_finished() )
-       vef_lid = vef%get_lid()
+       vef_lid = vef%get_gid()
        write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dim(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary(), vef%get_set_id(),this%vefs_geometry(vef_lid)
        call vef%next()
     end do
@@ -2034,7 +2034,7 @@ subroutine bst_print ( this )
       
         ! Free cell-related data
         call this%free_ptr_vefs_x_cell()
-        call this%free_lst_vefs_lids()
+        call this%free_lst_vefs_gids()
         call this%free_cells_gid()
         call this%free_cells_mypart() 
         call this%free_cells_set()

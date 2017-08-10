@@ -71,7 +71,7 @@ function coarse_fe_cell_iterator_create_own_dofs_on_vef_iterator ( this, ivef, f
   ! 2. The number of boundary vefs of all cells up-to the present one,
   !    but not including the present one (this%sum_scan_num_vefs())
   ! 3. The position of the vef in the current cell (ivef)
-  position_own_dofs_vef = (this%get_lid()-1) + this%scan_sum_num_vefs() + ivef
+  position_own_dofs_vef = (this%get_gid()-1) + this%scan_sum_num_vefs() + ivef
   list_iterator = this%coarse_fe_space%own_dofs_vef_x_fe(field_id)%create_iterator(position_own_dofs_vef)
 end function coarse_fe_cell_iterator_create_own_dofs_on_vef_iterator
 
@@ -198,7 +198,7 @@ function coarse_fe_cell_iterator_get_scan_sum_num_dofs (this, field_id)
   integer(ip), intent(in) :: field_id
   integer(ip) :: coarse_fe_cell_iterator_get_scan_sum_num_dofs
   integer(ip) ::  pos_ptr_dofs
-  pos_ptr_dofs = (this%get_lid()-1)*this%coarse_fe_space%num_fields + field_id
+  pos_ptr_dofs = (this%get_gid()-1)*this%coarse_fe_space%num_fields + field_id
   coarse_fe_cell_iterator_get_scan_sum_num_dofs = this%coarse_fe_space%ptr_dofs_x_fe_and_field(pos_ptr_dofs)-1
 end function coarse_fe_cell_iterator_get_scan_sum_num_dofs
 
@@ -215,8 +215,8 @@ pure function coarse_fe_cell_iterator_get_num_dofs(this)
   integer(ip) :: coarse_fe_cell_iterator_get_num_dofs
   integer(ip) :: spos
   integer(ip) :: epos
-  spos = (this%get_lid()-1)*this%coarse_fe_space%num_fields+1
-  epos = (this%get_lid())*this%coarse_fe_space%num_fields+1
+  spos = (this%get_gid()-1)*this%coarse_fe_space%num_fields+1
+  epos = (this%get_gid())*this%coarse_fe_space%num_fields+1
   coarse_fe_cell_iterator_get_num_dofs = this%coarse_fe_space%ptr_dofs_x_fe_and_field(epos)- &
                                        this%coarse_fe_space%ptr_dofs_x_fe_and_field(spos)
 end function coarse_fe_cell_iterator_get_num_dofs
@@ -227,7 +227,7 @@ subroutine coarse_fe_cell_iterator_get_fe_dofs( this, fe_dofs )
   type(i1p_t)                             :: fe_dofs(this%coarse_fe_space%num_fields)
   integer(ip) :: field_id, j, spos, epos
   
-  j = (this%get_lid()-1)*this%coarse_fe_space%num_fields+1
+  j = (this%get_gid()-1)*this%coarse_fe_space%num_fields+1
   do field_id = 1, this%coarse_fe_space%num_fields
     spos = this%coarse_fe_space%ptr_dofs_x_fe_and_field(j)
     epos = this%coarse_fe_space%ptr_dofs_x_fe_and_field(j+1)-1
@@ -242,7 +242,7 @@ subroutine coarse_fe_cell_iterator_get_field_fe_dofs( this, field_id, fe_dofs )
   integer(ip)                , intent(in)    :: field_id
   integer(ip), pointer       , intent(inout) :: fe_dofs(:)
   integer(ip) :: j, spos, epos
-  j = (this%get_lid()-1)*this%coarse_fe_space%num_fields+field_id
+  j = (this%get_gid()-1)*this%coarse_fe_space%num_fields+field_id
   spos = this%coarse_fe_space%ptr_dofs_x_fe_and_field(j)
   epos = this%coarse_fe_space%ptr_dofs_x_fe_and_field(j+1)-1
   fe_dofs => this%coarse_fe_space%lst_dofs_gids(spos:epos)
@@ -254,5 +254,5 @@ subroutine coarse_fe_cell_iterator_get_coarse_fe_vef(this, ivef, coarse_fe_vef)
   class(coarse_fe_cell_iterator_t)   , intent(in)    :: this
   integer(ip)                   , intent(in)    :: ivef
   type(coarse_fe_vef_iterator_t), intent(inout) :: coarse_fe_vef
-  call coarse_fe_vef%set_lid(this%cell%get_vef_lid(ivef))
+  call coarse_fe_vef%set_gid(this%cell%get_vef_lid_from_gid(ivef))
 end subroutine coarse_fe_cell_iterator_get_coarse_fe_vef

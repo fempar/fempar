@@ -225,7 +225,7 @@ end subroutine free_timers
             case default
               check(.false.)
             end select
-            this%cell_set_ids(cell%get_lid()) = set_id
+            this%cell_set_ids(cell%get_gid()) = set_id
           end if
           call cell%next()
         end do
@@ -271,10 +271,10 @@ end subroutine free_timers
                call vef%set_set_id(1)
 
                ! Do a loop on all edges in 3D (vertex in 2D) of the face
-               ivef = vef%get_lid()
+               ivef = vef%get_gid()
                call vef%get_cell_around(1,cell) ! There is always one cell around
                reference_fe_geo => cell%get_reference_fe_geo()
-               ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
+               ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
                vefs_of_vef => reference_fe_geo%get_facets_n_face()
                vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
                do while( .not. vefs_of_vef_iterator%is_upper_bound() )

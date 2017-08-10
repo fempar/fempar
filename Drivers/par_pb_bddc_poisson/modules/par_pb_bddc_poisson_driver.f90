@@ -164,7 +164,7 @@ contains
                 grav_center = grav_center + cell_coords(inode)
              end do
              grav_center = (1.0_rp/cell%get_num_nodes())*grav_center
-             cells_set( cell%get_lid() ) = cell_set_id( grav_center, &
+             cells_set( cell%get_gid() ) = cell_set_id( grav_center, &
                   this%triangulation%get_num_dims(), &
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
                   this%test_params%get_nchannel_x_direction(), &
@@ -765,7 +765,7 @@ contains
         end select
         call io_close(luout)
         
-        call this%fe_space%compute_num_global_dofs_and_their_gids(num_global_dofs, dofs_gids)
+        call this%fe_space%compute_num_global_dofs_and_their_ggids(num_global_dofs, dofs_gids)
         call mapping%create_and_allocate(size(dofs_gids))
         do i=1, size(dofs_gids)
           call mapping%insert(i,real(dofs_gids(i),rp))

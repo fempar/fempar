@@ -92,7 +92,7 @@ module base_static_triangulation_names
     integer(ip)                                 :: gid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
-    ! create/free/next/set_lid CANNOT longer be private as type(coarse_fe_cell_iterator_t)
+    ! create/free/next/set_gid CANNOT longer be private as type(coarse_fe_cell_iterator_t)
     ! extends type(cell_iterator_t), requires to call these TBPs and cannot be placed
     ! either within this module or within a submodule of base_static_triangulation_names
     ! due to module dependencies cycle
@@ -102,8 +102,8 @@ module base_static_triangulation_names
     procedure, non_overridable           :: next                    => cell_iterator_next
     procedure, non_overridable           :: first                   => cell_iterator_first
     procedure, non_overridable           :: last                    => cell_iterator_last
-    procedure, non_overridable           :: set_lid                 => cell_iterator_set_lid
-    procedure, non_overridable, private  :: set_gid                 => cell_iterator_set_gid
+    procedure, non_overridable           :: set_gid                 => cell_iterator_set_gid
+    procedure, non_overridable, private  :: set_ggid                 => cell_iterator_set_ggid
     procedure, non_overridable, private  :: set_mypart              => cell_iterator_set_mypart
     procedure, non_overridable, private  :: get_triangulation       => cell_iterator_get_triangulation
     procedure, non_overridable, private  :: cell_iterator_get_vef
@@ -113,20 +113,20 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_coordinates         => cell_iterator_get_coordinates
     procedure, non_overridable           :: set_coordinates         => cell_iterator_set_coordinates
     procedure, non_overridable           :: get_coordinates_ref_space => cell_iterator_get_coordinates_ref_space
-    procedure, non_overridable           :: get_lid                 => cell_iterator_get_lid
     procedure, non_overridable           :: get_gid                 => cell_iterator_get_gid
+    procedure, non_overridable           :: get_ggid                 => cell_iterator_get_ggid
     procedure, non_overridable           :: get_my_part             => cell_iterator_get_mypart
     procedure, non_overridable           :: get_my_subpart          => cell_iterator_get_mysubpart
     procedure, non_overridable           :: get_my_subpart_lid      => cell_iterator_get_mysubpart_lid
     procedure, non_overridable           :: get_set_id              => cell_iterator_get_set_id
     procedure, non_overridable           :: get_num_vefs            => cell_iterator_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
-    procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid
-    procedure, non_overridable           :: get_vef_lid             => cell_iterator_get_vef_lid
-    procedure, non_overridable           :: get_vef_lids            => cell_iterator_get_vef_lids
+    procedure, non_overridable           :: get_node_gid            => cell_iterator_get_node_gid
     procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
-    procedure, non_overridable           :: find_lpos_vef_lid       => cell_iterator_find_lpos_vef_lid
-    procedure, non_overridable           :: find_lpos_vef_gid       => cell_iterator_find_lpos_vef_gid
+    procedure, non_overridable           :: get_vef_gids_temporary  => cell_iterator_get_vef_gids_temporary
+    procedure, non_overridable           :: get_vef_ggid            => cell_iterator_get_vef_ggid
+    procedure, non_overridable           :: get_vef_lid_from_gid    => cell_iterator_get_vef_lid_from_gid
+    procedure, non_overridable           :: get_vef_lid_from_ggid   => cell_iterator_get_vef_lid_from_ggid
     procedure, non_overridable           :: get_vef                 => cell_iterator_get_vef
     procedure, non_overridable           :: is_local                => cell_iterator_is_local
     procedure, non_overridable           :: is_ghost                => cell_iterator_is_ghost
@@ -157,7 +157,7 @@ module base_static_triangulation_names
   
   type vef_iterator_t
     private
-    integer(ip)                                 :: lid = -1
+    integer(ip)                                 :: gid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
      procedure                           :: create                    => vef_iterator_create
@@ -165,12 +165,12 @@ module base_static_triangulation_names
      final                               ::                              vef_iterator_free_final
      procedure                           :: first                     => vef_iterator_first
      procedure                           :: next                      => vef_iterator_next
-     procedure, non_overridable          :: set_lid                   => vef_iterator_set_lid
+     procedure, non_overridable          :: set_gid                   => vef_iterator_set_gid
      procedure                           :: has_finished              => vef_iterator_has_finished
      procedure, non_overridable          :: get_coordinates           => vef_iterator_get_coordinates
      procedure, non_overridable          :: get_triangulation         => vef_iterator_get_triangulation
-     procedure, non_overridable          :: get_lid                   => vef_iterator_get_lid
      procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
+     procedure, non_overridable          :: get_ggid                  => vef_iterator_get_ggid
 
      procedure, non_overridable          :: set_geom_id               => vef_iterator_set_geom_id
      procedure, non_overridable          :: set_set_id                => vef_iterator_set_set_id
@@ -197,7 +197,7 @@ module base_static_triangulation_names
 
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
     private
-    integer(ip)  :: itfc_lid = -1
+    integer(ip)  :: itfc_gid = -1
     contains
      procedure          :: first          => itfc_vef_iterator_first
      procedure          :: next           => itfc_vef_iterator_next
@@ -207,7 +207,7 @@ module base_static_triangulation_names
 
   type object_iterator_t
     private
-    integer(ip)                                 :: lid = -1
+    integer(ip)                                 :: gid = -1
     type(list_iterator_t)                       :: vefs_object_iterator
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
@@ -217,10 +217,10 @@ module base_static_triangulation_names
     procedure, non_overridable, private :: update_vefs_object_iterator     => object_iterator_update_vefs_object_iterator
     procedure                           :: first                           => object_iterator_first
     procedure                           :: next                            => object_iterator_next
-    procedure                           :: set_lid                         => object_iterator_set_lid
+    procedure                           :: set_gid                         => object_iterator_set_gid
     procedure                           :: has_finished                    => object_iterator_has_finished
-    procedure, non_overridable          :: get_lid                         => object_iterator_get_lid
     procedure, non_overridable          :: get_gid                         => object_iterator_get_gid
+    procedure, non_overridable          :: get_ggid                         => object_iterator_get_ggid
     procedure, non_overridable          :: get_dim                   => object_iterator_get_dim
     procedure, non_overridable          :: get_num_parts_around         => object_iterator_get_num_parts_around
     procedure, non_overridable          :: get_num_subparts_around      => object_iterator_get_num_subparts_around
@@ -273,7 +273,7 @@ module base_static_triangulation_names
      integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_set(:)               ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: ptr_vefs_x_cell(:)       ! Num local cells + num ghost cells + 1
-     integer(ip) , allocatable             :: lst_vefs_lids(:)
+     integer(ip) , allocatable             :: lst_vefs_gids(:)
 
      ! Data type describing the layout in distributed-memory of the dual graph
      ! (It is required, e.g., for nearest neighbour comms on this graph)
@@ -288,7 +288,7 @@ module base_static_triangulation_names
      integer(ip) , allocatable             :: vefs_set(:)          ! num_vefs
      integer(ip) , allocatable             :: vefs_geometry(:)     ! num_vefs
      integer(ip) , allocatable             :: vefs_type(:)         ! num_vefs, will replace vefs_dim
-                                                                   ! above and vef_itfc_lid below (which is currently only accessed
+                                                                   ! above and vef_itfc_gid below (which is currently only accessed
                                                                    ! to check whether a vef is interface or not).
      integer(ip)                           :: num_itfc_vefs  = 0
      integer(ip), allocatable              :: lst_itfc_vefs(:)
@@ -305,7 +305,7 @@ module base_static_triangulation_names
      type(list_t)                            :: parts_object
      integer(ip)                             :: num_subparts        ! Number of subparts around part (including those subparts which are local)
      type(list_t)                            :: subparts_object        ! Number and list of subparts GIDs around each coarse n_face
-     type(hash_table_ip_ip_t)                :: g2l_subparts           ! Translator among the GIDs of subparts and LIDs
+     type(hash_table_ip_ip_t)                :: g2l_subparts           ! Translator among the GIDs of subparts and gids
      type(coarse_triangulation_t), pointer   :: coarse_triangulation => NULL()
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
@@ -367,7 +367,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_x_cell              => bst_free_ptr_vefs_x_cell
-     procedure, non_overridable, private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
+     procedure, non_overridable, private :: free_lst_vefs_gids                  => bst_free_lst_vefs_gids 
      procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
      procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set
@@ -456,7 +456,7 @@ module base_static_triangulation_names
   contains
      generic                             :: create                              => par_triangulation_create
      procedure, private                  :: par_triangulation_create
-     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => par_triangulation_allocate_and_fill_lst_vefs_lids 
+     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_gids     => par_triangulation_allocate_and_fill_lst_vefs_gids 
   end type par_triangulation_t
 
   
@@ -464,7 +464,7 @@ module base_static_triangulation_names
   contains
      procedure, non_overridable          :: create                              => coarse_triangulation_create
      ! Private methods for creating cell-related data
-     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => coarse_triangulation_allocate_and_fill_lst_vefs_lids 
+     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_gids     => coarse_triangulation_allocate_and_fill_lst_vefs_gids 
      ! Private methods for creating vef-related data
      procedure, non_overridable, private :: allocate_and_fill_vefs_dim    => coarse_triangulation_allocate_and_fill_vefs_dim
      procedure                           :: print                               => coarse_triangulation_print

@@ -161,9 +161,9 @@ contains
 	   y0 = 25e-3_rp 
 	   z0 = 25e-3_rp 
 	     if ( ( ( (cx-x0)**2.0_rp + (cy-y0)**2.0_rp) .lt. R**2.0_rp) .and. ( z0-0.5_rp*h < cz .and. cz < z0 + 0.5_rp*h )) then
-          cells_set( cell%get_lid() ) = hts 
+          cells_set( cell%get_gid() ) = hts 
        else 
-          cells_set( cell%get_lid() ) = air
+          cells_set( cell%get_gid() ) = air
        end if
        call cell%next() 
     end do

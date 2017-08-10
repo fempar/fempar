@@ -84,13 +84,13 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
         call vef%get_cell_around(1,fe)
         reference_fe => fe%get_reference_fe(field_id)
         call fe%get_field_fe_dofs(field_id, fe_dofs)
-        ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+        ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
         do icell_around=1, vef%get_num_cells_around()
            call vef%get_cell_around(icell_around,fe)
            if ( fe%is_ghost() ) then 
            
               call fe%get_field_fe_dofs(field_id, fe_dofs)
-              ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+              ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
 
               own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
@@ -108,7 +108,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
         
         if ( dofs_on_vef ) then
            ! It must be thought for more general cases (vectors, tensor product...)
-           num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + reference_fe%get_num_field_components()
+           num_coarse_dofs(object%get_gid()) = num_coarse_dofs(object%get_gid()) + reference_fe%get_num_field_components()
            exit
         end if
 
@@ -166,7 +166,7 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
              call vef%get_cell_around(icell_around,fe)
              if ( fe%is_ghost() ) then
                 call fe%get_field_fe_dofs(field_id, fe_dofs)
-                ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+                ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
                 own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                    idof    = own_dofs_on_vef_iterator%get_current()
@@ -195,7 +195,7 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
                 reference_fe => fe%get_reference_fe(field_id)
                 assert ( own_coarse_dofs_iterator%get_size() ==  reference_fe%get_num_field_components())
                 call fe%get_field_fe_dofs(field_id, fe_dofs)
-                ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+                ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
                 own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                    idof    = own_dofs_on_vef_iterator%get_current()
@@ -270,7 +270,7 @@ subroutine standard_l1_setup_weighting_operator(this, field_id, par_fe_space, pa
            call vef%get_cell_around(icell_around,fe)
            if ( fe%is_ghost() ) then
               call fe%get_field_fe_dofs(field_id, fe_dofs)
-              ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+              ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
               own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()

@@ -823,7 +823,7 @@ contains
         ! Gather DoFs of current cell + field_id on nodal_values 
         values => cell_vector%get_cell_vector()
         call patch_cell_vector%create(num_subcells)
-        patch_cell_vector%a = values(this%current_fe%get_lid())
+        patch_cell_vector%a = values(this%current_fe%get_gid())
     end subroutine output_handler_fe_cell_function_fill_patch_cell_vector
 
 

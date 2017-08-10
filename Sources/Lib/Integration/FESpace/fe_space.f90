@@ -129,24 +129,24 @@ module fe_space_names
     procedure, non_overridable           :: next                    => base_fe_cell_iterator_next
     procedure, non_overridable           :: first                   => base_fe_cell_iterator_first
     procedure, non_overridable           :: last                    => base_fe_cell_iterator_last
-    procedure, non_overridable           :: set_lid                 => base_fe_cell_iterator_set_lid
+    procedure, non_overridable           :: set_gid                 => base_fe_cell_iterator_set_gid
     procedure, non_overridable           :: has_finished            => base_fe_cell_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_cell_iterator_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_cell_iterator_get_reference_fe_geo_id
     procedure, non_overridable           :: get_coordinates         => base_fe_cell_iterator_get_coordinates
     procedure, non_overridable           :: set_coordinates         => base_fe_cell_iterator_set_coordinates
-    procedure, non_overridable           :: get_lid                 => base_fe_cell_iterator_get_lid
     procedure, non_overridable           :: get_gid                 => base_fe_cell_iterator_get_gid
+    procedure, non_overridable           :: get_ggid                 => base_fe_cell_iterator_get_ggid
     procedure, non_overridable           :: get_my_part             => base_fe_cell_iterator_get_mypart
     procedure, non_overridable           :: get_my_subpart          => base_fe_cell_iterator_get_mysubpart
     procedure, non_overridable           :: get_my_subpart_lid      => base_fe_cell_iterator_get_mysubpart_lid
     procedure, non_overridable           :: get_set_id              => base_fe_cell_iterator_get_set_id
     procedure, non_overridable           :: get_num_vefs            => base_fe_cell_iterator_get_num_vefs
-    procedure, non_overridable           :: get_vef_lid             => base_fe_cell_iterator_get_vef_lid
-    procedure, non_overridable           :: get_vef_lids            => base_fe_cell_iterator_get_vef_lids
     procedure, non_overridable           :: get_vef_gid             => base_fe_cell_iterator_get_vef_gid
-    procedure, non_overridable           :: find_lpos_vef_lid       => base_fe_cell_iterator_find_lpos_vef_lid
-    procedure, non_overridable           :: find_lpos_vef_gid       => base_fe_cell_iterator_find_lpos_vef_gid
+    procedure, non_overridable           :: get_vef_gids            => base_fe_cell_iterator_get_vef_gids
+    procedure, non_overridable           :: get_vef_ggid            => base_fe_cell_iterator_get_vef_ggid
+    procedure, non_overridable           :: get_vef_lid_from_gid    => base_fe_cell_iterator_get_vef_lid_from_gid
+    procedure, non_overridable           :: get_vef_lid_from_ggid   => base_fe_cell_iterator_get_vef_lid_from_ggid
     procedure, non_overridable           :: is_local                => base_fe_cell_iterator_is_local
     procedure, non_overridable           :: is_ghost                => base_fe_cell_iterator_is_ghost
     procedure, non_overridable           :: scan_sum_num_vefs       => base_fe_cell_iterator_get_scan_sum_num_vefs
@@ -259,8 +259,8 @@ module fe_space_names
      procedure                           :: first                     => base_fe_vef_iterator_first
      procedure                           :: next                      => base_fe_vef_iterator_next
      procedure                           :: has_finished              => base_fe_vef_iterator_has_finished
-     procedure                           :: set_lid                   => base_fe_vef_iterator_set_lid
-     procedure                           :: get_lid                   => base_fe_vef_iterator_get_lid
+     procedure                           :: set_gid                   => base_fe_vef_iterator_set_gid
+     procedure                           :: get_gid                   => base_fe_vef_iterator_get_gid
      procedure, non_overridable          :: get_coordinates           => base_fe_vef_iterator_get_coordinates
      procedure, non_overridable          :: get_set_id                => base_fe_vef_iterator_get_set_id
      
@@ -300,8 +300,8 @@ module fe_space_names
     procedure                           :: first                         => fe_facet_iterator_first
     procedure                           :: next                          => fe_facet_iterator_next
     procedure                           :: has_finished                  => fe_facet_iterator_has_finished
-    procedure, non_overridable          :: set_lid                       => fe_facet_iterator_set_lid
-    procedure, non_overridable          :: get_lid                       => fe_facet_iterator_get_lid
+    procedure, non_overridable          :: set_gid                       => fe_facet_iterator_set_gid
+    procedure, non_overridable          :: get_gid                       => fe_facet_iterator_get_gid
     procedure, non_overridable, private :: update_num_dofs_x_field  => fe_facet_iterator_update_num_dofs_x_field
     procedure, non_overridable, private :: update_fe_dofs_x_cell      => fe_facet_iterator_update_fe_dofs_x_cell
     procedure, non_overridable          :: update_integration            => fe_facet_iterator_update_integration
@@ -511,13 +511,13 @@ module fe_space_names
    ! Methods "inherited" from object_iterator_t
    procedure                            :: first                                 => base_fe_object_iterator_first
    procedure                            :: next                                  => base_fe_object_iterator_next
-   procedure                            :: set_lid                               => base_fe_object_iterator_set_lid
+   procedure                            :: set_gid                               => base_fe_object_iterator_set_gid
    procedure                            :: has_finished                          => base_fe_object_iterator_has_finished
-   procedure, non_overridable           :: get_lid                               => base_fe_object_iterator_get_lid
    procedure, non_overridable           :: get_gid                               => base_fe_object_iterator_get_gid
-   procedure, non_overridable           :: get_dim                         => base_fe_object_iterator_get_dim
-   procedure, non_overridable           :: get_num_parts_around               => base_fe_object_iterator_get_num_parts_around
-   procedure, non_overridable           :: get_num_subparts_around            => base_fe_object_iterator_get_num_subparts_around
+   procedure, non_overridable           :: get_ggid                              => base_fe_object_iterator_get_ggid
+   procedure, non_overridable           :: get_dim                               => base_fe_object_iterator_get_dim
+   procedure, non_overridable           :: get_num_parts_around                  => base_fe_object_iterator_get_num_parts_around
+   procedure, non_overridable           :: get_num_subparts_around               => base_fe_object_iterator_get_num_subparts_around
    procedure, non_overridable           :: create_parts_around_iterator          => base_fe_object_iterator_create_parts_around_iterator
    procedure, non_overridable           :: create_subparts_around_iterator       => base_fe_object_iterator_create_subparts_around_iterator
    procedure, non_overridable           :: get_num_vefs                          => base_fe_object_iterator_get_num_vefs
@@ -546,10 +546,10 @@ module fe_space_names
   
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
-  ! See type(par_fe_space_t)%generate_non_consecutive_dof_gid()
-  integer(ip), parameter :: cell_gid_shift              = 44
+  ! See type(par_fe_space_t)%generate_non_consecutive_dof_ggid()
+  integer(ip), parameter :: cell_ggid_shift              = 44
   integer(ip), parameter :: dofs_x_reference_fe_shift = 14
-  integer(ip), parameter :: num_fields_shift         = igp*8-(cell_gid_shift+dofs_x_reference_fe_shift)-1
+  integer(ip), parameter :: num_fields_shift         = igp*8-(cell_ggid_shift+dofs_x_reference_fe_shift)-1
   
   ! These three parameter constants are thought be used as FPL keys. The corresponding pairs 
   ! <XXXkey,.true.|.false.> in FPL let the user to control whether or not coarse vertex, edge, or 
@@ -568,12 +568,12 @@ module fe_space_names
    private   
    ! Multilevel fe space   
    ! It is the equivalent to the "element_to_dof" at the finer level
-   ! Pointers to the start/end of coarse DoFs LIDs of each field (lst_coarse_dofs)
+   ! Pointers to the start/end of coarse DoFs GIDs of each field (lst_coarse_dofs)
    integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)	
-   ! List of coarse DoFs LIDs
+   ! List of coarse DoFs GIDs
    integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
    
-   ! Coarse DoFs LIDs on top of coarse n_faces per field
+   ! Coarse DoFs GIDs on top of coarse n_faces per field
    ! It provides (for every field) what we get from the reference_fe_t at the
    ! finer level
    type(list_t), allocatable                   :: own_coarse_dofs_x_field(:)
@@ -604,7 +604,7 @@ module fe_space_names
    procedure                         , private :: count_and_list_dofs_on_ghosts                   => par_fe_space_count_and_list_dofs_on_ghosts
    procedure                                   :: renum_dofs_first_interior_then_interface     => par_fe_space_renum_dofs_first_interior_then_interface
    procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
-   procedure        , non_overridable          :: compute_num_global_dofs_and_their_gids          => par_fe_space_compute_num_global_dofs_and_their_gids
+   procedure        , non_overridable          :: compute_num_global_dofs_and_their_ggids          => par_fe_space_compute_num_global_dofs_and_their_ggids
    
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
@@ -613,7 +613,7 @@ module fe_space_names
    procedure        , non_overridable, private :: compute_raw_interface_data_by_face_integ        => par_fe_space_compute_raw_interface_data_by_face_integ
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => pfs_compute_ubound_num_itfc_couplings_by_continuity
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => pfs_compute_ubound_num_itfc_couplings_by_face_integ
-   procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => par_fe_space_generate_non_consecutive_dof_gid
+   procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_ggid                => par_fe_space_generate_non_consecutive_dof_ggid
    
    ! These set of three subroutines are in charge of generating a dof_import for the distributed-memory solution of boundary mass matrices
    procedure        , non_overridable, private :: compute_boundary_dof_import                              => par_fe_space_compute_boundary_dof_import
@@ -634,17 +634,17 @@ module fe_space_names
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
    procedure        , non_overridable, private :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
-   procedure, nopass, non_overridable, private :: generate_coarse_dof_gid                         => par_fe_space_generate_coarse_dof_gid
+   procedure, nopass, non_overridable, private :: generate_coarse_dof_ggid                        => par_fe_space_generate_coarse_dof_ggid
    procedure        , non_overridable, private :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
    procedure        , non_overridable          :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
-   procedure        , non_overridable, private :: transfer_num_fields                          => par_fe_space_transfer_num_fields
+   procedure        , non_overridable, private :: transfer_num_fields                             => par_fe_space_transfer_num_fields
    procedure        , non_overridable, private :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
-   procedure        , non_overridable, private :: gather_ptr_dofs_x_fe_and_field                => par_fe_space_gather_ptr_dofs_x_fe_and_field
-   procedure        , non_overridable, private :: gather_coarse_dofs_gids_rcv_counts_and_displs   => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
-   procedure        , non_overridable, private :: gather_coarse_dofs_gids                         => par_fe_space_gather_coarse_dofs_gids
-   procedure        , non_overridable, private :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
-   procedure                                   :: get_total_num_coarse_dofs                    => par_fe_space_get_total_num_coarse_dofs
-   procedure                                   :: get_block_num_coarse_dofs                    => par_fe_space_get_block_num_coarse_dofs
+   procedure        , non_overridable, private :: gather_ptr_dofs_x_fe_and_field                  => par_fe_space_gather_ptr_dofs_x_fe_and_field
+   procedure        , non_overridable, private :: gather_coarse_dofs_ggids_rcv_counts_and_displs  => par_fe_space_gather_coarse_dofs_ggids_rcv_counts_and_displs
+   procedure        , non_overridable, private :: gather_coarse_dofs_ggids                        => par_fe_space_gather_coarse_dofs_ggids
+   procedure        , non_overridable, private :: gather_vefs_ggids_dofs_objects                   => par_fe_space_gather_vefs_ggids_dofs_objects
+   procedure                                   :: get_total_num_coarse_dofs                       => par_fe_space_get_total_num_coarse_dofs
+   procedure                                   :: get_block_num_coarse_dofs                       => par_fe_space_get_block_num_coarse_dofs
    procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
 
    ! Objects-related traversals
@@ -779,12 +779,12 @@ module fe_space_names
     type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
 	
     ! It is the equivalent to the "element_to_dof" at the finer level
-    ! Pointers to the start/end of coarse DoFs LIDs of each field (lst_coarse_dofs)
+    ! Pointers to the start/end of coarse DoFs gids of each field (lst_coarse_dofs)
     integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)	
-    ! List of coarse DoFs LIDs
+    ! List of coarse DoFs gids
     integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
     
-    ! Coarse DoFs LIDs on top of coarse n_faces per field
+    ! Coarse DoFs gids on top of coarse n_faces per field
     ! It provides (for every field) what we get from the reference_fe_t at the
     ! finer level
     type(list_t), allocatable                   :: own_coarse_dofs_x_field(:)
@@ -793,26 +793,26 @@ module fe_space_names
     ! GIDs of the coarse DoFs. For their generation, we though to be a good idea 
     ! to take as basis the GIDs of the VEFs objects they are built from (instead of
     ! generating them from scratch, which in turn would imply further communication).
-    type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_x_field(:)
+    type(allocatable_array_igp1_t), allocatable :: coarse_dof_ggids_x_field(:)
   contains
     procedure                                   :: create                                          => coarse_fe_space_create
     procedure                                   :: free                                            => coarse_fe_space_free
     procedure, non_overridable                  :: print                                           => coarse_fe_space_print
     procedure, non_overridable, private         :: allocate_and_fill_field_blocks_and_coupling     => coarse_fe_space_allocate_and_fill_field_blocks_and_coupling
     procedure, non_overridable, private         :: free_field_blocks_and_coupling                  => coarse_fe_space_free_field_blocks_and_coupling
-    procedure, non_overridable, private         :: allocate_and_fill_fe_space_type_x_field       => coarse_fe_space_allocate_and_fill_fe_space_type
-    procedure, non_overridable, private         :: free_fe_space_type_x_field                    => coarse_fe_space_free_fe_space_type
-    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_x_fe_and_field     => coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe_and_field
-    procedure, non_overridable, private         :: free_ptr_dofs_x_fe_and_field                  => coarse_fe_space_free_ptr_dofs_x_fe_and_field
+    procedure, non_overridable, private         :: allocate_and_fill_fe_space_type_x_field         => coarse_fe_space_allocate_and_fill_fe_space_type
+    procedure, non_overridable, private         :: free_fe_space_type_x_field                      => coarse_fe_space_free_fe_space_type
+    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_x_fe_and_field       => coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe_and_field
+    procedure, non_overridable, private         :: free_ptr_dofs_x_fe_and_field                    => coarse_fe_space_free_ptr_dofs_x_fe_and_field
     procedure, non_overridable, private         :: fetch_ghost_fes_data                            => coarse_fe_space_fetch_ghost_fes_data
-    procedure, non_overridable, private         :: allocate_and_generate_own_dofs_vef_x_fe           => coarse_fe_space_allocate_and_generate_own_dofs_vef_x_fe
-    procedure, non_overridable, private         :: generate_own_dofs_cell_x_fe_field                      => coarse_fe_space_generate_own_dofs_cell_x_fe_field
-    procedure, non_overridable, private         :: free_own_dofs_vef_x_fe                        => coarse_fe_space_free_free_own_dofs_vef_x_fe
+    procedure, non_overridable, private         :: allocate_and_generate_own_dofs_vef_x_fe         => coarse_fe_space_allocate_and_generate_own_dofs_vef_x_fe
+    procedure, non_overridable, private         :: generate_own_dofs_cell_x_fe_field               => coarse_fe_space_generate_own_dofs_cell_x_fe_field
+    procedure, non_overridable, private         :: free_own_dofs_vef_x_fe                          => coarse_fe_space_free_free_own_dofs_vef_x_fe
     procedure, non_overridable, private         :: allocate_lst_dofs_gids                          => coarse_fe_space_allocate_lst_dofs_gids
-    procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids                => coarse_fe_space_count_dofs_and_fill_lst_dof_lids
-    procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field
+    procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_gids                => coarse_fe_space_count_dofs_and_fill_lst_dof_gids
+    procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_gids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_gids_field
     procedure, non_overridable, private         :: free_lst_dofs_gids                              => coarse_fe_space_free_lst_dofs_gids
-    procedure, non_overridable, private         :: free_num_dofs_x_field_and_block            => coarse_fe_space_free_num_dofs_x_field_and_block
+    procedure, non_overridable, private         :: free_num_dofs_x_field_and_block                 => coarse_fe_space_free_num_dofs_x_field_and_block
     procedure, non_overridable, private         :: free_blocks_dof_import                          => coarse_fe_space_free_blocks_dof_import
     procedure, non_overridable, nopass, private :: coarse_fe_size                                  => coarse_fe_space_coarse_fe_size
     procedure, non_overridable, nopass, private :: coarse_fe_pack                                  => coarse_fe_space_coarse_fe_pack

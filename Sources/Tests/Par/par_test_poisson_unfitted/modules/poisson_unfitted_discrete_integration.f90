@@ -276,7 +276,7 @@ contains
              lambdas => eigs%solve(elmatB,elmatV,istat)
              if (istat .ne. 0) then
                write(*,*) 'istat = ', istat
-               write(*,*) 'lid   = ', fe%get_lid()
+               write(*,*) 'lid   = ', fe%get_gid()
                !write(*,*) 'elmatB = '
                !do idof = 1,size(elmatB,1)
                !  write(*,*) elmatB(idof,:)

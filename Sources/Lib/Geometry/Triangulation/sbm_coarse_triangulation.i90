@@ -88,7 +88,7 @@
                                        lst_vefs_dim, &
                                        lst_vefs_dim_ghost_extended)
 
-      call this%allocate_and_fill_lst_vefs_lids(lst_vefs_gids_ghost_extended)
+      call this%allocate_and_fill_lst_vefs_gids(lst_vefs_gids_ghost_extended)
       
       ! Allocate + fill vefs-related data
       !call this%compute_num_local_vefs()
@@ -118,7 +118,7 @@
     !call this%print()
   end subroutine coarse_triangulation_create
   
-  subroutine coarse_triangulation_allocate_and_fill_lst_vefs_lids ( this, &
+  subroutine coarse_triangulation_allocate_and_fill_lst_vefs_gids ( this, &
                                                                     lst_vefs_gids)                                                     
     implicit none
     class(coarse_triangulation_t), intent(inout) :: this
@@ -131,9 +131,9 @@
     assert ( this%p_env%am_i_l1_task() )
     assert ( this%num_local_cells + this%num_ghost_cells >=0 )
 
-    call this%free_lst_vefs_lids()
+    call this%free_lst_vefs_gids()
 
-    call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, this%lst_vefs_lids, __FILE__, __LINE__ )
+    call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, this%lst_vefs_gids, __FILE__, __LINE__ )
     call next_vef_lid_avail%init ( max(int(real(this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1,rp)*0.1_rp),5) )
     this%num_vefs = 0
     do icell=1, this%num_local_cells + this%num_ghost_cells
@@ -144,11 +144,11 @@
         if (istat == now_stored) then
            this%num_vefs = this%num_vefs + 1
         end if
-        call next_vef_lid_avail%get(key=lst_vefs_gids(j), val=this%lst_vefs_lids(j), stat=istat)
+        call next_vef_lid_avail%get(key=lst_vefs_gids(j), val=this%lst_vefs_gids(j), stat=istat)
       end do
     end do
     call next_vef_lid_avail%free()
-end subroutine coarse_triangulation_allocate_and_fill_lst_vefs_lids
+end subroutine coarse_triangulation_allocate_and_fill_lst_vefs_gids
 
 subroutine coarse_triangulation_allocate_and_fill_vefs_dim ( this, &
      lst_vefs_dim )
@@ -169,8 +169,8 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dim ( this, &
   call this%create_vef_iterator(vef)
   do while(.not.cell%has_finished())
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid(ivef)
-        call vef%set_lid(vef_lid)
+        vef_lid = cell%get_vef_lid_from_gid(ivef)
+        call vef%set_gid(vef_lid)
         call vef%set_dim(lst_vefs_dim(current))
         current = current + 1 
      end do
@@ -200,7 +200,7 @@ subroutine coarse_triangulation_print ( this )
      call this%create_cell_iterator(cell)
      write (*,'(a)') '       id      is_local   is_ghost  num_vefs    vef        vef  ....'
      do while ( .not. cell%has_finished() )
-         write(*,'(i10,2l10,10(2x,i10))') cell%get_lid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_lid(ivef),ivef=1,cell%get_num_vefs())
+         write(*,'(i10,2l10,10(2x,i10))') cell%get_gid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_lid_from_gid(ivef),ivef=1,cell%get_num_vefs())
          call cell%next()
      end do
      call this%free_cell_iterator(cell)
@@ -209,7 +209,7 @@ subroutine coarse_triangulation_print ( this )
      write (*,'(a)') '        id          dim    is_local    is_at_interface  is_ghost   is_at_bound '
      call this%create_vef_iterator(vef)
      do while ( .not. vef%has_finished() )
-        vef_lid = vef%get_lid()
+        vef_lid = vef%get_gid()
         write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dim(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary()
         call vef%next()
      end do

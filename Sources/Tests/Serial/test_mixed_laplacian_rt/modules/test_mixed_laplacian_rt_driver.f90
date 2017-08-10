@@ -357,7 +357,7 @@ contains
          call rt_ref_fe%apply_change_basis_matrix_to_nodal_values(nodal_values_rt, nodal_values_pre_basis)
        end select
        
-       write(*,*) 'ELEMENT ID', fe%get_lid()
+       write(*,*) 'ELEMENT ID', fe%get_gid()
        write(*,*) nodal_values_pre_basis
        
        call fe%next()

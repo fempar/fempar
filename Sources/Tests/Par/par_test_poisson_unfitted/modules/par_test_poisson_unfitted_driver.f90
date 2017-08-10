@@ -268,7 +268,7 @@ end subroutine free_timers
           else
             set_id = PAR_POISSON_UNFITTED_SET_ID_FULL
           end if
-          this%cell_set_ids(cell%get_lid()) = set_id
+          this%cell_set_ids(cell%get_gid()) = set_id
         end if
         call cell%next()
       end do

@@ -115,7 +115,7 @@ subroutine serial_fe_space_print ( this )
 
   call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
-     write(*,'(a,i10,a)') '********* ELEMENT: ',fe%get_lid(),'********'
+     write(*,'(a,i10,a)') '********* ELEMENT: ',fe%get_gid(),'********'
      write(*,'(a)') '********* ELEMENT 2 DOF********'
      call fe%get_fe_dofs(fe_dofs)
      do field_id = 1, fe%get_num_fields()
@@ -180,12 +180,12 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
   do while ( .not. fe%has_finished())
      do field_id=1, fe%get_num_fields()-1
         reference_fe => fe%get_reference_fe(field_id)
-        this%ptr_dofs_x_field_cell(field_id+1,fe%get_lid()) = & 
-             this%ptr_dofs_x_field_cell(field_id,fe%get_lid()) + reference_fe%get_num_shape_functions()
+        this%ptr_dofs_x_field_cell(field_id+1,fe%get_gid()) = & 
+             this%ptr_dofs_x_field_cell(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
      end do
      reference_fe => fe%get_reference_fe(field_id)
-     this%ptr_dofs_x_field_cell(1,fe%get_lid()+1) = & 
-          this%ptr_dofs_x_field_cell(field_id,fe%get_lid()) + reference_fe%get_num_shape_functions()
+     this%ptr_dofs_x_field_cell(1,fe%get_gid()+1) = & 
+          this%ptr_dofs_x_field_cell(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
      call fe%next()
   end do
   call this%free_fe_cell_iterator(fe) 
@@ -296,10 +296,10 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
                                                                       visited_vef_to_cell_map,&
                                                                       source_fe)
 
-               if ( visited_vef_to_cell_map(1, vef%get_lid()) == -1 .and. &
+               if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 .and. &
                     previous_num_dirichlet_dofs < this%num_fixed_dof_values ) then
-                  visited_vef_to_cell_map ( 1, vef%get_lid() ) = fe%get_lid()
-                  visited_vef_to_cell_map ( 2, vef%get_lid() ) = ivef
+                  visited_vef_to_cell_map ( 1, vef%get_gid() ) = fe%get_gid()
+                  visited_vef_to_cell_map ( 2, vef%get_gid() ) = ivef
                end if
             end if
          end do
@@ -349,7 +349,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   select type ( reference_fe )
      class is ( nedelec_reference_fe_t )
      if ( components_code(1) ) then
-       if ( visited_vef_to_cell_map(1, vef%get_lid()) == -1 ) then
+       if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 ) then
            call fe%generate_own_dofs_vef ( ivef, &
                                           field_id, &
                                           this%num_fixed_dof_values, &
@@ -357,7 +357,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
        end if
      end if
      class is ( lagrangian_reference_fe_t )
-     if ( visited_vef_to_cell_map(1, vef%get_lid()) == -1 ) then
+     if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 ) then
        call fe%generate_own_dofs_vef_component_wise ( ivef, &
                                                      field_id, &
                                                      this%num_fixed_dof_values, &
@@ -366,11 +366,11 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
      end if
   end select
   
-  if ( visited_vef_to_cell_map(1, vef%get_lid()) /= -1 ) then
-    call source_fe%set_lid(visited_vef_to_cell_map(1,vef%get_lid()))
+  if ( visited_vef_to_cell_map(1, vef%get_gid()) /= -1 ) then
+    call source_fe%set_gid(visited_vef_to_cell_map(1,vef%get_gid()))
     call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
                                                   source_fe, &
-                                                  visited_vef_to_cell_map(2,vef%get_lid()), &
+                                                  visited_vef_to_cell_map(2,vef%get_gid()), &
                                                   field_id) 
   end if
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
@@ -485,7 +485,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
            reference_fe => fe%get_reference_fe(field_id)
 
            if ( fe%at_strong_dirichlet_boundary(field_id) ) then
-              reference_fe_id = this%field_cell_to_ref_fes(field_id, fe%get_lid()) 
+              reference_fe_id = this%field_cell_to_ref_fes(field_id, fe%get_gid()) 
               if ( .not. reference_fes_touched(reference_fe_id) ) then
                  reference_fes_touched(reference_fe_id) = .true.
                  nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature()
@@ -1423,7 +1423,7 @@ subroutine sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells ( thi
   call this%triangulation%create_cell_iterator(cell)
   do while (.not. cell%has_finished())
     do ifield=1, this%num_fields
-      this%field_cell_to_ref_fes(ifield,cell%get_lid()) = set_ids_to_reference_fes(ifield,cell%get_set_id())
+      this%field_cell_to_ref_fes(ifield,cell%get_gid()) = set_ids_to_reference_fes(ifield,cell%get_set_id())
     end do
     call cell%next()
   end do
@@ -1504,7 +1504,7 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_x_cell ( this )
            max_order_reference_fe_id_within_fe = fe%get_reference_fe_id(field_id)
         end if
      end do
-     this%max_order_reference_fe_id_x_cell(fe%get_lid()) = max_order_reference_fe_id_within_fe
+     this%max_order_reference_fe_id_x_cell(fe%get_gid()) = max_order_reference_fe_id_within_fe
      call fe%next()
   end do
   call this%free_fe_cell_iterator(fe) 
@@ -1555,7 +1555,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
         cell_integrators_position_key = &
              this%generate_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
                                                  fe%get_quadrature_degree(), &
-                                                 this%field_cell_to_ref_fes(field_id, fe%get_lid()))
+                                                 this%field_cell_to_ref_fes(field_id, fe%get_gid()))
 
         call this%cell_integrators_position%put(key=cell_integrators_position_key, &
                                                      val=current_cell_integrator, &
@@ -1593,7 +1593,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
                                                     stat= istat)
      if (istat == now_stored) then
         ! Create quadrature and cell_map associated to current max_order_within_fe
-        max_order_reference_fe_id_within_fe = this%max_order_reference_fe_id_x_cell(fe%get_lid()) 
+        max_order_reference_fe_id_within_fe = this%max_order_reference_fe_id_x_cell(fe%get_gid()) 
         reference_fe => this%reference_fes(max_order_reference_fe_id_within_fe)%p
         call reference_fe%create_quadrature(this%cell_quadratures(current_quadrature_and_map))!, &
                                             !fe%get_quadrature_degree())
@@ -1606,7 +1606,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
         cell_integrators_position_key = &
              this%generate_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
                                                               fe%get_quadrature_degree(), &
-                                                              this%field_cell_to_ref_fes(field_id, fe%get_lid()))
+                                                              this%field_cell_to_ref_fes(field_id, fe%get_gid()))
         
         call this%cell_integrators_position%put(key=cell_integrators_position_key, &
                                                      val=current_cell_integrator, &
@@ -1767,7 +1767,7 @@ subroutine serial_fe_space_fill_facet_gids ( this )
   do while ( .not. fe_vef%has_finished() )
     if ( fe_vef%is_face() ) then
       facet_gid = facet_gid + 1
-      call this%facet_gids%set(facet_gid,fe_vef%get_lid())
+      call this%facet_gids%set(facet_gid,fe_vef%get_gid())
     end if
     call fe_vef%next()
   end do
@@ -1804,8 +1804,8 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
         first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,                &
                                                           fe_face%get_lpos_within_cell_around(1), &
                                                           fe_face%get_lpos_within_cell_around(2), &
-                                                          first_fe%get_vef_lids(),                &
-                                                          second_fe%get_vef_lids() )
+                                                          first_fe%get_vef_gids(),                &
+                                                          second_fe%get_vef_gids() )
       call this%face_permutation_indices%set(fe_face%facet_gid, &
                                              fe_facet_permutation_index)
     end if
@@ -1890,7 +1890,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
         reference_fes_id(2) = 0  
         do icell_around = 1, fe_face%get_num_cells_around()
            call fe_face%get_cell_around(icell_around, fe)
-           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id, fe%get_lid())
+           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id, fe%get_gid())
         end do
 
         facet_integrators_position_key = &
@@ -1957,7 +1957,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
         nullify(reference_fes(2)%p)
         do icell_around = 1, fe_face%get_num_cells_around()
            call fe_face%get_cell_around(icell_around, fe)
-           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id, fe%get_lid())
+           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id, fe%get_gid())
            reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
         end do
 
@@ -2141,7 +2141,7 @@ subroutine serial_fe_space_count_dofs ( this )
                                                       fe%count_own_dofs_cell(field_id)
             if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
                do ivef = 1, fe%get_num_vefs()
-                 vef_lid = fe%get_vef_lid(ivef)
+                 vef_lid = fe%get_vef_gid(ivef)
                  if ( .not. per_field_vefs_visited (field_id,vef_lid) ) then
                     num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
                     if (num_own_dofs_on_vef>0) then
@@ -2210,16 +2210,16 @@ subroutine serial_fe_space_list_dofs ( this )
          if ( .not. fe%is_void(field_id)) then
            call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
            do ivef = 1, fe%get_num_vefs()
-             vef_lid = fe%get_vef_lid(ivef)
+             vef_lid = fe%get_vef_gid(ivef)
              if ( owner_cell_gid_x_field_and_vef( field_id, vef_lid ) == -1 ) then
                 previous_dof_block = fields_current_dof(field_id)
                 call fe%generate_own_dofs_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
                 if (previous_dof_block < fields_current_dof(field_id)) then
-                  owner_cell_gid_x_field_and_vef( field_id, vef_lid ) = fe%get_lid() 
+                  owner_cell_gid_x_field_and_vef( field_id, vef_lid ) = fe%get_gid() 
                   per_field_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
                 end if
              else 
-                call source_fe%set_lid(owner_cell_gid_x_field_and_vef(field_id, vef_lid))
+                call source_fe%set_gid(owner_cell_gid_x_field_and_vef(field_id, vef_lid))
                 call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
                                                               source_fe, &
                                                               per_field_vef_lid_in_owner_cell(field_id,vef_lid), &
@@ -2278,16 +2278,16 @@ subroutine serial_fe_space_fill_fe_dofs_and_count_dofs( this, field_id )
         if ( fe%is_local() ) then
            call fe%generate_own_dofs_cell ( field_id, current_dof_block )
            do ivef = 1, fe%get_num_vefs()
-              vef_lid = fe%get_vef_lid(ivef)
+              vef_lid = fe%get_vef_gid(ivef)
               if ( visited_vef_to_cell_map ( 1, vef_lid ) == -1 ) then
                  previous_dof_block = current_dof_block
                  call fe%generate_own_dofs_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                  if (previous_dof_block < current_dof_block) then
-                   visited_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                   visited_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                    visited_vef_to_cell_map ( 2, vef_lid ) = ivef
                  end if
               else 
-                 call source_fe%set_lid(visited_vef_to_cell_map(1,vef_lid))
+                 call source_fe%set_gid(visited_vef_to_cell_map(1,vef_lid))
                  call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
                       source_fe, &
                       visited_vef_to_cell_map(2,vef_lid), &

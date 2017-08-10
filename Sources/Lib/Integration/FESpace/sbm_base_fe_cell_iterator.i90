@@ -46,13 +46,13 @@ subroutine base_fe_cell_iterator_last(this)
   call this%cell%last()
 end subroutine base_fe_cell_iterator_last
 
-subroutine base_fe_cell_iterator_set_lid(this, lid)
+subroutine base_fe_cell_iterator_set_gid(this, lid)
   implicit none
   class(base_fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
   assert(allocated(this%cell))
-  call this%cell%set_lid(lid)
-end subroutine base_fe_cell_iterator_set_lid
+  call this%cell%set_gid(lid)
+end subroutine base_fe_cell_iterator_set_gid
 
 function base_fe_cell_iterator_has_finished(this)
   implicit none
@@ -95,21 +95,21 @@ subroutine base_fe_cell_iterator_set_coordinates (this, cell_coordinates)
   call this%cell%set_coordinates(cell_coordinates)
 end subroutine base_fe_cell_iterator_set_coordinates
 
-pure function base_fe_cell_iterator_get_lid (this)
+pure function base_fe_cell_iterator_get_gid (this)
   implicit none
   class(base_fe_cell_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_cell_iterator_get_lid
+  integer(ip) :: base_fe_cell_iterator_get_gid
   !assert(allocated(this%cell))
-  base_fe_cell_iterator_get_lid = this%cell%get_lid()
-end function base_fe_cell_iterator_get_lid
-
-function base_fe_cell_iterator_get_gid (this)
-  implicit none
-  class(base_fe_cell_iterator_t), intent(in) :: this
-  integer(igp) :: base_fe_cell_iterator_get_gid
-  assert(allocated(this%cell))
   base_fe_cell_iterator_get_gid = this%cell%get_gid()
 end function base_fe_cell_iterator_get_gid
+
+function base_fe_cell_iterator_get_ggid (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(igp) :: base_fe_cell_iterator_get_ggid
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_ggid = this%cell%get_ggid()
+end function base_fe_cell_iterator_get_ggid
 
 pure function base_fe_cell_iterator_get_mypart (this)
   implicit none
@@ -151,50 +151,50 @@ pure function base_fe_cell_iterator_get_num_vefs (this)
   base_fe_cell_iterator_get_num_vefs = this%cell%get_num_vefs ()
 end function base_fe_cell_iterator_get_num_vefs
 
-function base_fe_cell_iterator_get_vef_lid (this, ivef)
-  implicit none
-  class(base_fe_cell_iterator_t), intent(in) :: this
-  integer(ip)                      :: ivef
-  integer(ip)                      :: base_fe_cell_iterator_get_vef_lid
-  assert(allocated(this%cell))
-  base_fe_cell_iterator_get_vef_lid = this%cell%get_vef_lid (ivef)
-end function base_fe_cell_iterator_get_vef_lid
-
-function base_fe_cell_iterator_get_vef_lids (this)
-  implicit none
-  class(base_fe_cell_iterator_t), intent(in) :: this
-  integer(ip)                        :: ivef
-  integer(ip), pointer               :: base_fe_cell_iterator_get_vef_lids(:)
-  assert(allocated(this%cell))
-  base_fe_cell_iterator_get_vef_lids => this%cell%get_vef_lids()
-end function base_fe_cell_iterator_get_vef_lids
-
 function base_fe_cell_iterator_get_vef_gid (this, ivef)
   implicit none
   class(base_fe_cell_iterator_t), intent(in) :: this
-  integer(ip)                        :: ivef
-  integer(igp)                       :: base_fe_cell_iterator_get_vef_gid
+  integer(ip)                      :: ivef
+  integer(ip)                      :: base_fe_cell_iterator_get_vef_gid
   assert(allocated(this%cell))
-  base_fe_cell_iterator_get_vef_gid = this%cell%get_vef_gid (ivef)
+  base_fe_cell_iterator_get_vef_gid = this%cell%get_vef_lid_from_gid (ivef)
 end function base_fe_cell_iterator_get_vef_gid
 
-function base_fe_cell_iterator_find_lpos_vef_lid (this, vef_lid)
+function base_fe_cell_iterator_get_vef_gids (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(ip), pointer               :: base_fe_cell_iterator_get_vef_gids(:)
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_vef_gids => this%cell%get_vef_gids_temporary()
+end function base_fe_cell_iterator_get_vef_gids
+
+function base_fe_cell_iterator_get_vef_ggid (this, ivef)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(igp)                       :: base_fe_cell_iterator_get_vef_ggid
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_vef_ggid = this%cell%get_vef_ggid (ivef)
+end function base_fe_cell_iterator_get_vef_ggid
+
+function base_fe_cell_iterator_get_vef_lid_from_gid (this, vef_lid)
   implicit none
   class(base_fe_cell_iterator_t), intent(in) :: this
   integer(ip)                      :: vef_lid
-  integer(ip)                      :: base_fe_cell_iterator_find_lpos_vef_lid
+  integer(ip)                      :: base_fe_cell_iterator_get_vef_lid_from_gid
   assert(allocated(this%cell))
-  base_fe_cell_iterator_find_lpos_vef_lid = this%cell%find_lpos_vef_lid (vef_lid)
-end function base_fe_cell_iterator_find_lpos_vef_lid
+  base_fe_cell_iterator_get_vef_lid_from_gid = this%cell%get_vef_lid_from_gid (vef_lid)
+end function base_fe_cell_iterator_get_vef_lid_from_gid
 
-function base_fe_cell_iterator_find_lpos_vef_gid (this, vef_gid)
+function base_fe_cell_iterator_get_vef_lid_from_ggid (this, vef_gid)
   implicit none
   class(base_fe_cell_iterator_t), intent(in) :: this
   integer(igp)                     :: vef_gid
-  integer(ip)                      :: base_fe_cell_iterator_find_lpos_vef_gid
+  integer(ip)                      :: base_fe_cell_iterator_get_vef_lid_from_ggid
   assert(allocated(this%cell))
-  base_fe_cell_iterator_find_lpos_vef_gid = this%cell%find_lpos_vef_gid (vef_gid)
-end function base_fe_cell_iterator_find_lpos_vef_gid
+  base_fe_cell_iterator_get_vef_lid_from_ggid = this%cell%get_vef_lid_from_ggid (vef_gid)
+end function base_fe_cell_iterator_get_vef_lid_from_ggid
 
 function base_fe_cell_iterator_is_local (this)
   implicit none

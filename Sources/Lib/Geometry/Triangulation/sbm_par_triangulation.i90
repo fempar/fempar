@@ -191,14 +191,14 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
              &   coordinates=cell_coordinates,coordinates_ghost_extended=cell_coordinates_ghost_extended)
 
         ! Extend lids to ghost vefs and update number of vefs (=vertices at this point)
-        call this%allocate_and_fill_lst_vefs_lids(lst_vefs_lids,lst_vefs_gids_ghost_extended, vertx_gid)
+        call this%allocate_and_fill_lst_vefs_gids(lst_vefs_lids,lst_vefs_gids_ghost_extended, vertx_gid)
         this%num_vertices=this%num_vefs
 
         ! Realloc coordinates to hold ghost vertices and fill them
         call memrealloc (SPACE_DIM,this%num_vertices, coordinates, __FILE__, __LINE__ )
         if(this%p_env%get_l1_size()>1) then
            do i=1,this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1
-              coordinates(:,this%lst_vefs_lids(i)) = cell_coordinates_ghost_extended(:,i)
+              coordinates(:,this%lst_vefs_gids(i)) = cell_coordinates_ghost_extended(:,i)
            end do
         end if
 
@@ -275,7 +275,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
            lst_vefs_gids = lst_vefs_lids
         end if
         call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended)
-        call this%allocate_and_fill_lst_vefs_lids(lst_vefs_lids,lst_vefs_gids_ghost_extended, this%vefs_gid)
+        call this%allocate_and_fill_lst_vefs_gids(lst_vefs_lids,lst_vefs_gids_ghost_extended, this%vefs_gid)
 
         ! Generate reference fe
         call this%reference_fe_geo_index%init(1)
@@ -327,7 +327,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
 end subroutine par_triangulation_create
 
-subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_lids, lst_vefs_gids, vefs_gids)                                                     
+subroutine par_triangulation_allocate_and_fill_lst_vefs_gids ( this, lst_vefs_lids, lst_vefs_gids, vefs_gids)                                                     
   implicit none
   class(par_triangulation_t), intent(inout) :: this
   integer(ip)               , intent(in)    :: lst_vefs_lids(this%ptr_vefs_x_cell(this%num_local_cells+1)-1)
@@ -341,9 +341,9 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_li
   assert ( this%p_env%am_i_l1_task() )
   assert ( this%num_local_cells + this%num_ghost_cells >=0 )
 
-  call this%free_lst_vefs_lids()
+  call this%free_lst_vefs_gids()
 
-  call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, this%lst_vefs_lids, __FILE__, __LINE__ )
+  call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, this%lst_vefs_gids, __FILE__, __LINE__ )
   call next_vef_lid_avail%init ( max(int(real( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1))*0.1_rp),5) )
   do ivef =1,this%num_vefs
      call next_vef_lid_avail%put(key=vefs_gids(ivef), val=ivef, stat=istat)
@@ -354,7 +354,7 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_li
      init_pos = this%ptr_vefs_x_cell(icell)
      end_pos  = this%ptr_vefs_x_cell(icell+1)-1
      do j=init_pos, end_pos
-        this%lst_vefs_lids(j)=lst_vefs_lids(j)
+        this%lst_vefs_gids(j)=lst_vefs_lids(j)
      end do
   end do
 
@@ -367,9 +367,9 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_li
         if (istat == now_stored) then
            this%num_vefs=this%num_vefs+1
         end if
-        call next_vef_lid_avail%get(key=lst_vefs_gids(j), val=this%lst_vefs_lids(j), stat=istat)
+        call next_vef_lid_avail%get(key=lst_vefs_gids(j), val=this%lst_vefs_gids(j), stat=istat)
      end do
   end do
   call next_vef_lid_avail%free()
 
-end subroutine par_triangulation_allocate_and_fill_lst_vefs_lids
+end subroutine par_triangulation_allocate_and_fill_lst_vefs_gids

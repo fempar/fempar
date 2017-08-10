@@ -67,19 +67,19 @@ subroutine cell_iterator_last(this)
              this%base_static_triangulation%num_ghost_cells
 end subroutine cell_iterator_last
 
-subroutine cell_iterator_set_lid(this, lid)
+subroutine cell_iterator_set_gid(this, lid)
   implicit none
   class(cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
   this%gid = lid
-end subroutine cell_iterator_set_lid
+end subroutine cell_iterator_set_gid
 
-subroutine cell_iterator_set_gid(this, gid)
+subroutine cell_iterator_set_ggid(this, gid)
   implicit none
   class(cell_iterator_t), intent(inout) :: this
   integer(igp)          , intent(in)    :: gid
   this%base_static_triangulation%cells_gid(this%gid) = gid
-end subroutine cell_iterator_set_gid
+end subroutine cell_iterator_set_ggid
 
 subroutine cell_iterator_set_mypart(this, mypart)
   implicit none
@@ -135,7 +135,7 @@ subroutine cell_iterator_get_coordinates (this, cell_coordinates)
   reference_fe_geo => this%get_reference_fe_geo()
   if ( this%is_local() ) then
     do inode=1, reference_fe_geo%get_num_shape_functions()
-      cell_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_lid(inode))
+      cell_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_gid(inode))
     end do
  else
     do inode=1, reference_fe_geo%get_num_shape_functions()
@@ -156,7 +156,7 @@ subroutine cell_iterator_set_coordinates (this, cell_coordinates)
   
    reference_fe_geo => this%get_reference_fe_geo()
    do inode=1, reference_fe_geo%get_num_shape_functions()
-     this%base_static_triangulation%coordinates(this%get_node_lid(inode)) = cell_coordinates(inode)
+     this%base_static_triangulation%coordinates(this%get_node_gid(inode)) = cell_coordinates(inode)
    end do
   
 end subroutine cell_iterator_set_coordinates
@@ -180,20 +180,20 @@ subroutine cell_iterator_get_coordinates_ref_space (this, cell_coordinates)
 
  end subroutine cell_iterator_get_coordinates_ref_space
 
-pure function cell_iterator_get_lid (this)
+pure function cell_iterator_get_gid (this)
   implicit none
   class(cell_iterator_t), intent(in) :: this
-  integer(ip) :: cell_iterator_get_lid
-  cell_iterator_get_lid = this%gid
-end function cell_iterator_get_lid
-
-function cell_iterator_get_gid (this)
-  implicit none
-  class(cell_iterator_t), intent(in) :: this
-  integer(igp) :: cell_iterator_get_gid
-  assert ( this%gid >= 1 .and. .not. this%has_finished() )
-  cell_iterator_get_gid = this%base_static_triangulation%cells_gid(this%gid)
+  integer(ip) :: cell_iterator_get_gid
+  cell_iterator_get_gid = this%gid
 end function cell_iterator_get_gid
+
+function cell_iterator_get_ggid (this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  integer(igp) :: cell_iterator_get_ggid
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  cell_iterator_get_ggid = this%base_static_triangulation%cells_gid(this%gid)
+end function cell_iterator_get_ggid
 
 pure function cell_iterator_get_mypart (this)
   implicit none
@@ -252,11 +252,11 @@ pure function cell_iterator_get_num_nodes (this)
        this%base_static_triangulation%ptr_nodes_x_cell(this%gid)
 end function cell_iterator_get_num_nodes
 
-function cell_iterator_get_node_lid (this, inode)
+function cell_iterator_get_node_gid (this, inode)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: inode
-  integer(ip)                        :: cell_iterator_get_node_lid
+  integer(ip)                        :: cell_iterator_get_node_gid
   class(reference_fe_t), pointer     :: reference_fe_geo
   assert ( this%gid >= 1 .and. .not. this%has_finished() )
   
@@ -266,69 +266,69 @@ function cell_iterator_get_node_lid (this, inode)
   !  cell_iterator_get_node_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid)+inode-1)
   !else
   !  assert ( inode >=1 .and. inode <= reference_fe_geo%get_num_nodes() )
-    cell_iterator_get_node_lid = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+inode-1)
+    cell_iterator_get_node_gid = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+inode-1)
   !end if
   
-end function cell_iterator_get_node_lid
-
-function cell_iterator_get_vef_lid (this, ivef)
-  implicit none
-  class(cell_iterator_t), intent(in) :: this
-  integer(ip)                        :: ivef
-  integer(ip)                        :: cell_iterator_get_vef_lid
-  assert ( this%gid >= 1 .and. .not. this%has_finished() )
-  cell_iterator_get_vef_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid)+ivef-1)
-end function cell_iterator_get_vef_lid
-
-function cell_iterator_get_vef_lids (this)
-  implicit none
-  class(cell_iterator_t), intent(in) :: this
-  integer(ip)                        :: ivef
-  integer(ip), pointer               :: cell_iterator_get_vef_lids(:)
-  cell_iterator_get_vef_lids => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
-                                                                             this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1)-1)
-end function cell_iterator_get_vef_lids
+end function cell_iterator_get_node_gid
 
 function cell_iterator_get_vef_gid (this, ivef)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: ivef
-  integer(igp)                       :: cell_iterator_get_vef_gid
+  integer(ip)                        :: cell_iterator_get_vef_gid
   assert ( this%gid >= 1 .and. .not. this%has_finished() )
-  cell_iterator_get_vef_gid = this%base_static_triangulation%vefs_gid(this%get_vef_lid(ivef))
+  cell_iterator_get_vef_gid = this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid)+ivef-1)
 end function cell_iterator_get_vef_gid
 
-function cell_iterator_find_lpos_vef_lid (this, vef_lid)
+function cell_iterator_get_vef_gids_temporary (this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(ip), pointer               :: cell_iterator_get_vef_gids_temporary(:)
+  cell_iterator_get_vef_gids_temporary => this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
+                                                                             this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1)-1)
+end function cell_iterator_get_vef_gids_temporary
+
+function cell_iterator_get_vef_ggid (this, ivef)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(igp)                       :: cell_iterator_get_vef_ggid
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  cell_iterator_get_vef_ggid = this%base_static_triangulation%vefs_gid(this%get_vef_gid(ivef))
+end function cell_iterator_get_vef_ggid
+
+function cell_iterator_get_vef_lid_from_gid (this, vef_lid)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: vef_lid
-  integer(ip)                        :: cell_iterator_find_lpos_vef_lid
+  integer(ip)                        :: cell_iterator_get_vef_lid_from_gid
   integer(ip)                        :: ivef
-  cell_iterator_find_lpos_vef_lid = -1
+  cell_iterator_get_vef_lid_from_gid = -1
   ! Find position of vef_lid in local element
   do ivef = 1, this%get_num_vefs()
-    if ( this%get_vef_lid(ivef) == vef_lid ) then
-      cell_iterator_find_lpos_vef_lid = ivef
+    if ( this%get_vef_gid(ivef) == vef_lid ) then
+      cell_iterator_get_vef_lid_from_gid = ivef
       return 
     end if
   end do
-end function cell_iterator_find_lpos_vef_lid
+end function cell_iterator_get_vef_lid_from_gid
 
-function cell_iterator_find_lpos_vef_gid (this, vef_gid)
+function cell_iterator_get_vef_lid_from_ggid (this, vef_gid)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(igp)                       :: vef_gid
-  integer(ip)                        :: cell_iterator_find_lpos_vef_gid
+  integer(ip)                        :: cell_iterator_get_vef_lid_from_ggid
   integer(ip)                        :: ivef
-  cell_iterator_find_lpos_vef_gid = -1
+  cell_iterator_get_vef_lid_from_ggid = -1
   ! Find position of vef_lid in local element
   do ivef = 1, this%get_num_vefs()
-    if ( this%get_vef_gid(ivef) == vef_gid ) then
-      cell_iterator_find_lpos_vef_gid = ivef
+    if ( this%get_vef_ggid(ivef) == vef_gid ) then
+      cell_iterator_get_vef_lid_from_ggid = ivef
       return 
     end if
   end do
-end function cell_iterator_find_lpos_vef_gid
+end function cell_iterator_get_vef_lid_from_ggid
 
 subroutine cell_iterator_get_vef (this, ivef, vef)
   implicit none
@@ -336,7 +336,7 @@ subroutine cell_iterator_get_vef (this, ivef, vef)
   integer(ip),            intent(in)    :: ivef
   type(vef_iterator_t),   intent(inout) :: vef
   assert ( this%gid >= 1 .and. .not. this%has_finished() )
-  call vef%set_lid(this%get_vef_lid(ivef))
+  call vef%set_gid(this%get_vef_gid(ivef))
 end subroutine cell_iterator_get_vef
 
 function cell_iterator_is_local (this)
@@ -498,7 +498,7 @@ subroutine cell_iterator_fill_nodes_on_vertices (this)
   do ivef=1,reference_fe%get_num_n_faces_of_dim(0)
      assert(reference_fe%get_num_own_dofs_n_face(ivef)==1)
      inode = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(1,ivef)
-     lnode = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid) + ivef - 1 )
+     lnode = this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid) + ivef - 1 )
      this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid) + inode - 1 ) = lnode
   end do
 
@@ -513,7 +513,7 @@ subroutine cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
   class(lagrangian_reference_fe_t) , pointer       :: reference_fe
 
   reference_fe => this%get_reference_fe_geo()
-  ivef_pos_in_cell = this%find_lpos_vef_lid(ivef)
+  ivef_pos_in_cell = this%get_vef_lid_from_gid(ivef)
 
   do inode = 1,reference_fe%get_num_own_dofs_n_face(ivef_pos_in_cell)
     l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef_pos_in_cell)
@@ -539,15 +539,15 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   integer(ip) :: permutation_index, target_vef_dim, target_node_LID_cell, target_node_LID_vef
 
   source_ref_fe => this%get_reference_fe_geo()
-  source_vef_lid = this%find_lpos_vef_lid(ivef)
+  source_vef_lid = this%get_vef_lid_from_gid(ivef)
 
   target_ref_fe => cell%get_reference_fe_geo()
-  target_vef_lid = cell%find_lpos_vef_lid(ivef)
+  target_vef_lid = cell%get_vef_lid_from_gid(ivef)
   target_vef_dim = target_ref_fe%get_n_face_dim(target_vef_lid)
  
-  source_vefs => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
+  source_vefs => this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
                                                           &   this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1)-1)
-  target_vefs => cell%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(cell%gid): &
+  target_vefs => cell%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(cell%gid): &
                                                           &   this%base_static_triangulation%ptr_vefs_x_cell(cell%gid+1)-1)
   
   source_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid): &

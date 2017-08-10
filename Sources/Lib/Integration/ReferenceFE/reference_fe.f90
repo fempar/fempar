@@ -229,7 +229,7 @@ module reference_fe_names
   type cell_map_facet_restriction_t
      private
      integer(ip)                 :: num_facets = 0
-     integer(ip)                 :: active_face_lid
+     integer(ip)                 :: active_facet_lid
      type(cell_map_t), allocatable :: cell_map(:)
    contains
      procedure, non_overridable :: create            => cell_map_facet_restriction_create

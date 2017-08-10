@@ -68,7 +68,7 @@ subroutine coarse_fe_space_create (this, &
      call this%allocate_and_generate_own_dofs_vef_x_fe( lst_dofs_gids_ghost_extended, & 
                                                       lst_vefs_gids_dofs_objects_ghost_extended )
      call this%allocate_lst_dofs_gids()
-     call this%count_dofs_and_fill_lst_dof_lids()
+     call this%count_dofs_and_fill_lst_dof_gids()
      call this%compute_blocks_dof_import(lst_dofs_gids_ghost_extended)
      call this%renum_dofs_first_interior_then_interface()
      call this%setup_coarse_dofs()
@@ -154,7 +154,7 @@ subroutine coarse_fe_space_print ( this )
     
     call this%create_coarse_fe_cell_iterator(coarse_fe)
     do while ( .not. coarse_fe%has_finished() ) 
-      write(*,'(a,i10,a)') '********* ELEMENT: ',coarse_fe%get_lid(),'********'
+      write(*,'(a,i10,a)') '********* ELEMENT: ',coarse_fe%get_gid(),'********'
       write(*,'(a)') '********* ELEMENT 2 DOF********'
       call coarse_fe%get_fe_dofs(fe_dofs)
       do field_id = 1, this%get_num_fields()
@@ -347,7 +347,7 @@ subroutine coarse_fe_space_fetch_ghost_fes_data(this, &
   do i=1, num_neighbours
      do j=snd_ptrs(i),snd_ptrs(i+1)-1
         coarse_fe_id = snd_leids(j)
-        call coarse_fe%set_lid(coarse_fe_id)
+        call coarse_fe%set_gid(coarse_fe_id)
         coarse_fe_sizes(coarse_fe_id) = this%coarse_fe_size(coarse_fe)
         snd_ptrs_buf(i+1) = snd_ptrs_buf(i+1) + coarse_fe_sizes(coarse_fe_id)
      end do
@@ -362,7 +362,7 @@ subroutine coarse_fe_space_fetch_ghost_fes_data(this, &
   do i=1, num_neighbours
      do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
         coarse_fe_id = rcv_leids(j)
-        call coarse_fe%set_lid(coarse_fe_id)
+        call coarse_fe%set_gid(coarse_fe_id)
         coarse_fe_sizes(coarse_fe_id) = this%coarse_fe_size(coarse_fe)
         rcv_ptrs_buf(i+1) = rcv_ptrs_buf(i+1) + coarse_fe_sizes(coarse_fe_id)
      end do
@@ -382,7 +382,7 @@ subroutine coarse_fe_space_fetch_ghost_fes_data(this, &
      current = snd_ptrs_buf(i)
      do j=snd_ptrs(i),snd_ptrs(i+1)-1
         coarse_fe_id = snd_leids(j)
-        call coarse_fe%set_lid(coarse_fe_id)
+        call coarse_fe%set_gid(coarse_fe_id)
         spos     = this%ptr_dofs_x_fe_and_field((coarse_fe_id-1)*this%num_fields+1)
         epos     = this%ptr_dofs_x_fe_and_field(coarse_fe_id*this%num_fields+1)-1
         start_buf = current
@@ -408,7 +408,7 @@ subroutine coarse_fe_space_fetch_ghost_fes_data(this, &
   do i=1, num_neighbours
      do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
         coarse_fe_id = rcv_leids(j)
-        call coarse_fe%set_lid(coarse_fe_id)
+        call coarse_fe%set_gid(coarse_fe_id)
         spos     = this%ptr_dofs_x_fe_and_field((coarse_fe_id-1)*this%num_fields+1)
         epos     = this%ptr_dofs_x_fe_and_field(coarse_fe_id*this%num_fields+1)-1
         start_buf = current
@@ -465,7 +465,7 @@ subroutine coarse_fe_space_allocate_and_generate_own_dofs_vef_x_fe (this, &
   call this%create_coarse_fe_cell_iterator(coarse_fe)
   call coarse_fe%last()
 
-  sum_num_vefs_all_cells = coarse_fe%get_lid() + & ! Interior VEFs 
+  sum_num_vefs_all_cells = coarse_fe%get_gid() + & ! Interior VEFs 
                            coarse_fe%scan_sum_num_vefs() + coarse_fe%get_num_vefs()
                            
   allocate(this%own_dofs_vef_x_fe(this%num_fields), stat=istat)
@@ -515,7 +515,7 @@ subroutine coarse_fe_space_generate_own_dofs_cell_x_fe_field(this, &
           ! Retrieve vef gid
           vef_gid = lst_vefs_gids_dofs_objects_ghost_extended(j)
           ! Retrieve position of vef_gid in current cell
-          ivef = coarse_fe%find_lpos_vef_gid(vef_gid)
+          ivef = coarse_fe%get_vef_lid_from_ggid(vef_gid)
           assert (ivef /= -1)
           ! Associate dof to vef
           call this%own_dofs_vef_x_fe(field_id)%sum_to_pointer_index(base_pointer+ivef-1, 1)
@@ -561,7 +561,7 @@ subroutine coarse_fe_space_generate_own_dofs_cell_x_fe_field(this, &
 
        ! Re-init to zero work array only on those positions we are interested in
        do ivef=1, coarse_fe%get_num_vefs()
-          num_assigned_dofs_x_vef(coarse_fe%get_vef_lid(ivef)) = 0
+          num_assigned_dofs_x_vef(coarse_fe%get_vef_gid(ivef)) = 0
        end do
 
        ! Traverse all DoFs in current cell
@@ -570,8 +570,8 @@ subroutine coarse_fe_space_generate_own_dofs_cell_x_fe_field(this, &
           vef_gid = lst_vefs_gids_dofs_objects_ghost_extended(j)
           
           ! Retrieve position of vef_gid in current cell
-          ivef    = coarse_fe%find_lpos_vef_gid(vef_gid)
-          vef_lid = coarse_fe%get_vef_lid(ivef)
+          ivef    = coarse_fe%get_vef_lid_from_ggid(vef_gid)
+          vef_lid = coarse_fe%get_vef_gid(ivef)
           assert ( ivef /= -1 )
           ! Associate dof to vef
           list_iterator = this%own_dofs_vef_x_fe(field_id)%create_iterator(base_pointer+ivef-1)
@@ -643,7 +643,7 @@ subroutine coarse_fe_space_allocate_lst_dofs_gids (this)
   call memalloc (sz_lst_dofs_gids, this%lst_dofs_gids, __FILE__, __LINE__ ) 
 end subroutine coarse_fe_space_allocate_lst_dofs_gids
 
-subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids( this )
+subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_gids( this )
   implicit none
   class(coarse_fe_space_t), intent(inout) :: this 
   type(environment_t) , pointer       :: par_environment
@@ -660,11 +660,11 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids( this )
   this%num_dofs_x_block = 0
   this%num_dofs_x_field = 0
   do field_id = 1, this%num_fields
-     call this%count_dofs_and_fill_lst_dof_lids_field ( field_id )
+     call this%count_dofs_and_fill_lst_dof_gids_field ( field_id )
   end do
-end subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids
+end subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_gids
 
-subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_id )
+subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_gids_field ( this, field_id )
   implicit none
   class(coarse_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: field_id
@@ -696,19 +696,19 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
      do while ( .not. coarse_fe%has_finished() )
         if ( coarse_fe%is_local() ) then
            do ivef = 1, coarse_fe%get_num_vefs()
-              vef_lid = coarse_fe%get_vef_lid(ivef)
+              vef_lid = coarse_fe%get_vef_gid(ivef)
               if ( visited_vef_to_coarse_cell_map ( 1, vef_lid ) == -1 ) then
                  previous_dof_block = current_dof_block
                  call coarse_fe%generate_own_dofs_vef ( ivef, field_id, current_dof_block  ) 
 
                  ! Only mark as visited if we have assigned at least one dof
                  if (previous_dof_block < current_dof_block) then
-                   visited_vef_to_coarse_cell_map ( 1, vef_lid ) = coarse_fe%get_lid()
+                   visited_vef_to_coarse_cell_map ( 1, vef_lid ) = coarse_fe%get_gid()
                    visited_vef_to_coarse_cell_map ( 2, vef_lid ) = ivef
                  end if
 
               else 
-                 call source_fe%set_lid(visited_vef_to_coarse_cell_map(1,vef_lid))
+                 call source_fe%set_gid(visited_vef_to_coarse_cell_map(1,vef_lid))
                  call coarse_fe%generate_own_dofs_vef_from_source_coarse_fe ( ivef, &
                                                                              source_fe, &
                                                                              visited_vef_to_coarse_cell_map(2,vef_lid), &
@@ -729,7 +729,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
                  call vef%get_cell_around(ielem,source_fe)
                  if ( source_fe%is_local() ) then
 
-                    source_ivef = source_fe%find_lpos_vef_lid(vef%get_lid())
+                    source_ivef = source_fe%get_vef_lid_from_gid(vef%get_gid())
                     own_dofs_on_vef_iterator_source = source_fe%create_own_dofs_on_vef_iterator(source_ivef,field_id)
 
                     ! Check that the source fe has at least one dof on this vef
@@ -758,7 +758,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   this%num_dofs_x_field(field_id) = current_dof_block - init_dof_block
   this%num_dofs_x_block(iblock) = this%num_dofs_x_block(iblock) + &
        this%num_dofs_x_field(field_id)   
-end subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field
+end subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_gids_field
 
 subroutine coarse_fe_space_free_lst_dofs_gids ( this )
   implicit none
@@ -975,7 +975,7 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
           local_part_id = cell_import%get_local_neighbour_id(coarse_fe%get_my_part())
           if (.not. touched_neighbours (local_part_id)) then
              touched_neighbours (local_part_id) = .true.
-             ivef = coarse_fe%find_lpos_vef_lid(coarse_fe_vef%get_lid())
+             ivef = coarse_fe%get_vef_lid_from_gid(coarse_fe_vef%get_gid())
              assert (ivef /= -1)
              own_dofs_on_vef_iterator = coarse_fe%create_own_dofs_on_vef_iterator(ivef,field_id)
              result = result + own_dofs_on_vef_iterator%get_size()
@@ -1071,7 +1071,7 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
      end do  
      
      call coarse_fe_vef%get_cell_around(1,coarse_fe)
-     ivef = coarse_fe%find_lpos_vef_lid(coarse_fe_vef%get_lid())
+     ivef = coarse_fe%get_vef_lid_from_gid(coarse_fe_vef%get_gid())
      base_pos_lst_dofs = coarse_fe%get_scan_sum_num_dofs(field_id)
      own_dofs_on_vef_iterator = coarse_fe%create_own_dofs_on_vef_iterator(ivef,field_id)
      init_col = current_col
@@ -1242,7 +1242,7 @@ subroutine coarse_fe_space_setup_coarse_dofs ( this )
   
   call memalloc ( this%num_fields+1, this%ptr_coarse_dofs_x_field, __FILE__, __LINE__ )
     
-  allocate ( this%coarse_dof_gids_x_field(this%num_fields), stat=istat )
+  allocate ( this%coarse_dof_ggids_x_field(this%num_fields), stat=istat )
   check ( istat == 0 )
   
   allocate ( this%own_coarse_dofs_x_field(this%num_fields), stat=istat )
@@ -1287,14 +1287,14 @@ subroutine coarse_fe_space_setup_coarse_dofs ( this )
   
   ! Generate a global numbering for the coarse DoFs
   do field_id=1, this%num_fields
-     call this%coarse_dof_gids_x_field(field_id)%create(this%ptr_coarse_dofs_x_field(field_id+1)-&
+     call this%coarse_dof_ggids_x_field(field_id)%create(this%ptr_coarse_dofs_x_field(field_id+1)-&
                                                           this%ptr_coarse_dofs_x_field(field_id)) 
   
      call this%create_coarse_fe_object_iterator(object)
      do while ( .not. object%has_finished() )
        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
        do while (.not. own_coarse_dofs_iterator%is_upper_bound())
-         this%coarse_dof_gids_x_field(field_id)%a(own_coarse_dofs_iterator%get_current()) = object%get_gid() 
+         this%coarse_dof_ggids_x_field(field_id)%a(own_coarse_dofs_iterator%get_current()) = object%get_ggid() 
          call own_coarse_dofs_iterator%next()
        end do
        call object%next()
@@ -1343,12 +1343,12 @@ subroutine coarse_fe_space_setup_num_coarse_dofs ( this, num_coarse_dofs )
         call object%get_vef(ivef_within_object,vef)
         call vef%get_cell_around(1,fe)
         call fe%get_field_fe_dofs(field_id, fe_dofs)
-        ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+        ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
         own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
         dofs_on_vef = (own_dofs_on_vef_iterator%get_size() > 0)
         if ( dofs_on_vef ) then
            ! It must be thought for more general cases (vectors, tensor product...)
-           num_coarse_dofs(object%get_lid()) = num_coarse_dofs(object%get_lid()) + 1
+           num_coarse_dofs(object%get_gid()) = num_coarse_dofs(object%get_gid()) + 1
            exit
         end if
      end do
@@ -1411,7 +1411,7 @@ subroutine coarse_fe_space_setup_constraint_matrix ( this, &
           call object%get_vef(ivef_within_object,vef)
           call vef%get_cell_around(1,fe)
           call fe%get_field_fe_dofs(field_id, fe_dofs)
-          ivef = fe%find_lpos_vef_lid(vef%get_lid())
+          ivef = fe%get_vef_lid_from_gid(vef%get_gid())
           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
           num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + own_dofs_on_vef_iterator%get_size()
           !do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
@@ -1428,7 +1428,7 @@ subroutine coarse_fe_space_setup_constraint_matrix ( this, &
           call object%get_vef(ivef_within_object,vef)
           call vef%get_cell_around(1,fe)
           call fe%get_field_fe_dofs(field_id, fe_dofs)
-          ivef = fe%find_lpos_vef_lid(vef%get_lid())
+          ivef = fe%get_vef_lid_from_gid(vef%get_gid())
           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
              idof    = own_dofs_on_vef_iterator%get_current()
@@ -1658,7 +1658,7 @@ end subroutine coarse_fe_space_gather_ptr_dofs_x_fe_and_field
       do i=1, this%get_num_fields()
         spos = this%ptr_coarse_dofs_x_field(i)
         epos = this%ptr_coarse_dofs_x_field(i+1)-1
-        buffer(spos:epos) = this%coarse_dof_gids_x_field(i)%a
+        buffer(spos:epos) = this%coarse_dof_ggids_x_field(i)%a
         spos = epos +1 
       end do
       
@@ -1706,7 +1706,7 @@ end subroutine coarse_fe_space_gather_ptr_dofs_x_fe_and_field
         do while ( .not. object%has_finished() )
           own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(i)
           do while (.not. own_coarse_dofs_iterator%is_upper_bound())
-            buffer(spos) = object%get_gid() 
+            buffer(spos) = object%get_ggid() 
             spos = spos +1
             call own_coarse_dofs_iterator%next()
           end do
@@ -1771,11 +1771,11 @@ end subroutine coarse_fe_space_gather_ptr_dofs_x_fe_and_field
       call memfree ( this%lst_coarse_dofs, __FILE__, __LINE__ )
     end if
   
-    if (allocated(this%coarse_dof_gids_x_field)) then
-      do i=1, size(this%coarse_dof_gids_x_field)
-        call this%coarse_dof_gids_x_field(i)%free()
+    if (allocated(this%coarse_dof_ggids_x_field)) then
+      do i=1, size(this%coarse_dof_ggids_x_field)
+        call this%coarse_dof_ggids_x_field(i)%free()
       end do  
-      deallocate ( this%coarse_dof_gids_x_field, stat=istat )
+      deallocate ( this%coarse_dof_ggids_x_field, stat=istat )
       check (istat == 0)  
     end if
   

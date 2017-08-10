@@ -188,7 +188,7 @@ contains
       else
         set_id = SERIAL_UNF_POISSON_SET_ID_FULL
       end if
-      this%cell_set_ids(cell%get_lid()) = set_id
+      this%cell_set_ids(cell%get_gid()) = set_id
       call cell%next()
     end do
     call this%triangulation%fill_cells_set(this%cell_set_ids)
