@@ -42,8 +42,6 @@ subroutine face_fe_function_scalar_create ( this, fe_space, field_id )
   call this%cell_fe_function(2)%create(fe_space, field_id)
   call fe_space%create_fe_iterator(this%fe)
   this%fe_space => fe_space
-  this%active_cell_id(1) = 1
-  this%active_cell_id(2) = 2
 end subroutine face_fe_function_scalar_create
 
 !==================================================================================================
@@ -55,7 +53,7 @@ subroutine face_fe_function_scalar_update ( this, face_iterator, fe_function )
   
   integer(ip)                      :: inode, field_id
   integer(ip)                      :: number_nodes_field, number_quadrature_points
-  integer(ip)                      :: icell_around
+  integer(ip)                      :: icell_around, actual_cell_around
   class(reference_fe_t)      , pointer     :: reference_fe
   type(quadrature_t)         , pointer     :: quadrature
   type(face_integrator_t)    , pointer     :: face_integrator
@@ -68,44 +66,52 @@ subroutine face_fe_function_scalar_update ( this, face_iterator, fe_function )
   if ( environment%am_i_l1_task() ) then
 
      this%is_boundary = face_iterator%is_at_boundary()
-     !this%active_cell_id = ...
 
      field_id = this%get_field_id()
      quadrature => face_iterator%get_quadrature()
      number_quadrature_points =  quadrature%get_number_quadrature_points()
      face_integrator => face_iterator%get_face_integrator(field_id)
+     this%active_cell_id(2) = 0
 
      do icell_around=1, face_iterator%get_num_cells_around()
 
-        this%quadrature_points_permutation(icell_around)%p => &
-             face_integrator%get_current_qpoints_perm(icell_around)
+       this%active_cell_id(icell_around) = face_integrator%get_active_cell_id(icell_around)
 
-        call face_iterator%get_cell_around(icell_around, this%fe)
+       if ( this%active_cell_id(icell_around) /= 0 ) then
 
-        reference_fe => this%fe%get_reference_fe(field_id)  
-        number_nodes_field =  reference_fe%get_number_shape_functions()  
+         actual_cell_around = this%active_cell_id(icell_around)
 
-        call this%set_current_number_quadrature_points( icell_around, number_quadrature_points )
-        call this%set_current_number_nodes( icell_around, number_nodes_field )  
+         this%quadrature_points_permutation(actual_cell_around)%p => &
+              face_integrator%get_current_qpoints_perm(actual_cell_around)
 
-        nodal_values                => this%get_nodal_values(icell_around)
-        call this%cell_fe_function(icell_around)%move_alloc_values_out(quadrature_points_values) 
-        call this%cell_fe_function(icell_around)%move_alloc_gradients_out(quadrature_points_gradients) 
-        
-        ! Gather DoFs of current cell + field_id on nodal_values 
-        call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
+         call face_iterator%get_cell_around(actual_cell_around, this%fe)
 
-        ! Evaluate values and gradients at quadrature points
-        call face_integrator%evaluate_fe_function ( icell_around, &
-                                                    nodal_values, & 
-                                                    quadrature_points_values )
+         reference_fe => this%fe%get_reference_fe(field_id)  
+         number_nodes_field =  reference_fe%get_number_shape_functions()  
 
-        call face_integrator%evaluate_gradient_fe_function ( icell_around, &
-                                                             nodal_values, & 
-                                                             quadrature_points_gradients )
-        
-        call this%cell_fe_function(icell_around)%move_alloc_values_in(quadrature_points_values) 
-        call this%cell_fe_function(icell_around)%move_alloc_gradients_in(quadrature_points_gradients) 
+         call this%set_current_number_quadrature_points( actual_cell_around, number_quadrature_points )
+         call this%set_current_number_nodes( actual_cell_around, number_nodes_field )  
+
+         nodal_values                => this%get_nodal_values(actual_cell_around)
+         call this%cell_fe_function(actual_cell_around)%move_alloc_values_out(quadrature_points_values) 
+         call this%cell_fe_function(actual_cell_around)%move_alloc_gradients_out(quadrature_points_gradients) 
+         
+         ! Gather DoFs of current cell + field_id on nodal_values 
+         call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
+
+         ! Evaluate values and gradients at quadrature points
+         call face_integrator%evaluate_fe_function ( actual_cell_around, &
+                                                     nodal_values,       &
+                                                     quadrature_points_values )
+
+         call face_integrator%evaluate_gradient_fe_function ( actual_cell_around, &
+                                                              nodal_values,       &
+                                                              quadrature_points_gradients )
+         
+         call this%cell_fe_function(actual_cell_around)%move_alloc_values_in(quadrature_points_values) 
+         call this%cell_fe_function(actual_cell_around)%move_alloc_gradients_in(quadrature_points_gradients) 
+
+       end if
 
      end do
   end if
@@ -117,7 +123,7 @@ function face_fe_function_scalar_get_field_id ( this )
   implicit none
   class(face_fe_function_scalar_t), intent(in) :: this 
   integer(ip) :: face_fe_function_scalar_get_field_id
-  face_fe_function_scalar_get_field_id = this%cell_fe_function(this%active_cell_id(1))%get_field_id()
+  face_fe_function_scalar_get_field_id = this%cell_fe_function(1)%get_field_id()
 end function face_fe_function_scalar_get_field_id
 
 !===============================================================================================
@@ -236,8 +242,6 @@ subroutine face_fe_function_vector_create ( this, fe_space, field_id )
   call this%cell_fe_function(2)%create(fe_space, field_id)
   call fe_space%create_fe_iterator(this%fe)
   this%fe_space => fe_space
-  this%active_cell_id(1) = 1
-  this%active_cell_id(2) = 2
 end subroutine face_fe_function_vector_create
 
 !==================================================================================================
@@ -249,7 +253,7 @@ subroutine face_fe_function_vector_update ( this, face_iterator, fe_function )
   
   integer(ip)                      :: inode, field_id
   integer(ip)                      :: number_nodes_field, number_quadrature_points
-  integer(ip)                      :: icell_around
+  integer(ip)                      :: icell_around, actual_cell_around
   class(reference_fe_t)      , pointer     :: reference_fe
   type(quadrature_t)         , pointer     :: quadrature
   type(face_integrator_t)    , pointer     :: face_integrator
@@ -267,38 +271,48 @@ subroutine face_fe_function_vector_update ( this, face_iterator, fe_function )
      quadrature => face_iterator%get_quadrature()
      number_quadrature_points =  quadrature%get_number_quadrature_points()
      face_integrator => face_iterator%get_face_integrator(field_id)
+     this%active_cell_id(2) = 0
 
      do icell_around=1, face_iterator%get_num_cells_around()
 
-        this%quadrature_points_permutation(icell_around)%p => &
-             face_integrator%get_current_qpoints_perm(icell_around)
+       this%active_cell_id(icell_around) = face_integrator%get_active_cell_id(icell_around)
 
-        call face_iterator%get_cell_around(icell_around, this%fe)
+       if ( this%active_cell_id(icell_around) /= 0 ) then
 
-        reference_fe => this%fe%get_reference_fe(field_id)  
-        number_nodes_field =  reference_fe%get_number_shape_functions()  
+         actual_cell_around = this%active_cell_id(icell_around)
 
-        call this%set_current_number_quadrature_points( icell_around, number_quadrature_points )
-        call this%set_current_number_nodes( icell_around, number_nodes_field )  
+         this%quadrature_points_permutation(actual_cell_around)%p => &
+              face_integrator%get_current_qpoints_perm(actual_cell_around)
 
-        nodal_values => this%get_nodal_values(icell_around)
-        call this%cell_fe_function(icell_around)%move_alloc_values_out(quadrature_points_values) 
-        call this%cell_fe_function(icell_around)%move_alloc_gradients_out(quadrature_points_gradients) 
+         call face_iterator%get_cell_around(actual_cell_around, this%fe)
 
-        ! Gather DoFs of current cell + field_id on nodal_values 
-        call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
+         reference_fe => this%fe%get_reference_fe(field_id)  
+         number_nodes_field =  reference_fe%get_number_shape_functions()  
 
-        ! Evaluate values and gradients at quadrature points
-        call face_integrator%evaluate_fe_function ( icell_around, &
-             nodal_values, & 
-             quadrature_points_values )
+         call this%set_current_number_quadrature_points( actual_cell_around, number_quadrature_points )
+         call this%set_current_number_nodes( actual_cell_around, number_nodes_field )  
 
-        call face_integrator%evaluate_gradient_fe_function ( icell_around, &
-             nodal_values, & 
-             quadrature_points_gradients )
-        
-        call this%cell_fe_function(icell_around)%move_alloc_values_in(quadrature_points_values) 
-        call this%cell_fe_function(icell_around)%move_alloc_gradients_in(quadrature_points_gradients) 
+         nodal_values => this%get_nodal_values(actual_cell_around)
+         call this%cell_fe_function(actual_cell_around)%move_alloc_values_out(quadrature_points_values) 
+         call this%cell_fe_function(actual_cell_around)%move_alloc_gradients_out(quadrature_points_gradients) 
+
+         ! Gather DoFs of current cell + field_id on nodal_values 
+         call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
+
+         ! Evaluate values and gradients at quadrature points
+         call face_integrator%evaluate_fe_function ( actual_cell_around, &
+                                                     nodal_values,       &
+                                                     quadrature_points_values )
+
+         call face_integrator%evaluate_gradient_fe_function ( actual_cell_around, &
+                                                              nodal_values,       &
+                                                              quadrature_points_gradients )
+         
+         call this%cell_fe_function(actual_cell_around)%move_alloc_values_in(quadrature_points_values) 
+         call this%cell_fe_function(actual_cell_around)%move_alloc_gradients_in(quadrature_points_gradients) 
+
+       end if
+     
      end do
 
   end if
@@ -311,7 +325,7 @@ function face_fe_function_vector_get_field_id ( this )
   implicit none
   class(face_fe_function_vector_t), intent(in) :: this 
   integer(ip) :: face_fe_function_vector_get_field_id
-  face_fe_function_vector_get_field_id = this%cell_fe_function(this%active_cell_id(1))%get_field_id()
+  face_fe_function_vector_get_field_id = this%cell_fe_function(1)%get_field_id()
 end function face_fe_function_vector_get_field_id
 
 !===============================================================================================
@@ -430,8 +444,6 @@ subroutine face_fe_function_tensor_create ( this, fe_space, field_id )
   call this%cell_fe_function(2)%create(fe_space, field_id)
   call fe_space%create_fe_iterator(this%fe)
   this%fe_space => fe_space
-  this%active_cell_id(1) = 1
-  this%active_cell_id(2) = 2
 end subroutine face_fe_function_tensor_create
 
 
@@ -444,7 +456,7 @@ subroutine face_fe_function_tensor_update ( this, face_iterator, fe_function )
   
   integer(ip)                      :: inode, field_id, block_id
   integer(ip)                      :: number_nodes_field, number_quadrature_points
-  integer(ip)                      :: icell_around
+  integer(ip)                      :: icell_around, actual_cell_around
   class(reference_fe_t)      , pointer     :: reference_fe
   type(quadrature_t)         , pointer     :: quadrature
   type(face_integrator_t)    , pointer     :: face_integrator
@@ -464,32 +476,42 @@ subroutine face_fe_function_tensor_update ( this, face_iterator, fe_function )
      quadrature => face_iterator%get_quadrature()
      number_quadrature_points =  quadrature%get_number_quadrature_points()
      face_integrator => face_iterator%get_face_integrator(field_id)
+     this%active_cell_id(2) = 0
 
      do icell_around=1, face_iterator%get_num_cells_around()
 
-        this%quadrature_points_permutation(icell_around)%p => &
-             face_integrator%get_current_qpoints_perm(icell_around)
+       this%active_cell_id(icell_around) = face_integrator%get_active_cell_id(icell_around)
 
-        call face_iterator%get_cell_around(icell_around, this%fe)
+       if ( this%active_cell_id(icell_around) /= 0 ) then
 
-        reference_fe => this%fe%get_reference_fe(field_id)  
-        number_nodes_field =  reference_fe%get_number_shape_functions()  
+         actual_cell_around = this%active_cell_id(icell_around)
 
-        call this%set_current_number_quadrature_points( icell_around, number_quadrature_points )
-        call this%set_current_number_nodes( icell_around, number_nodes_field )  
+         this%quadrature_points_permutation(actual_cell_around)%p => &
+              face_integrator%get_current_qpoints_perm(actual_cell_around)
 
-        nodal_values => this%get_nodal_values(icell_around)
-        call this%cell_fe_function(icell_around)%move_alloc_values_out(quadrature_points_values) 
+         call face_iterator%get_cell_around(actual_cell_around, this%fe)
 
-        ! Gather DoFs of current cell + field_id on nodal_values 
-        call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
+         reference_fe => this%fe%get_reference_fe(field_id)  
+         number_nodes_field =  reference_fe%get_number_shape_functions()  
 
-        ! Evaluate values and gradients at quadrature points
-        call face_integrator%evaluate_fe_function ( icell_around, &
-                                                    nodal_values, & 
-                                                    quadrature_points_values )
-        
-        call this%cell_fe_function(icell_around)%move_alloc_values_in(quadrature_points_values)
+         call this%set_current_number_quadrature_points( actual_cell_around, number_quadrature_points )
+         call this%set_current_number_nodes( actual_cell_around, number_nodes_field )  
+
+         nodal_values => this%get_nodal_values(actual_cell_around)
+         call this%cell_fe_function(actual_cell_around)%move_alloc_values_out(quadrature_points_values) 
+
+         ! Gather DoFs of current cell + field_id on nodal_values 
+         call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
+
+         ! Evaluate values and gradients at quadrature points
+         call face_integrator%evaluate_fe_function ( actual_cell_around, &
+                                                     nodal_values,       &
+                                                     quadrature_points_values )
+         
+         call this%cell_fe_function(actual_cell_around)%move_alloc_values_in(quadrature_points_values)
+
+       end if
+
      end do
   end if
   
@@ -500,7 +522,7 @@ function face_fe_function_tensor_get_field_id ( this )
   implicit none
   class(face_fe_function_tensor_t), intent(in) :: this 
   integer(ip) :: face_fe_function_tensor_get_field_id
-  face_fe_function_tensor_get_field_id = this%cell_fe_function(this%active_cell_id(1))%get_field_id()
+  face_fe_function_tensor_get_field_id = this%cell_fe_function(1)%get_field_id()
 end function face_fe_function_tensor_get_field_id
 
 !===============================================================================================

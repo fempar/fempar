@@ -89,7 +89,7 @@ module face_fe_function_names
    private
    logical                           :: is_boundary
    integer(ip)                       :: active_cell_id(2)
-   type(i1p_t)                       :: quadrature_points_permutation(2)    
+   type(i1p_t)                       :: quadrature_points_permutation(2)
    type(cell_fe_function_tensor_t)   :: cell_fe_function(2)
    class(fe_iterator_t), allocatable :: fe
    class(serial_fe_space_t), pointer :: fe_space => NULL()
