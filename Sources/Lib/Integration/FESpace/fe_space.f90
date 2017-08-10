@@ -338,27 +338,27 @@ module fe_space_names
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
      
      ! Finite Element-related integration containers
-     type(quadrature_t)            , allocatable :: fe_quadratures(:)
+     type(quadrature_t)            , allocatable :: cell_quadratures(:)
      type(cell_map_t)                , allocatable :: cell_maps(:)
      type(cell_integrator_t)       , allocatable :: fe_cell_integrators(:)
-     integer(ip)                   , allocatable :: fe_quadratures_degree(:)
+     integer(ip)                   , allocatable :: cell_quadratures_degree(:)
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
      integer(ip)                   , allocatable :: field_cell_to_ref_fes(:,:)         ! (num_fields, num_fes)
      integer(ip)                   , allocatable :: max_order_reference_fe_id_x_fe_cell(:) ! Stores Key=max_order_reference_fe_id for all FEs
-     type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
+     type(hash_table_ip_ip_t)                    :: cell_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
      type(hash_table_ip_ip_t)                    :: fe_cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
      ! Finite Face-related integration containers
-     type(quadrature_t)            , allocatable :: fe_face_quadratures(:)
+     type(quadrature_t)            , allocatable :: facet_quadratures(:)
      type(facet_maps_t)              , allocatable :: fe_facet_maps(:)
      type(facet_integrator_t)       , allocatable :: fe_facet_integrators(:)
-     integer(ip)                   , allocatable :: fe_face_quadratures_degree(:)
+     integer(ip)                   , allocatable :: facet_quadratures_degree(:)
      
      
      ! Mapping of Finite Faces and integration containers
      integer(ip)                   , allocatable :: max_order_reference_fe_id_x_fe_face(:) ! Stores max_order_reference_fe_id_x_fe_face for all faces
-     type(hash_table_ip_ip_t)                    :: fe_face_quadratures_position  ! Key = [quadrature_degree, 
+     type(hash_table_ip_ip_t)                    :: facet_quadratures_position  ! Key = [quadrature_degree, 
                                                                                   !       left_geo_reference_fe_id,
                                                                                   !       right_geo_reference_fe_id (with 0 for boundary faces)]
      type(hash_table_ip_ip_t)                    :: fe_facet_integrators_position  ! Key = [quadrature_degree,
@@ -371,7 +371,7 @@ module fe_space_names
      
      ! DoF identifiers associated to each FE and field within FE
      integer(ip)                   , allocatable :: ptr_dofs_x_field_cell(:,:) ! (num_fields, num_fes+1)
-     integer(ip)                   , allocatable :: lst_dofs_lids(:)
+     integer(ip)                   , allocatable :: lst_dofs_gids(:)
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
@@ -428,9 +428,9 @@ module fe_space_names
                                                                      interpolate_tensor
      
      
-     procedure, non_overridable, private :: allocate_fe_quadratures_degree               => serial_fe_space_allocate_fe_quadratures_degree
-     procedure, non_overridable, private :: free_fe_quadratures_degree                   => serial_fe_space_free_fe_quadratures_degree
-     procedure, non_overridable          :: clear_fe_quadratures_degree                  => serial_fe_space_clear_fe_quadratures_degree
+     procedure, non_overridable, private :: allocate_cell_quadratures_degree               => serial_fe_space_allocate_cell_quadratures_degree
+     procedure, non_overridable, private :: free_cell_quadratures_degree                   => serial_fe_space_free_cell_quadratures_degree
+     procedure, non_overridable          :: clear_cell_quadratures_degree                  => serial_fe_space_clear_cell_quadratures_degree
      
      procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_fe_cell    => serial_fe_space_allocate_max_order_reference_fe_id_x_fe_cell
      procedure, non_overridable, private :: free_max_order_reference_fe_id_x_fe_cell        => serial_fe_space_free_max_order_reference_fe_id_x_fe_cell
@@ -438,12 +438,12 @@ module fe_space_names
      
      procedure, non_overridable          :: initialize_fe_integration                    => serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
-     procedure, non_overridable, private :: generate_fe_quadratures_position_key         => serial_fe_space_generate_fe_quadratures_position_key
+     procedure, non_overridable, private :: generate_cell_quadratures_position_key         => serial_fe_space_generate_cell_quadratures_position_key
      procedure, non_overridable, private :: generate_fe_cell_integrators_position_key  => serial_fe_space_generate_fe_cell_integrators_position_key
     
-     procedure, non_overridable, private :: allocate_fe_face_quadratures_degree          => serial_fe_space_allocate_fe_face_quadratures_degree
-     procedure, non_overridable, private :: free_fe_face_quadratures_degree              => serial_fe_space_free_fe_face_quadratures_degree
-     procedure, non_overridable          :: clear_fe_face_quadratures_degree             => serial_fe_space_clear_fe_face_quadratures_degree
+     procedure, non_overridable, private :: allocate_facet_quadratures_degree          => serial_fe_space_allocate_facet_quadratures_degree
+     procedure, non_overridable, private :: free_facet_quadratures_degree              => serial_fe_space_free_facet_quadratures_degree
+     procedure, non_overridable          :: clear_facet_quadratures_degree             => serial_fe_space_clear_facet_quadratures_degree
      
      procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_fe_face => serial_fe_space_allocate_max_order_reference_fe_id_x_fe_face
      procedure, non_overridable, private :: free_max_order_reference_fe_id_x_fe_face     => serial_fe_space_free_max_order_reference_fe_id_x_fe_face
@@ -457,7 +457,7 @@ module fe_space_names
      
      procedure, non_overridable          :: initialize_fe_face_integration               => serial_fe_space_initialize_fe_face_integration
      procedure, non_overridable, private :: free_fe_face_integration                     => serial_fe_space_free_fe_face_integration
-     procedure, non_overridable, private :: generate_fe_face_quadratures_position_key    => serial_fe_space_fe_face_quadratures_position_key
+     procedure, non_overridable, private :: generate_facet_quadratures_position_key    => serial_fe_space_facet_quadratures_position_key
      procedure, non_overridable, private :: generate_fe_facet_integrators_position_key    => serial_fe_space_fe_facet_integrators_position_key
 
      procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
@@ -772,7 +772,7 @@ module fe_space_names
     integer(ip)                   , allocatable :: num_dofs_x_block(:)
     
     integer(ip) , allocatable                   :: ptr_dofs_x_fe_and_field(:)
-    integer(ip) , allocatable                   :: lst_dofs_lids(:)
+    integer(ip) , allocatable                   :: lst_dofs_gids(:)
     type(list_t), allocatable                   :: own_dofs_vef_x_fe(:)
     	
 	   ! Pointer to coarse triangulation this coarse_fe_space has been built from
@@ -808,10 +808,10 @@ module fe_space_names
     procedure, non_overridable, private         :: allocate_and_fill_own_dofs_vef_x_fe           => coarse_fe_space_allocate_and_fill_own_dofs_vef_x_fe
     procedure, non_overridable, private         :: fill_own_dofs_x_fe_field                      => coarse_fe_space_fill_own_dofs_x_fe_field
     procedure, non_overridable, private         :: free_own_dofs_vef_x_fe                        => coarse_fe_space_free_free_own_dofs_vef_x_fe
-    procedure, non_overridable, private         :: allocate_lst_dofs_lids                          => coarse_fe_space_allocate_lst_dofs_lids
+    procedure, non_overridable, private         :: allocate_lst_dofs_gids                          => coarse_fe_space_allocate_lst_dofs_gids
     procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids                => coarse_fe_space_count_dofs_and_fill_lst_dof_lids
     procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field
-    procedure, non_overridable, private         :: free_lst_dofs_lids                              => coarse_fe_space_free_lst_dofs_lids
+    procedure, non_overridable, private         :: free_lst_dofs_gids                              => coarse_fe_space_free_lst_dofs_gids
     procedure, non_overridable, private         :: free_num_dofs_x_field_and_block            => coarse_fe_space_free_num_dofs_x_field_and_block
     procedure, non_overridable, private         :: free_blocks_dof_import                          => coarse_fe_space_free_blocks_dof_import
     procedure, non_overridable, nopass, private :: coarse_fe_size                                  => coarse_fe_space_coarse_fe_size

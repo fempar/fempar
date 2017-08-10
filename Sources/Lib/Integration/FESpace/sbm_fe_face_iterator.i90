@@ -279,10 +279,10 @@ function fe_face_iterator_get_quadrature_degree ( this )
   implicit none
   class(fe_face_iterator_t), intent(in) :: this
   integer(ip) :: fe_face_iterator_get_quadrature_degree
-  if ( allocated(this%fe_space%fe_face_quadratures_degree) ) then
-     fe_face_iterator_get_quadrature_degree = this%fe_space%fe_face_quadratures_degree(this%face_lid)
+  if ( allocated(this%fe_space%facet_quadratures_degree) ) then
+     fe_face_iterator_get_quadrature_degree = this%fe_space%facet_quadratures_degree(this%face_lid)
   end if
-  if ( .not. allocated(this%fe_space%fe_face_quadratures_degree) .or. &
+  if ( .not. allocated(this%fe_space%facet_quadratures_degree) .or. &
        fe_face_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
      fe_face_iterator_get_quadrature_degree = this%get_default_quadrature_degree()
   end if
@@ -306,11 +306,11 @@ subroutine fe_face_iterator_set_quadrature_degree ( this, quadrature_degree )
   class(fe_face_iterator_t), intent(inout) :: this
   integer(ip)              , intent(in)    :: quadrature_degree
   assert ( quadrature_degree >= -1 )
-  if ( .not. allocated ( this%fe_space%fe_face_quadratures_degree) ) then
-     call this%fe_space%allocate_fe_face_quadratures_degree()
-     call this%fe_space%clear_fe_face_quadratures_degree()
+  if ( .not. allocated ( this%fe_space%facet_quadratures_degree) ) then
+     call this%fe_space%allocate_facet_quadratures_degree()
+     call this%fe_space%clear_facet_quadratures_degree()
   end if
-  this%fe_space%fe_face_quadratures_degree(this%face_lid) = quadrature_degree
+  this%fe_space%facet_quadratures_degree(this%face_lid) = quadrature_degree
 end subroutine fe_face_iterator_set_quadrature_degree
 
 !=================================================================================================
@@ -320,8 +320,8 @@ function fe_face_iterator_get_quadrature ( this )
   type(quadrature_t), pointer :: fe_face_iterator_get_quadrature
   
   integer(ip) :: icell_around, istat
-  integer(ip) :: fe_face_quadratures_position_key
-  integer(ip) :: fe_face_quadratures_position
+  integer(ip) :: facet_quadratures_position_key
+  integer(ip) :: facet_quadratures_position
   integer(ip) :: reference_fes_geo_id(2)
    
   reference_fes_geo_id(2) = 0 
@@ -330,16 +330,16 @@ function fe_face_iterator_get_quadrature ( this )
      reference_fes_geo_id(icell_around) = this%fe%get_reference_fe_geo_id()
   end do
   
-  fe_face_quadratures_position_key = &
-       this%fe_space%generate_fe_face_quadratures_position_key(this%get_quadrature_degree(), &
+  facet_quadratures_position_key = &
+       this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_geo_id(1), &
                                                                reference_fes_geo_id(2) )
        
-  call this%fe_space%fe_face_quadratures_position%get(key=fe_face_quadratures_position_key, &
-                                                      val=fe_face_quadratures_position, &
+  call this%fe_space%facet_quadratures_position%get(key=facet_quadratures_position_key, &
+                                                      val=facet_quadratures_position, &
                                                       stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_face_iterator_get_quadrature => this%fe_space%fe_face_quadratures(fe_face_quadratures_position)
+  fe_face_iterator_get_quadrature => this%fe_space%facet_quadratures(facet_quadratures_position)
 end function fe_face_iterator_get_quadrature
 
 !==================================================================================================
@@ -359,11 +359,11 @@ function fe_face_iterator_get_facet_map(this)
   end do
   
   fe_facet_maps_position_key = &
-       this%fe_space%generate_fe_face_quadratures_position_key(this%get_quadrature_degree(), &
+       this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_geo_id(1), &
                                                                reference_fes_geo_id(2) )
        
-  call this%fe_space%fe_face_quadratures_position%get(key=fe_facet_maps_position_key, &
+  call this%fe_space%facet_quadratures_position%get(key=fe_facet_maps_position_key, &
                                                       val=fe_facet_maps_position, &
                                                       stat=istat)
   assert ( .not. istat == key_not_found )

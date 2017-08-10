@@ -67,7 +67,7 @@ subroutine coarse_fe_space_create (this, &
                                      lst_vefs_gids_dofs_objects_ghost_extended )
      call this%allocate_and_fill_own_dofs_vef_x_fe( lst_dofs_gids_ghost_extended, & 
                                                       lst_vefs_gids_dofs_objects_ghost_extended )
-     call this%allocate_lst_dofs_lids()
+     call this%allocate_lst_dofs_gids()
      call this%count_dofs_and_fill_lst_dof_lids()
      call this%compute_blocks_dof_import(lst_dofs_gids_ghost_extended)
      call this%renum_dofs_first_interior_then_interface()
@@ -114,7 +114,7 @@ recursive subroutine coarse_fe_space_free (this)
         call this%free_fe_space_type_x_field()
         call this%free_ptr_dofs_x_fe_and_field()
         call this%free_own_dofs_vef_x_fe()
-        call this%free_lst_dofs_lids()
+        call this%free_lst_dofs_gids()
         call this%free_num_dofs_x_field_and_block()
         call this%free_blocks_dof_import()
         this%num_fields = -1 
@@ -626,12 +626,12 @@ subroutine coarse_fe_space_free_free_own_dofs_vef_x_fe (this)
   end if
 end subroutine coarse_fe_space_free_free_own_dofs_vef_x_fe 
 
-subroutine coarse_fe_space_allocate_lst_dofs_lids (this)
+subroutine coarse_fe_space_allocate_lst_dofs_gids (this)
   implicit none
   class(coarse_fe_space_t) , intent(in)  :: this
   type(environment_t)  , pointer     :: par_environment
   integer(ip)                            :: num_local_cells, num_ghost_cells
-  integer(ip)                            :: sz_lst_dofs_lids
+  integer(ip)                            :: sz_lst_dofs_gids
   
   par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
@@ -639,9 +639,9 @@ subroutine coarse_fe_space_allocate_lst_dofs_lids (this)
   
   num_local_cells = this%coarse_triangulation%get_num_local_cells()
   num_ghost_cells = this%coarse_triangulation%get_num_ghost_cells()
-  sz_lst_dofs_lids = this%ptr_dofs_x_fe_and_field((num_local_cells+num_ghost_cells)*this%num_fields+1)-1 
-  call memalloc (sz_lst_dofs_lids, this%lst_dofs_lids, __FILE__, __LINE__ ) 
-end subroutine coarse_fe_space_allocate_lst_dofs_lids
+  sz_lst_dofs_gids = this%ptr_dofs_x_fe_and_field((num_local_cells+num_ghost_cells)*this%num_fields+1)-1 
+  call memalloc (sz_lst_dofs_gids, this%lst_dofs_gids, __FILE__, __LINE__ ) 
+end subroutine coarse_fe_space_allocate_lst_dofs_gids
 
 subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids( this )
   implicit none
@@ -654,7 +654,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids( this )
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
 
-  this%lst_dofs_lids = -1
+  this%lst_dofs_gids = -1
   call memalloc( this%num_blocks   , this%num_dofs_x_block, __FILE__, __LINE__ )
   call memalloc( this%num_fields, this%num_dofs_x_field, __FILE__, __LINE__ )
   this%num_dofs_x_block = 0
@@ -760,11 +760,11 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
        this%num_dofs_x_field(field_id)   
 end subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field
 
-subroutine coarse_fe_space_free_lst_dofs_lids ( this )
+subroutine coarse_fe_space_free_lst_dofs_gids ( this )
   implicit none
   class(coarse_fe_space_t), intent(inout) :: this 
-  if ( allocated(this%lst_dofs_lids) ) call memfree(this%lst_dofs_lids, __FILE__, __LINE__ )
-end subroutine coarse_fe_space_free_lst_dofs_lids
+  if ( allocated(this%lst_dofs_gids) ) call memfree(this%lst_dofs_gids, __FILE__, __LINE__ )
+end subroutine coarse_fe_space_free_lst_dofs_gids
 
 subroutine coarse_fe_space_free_num_dofs_x_field_and_block ( this )
   implicit none
@@ -1078,7 +1078,7 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
      ! Traverse the dofs on top of current vef
      do while (.not. own_dofs_on_vef_iterator%is_upper_bound())     
         dof_gid = lst_dofs_gids(base_pos_lst_dofs+own_dofs_on_vef_iterator%get_current()) 
-        dof_lid = this%lst_dofs_lids(base_pos_lst_dofs+own_dofs_on_vef_iterator%get_current())
+        dof_lid = this%lst_dofs_gids(base_pos_lst_dofs+own_dofs_on_vef_iterator%get_current())
         do ipart=1, num_parts
            part_id = parts_visited(ipart)
            dofs_lid ( current_col ) = dof_lid 

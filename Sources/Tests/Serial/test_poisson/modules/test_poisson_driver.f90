@@ -86,8 +86,8 @@ module test_poisson_driver_names
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
-     procedure        , private :: setup_fe_quadratures_degree
-     procedure        , private :: setup_fe_face_quadratures_degree
+     procedure        , private :: setup_cell_quadratures_degree
+     procedure        , private :: setup_facet_quadratures_degree
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
@@ -358,13 +358,13 @@ contains
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
       call this%fe_space%initialize_fe_face_integration()
     end if
-    call this%setup_fe_quadratures_degree()
+    call this%setup_cell_quadratures_degree()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
-      call this%setup_fe_face_quadratures_degree()
+      call this%setup_facet_quadratures_degree()
     end if
   end subroutine setup_fe_space
   
-  subroutine setup_fe_quadratures_degree (this)
+  subroutine setup_cell_quadratures_degree (this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
     class(fe_iterator_t), allocatable :: fe
@@ -375,9 +375,9 @@ contains
        call fe%next()
     end do
     call this%fe_space%free_fe_iterator(fe)
-  end subroutine setup_fe_quadratures_degree
+  end subroutine setup_cell_quadratures_degree
   
-  subroutine setup_fe_face_quadratures_degree (this)
+  subroutine setup_facet_quadratures_degree (this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
     class(fe_face_iterator_t), allocatable :: fe_face
@@ -388,7 +388,7 @@ contains
        call fe_face%next()
     end do
     call this%fe_space%free_fe_face_iterator(fe_face)
-  end subroutine setup_fe_face_quadratures_degree
+  end subroutine setup_facet_quadratures_degree
   
   subroutine setup_system (this)
     implicit none
