@@ -1199,32 +1199,32 @@ end subroutine node_array_compute_num_rot_and_perm
 ! the anchor node in the master face, we consider the permutations of this type till the anchor node 
 ! of the slave node (origin) coincides. In 2D, x -> 1-x.
 !=================================================================================================
-function rotate( ijk_node, ijk_anchor_node, face_dim, order )
+function rotate( ijk_node, ijk_anchor_node, n_face_dim, order )
   implicit none
-  integer(ip), intent(in) :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM), face_dim, order
+  integer(ip), intent(in) :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM), n_face_dim, order
   integer(ip) :: i, rotate(SPACE_DIM), aux1, aux2, rot_vertex(SPACE_DIM)
   rot_vertex = ijk_anchor_node
   rotate = ijk_node
-  do while ( sum(rot_vertex(1:face_dim)) /= 0 )
+  do while ( sum(rot_vertex(1:n_face_dim)) /= 0 )
      aux1 = rotate(1)
      aux2 = rot_vertex(1)
-     do i = 1,face_dim-1
+     do i = 1,n_face_dim-1
         rotate(i) = rotate(i+1)
         rot_vertex(i) = rot_vertex(i+1)
      end do
-     rotate(face_dim) = order - aux1
-     rot_vertex(face_dim) = 1 - aux2
+     rotate(n_face_dim) = order - aux1
+     rot_vertex(n_face_dim) = 1 - aux2
   end do
 end function rotate
 !
 ! The change of orientation in 3D is ij -> ij or ji. In 2D, i -> i.
 !=================================================================================================
-pure function change_orientation( ijk_node, orientation, face_dim )
+pure function change_orientation( ijk_node, orientation, n_face_dim )
   implicit none
-  integer(ip), intent(in) :: ijk_node(SPACE_DIM), orientation, face_dim
+  integer(ip), intent(in) :: ijk_node(SPACE_DIM), orientation, n_face_dim
   integer(ip) :: change_orientation(SPACE_DIM)
   ! if ( dim == 1) nothing to be done
-  if ( orientation == 2 .and. face_dim == 2 ) then
+  if ( orientation == 2 .and. n_face_dim == 2 ) then
      change_orientation(1) = ijk_node(2)
      change_orientation(2) = ijk_node(1)
   else

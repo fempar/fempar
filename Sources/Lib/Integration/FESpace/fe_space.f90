@@ -322,7 +322,7 @@ module fe_space_names
     procedure, non_overridable          :: get_facet_integrator           => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface               => fe_facet_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_facet_iterator_get_lpos_within_cell_around
-    procedure, non_overridable          :: get_face_permutation_index    => fe_facet_iterator_get_face_permutation_index
+    procedure, non_overridable          :: get_facet_permutation_index    => fe_facet_iterator_get_facet_permutation_index
   end type fe_facet_iterator_t
       
   integer(ip), parameter :: fe_space_type_cg                        = 0 ! H^1 conforming FE space
@@ -367,7 +367,7 @@ module fe_space_names
      
      ! Member variables to provide support to fe_facet_iterator_t
      type(std_vector_integer_ip_t)               :: facet_gids
-     type(std_vector_integer_ip_t)               :: face_permutation_indices
+     type(std_vector_integer_ip_t)               :: facet_permutation_indices
      
      ! DoF identifiers associated to each FE and field within FE
      integer(ip)                   , allocatable :: ptr_dofs_x_field_cell(:,:) ! (num_fields, num_fes+1)
@@ -452,8 +452,8 @@ module fe_space_names
      procedure                 , private :: fill_facet_gids                    => serial_fe_space_fill_facet_gids
      procedure, non_overridable, private :: free_facet_gids                    => serial_fe_space_free_facet_gids
      
-     procedure, non_overridable, private :: compute_face_permutation_indices             => serial_fe_space_compute_face_permutation_indices
-     procedure, non_overridable, private :: free_face_permutation_indices                => serial_fe_space_free_face_permutation_indices
+     procedure, non_overridable, private :: compute_facet_permutation_indices             => serial_fe_space_compute_facet_permutation_indices
+     procedure, non_overridable, private :: free_facet_permutation_indices                => serial_fe_space_free_facet_permutation_indices
      
      procedure, non_overridable          :: set_up_facet_integration               => serial_fe_space_set_up_facet_integration
      procedure, non_overridable, private :: free_facet_integration                     => serial_fe_space_free_facet_integration
@@ -477,7 +477,7 @@ module fe_space_names
      procedure, non_overridable          :: get_max_num_dofs_on_a_cell                => serial_fe_space_get_max_num_dofs_on_a_cell
      procedure, non_overridable          :: get_max_num_quadrature_points             => serial_fe_space_get_max_num_quadrature_points
      procedure, non_overridable          :: get_max_num_nodal_quadrature_points       => serial_fe_space_get_max_num_nodal_quadrature_points
-     procedure, non_overridable          :: get_max_num_face_quadrature_points        => serial_fe_space_get_max_num_face_quadrature_points     
+     procedure, non_overridable          :: get_max_num_facet_quadrature_points        => serial_fe_space_get_max_num_facet_quadrature_points     
      procedure, non_overridable          :: get_max_order                                => serial_fe_space_get_max_order
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
@@ -610,9 +610,9 @@ module fe_space_names
    procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
    procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
    procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => par_fe_space_raw_interface_data_by_continuity_decide_owner
-   procedure        , non_overridable, private :: compute_raw_interface_data_by_face_integ        => par_fe_space_compute_raw_interface_data_by_face_integ
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_facet_integ        => par_fe_space_compute_raw_interface_data_by_facet_integ
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => pfs_compute_ubound_num_itfc_couplings_by_continuity
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => pfs_compute_ubound_num_itfc_couplings_by_face_integ
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_facet_integ => pfs_compute_ubound_num_itfc_couplings_by_facet_integ
    procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_ggid                => par_fe_space_generate_non_consecutive_dof_ggid
    
    ! These set of three subroutines are in charge of generating a dof_import for the distributed-memory solution of boundary mass matrices

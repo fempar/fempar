@@ -129,26 +129,26 @@ subroutine facet_maps_free(this)
 end subroutine facet_maps_free
 
 !==================================================================================================
-subroutine facet_maps_update(this,facet_lid,face_quadrature,left_reference_fe_geo)
+subroutine facet_maps_update(this,facet_lid,facet_quadrature,left_reference_fe_geo)
   implicit none
   ! Parameters
   class(facet_maps_t)    , intent(inout) :: this
   integer(ip)          , intent(in)    :: facet_lid(2)
-  type(quadrature_t), intent(in)    :: face_quadrature
+  type(quadrature_t), intent(in)    :: facet_quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
   real   (rp)             :: reorientation_factor
 
   ! Update cell_maps
-  call this%cell_maps(1)%update(facet_lid(1),face_quadrature)
+  call this%cell_maps(1)%update(facet_lid(1),facet_quadrature)
   if (.not. this%is_at_boundary) then
      assert ( facet_lid(2) >= 1 )
-     call this%cell_maps(2)%update(facet_lid(2),face_quadrature)
+     call this%cell_maps(2)%update(facet_lid(2),facet_quadrature)
   end if
   
   ! Compute normals reorientation factors from |J|'s original sign and face orientation
   reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(facet_lid(1),this%cell_maps(1)%cell_map(facet_lid(1)))
   ! Update facet_map
-  call this%facet_map%update(reorientation_factor,face_quadrature)
+  call this%facet_map%update(reorientation_factor,facet_quadrature)
 end subroutine facet_maps_update
 
 !==================================================================================================

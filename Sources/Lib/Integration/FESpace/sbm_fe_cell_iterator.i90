@@ -292,19 +292,19 @@ subroutine fe_cell_iterator_generate_dofs_facet_integration_coupling ( this, ive
   ! Local variables
   integer(ip)                    :: idof, base_pos_lst_dofs_gids
   class(reference_fe_t), pointer :: reference_fe
-  type(list_iterator_t)          :: face_integration_coupling_dofs 
+  type(list_iterator_t)          :: facet_integration_coupling_dofs 
   
   reference_fe => this%get_reference_fe(field_id)
   assert ( reference_fe%get_n_face_dim(ivef) == reference_fe%get_num_dims()-1 )
   
   if ( reference_fe%get_continuity() ) then
-    face_integration_coupling_dofs = reference_fe%create_dofs_on_n_face_iterator(ivef)
+    facet_integration_coupling_dofs = reference_fe%create_dofs_on_n_face_iterator(ivef)
     base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_gid())-1
-    do while (.not. face_integration_coupling_dofs%is_upper_bound())
-      idof = face_integration_coupling_dofs%get_current()
+    do while (.not. facet_integration_coupling_dofs%is_upper_bound())
+      idof = facet_integration_coupling_dofs%get_current()
       dof_count = dof_count +1 
       this%fe_space%lst_dofs_gids(base_pos_lst_dofs_gids+idof) = dof_count
-      call face_integration_coupling_dofs%next()
+      call facet_integration_coupling_dofs%next()
     end do
   end if
 end subroutine fe_cell_iterator_generate_dofs_facet_integration_coupling

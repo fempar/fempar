@@ -298,7 +298,7 @@ subroutine uim_init_cut_boundary_integration( this )
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
   integer(ip) :: mc_case, mc_num_cases, istat, pini, pend, subfacet, ifield
-  integer(ip) :: num_dim, num_gp, num_subfacets, num_face_dim, num_fields
+  integer(ip) :: num_dim, num_gp, num_subfacets, num_fields
 
   real(rp), pointer :: quad_coords(:,:), sub_quad_coords(:,:)
   real(rp), pointer :: quad_weight(:), sub_quad_weight(:)

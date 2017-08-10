@@ -81,7 +81,7 @@ contains
     ! FE integration-related data types
     type(cell_map_t)           , pointer :: cell_map
     type(facet_maps_t)         , pointer :: facet_map
-    type(facet_integrator_t)  , pointer :: face_int_velocity
+    type(facet_integrator_t)  , pointer :: facet_int_velocity
     type(vector_field_t)               :: normals(2)
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
@@ -192,7 +192,7 @@ contains
     quad               => fe_face%get_quadrature()
     num_quad_points    = quad%get_num_quadrature_points()
     facet_map           => fe_face%get_facet_maps()
-    face_int_velocity  => fe_face%get_facet_integrator(1)
+    facet_int_velocity  => fe_face%get_facet_integrator(1)
     num_dofs_x_field => fe_face%get_num_dofs_x_field(1)
     
     call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
@@ -203,7 +203,7 @@ contains
          call fe_face%update_integration() 
          quad_coords => facet_map%get_quadrature_points_coordinates()
          call this%pressure_boundary_function%get_values_set(quad_coords, pressure_boundary_function_values)
-         call face_int_velocity%get_values(1,velocity_shape_values)
+         call facet_int_velocity%get_values(1,velocity_shape_values)
          do qpoint = 1, num_quad_points
             factor = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call facet_map%get_normals(qpoint,normals)

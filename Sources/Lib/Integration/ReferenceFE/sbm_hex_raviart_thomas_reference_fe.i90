@@ -817,7 +817,7 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
                        conformity        = .true. )
 
   ! Create a d-1 dimension quadrature from RT reference FE
-  ! Project it later to d dimensions on face_quadrature
+  ! Project it later to d dimensions on facet_quadrature
   call this%create_facet_quadrature( d_1_quadrature )
   
   call d_1_fe%create_interpolation( d_1_quadrature, d_1_interpolation )

@@ -700,7 +700,7 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
                                            this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
         else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
            ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
-                this%compute_ubound_num_itfc_couplings_by_face_integ(field_id)
+                this%compute_ubound_num_itfc_couplings_by_facet_integ(field_id)
         end if
         total_ubound_num_itfc_couplings = total_ubound_num_itfc_couplings + ubound_num_itfc_couplings (i)
         i=i+1                                  
@@ -726,7 +726,7 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
                                                               raw_interface_data )
         else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
            total_num_itfc_couplings = &
-                this%compute_raw_interface_data_by_face_integ(field_id, &
+                this%compute_raw_interface_data_by_facet_integ(field_id, &
                                                               total_num_itfc_couplings, &
                                                               ubound_num_itfc_couplings(i),&
                                                               dofs_gid,&
@@ -810,11 +810,11 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
 end function pfs_compute_ubound_num_itfc_couplings_by_continuity
 
 
-function pfs_compute_ubound_num_itfc_couplings_by_face_integ( this, field_id )
+function pfs_compute_ubound_num_itfc_couplings_by_facet_integ( this, field_id )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: field_id
-  integer(ip)                          :: pfs_compute_ubound_num_itfc_couplings_by_face_integ
+  integer(ip)                          :: pfs_compute_ubound_num_itfc_couplings_by_facet_integ
 
   integer(ip)  :: elem_gid
   integer(ip)  :: ivef_itfc, ielem, vef_gid
@@ -834,14 +834,14 @@ function pfs_compute_ubound_num_itfc_couplings_by_face_integ( this, field_id )
   !         finite_element => this%get_finite_element(elem_gid)
   !         !if ( .not. finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() .and. &
   !         !     .not. finite_element%reference_fe_phy(fe_space_id)%p%get_conformity() ) then
-  !         result = result + finite_element%reference_fe_phy(field_id)%p%get_face_integration_coupling_num_nodes_face( )
+  !         result = result + finite_element%reference_fe_phy(field_id)%p%get_facet_integration_coupling_num_nodes_face( )
   !         !end if
   !      end do
   !   end if
-  !   new_parfespace_compute_ubound_num_itfc_couplings_by_face_integ = result
+  !   new_parfespace_compute_ubound_num_itfc_couplings_by_facet_integ = result
   !end do
 
-end function pfs_compute_ubound_num_itfc_couplings_by_face_integ
+end function pfs_compute_ubound_num_itfc_couplings_by_facet_integ
 
 function par_fe_space_generate_non_consecutive_dof_ggid (cell_ggid, lpos_dof_fe_dofs, field_id) result(dof_gid)
   implicit none
@@ -902,7 +902,7 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
     else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
         check(.false.) ! Not implemented yet
         !ubound_boundary_num_itfc_couplings (ifield) = ubound_boundary_num_itfc_couplings (ifield) + &
-        !        this%compute_ubound_boundary_num_itfc_couplings_by_face_integ(field_id)
+        !        this%compute_ubound_boundary_num_itfc_couplings_by_facet_integ(field_id)
     end if
     total_ubound_boundary_num_itfc_couplings = total_ubound_boundary_num_itfc_couplings + ubound_boundary_num_itfc_couplings (ifield)
   end do
@@ -928,7 +928,7 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
         else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
           check(.false.) ! Not implemented yet 
           !total_boundary_num_itfc_couplings = total_boundary_num_itfc_couplings + & 
-                ! this%compute_raw_interface_data_by_face_integ(field_id, &
+                ! this%compute_raw_interface_data_by_facet_integ(field_id, &
                 !                                              total_boundary_num_itfc_couplings, &
                 !                                              ubound_boundary_num_itfc_couplings(field_id),&
                 !                                              dofs_gid,&
@@ -1461,7 +1461,7 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
 
 end subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner
 
-function par_fe_space_compute_raw_interface_data_by_face_integ ( this, &
+function par_fe_space_compute_raw_interface_data_by_facet_integ ( this, &
                                                                  fe_space_id, &
                                                                  offset, &
                                                                  ubound_num_itfc_couplings, &
@@ -1509,8 +1509,8 @@ function par_fe_space_compute_raw_interface_data_by_face_integ ( this, &
   !         elem_gid = this%par_triangulation%elems(elem_gid)%globagid
   !         finite_element => this%get_finite_element(elem_gid)
   !         ivef = finite_element%cell%find_local_pos_from_vef_id(vef_gid)
-  !         do idof_face=1, finite_element%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_num_nodes_face()
-  !            idof = finite_element%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_node_face(idof_face,ivef)
+  !         do idof_face=1, finite_element%reference_fe_phy(fe_space_id)%p%get_facet_integration_coupling_num_nodes_face()
+  !            idof = finite_element%reference_fe_phy(fe_space_id)%p%get_facet_integration_coupling_node_face(idof_face,ivef)
   !            dof_gid = finite_element%fe_dofs(fe_space_id)%p(idof)
   !            dofs_gid ( current_col ) = dof_gid 
   !            raw_interface_data(neighbor_part_id_row, current_col) = part_id
@@ -1543,7 +1543,7 @@ function par_fe_space_compute_raw_interface_data_by_face_integ ( this, &
   !!  write(*,"(10i10)") current_col, dofs_gid(current_col), raw_interface_data(:,current_col)
   !!end do 
 
-end function par_fe_space_compute_raw_interface_data_by_face_integ
+end function par_fe_space_compute_raw_interface_data_by_facet_integ
 
 
 subroutine par_fe_space_create_dof_values(this, dof_values)
@@ -1659,10 +1659,10 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
 
      call memalloc ( this%get_max_num_shape_functions(), subset_fe_dofs, __FILE__, __LINE__ )
 
-     allocate ( vector_function_values(this%get_max_num_face_quadrature_points(),1), & 
+     allocate ( vector_function_values(this%get_max_num_facet_quadrature_points(),1), & 
                 stat=istat); check(istat==0);
 
-     allocate ( scalar_function_values(this%get_max_num_face_quadrature_points(),1), & 
+     allocate ( scalar_function_values(this%get_max_num_facet_quadrature_points(),1), & 
                 stat=istat); check(istat==0);
 
      allocate ( function_scalar_components(this%triangulation%get_num_dims()), & 

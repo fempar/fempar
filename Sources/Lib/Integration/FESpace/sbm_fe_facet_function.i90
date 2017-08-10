@@ -45,10 +45,10 @@ subroutine fe_facet_function_scalar_create ( this, fe_space, field_id )
 end subroutine fe_facet_function_scalar_create
 
 !==================================================================================================
-subroutine fe_facet_function_scalar_update ( this, face_iterator, fe_function )
+subroutine fe_facet_function_scalar_update ( this, facet_iterator, fe_function )
   implicit none
   class(fe_facet_function_scalar_t), intent(inout) :: this
-  class(fe_facet_iterator_t)       , intent(inout) :: face_iterator
+  class(fe_facet_iterator_t)       , intent(inout) :: facet_iterator
   type(fe_function_t)             , intent(in)    :: fe_function
   
   integer(ip)                      :: inode, field_id
@@ -65,19 +65,19 @@ subroutine fe_facet_function_scalar_update ( this, face_iterator, fe_function )
   environment     => this%fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then
 
-     this%is_at_boundary = face_iterator%is_at_boundary()
+     this%is_at_boundary = facet_iterator%is_at_boundary()
 
      field_id = this%get_field_id()
-     quadrature => face_iterator%get_quadrature()
+     quadrature => facet_iterator%get_quadrature()
      num_quadrature_points =  quadrature%get_num_quadrature_points()
-     facet_integrator => face_iterator%get_facet_integrator(field_id)
+     facet_integrator => facet_iterator%get_facet_integrator(field_id)
 
-     do icell_around=1, face_iterator%get_num_cells_around()
+     do icell_around=1, facet_iterator%get_num_cells_around()
 
         this%quadrature_points_permutation(icell_around)%p => &
              facet_integrator%get_current_qpoints_perm(icell_around)
 
-        call face_iterator%get_cell_around(icell_around, this%fe)
+        call facet_iterator%get_cell_around(icell_around, this%fe)
 
         reference_fe => this%fe%get_reference_fe(field_id)  
         num_nodes_field =  reference_fe%get_num_shape_functions()  
@@ -227,10 +227,10 @@ subroutine fe_facet_function_vector_create ( this, fe_space, field_id )
 end subroutine fe_facet_function_vector_create
 
 !==================================================================================================
-subroutine fe_facet_function_vector_update ( this, face_iterator, fe_function )
+subroutine fe_facet_function_vector_update ( this, facet_iterator, fe_function )
   implicit none
   class(fe_facet_function_vector_t), intent(inout) :: this
-  class(fe_facet_iterator_t)       , intent(inout) :: face_iterator
+  class(fe_facet_iterator_t)       , intent(inout) :: facet_iterator
   type(fe_function_t)             , intent(in)    :: fe_function
   
   integer(ip)                      :: inode, field_id
@@ -247,19 +247,19 @@ subroutine fe_facet_function_vector_update ( this, face_iterator, fe_function )
   environment     => this%fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then
 
-     this%is_at_boundary = face_iterator%is_at_boundary()
+     this%is_at_boundary = facet_iterator%is_at_boundary()
 
      field_id = this%get_field_id()
-     quadrature => face_iterator%get_quadrature()
+     quadrature => facet_iterator%get_quadrature()
      num_quadrature_points =  quadrature%get_num_quadrature_points()
-     facet_integrator => face_iterator%get_facet_integrator(field_id)
+     facet_integrator => facet_iterator%get_facet_integrator(field_id)
 
-     do icell_around=1, face_iterator%get_num_cells_around()
+     do icell_around=1, facet_iterator%get_num_cells_around()
 
         this%quadrature_points_permutation(icell_around)%p => &
              facet_integrator%get_current_qpoints_perm(icell_around)
 
-        call face_iterator%get_cell_around(icell_around, this%fe)
+        call facet_iterator%get_cell_around(icell_around, this%fe)
 
         reference_fe => this%fe%get_reference_fe(field_id)  
         num_nodes_field =  reference_fe%get_num_shape_functions()  
@@ -411,10 +411,10 @@ end subroutine fe_facet_function_tensor_create
 
 
 !==================================================================================================
-subroutine fe_facet_function_tensor_update ( this, face_iterator, fe_function )
+subroutine fe_facet_function_tensor_update ( this, facet_iterator, fe_function )
   implicit none
   class(fe_facet_function_tensor_t), intent(inout) :: this
-  class(fe_facet_iterator_t)       , intent(inout) :: face_iterator
+  class(fe_facet_iterator_t)       , intent(inout) :: facet_iterator
   type(fe_function_t)             , intent(in)    :: fe_function
   
   integer(ip)                      :: inode, field_id, block_id
@@ -429,23 +429,23 @@ subroutine fe_facet_function_tensor_update ( this, face_iterator, fe_function )
   class(serial_fe_space_t)   , pointer     :: serial_fe_space  
   
   
-  serial_fe_space => face_iterator%get_fe_space()
+  serial_fe_space => facet_iterator%get_fe_space()
   environment     => serial_fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then
 
-     this%is_at_boundary = face_iterator%is_at_boundary()
+     this%is_at_boundary = facet_iterator%is_at_boundary()
 
      field_id = this%get_field_id()
-     quadrature => face_iterator%get_quadrature()
+     quadrature => facet_iterator%get_quadrature()
      num_quadrature_points =  quadrature%get_num_quadrature_points()
-     facet_integrator => face_iterator%get_facet_integrator(field_id)
+     facet_integrator => facet_iterator%get_facet_integrator(field_id)
 
-     do icell_around=1, face_iterator%get_num_cells_around()
+     do icell_around=1, facet_iterator%get_num_cells_around()
 
         this%quadrature_points_permutation(icell_around)%p => &
              facet_integrator%get_current_qpoints_perm(icell_around)
 
-        call face_iterator%get_cell_around(icell_around, this%fe)
+        call facet_iterator%get_cell_around(icell_around, this%fe)
 
         reference_fe => this%fe%get_reference_fe(field_id)  
         num_nodes_field =  reference_fe%get_num_shape_functions()  

@@ -55,13 +55,13 @@ subroutine fe_object_iterator_get_fe_vef (this, ivef, fe_vef)
   call this%object%get_vef(ivef, fe_vef%vef)
 end subroutine fe_object_iterator_get_fe_vef
 
-subroutine fe_object_iterator_get_fe_face(this, face_gid, fe_face)
+subroutine fe_object_iterator_get_fe_face(this, facet_gid, fe_face)
   implicit none
   class(fe_object_iterator_t), intent(in)    :: this
-  integer(ip)                , intent(in)    :: face_gid
+  integer(ip)                , intent(in)    :: facet_gid
   class(fe_facet_iterator_t)  , intent(inout) :: fe_face
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  call fe_face%set_gid(face_gid)
+  call fe_face%set_gid(facet_gid)
 end subroutine fe_object_iterator_get_fe_face
 
 function fe_object_iterator_get_num_facets(this)

@@ -649,10 +649,10 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
 
   call memalloc ( this%get_max_num_shape_functions(), subset_fe_dofs, __FILE__, __LINE__ )
 
-  allocate ( vector_function_values(this%get_max_num_face_quadrature_points(),1), & 
+  allocate ( vector_function_values(this%get_max_num_facet_quadrature_points(),1), & 
              stat=istat); check(istat==0);
 
-  allocate ( scalar_function_values(this%get_max_num_face_quadrature_points(),1), & 
+  allocate ( scalar_function_values(this%get_max_num_facet_quadrature_points(),1), & 
              stat=istat); check(istat==0);
 
   allocate ( function_scalar_components(this%triangulation%get_num_dims()), & 
@@ -1026,7 +1026,7 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   integer(ip)                      :: qpoint, n_q_points
   type(facet_maps_t)       , pointer :: facet_maps
   type(facet_map_t)        , pointer :: facet_map
-  type(facet_integrator_t), pointer :: face_int
+  type(facet_integrator_t), pointer :: facet_int
   integer(ip)                      :: ishape, jshape
   real(rp)                         :: factor
   type(vector_field_t) :: normal 
@@ -1038,7 +1038,7 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   facet_maps         => fe_face%get_facet_maps()   
   facet_map => facet_maps%get_facet_map()
   n_q_points        = quadrature%get_num_quadrature_points()
-  face_int          => fe_face%get_facet_integrator(field_id)
+  facet_int          => fe_face%get_facet_integrator(field_id)
   select case(reference_fe%get_field_type())
   case ( field_type_scalar )
      ! Curl-conforming projection does not make sense with scalar-valued fields
@@ -1050,9 +1050,9 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
         factor = facet_maps%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
         call facet_map%get_normal(qpoint, normal)
         do ishape = 1, reference_fe%get_num_shape_functions() 
-           call face_int%get_value(ishape,qpoint,1,vector_shape_test)
+           call facet_int%get_value(ishape,qpoint,1,vector_shape_test)
            do jshape = 1, reference_fe%get_num_shape_functions()
-              call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
+              call facet_int%get_value(jshape,qpoint,1,vector_shape_trial)
               elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
            end do
            elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
@@ -1780,7 +1780,7 @@ subroutine serial_fe_space_free_facet_gids ( this )
   call this%facet_gids%free()
 end subroutine serial_fe_space_free_facet_gids
 
-subroutine serial_fe_space_compute_face_permutation_indices ( this )
+subroutine serial_fe_space_compute_facet_permutation_indices ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   class(fe_facet_iterator_t)       , allocatable :: fe_face
@@ -1790,7 +1790,7 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
   class(lagrangian_reference_fe_t), pointer     :: second_reference_fe_geo
   integer(ip)                                   :: fe_facet_permutation_index
   
-  call this%face_permutation_indices%resize(this%facet_gids%size(),-1)
+  call this%facet_permutation_indices%resize(this%facet_gids%size(),-1)
   call this%create_fe_cell_iterator(first_fe)
   call this%create_fe_cell_iterator(second_fe)
   call this%create_fe_facet_iterator(fe_face)
@@ -1806,7 +1806,7 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
                                                           fe_face%get_lpos_within_cell_around(2), &
                                                           first_fe%get_vef_gids(),                &
                                                           second_fe%get_vef_gids() )
-      call this%face_permutation_indices%set(fe_face%facet_gid, &
+      call this%facet_permutation_indices%set(fe_face%facet_gid, &
                                              fe_facet_permutation_index)
     end if
     call fe_face%next()
@@ -1815,13 +1815,13 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
   call this%free_fe_cell_iterator(second_fe)
   call this%free_fe_cell_iterator(first_fe)
 
-end subroutine serial_fe_space_compute_face_permutation_indices
+end subroutine serial_fe_space_compute_facet_permutation_indices
 
-subroutine serial_fe_space_free_face_permutation_indices ( this )
+subroutine serial_fe_space_free_facet_permutation_indices ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%face_permutation_indices%free()
-end subroutine serial_fe_space_free_face_permutation_indices
+  call this%facet_permutation_indices%free()
+end subroutine serial_fe_space_free_facet_permutation_indices
 
 subroutine serial_fe_space_set_up_facet_integration ( this )
   implicit none
@@ -1850,7 +1850,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
 
   call this%free_facet_integration()
 
-  call this%compute_face_permutation_indices()
+  call this%compute_facet_permutation_indices()
   
   call this%allocate_max_order_reference_fe_id_x_fe_face()
   call this%compute_max_order_reference_fe_id_x_fe_face()
@@ -2019,7 +2019,7 @@ subroutine serial_fe_space_free_facet_integration ( this )
   call this%free_facet_quadratures_degree()
   call this%free_max_order_reference_fe_id_x_fe_face()
   
-  call this%free_face_permutation_indices()
+  call this%free_facet_permutation_indices()
   
 end subroutine serial_fe_space_free_facet_integration
 
@@ -2444,18 +2444,18 @@ function serial_fe_space_get_max_num_nodal_quadrature_points( this )
   end do
 end function serial_fe_space_get_max_num_nodal_quadrature_points
 
-function serial_fe_space_get_max_num_face_quadrature_points( this )
+function serial_fe_space_get_max_num_facet_quadrature_points( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: serial_fe_space_get_max_num_face_quadrature_points
+  integer(ip) :: serial_fe_space_get_max_num_facet_quadrature_points
   integer(ip) :: iquad
-  serial_fe_space_get_max_num_face_quadrature_points = 0
+  serial_fe_space_get_max_num_facet_quadrature_points = 0
   do iquad = 1, size(this%facet_quadratures)
-     serial_fe_space_get_max_num_face_quadrature_points =       & 
-          max(serial_fe_space_get_max_num_face_quadrature_points, &
+     serial_fe_space_get_max_num_facet_quadrature_points =       & 
+          max(serial_fe_space_get_max_num_facet_quadrature_points, &
           this%facet_quadratures(iquad)%get_num_quadrature_points())
   end do
-end function serial_fe_space_get_max_num_face_quadrature_points
+end function serial_fe_space_get_max_num_facet_quadrature_points
 
 function serial_fe_space_get_max_order( this )
   implicit none

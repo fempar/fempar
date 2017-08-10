@@ -325,7 +325,7 @@ subroutine raviart_thomas_fill_vector (this)
         this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%num_dims )
      end if
   end do
-  ! own_nodes_n-face and face_integration_coupling_nodes_n-face
+  ! own_nodes_n-face and facet_integration_coupling_nodes_n-face
   if ( this%conformity .and. this%continuity ) then
   else
      call this%own_dofs_n_face%create(n=num_n_faces )

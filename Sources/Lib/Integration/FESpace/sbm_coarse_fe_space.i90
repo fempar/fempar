@@ -882,7 +882,7 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
            ! Not implemented yet
            check(.false.)
            !ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
-           !     this%compute_ubound_num_itfc_couplings_by_face_integ(fe_space_id)
+           !     this%compute_ubound_num_itfc_couplings_by_facet_integ(fe_space_id)
         end if
         total_ubound_num_itfc_couplings = total_ubound_num_itfc_couplings + ubound_num_itfc_couplings (i)
         i=i+1                                  
@@ -911,7 +911,7 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
            ! Not implemented yet
            check(.false.)
            !total_num_itfc_couplings = total_num_itfc_couplings + & 
-           !     this%compute_raw_interface_data_by_face_integ(fe_space_id, &
+           !     this%compute_raw_interface_data_by_facet_integ(fe_space_id, &
            !                                                   total_num_itfc_couplings, &
            !                                                   ubound_num_itfc_couplings(i),&
            !                                                   dofs_lid,&

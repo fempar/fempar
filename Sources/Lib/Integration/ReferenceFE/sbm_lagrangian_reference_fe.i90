@@ -77,16 +77,16 @@ subroutine lagrangian_reference_fe_create_facet_quadrature ( this, quadrature, d
   type(quadrature_t)              , intent(inout) :: quadrature
   integer(ip)           , optional, intent(in)    :: degree
 
-  integer(ip) :: ngaus, degree_, face_dims, idime
+  integer(ip) :: ngaus, degree_, facet_dims, idime
   ! @sbadia: to be improved to anisotropic quadratures
   if ( present(degree) ) then
      degree_ = degree
   else
      degree_ = this%get_default_quadrature_degree()
   end if
-  face_dims = this%num_dims - 1
-  ngaus = this%compute_num_quadrature_points(degree_,face_dims)
-  call quadrature%create( face_dims, ngaus )
+  facet_dims = this%num_dims - 1
+  ngaus = this%compute_num_quadrature_points(degree_,facet_dims)
+  call quadrature%create( facet_dims, ngaus )
   call this%fill_quadrature( quadrature )
 
 end subroutine lagrangian_reference_fe_create_facet_quadrature
@@ -1240,7 +1240,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%num_dims )
      end if
   end do
-  ! own_nodes_n-face and face_integration_coupling_nodes_n-face
+  ! own_nodes_n-face and facet_integration_coupling_nodes_n-face
   if ( this%conformity .and. this%continuity ) then
   else
      call this%own_dofs_n_face%create(n=num_n_faces )
@@ -1258,11 +1258,11 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
 end subroutine lagrangian_reference_fe_fill_scalar
 
 !==================================================================================================
-function lagrangian_reference_fe_get_normal_orientation_factor( this, face_lid, cell_map )          &
+function lagrangian_reference_fe_get_normal_orientation_factor( this, facet_lid, cell_map )          &
   result(orientation_factor)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: face_lid
+  integer(ip)                     , intent(in)    :: facet_lid
   type(cell_map_t)       , optional , intent(in)    :: cell_map
   real(rp)    :: orientation_factor
   real(rp)    :: jacobian_reorientation_factor
@@ -1275,11 +1275,11 @@ function lagrangian_reference_fe_get_normal_orientation_factor( this, face_lid, 
   
   num_cell_dims = this%num_dims
   if (num_cell_dims.ne.1) then
-     local_vef_id = this%ptr_n_faces_x_dim(num_cell_dims) + face_lid - 1
+     local_vef_id = this%ptr_n_faces_x_dim(num_cell_dims) + facet_lid - 1
      orientation_face  = this%orientation%a(local_vef_id)
      orientation_factor = (-1)**orientation_face*jacobian_reorientation_factor
   else ! 1D special case
-     orientation_factor = -1.0_rp**(real(face_lid))
+     orientation_factor = -1.0_rp**(real(facet_lid))
   end if
   
 end function lagrangian_reference_fe_get_normal_orientation_factor

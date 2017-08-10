@@ -83,7 +83,7 @@ contains
     
     ! Face integration-related data types
     type(facet_maps_t)       , pointer :: facet_map
-    type(facet_integrator_t), pointer :: face_int
+    type(facet_integrator_t), pointer :: facet_int
     type(vector_field_t)             :: normals(2)
     real(rp)                         :: shape_test, shape_trial
     real(rp)                         :: h_length
@@ -184,7 +184,7 @@ contains
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
     facet_map        => fe_face%get_facet_maps()
-    face_int        => fe_face%get_facet_integrator(1)
+    facet_int        => fe_face%get_facet_integrator(1)
     
     do while ( .not. fe_face%has_finished() ) 
        
@@ -192,10 +192,10 @@ contains
          facemat = 0.0_rp
          call fe_face%update_integration()    
          
-         call face_int%get_values(1,shape_values_first)
-         call face_int%get_values(2,shape_values_second)
-         call face_int%get_gradients(1,shape_gradients_first)
-         call face_int%get_gradients(2,shape_gradients_second)
+         call facet_int%get_values(1,shape_values_first)
+         call facet_int%get_values(2,shape_values_second)
+         call facet_int%get_gradients(1,shape_gradients_first)
+         call facet_int%get_gradients(2,shape_gradients_second)
          do qpoint = 1, num_quad_points
             call facet_map%get_normals(qpoint,normals)
             h_length = facet_map%compute_characteristic_length(qpoint)
@@ -220,11 +220,11 @@ contains
                  end if
  
                  do idof = 1, num_dofs
-                  !call face_int%get_value(idof,qpoint,ineigh,shape_trial)
-                  !call face_int%get_gradient(idof,qpoint,ineigh,grad_trial)
+                  !call facet_int%get_value(idof,qpoint,ineigh,shape_trial)
+                  !call facet_int%get_gradient(idof,qpoint,ineigh,grad_trial)
                      do jdof = 1, num_dofs
-                        !call face_int%get_value(jdof,qpoint,jneigh,shape_test)
-                        !call face_int%get_gradient(jdof,qpoint,jneigh,grad_test)
+                        !call facet_int%get_value(jdof,qpoint,jneigh,shape_test)
+                        !call facet_int%get_gradient(jdof,qpoint,jneigh,grad_test)
                         !- mu*({{grad u}}[[v]] + (1-xi)*[[u]]{{grad v}} ) + C*mu*p^2/h * [[u]] [[v]]
                         facemat(idof,jdof,ineigh,jneigh) = facemat(idof,jdof,ineigh,jneigh) +     &
                              &  factor * viscosity *   &
@@ -252,7 +252,7 @@ contains
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
     facet_map        => fe_face%get_facet_maps()
-    face_int        => fe_face%get_facet_integrator(1)
+    facet_int        => fe_face%get_facet_integrator(1)
    
     do while ( .not. fe_face%has_finished() )
        
@@ -263,8 +263,8 @@ contains
          call fe_face%update_integration()
          call boundary_fe_facet_function%update(fe_face,boundary_fe_function)
          quad_coords => facet_map%get_quadrature_points_coordinates()
-         call face_int%get_values(1,shape_values_first)
-         call face_int%get_gradients(1,shape_gradients_first)
+         call facet_int%get_values(1,shape_values_first)
+         call facet_int%get_gradients(1,shape_gradients_first)
          do qpoint = 1, num_quad_points
             call facet_map%get_normals(qpoint,normals)
             h_length = facet_map%compute_characteristic_length(qpoint)
@@ -273,11 +273,11 @@ contains
             call boundary_fe_facet_function%get_value(qpoint,1,boundary_fe_function_value)
             boundary_value = 2*boundary_value - boundary_fe_function_value
             do idof = 1, num_dofs
-              !call face_int%get_value(idof,qpoint,1,shape_trial)
-              !call face_int%get_gradient(idof,qpoint,1,grad_trial)   
+              !call facet_int%get_value(idof,qpoint,1,shape_trial)
+              !call facet_int%get_gradient(idof,qpoint,1,grad_trial)   
               do jdof = 1, num_dofs
-                 !call face_int%get_value(jdof,qpoint,1,shape_test)
-                 !call face_int%get_gradient(jdof,qpoint,1,grad_test)
+                 !call facet_int%get_value(jdof,qpoint,1,shape_test)
+                 !call facet_int%get_gradient(jdof,qpoint,1,grad_test)
                  facemat(idof,jdof,1,1) = facemat(idof,jdof,1,1) + &
                                      &  factor * viscosity *   &
                                      (-shape_gradients_first(jdof,qpoint)*normals(1)*shape_values_first(idof,qpoint) - &

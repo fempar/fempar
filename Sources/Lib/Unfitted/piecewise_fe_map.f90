@@ -148,7 +148,7 @@ contains
     real(rp), pointer :: normal_vecs(:,:)
     real(rp) :: reorientation_factor
     
-    reorientation_factor = this%reference_fe_geometry%get_normal_orientation_factor(face_lid = 1)
+    reorientation_factor = this%reference_fe_geometry%get_normal_orientation_factor(facet_lid = 1)
 
     do imap = 1, this%num_sub_maps
 
