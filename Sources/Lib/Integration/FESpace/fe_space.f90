@@ -302,6 +302,7 @@ module fe_space_names
     procedure                           :: has_finished                  => fe_face_iterator_has_finished
     procedure, non_overridable          :: set_lid                       => fe_face_iterator_set_lid
     procedure, non_overridable          :: get_lid                       => fe_face_iterator_get_lid
+    procedure, non_overridable          :: is_at_field_boundary          => fe_face_iterator_is_at_field_boundary
     procedure, non_overridable, private :: update_number_dofs_per_field  => fe_face_iterator_update_number_dofs_per_field
     procedure, non_overridable, private :: update_elem2dof_per_cell      => fe_face_iterator_update_elem2dof_per_cell
     procedure, non_overridable          :: update_integration            => fe_face_iterator_update_integration

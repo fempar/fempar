@@ -103,6 +103,16 @@ function fe_face_iterator_get_lid (this) result(face_lid)
   face_lid = this%face_lid
 end function fe_face_iterator_get_lid
 
+function fe_face_iterator_is_at_field_boundary ( this, field_id )
+  implicit none
+  class(fe_face_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id
+  logical                                  :: fe_face_iterator_is_at_field_boundary
+  type(face_integrator_t), pointer :: face_int
+  face_int  => this%get_face_integrator(field_id)
+  fe_face_iterator_is_at_field_boundary = face_int%is_at_boundary()
+end function fe_face_iterator_is_at_field_boundary
+
 subroutine fe_face_iterator_update_number_dofs_per_field( this, icell_around )
   implicit none
   class(fe_face_iterator_t), intent(inout) :: this 

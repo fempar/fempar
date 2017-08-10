@@ -1621,6 +1621,7 @@ contains
   procedure, non_overridable :: free               => face_integrator_free
   procedure, non_overridable :: set_is_boundary_and_min_active_cell_id &
     => face_integrator_set_is_boundary_and_min_active_cell_id
+  procedure, non_overridable :: is_at_boundary     => face_integrator_is_at_boundary
   procedure, non_overridable :: get_active_cell_id => face_integrator_get_active_cell_id
   procedure, non_overridable :: get_value_scalar   => face_integrator_get_value_scalar
   procedure, non_overridable :: get_value_vector   => face_integrator_get_value_vector

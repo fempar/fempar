@@ -391,6 +391,14 @@ subroutine face_integrator_set_is_boundary_and_min_active_cell_id (this,left_ref
 end subroutine face_integrator_set_is_boundary_and_min_active_cell_id
 
 !==================================================================================================
+function face_integrator_is_at_boundary (this)
+  implicit none
+  class(face_integrator_t), intent(in)    :: this
+  logical                                 :: face_integrator_is_at_boundary
+  face_integrator_is_at_boundary = this%is_boundary
+end function face_integrator_is_at_boundary
+
+!==================================================================================================
 function face_integrator_get_active_cell_id (this,neighbour_id)
   implicit none
   class(face_integrator_t), intent(in)    :: this
