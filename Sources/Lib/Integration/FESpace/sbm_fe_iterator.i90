@@ -596,8 +596,8 @@ function fe_iterator_get_default_quadrature_degree ( this )
   class(fe_iterator_t), intent(in) :: this
   integer(ip) :: fe_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
-  assert( allocated(this%fe_space%max_order_reference_fe_id_x_fe_cell) )
-  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_fe_cell(this%get_lid())
+  assert( allocated(this%fe_space%max_order_reference_fe_id_x_cell) )
+  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_cell(this%get_lid())
   fe_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
 end function fe_iterator_get_default_quadrature_degree
@@ -654,20 +654,20 @@ function fe_iterator_get_cell_integrator ( this, field_id )
   class(fe_iterator_t), intent(in)   :: this
   integer(ip)         , intent(in)   :: field_id
   type(cell_integrator_t), pointer :: fe_iterator_get_cell_integrator
-  integer(ip) :: fe_cell_integrators_position_key
-  integer(ip) :: fe_cell_integrators_position
+  integer(ip) :: cell_integrators_position_key
+  integer(ip) :: cell_integrators_position
   integer(ip) :: istat
   
-  fe_cell_integrators_position_key = &
-        this%fe_space%generate_fe_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
+  cell_integrators_position_key = &
+        this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
                                                                   this%get_quadrature_degree(), &
                                                                   this%fe_space%field_cell_to_ref_fes(field_id, this%get_lid()))
   
-  call this%fe_space%fe_cell_integrators_position%get(key=fe_cell_integrators_position_key, &
-                                                        val=fe_cell_integrators_position, &
+  call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
+                                                        val=cell_integrators_position, &
                                                         stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_iterator_get_cell_integrator => this%fe_space%fe_cell_integrators(fe_cell_integrators_position)
+  fe_iterator_get_cell_integrator => this%fe_space%cell_integrators(cell_integrators_position)
 end function fe_iterator_get_cell_integrator
 
 subroutine fe_iterator_get_fe_vef(this, ivef, fe_vef)

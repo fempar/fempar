@@ -520,7 +520,7 @@ contains
                                conditions          = this%poisson_conditions )
 
     call this%fe_space%initialize_fe_integration()
-    call this%fe_space%initialize_fe_face_integration()
+    call this%fe_space%initialize_facet_integration()
 
     !call this%fe_space%print()
   end subroutine setup_fe_space

@@ -234,7 +234,7 @@ contains
                                conditions    = this%hts_nedelec_conditions )
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
-    call this%fe_space%initialize_fe_face_integration() 
+    call this%fe_space%initialize_facet_integration() 
        
   end subroutine setup_fe_space 
     
@@ -296,7 +296,7 @@ contains
 
     ! Integration loop 
     class(fe_iterator_t)     , allocatable :: fe
-    class(fe_face_iterator_t), allocatable :: fe_face 
+    class(fe_facet_iterator_t), allocatable :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
     type(cell_map_t)           , pointer     :: cell_map
@@ -382,10 +382,10 @@ contains
     ! ================================   3D CASE, only integrate over z-normal faces ===================
     elseif ( this%triangulation%get_num_dims() == 3) then 
     
-       call this%fe_space%initialize_fe_face_integration()
+       call this%fe_space%initialize_facet_integration()
 
        ! Search for the first boundary face
-       call this%fe_space%create_fe_face_iterator(fe_face)
+       call this%fe_space%create_fe_facet_iterator(fe_face)
        do while ( .not. fe_face%is_at_boundary() ) 
           call fe_face%next()
        end do
@@ -432,7 +432,7 @@ contains
        call memfree ( facevec, __FILE__, __LINE__ )
     end if 
     call this%fe_space%free_fe_iterator(fe)
-    call this%fe_space%free_fe_face_iterator(fe_face)
+    call this%fe_space%free_fe_facet_iterator(fe_face)
     ! Sum duplicates, re-order by rows, and leave the matrix in a final state
     call this%constraint_matrix%sort_and_compress()
     ! call this%constraint_vector%print(6) 

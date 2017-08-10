@@ -1606,7 +1606,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
-  class(fe_face_iterator_t), allocatable :: fe_face
+  class(fe_facet_iterator_t), allocatable :: fe_face
   class(fe_iterator_t)     , allocatable :: fe
   
   type(i1p_t), allocatable :: elem2dof(:)
@@ -1692,7 +1692,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      ! Create data structures
      call projected_nodal_values%create_and_allocate(par_environment, dof_import)
  
-     call this%create_fe_face_iterator(fe_face)
+     call this%create_fe_facet_iterator(fe_face)
      call this%create_fe_iterator(fe) 
      do while ( .not. fe_face%has_finished() )
         if ( fe_face%is_at_boundary() ) then
@@ -1756,7 +1756,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
         call fe_face%next()
      end do
      call this%free_fe_iterator(fe) 
-     call this%free_fe_face_iterator(fe_face)
+     call this%free_fe_facet_iterator(fe_face)
      call matrix%convert(csr_format)
 
      call parameter_list%init()

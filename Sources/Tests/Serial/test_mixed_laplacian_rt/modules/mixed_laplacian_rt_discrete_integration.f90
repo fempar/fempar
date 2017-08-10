@@ -76,7 +76,7 @@ contains
 
     ! FE space traversal-related data types
     class(fe_iterator_t)     , allocatable :: fe
-    class(fe_face_iterator_t), allocatable :: fe_face
+    class(fe_facet_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
     type(cell_map_t)           , pointer :: cell_map
@@ -179,12 +179,12 @@ contains
     call fe_space%free_fe_iterator(fe)
     call memfree ( pressure_source_term_values, __FILE__, __LINE__ )
     
-    call fe_space%initialize_fe_face_integration()
+    call fe_space%initialize_facet_integration()
 
     call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
     
     ! Search for the first boundary face
-    call fe_space%create_fe_face_iterator(fe_face)
+    call fe_space%create_fe_facet_iterator(fe_face)
     do while ( .not. fe_face%is_at_boundary() ) 
        call fe_face%next()
     end do
@@ -216,7 +216,7 @@ contains
        end if
        call fe_face%next()
     end do
-    call fe_space%free_fe_face_iterator(fe_face)
+    call fe_space%free_fe_facet_iterator(fe_face)
     call memfree ( pressure_boundary_function_values, __FILE__, __LINE__ )
     deallocate(velocity_shape_values, stat=istat); check(istat==0);
     call memfree(velocity_shape_divs, __FILE__, __LINE__)

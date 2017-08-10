@@ -47,7 +47,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
 
   ! FE space traversal-related data types
   type(list_iterator_t)                  :: faces_object_iterator
-  class(fe_face_iterator_t), allocatable :: fe_face
+  class(fe_facet_iterator_t), allocatable :: fe_face
 
   ! Face integration-related data types
   type(quadrature_t)     , pointer :: quad
@@ -77,7 +77,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   ! Fill constraint matrix entries (transposed)
   call par_fe_space%create_fe_object_iterator(object)
   call par_fe_space%create_fe_iterator(fe)
-  call par_fe_space%create_fe_face_iterator(fe_face)
+  call par_fe_space%create_fe_facet_iterator(fe_face)
   call par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
      if ( object%get_num_coarse_dofs(field_id) > 0 ) then
@@ -156,7 +156,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   call faces_object_iterator%free()
   call par_fe_space%free_fe_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
-  call par_fe_space%free_fe_face_iterator(fe_face)
+  call par_fe_space%free_fe_facet_iterator(fe_face)
   call par_fe_space%free_fe_vef_iterator(vef)
   deallocate (test_elem2dof, stat=istat); check(istat==0);
   call memfree(facevec, __FILE__, __LINE__ )
