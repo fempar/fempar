@@ -922,7 +922,7 @@ contains
   procedure :: fill_own_dof_permutations           &
        & => lagrangian_reference_fe_fill_own_dof_permutations
   procedure :: fill_qpoints_permutations           &
-       & => lagrangian_fill_qpoints_permutations
+       & => lagrangian_reference_fe_fill_qpoints_permutations
   procedure, private, non_overridable :: fill_field_components        & 
        & => lagrangian_reference_fe_fill_field_components
 
@@ -1619,8 +1619,8 @@ contains
   procedure, non_overridable :: create             => face_integrator_create
   procedure, non_overridable :: update             => face_integrator_update
   procedure, non_overridable :: free               => face_integrator_free
-  procedure, non_overridable :: set_is_boundary_and_min_active_cell_id &
-    => face_integrator_set_is_boundary_and_min_active_cell_id
+  procedure, non_overridable :: set_is_boundary_and_active_cell_id &
+    => face_integrator_set_is_boundary_and_active_cell_id
   procedure, non_overridable :: is_at_boundary     => face_integrator_is_at_boundary
   procedure, non_overridable :: get_active_cell_id => face_integrator_get_active_cell_id
   procedure, non_overridable :: get_value_scalar   => face_integrator_get_value_scalar
