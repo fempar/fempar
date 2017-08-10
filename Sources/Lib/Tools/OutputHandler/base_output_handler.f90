@@ -59,7 +59,7 @@ USE reference_fe_names,          only: field_type_scalar, field_type_vector, fie
 USE fe_space_names,              only: serial_fe_space_t, fe_cell_iterator_t, fe_function_t
 USE output_handler_fe_field_names
 USE output_handler_patch_names
-USE output_handler_cell_fe_function_names
+USE output_handler_fe_cell_function_names
 USE output_handler_parameters_names
 
 implicit none
@@ -105,11 +105,11 @@ private
     ! @note
     ! All setters must be called before OPEN.
     ! All getters (except get_fe_space) must be called after OPEN.
-    ! FILLED occurs when metadata is filled from [[output_handler_cell_fe_function_t(type)]].
+    ! FILLED occurs when metadata is filled from [[output_handler_fe_cell_function_t(type)]].
     !-----------------------------------------------------------------
     private
         class(serial_fe_space_t),            pointer             :: fe_space              => NULL()
-        type(output_handler_cell_fe_function_t)                  :: ohcff
+        type(output_handler_fe_cell_function_t)                  :: ohcff
         type(output_handler_fe_field_t),    allocatable          :: fe_fields(:)
         type(output_handler_cell_vector_t), allocatable          :: cell_vectors(:)
         procedure(create_fe_cell_iterator_interface), nopass, pointer :: create_fe_cell_iterator    => NULL()
@@ -519,7 +519,7 @@ contains
     !< Translation of the data contained in [[serial_fe_space_t(type)]],
     !< [[fe_function_t(type)]] and **cell_vector**.
     !< This is the kernel of the implemented strategy for writting to disk. 
-    !< It uses [[output_handler_cell_fe_function_t(type)]] in order to fill
+    !< It uses [[output_handler_fe_cell_function_t(type)]] in order to fill
     !< the [[output_handler_patch_t(type)]] with local view of the data delimited 
     !< in each cell. 
     !< This procedure is supported by the deferred **append_cell**

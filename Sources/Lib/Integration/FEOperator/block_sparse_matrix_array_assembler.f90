@@ -62,7 +62,7 @@ contains
                                                                  field_blocks,   &
                                                                  field_coupling, &
                                                                  num_dofs,    &
-                                                                 cell2dof,       &
+                                                                 fe_dofs,       &
                                                                  elvec )
     implicit none
     class(block_sparse_assembler_t) , intent(inout) :: this
@@ -70,7 +70,7 @@ contains
     integer(ip)                                  , intent(in)    :: field_blocks(num_fields)
     logical                                      , intent(in)    :: field_coupling(num_fields,num_fields)
     integer(ip)                                  , intent(in)    :: num_dofs(num_fields)
-    type(i1p_t)                                  , intent(in)    :: cell2dof(num_fields)
+    type(i1p_t)                                  , intent(in)    :: fe_dofs(num_fields)
     real(rp)                                     , intent(in)    :: elvec(:)
 
     class(array_t) , pointer :: array
@@ -81,7 +81,7 @@ contains
       call element_serial_block_array_assembly( array,         &
                                                 num_fields, & 
                                                 num_dofs,   &
-                                                cell2dof,      &
+                                                fe_dofs,      &
                                                 field_blocks,  & 
                                                 elvec )
       class default
@@ -155,7 +155,7 @@ contains
   subroutine element_serial_block_array_assembly( array,         &
                                                   num_fields, &
                                                   num_dofs,   &
-                                                  cell2dof,      &
+                                                  fe_dofs,      &
                                                   field_blocks,  &
                                                   elvec )
     implicit none
@@ -163,7 +163,7 @@ contains
     type(serial_block_array_t), intent(inout) :: array
     integer(ip)               , intent(in)    :: num_fields
     integer(ip)               , intent(in)    :: num_dofs(num_fields)
-    type(i1p_t)               , intent(in)    :: cell2dof(num_fields)
+    type(i1p_t)               , intent(in)    :: fe_dofs(num_fields)
     integer(ip)               , intent(in)    :: field_blocks(num_fields)
     real(rp)                  , intent(in)    :: elvec(:)
     
@@ -175,7 +175,7 @@ contains
        iblock = field_blocks(ife_space)
        block => array%get_block(iblock)
        call block%add( num_dofs(ife_space), &
-                       cell2dof(ife_space)%p,  &
+                       fe_dofs(ife_space)%p,  &
                        ielvec,                 &
                        elvec )
        ielvec = ielvec + num_dofs(ife_space)

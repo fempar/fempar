@@ -1749,7 +1749,7 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_x_fe_face ( this )
            end if
         end do
      end do
-     this%max_order_reference_fe_id_x_fe_face(fe_face%face_lid) = max_order_reference_fe_id 
+     this%max_order_reference_fe_id_x_fe_face(fe_face%facet_gid) = max_order_reference_fe_id 
      call fe_face%next()
   end do
   call this%free_fe_facet_iterator(fe_face)
@@ -1760,14 +1760,14 @@ subroutine serial_fe_space_fill_facet_gids ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   type(fe_vef_iterator_t) :: fe_vef
-  integer(ip)             :: face_lid
-  face_lid = 0
+  integer(ip)             :: facet_gid
+  facet_gid = 0
   call this%facet_gids%resize(this%triangulation%get_num_facets())
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
     if ( fe_vef%is_face() ) then
-      face_lid = face_lid + 1
-      call this%facet_gids%set(face_lid,fe_vef%get_lid())
+      facet_gid = facet_gid + 1
+      call this%facet_gids%set(facet_gid,fe_vef%get_lid())
     end if
     call fe_vef%next()
   end do
@@ -1806,7 +1806,7 @@ subroutine serial_fe_space_compute_face_permutation_indices ( this )
                                                           fe_face%get_lpos_within_cell_around(2), &
                                                           first_fe%get_vef_lids(),                &
                                                           second_fe%get_vef_lids() )
-      call this%face_permutation_indices%set(fe_face%face_lid, &
+      call this%face_permutation_indices%set(fe_face%facet_gid, &
                                              fe_facet_permutation_index)
     end if
     call fe_face%next()
@@ -1943,7 +1943,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
                                                 val  = current_facet_quadrature, &
                                                 stat = istat)  
      if (istat == now_stored) then
-        reference_fe=>this%reference_fes( this%max_order_reference_fe_id_x_fe_face(fe_face%face_lid) )%p
+        reference_fe=>this%reference_fes( this%max_order_reference_fe_id_x_fe_face(fe_face%facet_gid) )%p
         call reference_fe%create_facet_quadrature(this%facet_quadratures(current_facet_quadrature),fe_face%get_quadrature_degree())
         call this%facet_maps(current_facet_map)%create(fe_face%get_quadrature(), &
                                                            reference_fes_geo(1)%p, &

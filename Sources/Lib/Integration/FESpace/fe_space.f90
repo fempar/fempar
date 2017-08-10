@@ -289,7 +289,7 @@ module fe_space_names
     
   type, extends(fe_vef_iterator_t) :: fe_facet_iterator_t
     private
-    integer(ip)                       :: face_lid
+    integer(ip)                       :: facet_gid
     class(fe_cell_iterator_t), allocatable :: fe
     ! Scratch data to support FE face integration
     integer(ip)         , allocatable :: num_dofs_x_cell_and_field(:,:)

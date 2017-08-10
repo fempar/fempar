@@ -110,7 +110,7 @@ contains
     real(rp)                           :: p_shape_trial, p_shape_test
     type(vector_field_t)               :: H_value_current, H_value_previous
     type(vector_field_t) , allocatable :: H_current_curl_values(:)  
-    type(cell_fe_function_vector_t)    :: cell_fe_function_previous, cell_fe_function_current 
+    type(fe_cell_function_vector_t)    :: fe_cell_function_previous, fe_cell_function_current 
     
     ! Nonlinear parameters computed in the integrate 
     real(rp)   :: resistivity, tangent_resistivity
@@ -133,8 +133,8 @@ contains
     assert ( associated(this%H_previous) )
     
     call fe_space%set_up_cell_integration()
-    call cell_fe_function_previous%create(fe_space, 1) 
-    call cell_fe_function_current%create(fe_space,  1) 
+    call fe_cell_function_previous%create(fe_space, 1) 
+    call fe_cell_function_current%create(fe_space,  1) 
 
     call fe_space%create_fe_cell_iterator(fe)
     num_dofs = fe%get_num_dofs()
@@ -157,8 +157,8 @@ contains
        
        ! Update FE-integration related data structures
        call fe%update_integration()
-       call cell_fe_function_previous%update(fe, this%H_previous)
-       call cell_fe_function_current%update(fe, this%H_current)
+       call fe_cell_function_previous%update(fe, this%H_previous)
+       call fe_cell_function_current%update(fe, this%H_current)
 
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => cell_map%get_quadrature_points_coordinates()
@@ -167,7 +167,7 @@ contains
        call this%source_term%get_values_set( quad_coords, current_time, source_term_values)
        
        ! Evaluate current curl values  
-       call cell_fe_function_current%compute_quadrature_points_curl_values(H_current_curl_values)
+       call fe_cell_function_current%compute_quadrature_points_curl_values(H_current_curl_values)
        
        ! Compute element matrix and vector
        elmat = 0.0_rp
@@ -180,7 +180,7 @@ contains
           permeability = this%air_permeability
           
           ! Previous solution to integrate RHS contribution 
-          call cell_fe_function_previous%get_value( qpoint, H_value_previous )
+          call fe_cell_function_previous%get_value( qpoint, H_value_previous )
           
           ! BLOCK [1,1] : mu_0 ( H,v ) + rho( curl(H), curl(v) )  
           do idof=1, num_dofs_x_field(1)

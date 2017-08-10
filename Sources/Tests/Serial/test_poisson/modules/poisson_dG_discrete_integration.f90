@@ -100,7 +100,7 @@ contains
     
     class(scalar_function_t), pointer :: source_term, boundary_function
     type(fe_function_t)               :: boundary_fe_function
-    type(face_fe_function_scalar_t)   :: boundary_face_fe_function
+    type(fe_facet_function_scalar_t)   :: boundary_fe_facet_function
     real(rp) :: source_term_value, boundary_value, boundary_fe_function_value
 
     integer(ip)  :: istat
@@ -116,7 +116,7 @@ contains
     
     call boundary_fe_function%create(fe_space)
     call fe_space%interpolate(1,boundary_function,boundary_fe_function)
-    call boundary_face_fe_function%create(fe_space,1)
+    call boundary_fe_facet_function%create(fe_space,1)
     
     call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
@@ -261,7 +261,7 @@ contains
          facevec = 0.0_rp
          assert( fe_face%get_set_id() == 1 )
          call fe_face%update_integration()
-         call boundary_face_fe_function%update(fe_face,boundary_fe_function)
+         call boundary_fe_facet_function%update(fe_face,boundary_fe_function)
          quad_coords => facet_map%get_quadrature_points_coordinates()
          call face_int%get_values(1,shape_values_first)
          call face_int%get_gradients(1,shape_gradients_first)
@@ -270,7 +270,7 @@ contains
             h_length = facet_map%compute_characteristic_length(qpoint)
             factor = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
-            call boundary_face_fe_function%get_value(qpoint,1,boundary_fe_function_value)
+            call boundary_fe_facet_function%get_value(qpoint,1,boundary_fe_function_value)
             boundary_value = 2*boundary_value - boundary_fe_function_value
             do idof = 1, num_dofs
               !call face_int%get_value(idof,qpoint,1,shape_trial)
@@ -295,7 +295,7 @@ contains
     end do
     call fe_space%free_fe_facet_iterator(fe_face)
     call boundary_fe_function%free()
-    call boundary_face_fe_function%free()
+    call boundary_fe_facet_function%free()
     call memfree(shape_values_first, __FILE__, __LINE__) 
     call memfree(shape_values_second, __FILE__, __LINE__) 
     deallocate(shape_gradients_first, stat=istat); check(istat==0);

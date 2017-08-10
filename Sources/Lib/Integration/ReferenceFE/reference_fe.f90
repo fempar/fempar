@@ -1568,7 +1568,7 @@ public :: cell_integrator_t, p_cell_integrator_t
   type cell_integrator_facet_restriction_t
      private
      integer(ip)                            :: num_facets
-     integer(ip)                            :: active_face_lid
+     integer(ip)                            :: active_facet_lid
      type(cell_integrator_t), allocatable :: cell_integrator(:) 
    contains
      procedure, non_overridable :: create  => cell_integrator_facet_restriction_create

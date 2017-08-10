@@ -33,7 +33,7 @@ module error_norms_names
   use reference_fe_names
   use field_names
   use function_names
-  use cell_fe_function_names
+  use fe_cell_function_names
 # include "debug.i90"
   implicit none
   private
@@ -69,7 +69,7 @@ module error_norms_names
      
      ! Work arrays to store type(fe_function_t) values and gradients 
      ! restricted to field_id + current cell
-     type(cell_fe_function_scalar_t)       :: cell_fe_function
+     type(fe_cell_function_scalar_t)       :: fe_cell_function
      
      ! Work arrays to store exact function (and difference of fe - exact functions) 
      ! values and gradients. Size = (max_num_quadrature_points, 1). A 2-rank array 
@@ -100,7 +100,7 @@ module error_norms_names
      
      ! Work arrays to store type(fe_function_t) values and gradients 
      ! restricted to field_id + current cell
-     type(cell_fe_function_vector_t)       :: cell_fe_function
+     type(fe_cell_function_vector_t)       :: fe_cell_function
      
      ! Work arrays to store exact function (and difference of fe - exact functions) 
      ! values, gradients and curls. Size = (max_num_quadrature_points, 1). A 2-rank array 

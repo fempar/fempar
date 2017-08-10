@@ -51,7 +51,7 @@ subroutine fe_facet_iterator_free ( this )
     call this%fe%free()
     deallocate(this%fe, stat=istat); check(istat==0);
   end if
-  this%face_lid = -1
+  this%facet_gid = -1
   if ( allocated(this%num_dofs_x_cell_and_field) ) then
     call memfree ( this%num_dofs_x_cell_and_field, __FILE__, __LINE__ )
   end if
@@ -63,20 +63,20 @@ end subroutine fe_facet_iterator_free
 subroutine fe_facet_iterator_first ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(inout)      :: this
-  this%face_lid = 1
+  this%facet_gid = 1
   if ( .not. this%has_finished() ) then
     call this%base_fe_vef_iterator_t%set_lid( &
-      this%fe_space%facet_gids%get(this%face_lid) )
+      this%fe_space%facet_gids%get(this%facet_gid) )
   end if
 end subroutine fe_facet_iterator_first
 
 subroutine fe_facet_iterator_next ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(inout)      :: this
-  this%face_lid = this%face_lid + 1
+  this%facet_gid = this%facet_gid + 1
   if ( .not. this%has_finished() ) then
     call this%base_fe_vef_iterator_t%set_lid( &
-      this%fe_space%facet_gids%get(this%face_lid) )
+      this%fe_space%facet_gids%get(this%facet_gid) )
   end if
 end subroutine fe_facet_iterator_next
 
@@ -84,7 +84,7 @@ function fe_facet_iterator_has_finished ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(in)         :: this
   logical :: fe_facet_iterator_has_finished
-  fe_facet_iterator_has_finished = ( this%face_lid > this%fe_space%facet_gids%size() )
+  fe_facet_iterator_has_finished = ( this%facet_gid > this%fe_space%facet_gids%size() )
 end function fe_facet_iterator_has_finished
 
 subroutine fe_facet_iterator_set_lid ( this, lid )
@@ -92,7 +92,7 @@ subroutine fe_facet_iterator_set_lid ( this, lid )
   class(fe_facet_iterator_t), intent(inout) :: this
   integer(ip)              , intent(in)    :: lid
   assert ( lid >= 1 .and. lid <= this%fe_space%facet_gids%size() )
-  this%face_lid = lid
+  this%facet_gid = lid
   call this%base_fe_vef_iterator_t%set_lid(this%fe_space%facet_gids%get(lid))
 end subroutine fe_facet_iterator_set_lid
 
@@ -100,7 +100,7 @@ function fe_facet_iterator_get_lid (this) result(face_lid)
   implicit none
   class(fe_facet_iterator_t), intent(in)    :: this
   integer(ip) :: face_lid
-  face_lid = this%face_lid
+  face_lid = this%facet_gid
 end function fe_facet_iterator_get_lid
 
 subroutine fe_facet_iterator_update_num_dofs_x_field( this, icell_around )
@@ -280,7 +280,7 @@ function fe_facet_iterator_get_quadrature_degree ( this )
   class(fe_facet_iterator_t), intent(in) :: this
   integer(ip) :: fe_facet_iterator_get_quadrature_degree
   if ( allocated(this%fe_space%facet_quadratures_degree) ) then
-     fe_facet_iterator_get_quadrature_degree = this%fe_space%facet_quadratures_degree(this%face_lid)
+     fe_facet_iterator_get_quadrature_degree = this%fe_space%facet_quadratures_degree(this%facet_gid)
   end if
   if ( .not. allocated(this%fe_space%facet_quadratures_degree) .or. &
        fe_facet_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
@@ -295,7 +295,7 @@ function fe_facet_iterator_get_default_quadrature_degree ( this )
   integer(ip) :: fe_facet_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
   assert( allocated(this%fe_space%max_order_reference_fe_id_x_fe_face) )
-  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_fe_face(this%face_lid)
+  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_fe_face(this%facet_gid)
   fe_facet_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
 end function fe_facet_iterator_get_default_quadrature_degree
@@ -310,7 +310,7 @@ subroutine fe_facet_iterator_set_quadrature_degree ( this, quadrature_degree )
      call this%fe_space%allocate_facet_quadratures_degree()
      call this%fe_space%clear_facet_quadratures_degree()
   end if
-  this%fe_space%facet_quadratures_degree(this%face_lid) = quadrature_degree
+  this%fe_space%facet_quadratures_degree(this%facet_gid) = quadrature_degree
 end subroutine fe_facet_iterator_set_quadrature_degree
 
 !=================================================================================================
@@ -443,6 +443,6 @@ function fe_facet_iterator_get_face_permutation_index ( this ) result(face_permu
   implicit none
   class(fe_facet_iterator_t), intent(in) :: this
   integer(ip)                           :: face_permutation_index
-  face_permutation_index = this%fe_space%face_permutation_indices%get(this%face_lid)
+  face_permutation_index = this%fe_space%face_permutation_indices%get(this%facet_gid)
 end function fe_facet_iterator_get_face_permutation_index 
 

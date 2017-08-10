@@ -35,9 +35,9 @@
 !### Local view per cell for [[serial_fe_space_t(type)]] and [[fe_function_t(type)]] types.
 !
 ! Contains the following public entities: 
-! [[output_handler_cell_fe_function_names(module)]]
+! [[output_handler_fe_cell_function_names(module)]]
 !---------------------------------------------------------------------
-module output_handler_cell_fe_function_names
+module output_handler_fe_cell_function_names
 !---------------------------------------------------------------------
 !* Author: Alberto F. Martín
 ! Date: 2016-11-29
@@ -48,7 +48,7 @@ module output_handler_cell_fe_function_names
 !### Local view per cell for [[serial_fe_space_t(type)]] and [[fe_function_t(type)]] types.
 ! 
 ! Contains the following public entities: 
-! [[output_handler_cell_fe_function_t(type)]] 
+! [[output_handler_fe_cell_function_t(type)]] 
 !---------------------------------------------------------------------
     use types_names
     use list_types_names
@@ -86,7 +86,7 @@ private
         procedure(fill_patch_field_interface), nopass, pointer :: p => NULL()
     end type
   
-    type :: output_handler_cell_fe_function_t
+    type :: output_handler_fe_cell_function_t
     !-----------------------------------------------------------------
     !*Author: Alberto F. Martín
     ! Date: 2016-11-29
@@ -112,39 +112,39 @@ private
 
         contains
         private
-            procedure, non_overridable, public :: create                    => output_handler_cell_fe_function_create
-            procedure, non_overridable, public :: get_num_nodes          => output_handler_cell_fe_function_get_num_nodes
-            procedure, non_overridable, public :: get_num_cells          => output_handler_cell_fe_function_get_num_cells
-            procedure, non_overridable, public :: get_num_dims     => output_handler_cell_fe_function_get_num_dims
-            procedure, non_overridable, public :: has_mixed_cell_topologies => output_handler_cell_fe_function_has_mixed_cell_topologies
-            procedure, non_overridable, public :: fill_patch                => output_handler_cell_fe_function_fill_patch
-            procedure, non_overridable, public :: free                      => output_handler_cell_fe_function_free
+            procedure, non_overridable, public :: create                    => output_handler_fe_cell_function_create
+            procedure, non_overridable, public :: get_num_nodes          => output_handler_fe_cell_function_get_num_nodes
+            procedure, non_overridable, public :: get_num_cells          => output_handler_fe_cell_function_get_num_cells
+            procedure, non_overridable, public :: get_num_dims     => output_handler_fe_cell_function_get_num_dims
+            procedure, non_overridable, public :: has_mixed_cell_topologies => output_handler_fe_cell_function_has_mixed_cell_topologies
+            procedure, non_overridable, public :: fill_patch                => output_handler_fe_cell_function_fill_patch
+            procedure, non_overridable, public :: free                      => output_handler_fe_cell_function_free
 
             ! Strategy procedures to fill patch field data
             procedure, non_overridable :: apply_fill_patch_field_strategy => &
-                                                            output_handler_cell_fe_function_apply_fill_patch_field_strategy
+                                                            output_handler_fe_cell_function_apply_fill_patch_field_strategy
             procedure, non_overridable :: fill_patch_scalar_field_val     => &
-                                                            output_handler_cell_fe_function_fill_patch_scalar_field_val
+                                                            output_handler_fe_cell_function_fill_patch_scalar_field_val
             procedure, non_overridable :: fill_patch_scalar_field_grad    => &
-                                                            output_handler_cell_fe_function_fill_patch_scalar_field_grad
+                                                            output_handler_fe_cell_function_fill_patch_scalar_field_grad
             procedure, non_overridable :: fill_patch_vector_field_val     => &
-                                                            output_handler_cell_fe_function_fill_patch_vector_field_val
+                                                            output_handler_fe_cell_function_fill_patch_vector_field_val
             procedure, non_overridable :: fill_patch_vector_field_grad    => &
-                                                            output_handler_cell_fe_function_fill_patch_vector_field_grad
+                                                            output_handler_fe_cell_function_fill_patch_vector_field_grad
             procedure, non_overridable :: fill_patch_vector_field_div     => &
-                                                            output_handler_cell_fe_function_fill_patch_vector_field_div
+                                                            output_handler_fe_cell_function_fill_patch_vector_field_div
             procedure, non_overridable :: fill_patch_vector_field_curl    => &
-                                                            output_handler_cell_fe_function_fill_patch_vector_field_curl
+                                                            output_handler_fe_cell_function_fill_patch_vector_field_curl
             procedure, non_overridable :: fill_patch_tensor_field_val     => &
-                                                            output_handler_cell_fe_function_fill_patch_tensor_field_val
-            procedure, non_overridable :: fill_patch_cell_vector => output_handler_cell_fe_function_fill_patch_cell_vector
+                                                            output_handler_fe_cell_function_fill_patch_tensor_field_val
+            procedure, non_overridable :: fill_patch_cell_vector => output_handler_fe_cell_function_fill_patch_cell_vector
 
-            procedure, non_overridable :: generate_cell_integ_pos_key => output_handler_cell_fe_function_generate_cell_integ_pos_key
-            procedure, non_overridable :: get_num_reference_fes   => output_handler_cell_fe_function_get_num_reference_fes
-            procedure, non_overridable :: get_quadrature             => output_handler_cell_fe_function_get_quadrature
-            procedure, non_overridable :: get_cell_map                 => output_handler_cell_fe_function_get_cell_map
-            procedure, non_overridable :: get_cell_integrator      => output_handler_cell_fe_function_get_cell_integrator      
-    end type output_handler_cell_fe_function_t
+            procedure, non_overridable :: generate_cell_integ_pos_key => output_handler_fe_cell_function_generate_cell_integ_pos_key
+            procedure, non_overridable :: get_num_reference_fes   => output_handler_fe_cell_function_get_num_reference_fes
+            procedure, non_overridable :: get_quadrature             => output_handler_fe_cell_function_get_quadrature
+            procedure, non_overridable :: get_cell_map                 => output_handler_fe_cell_function_get_cell_map
+            procedure, non_overridable :: get_cell_integrator      => output_handler_fe_cell_function_get_cell_integrator      
+    end type output_handler_fe_cell_function_t
 
 
     interface 
@@ -152,30 +152,30 @@ private
             import ip
             import fe_function_t
             import output_handler_patch_field_t
-            import output_handler_cell_fe_function_t
-            class(output_handler_cell_fe_function_t), intent(inout) :: this
+            import output_handler_fe_cell_function_t
+            class(output_handler_fe_cell_function_t), intent(inout) :: this
             type(fe_function_t),                      intent(in)    :: fe_function
             integer(ip),                              intent(in)    :: field_id
             type(output_handler_patch_field_t),       intent(inout) :: patch_field
         end subroutine fill_patch_field_interface
     end interface
   
-public :: output_handler_cell_fe_function_t
+public :: output_handler_fe_cell_function_t
   
 contains
 
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
-    subroutine output_handler_cell_fe_function_create ( this, fe, num_fields, fe_fields, num_refinements )
+    subroutine output_handler_fe_cell_function_create ( this, fe, num_fields, fe_fields, num_refinements )
     !-----------------------------------------------------------------
-    !< Create output_handler_cell_fe_function. 
+    !< Create output_handler_fe_cell_function. 
     !< This procedure must be called every time the mesh changes.
     !< It loops over the finite elements to precalculate some values
     !< like *num_dims*, *num_cells*, *num_nodes*, 
     !< *quadratures*, *mixed_cell_topologies*, etc.
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         class(fe_cell_iterator_t)                    , intent(inout) :: fe
         integer(ip),                              intent(in)    :: num_fields
         type(output_handler_fe_field_t),          intent(in)    :: fe_fields(1:num_fields)
@@ -282,60 +282,60 @@ contains
                 call this%apply_fill_patch_field_strategy(field_type, diff_operator, this%fill_patch_field(num_field)%p)
             end do
         end if
-    end subroutine output_handler_cell_fe_function_create
+    end subroutine output_handler_fe_cell_function_create
 
 
-    function output_handler_cell_fe_function_get_num_nodes(this) result(num_nodes)
+    function output_handler_fe_cell_function_get_num_nodes(this) result(num_nodes)
     !-----------------------------------------------------------------
     !< Return the number of nodes
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t),  intent(in) :: this
+        class(output_handler_fe_cell_function_t),  intent(in) :: this
         integer(ip)                                           :: num_nodes
     !-----------------------------------------------------------------
         num_nodes = this%num_nodes
-    end function output_handler_cell_fe_function_get_num_nodes
+    end function output_handler_fe_cell_function_get_num_nodes
 
 
-    function output_handler_cell_fe_function_get_num_cells(this) result(num_cells)
+    function output_handler_fe_cell_function_get_num_cells(this) result(num_cells)
     !-----------------------------------------------------------------
     !< Return the number of cells
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t),  intent(in) :: this
+        class(output_handler_fe_cell_function_t),  intent(in) :: this
         integer(ip)                                           :: num_cells
     !-----------------------------------------------------------------
         num_cells = this%num_cells
-    end function output_handler_cell_fe_function_get_num_cells
+    end function output_handler_fe_cell_function_get_num_cells
 
 
-    function output_handler_cell_fe_function_get_num_dims(this) result(num_dims)
+    function output_handler_fe_cell_function_get_num_dims(this) result(num_dims)
     !-----------------------------------------------------------------
     !< Return the number of dimensions
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t),  intent(in) :: this
+        class(output_handler_fe_cell_function_t),  intent(in) :: this
         integer(ip)                                           :: num_dims
     !-----------------------------------------------------------------
         num_dims = this%num_dims
-    end function output_handler_cell_fe_function_get_num_dims
+    end function output_handler_fe_cell_function_get_num_dims
 
 
-    function output_handler_cell_fe_function_has_mixed_cell_topologies(this) result(mixed_cell_topologies)
+    function output_handler_fe_cell_function_has_mixed_cell_topologies(this) result(mixed_cell_topologies)
     !-----------------------------------------------------------------
     !< Return if the topology is composed by mixed cell types
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t),  intent(in) :: this
+        class(output_handler_fe_cell_function_t),  intent(in) :: this
         logical                                               :: mixed_cell_topologies
     !-----------------------------------------------------------------
         mixed_cell_topologies = this%mixed_cell_topologies
-    end function output_handler_cell_fe_function_has_mixed_cell_topologies
+    end function output_handler_fe_cell_function_has_mixed_cell_topologies
 
 
-    subroutine output_handler_cell_fe_function_fill_patch(this, fe_cell_iterator, num_fields, fe_fields, num_cell_vectors, cell_vectors, patch)
+    subroutine output_handler_fe_cell_function_fill_patch(this, fe_cell_iterator, num_fields, fe_fields, num_cell_vectors, cell_vectors, patch)
     !-----------------------------------------------------------------
     !< Fill a [[output_handler_patch_t(type)]] from a given [[fe_cell_iterator_t(type)]].
     !< The **pach** contains a local view of the coordinates, connectivities 
     !< and field data per cell.
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t),  intent(inout) :: this
+        class(output_handler_fe_cell_function_t),  intent(inout) :: this
         class(fe_cell_iterator_t),             target,  intent(in)    :: fe_cell_iterator
         integer(ip),                               intent(in)    :: num_fields
         type(output_handler_fe_field_t),           intent(in)    :: fe_fields(1:num_fields)
@@ -405,16 +405,16 @@ contains
                 call this%fill_patch_cell_vector(cell_vectors(idx), patch%get_num_subcells(), patch_cell_vector)
             end do
         end if
-    end subroutine output_handler_cell_fe_function_fill_patch
+    end subroutine output_handler_fe_cell_function_fill_patch
 
 
-    subroutine output_handler_cell_fe_function_apply_fill_patch_field_strategy(this, field_type, diff_operator, proc)
+    subroutine output_handler_fe_cell_function_apply_fill_patch_field_strategy(this, field_type, diff_operator, proc)
     !-----------------------------------------------------------------
     !< Choose strategy to fill a patch field.
     !< Patch field calculation is distributed in several procedures
     !< in order to apply some diff operators.
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t),       intent(inout) :: this
+        class(output_handler_fe_cell_function_t),       intent(inout) :: this
         character(len=:), allocatable,                  intent(in)    :: field_type
         character(len=:), allocatable,                  intent(in)    :: diff_operator
         procedure(fill_patch_field_interface), pointer, intent(inout) :: proc
@@ -424,9 +424,9 @@ contains
             case ( field_type_scalar )
                 select case (diff_operator)
                     case (no_diff_operator)
-                        proc => output_handler_cell_fe_function_fill_patch_scalar_field_val
+                        proc => output_handler_fe_cell_function_fill_patch_scalar_field_val
                     case (grad_diff_operator)
-                        proc => output_handler_cell_fe_function_fill_patch_scalar_field_grad
+                        proc => output_handler_fe_cell_function_fill_patch_scalar_field_grad
                     case DEFAULT
                         check(.false.)
                 end select
@@ -434,13 +434,13 @@ contains
             case ( field_type_vector )
                 select case (diff_operator)
                     case (no_diff_operator)
-                        proc => output_handler_cell_fe_function_fill_patch_vector_field_val
+                        proc => output_handler_fe_cell_function_fill_patch_vector_field_val
                     case (grad_diff_operator)
-                        proc => output_handler_cell_fe_function_fill_patch_vector_field_grad
+                        proc => output_handler_fe_cell_function_fill_patch_vector_field_grad
                     case (div_diff_operator)
-                        proc => output_handler_cell_fe_function_fill_patch_vector_field_div
+                        proc => output_handler_fe_cell_function_fill_patch_vector_field_div
                     case (curl_diff_operator)
-                        proc => output_handler_cell_fe_function_fill_patch_vector_field_curl
+                        proc => output_handler_fe_cell_function_fill_patch_vector_field_curl
                     case DEFAULT
                         check(.false.)
                 end select
@@ -448,19 +448,19 @@ contains
             case ( field_type_tensor )
                 select case (diff_operator)
                     case (no_diff_operator)
-                        proc => output_handler_cell_fe_function_fill_patch_tensor_field_val
+                        proc => output_handler_fe_cell_function_fill_patch_tensor_field_val
                     case DEFAULT
                         check(.false.)
                 end select
         end select
-    end subroutine output_handler_cell_fe_function_apply_fill_patch_field_strategy
+    end subroutine output_handler_fe_cell_function_apply_fill_patch_field_strategy
 
 
-    subroutine output_handler_cell_fe_function_fill_patch_scalar_field_val(this, fe_function, field_id, patch_field)
+    subroutine output_handler_fe_cell_function_fill_patch_scalar_field_val(this, fe_function, field_id, patch_field)
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field values given a scalar fe_field
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -492,14 +492,14 @@ contains
         call cell_integrator%evaluate_fe_function(patch_field_nodal_values%a, scalar_function_values)
         call patch_field_scalar_function_values%move_alloc_in(scalar_function_values) 
 
-    end subroutine output_handler_cell_fe_function_fill_patch_scalar_field_val
+    end subroutine output_handler_fe_cell_function_fill_patch_scalar_field_val
 
 
-    subroutine output_handler_cell_fe_function_fill_patch_scalar_field_grad(this, fe_function, field_id, patch_field)
+    subroutine output_handler_fe_cell_function_fill_patch_scalar_field_grad(this, fe_function, field_id, patch_field)
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field gradients given a scalar fe_field
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -531,14 +531,14 @@ contains
         call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, vector_function_values)
         call patch_field_vector_function_values%move_alloc_in(vector_function_values) 
 
-    end subroutine output_handler_cell_fe_function_fill_patch_scalar_field_grad
+    end subroutine output_handler_fe_cell_function_fill_patch_scalar_field_grad
 
 
-    subroutine output_handler_cell_fe_function_fill_patch_vector_field_val(this, fe_function, field_id, patch_field)
+    subroutine output_handler_fe_cell_function_fill_patch_vector_field_val(this, fe_function, field_id, patch_field)
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field values given a vector fe_field
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -570,14 +570,14 @@ contains
         call cell_integrator%evaluate_fe_function(patch_field_nodal_values%a, vector_function_values)
         call patch_field_vector_function_values%move_alloc_in(vector_function_values) 
 
-    end subroutine output_handler_cell_fe_function_fill_patch_vector_field_val
+    end subroutine output_handler_fe_cell_function_fill_patch_vector_field_val
 
 
-    subroutine output_handler_cell_fe_function_fill_patch_vector_field_grad(this, fe_function, field_id, patch_field)
+    subroutine output_handler_fe_cell_function_fill_patch_vector_field_grad(this, fe_function, field_id, patch_field)
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field gradients given a vector fe_field
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -609,14 +609,14 @@ contains
         call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
         call patch_field_tensor_function_values%move_alloc_in(tensor_function_values) 
 
-    end subroutine output_handler_cell_fe_function_fill_patch_vector_field_grad
+    end subroutine output_handler_fe_cell_function_fill_patch_vector_field_grad
 
 
-    subroutine output_handler_cell_fe_function_fill_patch_vector_field_div(this, fe_function, field_id, patch_field)
+    subroutine output_handler_fe_cell_function_fill_patch_vector_field_div(this, fe_function, field_id, patch_field)
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field divergence given a vector fe_field
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -677,14 +677,14 @@ contains
         call patch_field_scalar_function_values%move_alloc_in(scalar_function_values)
         call patch_field_tensor_function_values%move_alloc_in(tensor_function_values)
 
-    end subroutine output_handler_cell_fe_function_fill_patch_vector_field_div
+    end subroutine output_handler_fe_cell_function_fill_patch_vector_field_div
 
 
-    subroutine output_handler_cell_fe_function_fill_patch_vector_field_curl(this, fe_function, field_id, patch_field)
+    subroutine output_handler_fe_cell_function_fill_patch_vector_field_curl(this, fe_function, field_id, patch_field)
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field gradients given a vector fe_field
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -768,14 +768,14 @@ contains
         ! return tensor function values
         call patch_field_tensor_function_values%move_alloc_in(tensor_function_values)
 
-    end subroutine output_handler_cell_fe_function_fill_patch_vector_field_curl
+    end subroutine output_handler_fe_cell_function_fill_patch_vector_field_curl
 
 
-    subroutine output_handler_cell_fe_function_fill_patch_tensor_field_val(this, fe_function, field_id, patch_field)
+    subroutine output_handler_fe_cell_function_fill_patch_tensor_field_val(this, fe_function, field_id, patch_field)
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field values given a tensor field
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -807,14 +807,14 @@ contains
         call cell_integrator%evaluate_fe_function(patch_field_nodal_values%a, tensor_function_values )
         call patch_field_tensor_function_values%move_alloc_in(tensor_function_values)
 
-    end subroutine output_handler_cell_fe_function_fill_patch_tensor_field_val
+    end subroutine output_handler_fe_cell_function_fill_patch_tensor_field_val
 
 
-    subroutine output_handler_cell_fe_function_fill_patch_cell_vector(this, cell_vector, num_subcells, patch_cell_vector)
+    subroutine output_handler_fe_cell_function_fill_patch_cell_vector(this, cell_vector, num_subcells, patch_cell_vector)
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field values given a **cell_vector**
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         type(output_handler_cell_vector_t),       intent(in)    :: cell_vector
         integer(ip),                              intent(in)    :: num_subcells
         type(allocatable_array_rp1_t),            intent(inout) :: patch_cell_vector
@@ -824,14 +824,14 @@ contains
         values => cell_vector%get_cell_vector()
         call patch_cell_vector%create(num_subcells)
         patch_cell_vector%a = values(this%current_fe%get_lid())
-    end subroutine output_handler_cell_fe_function_fill_patch_cell_vector
+    end subroutine output_handler_fe_cell_function_fill_patch_cell_vector
 
 
-    subroutine output_handler_cell_fe_function_free ( this )
+    subroutine output_handler_fe_cell_function_free ( this )
     !-----------------------------------------------------------------
     !< Free procedure
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(inout) :: this
         integer(ip)                                             :: istat, i
     !-----------------------------------------------------------------
         call this%quadratures_and_maps_position%free()
@@ -864,28 +864,28 @@ contains
         this%num_nodes          = 0
         this%num_dims     = 0
         this%mixed_cell_topologies = .false.
-    end subroutine output_handler_cell_fe_function_free
+    end subroutine output_handler_fe_cell_function_free
 
 
-    function output_handler_cell_fe_function_generate_cell_integ_pos_key (this, num_reference_fes, max_order_reference_fe_id, reference_fe_id ) result(cell_integ_pos_key)
+    function output_handler_fe_cell_function_generate_cell_integ_pos_key (this, num_reference_fes, max_order_reference_fe_id, reference_fe_id ) result(cell_integ_pos_key)
     !-----------------------------------------------------------------
     !< Generate cell_integ_pos_key
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(in) :: this
+        class(output_handler_fe_cell_function_t), intent(in) :: this
         integer(ip),                              intent(in) :: num_reference_fes
         integer(ip),                              intent(in) :: max_order_reference_fe_id
         integer(ip),                              intent(in) :: reference_fe_id
         integer(ip)                                          :: cell_integ_pos_key
     !-----------------------------------------------------------------
         cell_integ_pos_key = reference_fe_id + (max_order_reference_fe_id)*num_reference_fes
-      end function output_handler_cell_fe_function_generate_cell_integ_pos_key
+      end function output_handler_fe_cell_function_generate_cell_integ_pos_key
 
 
-    function output_handler_cell_fe_function_get_quadrature ( this ) result(quadrature)
+    function output_handler_fe_cell_function_get_quadrature ( this ) result(quadrature)
     !-----------------------------------------------------------------
     !< Return the [[quadrature_t(type)]]
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), target, intent(in) :: this
+        class(output_handler_fe_cell_function_t), target, intent(in) :: this
         type(quadrature_t),                       pointer            :: quadrature
         integer(ip)                                                  :: quadratures_position
         integer(ip)                                                  :: istat
@@ -896,14 +896,14 @@ contains
              stat=istat)
         assert ( .not. istat == key_not_found )
         quadrature => this%quadratures(quadratures_position)
-    end function output_handler_cell_fe_function_get_quadrature
+    end function output_handler_fe_cell_function_get_quadrature
 
 
-    function output_handler_cell_fe_function_get_cell_map ( this ) result(cell_map)
+    function output_handler_fe_cell_function_get_cell_map ( this ) result(cell_map)
     !-----------------------------------------------------------------
     !< Return the [[cell_map_t(type)]]
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), target, intent(in) :: this
+        class(output_handler_fe_cell_function_t), target, intent(in) :: this
         type(cell_map_t),                           pointer            :: cell_map
         integer(ip)                                                  :: cell_maps_position
         integer(ip)                                                  :: istat
@@ -914,14 +914,14 @@ contains
              stat=istat)
         assert ( .not. istat == key_not_found )
         cell_map => this%cell_maps(cell_maps_position)
-    end function output_handler_cell_fe_function_get_cell_map
+    end function output_handler_fe_cell_function_get_cell_map
 
 
-    function output_handler_cell_fe_function_get_cell_integrator ( this, field_id ) result(cell_integrator)
+    function output_handler_fe_cell_function_get_cell_integrator ( this, field_id ) result(cell_integrator)
     !-----------------------------------------------------------------
     !< Return the [[cell_integrator_t(type)]] corresponding with the **field_id**
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), target, intent(in) :: this
+        class(output_handler_fe_cell_function_t), target, intent(in) :: this
         integer(ip),                                      intent(in) :: field_id
         type(cell_integrator_t),                pointer            :: cell_integrator
         integer(ip)                                                  :: cell_integ_pos_key
@@ -940,20 +940,20 @@ contains
              stat=istat)
         assert ( .not. istat == key_not_found )
         cell_integrator => this%cell_integrators(cell_integ_pos)
-    end function output_handler_cell_fe_function_get_cell_integrator
+    end function output_handler_fe_cell_function_get_cell_integrator
 
 
-    function output_handler_cell_fe_function_get_num_reference_fes ( this ) result(num_reference_fes)
+    function output_handler_fe_cell_function_get_num_reference_fes ( this ) result(num_reference_fes)
     !-----------------------------------------------------------------
     !< Return the number of [[reference_fe_t(type)]]
     !-----------------------------------------------------------------
-        class(output_handler_cell_fe_function_t), intent(in)   :: this
+        class(output_handler_fe_cell_function_t), intent(in)   :: this
         integer(ip)                                            :: num_reference_fes
         class(serial_fe_space_t), pointer                      :: serial_fe_space
     !-----------------------------------------------------------------
         assert ( associated(this%current_fe) )
         serial_fe_space => this%current_fe%get_fe_space()
         num_reference_fes = serial_fe_space%get_num_reference_fes()
-    end function output_handler_cell_fe_function_get_num_reference_fes
+    end function output_handler_fe_cell_function_get_num_reference_fes
 
-end module output_handler_cell_fe_function_names
+end module output_handler_fe_cell_function_names

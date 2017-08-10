@@ -60,7 +60,7 @@ contains
                                                            field_blocks,   &
                                                            field_coupling, &
                                                            num_dofs,    &
-                                                           cell2dof,       &
+                                                           fe_dofs,       &
                                                            elvec )
     implicit none
     class(sparse_assembler_t), intent(inout) :: this
@@ -68,7 +68,7 @@ contains
     integer(ip)                           , intent(in)    :: field_blocks(num_fields)
     logical                               , intent(in)    :: field_coupling(num_fields,num_fields)
     integer(ip)                           , intent(in)    :: num_dofs(num_fields)
-    type(i1p_t)                           , intent(in)    :: cell2dof(num_fields)
+    type(i1p_t)                           , intent(in)    :: fe_dofs(num_fields)
     real(rp)                              , intent(in)    :: elvec(:)
 
     class(array_t) , pointer :: array
@@ -79,7 +79,7 @@ contains
       call element_serial_scalar_array_assembly( array,         &
                                                  num_fields, &
                                                  num_dofs,   &
-                                                 cell2dof,      &
+                                                 fe_dofs,      &
                                                  elvec )
       class default
       check(.false.)
@@ -149,13 +149,13 @@ contains
     end select
   end subroutine sparse_assembler_compress_storage
 
-  subroutine element_serial_scalar_array_assembly( array, num_fields, num_dofs, cell2dof, elvec )
+  subroutine element_serial_scalar_array_assembly( array, num_fields, num_dofs, fe_dofs, elvec )
     implicit none
     ! Parameters
     type(serial_scalar_array_t), intent(inout) :: array
     integer(ip)                , intent(in)    :: num_fields
     integer(ip)                , intent(in)    :: num_dofs(num_fields)
-    type(i1p_t)                , intent(in)    :: cell2dof(num_fields)
+    type(i1p_t)                , intent(in)    :: fe_dofs(num_fields)
     real(rp)                   , intent(in)    :: elvec(:) 
     
     integer(ip) :: inode, idof, ielvec, ife_space
@@ -163,7 +163,7 @@ contains
     ielvec = 0
     do ife_space = 1, num_fields
       call array%add( num_dofs(ife_space), &
-                      cell2dof(ife_space)%p,   &
+                      fe_dofs(ife_space)%p,   &
                       ielvec,                  &
                       elvec )
       ielvec = ielvec + num_dofs(ife_space)

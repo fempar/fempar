@@ -39,7 +39,7 @@ subroutine error_norms_scalar_create (this, fe_space, field_id)
 
   this%field_id = field_id
   this%fe_space => fe_space
-  call this%cell_fe_function%create(fe_space, field_id)    
+  call this%fe_cell_function%create(fe_space, field_id)    
   environment => this%fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then    
      call memalloc(this%fe_space%get_max_num_quadrature_points(), 1, this%work_array_values, __FILE__, __LINE__)
@@ -55,7 +55,7 @@ subroutine error_norms_scalar_free (this)
   integer(ip) :: istat
   this%field_id = 0
   nullify(this%fe_space)
-  call this%cell_fe_function%free()
+  call this%fe_cell_function%free()
   if (allocated(this%work_array_values))    call memfree (this%work_array_values   , __FILE__, __LINE__)
   if (allocated(this%work_array_gradients)) then
      deallocate(this%work_array_gradients, stat=istat)
@@ -94,7 +94,7 @@ function error_norms_scalar_compute (this, exact_solution, fe_function, norm_typ
      do while(.not. fe%has_finished())
         if ( fe%is_local() ) then
            call fe%update_integration()
-           call this%cell_fe_function%update(fe, fe_function)
+           call this%fe_cell_function%update(fe, fe_function)
            call this%compute_cell_contribution( fe, &
                 exact_solution, & 
                 norm_type, &
@@ -164,7 +164,7 @@ subroutine error_norms_scalar_compute_cell_contribution (this, &
              this%work_array_values(1:n_q_points,1))
      end if
      ! Then, subtract fe_function.
-     fe_function_values    => this%cell_fe_function%get_quadrature_points_values()
+     fe_function_values    => this%fe_cell_function%get_quadrature_points_values()
      do q_point=1, n_q_points
         this%work_array_values(q_point,1) = this%work_array_values(q_point,1) - fe_function_values(q_point) 
      end do
@@ -180,7 +180,7 @@ subroutine error_norms_scalar_compute_cell_contribution (this, &
         call exact_solution%get_gradients_set_space(coordinates, &
              this%work_array_gradients(1:n_q_points,1))
      end if
-     fe_function_gradients => this%cell_fe_function%get_quadrature_points_gradients()
+     fe_function_gradients => this%fe_cell_function%get_quadrature_points_gradients()
      do q_point=1, n_q_points
         this%work_array_gradients(q_point,1) = this%work_array_gradients(q_point,1) - fe_function_gradients(q_point) 
      end do

@@ -576,7 +576,7 @@ contains
     ! Integration loop 
     type(quadrature_t)       , pointer     :: quad
     type(cell_map_t)           , pointer     :: cell_map
-    type(cell_fe_function_vector_t)        :: cell_fe_function_current
+    type(fe_cell_function_vector_t)        :: fe_cell_function_current
     integer(ip)                            :: qpoin, num_quad_points, idof 
     type(point_t)            , pointer     :: quad_coords(:)
     type(point_t)         , allocatable    :: aux_quad_coords(:)
@@ -595,7 +595,7 @@ contains
     integer(ip) :: istat 
 
     ! Integrate structures needed 
-    call cell_fe_function_current%create(this%fe_space,  1)
+    call fe_cell_function_current%create(this%fe_space,  1)
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%create_fe_cell_iterator(fe)
     quad             => fe%get_quadrature()
@@ -613,7 +613,7 @@ contains
        if ( fe%get_set_id() == hts ) then  ! Integrate only in HTS device DOMAIN 
           ! Update FE-integration related data structures
           call fe%update_integration()
-          call cell_fe_function_current%update(fe, this%H_current)
+          call fe_cell_function_current%update(fe, this%H_current)
 
           ! Get quadrature coordinates to evaluate boundary value
           quad_coords => cell_map%get_quadrature_points_coordinates()
@@ -621,8 +621,8 @@ contains
           ! Integrate cell contribution to H_y, x·J_z average 
           do qpoin=1, num_quad_points
              factor = cell_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						         
-             call cell_fe_function_current%get_value(qpoin, H_value)
-             call cell_fe_function_current%compute_curl(qpoin, H_curl)
+             call fe_cell_function_current%get_value(qpoin, H_value)
+             call fe_cell_function_current%compute_curl(qpoin, H_curl)
              Hy_average  = Hy_average + factor*H_value%get(2)          
              xJ_average  = xJ_average  + factor*quad_coords(qpoin)%get(1)*H_curl%get(3)   
           end do
