@@ -675,7 +675,7 @@ subroutine fe_cell_iterator_get_fe_vef(this, ivef, fe_vef)
   class(fe_cell_iterator_t)   , intent(in)    :: this
   integer(ip)            , intent(in)    :: ivef
   type(fe_vef_iterator_t), intent(inout) :: fe_vef
-  call fe_vef%set_gid(this%cell%get_vef_lid_from_gid(ivef))
+  call fe_vef%set_gid( this%cell%get_vef_gid(ivef))
 end subroutine fe_cell_iterator_get_fe_vef
 
 function fe_cell_iterator_get_reference_fe(this, field_id)

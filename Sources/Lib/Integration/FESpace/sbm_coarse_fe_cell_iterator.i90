@@ -254,5 +254,5 @@ subroutine coarse_fe_cell_iterator_get_coarse_fe_vef(this, ivef, coarse_fe_vef)
   class(coarse_fe_cell_iterator_t)   , intent(in)    :: this
   integer(ip)                   , intent(in)    :: ivef
   type(coarse_fe_vef_iterator_t), intent(inout) :: coarse_fe_vef
-  call coarse_fe_vef%set_gid(this%cell%get_vef_lid_from_gid(ivef))
+  call coarse_fe_vef%set_gid(this%cell%get_vef_gid(ivef))
 end subroutine coarse_fe_cell_iterator_get_coarse_fe_vef

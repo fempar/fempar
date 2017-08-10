@@ -436,7 +436,7 @@ function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) resul
   reference_fe_geo => this%fe%get_reference_fe_geo()
   vef_gid_of_face = this%base_fe_vef_iterator_t%get_gid()
   assert ( this%fe%get_vef_lid_from_gid (vef_gid_of_face) /= -1 )
-  face_lpos_within_cell_around = this%fe%get_vef_gid(vef_gid_of_face)
+  face_lpos_within_cell_around = this%fe%get_vef_lid_from_gid(vef_gid_of_face)
 end function fe_facet_iterator_get_lpos_within_cell_around
 
 function fe_facet_iterator_get_face_permutation_index ( this ) result(face_permutation_index)

@@ -157,7 +157,7 @@ function base_fe_cell_iterator_get_vef_gid (this, ivef)
   integer(ip)                      :: ivef
   integer(ip)                      :: base_fe_cell_iterator_get_vef_gid
   assert(allocated(this%cell))
-  base_fe_cell_iterator_get_vef_gid = this%cell%get_vef_lid_from_gid (ivef)
+  base_fe_cell_iterator_get_vef_gid = this%cell%get_vef_gid (ivef)
 end function base_fe_cell_iterator_get_vef_gid
 
 function base_fe_cell_iterator_get_vef_gids (this)
@@ -166,7 +166,7 @@ function base_fe_cell_iterator_get_vef_gids (this)
   integer(ip)                        :: ivef
   integer(ip), pointer               :: base_fe_cell_iterator_get_vef_gids(:)
   assert(allocated(this%cell))
-  base_fe_cell_iterator_get_vef_gids => this%cell%get_vef_gids_temporary()
+  base_fe_cell_iterator_get_vef_gids => this%cell%get_vef_gids()
 end function base_fe_cell_iterator_get_vef_gids
 
 function base_fe_cell_iterator_get_vef_ggid (this, ivef)

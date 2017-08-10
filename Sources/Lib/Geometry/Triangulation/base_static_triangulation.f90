@@ -123,7 +123,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_gid            => cell_iterator_get_node_gid
     procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
-    procedure, non_overridable           :: get_vef_gids_temporary  => cell_iterator_get_vef_gids_temporary
+    procedure, non_overridable           :: get_vef_gids  => cell_iterator_get_vef_gids
     procedure, non_overridable           :: get_vef_ggid            => cell_iterator_get_vef_ggid
     procedure, non_overridable           :: get_vef_lid_from_gid    => cell_iterator_get_vef_lid_from_gid
     procedure, non_overridable           :: get_vef_lid_from_ggid   => cell_iterator_get_vef_lid_from_ggid
@@ -177,7 +177,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_geom_id               => vef_iterator_get_geom_id
      procedure, non_overridable          :: get_set_id                => vef_iterator_get_set_id
 
-     procedure, non_overridable          :: set_dim             => vef_iterator_set_dim
+     procedure, non_overridable          :: set_dim                   => vef_iterator_set_dim
      procedure, non_overridable          :: set_it_at_boundary        => vef_iterator_set_it_at_boundary
      procedure, non_overridable          :: set_it_as_local           => vef_iterator_set_it_as_local
      procedure, non_overridable          :: set_it_as_ghost           => vef_iterator_set_it_as_ghost

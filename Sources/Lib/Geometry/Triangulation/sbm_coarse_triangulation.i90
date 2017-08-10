@@ -169,7 +169,7 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dim ( this, &
   call this%create_vef_iterator(vef)
   do while(.not.cell%has_finished())
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid_from_gid(ivef)
+        vef_lid = cell%get_vef_gid(ivef)
         call vef%set_gid(vef_lid)
         call vef%set_dim(lst_vefs_dim(current))
         current = current + 1 

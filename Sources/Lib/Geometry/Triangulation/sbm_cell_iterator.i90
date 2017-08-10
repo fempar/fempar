@@ -280,14 +280,14 @@ function cell_iterator_get_vef_gid (this, ivef)
   cell_iterator_get_vef_gid = this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid)+ivef-1)
 end function cell_iterator_get_vef_gid
 
-function cell_iterator_get_vef_gids_temporary (this)
+function cell_iterator_get_vef_gids (this)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: ivef
-  integer(ip), pointer               :: cell_iterator_get_vef_gids_temporary(:)
-  cell_iterator_get_vef_gids_temporary => this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
+  integer(ip), pointer               :: cell_iterator_get_vef_gids(:)
+  cell_iterator_get_vef_gids => this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
                                                                              this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1)-1)
-end function cell_iterator_get_vef_gids_temporary
+end function cell_iterator_get_vef_gids
 
 function cell_iterator_get_vef_ggid (this, ivef)
   implicit none
