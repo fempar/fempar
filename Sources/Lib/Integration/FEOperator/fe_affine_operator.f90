@@ -120,7 +120,7 @@ module fe_affine_operator_names
   integer(ip)                                     :: state  = start
   character(:)                      , allocatable :: sparse_matrix_storage_format
   type(block_layout_t)                            :: block_layout
-  class(serial_fe_space_t)          , pointer     :: fe_space               => NULL() ! test_fe_space
+  class(serial_fe_space_t)          , pointer     :: test_fe_space          => NULL() ! test_fe_space
   class(serial_fe_space_t)          , pointer     :: trial_fe_space         => NULL() ! To be used in the future
   class(discrete_integration_t)     , pointer     :: discrete_integration   => NULL()
   class(assembler_t)   , pointer     :: assembler => NULL()
@@ -195,17 +195,17 @@ subroutine fe_affine_operator_create (this, &
 #endif
  
  this%sparse_matrix_storage_format = sparse_matrix_storage_format
- this%fe_space                     => fe_space
+ this%test_fe_space                     => fe_space
  this%discrete_integration         => discrete_integration
  
  call this%block_layout%create(fe_space%get_num_fields(), field_blocks, field_coupling )
- call this%fe_space%generate_global_dof_numbering(this%block_layout)
+ call this%test_fe_space%generate_global_dof_numbering(this%block_layout)
  if ( present(trial_fe_space) ) then
     this%trial_fe_space => trial_fe_space
     call this%trial_fe_space%generate_global_dof_numbering(this%block_layout)
  end if
  
-  select type(fe_space => this%fe_space)
+  select type(fe_space => this%test_fe_space)
   class is(serial_fe_space_t) 
     this%assembler  => this%create_serial_assembler(diagonal_blocks_symmetric_storage, &
                                                                  diagonal_blocks_symmetric, &
@@ -358,7 +358,7 @@ function fe_affine_operator_create_par_assembler(this, &
   type(environment_t), pointer :: par_environment
   
   
-  select type(fe_space => this%fe_space)
+  select type(fe_space => this%test_fe_space)
   class is(par_fe_space_t)
    par_environment => fe_space%get_par_environment()
    if (this%block_layout%get_num_blocks() == 1) then
@@ -409,7 +409,7 @@ subroutine fe_affine_operator_free_clean(this)
  class(fe_affine_operator_t), intent(inout) :: this
  integer(ip) :: istat
  deallocate(this%sparse_matrix_storage_format)
- nullify(this%fe_space)
+ nullify(this%test_fe_space)
  nullify(this%trial_fe_space)
  nullify(this%discrete_integration)
  call this%assembler%free_in_stages(free_clean)
@@ -489,7 +489,7 @@ function fe_affine_operator_get_fe_space(this)
  class(fe_affine_operator_t), target, intent(in) :: this
  class(serial_fe_space_t), pointer :: fe_affine_operator_get_fe_space
  assert ( .not. this%state == start )
- fe_affine_operator_get_fe_space => this%fe_space
+ fe_affine_operator_get_fe_space => this%test_fe_space
 end function fe_affine_operator_get_fe_space
 
 ! op%apply(x,y) <=> y <- op*x
@@ -612,12 +612,12 @@ subroutine fe_affine_operator_fill_values(this)
   implicit none
   class(fe_affine_operator_t), intent(inout) :: this
   class(environment_t), pointer :: environment
-  environment => this%fe_space%get_environment()
+  environment => this%test_fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then
     if ( associated(this%trial_fe_space) ) then
-     call this%discrete_integration%integrate( this%fe_space, this%trial_fe_space, this%assembler )
+     call this%discrete_integration%integrate( this%test_fe_space, this%trial_fe_space, this%assembler )
     else
-     call this%discrete_integration%integrate( this%fe_space, this%assembler )
+     call this%discrete_integration%integrate( this%test_fe_space, this%assembler )
     end if  
   end if  
 end subroutine fe_affine_operator_fill_values

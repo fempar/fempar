@@ -386,7 +386,7 @@ subroutine par_fe_space_count_and_list_dofs_on_ghosts( this )
                  do ivef = 1, fe%get_num_vefs()
                     call fe%get_vef(ivef, vef)
                     if ( vef%is_face() .and. vef%is_at_interface() ) then
-                      call fe%genrate_dofs_facet_integration_coupling ( ivef, &
+                      call fe%generate_dofs_facet_integration_coupling ( ivef, &
                                                                     field_id, &
                                                                     this%num_dofs_x_field(field_id) )
                     end if
@@ -1774,7 +1774,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      projected_nodal_values_serial_scalar_array => projected_nodal_values%get_serial_scalar_array()
      
      ! Insert projected nodal values into strong_dirichlet_values array
-     strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
+     strong_dirichlet_values => fe_function%get_fixed_dof_values()
      call strong_dirichlet_values%insert_subvector(iblock=1, &
                                                    size_indices=num_subset_strong_dirichlet_dofs, &
                                                    indices=subset2global_dirichlet_dofs,             &

@@ -39,9 +39,9 @@
     class(serial_fe_space_t)        , intent(in)    :: fe_space
     type(serial_scalar_array_t), pointer :: strong_dirichlet_values
     call this%free()
-    call fe_space%create_dof_values(this%dof_values)
-    call this%strong_dirichlet_values%create_and_allocate(fe_space%get_num_fixed_dof_values())
-    call this%strong_dirichlet_values%init(0.0_rp)
+    call fe_space%create_dof_values(this%free_dof_values)
+    call this%fixed_dof_values%create_and_allocate(fe_space%get_num_fixed_dof_values())
+    call this%fixed_dof_values%init(0.0_rp)
   end subroutine fe_function_create
   
   subroutine fe_function_gather_nodal_values ( this, fe_cell_iterator, field_id, nodal_values )
@@ -64,7 +64,7 @@
 
     if ( fe_cell_iterator%at_strong_dirichlet_boundary(field_id) ) then
       ! Extract nodal values associated to dirichlet bcs
-      strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
+      strong_dirichlet_values_entries => this%fixed_dof_values%get_entries()
       do inode = 1, num_nodes_field
         if ( fe_dofs(inode) < 0 ) then
            nodal_values(inode) = strong_dirichlet_values_entries(-fe_dofs(inode))
@@ -76,7 +76,7 @@
     block_id = field_blocks(field_id)
     
     ! Extract nodal values associated to dofs
-    call this%dof_values%extract_subvector ( block_id, &
+    call this%free_dof_values%extract_subvector ( block_id, &
                                              num_nodes_field, &
                                              fe_dofs, &
                                              nodal_values )
@@ -104,7 +104,7 @@
 
     if ( fe%at_strong_dirichlet_boundary(field_id) ) then
       ! Insert nodal values associated to dirichlet bcs
-      strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
+      strong_dirichlet_values_entries => this%fixed_dof_values%get_entries()
       do inode = 1, num_nodes_field
         if ( fe_dofs(inode) < 0 ) then
             strong_dirichlet_values_entries(-fe_dofs(inode)) = nodal_values(inode)
@@ -116,7 +116,7 @@
     block_id = field_blocks(field_id)
     
     ! Extract nodal values associated to dofs
-    call this%dof_values%insert_subvector ( block_id, &
+    call this%free_dof_values%insert_subvector ( block_id, &
                                              num_nodes_field, &
                                              fe_dofs, &
                                              nodal_values )
@@ -127,8 +127,8 @@
     implicit none
     class(fe_function_t), intent(inout) :: this
     type (fe_function_t), intent(in)    :: other
-    this%strong_dirichlet_values = other%strong_dirichlet_values
-    this%dof_values = other%dof_values
+    this%fixed_dof_values = other%fixed_dof_values
+    this%free_dof_values = other%free_dof_values
   end subroutine fe_function_copy
   
  !===============================================================================================
@@ -136,26 +136,26 @@
     implicit none
     class(fe_function_t), target, intent(in) :: this 
     class(vector_t), pointer :: fe_function_get_dof_values
-    fe_function_get_dof_values => this%dof_values
+    fe_function_get_dof_values => this%free_dof_values
  end function fe_function_get_dof_values
  
  !===============================================================================================
- function fe_function_get_strong_dirichlet_values ( this )
+ function fe_function_get_fixed_dof_values ( this )
     implicit none
     class(fe_function_t), target, intent(in) :: this 
-    type(serial_scalar_array_t), pointer :: fe_function_get_strong_dirichlet_values
-    fe_function_get_strong_dirichlet_values => this%strong_dirichlet_values
- end function fe_function_get_strong_dirichlet_values
+    type(serial_scalar_array_t), pointer :: fe_function_get_fixed_dof_values
+    fe_function_get_fixed_dof_values => this%fixed_dof_values
+ end function fe_function_get_fixed_dof_values
   
  !=============================================================================================== 
  subroutine fe_function_free( this )
     implicit none
     class(fe_function_t), intent(inout) :: this
     integer(ip)                         :: istat
-    if( allocated(this%dof_values) ) then
-      call this%dof_values%free()
-      deallocate ( this%dof_values, stat=istat )
+    if( allocated(this%free_dof_values) ) then
+      call this%free_dof_values%free()
+      deallocate ( this%free_dof_values, stat=istat )
       check (istat == 0)
     end if
-    call this%strong_dirichlet_values%free()
+    call this%fixed_dof_values%free()
   end subroutine fe_function_free

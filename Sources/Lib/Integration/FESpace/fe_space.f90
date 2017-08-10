@@ -181,12 +181,12 @@ module fe_space_names
     procedure                           :: free                                       => fe_cell_iterator_free
     final                               :: fe_cell_iterator_free_final
     procedure, non_overridable, private :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
-    procedure, non_overridable, private :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
     procedure, non_overridable, private :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
+    procedure, non_overridable, private :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
     procedure, non_overridable, private :: generate_own_dofs_vef                      => fe_cell_iterator_generate_own_dofs_vef
     procedure, non_overridable, private :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
     procedure, non_overridable, private :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
-    procedure, non_overridable, private :: genrate_dofs_facet_integration_coupling        => fe_cell_iterator_genrate_dofs_facet_integration_coupling
+    procedure, non_overridable, private :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
     procedure, non_overridable          :: update_num_dofs_x_field                    => fe_cell_iterator_update_num_dofs_x_field
@@ -200,8 +200,8 @@ module fe_space_names
     procedure, non_overridable          :: get_field_blocks                           => fe_cell_iterator_get_field_blocks
     procedure, non_overridable          :: get_num_dofs                               => fe_cell_iterator_get_num_dofs
     procedure, non_overridable          :: get_num_dofs_x_field                       => fe_cell_iterator_get_num_dofs_x_field
-    procedure, non_overridable          :: get_field_fe_dofs                         => fe_cell_iterator_get_field_fe_dofs
-    procedure, non_overridable          :: get_fe_dofs                               => fe_cell_iterator_get_fe_dofs
+    procedure, non_overridable          :: get_field_fe_dofs                          => fe_cell_iterator_get_field_fe_dofs
+    procedure, non_overridable          :: get_fe_dofs                                => fe_cell_iterator_get_fe_dofs
     procedure, non_overridable          :: get_order                                  => fe_cell_iterator_get_order
     
     procedure, non_overridable          :: get_max_order_single_field                 => fe_cell_iterator_get_max_order_single_field
@@ -898,15 +898,15 @@ module fe_space_names
  
   type fe_function_t
    private
-   class(vector_t), allocatable  :: dof_values
-   type(serial_scalar_array_t)   :: strong_dirichlet_values
+   class(vector_t), allocatable  :: free_dof_values
+   type(serial_scalar_array_t)   :: fixed_dof_values
   contains
      procedure, non_overridable          :: create                         => fe_function_create
      procedure, non_overridable          :: gather_nodal_values            => fe_function_gather_nodal_values
      procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
      procedure, non_overridable          :: copy                           => fe_function_copy
      procedure, non_overridable          :: get_dof_values                 => fe_function_get_dof_values
-     procedure, non_overridable          :: get_strong_dirichlet_values    => fe_function_get_strong_dirichlet_values
+     procedure, non_overridable          :: get_fixed_dof_values           => fe_function_get_fixed_dof_values
      procedure, non_overridable          :: free                           => fe_function_free
      generic                             :: assignment(=)                  => copy
   end type fe_function_t 

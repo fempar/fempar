@@ -465,7 +465,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
   allocate ( fe_dofs(num_fields), stat=istat ) 
   check (istat==0)
 
-  strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
+  strong_dirichlet_values => fe_function%get_fixed_dof_values()
   
   ! IMPORTANT : The following code is implicitly assuming that the
   !             composition of reference FEs, for all cells on top of
@@ -771,7 +771,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
   call parameter_list%free()
 
   ! Insert projected nodal values into strong_dirichlet_values array 
-  strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
+  strong_dirichlet_values => fe_function%get_fixed_dof_values()
   call strong_dirichlet_values%insert_subvector(iblock=1, &
                                                 size_indices=num_subset_strong_dirichlet_dofs, &
                                                 indices=subset2global_dirichlet_dofs,             &
@@ -1160,7 +1160,7 @@ end subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec
        nodal_values(1:num_nodes) = fe_function_values(1:num_nodes,1)
        
        ! Update interior DoFs
-       call fe_function%dof_values%insert_subvector(block_id, &
+       call fe_function%free_dof_values%insert_subvector(block_id, &
                                              num_nodes, &
                                              fe_dofs(field_id)%p, &
                                              nodal_values(1:num_nodes))
@@ -1168,7 +1168,7 @@ end subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec
        ! Update DoFs subject to strong Dirichlet BCs
        if ( fe%at_strong_dirichlet_boundary(field_id) ) then
            fe_dofs(field_id)%p = -fe_dofs(field_id)%p
-           call fe_function%strong_dirichlet_values%insert_subvector(1, &
+           call fe_function%fixed_dof_values%insert_subvector(1, &
                                                               num_nodes, &
                                                               fe_dofs(field_id)%p, &
                                                               nodal_values(1:num_nodes))
@@ -1301,7 +1301,7 @@ subroutine serial_fe_space_interpolate_vector( this, &
        end do   
        
        ! Update interior DoFs
-       call fe_function%dof_values%insert_subvector(block_id, &
+       call fe_function%free_dof_values%insert_subvector(block_id, &
                                                     num_nodes, &
                                                     fe_dofs(field_id)%p, &
                                                     nodal_values(1:num_nodes))
@@ -1309,7 +1309,7 @@ subroutine serial_fe_space_interpolate_vector( this, &
        ! Update DoFs subject to strong Dirichlet BCs
        if ( fe%at_strong_dirichlet_boundary(field_id) ) then
            fe_dofs(field_id)%p = -fe_dofs(field_id)%p
-           call fe_function%strong_dirichlet_values%insert_subvector(1, &
+           call fe_function%fixed_dof_values%insert_subvector(1, &
                                                                      num_nodes, &
                                                                      fe_dofs(field_id)%p, &
                                                                      nodal_values(1:num_nodes))

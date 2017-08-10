@@ -281,7 +281,7 @@ subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe ( this, target_ive
   end if
 end subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
 
-subroutine fe_cell_iterator_genrate_dofs_facet_integration_coupling ( this, ivef, field_id, dof_count )
+subroutine fe_cell_iterator_generate_dofs_facet_integration_coupling ( this, ivef, field_id, dof_count )
   implicit none
   ! Parameters
   class(fe_cell_iterator_t), intent(inout)   :: this
@@ -307,7 +307,7 @@ subroutine fe_cell_iterator_genrate_dofs_facet_integration_coupling ( this, ivef
       call face_integration_coupling_dofs%next()
     end do
   end if
-end subroutine fe_cell_iterator_genrate_dofs_facet_integration_coupling
+end subroutine fe_cell_iterator_generate_dofs_facet_integration_coupling
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
 subroutine fe_cell_iterator_renum_dofs_block ( this, block_id, perm_old2new )
@@ -768,7 +768,7 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs ( this, fe_function, elm
   type(serial_scalar_array_t), pointer :: strong_dirichlet_values
   real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
   
-  strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
+  strong_dirichlet_values         => fe_function%get_fixed_dof_values()
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
   
   elmat_col = 0
