@@ -1685,7 +1685,7 @@ contains
 
 #include "sbm_tet_nedelec_reference_fe.i90"
 
-#include "sbm_polytope_topology.i90"
+#include "sbm_polytope.i90"
 
 #include "sbm_base_map.i90"
 
