@@ -560,7 +560,7 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
     transformation_flag = this%p4est_refinement_and_coarsening_flags%get(old_cell_id)
     old_cell_base_pos   = this%get_ptr_vefs_x_cell(old_cell_id)
     
-    call cell%set_lid(new_cell_id)
+    call cell%set_gid(new_cell_id)
     
     if ( transformation_flag == do_nothing ) then
       do ivef=1, cell%get_num_vefs()
@@ -574,7 +574,7 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
     else if ( transformation_flag == refinement ) then
       ! Transfer set_id's of coarse cell vertices from coarse to refined cells
       do j=1, this%reference_fe_geo%get_num_n_faces_of_dim(0) !num_children_x_cell 
-        call cell%set_lid(new_cell_id+j-1)
+        call cell%set_gid(new_cell_id+j-1)
         call cell%get_vef(j,vef)
         old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+j-1)
         old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
@@ -584,7 +584,7 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
       do iface=1, this%reference_fe_geo%get_num_facets()
          ivef = this%reference_fe_geo%get_num_n_faces_of_dim(0)  + iface
          do j=1, NUM_SUBCELLS_IN_TOUCH_FACE_2D
-            call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(iface,j)-1)
+            call cell%set_gid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(iface,j)-1)
             call cell%get_vef(ivef,vef)
             old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
             old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)

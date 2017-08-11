@@ -39,7 +39,7 @@
     class(serial_fe_space_t)        , intent(in)    :: fe_space
     call this%free()
     call fe_space%create_dof_values(this%free_dof_values)
-    call this%fixed_dof_values%create_and_allocate(fe_space%get_num_fixed_dof_values())
+    call this%fixed_dof_values%create_and_allocate(fe_space%get_num_fixed_dofs())
     call this%fixed_dof_values%init(0.0_rp)
   end subroutine fe_function_create
   

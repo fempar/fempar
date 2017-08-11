@@ -72,7 +72,7 @@ module hp_adaptive_fe_space_names
      procedure          :: create_fe_facet_iterator                                => serial_hp_adaptive_fe_space_create_fe_facet_iterator
      
      procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
-     procedure          :: serial_fe_space_create_different_between_cells         => shpafs_create_different_between_cells
+     procedure          :: serial_fe_space_create_different_ref_fes_between_cells => shpafs_create_different_ref_fes_between_cells
      procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
      
      procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
@@ -647,7 +647,7 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   
 end subroutine shpafs_create_same_reference_fes_on_all_cells 
 
-subroutine shpafs_create_different_between_cells( this,          &
+subroutine shpafs_create_different_ref_fes_between_cells( this,          &
                                                   triangulation, &
                                                   reference_fes, &
                                                   set_ids_to_reference_fes, &
@@ -687,7 +687,7 @@ subroutine shpafs_create_different_between_cells( this,          &
   call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs()
   
-end subroutine shpafs_create_different_between_cells
+end subroutine shpafs_create_different_ref_fes_between_cells
 
 subroutine serial_hp_adaptive_fe_space_free(this)
   implicit none

@@ -2584,6 +2584,13 @@ function serial_fe_space_get_num_fixed_dof_values(this)
   serial_fe_space_get_num_fixed_dof_values = this%num_fixed_dof_values
 end function serial_fe_space_get_num_fixed_dof_values
 
+function serial_fe_space_get_num_fixed_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this 
+  integer(ip) :: serial_fe_space_get_num_fixed_dofs
+  serial_fe_space_get_num_fixed_dofs = this%num_fixed_dof_values
+end function serial_fe_space_get_num_fixed_dofs
+
 function serial_fe_space_get_num_blocks( this)
   implicit none
   class(serial_fe_space_t), intent(in) :: this 

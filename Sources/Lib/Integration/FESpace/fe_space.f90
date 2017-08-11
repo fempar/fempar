@@ -527,6 +527,7 @@ module fe_space_names
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      
      procedure                           :: get_num_fixed_dof_values             => serial_fe_space_get_num_fixed_dof_values
+     procedure                           :: get_num_fixed_dofs                   => serial_fe_space_get_num_fixed_dofs
      procedure                           :: get_num_blocks                            => serial_fe_space_get_num_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
