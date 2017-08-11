@@ -47,7 +47,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%fill_facet_gids()
-  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_init_ptr_lst_dofs_gids()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
@@ -78,7 +78,7 @@ subroutine serial_fe_space_create_different_ref_fes_between_cells( this,        
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%fill_facet_gids()
-  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_init_ptr_lst_dofs_gids()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
@@ -166,7 +166,7 @@ subroutine serial_fe_space_free_fe_space_type_x_field(this)
   if ( allocated(this%fe_space_type_x_field) ) call memfree ( this%fe_space_type_x_field, __FILE__, __LINE__ )
 end subroutine serial_fe_space_free_fe_space_type_x_field
 
-subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
+subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
 
@@ -199,9 +199,9 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
        this%lst_dofs_gids, &
        __FILE__, __LINE__ )
   this%lst_dofs_gids = 0
-end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs
+end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
 
-subroutine serial_fe_space_move_alloc_ptr_dofs_x_fe_out ( this, ptr_dofs_x_fe )
+subroutine serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out ( this, ptr_dofs_x_fe )
   implicit none
   class(serial_fe_space_t)             , intent(inout) :: this
   integer(ip)             , allocatable, intent(inout) :: ptr_dofs_x_fe(:,:)
@@ -209,9 +209,9 @@ subroutine serial_fe_space_move_alloc_ptr_dofs_x_fe_out ( this, ptr_dofs_x_fe )
   if ( allocated(this%ptr_dofs_x_fe) ) then
      call move_alloc( to=ptr_dofs_x_fe, from=this%ptr_dofs_x_fe )
   end if
-end subroutine serial_fe_space_move_alloc_ptr_dofs_x_fe_out
+end subroutine serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out
 
-subroutine serial_fe_space_move_alloc_lst_dofs_lids_out ( this, lst_dofs_lids )
+subroutine serial_fe_space_move_alloc_lst_dofs_gids_out ( this, lst_dofs_lids )
   implicit none
   class(serial_fe_space_t)             , intent(inout) :: this
   integer(ip)             , allocatable, intent(inout) :: lst_dofs_lids(:)
@@ -219,7 +219,7 @@ subroutine serial_fe_space_move_alloc_lst_dofs_lids_out ( this, lst_dofs_lids )
   if ( allocated(this%lst_dofs_lids) ) then
      call move_alloc( to=lst_dofs_lids, from=this%lst_dofs_lids )
   end if
-end subroutine serial_fe_space_move_alloc_lst_dofs_lids_out
+end subroutine serial_fe_space_move_alloc_lst_dofs_gids_out
 
 subroutine serial_fe_space_free_ptr_lst_dofs(this)
   implicit none
@@ -1451,17 +1451,17 @@ subroutine serial_fe_space_allocate_field_cell_to_ref_fes ( this )
        __FILE__, __LINE__)
 end subroutine serial_fe_space_allocate_field_cell_to_ref_fes
 
-subroutine serial_fe_space_move_alloc_ref_fe_id_x_fe_out ( this, ref_fe_id_x_fe )
+subroutine serial_fe_space_move_alloc_field_cell_to_ref_fes ( this, field_cell_to_ref_fes )
   implicit none
   class(serial_fe_space_t)             , intent(inout) :: this
-  integer(ip)             , allocatable, intent(inout) :: ref_fe_id_x_fe(:,:)
-  assert ( .not. allocated(ref_fe_id_x_fe) )
+  integer(ip)             , allocatable, intent(inout) :: field_cell_to_ref_fes(:,:)
+  assert ( .not. allocated(field_cell_to_ref_fes) )
   if ( allocated(this%reference_fe_id_x_fe) ) then
-     call move_alloc( to=ref_fe_id_x_fe, from=this%reference_fe_id_x_fe )
+     call move_alloc( to=field_cell_to_ref_fes, from=this%reference_fe_id_x_fe )
   end if
-end subroutine serial_fe_space_move_alloc_ref_fe_id_x_fe_out
+end subroutine serial_fe_space_move_alloc_field_cell_to_ref_fes
 
-subroutine serial_fe_space_free_ref_fe_id_x_fe ( this )
+subroutine serial_fe_space_free_field_cell_to_ref_fes ( this )
   class(serial_fe_space_t), intent(inout) :: this
   if (allocated(this%field_cell_to_ref_fes)) then
      call memfree (this%field_cell_to_ref_fes, &
@@ -2577,12 +2577,12 @@ subroutine serial_fe_space_set_conditions( this, conditions )
   this%conditions => conditions
 end subroutine serial_fe_space_set_conditions
 
-function serial_fe_space_get_num_fixed_dof_values(this) result(num_fixed_dof_values)
+function serial_fe_space_get_num_fixed_dofs(this) result(num_fixed_dof_values)
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this 
   integer(ip) :: num_fixed_dof_values
   num_fixed_dof_values = this%num_fixed_dof_values
-end function serial_fe_space_get_num_fixed_dof_values
+end function serial_fe_space_get_num_fixed_dofs
 
 function serial_fe_space_get_num_fixed_dofs(this)
   implicit none

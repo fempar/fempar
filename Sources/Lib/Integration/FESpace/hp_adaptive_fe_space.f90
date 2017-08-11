@@ -75,7 +75,7 @@ module hp_adaptive_fe_space_names
      procedure          :: serial_fe_space_create_different_between_cells         => shpafs_create_different_between_cells
      procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
      
-     procedure          :: fill_dof_info                                          => serial_hp_adaptive_fe_space_fill_dof_info
+     procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
      procedure, private :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
@@ -91,7 +91,7 @@ module hp_adaptive_fe_space_names
      
      procedure, private :: fill_vef_lids_of_fe_faces                              => shpafs_fill_vef_lids_of_fe_faces
      
-     procedure          :: project_ref_fe_id_x_fe                               => shpafs_project_ref_fe_id_x_fe
+     procedure          :: project_field_cell_to_ref_fes                               => shpafs_project_field_cell_to_ref_fes
      procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
      procedure          :: project_fe_facet_integration_arrays                     => shpafs_project_fe_facet_integration_arrays
      procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
@@ -631,14 +631,14 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
  
   call this%set_num_fields(size(reference_fes))
   call this%allocate_and_fill_reference_fes(reference_fes)
-  call this%allocate_ref_fe_id_x_fe()
-  call this%fill_ref_fe_id_x_fe_same_on_all_cells()
+  call this%allocate_field_cell_to_ref_fes()
+  call this%fill_field_cell_to_ref_fes_same_on_all_cells()
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   vef_lids_of_fe_faces => this%get_vef_lids_of_fe_faces()
   call vef_lids_of_fe_faces%resize(triangulation%get_num_vefs())
   call this%fill_vef_lids_of_fe_faces()
-  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_init_ptr_lst_dofs_gids()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
@@ -673,14 +673,14 @@ subroutine shpafs_create_different_between_cells( this,          &
   
   call this%set_num_fields(size(set_ids_to_reference_fes,1))
   call this%allocate_and_fill_reference_fes(reference_fes)
-  call this%allocate_ref_fe_id_x_fe()
-  call this%fill_ref_fe_id_x_fe_different_between_cells(set_ids_to_reference_fes)
+  call this%allocate_field_cell_to_ref_fes()
+  call this%fill_field_cell_to_ref_fes_different_ref_fes_between_cells(set_ids_to_reference_fes)
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   vef_lids_of_fe_faces => this%get_vef_lids_of_fe_faces()
   call vef_lids_of_fe_faces%resize(triangulation%get_num_vefs())
   call this%fill_vef_lids_of_fe_faces()
-  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_init_ptr_lst_dofs_gids()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
@@ -835,7 +835,7 @@ subroutine shpafs_fill_vef_lids_of_fe_faces ( this )
   
 end subroutine shpafs_fill_vef_lids_of_fe_faces
 
-subroutine serial_hp_adaptive_fe_space_fill_dof_info( this, block_layout )
+subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering( this, block_layout )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
   type(block_layout_t), target        , intent(inout) :: block_layout
@@ -870,7 +870,7 @@ subroutine serial_hp_adaptive_fe_space_fill_dof_info( this, block_layout )
   
     call this%setup_hanging_node_constraints()
   end if  
-end subroutine serial_hp_adaptive_fe_space_fill_dof_info
+end subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering
 
 subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_id ) 
   implicit none
@@ -1226,14 +1226,14 @@ subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients(this,fe_func
   end do
 end subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients
 
-subroutine shpafs_project_ref_fe_id_x_fe(this)
+subroutine shpafs_project_field_cell_to_ref_fes(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
   class(base_static_triangulation_t), pointer     :: triangulation
   type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
   class(fe_cell_iterator_t)              , allocatable :: new_fe
   class(reference_fe_t)             , pointer     :: reference_fe
-  integer(ip)                       , allocatable :: old_ref_fe_id_x_fe(:,:)
+  integer(ip)                       , allocatable :: old_field_cell_to_ref_fes(:,:)
   integer(ip)                                     :: old_num_cells
   integer(ip)                                     :: num_children_x_cell
   integer(ip)                                     :: subcell_id, old_cell_lid, new_cell_lid
@@ -1250,10 +1250,10 @@ subroutine shpafs_project_ref_fe_id_x_fe(this)
     assert(.false.)
   end select
   
-  call this%move_alloc_ref_fe_id_x_fe_out(old_ref_fe_id_x_fe)
-  call this%allocate_ref_fe_id_x_fe()
+  call this%move_alloc_field_cell_to_ref_fes(old_field_cell_to_ref_fes)
+  call this%allocate_field_cell_to_ref_fes()
   
-  old_num_cells = size(old_ref_fe_id_x_fe,2)
+  old_num_cells = size(old_field_cell_to_ref_fes,2)
   
   call this%create_fe_cell_iterator(new_fe)
   
@@ -1268,7 +1268,7 @@ subroutine shpafs_project_ref_fe_id_x_fe(this)
     do field_id = 1,this%get_num_fields()
       current_old_cell_lid = old_cell_lid
       current_new_cell_lid = new_cell_lid
-      old_reference_fe_id  = old_ref_fe_id_x_fe(field_id,current_old_cell_lid)
+      old_reference_fe_id  = old_field_cell_to_ref_fes(field_id,current_old_cell_lid)
       if ( transformation_flag == do_nothing ) then
         call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
         current_new_cell_lid = current_new_cell_lid + 1
@@ -1281,7 +1281,7 @@ subroutine shpafs_project_ref_fe_id_x_fe(this)
       else if ( transformation_flag == coarsening ) then
         do subcell_id = 1,num_children_x_cell-1
           current_old_cell_lid = current_old_cell_lid + 1
-          if ( old_reference_fe_id /= old_ref_fe_id_x_fe(field_id,current_old_cell_lid) ) then
+          if ( old_reference_fe_id /= old_field_cell_to_ref_fes(field_id,current_old_cell_lid) ) then
             massert(.false.,'Coarsened subcells do not have the same reference FE id')
           end if
         end do
@@ -1299,9 +1299,9 @@ subroutine shpafs_project_ref_fe_id_x_fe(this)
   massert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
   
   call this%free_fe_cell_iterator(new_fe)
-  call memfree(old_ref_fe_id_x_fe,__FILE__,__LINE__)
+  call memfree(old_field_cell_to_ref_fes,__FILE__,__LINE__)
   
-end subroutine shpafs_project_ref_fe_id_x_fe
+end subroutine shpafs_project_field_cell_to_ref_fes
 
 subroutine shpafs_project_fe_integration_arrays(this)
   implicit none
@@ -1348,16 +1348,16 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   
   old_num_cells = p4est_refinement_and_coarsening_flags%size()
   
-  call this%move_alloc_ptr_dofs_x_fe_out(old_ptr_dofs_x_fe)
-  call this%move_alloc_lst_dofs_lids_out(old_lst_dofs_lids)
+  call this%move_alloc_ptr_dofs_x_field_cell_out(old_ptr_dofs_x_fe)
+  call this%move_alloc_lst_dofs_gids_out(old_lst_dofs_lids)
   massert ( old_num_cells == (size(old_ptr_dofs_x_fe,2)-1), 'Incorrect size of p4est_refinement_and_coarsening_flags' )
   
-  call this%project_ref_fe_id_x_fe()
+  call this%project_field_cell_to_ref_fes()
   !call this%check_cell_vs_fe_topology_consistency()
   call this%fill_vef_lids_of_fe_faces()
   call this%project_fe_integration_arrays()
   call this%project_fe_facet_integration_arrays()
-  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_init_ptr_lst_dofs_gids()
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs()
@@ -1365,7 +1365,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
   block_layout => this%get_block_layout()
   call this%nullify_block_layout()
-  call this%fill_dof_info(block_layout)
+  call this%generate_global_dof_numbering(block_layout)
   
   call this%create_fe_cell_iterator(new_fe)
   reference_fe => new_fe%get_reference_fe_geo()
