@@ -147,13 +147,13 @@ module p4est_serial_triangulation_names
      !procedure, non_overridable          :: get_geom_id               => p4est_vef_iterator_get_geom_id
      procedure                           :: get_set_id                => p4est_vef_iterator_get_set_id
 
-     !procedure, non_overridable          :: set_dimension             => p4est_vef_iterator_set_dimension
+     !procedure, non_overridable          :: set_dim             => p4est_vef_iterator_set_dim
      !procedure, non_overridable          :: set_it_at_boundary        => p4est_vef_iterator_set_it_at_boundary
      !procedure, non_overridable          :: set_it_as_local           => p4est_vef_iterator_set_it_as_local
      !procedure, non_overridable          :: set_it_as_ghost           => p4est_vef_iterator_set_it_as_ghost
      !procedure, non_overridable          :: set_it_at_interface       => p4est_vef_iterator_set_it_at_interface
 
-     procedure                           :: get_dimension             => p4est_vef_iterator_get_dimension
+     procedure                           :: get_dim             => p4est_vef_iterator_get_dim
      procedure                           :: is_at_boundary            => p4est_vef_iterator_is_at_boundary
      procedure                           :: is_local                  => p4est_vef_iterator_is_local
      procedure                           :: is_ghost                  => p4est_vef_iterator_is_ghost
@@ -180,7 +180,7 @@ module p4est_serial_triangulation_names
   type, extends(serial_triangulation_t) ::  p4est_serial_triangulation_t
     private
     integer(ip) :: p4est_num_cells          = -1
-    integer(ip) :: p4est_num_dimensions     = -1
+    integer(ip) :: p4est_num_dims     = -1
     integer(ip) :: p4est_num_vefs           = -1
     integer(ip) :: num_proper_vefs          = -1 
     integer(ip) :: num_improper_vefs        = -1 
@@ -220,8 +220,8 @@ module p4est_serial_triangulation_names
     type(std_vector_integer_ip_t)          :: p4est_lst_improper_cells_around
     type(std_vector_integer_ip_t)          :: p4est_improper_vefs_improper_cell_around_ivef
     type(std_vector_integer_ip_t)          :: p4est_improper_vefs_improper_cell_around_subvef
-    type(std_vector_integer_ip_t)          :: p4est_proper_vefs_dimension
-    type(std_vector_integer_ip_t)          :: p4est_improper_vefs_dimension
+    type(std_vector_integer_ip_t)          :: p4est_proper_vefs_dim
+    type(std_vector_integer_ip_t)          :: p4est_improper_vefs_dim
     type(std_vector_integer_ip_t)          :: p4est_proper_vefs_at_boundary
     type(std_vector_integer_ip_t)          :: p4est_refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: p4est_cell_set_ids
@@ -230,7 +230,7 @@ module p4est_serial_triangulation_names
   contains
   
     ! Getters
-    procedure                                   :: get_num_dimensions                            => p4est_serial_triangulation_get_num_dimensions
+    procedure                                   :: get_num_dims                            => p4est_serial_triangulation_get_num_dims
     procedure                                   :: get_num_cells                                 => p4est_serial_triangulation_get_num_cells
     procedure                                   :: get_num_vefs                                  => p4est_serial_triangulation_get_num_vefs
     procedure                                   :: get_num_proper_vefs                           => p4est_serial_triangulation_get_num_proper_vefs

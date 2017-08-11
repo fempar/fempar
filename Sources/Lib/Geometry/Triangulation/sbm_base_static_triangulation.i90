@@ -2068,7 +2068,6 @@ subroutine bst_print ( this )
         call this%parts_object%free()
         call this%subparts_object%free()
         call this%g2l_subparts%free()
-<<<<<<< HEAD
         this%num_objects = -1
         this%num_global_objects = -1
        else ! I am lgt1_task
@@ -2090,25 +2089,6 @@ subroutine bst_print ( this )
      end if
      nullify(this%p_env)
    end subroutine  bst_environment_free_or_nullify 
-=======
-        this%num_objects = -1
-        this%num_global_objects = -1
-
-      else ! I am lgt1_task
-         call this%coarse_triangulation%free()
-         deallocate ( this%coarse_triangulation, stat=istat)
-         check(istat == 0)
-      end if
-
-      if(associated(this%p_env,this%par_environment)) then
-         ! The environment has been created by the triangulation
-         call this%par_environment%free()
-      end if
-      nullify(this%p_env)
-      end if
-      call this%geometry%free()
-   end subroutine bst_free
->>>>>>> 819537693844795c7cdee77675691293bfca635e
 
    function bst_get_num_reference_fes_geo ( this ) 
      implicit none

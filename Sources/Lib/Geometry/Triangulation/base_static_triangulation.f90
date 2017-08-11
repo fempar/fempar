@@ -101,15 +101,9 @@ module base_static_triangulation_names
     final                                ::                            cell_iterator_free_final
     procedure, non_overridable           :: next                    => cell_iterator_next
     procedure, non_overridable           :: first                   => cell_iterator_first
-<<<<<<< HEAD
-    procedure                            :: last                    => cell_iterator_last
-    procedure, non_overridable           :: set_lid                 => cell_iterator_set_lid
-    procedure, non_overridable, private  :: set_gid                 => cell_iterator_set_gid
-=======
     procedure, non_overridable           :: last                    => cell_iterator_last
     procedure, non_overridable           :: set_gid                 => cell_iterator_set_gid
     procedure, non_overridable, private  :: set_ggid                 => cell_iterator_set_ggid
->>>>>>> 819537693844795c7cdee77675691293bfca635e
     procedure, non_overridable, private  :: set_mypart              => cell_iterator_set_mypart
     procedure, non_overridable, private  :: get_triangulation       => cell_iterator_get_triangulation
     procedure, non_overridable, private  :: cell_iterator_get_vef
@@ -218,7 +212,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: set_it_at_interface       => vef_iterator_set_it_at_interface
 
 <<<<<<< HEAD
-     procedure                           :: get_dimension             => vef_iterator_get_dimension
+     procedure                           :: get_dim             => vef_iterator_get_dim
      procedure                           :: is_at_boundary            => vef_iterator_is_at_boundary
      procedure                           :: is_local                  => vef_iterator_is_local
      procedure                           :: is_ghost                  => vef_iterator_is_ghost
@@ -375,7 +369,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_cell_import                     => bst_get_cell_import
      procedure, non_overridable          :: get_coarse_triangulation            => bst_get_coarse_triangulation
 <<<<<<< HEAD
-     procedure                           :: get_num_dimensions                  => bst_get_num_dimensions
+     procedure                           :: get_num_dims                  => bst_get_num_dims
      procedure                           :: get_num_vefs                        => bst_get_num_vefs 
      procedure, non_overridable          :: get_num_faces                       => bst_get_num_faces
      procedure                           :: get_num_cells                       => bst_get_num_cells

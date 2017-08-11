@@ -171,13 +171,13 @@ end function p4est_vef_iterator_get_set_id
 !  p4est_vef_iterator_get_geom_id = this%base_static_triangulation%vefs_geometry(this%lid)
 !end function p4est_vef_iterator_get_geom_id  
 
-!subroutine p4est_vef_iterator_set_dimension(this,vef_dim)
+!subroutine p4est_vef_iterator_set_dim(this,vef_dim)
 !  implicit none
 !  class(p4est_vef_iterator_t), intent(inout) :: this
 !  integer(ip)          , intent(in)    :: vef_dim
 !  assert ( this%lid >= 1 .and. .not. this%has_finished() )
 !  this%base_static_triangulation%vefs_type(this%lid) = (this%base_static_triangulation%vefs_type(this%lid)/10) * 10 + vef_dim
-!end subroutine p4est_vef_iterator_set_dimension
+!end subroutine p4est_vef_iterator_set_dim
 
 !subroutine p4est_vef_iterator_set_it_at_boundary(this)
 !  implicit none
@@ -215,17 +215,17 @@ end function p4est_vef_iterator_get_set_id
 !  this%base_static_triangulation%vefs_type(this%lid) = 200 + vef_dim_and_bound
 !end subroutine p4est_vef_iterator_set_it_as_ghost
 
-function p4est_vef_iterator_get_dimension(this)
+function p4est_vef_iterator_get_dim(this)
   implicit none
   class(p4est_vef_iterator_t), intent(in) :: this
-  integer(ip) :: p4est_vef_iterator_get_dimension
+  integer(ip) :: p4est_vef_iterator_get_dim
   assert ( this%is_within_valid_range() )
   if ( this%is_proper() ) then
-    p4est_vef_iterator_get_dimension  = this%p4est_triangulation%p4est_proper_vefs_dimension%get(this%get_lid())
+    p4est_vef_iterator_get_dim  = this%p4est_triangulation%p4est_proper_vefs_dim%get(this%get_lid())
   else
-    p4est_vef_iterator_get_dimension  = this%p4est_triangulation%p4est_improper_vefs_dimension%get(abs(this%get_lid()))
+    p4est_vef_iterator_get_dim  = this%p4est_triangulation%p4est_improper_vefs_dim%get(abs(this%get_lid()))
   end if
-end function p4est_vef_iterator_get_dimension
+end function p4est_vef_iterator_get_dim
 
 function p4est_vef_iterator_is_at_boundary (this)
   implicit none
@@ -260,7 +260,7 @@ end function p4est_vef_iterator_is_at_interface
 !  class(p4est_vef_iterator_t), intent(in) :: this
 !  logical :: p4est_vef_iterator_is_face
 !  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  p4est_vef_iterator_is_face  = (this%base_static_triangulation%get_num_dimensions()-1 == this%get_dimension())
+!  p4est_vef_iterator_is_face  = (this%base_static_triangulation%get_num_dims()-1 == this%get_dim())
 !end function p4est_vef_iterator_is_face
 
 function p4est_vef_iterator_is_ghost (this)

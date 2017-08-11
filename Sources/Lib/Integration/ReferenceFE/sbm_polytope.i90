@@ -699,8 +699,8 @@ subroutine node_iterator_create_on_n_subface ( this, node_array, n_face, n_subfa
   aux_order = 0
   num_refinements = 1
   this%min_value = 0
-  do i = 0, node_array%polytope%num_dimensions-1
-     if ( IBITS( this%n_face, node_array%polytope%num_dimensions+i, 1 ) == 1 ) then 
+  do i = 0, node_array%polytope%num_dims-1
+     if ( IBITS( this%n_face, node_array%polytope%num_dims+i, 1 ) == 1 ) then 
         aux_order(c+1) = node_array%order(i+1) / ( num_refinements + 1 )
         if ( IBITS( n_subface, c, 1 ) == 1 ) this%min_value(c) = aux_order(c+1)
         if ( IBITS( this%node_array%polytope%topology, i, 1 ) == 1 ) then 

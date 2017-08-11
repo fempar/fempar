@@ -1049,8 +1049,8 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   
   reference_fe => fe%get_reference_fe(1)
   num_cell_vertices = reference_fe%get_num_vertices()
-  if  (this%p4est_triangulation%get_num_dimensions() == 3) then
-    num_cell_edges = reference_fe%get_num_n_faces_of_dimension(1)
+  if  (this%p4est_triangulation%get_num_dims() == 3) then
+    num_cell_edges = reference_fe%get_num_n_faces_of_dim(1)
   else
     num_cell_edges = 0
   end if  
@@ -1116,7 +1116,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      improper_vef_ivef = fe%find_lpos_vef_lid(fe_vef%get_lid())
      call fe%get_fe_dofs(fe_dofs)
 
-     mcheck( this%p4est_triangulation%get_num_dimensions()==2 , 'The following code only valid for 2d cases' )
+     mcheck( this%p4est_triangulation%get_num_dims()==2 , 'The following code only valid for 2d cases' )
      ! Here we need to find the first non-void coarser_fe in this field. In 2d, the first non-void coarser_fe is always the first
      ! one (if it exists). But this is not true in 3d. Thus, taking the first coarser_fe in the next line is correct only in 2d.
 
@@ -1157,18 +1157,18 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
            end do
            assert (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
            
-           if ( fe_vef%get_dimension() == 0 ) then ! vef is a corner (2D/3D)
-              if ( coarser_vef%get_dimension()  == 1 .and. this%p4est_triangulation%get_num_dimensions() == 3) then
+           if ( fe_vef%get_dim() == 0 ) then ! vef is a corner (2D/3D)
+              if ( coarser_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3) then
                  !qpoint = h_refinement_subedge_permutation(coarser_fe_ivef,num_subedges_x_edge,1)
               else
                  ! TODO: 2 is equal to num_subfaces_x_face ... only working in 2D!!!
                  qpoint = h_refinement_subface_permutation(coarser_fe_ivef-num_cell_vertices,2,1)
               end if
-           else if ( fe_vef%get_dimension()  == 1 .and. this%p4est_triangulation%get_num_dimensions() == 3 ) then ! vef is an edge (only 3D)
+           else if ( fe_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3 ) then ! vef is an edge (only 3D)
               qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices, &
                                                         coarse_fe_subvef, &
                                                         fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
-           else if (fe_vef%get_dimension() == this%p4est_triangulation%get_num_dimensions()-1) then ! vef is a face (2D/3D)
+           else if (fe_vef%get_dim() == this%p4est_triangulation%get_num_dims()-1) then ! vef is a face (2D/3D)
               qpoint = h_refinement_subface_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges, &
                                                         coarse_fe_subvef, &
                                                         fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
@@ -1258,7 +1258,7 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
   call this%create_fe_cell_iterator(new_fe)
   
   reference_fe => new_fe%get_reference_fe_geo()
-  num_children_x_cell = reference_fe%get_num_n_faces_of_dimension(0)
+  num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
   
   old_cell_lid = 1
   new_cell_lid = 1
@@ -1369,7 +1369,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   
   call this%create_fe_cell_iterator(new_fe)
   reference_fe => new_fe%get_reference_fe_geo()
-  num_children_x_cell = reference_fe%get_num_n_faces_of_dimension(0)
+  num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
   call memalloc(num_children_x_cell, &
                 this%get_max_num_shape_functions(),old_nodal_values,__FILE__,__LINE__)
   call memalloc(this%get_max_num_shape_functions(),new_nodal_values,__FILE__,__LINE__)

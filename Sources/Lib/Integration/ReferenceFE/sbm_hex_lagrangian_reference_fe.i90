@@ -34,7 +34,7 @@
 
 subroutine hex_lagrangian_reference_fe_create(this, &
                                               topology, &
-                                              num_dimensions, &
+                                              num_dims, &
                                               order, &
                                               field_type, & 
                                               conformity, &
@@ -42,15 +42,15 @@ subroutine hex_lagrangian_reference_fe_create(this, &
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(inout)  :: this
   character(*)                        , intent(in)    :: topology
-  integer(ip)                         , intent(in)    :: num_dimensions
+  integer(ip)                         , intent(in)    :: num_dims
   integer(ip)                         , intent(in)    :: order
   character(*)                        , intent(in)    :: field_type
   logical                             , intent(in)    :: conformity
   logical              , optional     , intent(in)    :: continuity
   integer(ip)        :: num_refinements
   num_refinements = 1
-  call lagrangian_reference_fe_create(this,topology,num_dimensions,order,field_type,conformity,continuity)
-  this%h_refinement_num_subfacets = (num_refinements+1)**(this%num_dimensions-1)
+  call lagrangian_reference_fe_create(this,topology,num_dims,order,field_type,conformity,continuity)
+  this%h_refinement_num_subfacets = (num_refinements+1)**(this%num_dims-1)
   call this%fill_h_refinement_interpolation()
   call this%fill_h_refinement_permutations()
 end subroutine hex_lagrangian_reference_fe_create
@@ -941,19 +941,19 @@ end subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation
 subroutine hex_lagrangian_reference_fe_fill_h_refinement_permutations ( this )
   implicit none 
   class(hex_lagrangian_reference_fe_t), intent(inout) :: this
-  call this%fill_n_subface_permutation(this%num_dimensions-1, &
+  call this%fill_n_subface_permutation(this%num_dims-1, &
                                        this%h_refinement_subface_permutation)
-  if ( this%num_dimensions == 3 ) then
-     call this%fill_n_subface_permutation(this%num_dimensions-2, &
+  if ( this%num_dims == 3 ) then
+     call this%fill_n_subface_permutation(this%num_dims-2, &
                                           this%h_refinement_subedge_permutation)
   end if
 end subroutine hex_lagrangian_reference_fe_fill_h_refinement_permutations
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face_dimension, permutation_array )
+subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face_dime, permutation_array )
   implicit none 
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this              
-  integer(ip)                         , intent(in)    :: n_face_dimension
+  integer(ip)                         , intent(in)    :: n_face_dime
   integer(ip)           , allocatable , intent(inout) :: permutation_array(:,:,:)
   integer(ip)           :: num_refinements, num_n_faces, num_n_subfaces, num_dofs_on_n_face
   integer(ip)           :: first_n_face_id, n_face_id, n_subface_id, dof_on_n_subface_id, icomp
@@ -961,9 +961,9 @@ subroutine hex_lagrangian_reference_fe_fill_n_subface_permutation ( this, n_face
   type(node_iterator_t) :: node_iterator_on_n_subface
   
   num_refinements    = 1
-  num_n_faces        = this%get_num_n_faces_of_dimension(n_face_dimension)
-  num_n_subfaces     = ( num_refinements + 1 ) ** n_face_dimension     ! Topology-dependent
-  first_n_face_id    = this%get_first_n_face_id_of_dimension(n_face_dimension)
+  num_n_faces        = this%get_num_n_faces_of_dim(n_face_dime)
+  num_n_subfaces     = ( num_refinements + 1 ) ** n_face_dime     ! Topology-dependent
+  first_n_face_id    = this%get_first_n_face_id_of_dim(n_face_dime)
   num_dofs_on_n_face = this%get_num_dofs_on_n_face(first_n_face_id) ! Only cubes and simplices
 
   call memalloc(num_n_faces,num_n_subfaces,num_dofs_on_n_face,permutation_array,__FILE__,__LINE__)
@@ -1058,7 +1058,7 @@ subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell ( this,     
         parent_ijk        = node_iterator%current_ijk()
         parent_coordinate = node_iterator%coordinate
         child_coordinate  = 2 * parent_coordinate
-        do i = 0,this%node_array%polytope%num_dimensions-1
+        do i = 0,this%node_array%polytope%num_dims-1
            if ( child_coordinate(i) .ge. this%order_vector(i+1) ) then
               child_coordinate(i) = child_coordinate(i) - this%order_vector(i+1)
               subcell_id = IBSET(subcell_id,i)
@@ -1066,7 +1066,7 @@ subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell ( this,     
         end do
         child_index = ijk_to_index( child_coordinate,      &
                                     this%node_array%order, &
-                                    this%node_array%polytope%num_dimensions )
+                                    this%node_array%polytope%num_dims )
         child_index = this%node_array%ijk_to_index( child_index ) + &
                       icomp * this%node_array%num_nodes
         parent_index = parent_index + icomp * this%node_array%num_nodes

@@ -415,7 +415,7 @@ end function p4est_cell_iterator_get_transformation_flag
 !!  integer(ip) :: p4est_cell_iterator_get_num_vertices
 !!  class(lagrangian_reference_fe_t) , pointer       :: reference_fe
 !!  reference_fe => this%get_reference_fe_geo()
-!!  p4est_cell_iterator_get_num_vertices = reference_fe%get_num_n_faces_of_dimension(0)
+!!  p4est_cell_iterator_get_num_vertices = reference_fe%get_num_n_faces_of_dim(0)
 !!end function p4est_cell_iterator_get_num_vertices
 
 !subroutine p4est_cell_iterator_fill_nodes_on_vertices (this)
@@ -425,7 +425,7 @@ end function p4est_cell_iterator_get_transformation_flag
 !  class(lagrangian_reference_fe_t) , pointer       :: reference_fe
 
 !  reference_fe => this%get_reference_fe_geo()
-!  do ivef=1,reference_fe%get_num_n_faces_of_dimension(0)
+!  do ivef=1,reference_fe%get_num_n_faces_of_dim(0)
 !     assert(reference_fe%get_num_own_nodes_n_face(ivef)==1)
 !     inode = reference_fe%get_own_node_n_face(1,ivef)
 !     lnode = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%lid) + ivef - 1 )
