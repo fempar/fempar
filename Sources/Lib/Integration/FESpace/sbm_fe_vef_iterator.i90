@@ -54,12 +54,12 @@ subroutine fe_vef_iterator_final ( this )
   assert (.not. associated(this%fe_space)) 
 end subroutine fe_vef_iterator_final 
 
-subroutine fe_vef_iterator_set_vef_lid_of_fe_face ( this, face_lid )
+subroutine fe_vef_iterator_set_vef_lid_of_fe_face ( this, facet_lid )
   implicit none
   class(fe_vef_iterator_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: face_lid
-  assert ( face_lid >= 1 .and. face_lid <= this%fe_space%vef_lids_of_fe_faces%size() )
-  call this%fe_space%vef_lids_of_fe_faces%set(face_lid,this%get_lid())
+  integer(ip)             , intent(in)    :: facet_lid
+  assert ( facet_lid >= 1 .and. facet_lid <= this%fe_space%vef_lids_of_fe_faces%size() )
+  call this%fe_space%vef_lids_of_fe_faces%set(facet_lid,this%get_lid())
 end subroutine fe_vef_iterator_set_vef_lid_of_fe_face
 
 subroutine fe_vef_iterator_push_back_vef_lid_of_fe_face ( this )

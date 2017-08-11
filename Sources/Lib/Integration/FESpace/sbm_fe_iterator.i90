@@ -419,21 +419,21 @@ subroutine fe_iterator_update_integration( this )
   class(fe_iterator_t), intent(inout) :: this 
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
-  type(fe_map_t)           , pointer :: fe_map
+  type(cell_map_t)           , pointer :: cell_map
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
   
   integer(ip) :: istat
 
-  fe_map      => this%get_fe_map()
-  coordinates => fe_map%get_coordinates()
+  cell_map      => this%get_cell_map()
+  coordinates => cell_map%get_coordinates()
   call this%get_coordinates(coordinates)
 
   quadrature => this%get_quadrature()
-  call fe_map%update(quadrature)
+  call cell_map%update(quadrature)
   do field_id = 1, this%get_number_fields()
      cell_integrator => this%get_cell_integrator(field_id) 
-     call cell_integrator%update(fe_map)
+     call cell_integrator%update(cell_map)
   end do
   
   call this%update_number_dofs_per_field(this%number_dofs_per_field)
@@ -664,16 +664,16 @@ function fe_iterator_compute_volume ( this )
   integer(ip)                 :: q_poin, number_quadrature_points
   
   type(quadrature_t), pointer :: quadrature
-  type(fe_map_t)    , pointer :: fe_map
+  type(cell_map_t)    , pointer :: cell_map
   
   quadrature => this%get_quadrature()
-  fe_map     => this%get_fe_map()
+  cell_map     => this%get_cell_map()
   
   number_quadrature_points = quadrature%get_number_quadrature_points()
   fe_iterator_compute_volume = 0.0_rp
   do q_poin = 1, number_quadrature_points
      fe_iterator_compute_volume = fe_iterator_compute_volume + &
-          &                          fe_map%get_det_jacobian(q_poin) * &
+          &                          cell_map%get_det_jacobian(q_poin) * &
           &                          quadrature%get_weight(q_poin)
   end do
 end function fe_iterator_compute_volume
@@ -731,23 +731,23 @@ function fe_iterator_get_quadrature ( this )
   fe_iterator_get_quadrature => this%fe_space%fe_quadratures(fe_quadratures_position)
 end function fe_iterator_get_quadrature
 
-function fe_iterator_get_fe_map ( this )
+function fe_iterator_get_cell_map ( this )
   implicit none
   class(fe_iterator_t), intent(in) :: this
-  type(fe_map_t), pointer :: fe_iterator_get_fe_map
-  integer(ip) :: fe_maps_position, fe_maps_key
+  type(cell_map_t), pointer :: fe_iterator_get_cell_map
+  integer(ip) :: cell_maps_position, cell_maps_key
   integer(ip) :: istat
   
-  fe_maps_key = this%fe_space%generate_fe_quadratures_position_key(this%get_reference_fe_geo_id(),&
+  cell_maps_key = this%fe_space%generate_fe_quadratures_position_key(this%get_reference_fe_geo_id(),&
                                                                    this%get_quadrature_degree())
   
-  call this%fe_space%fe_quadratures_and_maps_position%get(key=fe_maps_key, &
-                                                          val=fe_maps_position, &
+  call this%fe_space%fe_quadratures_and_maps_position%get(key=cell_maps_key, &
+                                                          val=cell_maps_position, &
                                                           stat=istat)
   
   assert ( .not. istat == key_not_found )
-  fe_iterator_get_fe_map => this%fe_space%fe_maps(fe_maps_position)
-end function fe_iterator_get_fe_map
+  fe_iterator_get_cell_map => this%fe_space%cell_maps(cell_maps_position)
+end function fe_iterator_get_cell_map
 
 function fe_iterator_get_cell_integrator ( this, field_id )
   implicit none
@@ -1002,19 +1002,19 @@ function fe_iterator_get_boundary_quadrature(this) result (quadrature)
   mcheck(.false.,'This TPB cannot be called from this class')
 end function fe_iterator_get_boundary_quadrature
 
-function fe_iterator_get_boundary_piecewise_fe_map(this) result (fe_map)
+function fe_iterator_get_boundary_piecewise_cell_map(this) result (cell_map)
   implicit none
   class(fe_iterator_t), intent(in) :: this
-  type(piecewise_fe_map_t), pointer :: fe_map
+  type(piecewise_cell_map_t), pointer :: cell_map
   mcheck(.false.,'This TPB cannot be called from this class')
-end function fe_iterator_get_boundary_piecewise_fe_map
+end function fe_iterator_get_boundary_piecewise_cell_map
 
-function fe_iterator_get_boundary_fe_map(this) result (fe_map)
+function fe_iterator_get_boundary_cell_map(this) result (cell_map)
   implicit none
   class(fe_iterator_t), intent(in) :: this
-  type(fe_map_t), pointer :: fe_map
+  type(cell_map_t), pointer :: cell_map
   mcheck(.false.,'This TPB cannot be called from this class')
-end function fe_iterator_get_boundary_fe_map
+end function fe_iterator_get_boundary_cell_map
 
 function fe_iterator_get_boundary_cell_integrator(this, field_id) result (cell_int)
   implicit none

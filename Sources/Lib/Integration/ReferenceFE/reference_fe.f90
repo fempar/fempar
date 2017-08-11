@@ -229,11 +229,11 @@ module reference_fe_names
   type cell_map_facet_restriction_t
      private
 <<<<<<< HEAD
-     integer(ip)                 :: number_faces = 0
-     integer(ip)                 :: number_subfaces = 0
-     integer(ip)                 :: active_face_lid
-     integer(ip)                 :: active_subface_lid
-     type(fe_map_t), allocatable :: fe_map(:)
+     integer(ip)                 :: num_facets = 0
+     integer(ip)                 :: num_subfacets = 0
+     integer(ip)                 :: active_facet_lid
+     integer(ip)                 :: active_subfacet_lid
+     type(cell_map_t), allocatable :: cell_map(:)
 =======
      integer(ip)                 :: num_facets = 0
      integer(ip)                 :: active_facet_lid
@@ -490,7 +490,7 @@ module reference_fe_names
      
      procedure(get_default_quadrature_degree_interface), deferred :: get_default_quadrature_degree
      
-     procedure(get_h_refinement_number_subfaces_interface), private, deferred :: get_h_refinement_number_subfaces
+     procedure(get_h_refinement_num_subfacets_interface), private, deferred :: get_h_refinement_num_subfacets
 
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
@@ -878,12 +878,12 @@ module reference_fe_names
         integer(ip) :: get_default_quadrature_degree_interface
      end function get_default_quadrature_degree_interface
      
-     function get_h_refinement_number_subfaces_interface(this)
+     function get_h_refinement_num_subfacets_interface(this)
         import :: reference_fe_t, ip
         implicit none
         class(reference_fe_t)        , intent(in)    :: this 
-        integer(ip) :: get_h_refinement_number_subfaces_interface
-     end function get_h_refinement_number_subfaces_interface
+        integer(ip) :: get_h_refinement_num_subfacets_interface
+     end function get_h_refinement_num_subfacets_interface
      
   end interface
 
@@ -976,8 +976,8 @@ contains
        & => lagrangian_reference_fe_apply_cell_map_to_interpolation
   procedure  :: get_default_quadrature_degree &
        & => lagrangian_reference_fe_get_default_quadrature_degree
-  procedure, private :: get_h_refinement_number_subfaces &
-       & => lagrangian_reference_fe_get_h_refinement_number_subfaces
+  procedure, private :: get_h_refinement_num_subfacets &
+       & => lagrangian_reference_fe_get_h_refinement_num_subfacets
 end type lagrangian_reference_fe_t
 
 abstract interface
@@ -1345,7 +1345,7 @@ public :: tet_raviart_thomas_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
 private
-integer(ip)              :: h_refinement_number_subfaces
+integer(ip)              :: h_refinement_num_subfacets
 type(interpolation_t)    :: h_refinement_interpolation
 integer(ip), allocatable :: h_refinement_subface_permutation(:,:,:)
 integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
@@ -1408,8 +1408,8 @@ procedure, private :: compute_num_quadrature_points                       &
 >>>>>>> 819537693844795c7cdee77675691293bfca635e
 procedure :: fill_qpoints_permutations                                   &
 & => hex_lagrangian_reference_fe_fill_qpoints_permutations
-procedure, private :: get_h_refinement_number_subfaces &
-& => hex_lagrangian_reference_fe_get_h_refinement_number_subfaces
+procedure, private :: get_h_refinement_num_subfacets &
+& => hex_lagrangian_reference_fe_get_h_refinement_num_subfacets
 end type hex_lagrangian_reference_fe_t
 
 public :: hex_lagrangian_reference_fe_t
@@ -1559,7 +1559,7 @@ contains
   procedure :: fill_qpoints_permutations            => void_reference_fe_fill_qpoints_permutations     
   procedure :: free                                 => void_reference_fe_free
   procedure :: get_default_quadrature_degree        => void_reference_fe_get_default_quadrature_degree
-  procedure, private :: get_h_refinement_number_subfaces => void_reference_fe_get_h_refinement_number_subfaces
+  procedure, private :: get_h_refinement_num_subfacets => void_reference_fe_get_h_refinement_num_subfacets
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                        => void_reference_fe_fill
 end type void_reference_fe_t
@@ -1668,10 +1668,10 @@ public :: cell_integrator_t, p_cell_integrator_t
   type cell_integrator_facet_restriction_t
      private
 <<<<<<< HEAD
-     integer(ip)                          :: number_faces
-     integer(ip)                          :: number_subfaces
-     integer(ip)                          :: active_face_lid
-     integer(ip)                          :: active_subface_lid
+     integer(ip)                          :: num_facets
+     integer(ip)                          :: num_subfacets
+     integer(ip)                          :: active_facet_lid
+     integer(ip)                          :: active_subfacet_lid
 =======
      integer(ip)                            :: num_facets
      integer(ip)                            :: active_facet_lid
@@ -1717,7 +1717,7 @@ type facet_integrator_t
   private
 <<<<<<< HEAD
   logical                                  :: is_boundary
-  type(cell_integrator_face_restriction_t) :: cell_integrator_face_restriction(2)
+  type(cell_integrator_facet_restriction_t) :: cell_integrator_facet_restriction(2)
   type(p_reference_fe_t)                   :: reference_fe(2)
   integer(ip)                              :: current_qpoints_perm_cols(2)
   type(allocatable_array_ip2_t)            :: qpoints_perm

@@ -34,16 +34,16 @@ subroutine cell_map_facet_restriction_create( this, quadrature, reference_fe_geo
   type(quadrature_t)           , intent(in)    :: quadrature
   class(lagrangian_reference_fe_t)           , intent(in)    :: reference_fe_geometry
 
-  integer(ip)           :: face_lid, subfacet_lid, fe_map_index, istat
+  integer(ip)           :: facet_lid, subfacet_lid, cell_map_index, istat
 
   call this%free()
-  this%number_faces = reference_fe_geometry%get_number_facets()
-  this%number_subfaces = reference_fe_geometry%get_h_refinement_number_subfaces()
-  allocate(this%fe_map(this%number_faces*(this%number_subfacets+1)),stat = istat); check(istat == 0);
-  do face_lid = 1,this%number_faces
-    do subfacet_lid = 0,this%number_subfaces
-      fe_map_index = face_lid + subfacet_lid*this%number_faces
-      call this%fe_map(fe_map_index)%restricted_to_facet( face_lid,      &
+  this%num_facets = reference_fe_geometry%get_number_facets()
+  this%num_subfacets = reference_fe_geometry%get_h_refinement_num_subfacets()
+  allocate(this%cell_map(this%num_facets*(this%number_subfacets+1)),stat = istat); check(istat == 0);
+  do facet_lid = 1,this%num_facets
+    do subfacet_lid = 0,this%num_subfacets
+      cell_map_index = facet_lid + subfacet_lid*this%num_facets
+      call this%cell_map(cell_map_index)%restricted_to_facet( facet_lid,      &
                                                      subfacet_lid-1, &
                                                      quadrature,    &
                                                      reference_fe_geometry )
@@ -62,7 +62,7 @@ subroutine cell_map_facet_restriction_update( this, facet_lid, subfacet_lid, qua
 
   this%active_facet_lid = facet_lid
   this%active_subfacet_lid = subfacet_lid
-  call this%cell_map(facet_lid+subfacet_lid*this%number_faces)%update(quadrature)
+  call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(quadrature)
 
 end subroutine cell_map_facet_restriction_update
 
@@ -71,10 +71,10 @@ subroutine cell_map_facet_restriction_free( this)
   implicit none
   ! Parameters
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-  class(fe_map_face_restriction_t), intent(inout) :: this
-  integer(ip) :: face_lid , istat
-  do face_lid = 1, this%number_faces*(this%number_subfaces+1)
-     call this%fe_map(face_lid)%free()
+  class(cell_map_facet_restriction_t), intent(inout) :: this
+  integer(ip) :: facet_lid , istat
+  do facet_lid = 1, this%num_facets*(this%num_subfacets+1)
+     call this%cell_map(facet_lid)%free()
 =======
   class(cell_map_facet_restriction_t), intent(inout) :: this
   integer(ip) :: facet_lid , istat
@@ -87,24 +87,24 @@ subroutine cell_map_facet_restriction_free( this)
      check(istat == 0)
   end if
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-  this%number_faces = 0
-  this%number_subfaces = 0
-  this%active_face_lid = 0
-  this%active_subface_lid = 0
-end subroutine fe_map_face_restriction_free
+  this%num_facets = 0
+  this%num_subfacets = 0
+  this%active_facet_lid = 0
+  this%active_subfacet_lid = 0
+end subroutine cell_map_facet_restriction_free
 
 !==================================================================================================
-function fe_map_face_restriction_get_coordinates(this,face_lid,subface_lid)
+function cell_map_facet_restriction_get_coordinates(this,facet_lid,subfacet_lid)
   implicit none
   ! Parameters
-  class(fe_map_face_restriction_t), intent(in) :: this
-  integer(ip)                     , intent(in) :: face_lid
-  integer(ip)                     , intent(in) :: subface_lid
-  type(point_t), pointer :: fe_map_face_restriction_get_coordinates(:)
-  integer(ip) :: fe_map_index
-  fe_map_index = face_lid + subface_lid * this%number_faces
-  fe_map_face_restriction_get_coordinates => this%fe_map(fe_map_index)%get_coordinates()
-end function fe_map_face_restriction_get_coordinates
+  class(cell_map_facet_restriction_t), intent(in) :: this
+  integer(ip)                     , intent(in) :: facet_lid
+  integer(ip)                     , intent(in) :: subfacet_lid
+  type(point_t), pointer :: cell_map_facet_restriction_get_coordinates(:)
+  integer(ip) :: cell_map_index
+  cell_map_index = facet_lid + subfacet_lid * this%num_facets
+  cell_map_facet_restriction_get_coordinates => this%cell_map(cell_map_index)%get_coordinates()
+end function cell_map_facet_restriction_get_coordinates
 =======
   this%num_facets = 0
   this%active_facet_lid = 0
@@ -126,13 +126,13 @@ function cell_map_facet_restriction_get_active_cell_map(this)
   implicit none
   ! Parameters
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-  class(fe_map_face_restriction_t), target, intent(in) :: this
-  type(fe_map_t), pointer :: fe_map_face_restriction_get_active_fe_map
-  assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%number_faces )
-  assert ( this%active_subface_lid >= 0 .and. this%active_subface_lid <= this%number_subfaces )
-  fe_map_face_restriction_get_active_fe_map => this%fe_map( this%active_face_lid + &
-                                         this%active_subface_lid * this%number_faces )
-end function fe_map_face_restriction_get_active_fe_map
+  class(cell_map_facet_restriction_t), target, intent(in) :: this
+  type(cell_map_t), pointer :: cell_map_facet_restriction_get_active_cell_map
+  assert ( this%active_facet_lid >= 1 .and. this%active_facet_lid <= this%num_facets )
+  assert ( this%active_subfacet_lid >= 0 .and. this%active_subfacet_lid <= this%num_subfacets )
+  cell_map_facet_restriction_get_active_cell_map => this%cell_map( this%active_facet_lid + &
+                                         this%active_subfacet_lid * this%num_facets )
+end function cell_map_facet_restriction_get_active_cell_map
 =======
   class(cell_map_facet_restriction_t), target, intent(in) :: this
   type(cell_map_t), pointer :: cell_map_facet_restriction_get_active_cell_map
@@ -176,12 +176,12 @@ end subroutine facet_maps_free
 
 !==================================================================================================
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-subroutine face_maps_update(this,face_lid,subface_lid,face_quadrature,left_reference_fe_geo)
+subroutine face_maps_update(this,facet_lid,subfacet_lid,face_quadrature,left_reference_fe_geo)
   implicit none
   ! Parameters
   class(face_maps_t)              , intent(inout) :: this
-  integer(ip)                     , intent(in)    :: face_lid(2)
-  integer(ip)                     , intent(in)    :: subface_lid(2)
+  integer(ip)                     , intent(in)    :: facet_lid(2)
+  integer(ip)                     , intent(in)    :: subfacet_lid(2)
   type(quadrature_t)              , intent(in)    :: face_quadrature
 =======
 subroutine facet_maps_update(this,facet_lid,facet_quadrature,left_reference_fe_geo)
@@ -195,11 +195,11 @@ subroutine facet_maps_update(this,facet_lid,facet_quadrature,left_reference_fe_g
   real(rp) :: reorientation_factor
 
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-  ! Update fe_maps
-  call this%fe_maps(1)%update(face_lid(1),subface_lid(1),face_quadrature)
+  ! Update cell_maps
+  call this%cell_maps(1)%update(facet_lid(1),subfacet_lid(1),face_quadrature)
   if (.not. this%is_boundary) then
-     assert ( face_lid(2) >= 1 )
-     call this%fe_maps(2)%update(face_lid(2),subface_lid(2),face_quadrature)
+     assert ( facet_lid(2) >= 1 )
+     call this%cell_maps(2)%update(facet_lid(2),subfacet_lid(2),face_quadrature)
 =======
   ! Update cell_maps
   call this%cell_maps(1)%update(facet_lid(1),facet_quadrature)
@@ -224,13 +224,13 @@ function facet_maps_compute_characteristic_length(this,qpoin)
 
   real(rp)    :: h
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-  integer(ip) :: i, fe_map_index
-  type(fe_map_t), pointer :: fe_map
+  integer(ip) :: i, cell_map_index
+  type(cell_map_t), pointer :: cell_map
   
-  fe_map_index = this%fe_maps(1)%active_face_lid + & 
-                 this%fe_maps(1)%active_subface_lid * this%fe_maps(1)%number_faces
-  fe_map => this%fe_maps(1)%fe_map(fe_map_index)
-  face_maps_compute_characteristic_length = fe_map%compute_h(qpoin)
+  cell_map_index = this%cell_maps(1)%active_facet_lid + & 
+                 this%cell_maps(1)%active_subfacet_lid * this%cell_maps(1)%num_facets
+  cell_map => this%cell_maps(1)%cell_map(cell_map_index)
+  face_maps_compute_characteristic_length = cell_map%compute_h(qpoin)
 =======
   integer(ip) :: i
   type(cell_map_t), pointer :: cell_map
@@ -242,10 +242,10 @@ function facet_maps_compute_characteristic_length(this,qpoin)
   if (.not. this%is_at_boundary) then
      i = 2
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-     fe_map_index = this%fe_maps(i)%active_face_lid + & 
-                    this%fe_maps(i)%active_subface_lid * this%fe_maps(i)%number_faces
-     fe_map => this%fe_maps(i)%fe_map(fe_map_index)
-     h = fe_map%compute_h(qpoin) 
+     cell_map_index = this%cell_maps(i)%active_facet_lid + & 
+                    this%cell_maps(i)%active_subfacet_lid * this%cell_maps(i)%num_facets
+     cell_map => this%cell_maps(i)%cell_map(cell_map_index)
+     h = cell_map%compute_h(qpoin) 
      face_maps_compute_characteristic_length = min(face_maps_compute_characteristic_length, h)
 =======
      cell_map => this%cell_maps(i)%cell_map(this%cell_maps(i)%active_facet_lid)
@@ -278,16 +278,16 @@ end function facet_maps_get_quadrature_points_coordinates
 
 !==================================================================================================
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-function face_maps_get_coordinates_neighbour(this,neighbour_id,face_lid,subface_lid)
+function face_maps_get_coordinates_neighbour(this,neighbour_id,facet_lid,subfacet_lid)
   implicit none
   ! Parameters
   class(face_maps_t), target, intent(in) :: this
   integer(ip)               , intent(in) :: neighbour_id
-  integer(ip)               , intent(in) :: face_lid
-  integer(ip)               , intent(in) :: subface_lid
+  integer(ip)               , intent(in) :: facet_lid
+  integer(ip)               , intent(in) :: subfacet_lid
   type(point_t), pointer :: face_maps_get_coordinates_neighbour(:)
   assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_boundary)))
-  face_maps_get_coordinates_neighbour => this%fe_maps(neighbour_id)%get_coordinates(face_lid,subface_lid)
+  face_maps_get_coordinates_neighbour => this%cell_maps(neighbour_id)%get_coordinates(facet_lid,subfacet_lid)
 end function face_maps_get_coordinates_neighbour
 =======
 function facet_maps_get_coordinates_neighbour(this,neighbour_id,facet_lid)
@@ -352,20 +352,20 @@ subroutine cell_integrator_facet_restriction_create(this, quadrature, reference_
   implicit none
   ! Parameters
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-  class(cell_integrator_face_restriction_t), intent(inout) :: this
+  class(cell_integrator_facet_restriction_t), intent(inout) :: this
   type(quadrature_t)                       , intent(in)    :: quadrature
   class(reference_fe_t)                    , intent(in)    :: reference_fe
-  integer(ip) :: face_lid, subface_lid, cell_int_index, istat
+  integer(ip) :: facet_lid, subfacet_lid, cell_int_index, istat
   call this%free()
-  this%active_face_lid = -1
-  this%active_subface_lid = -1
-  this%number_faces = reference_fe%get_number_faces()
-  this%number_subfaces = reference_fe%get_h_refinement_number_subfaces()
-  allocate(this%cell_integrator(this%number_faces*(this%number_subfaces+1)), stat = istat); check(istat==0);
-  do face_lid = 1,this%number_faces
-    do subface_lid = 0,this%number_subfaces
-      cell_int_index = face_lid + subface_lid*this%number_faces
-      call this%cell_integrator(cell_int_index)%create_on_face(quadrature,reference_fe,face_lid,subface_lid-1)
+  this%active_facet_lid = -1
+  this%active_subfacet_lid = -1
+  this%num_facets = reference_fe%get_num_facets()
+  this%num_subfacets = reference_fe%get_h_refinement_num_subfacets()
+  allocate(this%cell_integrator(this%num_facets*(this%num_subfacets+1)), stat = istat); check(istat==0);
+  do facet_lid = 1,this%num_facets
+    do subfacet_lid = 0,this%num_subfacets
+      cell_int_index = facet_lid + subfacet_lid*this%num_facets
+      call this%cell_integrator(cell_int_index)%create_on_face(quadrature,reference_fe,facet_lid,subfacet_lid-1)
     end do
 =======
   class(cell_integrator_facet_restriction_t), intent(inout) :: this
@@ -384,16 +384,16 @@ end subroutine cell_integrator_facet_restriction_create
 
 !==================================================================================================
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-subroutine cell_integrator_face_restriction_update(this, fe_map, face_lid, subface_lid)
+subroutine cell_integrator_facet_restriction_update(this, cell_map, facet_lid, subfacet_lid)
   implicit none
-  class(cell_integrator_face_restriction_t), intent(inout) :: this
-  type(fe_map_t)                           , intent(in)    :: fe_map
-  integer(ip)                              , intent(in)    :: face_lid
-  integer(ip)                              , intent(in)    :: subface_lid
-  this%active_face_lid = face_lid
-  this%active_subface_lid = subface_lid
-  call this%cell_integrator(face_lid+subface_lid*this%number_faces)%update(fe_map)
-end subroutine cell_integrator_face_restriction_update
+  class(cell_integrator_facet_restriction_t), intent(inout) :: this
+  type(cell_map_t)                           , intent(in)    :: cell_map
+  integer(ip)                              , intent(in)    :: facet_lid
+  integer(ip)                              , intent(in)    :: subfacet_lid
+  this%active_facet_lid = facet_lid
+  this%active_subfacet_lid = subfacet_lid
+  call this%cell_integrator(facet_lid+subfacet_lid*this%num_facets)%update(cell_map)
+end subroutine cell_integrator_facet_restriction_update
 =======
 subroutine cell_integrator_facet_restriction_update(this, cell_map, facet_lid)
   implicit none
@@ -413,7 +413,7 @@ subroutine cell_integrator_facet_restriction_free(this)
   integer(ip) :: i, istat
   if (allocated(this%cell_integrator)) then
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-     do i = 1, this%number_faces*(this%number_subfaces+1)
+     do i = 1, this%num_facets*(this%num_subfacets+1)
 =======
      do i = 1, this%num_facets
 >>>>>>> 819537693844795c7cdee77675691293bfca635e:Sources/Lib/Integration/ReferenceFE/sbm_facet_integrator.i90
@@ -422,11 +422,11 @@ subroutine cell_integrator_facet_restriction_free(this)
      deallocate(this%cell_integrator, stat = istat); check(istat==0);
   end if
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-  this%number_faces = 0
-  this%number_subfaces = 0
-  this%active_face_lid = 0
-  this%active_subface_lid = 0
-end subroutine cell_integrator_face_restriction_free
+  this%num_facets = 0
+  this%num_subfacets = 0
+  this%active_facet_lid = 0
+  this%active_subfacet_lid = 0
+end subroutine cell_integrator_facet_restriction_free
 =======
   this%num_facets   = 0
   this%active_facet_lid = 0
@@ -437,13 +437,13 @@ function cell_integrator_facet_restriction_get_active_cell_integrator(this)
   implicit none
   ! Parameters
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-  class(cell_integrator_face_restriction_t), target, intent(in) :: this
-  type(cell_integrator_t), pointer :: cell_integrator_face_restriction_get_active_cell_integrator
-  assert ( this%active_face_lid >= 1 .and. this%active_face_lid <= this%number_faces )
-  assert ( this%active_subface_lid >= 0 .and. this%active_subface_lid <= this%number_subfaces )
-  cell_integrator_face_restriction_get_active_cell_integrator => & 
-    this%cell_integrator(this%active_face_lid+this%active_subface_lid*this%number_faces)
-end function cell_integrator_face_restriction_get_active_cell_integrator
+  class(cell_integrator_facet_restriction_t), target, intent(in) :: this
+  type(cell_integrator_t), pointer :: cell_integrator_facet_restriction_get_active_cell_integrator
+  assert ( this%active_facet_lid >= 1 .and. this%active_facet_lid <= this%num_facets )
+  assert ( this%active_subfacet_lid >= 0 .and. this%active_subfacet_lid <= this%num_subfacets )
+  cell_integrator_facet_restriction_get_active_cell_integrator => & 
+    this%cell_integrator(this%active_facet_lid+this%active_subfacet_lid*this%num_facets)
+end function cell_integrator_facet_restriction_get_active_cell_integrator
 =======
   class(cell_integrator_facet_restriction_t), target, intent(in) :: this
   type(cell_integrator_t), pointer :: cell_integrator_facet_restriction_get_active_cell_integrator
@@ -493,20 +493,20 @@ end subroutine facet_integrator_free
 
 !==================================================================================================
 <<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_face_integrator.i90
-subroutine face_integrator_update(this,face_lid,subface_lid,face_map,permutation_index)
+subroutine face_integrator_update(this,facet_lid,subfacet_lid,face_map,permutation_index)
   implicit none
   ! Parameters
   class(face_integrator_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: face_lid(2)
-  integer(ip)             , intent(in)    :: subface_lid(2)
+  integer(ip)             , intent(in)    :: facet_lid(2)
+  integer(ip)             , intent(in)    :: subfacet_lid(2)
   integer(ip)             , intent(in)    :: permutation_index
   type(face_maps_t)       , intent(in)    :: face_map
-  call this%cell_integrator_face_restriction(1)%update( face_map%fe_maps(1)%get_active_fe_map(), &
-                                                        face_lid(1), subface_lid(1) )
+  call this%cell_integrator_facet_restriction(1)%update( face_map%cell_maps(1)%get_active_cell_map(), &
+                                                        facet_lid(1), subfacet_lid(1) )
   if (.not. this%is_boundary) then
      this%current_qpoints_perm_cols(2) = permutation_index
-     call this%cell_integrator_face_restriction(2)%update( face_map%fe_maps(2)%get_active_fe_map(), &
-                                                           face_lid(2), subface_lid(2) )
+     call this%cell_integrator_facet_restriction(2)%update( face_map%cell_maps(2)%get_active_cell_map(), &
+                                                           facet_lid(2), subfacet_lid(2) )
 =======
 subroutine facet_integrator_update(this,facet_lid,facet_map,permutation_index)
   implicit none

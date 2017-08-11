@@ -436,7 +436,7 @@ contains
     
     call this%fe_space%initialize_fe_integration()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
-      call this%fe_space%initialize_fe_face_integration()
+      call this%fe_space%initialize_fe_facet_integration()
     end if
   end subroutine setup_fe_space
   
@@ -458,7 +458,7 @@ contains
        call this%fe_space%refine_and_coarsen( fe_function = this%solution ) 
        
        call this%fe_space%initialize_fe_integration()
-       !call this%fe_space%initialize_fe_face_integration()
+       !call this%fe_space%initialize_fe_facet_integration()
        
        if ( this%test_params%get_laplacian_type() == 'scalar' ) then
          call this%check_solution()

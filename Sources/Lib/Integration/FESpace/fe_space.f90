@@ -385,40 +385,40 @@ module fe_space_names
     type(i1p_t)         , allocatable :: fe_dofs_x_cell(:,:)
    contains
 <<<<<<< HEAD
-    procedure                           :: create                         => fe_face_iterator_create
-    procedure                           :: free                           => fe_face_iterator_free
-    procedure, non_overridable          :: allocate_scratch_data          => fe_face_iterator_allocate_scratch_data
-    procedure, non_overridable          :: free_scratch_data              => fe_face_iterator_free_scratch_data
-    procedure                           :: first                          => fe_face_iterator_first
-    procedure                           :: next                           => fe_face_iterator_next
-    procedure                           :: has_finished                   => fe_face_iterator_has_finished
-    procedure, non_overridable          :: set_lid                        => fe_face_iterator_set_lid
-    procedure, non_overridable          :: get_lid                        => fe_face_iterator_get_lid
-    procedure, non_overridable, private :: update_number_dofs_per_field   => fe_face_iterator_update_number_dofs_per_field
-    procedure, non_overridable, private :: update_elem2dof_per_cell       => fe_face_iterator_update_elem2dof_per_cell
-    procedure, non_overridable          :: update_integration             => fe_face_iterator_update_integration
-    procedure                           :: assemble                       => fe_face_iterator_assemble
-    procedure, non_overridable, private :: fe_face_iterator_assembly_array
-    procedure, non_overridable, private :: fe_face_iterator_assembly_matrix
-    procedure, non_overridable, private :: fe_face_iterator_assembly_matrix_array
-    generic                             :: assembly                       => fe_face_iterator_assembly_array,  &
-                                                                             fe_face_iterator_assembly_matrix, &
-                                                                             fe_face_iterator_assembly_matrix_array
-    procedure, non_overridable          :: get_fe_space                   => fe_face_iterator_get_fe_space
-    procedure, non_overridable          :: get_number_dofs_per_field      => fe_face_iterator_get_number_dofs_per_field
-    procedure, non_overridable          :: get_elem2dof                   => fe_face_iterator_get_elem2dof
-    procedure, non_overridable          :: get_default_quadrature_degree  => fe_face_iterator_get_default_quadrature_degree
-    procedure, non_overridable          :: get_quadrature_degree          => fe_face_iterator_get_quadrature_degree
-    procedure, non_overridable          :: set_quadrature_degree          => fe_face_iterator_set_quadrature_degree
-    procedure, non_overridable          :: get_quadrature                 => fe_face_iterator_get_quadrature
-    procedure, non_overridable          :: get_face_maps                  => fe_face_iterator_get_face_map
-    procedure, non_overridable          :: get_face_integrator            => fe_face_iterator_get_face_integrator
-    procedure, non_overridable          :: compute_surface                => fe_face_iterator_compute_surface
-    procedure                 , private :: compute_face_permutation_index => fe_face_iterator_compute_face_permutation_index
-    procedure                           :: get_lpos_within_cell_around    => fe_face_iterator_get_lpos_within_cell_around
-    procedure, non_overridable          :: get_face_permutation_index     => fe_face_iterator_get_face_permutation_index
-    procedure                 , private :: get_subface_lid_cell_around    => fe_face_iterator_get_subface_lid_cell_around
-  end type fe_face_iterator_t
+    procedure                           :: create                         => fe_facet_iterator_create
+    procedure                           :: free                           => fe_facet_iterator_free
+    procedure, non_overridable          :: allocate_scratch_data          => fe_facet_iterator_allocate_scratch_data
+    procedure, non_overridable          :: free_scratch_data              => fe_facet_iterator_free_scratch_data
+    procedure                           :: first                          => fe_facet_iterator_first
+    procedure                           :: next                           => fe_facet_iterator_next
+    procedure                           :: has_finished                   => fe_facet_iterator_has_finished
+    procedure, non_overridable          :: set_lid                        => fe_facet_iterator_set_lid
+    procedure, non_overridable          :: get_lid                        => fe_facet_iterator_get_lid
+    procedure, non_overridable, private :: update_number_dofs_per_field   => fe_facet_iterator_update_number_dofs_per_field
+    procedure, non_overridable, private :: update_elem2dof_per_cell       => fe_facet_iterator_update_elem2dof_per_cell
+    procedure, non_overridable          :: update_integration             => fe_facet_iterator_update_integration
+    procedure                           :: assemble                       => fe_facet_iterator_assemble
+    procedure, non_overridable, private :: fe_facet_iterator_assembly_array
+    procedure, non_overridable, private :: fe_facet_iterator_assembly_matrix
+    procedure, non_overridable, private :: fe_facet_iterator_assembly_matrix_array
+    generic                             :: assembly                       => fe_facet_iterator_assembly_array,  &
+                                                                             fe_facet_iterator_assembly_matrix, &
+                                                                             fe_facet_iterator_assembly_matrix_array
+    procedure, non_overridable          :: get_fe_space                   => fe_facet_iterator_get_fe_space
+    procedure, non_overridable          :: get_number_dofs_per_field      => fe_facet_iterator_get_number_dofs_per_field
+    procedure, non_overridable          :: get_elem2dof                   => fe_facet_iterator_get_elem2dof
+    procedure, non_overridable          :: get_default_quadrature_degree  => fe_facet_iterator_get_default_quadrature_degree
+    procedure, non_overridable          :: get_quadrature_degree          => fe_facet_iterator_get_quadrature_degree
+    procedure, non_overridable          :: set_quadrature_degree          => fe_facet_iterator_set_quadrature_degree
+    procedure, non_overridable          :: get_quadrature                 => fe_facet_iterator_get_quadrature
+    procedure, non_overridable          :: get_face_maps                  => fe_facet_iterator_get_face_map
+    procedure, non_overridable          :: get_face_integrator            => fe_facet_iterator_get_face_integrator
+    procedure, non_overridable          :: compute_surface                => fe_facet_iterator_compute_surface
+    procedure                 , private :: compute_face_permutation_index => fe_facet_iterator_compute_face_permutation_index
+    procedure                           :: get_lpos_within_cell_around    => fe_facet_iterator_get_lpos_within_cell_around
+    procedure, non_overridable          :: get_face_permutation_index     => fe_facet_iterator_get_face_permutation_index
+    procedure                 , private :: get_subfacet_lid_cell_around    => fe_facet_iterator_get_subfacet_lid_cell_around
+  end type fe_facet_iterator_t
 =======
     procedure                 , private :: create                        => fe_facet_iterator_create
     procedure                 , private :: free                          => fe_facet_iterator_free
@@ -599,9 +599,9 @@ module fe_space_names
      procedure, non_overridable, private :: generate_cell_integrators_position_key  => serial_fe_space_generate_cell_integrators_position_key
     
 <<<<<<< HEAD
-     procedure, non_overridable          :: allocate_fe_face_quadratures_degree          => serial_fe_space_allocate_fe_face_quadratures_degree
-     procedure, non_overridable          :: free_fe_face_quadratures_degree              => serial_fe_space_free_fe_face_quadratures_degree
-     procedure, non_overridable          :: clear_fe_face_quadratures_degree             => serial_fe_space_clear_fe_face_quadratures_degree
+     procedure, non_overridable          :: allocate_fe_facet_quadratures_degree          => serial_fe_space_allocate_fe_facet_quadratures_degree
+     procedure, non_overridable          :: free_fe_facet_quadratures_degree              => serial_fe_space_free_fe_facet_quadratures_degree
+     procedure, non_overridable          :: clear_fe_facet_quadratures_degree             => serial_fe_space_clear_fe_facet_quadratures_degree
      
      procedure, non_overridable          :: allocate_max_order_reference_fe_id_per_fe_face => serial_fe_space_allocate_max_order_reference_fe_id_per_fe_face
      procedure, non_overridable, private :: free_max_order_reference_fe_id_per_fe_face     => serial_fe_space_free_max_order_reference_fe_id_per_fe_face
@@ -679,8 +679,8 @@ module fe_space_names
      procedure                           :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
      procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator     
      procedure, non_overridable          :: free_fe_vef_iterator                         => serial_fe_space_free_fe_vef_iterator
-     procedure                           :: create_fe_face_iterator                      => serial_fe_space_create_fe_face_iterator
-     procedure, non_overridable          :: free_fe_face_iterator                        => serial_fe_space_free_fe_face_iterator
+     procedure                           :: create_fe_facet_iterator                      => serial_fe_space_create_fe_facet_iterator
+     procedure, non_overridable          :: free_fe_facet_iterator                        => serial_fe_space_free_fe_facet_iterator
  end type serial_fe_space_t  
  
  public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs, serial_fe_space_interpolate_dirichlet_values

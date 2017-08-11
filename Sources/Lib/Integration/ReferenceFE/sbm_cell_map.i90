@@ -68,11 +68,11 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry )
 end subroutine cell_map_create
 
 !==================================================================================================
-<<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_fe_map.i90
-subroutine fe_map_create_on_face( this, local_face_id, local_subface_id, quadrature, reference_fe_geometry )
+<<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_cell_map.i90
+subroutine cell_map_create_on_face( this, local_face_id, local_subface_id, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(fe_map_t)                 , intent(inout) :: this
+  class(cell_map_t)                 , intent(inout) :: this
   integer(ip)                     , intent(in)    :: local_face_id
   integer(ip)                     , intent(in)    :: local_subface_id
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -93,7 +93,7 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, quadrature, reference_
   this%num_dims        = reference_fe_geometry%num_dims
   this%num_quadrature_points = quadrature%num_quadrature_points
 
-<<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_fe_map.i90
+<<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_cell_map.i90
   call reference_fe_geometry%create_face_interpolation( local_face_id,    &
                                                         local_subface_id, &
                                                         quadrature,       &

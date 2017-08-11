@@ -581,7 +581,7 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
         call vef%set_set_id(old_vef_set_id)
       end do
       
-      do iface=1, this%reference_fe_geo%get_number_faces()
+      do iface=1, this%reference_fe_geo%get_num_facets()
          ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0)  + iface
          do j=1, NUM_SUBCELLS_IN_TOUCH_FACE_2D
             call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D(iface,j)-1)
@@ -607,7 +607,7 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
         call vef%set_set_id(old_vef_set_id)
       end do
       
-      do iface=1, this%reference_fe_geo%get_number_faces()
+      do iface=1, this%reference_fe_geo%get_num_facets()
          ivef = this%reference_fe_geo%get_number_n_faces_of_dimension(0)  + iface
          call cell%get_vef(ivef,vef)
          ! The VEF set id of a face in the coarse cell is extracted (arbitrarily) from the refined cell corresponding to its first subface

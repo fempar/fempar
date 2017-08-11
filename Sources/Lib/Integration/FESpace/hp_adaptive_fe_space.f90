@@ -69,7 +69,7 @@ module hp_adaptive_fe_space_names
    contains
      procedure          :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
      procedure          :: create_fe_iterator                                     => serial_hp_adaptive_fe_space_create_fe_iterator
-     procedure          :: create_fe_face_iterator                                => serial_hp_adaptive_fe_space_create_fe_face_iterator
+     procedure          :: create_fe_facet_iterator                                => serial_hp_adaptive_fe_space_create_fe_facet_iterator
      
      procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
      procedure          :: serial_fe_space_create_different_between_cells         => shpafs_create_different_between_cells
@@ -93,7 +93,7 @@ module hp_adaptive_fe_space_names
      
      procedure          :: project_ref_fe_id_per_fe                               => shpafs_project_ref_fe_id_per_fe
      procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
-     procedure          :: project_fe_face_integration_arrays                     => shpafs_project_fe_face_integration_arrays
+     procedure          :: project_fe_facet_integration_arrays                     => shpafs_project_fe_facet_integration_arrays
      procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
  end type serial_hp_adaptive_fe_space_t  
  
@@ -108,21 +108,21 @@ module hp_adaptive_fe_space_names
    procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_iterator_recursive_vector_assembly
  end type hp_adaptive_fe_iterator_t
  
- type, extends(fe_face_iterator_t) :: hp_adaptive_fe_face_iterator_t
+ type, extends(fe_facet_iterator_t) :: hp_adaptive_fe_facet_iterator_t
    private 
    type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
  contains
-   procedure          :: create                         => hp_adaptive_fe_face_iterator_create
-   procedure          :: free                           => hp_adaptive_fe_face_iterator_free
-   procedure          :: get_num_cells_around           => hp_adaptive_fe_face_iterator_get_num_cells_around
-   procedure, private :: fe_vef_iterator_get_fe_around  => hp_adaptive_fe_face_iterator_get_fe_around
-   procedure          :: compute_face_permutation_index => hp_adaptive_fe_face_iterator_compute_face_permutation_index
-   procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_face_iterator_get_lpos_within_cell_around
-   procedure, private :: get_subface_lid_cell_around    => hp_adaptive_fe_face_iterator_get_subface_lid_cell_around
-   procedure          :: assemble                       => hp_adaptive_fe_face_iterator_assemble
-   procedure, private :: recursive_matrix_assembly      => hp_adaptive_fe_face_iterator_recursive_matrix_assembly
-   procedure, private :: recursive_vector_assembly      => hp_adaptive_fe_face_iterator_recursive_vector_assembly
- end type hp_adaptive_fe_face_iterator_t
+   procedure          :: create                         => hp_adaptive_fe_facet_iterator_create
+   procedure          :: free                           => hp_adaptive_fe_facet_iterator_free
+   procedure          :: get_num_cells_around           => hp_adaptive_fe_facet_iterator_get_num_cells_around
+   procedure, private :: fe_vef_iterator_get_fe_around  => hp_adaptive_fe_facet_iterator_get_fe_around
+   procedure          :: compute_face_permutation_index => hp_adaptive_fe_facet_iterator_compute_face_permutation_index
+   procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
+   procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
+   procedure          :: assemble                       => hp_adaptive_fe_facet_iterator_assemble
+   procedure, private :: recursive_matrix_assembly      => hp_adaptive_fe_facet_iterator_recursive_matrix_assembly
+   procedure, private :: recursive_vector_assembly      => hp_adaptive_fe_facet_iterator_recursive_vector_assembly
+ end type hp_adaptive_fe_facet_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t
  
@@ -337,9 +337,9 @@ end subroutine hp_adaptive_fe_iterator_recursive_vector_assembly
 !  end if
 !end fe_iterator_recursive_assembly
 
-subroutine hp_adaptive_fe_face_iterator_create ( this, fe_space, vef )
+subroutine hp_adaptive_fe_facet_iterator_create ( this, fe_space, vef )
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), target, intent(inout) :: this
+  class(hp_adaptive_fe_facet_iterator_t), target, intent(inout) :: this
   class(serial_fe_space_t)             , target, intent(in)    :: fe_space
   class(vef_iterator_t)                        , intent(in)    :: vef
   select type(fe_space)
@@ -348,30 +348,30 @@ subroutine hp_adaptive_fe_face_iterator_create ( this, fe_space, vef )
   class default
     assert(.false.)
   end select
-  call this%fe_face_iterator_t%create(fe_space,vef)
-end subroutine hp_adaptive_fe_face_iterator_create
+  call this%fe_facet_iterator_t%create(fe_space,vef)
+end subroutine hp_adaptive_fe_facet_iterator_create
 
-subroutine hp_adaptive_fe_face_iterator_free ( this )
+subroutine hp_adaptive_fe_facet_iterator_free ( this )
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), intent(inout) :: this
+  class(hp_adaptive_fe_facet_iterator_t), intent(inout) :: this
   integer(ip) :: istat
-  call this%fe_face_iterator_t%free()
+  call this%fe_facet_iterator_t%free()
   nullify(this%hp_adaptive_fe_space)
-end subroutine hp_adaptive_fe_face_iterator_free
+end subroutine hp_adaptive_fe_facet_iterator_free
 
-function hp_adaptive_fe_face_iterator_get_num_cells_around (this) result (num_cells_around)
+function hp_adaptive_fe_facet_iterator_get_num_cells_around (this) result (num_cells_around)
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  class(hp_adaptive_fe_facet_iterator_t), intent(in)    :: this
   integer(ip)                                          :: num_cells_around
   num_cells_around = this%base_fe_vef_iterator_t%get_num_cells_around()
   if ( .not. this%is_proper() ) then
     num_cells_around = num_cells_around + this%get_num_improper_cells_around()
   end if 
-end function hp_adaptive_fe_face_iterator_get_num_cells_around
+end function hp_adaptive_fe_facet_iterator_get_num_cells_around
 
-subroutine hp_adaptive_fe_face_iterator_get_fe_around (this, ife_around, fe)
+subroutine hp_adaptive_fe_facet_iterator_get_fe_around (this, ife_around, fe)
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), intent(in)     :: this
+  class(hp_adaptive_fe_facet_iterator_t), intent(in)     :: this
   integer(ip)                          , intent(in)     :: ife_around
   class(fe_iterator_t)                 , intent(inout)  :: fe
   if ( .not. this%is_proper() .and. ife_around == 2 ) then
@@ -379,11 +379,11 @@ subroutine hp_adaptive_fe_face_iterator_get_fe_around (this, ife_around, fe)
   else
     call this%fe_vef_iterator_t%get_cell_around(ife_around,fe)
   end if
-end subroutine hp_adaptive_fe_face_iterator_get_fe_around
+end subroutine hp_adaptive_fe_facet_iterator_get_fe_around
 
-function hp_adaptive_fe_face_iterator_compute_face_permutation_index (this,first_fe,second_fe) result (face_permutation_index)
+function hp_adaptive_fe_facet_iterator_compute_face_permutation_index (this,first_fe,second_fe) result (face_permutation_index)
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), intent(inout) :: this
+  class(hp_adaptive_fe_facet_iterator_t), intent(inout) :: this
   class(fe_iterator_t)                 , intent(inout) :: first_fe
   class(fe_iterator_t)                 , intent(inout) :: second_fe
   integer(ip)                                          :: face_permutation_index
@@ -404,35 +404,35 @@ function hp_adaptive_fe_face_iterator_compute_face_permutation_index (this,first
   !    
   assert( .not. this%is_ghost() .and. this%get_num_cells_around() == 2 )
   face_permutation_index = 1
-end function hp_adaptive_fe_face_iterator_compute_face_permutation_index
+end function hp_adaptive_fe_facet_iterator_compute_face_permutation_index
 
-function hp_adaptive_fe_face_iterator_get_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
+function hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), intent(inout) :: this
+  class(hp_adaptive_fe_facet_iterator_t), intent(inout) :: this
   integer(ip)                          , intent(in)    :: icell_around
   integer(ip)                                          :: face_lpos_within_cell_around
   if ( .not. this%is_proper() .and. icell_around == 2 ) then
     face_lpos_within_cell_around = this%get_improper_cell_around_ivef()
   else
     face_lpos_within_cell_around = &
-      this%fe_face_iterator_t%get_lpos_within_cell_around(icell_around)
+      this%fe_facet_iterator_t%get_lpos_within_cell_around(icell_around)
   end if
-end function hp_adaptive_fe_face_iterator_get_lpos_within_cell_around
+end function hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
 
-function hp_adaptive_fe_face_iterator_get_subface_lid_cell_around ( this, icell_around ) result( subface_lid )
+function hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around ( this, icell_around ) result( subfacet_lid )
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  class(hp_adaptive_fe_facet_iterator_t), intent(in)    :: this
   integer(ip)                          , intent(in)    :: icell_around
-  integer(ip)                                          :: subface_lid
-  subface_lid = 0
+  integer(ip)                                          :: subfacet_lid
+  subfacet_lid = 0
   if ( .not. this%is_proper() .and. icell_around == 2 ) then
-    subface_lid = this%get_improper_cell_around_subvef()
+    subfacet_lid = this%get_improper_cell_around_subvef()
   end if 
-end function hp_adaptive_fe_face_iterator_get_subface_lid_cell_around 
+end function hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around 
 
-subroutine hp_adaptive_fe_face_iterator_assemble(this,facemat,facevec,matrix_array_assembler)
+subroutine hp_adaptive_fe_facet_iterator_assemble(this,facemat,facevec,matrix_array_assembler)
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  class(hp_adaptive_fe_facet_iterator_t), intent(in)    :: this
   real(rp)                             , intent(in)    :: facemat(:,:,:,:)
   real(rp)                             , intent(in)    :: facevec(:,:)
   class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
@@ -500,11 +500,11 @@ subroutine hp_adaptive_fe_face_iterator_assemble(this,facemat,facevec,matrix_arr
   call trial_fe%free()
   call test_fe%free()
   
-end subroutine hp_adaptive_fe_face_iterator_assemble
+end subroutine hp_adaptive_fe_facet_iterator_assemble
 
-recursive subroutine hp_adaptive_fe_face_iterator_recursive_matrix_assembly(this, test_fe, trial_fe, i, j, a_ij, matrix, array)
+recursive subroutine hp_adaptive_fe_facet_iterator_recursive_matrix_assembly(this, test_fe, trial_fe, i, j, a_ij, matrix, array)
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  class(hp_adaptive_fe_facet_iterator_t), intent(in)    :: this
   type(hp_adaptive_fe_iterator_t)      , intent(in)    :: test_fe
   type(hp_adaptive_fe_iterator_t)      , intent(in)    :: trial_fe
   integer(ip)                          , intent(in)    :: i
@@ -548,11 +548,11 @@ recursive subroutine hp_adaptive_fe_face_iterator_recursive_matrix_assembly(this
         end do
       end if
   end if
-end subroutine hp_adaptive_fe_face_iterator_recursive_matrix_assembly
+end subroutine hp_adaptive_fe_facet_iterator_recursive_matrix_assembly
 
-recursive subroutine hp_adaptive_fe_face_iterator_recursive_vector_assembly(this, test_fe, i, v_i, array)
+recursive subroutine hp_adaptive_fe_facet_iterator_recursive_vector_assembly(this, test_fe, i, v_i, array)
   implicit none
-  class(hp_adaptive_fe_face_iterator_t), intent(in)    :: this
+  class(hp_adaptive_fe_facet_iterator_t), intent(in)    :: this
   type(hp_adaptive_fe_iterator_t)      , intent(in)    :: test_fe
   integer(ip)                          , intent(in)    :: i
   real(rp)                             , intent(in)    :: v_i
@@ -575,7 +575,7 @@ recursive subroutine hp_adaptive_fe_face_iterator_recursive_vector_assembly(this
         end do
      end if
   end if
-end subroutine hp_adaptive_fe_face_iterator_recursive_vector_assembly
+end subroutine hp_adaptive_fe_facet_iterator_recursive_vector_assembly
 
 subroutine serial_hp_adaptive_fe_space_create_fe_vef_iterator ( this, fe_vef )
   implicit none
@@ -596,16 +596,16 @@ subroutine serial_hp_adaptive_fe_space_create_fe_iterator ( this, fe )
   call fe%create(this)
 end subroutine serial_hp_adaptive_fe_space_create_fe_iterator
 
-subroutine serial_hp_adaptive_fe_space_create_fe_face_iterator ( this, fe_face )
+subroutine serial_hp_adaptive_fe_space_create_fe_facet_iterator ( this, fe_face )
   implicit none
   class(serial_hp_adaptive_fe_space_t), target     , intent(in)    :: this
-  class(fe_face_iterator_t)           , allocatable, intent(inout) :: fe_face
+  class(fe_facet_iterator_t)           , allocatable, intent(inout) :: fe_face
   type(p4est_vef_iterator_t) :: vef
   integer(ip)                :: istat
-  call this%free_fe_face_iterator(fe_face)
-  allocate(hp_adaptive_fe_face_iterator_t :: fe_face, stat=istat); check(istat==0)
+  call this%free_fe_facet_iterator(fe_face)
+  allocate(hp_adaptive_fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
   call fe_face%create(this,vef)
-end subroutine serial_hp_adaptive_fe_space_create_fe_face_iterator
+end subroutine serial_hp_adaptive_fe_space_create_fe_facet_iterator
 
 subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
                                                            triangulation, &
@@ -804,23 +804,23 @@ subroutine shpafs_fill_vef_lids_of_fe_faces ( this )
   class(base_static_triangulation_t), pointer     :: triangulation
   type(std_vector_integer_ip_t)     , pointer     :: vef_lids_of_fe_faces
   type(fe_vef_iterator_t)                         :: fe_vef
-  integer(ip)                                     :: face_lid
-  face_lid = 0
+  integer(ip)                                     :: facet_lid
+  facet_lid = 0
   triangulation => this%get_triangulation()
   vef_lids_of_fe_faces => this%get_vef_lids_of_fe_faces()
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
     if ( is_fe_face() ) then
-      face_lid = face_lid + 1
-      if ( face_lid <= vef_lids_of_fe_faces%size() ) then
-        call fe_vef%set_vef_lid_of_fe_face(face_lid)
+      facet_lid = facet_lid + 1
+      if ( facet_lid <= vef_lids_of_fe_faces%size() ) then
+        call fe_vef%set_vef_lid_of_fe_face(facet_lid)
       else
         call fe_vef%push_back_vef_lid_of_fe_face()
       end if
     end if
     call fe_vef%next()
   end do
-  call vef_lids_of_fe_faces%resize(face_lid)
+  call vef_lids_of_fe_faces%resize(facet_lid)
   call this%free_fe_vef_iterator(fe_vef)
   
   contains
@@ -882,8 +882,8 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
   integer(ip) :: ivef, vef_lid
   integer(ip) :: iblock, init_dof_block, current_dof_block, previous_dof_block
   integer(ip) :: init_fixed_dof, current_fixed_dof, previous_fixed_dof
-  integer(ip), allocatable :: visited_proper_vef_to_fe_map(:,:)
-  integer(ip), allocatable :: visited_improper_vef_to_fe_map(:,:)
+  integer(ip), allocatable :: visited_proper_vef_to_cell_map(:,:)
+  integer(ip), allocatable :: visited_improper_vef_to_cell_map(:,:)
   
   class(fe_iterator_t) , allocatable :: fe, source_fe, coarser_fe
   type(fe_vef_iterator_t) :: vef
@@ -906,10 +906,10 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
 
   call this%create_fe_iterator(fe)
   if ( fe_space_type_per_field(field_id) == fe_space_type_cg ) then
-     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_fe_map  ,  __FILE__, __LINE__ )
-     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_fe_map,  __FILE__, __LINE__ )
-     visited_proper_vef_to_fe_map = -1
-     visited_improper_vef_to_fe_map = -1
+     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
+     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
+     visited_proper_vef_to_cell_map = -1
+     visited_improper_vef_to_cell_map = -1
      
      call this%create_fe_vef_iterator(vef)
      call this%create_fe_iterator(source_fe)
@@ -934,9 +934,9 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
                  vef_lid = abs(fe%get_vef_lid(ivef))
                  is_owner = .false.
                  if ( vef%is_proper()) then
-                   is_owner = ( visited_proper_vef_to_fe_map   ( 1, vef_lid ) == -1 )
+                   is_owner = ( visited_proper_vef_to_cell_map   ( 1, vef_lid ) == -1 )
                  else
-                   is_owner = ( visited_improper_vef_to_fe_map ( 1, vef_lid ) == -1 )
+                   is_owner = ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 )
                  end if
 
                  if ( is_owner ) then
@@ -944,20 +944,20 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
                     call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                     if (previous_dof_block < current_dof_block) then
                       if ( vef%is_proper()) then
-                        visited_proper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                        visited_proper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                        visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                        visited_proper_vef_to_cell_map ( 2, vef_lid ) = ivef
                       else
-                        visited_improper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                        visited_improper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                        visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                        visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                       end if
                     end if
                  else 
                     if ( vef%is_proper()) then
-                      source_cell_id = visited_proper_vef_to_fe_map(1,vef_lid)
-                      source_vef_lid = visited_proper_vef_to_fe_map(2,vef_lid)
+                      source_cell_id = visited_proper_vef_to_cell_map(1,vef_lid)
+                      source_vef_lid = visited_proper_vef_to_cell_map(2,vef_lid)
                     else
-                      source_cell_id = visited_improper_vef_to_fe_map(1,vef_lid)
-                      source_vef_lid = visited_improper_vef_to_fe_map(2,vef_lid)
+                      source_cell_id = visited_improper_vef_to_cell_map(1,vef_lid)
+                      source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
                     end if
                     call source_fe%set_lid(source_cell_id)
                     call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
@@ -965,18 +965,18 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
               else 
                  assert ( fe%get_vef_lid(ivef) < 0 )
                  vef_lid = abs(fe%get_vef_lid(ivef))
-                 if ( visited_improper_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
+                 if ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 ) then
                     previous_fixed_dof = current_fixed_dof
                     call fe%fill_own_dofs_on_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
                     if (previous_fixed_dof < current_fixed_dof) then
-                      visited_improper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                      visited_improper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                      visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                      visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                     end if
                  else 
-                    call source_fe%set_lid(visited_improper_vef_to_fe_map(1,vef_lid))
+                    call source_fe%set_lid(visited_improper_vef_to_cell_map(1,vef_lid))
                     call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
                          source_fe, &
-                         visited_improper_vef_to_fe_map(2,vef_lid), &
+                         visited_improper_vef_to_cell_map(2,vef_lid), &
                          field_id) 
                  end if
               end if   
@@ -988,8 +988,8 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
         call this%free_fe_iterator(source_fe)
         call this%free_fe_iterator(coarser_fe)
         call this%free_fe_vef_iterator(vef)
-        call memfree ( visited_proper_vef_to_fe_map  ,  __FILE__, __LINE__ )
-        call memfree ( visited_improper_vef_to_fe_map,  __FILE__, __LINE__ )
+        call memfree ( visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
+        call memfree ( visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
   else    
      ! TODO: this code is a verbatim copy of the one of its parent.
      !       we should better split the parent into additional TBPs
@@ -1054,7 +1054,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   else
     num_cell_edges = 0
   end if  
-  num_cell_faces = reference_fe%get_number_faces()
+  num_cell_faces = reference_fe%get_num_facets()
   
   allocate(elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
   allocate(coarser_fe_elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
@@ -1309,11 +1309,11 @@ subroutine shpafs_project_fe_integration_arrays(this)
   ! if allocated, FE integration arrays not projected
 end subroutine shpafs_project_fe_integration_arrays
 
-subroutine shpafs_project_fe_face_integration_arrays(this)
+subroutine shpafs_project_fe_facet_integration_arrays(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
   ! if allocated, FE face integration arrays not projected
-end subroutine shpafs_project_fe_face_integration_arrays
+end subroutine shpafs_project_fe_facet_integration_arrays
 
 subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   implicit none
@@ -1356,7 +1356,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   !call this%check_cell_vs_fe_topology_consistency()
   call this%fill_vef_lids_of_fe_faces()
   call this%project_fe_integration_arrays()
-  call this%project_fe_face_integration_arrays()
+  call this%project_fe_facet_integration_arrays()
   call this%allocate_and_init_ptr_lst_dofs()
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
