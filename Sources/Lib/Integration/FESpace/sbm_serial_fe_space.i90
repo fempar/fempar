@@ -211,13 +211,13 @@ subroutine serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out ( this, ptr_dofs
   end if
 end subroutine serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out
 
-subroutine serial_fe_space_move_alloc_lst_dofs_gids_out ( this, lst_dofs_lids )
+subroutine serial_fe_space_move_alloc_lst_dofs_gids_out ( this, lst_dofs_gids )
   implicit none
   class(serial_fe_space_t)             , intent(inout) :: this
-  integer(ip)             , allocatable, intent(inout) :: lst_dofs_lids(:)
-  assert ( .not. allocated(lst_dofs_lids) )
-  if ( allocated(this%lst_dofs_lids) ) then
-     call move_alloc( to=lst_dofs_lids, from=this%lst_dofs_lids )
+  integer(ip)             , allocatable, intent(inout) :: lst_dofs_gids(:)
+  assert ( .not. allocated(lst_dofs_gids) )
+  if ( allocated(this%lst_dofs_gids) ) then
+     call move_alloc( to=lst_dofs_gids, from=this%lst_dofs_gids )
   end if
 end subroutine serial_fe_space_move_alloc_lst_dofs_gids_out
 
@@ -1456,8 +1456,8 @@ subroutine serial_fe_space_move_alloc_field_cell_to_ref_fes ( this, field_cell_t
   class(serial_fe_space_t)             , intent(inout) :: this
   integer(ip)             , allocatable, intent(inout) :: field_cell_to_ref_fes(:,:)
   assert ( .not. allocated(field_cell_to_ref_fes) )
-  if ( allocated(this%reference_fe_id_x_fe) ) then
-     call move_alloc( to=field_cell_to_ref_fes, from=this%reference_fe_id_x_fe )
+  if ( allocated(this%field_cell_to_ref_fes) ) then
+     call move_alloc( to=field_cell_to_ref_fes, from=this%field_cell_to_ref_fes )
   end if
 end subroutine serial_fe_space_move_alloc_field_cell_to_ref_fes
 
@@ -1785,20 +1785,20 @@ subroutine serial_fe_space_free_facet_quadratures_degree ( this )
   if (allocated(this%facet_quadratures_degree)) call memfree ( this%facet_quadratures_degree, __FILE__, __LINE__ )
 end subroutine serial_fe_space_free_facet_quadratures_degree
 
-subroutine serial_fe_space_allocate_max_order_reference_fe_id_x_fe_face ( this )
+subroutine serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%free_max_order_reference_fe_id_x_fe_face()
-  call memalloc ( this%facet_gids%size(), this%max_order_reference_fe_id_x_fe_face , __FILE__, __LINE__ )
-end subroutine serial_fe_space_allocate_max_order_reference_fe_id_x_fe_face  
+  call this%free_max_order_field_cell_to_ref_fes_face()
+  call memalloc ( this%facet_gids%size(), this%max_order_field_cell_to_ref_fes_face , __FILE__, __LINE__ )
+end subroutine serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face  
 
-subroutine serial_fe_space_free_max_order_reference_fe_id_x_fe_face  ( this )
+subroutine serial_fe_space_free_max_order_field_cell_to_ref_fes_face  ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%max_order_reference_fe_id_x_fe_face)) call memfree ( this%max_order_reference_fe_id_x_fe_face , __FILE__, __LINE__ )
-end subroutine serial_fe_space_free_max_order_reference_fe_id_x_fe_face  
+  if (allocated(this%max_order_field_cell_to_ref_fes_face)) call memfree ( this%max_order_field_cell_to_ref_fes_face , __FILE__, __LINE__ )
+end subroutine serial_fe_space_free_max_order_field_cell_to_ref_fes_face  
 
-subroutine serial_fe_space_compute_max_order_reference_fe_id_x_fe_face ( this )
+subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   class(fe_facet_iterator_t), allocatable :: fe_face
@@ -1821,12 +1821,12 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_x_fe_face ( this )
            end if
         end do
      end do
-     this%max_order_reference_fe_id_x_fe_face(fe_face%facet_gid) = max_order_reference_fe_id 
+     this%max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) = max_order_reference_fe_id 
      call fe_face%next()
   end do
   call this%free_fe_facet_iterator(fe_face)
   call this%free_fe_cell_iterator(fe)
-end subroutine serial_fe_space_compute_max_order_reference_fe_id_x_fe_face  
+end subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face  
 
 subroutine serial_fe_space_fill_facet_gids ( this )
   implicit none
@@ -1913,8 +1913,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
 
   call this%compute_facet_permutation_indices()
   
-  call this%allocate_max_order_reference_fe_id_x_fe_face()
-  call this%compute_max_order_reference_fe_id_x_fe_face()
+  call this%allocate_max_order_field_cell_to_ref_fes_face()
+  call this%compute_max_order_field_cell_to_ref_fes_face()
   
   ! Determine the size of facet_quadratures, facet_maps, 
   ! and facet_integrators while filling the corresponding hash tables
@@ -2004,7 +2004,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
                                                 val  = current_facet_quadrature, &
                                                 stat = istat)  
      if (istat == now_stored) then
-        reference_fe=>this%reference_fes( this%max_order_reference_fe_id_x_fe_face(fe_face%facet_gid) )%p
+        reference_fe=>this%reference_fes( this%max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) )%p
         call reference_fe%create_facet_quadrature(this%facet_quadratures(current_facet_quadrature),fe_face%get_quadrature_degree())
         call this%facet_maps(current_facet_map)%create(fe_face%get_quadrature(), &
                                                            reference_fes_geo(1)%p, &
@@ -2078,7 +2078,7 @@ subroutine serial_fe_space_free_facet_integration ( this )
   end if
   
   call this%free_facet_quadratures_degree()
-  call this%free_max_order_reference_fe_id_x_fe_face()
+  call this%free_max_order_field_cell_to_ref_fes_face()
   
   call this%free_facet_permutation_indices()
   

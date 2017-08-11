@@ -392,7 +392,7 @@ module fe_space_names
      
      
      ! Mapping of Finite Faces and integration containers
-     integer(ip)                   , allocatable :: max_order_reference_fe_id_x_fe_face(:) ! Stores max_order_reference_fe_id_x_fe_face for all faces
+     integer(ip)                   , allocatable :: max_order_field_cell_to_ref_fes_face(:) ! Stores max_order_field_cell_to_ref_fes_face for all faces
      type(hash_table_ip_ip_t)                    :: facet_quadratures_position  ! Key = [quadrature_degree, 
                                                                                   !       left_geo_reference_fe_id,
                                                                                   !       right_geo_reference_fe_id (with 0 for boundary faces)]
@@ -484,9 +484,9 @@ module fe_space_names
      procedure, non_overridable, private :: free_facet_quadratures_degree              => serial_fe_space_free_facet_quadratures_degree
      procedure, non_overridable          :: clear_facet_quadratures_degree             => serial_fe_space_clear_facet_quadratures_degree
      
-     procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_fe_face => serial_fe_space_allocate_max_order_reference_fe_id_x_fe_face
-     procedure, non_overridable, private :: free_max_order_reference_fe_id_x_fe_face     => serial_fe_space_free_max_order_reference_fe_id_x_fe_face
-     procedure, non_overridable, private :: compute_max_order_reference_fe_id_x_fe_face  => serial_fe_space_compute_max_order_reference_fe_id_x_fe_face   
+     procedure, non_overridable, private :: allocate_max_order_field_cell_to_ref_fes_face => serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face
+     procedure, non_overridable, private :: free_max_order_field_cell_to_ref_fes_face     => serial_fe_space_free_max_order_field_cell_to_ref_fes_face
+     procedure, non_overridable, private :: compute_max_order_field_cell_to_ref_fes_face  => serial_fe_space_compute_max_order_field_cell_to_ref_fes_face   
      
      procedure                 , private :: fill_facet_gids                    => serial_fe_space_fill_facet_gids
      procedure, non_overridable, private :: free_facet_gids                    => serial_fe_space_free_facet_gids
@@ -852,7 +852,7 @@ module fe_space_names
     procedure, non_overridable, private         :: free_field_blocks_and_coupling                  => coarse_fe_space_free_field_blocks_and_coupling
     procedure, non_overridable, private         :: allocate_and_fill_fe_space_type_x_field         => coarse_fe_space_allocate_and_fill_fe_space_type
     procedure, non_overridable, private         :: free_fe_space_type_x_field                      => coarse_fe_space_free_fe_space_type
-    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_x_field_cell_and_field       => coarse_fe_space_allocate_and_fill_ptr_dofs_x_field_cell_and_field
+    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_x_fe_and_field       => coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe_and_field
     procedure, non_overridable, private         :: free_ptr_dofs_x_field_cell_and_field                    => coarse_fe_space_free_ptr_dofs_x_field_cell_and_field
     procedure, non_overridable, private         :: fetch_ghost_fes_data                            => coarse_fe_space_fetch_ghost_fes_data
     procedure, non_overridable, private         :: allocate_and_generate_own_dofs_vef_x_fe         => coarse_fe_space_allocate_and_generate_own_dofs_vef_x_fe

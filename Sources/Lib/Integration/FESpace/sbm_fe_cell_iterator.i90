@@ -828,7 +828,7 @@ subroutine fe_cell_iterator_set_reference_fe_id(this, field_id, reference_fe_id)
   class(fe_cell_iterator_t), target   , intent(inout) :: this
   integer(ip)                    , intent(in)    :: field_id
   integer(ip)                    , intent(in)    :: reference_fe_id
-  this%fe_space%reference_fe_id_x_fe(field_id,this%get_lid()) = reference_fe_id
+  this%fe_space%field_cell_to_ref_fes(field_id,this%get_lid()) = reference_fe_id
 end subroutine fe_cell_iterator_set_reference_fe_id
 
 function fe_cell_iterator_is_void(this, field_id)

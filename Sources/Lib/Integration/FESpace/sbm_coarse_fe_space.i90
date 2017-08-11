@@ -60,7 +60,7 @@ subroutine coarse_fe_space_create (this, &
      this%num_blocks = maxval(this%field_blocks)
      call this%allocate_and_fill_fe_space_type_x_field(fe_space_type_x_field)
      ! Allocate + fill coarse fes-related data
-     call this%allocate_and_fill_ptr_dofs_x_field_cell_and_field( ptr_dofs_x_field_cell_and_field )
+     call this%allocate_and_fill_ptr_dofs_x_fe_and_field( ptr_dofs_x_field_cell_and_field )
      call this%fetch_ghost_fes_data( lst_dofs_gids, & 
                                      lst_vefs_gids_dofs_objects, & 
                                      lst_dofs_gids_ghost_extended, & 
@@ -219,7 +219,7 @@ subroutine coarse_fe_space_free_field_blocks_and_coupling (this)
   if (allocated(this%field_coupling)) call memfree ( this%field_coupling, __FILE__, __LINE__ )
 end subroutine coarse_fe_space_free_field_blocks_and_coupling
 
-subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_x_field_cell_and_field (this, ptr_dofs_x_field_cell_and_field)
+subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe_and_field (this, ptr_dofs_x_field_cell_and_field)
   implicit none
   class(coarse_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: ptr_dofs_x_field_cell_and_field(*)
@@ -262,7 +262,7 @@ subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_x_field_cell_and_field (th
   do i=1, (num_local_cells + num_ghost_cells)*this%num_fields
      this%ptr_dofs_x_field_cell_and_field(i+1) = this%ptr_dofs_x_field_cell_and_field(i+1) + this%ptr_dofs_x_field_cell_and_field(i)
   end do
-end subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_x_field_cell_and_field
+end subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe_and_field
   
 
 subroutine coarse_fe_space_free_ptr_dofs_x_field_cell_and_field(this)

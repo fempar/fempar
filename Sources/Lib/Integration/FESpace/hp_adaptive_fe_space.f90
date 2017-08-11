@@ -1323,7 +1323,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   type(fe_function_t)                             :: transformed_fe_function
   type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
   integer(ip)                       , allocatable :: old_ptr_dofs_x_field_cell(:,:)
-  integer(ip)              , target , allocatable :: old_lst_dofs_lids(:)
+  integer(ip)              , target , allocatable :: old_lst_dofs_gids(:)
   integer(ip)                       , pointer     :: old_field_fe_dofs(:)
   integer(ip)                                     :: num_children_x_cell
   integer(ip)                                     :: transformation_flag
@@ -1349,7 +1349,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   old_num_cells = p4est_refinement_and_coarsening_flags%size()
   
   call this%move_alloc_ptr_dofs_x_field_cell_out(old_ptr_dofs_x_field_cell)
-  call this%move_alloc_lst_dofs_gids_out(old_lst_dofs_lids)
+  call this%move_alloc_lst_dofs_gids_out(old_lst_dofs_gids)
   massert ( old_num_cells == (size(old_ptr_dofs_x_field_cell,2)-1), 'Incorrect size of p4est_refinement_and_coarsening_flags' )
   
   call this%project_field_cell_to_ref_fes()
@@ -1466,7 +1466,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   call memfree(old_nodal_values,__FILE__,__LINE__)
   call memfree(new_nodal_values,__FILE__,__LINE__)
   call memfree(old_ptr_dofs_x_field_cell,__FILE__,__LINE__)
-  call memfree(old_lst_dofs_lids,__FILE__,__LINE__)
+  call memfree(old_lst_dofs_gids,__FILE__,__LINE__)
   
 contains
   
@@ -1480,7 +1480,7 @@ contains
     else
       epos = old_ptr_dofs_x_field_cell(field_id+1,current_old_cell_lid)-1
     end if
-    get_field_fe_dofs => old_lst_dofs_lids(spos:epos)    
+    get_field_fe_dofs => old_lst_dofs_gids(spos:epos)    
   end function get_field_fe_dofs
   
 end subroutine serial_hp_adaptive_fe_space_refine_and_coarsen
