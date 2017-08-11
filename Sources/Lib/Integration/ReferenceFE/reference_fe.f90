@@ -1308,7 +1308,7 @@ type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
 private
 integer(ip)              :: h_refinement_num_subfacets
 type(interpolation_t)    :: h_refinement_interpolation
-integer(ip), allocatable :: h_refinement_subface_permutation(:,:,:)
+integer(ip), allocatable :: h_refinement_subfacet_permutation(:,:,:)
 integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
 contains 
 
@@ -1344,8 +1344,8 @@ procedure, private :: fill_h_refinement_interpolation                    &
 & => hex_lagrangian_reference_fe_fill_h_refinement_interpolation
 procedure, private :: fill_h_refinement_permutations                     &
 & => hex_lagrangian_reference_fe_fill_h_refinement_permutations
-procedure, private :: fill_n_subface_permutation                         &
-& => hex_lagrangian_reference_fe_fill_n_subface_permutation
+procedure, private :: fill_n_subfacet_permutation                         &
+& => hex_lagrangian_reference_fe_fill_n_subfacet_permutation
 procedure          :: interpolate_nodal_values_on_subcell                &
 & => hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell
 procedure          :: project_nodal_values_on_cell                       &

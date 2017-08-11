@@ -477,10 +477,10 @@ function fe_facet_iterator_get_fe_facet_permutation_index ( this ) result(fe_fac
   implicit none
   class(fe_facet_iterator_t), intent(in) :: this
   integer(ip)                           :: fe_facet_permutation_index
-  fe_facet_permutation_index = this%fe_space%face_permutation_indices%get(this%facet_lid)
+  fe_facet_permutation_index = this%fe_space%facet_permutation_indices%get(this%facet_gid)
 end function fe_facet_iterator_get_fe_facet_permutation_index 
 
-function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
+function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(facet_lpos_within_cell_around)
   implicit none
   class(fe_facet_iterator_t) , intent(inout) :: this
   integer(ip)               , intent(in)    :: icell_around

@@ -2011,7 +2011,7 @@ subroutine bst_print ( this )
 
     write (*,'(a)') '       id      is_local   num_vefs    coord        coord  ....'
     do while ( .not. cell%has_finished() )
-       !write(*,*) 'Printing cell:',cell%get_lid(),cell%is_local()
+       !write(*,*) 'Printing cell:',cell%get_gid(),cell%is_local()
        if(cell%is_local()) then
           call memrealloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
           call cell%get_coordinates (cell_coordinates)

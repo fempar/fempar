@@ -102,7 +102,7 @@ function p4est_cell_iterator_has_finished(this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   logical :: p4est_cell_iterator_has_finished
-  p4est_cell_iterator_has_finished = (this%get_lid() > this%p4est_triangulation%p4est_num_cells)
+  p4est_cell_iterator_has_finished = (this%get_gid() > this%p4est_triangulation%p4est_num_cells)
 end function p4est_cell_iterator_has_finished
 
 function p4est_cell_iterator_get_reference_fe_geo (this)
@@ -125,14 +125,14 @@ subroutine p4est_cell_iterator_get_coordinates (this, cell_coordinates)
   type(point_t)        ,  intent(inout) :: cell_coordinates(:)
   integer(ip)                    :: inode, num_vertices
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
   assert ( allocated ( this%p4est_triangulation%per_cell_vertex_coordinates) )
   
   reference_fe_geo => this%get_reference_fe_geo()
   num_vertices  = reference_fe_geo%get_num_vertices()
   do inode=1, num_vertices
     cell_coordinates(inode) = &
-        this%p4est_triangulation%per_cell_vertex_coordinates((this%get_lid()-1)*num_vertices+inode)
+        this%p4est_triangulation%per_cell_vertex_coordinates((this%get_gid()-1)*num_vertices+inode)
   end do
 end subroutine p4est_cell_iterator_get_coordinates
 
@@ -203,16 +203,16 @@ function p4est_cell_iterator_get_set_id(this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(ip) :: p4est_cell_iterator_get_set_id
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_get_set_id = this%p4est_triangulation%p4est_cell_set_ids%get(this%get_lid())
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_set_id = this%p4est_triangulation%p4est_cell_set_ids%get(this%get_gid())
 end function p4est_cell_iterator_get_set_id
 
 function p4est_cell_iterator_get_level(this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(ip) :: p4est_cell_iterator_get_level
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_get_level = this%p4est_triangulation%quad_level(this%get_lid())
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_level = this%p4est_triangulation%quad_level(this%get_gid())
 end function p4est_cell_iterator_get_level
 
 pure function p4est_cell_iterator_get_num_vefs (this)
@@ -220,8 +220,8 @@ pure function p4est_cell_iterator_get_num_vefs (this)
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(ip)                        :: p4est_cell_iterator_get_num_vefs
   !assert ( this%gid >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_get_num_vefs = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_lid()+1) - &
-                                       this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_lid())
+  p4est_cell_iterator_get_num_vefs = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid()+1) - &
+                                       this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())
 end function p4est_cell_iterator_get_num_vefs
 
 !pure function p4est_cell_iterator_get_num_nodes (this)
@@ -257,8 +257,8 @@ function p4est_cell_iterator_get_vef_gid (this, ivef)
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(ip)                       :: ivef
   integer(ip)                        :: p4est_cell_iterator_get_vef_gid
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_get_vef_gid = this%p4est_triangulation%p4est_lst_vefs_lids%get(this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_lid())+ivef-1)
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_vef_gid = this%p4est_triangulation%p4est_lst_vefs_lids%get(this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())+ivef-1)
 end function p4est_cell_iterator_get_vef_gid
 
 function p4est_cell_iterator_get_vef_gids (this)
@@ -269,8 +269,8 @@ function p4est_cell_iterator_get_vef_gids (this)
   
   integer(ip) :: spos, epos
   
-  spos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_lid())
-  epos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_lid()+1)-1
+  spos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())
+  epos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid()+1)-1
   p4est_cell_iterator_get_vef_gids => this%p4est_triangulation%p4est_lst_vefs_lids%get_pointer_to_range(spos,epos)
 end function p4est_cell_iterator_get_vef_gids
 
@@ -328,7 +328,7 @@ function p4est_cell_iterator_is_local (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   logical                            :: p4est_cell_iterator_is_local
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
   p4est_cell_iterator_is_local = .true.
 end function p4est_cell_iterator_is_local
 
@@ -336,7 +336,7 @@ function p4est_cell_iterator_is_ghost (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   logical                            :: p4est_cell_iterator_is_ghost
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
   p4est_cell_iterator_is_ghost = .false.
 end function p4est_cell_iterator_is_ghost
 
@@ -353,8 +353,8 @@ function p4est_cell_iterator_is_ancestor(this,child_level,child_linear_id)
                                       child_quad_coords(1),           &
                                       child_quad_coords(2) )
   p4est_cell_iterator_is_ancestor =  &
-   ( F90_p4est_is_ancestor(this%p4est_triangulation%quad_coords(1,this%get_lid()), &
-                           this%p4est_triangulation%quad_coords(2,this%get_lid()), &
+   ( F90_p4est_is_ancestor(this%p4est_triangulation%quad_coords(1,this%get_gid()), &
+                           this%p4est_triangulation%quad_coords(2,this%get_gid()), &
                            int(this%get_level(),c_int8_t),                         &
                            child_quad_coords(1),                                   &
                            child_quad_coords(2),                                   &
@@ -367,30 +367,30 @@ end function p4est_cell_iterator_is_ancestor
 subroutine p4est_cell_iterator_set_for_coarsening(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_lid(), coarsening)
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_gid(), coarsening)
 end subroutine p4est_cell_iterator_set_for_coarsening
 
 subroutine p4est_cell_iterator_set_for_refinement(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_lid(), refinement)
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_gid(), refinement)
 end subroutine p4est_cell_iterator_set_for_refinement
 
 subroutine p4est_cell_iterator_set_for_do_nothing(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_lid(), do_nothing)
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_gid(), do_nothing)
 end subroutine p4est_cell_iterator_set_for_do_nothing
 
 function p4est_cell_iterator_get_transformation_flag(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
   integer(ip) :: p4est_cell_iterator_get_transformation_flag
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_get_transformation_flag = this%p4est_triangulation%p4est_refinement_and_coarsening_flags%get(this%get_lid())
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_transformation_flag = this%p4est_triangulation%p4est_refinement_and_coarsening_flags%get(this%get_gid())
 end function p4est_cell_iterator_get_transformation_flag
 
 

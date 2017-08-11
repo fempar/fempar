@@ -162,7 +162,7 @@ contains
             case default
               check(.false.)
             end select
-            cell_set_ids(cell%get_lid()) = set_id
+            cell_set_ids(cell%get_gid()) = set_id
           end if
           call cell%next()
         end do
@@ -207,7 +207,7 @@ contains
                call vef%set_set_id(1)
 
                ! Do a loop on all edges in 3D (vertex in 2D) of the face
-               ivef = vef%get_lid()
+               ivef = vef%get_gid()
                call vef%get_cell_around(1,cell) ! There is always one cell around
                reference_fe_geo => cell%get_reference_fe_geo()
                ivef_pos_in_cell = cell%get_vef_gid_from_gid(ivef)
@@ -267,7 +267,7 @@ contains
 
     do while ( .not. cell%has_finished() )
 
-      !if ( mod(cell%get_lid()-1,2) == 0 ) then
+      !if ( mod(cell%get_gid()-1,2) == 0 ) then
       !  call cell%set_for_refinement()
       !end if
 
@@ -284,7 +284,7 @@ contains
         call cell%set_for_refinement()
       end if
 
-      !write(*,*) 'cid= ', cell%get_lid(), ' l= ', cell%get_level()
+      !write(*,*) 'cid= ', cell%get_gid(), ' l= ', cell%get_level()
 
       call cell%next()
     end do
@@ -316,7 +316,7 @@ contains
     call this%triangulation%create_cell_iterator(cell)
     do while( .not. cell%has_finished() )
       if (cell%is_local()) then
-         cell_set_ids(cell%get_lid()) = cell%get_lid()
+         cell_set_ids(cell%get_gid()) = cell%get_gid()
       end if
       call cell%next()
     end do
@@ -336,7 +336,7 @@ contains
     character(:)                    , allocatable :: field_type
     
     type(interpolation_t), pointer :: h_refinement_interpolation
-    integer(ip), pointer :: h_refinement_subface_permutation(:,:,:)
+    integer(ip), pointer :: h_refinement_subfacet_permutation(:,:,:)
     integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
     
     if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
@@ -379,7 +379,7 @@ contains
     select type( reference_fe => this%reference_fes(1)%p )
     type is (hex_lagrangian_reference_fe_t)
        h_refinement_interpolation       => reference_fe%get_h_refinement_interpolation()
-       h_refinement_subface_permutation => reference_fe%get_h_refinement_subfacet_permutation()
+       h_refinement_subfacet_permutation => reference_fe%get_h_refinement_subfacet_permutation()
        h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedget_permutation()
     class default
       assert(.false.)
@@ -720,7 +720,7 @@ contains
         call this%triangulation%create_cell_iterator(cell)
         if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
           do while( .not. cell%has_finished() )
-            cell_vector(cell%get_lid()) = cell%get_set_id()
+            cell_vector(cell%get_gid()) = cell%get_set_id()
             call cell%next()
           end do
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
@@ -730,7 +730,7 @@ contains
           do pid=0, P-1
               i=0
               do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
-                cell_vector(cell%get_lid()) = pid 
+                cell_vector(cell%get_gid()) = pid 
                 call cell%next()
                 i=i+1
               end do
@@ -787,15 +787,15 @@ contains
           yc = yc + (1.0/max_num_cell_nodes)*coords(k)%get(2)
         end do
 
-        x(cell%get_lid()) = xc;
-        y(cell%get_lid()) = yc;
-        z(cell%get_lid()) = 0.0;
+        x(cell%get_gid()) = xc;
+        y(cell%get_gid()) = yc;
+        z(cell%get_gid()) = 0.0;
 
-        if (cell%get_lid()>1) then
-          connect(  2*(cell%get_lid()-1)-1  ) = cell%get_lid()-2
-          connect(  2*(cell%get_lid()-1)    ) = cell%get_lid()-1
-          offset( cell%get_lid()-1 ) = 2*(cell%get_lid()-1)
-          cell_type( cell%get_lid()-1 ) = vtk_1d_elem_id
+        if (cell%get_gid()>1) then
+          connect(  2*(cell%get_gid()-1)-1  ) = cell%get_gid()-2
+          connect(  2*(cell%get_gid()-1)    ) = cell%get_gid()-1
+          offset( cell%get_gid()-1 ) = 2*(cell%get_gid()-1)
+          cell_type( cell%get_gid()-1 ) = vtk_1d_elem_id
         end if
 
         call cell%next()

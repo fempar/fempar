@@ -39,7 +39,7 @@
     class(serial_fe_space_t)        , intent(in)    :: fe_space
     call this%free()
     call fe_space%create_dof_values(this%free_dof_values)
-    call this%fixed_dof_values%create_and_allocate(fe_space%get_num_fixed_dofs())
+    call this%fixed_dof_values%create_and_allocate(fe_space%get_num_fixed_dof_values())
     call this%fixed_dof_values%init(0.0_rp)
   end subroutine fe_function_create
   
@@ -49,7 +49,7 @@
     class(fe_function_t)       , intent(inout) :: this 
     class(serial_fe_space_t)   , intent(in)    :: fe_space
     ! Then update DoFs subject to hanging node constraints
-    call fe_space%update_fixed_dof_values(this%dof_values,this%fixed_dof_values)
+    call fe_space%update_fixed_dof_values(this%free_dof_values,this%fixed_dof_values)
   end subroutine fe_function_update_fixed_dof_values
   
   subroutine fe_function_gather_nodal_values_through_iterator ( this, fe_cell_iterator, field_id, nodal_values )
@@ -121,7 +121,7 @@
     block_id = field_blocks(field_id)
     
     ! Extract nodal values associated to dofs
-    call this%dof_values%extract_subvector ( block_id,           &
+    call this%free_dof_values%extract_subvector ( block_id,           &
                                              num_nodes_field, &
                                              fe_dofs,           &
                                              nodal_values )

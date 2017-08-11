@@ -89,7 +89,7 @@ module hp_adaptive_fe_space_names
      procedure          :: update_fixed_dof_values                                => shpafs_update_fixed_dof_values
      procedure          :: interpolate_dirichlet_values                           => shpafs_interpolate_dirichlet_values
      
-     procedure, private :: fill_vef_lids_of_fe_faces                              => shpafs_fill_vef_lids_of_fe_faces
+     procedure, private :: fill_facet_gids                              => shpafs_fill_facet_gids
      
      procedure          :: project_field_cell_to_ref_fes                               => shpafs_project_field_cell_to_ref_fes
      procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
@@ -406,15 +406,15 @@ function hp_adaptive_fe_facet_iterator_compute_fe_facet_permutation_index (this,
   fe_facet_permutation_index = 1
 end function hp_adaptive_fe_facet_iterator_compute_fe_facet_permutation_index
 
-function hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
+function hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(facet_lpos_within_cell_around)
   implicit none
   class(hp_adaptive_fe_facet_iterator_t), intent(inout) :: this
   integer(ip)                          , intent(in)    :: icell_around
-  integer(ip)                                          :: face_lpos_within_cell_around
+  integer(ip)                                          :: facet_lpos_within_cell_around
   if ( .not. this%is_proper() .and. icell_around == 2 ) then
-    face_lpos_within_cell_around = this%get_improper_cell_around_ivef()
+    facet_lpos_within_cell_around = this%get_improper_cell_around_ivef()
   else
-    face_lpos_within_cell_around = &
+    facet_lpos_within_cell_around = &
       this%fe_facet_iterator_t%get_lpos_within_cell_around(icell_around)
   end if
 end function hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
@@ -617,7 +617,7 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
 
-  type(std_vector_integer_ip_t), pointer :: vef_lids_of_fe_faces
+  type(std_vector_integer_ip_t), pointer :: facet_gids
 
   call this%free()
 
@@ -635,9 +635,9 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   call this%fill_field_cell_to_ref_fes_same_on_all_cells()
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
-  vef_lids_of_fe_faces => this%get_vef_gids_of_fe_faces()
-  call vef_lids_of_fe_faces%resize(triangulation%get_num_vefs())
-  call this%fill_vef_lids_of_fe_faces()
+  facet_gids => this%get_vef_gids_of_fe_faces()
+  call facet_gids%resize(triangulation%get_num_vefs())
+  call this%fill_facet_gids()
   call this%allocate_and_init_ptr_lst_dofs_gids()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
@@ -659,7 +659,7 @@ subroutine shpafs_create_different_between_cells( this,          &
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
 
-  type(std_vector_integer_ip_t), pointer :: vef_lids_of_fe_faces
+  type(std_vector_integer_ip_t), pointer :: facet_gids
 
   call this%free()
 
@@ -677,9 +677,9 @@ subroutine shpafs_create_different_between_cells( this,          &
   call this%fill_field_cell_to_ref_fes_different_ref_fes_between_cells(set_ids_to_reference_fes)
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
-  vef_lids_of_fe_faces => this%get_vef_gids_of_fe_faces()
-  call vef_lids_of_fe_faces%resize(triangulation%get_num_vefs())
-  call this%fill_vef_lids_of_fe_faces()
+  facet_gids => this%get_vef_gids_of_fe_faces()
+  call facet_gids%resize(triangulation%get_num_vefs())
+  call this%fill_facet_gids()
   call this%allocate_and_init_ptr_lst_dofs_gids()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
@@ -798,21 +798,21 @@ subroutine shpafs_interpolate_dirichlet_values (this, fe_function, time, fields_
   call this%transfer_dirichlet_to_constraint_dof_coefficients(fe_function)
 end subroutine shpafs_interpolate_dirichlet_values 
 
-subroutine shpafs_fill_vef_lids_of_fe_faces ( this )
+subroutine shpafs_fill_facet_gids ( this )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
   class(base_static_triangulation_t), pointer     :: triangulation
-  type(std_vector_integer_ip_t)     , pointer     :: vef_lids_of_fe_faces
+  type(std_vector_integer_ip_t)     , pointer     :: facet_gids
   type(fe_vef_iterator_t)                         :: fe_vef
   integer(ip)                                     :: facet_lid
   facet_lid = 0
   triangulation => this%get_triangulation()
-  vef_lids_of_fe_faces => this%get_vef_gids_of_fe_faces()
+  facet_gids => this%get_vef_gids_of_fe_faces()
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
     if ( is_fe_face() ) then
       facet_lid = facet_lid + 1
-      if ( facet_lid <= vef_lids_of_fe_faces%size() ) then
+      if ( facet_lid <= facet_gids%size() ) then
         call fe_vef%set_vef_lid_of_fe_face(facet_lid)
       else
         call fe_vef%push_back_vef_lid_of_fe_face()
@@ -820,7 +820,7 @@ subroutine shpafs_fill_vef_lids_of_fe_faces ( this )
     end if
     call fe_vef%next()
   end do
-  call vef_lids_of_fe_faces%resize(facet_lid)
+  call facet_gids%resize(facet_lid)
   call this%free_fe_vef_iterator(fe_vef)
   
   contains
@@ -833,7 +833,7 @@ subroutine shpafs_fill_vef_lids_of_fe_faces ( this )
                                                                          fe_vef%get_num_cells_around() > 1 ) ) )
     end function is_fe_face
   
-end subroutine shpafs_fill_vef_lids_of_fe_faces
+end subroutine shpafs_fill_facet_gids
 
 subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering( this, block_layout )
   implicit none
@@ -944,10 +944,10 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
                     call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                     if (previous_dof_block < current_dof_block) then
                       if ( vef%is_proper()) then
-                        visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                        visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                         visited_proper_vef_to_cell_map ( 2, vef_lid ) = ivef
                       else
-                        visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                        visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                         visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                       end if
                     end if
@@ -969,7 +969,7 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
                     previous_fixed_dof = current_fixed_dof
                     call fe%fill_own_dofs_on_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
                     if (previous_fixed_dof < current_fixed_dof) then
-                      visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                      visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                       visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                     end if
                  else 
@@ -1029,7 +1029,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   integer(ip) :: qpoint, ishape_fe, ishape_coarser_fe
   type(interpolation_t), pointer :: h_refinement_interpolation
   integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
-  integer(ip), pointer :: h_refinement_subface_permutation(:,:,:)
+  integer(ip), pointer :: h_refinement_subfacet_permutation(:,:,:)
   real(rp) :: coefficient
   integer(ip) :: num_cell_vertices, num_cell_edges, num_cell_faces
 
@@ -1065,7 +1065,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      ! and one of the cells that owns it
      call fe_vef%set_lid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
-     improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_lid())
+     improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_gid())
      call fe%get_fe_dofs(fe_dofs)
 
      ! Retrieve all data related to the first improper cell around current improper vef
@@ -1113,7 +1113,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      ! and one of the cells that owns it
      call fe_vef%set_lid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
-     improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_lid())
+     improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_gid())
      call fe%get_fe_dofs(fe_dofs)
 
      mcheck( this%p4est_triangulation%get_num_dims()==2 , 'The following code only valid for 2d cases' )
@@ -1136,7 +1136,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         select type(coarser_reference_fe)
         type is (hex_lagrangian_reference_fe_t)
            h_refinement_subedge_permutation => coarser_reference_fe%get_h_refinement_subedget_permutation()
-           h_refinement_subface_permutation => coarser_reference_fe%get_h_refinement_subfacet_permutation()
+           h_refinement_subfacet_permutation => coarser_reference_fe%get_h_refinement_subfacet_permutation()
         class default
           assert(.false.)
         end select
@@ -1162,14 +1162,14 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
                  !qpoint = h_refinement_subedge_permutation(coarser_fe_ivef,num_subedges_x_edge,1)
               else
                  ! TODO: 2 is equal to num_subfaces_x_face ... only working in 2D!!!
-                 qpoint = h_refinement_subface_permutation(coarser_fe_ivef-num_cell_vertices,2,1)
+                 qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices,2,1)
               end if
            else if ( fe_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3 ) then ! vef is an edge (only 3D)
               qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices, &
                                                         coarse_fe_subvef, &
                                                         fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
            else if (fe_vef%get_dim() == this%p4est_triangulation%get_num_dims()-1) then ! vef is a face (2D/3D)
-              qpoint = h_refinement_subface_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges, &
+              qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges, &
                                                         coarse_fe_subvef, &
                                                         fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
            end if
@@ -1354,7 +1354,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   
   call this%project_field_cell_to_ref_fes()
   !call this%check_cell_vs_fe_topology_consistency()
-  call this%fill_vef_lids_of_fe_faces()
+  call this%fill_facet_gids()
   call this%project_fe_integration_arrays()
   call this%project_fe_facet_integration_arrays()
   call this%allocate_and_init_ptr_lst_dofs_gids()

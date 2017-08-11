@@ -592,7 +592,7 @@ function fe_cell_iterator_has_fixed_dofs ( this, field_id )
   class(fe_cell_iterator_t)   , intent(in) :: this
   integer(ip)            , intent(in) :: field_id
   logical                             :: fe_cell_iterator_has_fixed_dofs
-  fe_cell_iterator_has_fixed_dofs = this%fe_space%has_fixed_dofs_x_fe(field_id,this%get_lid())
+  fe_cell_iterator_has_fixed_dofs = this%fe_space%has_fixed_dofs_x_fe(field_id,this%get_gid())
 end function fe_cell_iterator_has_fixed_dofs
 
 
@@ -613,10 +613,10 @@ subroutine fe_cell_iterator_set_has_fixed_dofs ( this, field_id )
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i 
   call this%get_field_fe_dofs(field_id, fe_dofs)
-  this%fe_space%has_fixed_dofs_x_fe(field_id,this%get_lid()) = .false.
+  this%fe_space%has_fixed_dofs_x_fe(field_id,this%get_gid()) = .false.
   do i=1, size(fe_dofs)
     if ( this%is_fixed_dof(fe_dofs(i)) ) then
-      this%fe_space%has_fixed_dofs_x_fe(field_id,this%get_lid()) = .true.
+      this%fe_space%has_fixed_dofs_x_fe(field_id,this%get_gid()) = .true.
       exit
     end if  
   end do  
@@ -828,7 +828,7 @@ subroutine fe_cell_iterator_set_reference_fe_id(this, field_id, reference_fe_id)
   class(fe_cell_iterator_t), target   , intent(inout) :: this
   integer(ip)                    , intent(in)    :: field_id
   integer(ip)                    , intent(in)    :: reference_fe_id
-  this%fe_space%field_cell_to_ref_fes(field_id,this%get_lid()) = reference_fe_id
+  this%fe_space%field_cell_to_ref_fes(field_id,this%get_gid()) = reference_fe_id
 end subroutine fe_cell_iterator_set_reference_fe_id
 
 function fe_cell_iterator_is_void(this, field_id)

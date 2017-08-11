@@ -1843,7 +1843,7 @@ subroutine serial_fe_space_fill_facet_gids ( this )
     end if
     call fe_vef%next()
   end do
-  assert( facet_lid == this%triangulation%get_num_facets() )
+  assert( facet_gid == this%triangulation%get_num_facets() )
   call this%free_fe_vef_iterator(fe_vef)
 end subroutine serial_fe_space_fill_facet_gids
 
@@ -1868,7 +1868,7 @@ subroutine serial_fe_space_compute_facet_permutation_indices ( this )
   do while ( .not. fe_face%has_finished() )
     if ( .not. fe_face%is_ghost() .and. fe_face%get_num_cells_around() == 2 ) then
       fe_facet_permutation_index = fe_face%compute_fe_facet_permutation_index(first_fe,second_fe)
-      call this%face_permutation_indices%set(fe_face%facet_gid,fe_facet_permutation_index)
+      call this%facet_permutation_indices%set(fe_face%facet_gid,fe_facet_permutation_index)
     end if
     call fe_face%next()
   end do
@@ -2555,11 +2555,11 @@ function serial_fe_space_get_environment(this) result(environment)
   environment => this%triangulation%get_par_environment()
 end function serial_fe_space_get_environment
 
-function serial_fe_space_get_vef_gids_of_fe_faces( this) result(vef_lids_of_fe_faces)
+function serial_fe_space_get_vef_gids_of_fe_faces( this) result(facet_gids)
   implicit none
   class(serial_fe_space_t), target, intent(in) :: this 
-  type(std_vector_integer_ip_t), pointer :: vef_lids_of_fe_faces
-  vef_lids_of_fe_faces => this%vef_lids_of_fe_faces
+  type(std_vector_integer_ip_t), pointer :: facet_gids
+  facet_gids => this%facet_gids
 end function serial_fe_space_get_vef_gids_of_fe_faces
 
 function serial_fe_space_get_conditions( this) result(conditions)
@@ -2577,19 +2577,12 @@ subroutine serial_fe_space_set_conditions( this, conditions )
   this%conditions => conditions
 end subroutine serial_fe_space_set_conditions
 
-function serial_fe_space_get_num_fixed_dofs(this) result(num_fixed_dof_values)
-  implicit none
-  class(serial_fe_space_t), target, intent(in)    :: this 
-  integer(ip) :: num_fixed_dof_values
-  num_fixed_dof_values = this%num_fixed_dof_values
-end function serial_fe_space_get_num_fixed_dofs
-
-function serial_fe_space_get_num_fixed_dofs(this)
+function serial_fe_space_get_num_fixed_dof_values(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
-  integer(ip) :: serial_fe_space_get_num_fixed_dofs
-  serial_fe_space_get_num_fixed_dofs = this%num_fixed_dof_values
-end function serial_fe_space_get_num_fixed_dofs
+  integer(ip) :: serial_fe_space_get_num_fixed_dof_values
+  serial_fe_space_get_num_fixed_dof_values = this%num_fixed_dof_values
+end function serial_fe_space_get_num_fixed_dof_values
 
 function serial_fe_space_get_num_blocks( this)
   implicit none
