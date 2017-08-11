@@ -59,11 +59,11 @@ contains
      this%fe_function => fe_function
   end subroutine set_fe_function
 
-  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(vector_poisson_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
+    class(assembler_t)             , intent(inout) :: assembler
 
     ! FE space traversal-related data types
     class(fe_cell_iterator_t), allocatable :: fe
@@ -107,7 +107,7 @@ contains
        num_dofs = fe%get_num_dofs()
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => cell_map%get_quadrature_coordinates()
+       quad_coords => cell_map%get_quadrature_points_coordinates()
        
        ! Compute element matrix and vector
        elmat = 0.0_rp
@@ -136,7 +136,7 @@ contains
        
        ! Assemble and apply boundary conditions (and the rest of hanging node constraints)
        ! (TODO) To be substituted by overriden fe%assembly
-       call fe%assemble( elmat, elvec, matrix_array_assembler )
+       call fe%assemble( elmat, elvec, assembler )
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)

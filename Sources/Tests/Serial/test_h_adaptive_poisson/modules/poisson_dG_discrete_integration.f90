@@ -61,11 +61,11 @@ contains
   end subroutine set_poisson_conditions
   
   
-  subroutine integrate_galerkin ( this, fe_space, matrix_array_assembler )
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(poisson_dG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)         , intent(inout) :: matrix_array_assembler
+    class(assembler_t)         , intent(inout) :: assembler
 
     ! FE space traversal-related data types
     class(fe_cell_iterator_t)     , allocatable :: fe
@@ -100,7 +100,7 @@ contains
     
     class(scalar_function_t), pointer :: source_term, boundary_function
     type(fe_function_t)               :: boundary_fe_function
-    type(face_fe_function_scalar_t)   :: boundary_face_fe_function
+    type(fe_facet_function_scalar_t)   :: boundary_fe_facet_function
     real(rp) :: source_term_value, boundary_value, boundary_fe_function_value
 
     integer(ip)  :: istat
@@ -116,9 +116,9 @@ contains
     
     call boundary_fe_function%create(fe_space)
     call fe_space%interpolate(1,boundary_function,boundary_fe_function)
-    call boundary_face_fe_function%create(fe_space,1)
+    call boundary_fe_facet_function%create(fe_space,1)
     
-    call fe_space%initialize_fe_integration()
+    call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
     
     num_dofs = fe%get_num_dofs()
@@ -140,7 +140,7 @@ contains
          call fe%update_integration()
          
          ! Get quadrature coordinates to evaluate source_term
-         quad_coords => cell_map%get_quadrature_coordinates()
+         quad_coords => cell_map%get_quadrature_points_coordinates()
 
          ! Compute element matrix and vector
          elmat = 0.0_rp
@@ -163,14 +163,14 @@ contains
             end do  
          end do        
          
-         call fe%assemble( elmat, elvec, matrix_array_assembler )
+         call fe%assemble( elmat, elvec, assembler )
        end if
        
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
     
-    call fe_space%initialize_fe_facet_integration()
+    call fe_space%set_up_facet_integration()
     
     call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
     call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
@@ -239,7 +239,7 @@ contains
             end do
          end do
          ! (TODO) To be substituted by overriden fe_face%assembly (matrix)
-         call fe_face%assemble( facemat, facevec, matrix_array_assembler )
+         call fe_face%assemble( facemat, facevec, assembler )
        end if
          
        call fe_face%next()
@@ -263,8 +263,8 @@ contains
          facevec = 0.0_rp
          assert( fe_face%get_set_id() == 1 )
          call fe_face%update_integration()
-         call boundary_face_fe_function%update(fe_face,boundary_fe_function)
-         quad_coords => facet_map%get_quadrature_coordinates()
+         call boundary_fe_facet_function%update(fe_face,boundary_fe_function)
+         quad_coords => facet_map%get_quadrature_points_coordinates()
          call face_int%get_values(1,shape_values_first)
          call face_int%get_gradients(1,shape_gradients_first)
          do qpoint = 1, num_quad_points
@@ -272,7 +272,7 @@ contains
             h_length = facet_map%compute_characteristic_length(qpoint)
             factor = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
-            call boundary_face_fe_function%get_value(qpoint,1,boundary_fe_function_value)
+            call boundary_fe_facet_function%get_value(qpoint,1,boundary_fe_function_value)
             boundary_value = 2*boundary_value - boundary_fe_function_value
             do idof = 1, num_dofs
               !call face_int%get_value(idof,qpoint,1,shape_trial)
@@ -292,13 +292,13 @@ contains
             end do   
          end do
          ! (TODO) To be substituted by overriden fe_face%assembly (matrix_array)
-         call fe_face%assemble( facemat, facevec, matrix_array_assembler )
+         call fe_face%assemble( facemat, facevec, assembler )
        end if
        call fe_face%next()
     end do
     call fe_space%free_fe_facet_iterator(fe_face)
     call boundary_fe_function%free()
-    call boundary_face_fe_function%free()
+    call boundary_fe_facet_function%free()
     call memfree(shape_values_first, __FILE__, __LINE__) 
     call memfree(shape_values_second, __FILE__, __LINE__) 
     deallocate(shape_gradients_first, stat=istat); check(istat==0);

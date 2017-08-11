@@ -211,7 +211,7 @@ contains
                call vef%get_cell_around(1,cell) ! There is always one cell around
                reference_fe_geo => cell%get_reference_fe_geo()
                ivef_pos_in_cell = cell%get_vef_gid_from_gid(ivef)
-               vefs_of_vef => reference_fe_geo%get_n_faces_n_face()
+               vefs_of_vef => reference_fe_geo%get_facets_n_face()
                vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
                do while( .not. vefs_of_vef_iterator%is_upper_bound() )
 
@@ -434,9 +434,9 @@ contains
       end if
     end if
     
-    call this%fe_space%initialize_fe_integration()
+    call this%fe_space%set_up_cell_integration()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
-      call this%fe_space%initialize_fe_facet_integration()
+      call this%fe_space%set_up_facet_integration()
     end if
   end subroutine setup_fe_space
   
@@ -457,7 +457,7 @@ contains
        
        call this%fe_space%refine_and_coarsen( fe_function = this%solution ) 
        
-       call this%fe_space%initialize_fe_integration()
+       call this%fe_space%set_up_cell_integration()
        !call this%fe_space%initialize_fe_facet_integration()
        
        if ( this%test_params%get_laplacian_type() == 'scalar' ) then

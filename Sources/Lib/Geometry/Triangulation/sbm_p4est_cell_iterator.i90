@@ -67,15 +67,15 @@ end subroutine p4est_cell_iterator_free_final
 subroutine p4est_cell_iterator_last(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
-  call this%set_lid(this%p4est_triangulation%p4est_num_cells)
+  call this%set_gid(this%p4est_triangulation%p4est_num_cells)
 end subroutine p4est_cell_iterator_last
 
-!subroutine p4est_cell_iterator_set_lid(this, lid)
+!subroutine p4est_cell_iterator_set_gid(this, lid)
 !  implicit none
 !  class(p4est_cell_iterator_t), intent(inout) :: this
 !  integer(ip)        , intent(in)    :: lid
 !  this%gid = lid
-!end subroutine p4est_cell_iterator_set_lid
+!end subroutine p4est_cell_iterator_set_gid
 
 !subroutine p4est_cell_iterator_set_gid(this, gid)
 !  implicit none
@@ -321,7 +321,7 @@ end function p4est_cell_iterator_get_vef_gids
 !  integer(ip),            intent(in)    :: ivef
 !  class(vef_iterator_t),   intent(inout) :: vef
 !  assert ( this%gid >= 1 .and. .not. this%has_finished() )
-!  call vef%set_lid(this%get_vef_gid(ivef))
+!  call vef%set_gid(this%get_vef_gid(ivef))
 !end subroutine p4est_cell_iterator_get_vef
 
 function p4est_cell_iterator_is_local (this)

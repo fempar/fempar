@@ -38,7 +38,7 @@ module hp_adaptive_fe_space_names
   use std_vector_real_rp_names
   use list_types_names
   
-  use matrix_array_assembler_names
+  use assembler_names
   use serial_scalar_array_names
   use vector_names
   use array_names
@@ -116,7 +116,7 @@ module hp_adaptive_fe_space_names
    procedure          :: free                           => hp_adaptive_fe_facet_iterator_free
    procedure          :: get_num_cells_around           => hp_adaptive_fe_facet_iterator_get_num_cells_around
    procedure, private :: fe_vef_iterator_get_fe_around  => hp_adaptive_fe_facet_iterator_get_fe_around
-   procedure          :: compute_fe_facet_permutation_index => hp_adaptive_fe_facet_iterator_compute_fe_facet_permutation_index
+   procedure          :: compute_fe_facet_permutation_index => hpafefi_compute_fe_facet_permutation_index
    procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
    procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
    procedure          :: assemble                       => hp_adaptive_fe_facet_iterator_assemble
@@ -159,12 +159,12 @@ subroutine hp_adaptive_fe_cell_iterator_free (this)
 end subroutine hp_adaptive_fe_cell_iterator_free
 
 !! Assembly of local matrices for hp-adaptivity
-subroutine hp_adaptive_fe_cell_iterator_assemble(this,elmat,elvec,matrix_array_assembler)
+subroutine hp_adaptive_fe_cell_iterator_assemble(this,elmat,elvec,assembler)
   implicit none
   class(hp_adaptive_fe_cell_iterator_t), intent(in)    :: this
   real(rp)                        , intent(in)    :: elmat(:,:)
   real(rp)                        , intent(in)    :: elvec(:)
-  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+  class(assembler_t) , intent(inout) :: assembler
   
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i, j
@@ -176,8 +176,8 @@ subroutine hp_adaptive_fe_cell_iterator_assemble(this,elmat,elvec,matrix_array_a
   
   
   call this%get_field_fe_dofs(1,fe_dofs)
-  matrix => matrix_array_assembler%get_matrix()
-  array  => matrix_array_assembler%get_array()  
+  matrix => assembler%get_matrix()
+  array  => assembler%get_array()  
   
   select type(matrix)
   class is(sparse_matrix_t)
@@ -215,7 +215,7 @@ recursive subroutine hp_adaptive_fe_cell_iterator_recursive_matrix_assembly(this
  
   if ( .not. this%is_fixed_dof(i)) then    
     if ( .not. this%is_fixed_dof(j) ) then 
-      ! Insert a_ij, v_j on matrix_array_assembler position (i,j)  
+      ! Insert a_ij, v_j on assembler position (i,j)  
       call matrix%insert(i,j,a_ij)
     else ! j is a fixed DoF
       if ( this%is_strong_dirichlet_dof(j) ) then
@@ -291,7 +291,7 @@ end subroutine hp_adaptive_fe_cell_iterator_recursive_vector_assembly
 !        k       = this%constraint_dofs_dependencies%get(pos)
 !        if (k>0) then ! If current DoF on which i depends is subject to Dirichlet BC's
 !          weight  = this%constraint_coefficient%get(pos)
-!          call this%recursive_assembly( k, j, weight*a_ij, v_j, matrix_array_assembler )
+!          call this%recursive_assembly( k, j, weight*a_ij, v_j, assembler )
 !        end if  
 !      end do
 !  else
@@ -301,7 +301,7 @@ end subroutine hp_adaptive_fe_cell_iterator_recursive_vector_assembly
 !        k       = this%constraint_dofs_dependencies%get(pos)
 !        weight  = this%constraint_coefficient%get(pos)
 !        if (k>0) then ! If current DoF on which i depends is subject to Dirichlet BC's
-!          call this%recursive_assembly( i, k, weight*a_ij, weight*v_j, matrix_array_assembler )
+!          call this%recursive_assembly( i, k, weight*a_ij, weight*v_j, assembler )
 !        else
 !          !  Insert v_j-a_ij*weight in position j of RHS array
 !          select type(array)
@@ -315,7 +315,7 @@ end subroutine hp_adaptive_fe_cell_iterator_recursive_vector_assembly
 !        end if
 !      end do   
 !    else
-!        ! Insert a_ij, v_j on matrix_array_assembler position (i,j)  
+!        ! Insert a_ij, v_j on assembler position (i,j)  
 !        select type(matrix)
 !          type is (sparse_matrix_t)
 !            call matrix%insert(i,j,a_ij)
@@ -381,7 +381,7 @@ subroutine hp_adaptive_fe_facet_iterator_get_fe_around (this, ife_around, fe)
   end if
 end subroutine hp_adaptive_fe_facet_iterator_get_fe_around
 
-function hp_adaptive_fe_facet_iterator_compute_fe_facet_permutation_index (this,first_fe,second_fe) result (fe_facet_permutation_index)
+function hpafefi_compute_fe_facet_permutation_index (this,first_fe,second_fe) result (fe_facet_permutation_index)
   implicit none
   class(hp_adaptive_fe_facet_iterator_t), intent(inout) :: this
   class(fe_cell_iterator_t)                 , intent(inout) :: first_fe
@@ -404,7 +404,7 @@ function hp_adaptive_fe_facet_iterator_compute_fe_facet_permutation_index (this,
   !    
   assert( .not. this%is_ghost() .and. this%get_num_cells_around() == 2 )
   fe_facet_permutation_index = 1
-end function hp_adaptive_fe_facet_iterator_compute_fe_facet_permutation_index
+end function hpafefi_compute_fe_facet_permutation_index
 
 function hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(facet_lpos_within_cell_around)
   implicit none
@@ -430,12 +430,12 @@ function hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around ( this, icel
   end if 
 end function hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around 
 
-subroutine hp_adaptive_fe_facet_iterator_assemble(this,facemat,facevec,matrix_array_assembler)
+subroutine hp_adaptive_fe_facet_iterator_assemble(this,facetmat,facetvec,assembler)
   implicit none
   class(hp_adaptive_fe_facet_iterator_t), intent(in)    :: this
-  real(rp)                             , intent(in)    :: facemat(:,:,:,:)
-  real(rp)                             , intent(in)    :: facevec(:,:)
-  class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
+  real(rp)                             , intent(in)    :: facetmat(:,:,:,:)
+  real(rp)                             , intent(in)    :: facetvec(:,:)
+  class(assembler_t)      , intent(inout) :: assembler
   
   class(serial_fe_space_t)       , pointer     :: fe_space
   type(hp_adaptive_fe_cell_iterator_t)              :: test_fe, trial_fe
@@ -448,8 +448,8 @@ subroutine hp_adaptive_fe_facet_iterator_assemble(this,facemat,facevec,matrix_ar
   type(sparse_matrix_t)      , pointer :: sparse_matrix
   type(serial_scalar_array_t), pointer :: serial_scalar_array
   
-  matrix => matrix_array_assembler%get_matrix()
-  array  => matrix_array_assembler%get_array()  
+  matrix => assembler%get_matrix()
+  array  => assembler%get_array()  
   
   select type(matrix)
   class is(sparse_matrix_t)
@@ -483,7 +483,7 @@ subroutine hp_adaptive_fe_facet_iterator_assemble(this,facemat,facevec,matrix_ar
                                                 trial_fe,                   &
                                                 test_fe_dofs(i),           &
                                                 trial_fe_dofs(j),          &
-                                                facemat(i,j,ineigh,jneigh), &
+                                                facetmat(i,j,ineigh,jneigh), &
                                                 sparse_matrix,              &
                                                 serial_scalar_array )
          end do
@@ -492,7 +492,7 @@ subroutine hp_adaptive_fe_facet_iterator_assemble(this,facemat,facevec,matrix_ar
     do i = 1,test_num_dofs
       call this%recursive_vector_assembly( test_fe,           &
                                            test_fe_dofs(i),  &
-                                           facevec(i,ineigh), &
+                                           facetvec(i,ineigh), &
                                            serial_scalar_array )
     end do
   end do
@@ -518,7 +518,7 @@ recursive subroutine hp_adaptive_fe_facet_iterator_recursive_matrix_assembly(thi
   
   if ( .not. test_fe%is_fixed_dof(i)) then    
     if ( .not. trial_fe%is_fixed_dof(j) ) then 
-      ! Insert a_ij, v_j on matrix_array_assembler position (i,j)  
+      ! Insert a_ij, v_j on assembler position (i,j)  
       call matrix%insert(i,j,a_ij)
     else ! j is a fixed DoF
       if ( trial_fe%is_strong_dirichlet_dof(j) ) then
@@ -916,7 +916,7 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
      call this%create_fe_cell_iterator(coarser_fe)
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
-           call fe%fill_own_dofs ( field_id, current_dof_block )
+           call fe%generate_own_dofs_cell ( field_id, current_dof_block )
            do ivef = 1, fe%get_num_vefs()
               call fe%get_vef(ivef,vef)
               
@@ -941,7 +941,7 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
 
                  if ( is_owner ) then
                     previous_dof_block = current_dof_block
-                    call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
+                    call fe%generate_own_dofs_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                     if (previous_dof_block < current_dof_block) then
                       if ( vef%is_proper()) then
                         visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
@@ -959,22 +959,22 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
                       source_cell_id = visited_improper_vef_to_cell_map(1,vef_lid)
                       source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
                     end if
-                    call source_fe%set_lid(source_cell_id)
-                    call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
+                    call source_fe%set_gid(source_cell_id)
+                    call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
                  end if
               else 
                  assert ( fe%get_vef_gid(ivef) < 0 )
                  vef_lid = abs(fe%get_vef_gid(ivef))
                  if ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 ) then
                     previous_fixed_dof = current_fixed_dof
-                    call fe%fill_own_dofs_on_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
+                    call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
                     if (previous_fixed_dof < current_fixed_dof) then
                       visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                       visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                     end if
                  else 
-                    call source_fe%set_lid(visited_improper_vef_to_cell_map(1,vef_lid))
-                    call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                    call source_fe%set_gid(visited_improper_vef_to_cell_map(1,vef_lid))
+                    call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
                          source_fe, &
                          visited_improper_vef_to_cell_map(2,vef_lid), &
                          field_id) 
@@ -996,7 +996,7 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
      !       to avoid code replication
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
-           call fe%fill_own_dofs ( field_id, current_dof_block )
+           call fe%generate_own_dofs_cell ( field_id, current_dof_block )
         end if
         call fe%next()
      end do
@@ -1063,7 +1063,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
      ! Retrieve all data related to the current improper vef 
      ! and one of the cells that owns it
-     call fe_vef%set_lid(-improper_vef_lid)
+     call fe_vef%set_gid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
      improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_gid())
      call fe%get_fe_dofs(fe_dofs)
@@ -1111,7 +1111,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
      ! Retrieve all data related to the current improper vef 
      ! and one of the cells that owns it
-     call fe_vef%set_lid(-improper_vef_lid)
+     call fe_vef%set_gid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
      improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_gid())
      call fe%get_fe_dofs(fe_dofs)
@@ -1264,7 +1264,7 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
   new_cell_lid = 1
   do while ( old_cell_lid .le. old_num_cells )
     transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
-    call new_fe%set_lid(new_cell_lid)
+    call new_fe%set_gid(new_cell_lid)
     do field_id = 1,this%get_num_fields()
       current_old_cell_lid = old_cell_lid
       current_new_cell_lid = new_cell_lid
@@ -1276,7 +1276,7 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
         do subcell_id = 0,num_children_x_cell-1
           call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
           current_new_cell_lid = current_new_cell_lid + 1
-          call new_fe%set_lid(current_new_cell_lid)
+          call new_fe%set_gid(current_new_cell_lid)
         end do
       else if ( transformation_flag == coarsening ) then
         do subcell_id = 1,num_children_x_cell-1
@@ -1380,7 +1380,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   new_cell_lid = 1
   do while ( old_cell_lid .le. old_num_cells )
     transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
-    call new_fe%set_lid(new_cell_lid)
+    call new_fe%set_gid(new_cell_lid)
     do field_id = 1,this%get_num_fields()
       current_old_cell_lid = old_cell_lid
       current_new_cell_lid = new_cell_lid
@@ -1413,7 +1413,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
             assert(.false.)
           end select
           current_new_cell_lid = current_new_cell_lid + 1
-          call new_fe%set_lid(current_new_cell_lid)
+          call new_fe%set_gid(current_new_cell_lid)
         end do
       else if ( transformation_flag == coarsening ) then
         do subcell_id = 1,num_children_x_cell-1

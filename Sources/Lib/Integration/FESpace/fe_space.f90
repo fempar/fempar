@@ -193,10 +193,10 @@ module fe_space_names
     procedure                           :: assemble                                   => fe_cell_iterator_assemble
     procedure, non_overridable, private :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
     procedure, non_overridable, private :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
-    procedure, non_overridable, private :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
-    procedure, non_overridable, private :: generate_own_dofs_vef                      => fe_cell_iterator_generate_own_dofs_vef
-    procedure, non_overridable, private :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
-    procedure, non_overridable, private :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
+    procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
+    procedure, non_overridable          :: generate_own_dofs_vef                      => fe_cell_iterator_generate_own_dofs_vef
+    procedure, non_overridable          :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
+    procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
     procedure, non_overridable, private :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
@@ -429,11 +429,11 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
      
-     procedure, non_overridable, private :: allocate_field_cell_to_ref_fes                    => serial_fe_space_allocate_field_cell_to_ref_fes
+     procedure, non_overridable          :: allocate_field_cell_to_ref_fes                    => serial_fe_space_allocate_field_cell_to_ref_fes
      procedure, non_overridable          :: move_alloc_field_cell_to_ref_fes                  => serial_fe_space_move_alloc_field_cell_to_ref_fes
      procedure, non_overridable, private :: free_field_cell_to_ref_fes                        => serial_fe_space_free_field_cell_to_ref_fes
-     procedure, non_overridable, private :: fill_field_cell_to_ref_fes_same_on_all_cells      => serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
-     procedure, non_overridable, private :: fill_field_cell_to_ref_fes_different_ref_fes_between_cells => sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells
+     procedure, non_overridable          :: fill_field_cell_to_ref_fes_same_on_all_cells      => serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
+     procedure, non_overridable          :: fill_field_cell_to_ref_fes_different_ref_fes_between_cells => sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells
      
      procedure, non_overridable          :: check_cell_vs_fe_topology_consistency        => serial_fe_space_check_cell_vs_fe_topology_consistency
      

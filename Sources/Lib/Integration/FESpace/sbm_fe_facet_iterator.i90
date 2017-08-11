@@ -160,7 +160,7 @@ subroutine fe_facet_iterator_update_integration( this )
       this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_facet_id() + 1
     subfacet_lid_within_cells_around(icell_around) = this%get_subfacet_lid_cell_around(icell_around)
     coords => facet_map%get_coordinates_neighbour(icell_around,                                &
-                                                 face_lpos_within_cells_around(icell_around), &
+                                                 facet_lpos_within_cells_around(icell_around), &
                                                  subfacet_lid_within_cells_around(icell_around))
     call this%fe%get_coordinates(coords)    
     call this%update_num_dofs_x_field(icell_around)
