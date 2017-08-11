@@ -148,7 +148,7 @@ module base_static_triangulation_names
     
     
     
-    procedure, non_overridable           :: scan_sum_number_vefs    => cell_iterator_get_scan_sum_number_vefs
+    procedure, non_overridable           :: scan_sum_num_vefs    => cell_iterator_get_scan_sum_num_vefs
 =======
     procedure, non_overridable           :: get_node_gid            => cell_iterator_get_node_gid
     procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
@@ -426,7 +426,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
 <<<<<<< HEAD
      procedure                           :: fill_cells_set                      => bst_fill_cells_set
-     procedure, non_overridable, private :: free_ptr_vefs_per_cell              => bst_free_ptr_vefs_per_cell
+     procedure, non_overridable, private :: free_ptr_vefs_x_cell              => bst_free_ptr_vefs_x_cell
      procedure,                  private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
 =======
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set

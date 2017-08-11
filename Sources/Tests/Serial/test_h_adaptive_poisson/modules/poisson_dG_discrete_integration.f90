@@ -68,7 +68,7 @@ contains
     class(matrix_array_assembler_t)         , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t)     , allocatable :: fe
+    class(fe_cell_iterator_t)     , allocatable :: fe
     class(fe_facet_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
@@ -119,9 +119,9 @@ contains
     call boundary_face_fe_function%create(fe_space,1)
     
     call fe_space%initialize_fe_integration()
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
     
-    num_dofs = fe%get_number_dofs()
+    num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     quad            => fe%get_quadrature()
@@ -168,7 +168,7 @@ contains
        
        call fe%next()
     end do
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
     
     call fe_space%initialize_fe_facet_integration()
     

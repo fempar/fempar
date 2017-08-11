@@ -35,18 +35,14 @@ function base_fe_space_get_num_fields ( this )
   base_fe_space_get_num_fields = this%num_fields
 end function base_fe_space_get_num_fields
 
-<<<<<<< HEAD
-subroutine base_fe_space_set_number_fields ( this, number_fields )
+subroutine base_fe_space_set_num_fields ( this, num_fields )
   implicit none
   class(base_fe_space_t), intent(inout) :: this
-  integer(ip)           , intent(in)    :: number_fields
-  this%number_fields = number_fields
-end subroutine base_fe_space_set_number_fields
+  integer(ip)           , intent(in)    :: num_fields
+  this%num_fields = num_fields
+end subroutine base_fe_space_set_num_fields
 
-! Although in principle this%fe_space_type_per_field(:) was though to be
-=======
 ! Although in principle this%fe_space_type_x_field(:) was though to be
->>>>>>> 819537693844795c7cdee77675691293bfca635e
 ! private member variable, I had to make it visible to the exterior
 ! via a raw pointer it as type(mlbddc_coarse_t) requires it in order to construct 
 ! the type(par_fe_space_t) instance that it aggregrates. Perhaps there is a 
@@ -118,18 +114,18 @@ function base_fe_space_get_field_num_dofs( this, field_id )
   end if
 end function base_fe_space_get_field_num_dofs
 
-subroutine base_fe_space_set_field_number_dofs( this, field_id, field_number_dofs )
+subroutine base_fe_space_set_field_num_dofs( this, field_id, field_num_dofs )
   implicit none
   class(base_fe_space_t), intent(inout) :: this
   integer(ip)           , intent(in)    :: field_id
-  integer(ip)           , intent(in)    :: field_number_dofs
+  integer(ip)           , intent(in)    :: field_num_dofs
   class(environment_t), pointer  :: environment
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
-     assert ( field_id >=1 .and. field_id <= this%number_fields )
-     this%number_dofs_per_field(field_id) = field_number_dofs
+     assert ( field_id >=1 .and. field_id <= this%num_fields )
+     this%num_dofs_x_field(field_id) = field_num_dofs
   end if
-end subroutine base_fe_space_set_field_number_dofs
+end subroutine base_fe_space_set_field_num_dofs
 
 ! Returns the number of DoFs associated to block with identifier block_id
 function base_fe_space_get_block_num_dofs ( this, block_id )

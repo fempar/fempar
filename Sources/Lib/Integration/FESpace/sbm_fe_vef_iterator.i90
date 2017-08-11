@@ -105,7 +105,7 @@ subroutine fe_vef_iterator_get_improper_fe_around (this, ife_around, fe)
   implicit none
   class(fe_vef_iterator_t)          , intent(in)     :: this
   integer(ip)                       , intent(in)     :: ife_around
-  class(fe_iterator_t)              , intent(inout)  :: fe
+  class(fe_cell_iterator_t)              , intent(inout)  :: fe
   assert(allocated(this%vef))
   assert(allocated(fe%cell))
   call this%vef%get_improper_cell_around(ife_around,fe%cell)

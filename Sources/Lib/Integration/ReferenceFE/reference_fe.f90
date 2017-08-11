@@ -285,7 +285,7 @@ module reference_fe_names
      procedure        , private :: create_node_iterator_on_n_subface => node_array_create_node_iterator_on_n_subface
      generic                    :: create_node_iterator              => create_node_iterator_on_n_face, &
                                                                         create_node_iterator_on_n_subface 
-     procedure                  :: get_number_nodes                  => node_array_get_number_nodes
+     procedure                  :: get_num_nodes                  => node_array_get_num_nodes
      procedure        , private :: fill                              => node_array_fill
      procedure, nopass, private :: fill_permutations                 => node_array_fill_permutations
      procedure, nopass, private :: compute_num_rot_and_perm          => node_array_compute_num_rot_and_perm

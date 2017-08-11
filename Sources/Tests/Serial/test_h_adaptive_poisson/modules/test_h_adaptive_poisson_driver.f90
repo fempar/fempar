@@ -136,7 +136,7 @@ contains
     integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
     integer(ip) :: vertex_pos_in_cell, icell_arround
     
-    integer(ip), parameter :: number_nodes_per_cell = 4
+    integer(ip), parameter :: num_nodes_x_cell = 4
     
     call this%triangulation%create(this%parameter_list)
     call this%set_cells_for_refinement()
@@ -146,7 +146,7 @@ contains
     if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
         call memalloc(this%triangulation%get_num_cells(),cell_set_ids)
         call this%triangulation%create_cell_iterator(cell)
-        allocate(cell_coords(1:number_nodes_per_cell),stat=istat); check(istat == 0)
+        allocate(cell_coords(1:num_nodes_x_cell),stat=istat); check(istat == 0)
         do while( .not. cell%has_finished() )
           if (cell%is_local()) then
             set_id = TEST_POISSON_VOID
@@ -360,7 +360,7 @@ contains
     reference_fe_geo => cell%get_reference_fe_geo()
     this%reference_fes(TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
                                                                  fe_type = fe_type_lagrangian,                                &
-                                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                 num_dimensions = this%triangulation%get_num_dimensions(), &
                                                                  order = this%test_params%get_reference_fe_order(),           &
                                                                  field_type = field_type,                                     &
                                                                  conformity = conformity )
@@ -368,7 +368,7 @@ contains
     if ( this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG' ) then
          this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
                                                                       fe_type = fe_type_void,                                      &
-                                                                      number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                      num_dimensions = this%triangulation%get_num_dimensions(), &
                                                                       order = -1,                                                  &
                                                                       field_type = field_type,                                     &
                                                                       conformity = conformity )

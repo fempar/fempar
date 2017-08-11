@@ -66,7 +66,7 @@ contains
     class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
     type(cell_map_t)           , pointer :: cell_map
@@ -89,11 +89,11 @@ contains
     
     assert (associated(this%fe_function)) 
     
-    max_num_dofs = fe_space%get_max_number_dofs_on_a_cell()
+    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
     call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
 
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
@@ -104,7 +104,7 @@ contains
        num_quad_points = quad%get_num_quadrature_points()
        cell_map          => fe%get_cell_map()
        cell_int         => fe%get_cell_integrator(1)
-       num_dofs = fe%get_number_dofs()
+       num_dofs = fe%get_num_dofs()
 
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => cell_map%get_quadrature_coordinates()
@@ -139,7 +139,7 @@ contains
        call fe%assemble( elmat, elvec, matrix_array_assembler )
        call fe%next()
     end do
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
     deallocate(shape_values, stat=istat); check(istat==0);
     deallocate(shape_gradients, stat=istat); check(istat==0);
     call memfree ( elmat, __FILE__, __LINE__ )

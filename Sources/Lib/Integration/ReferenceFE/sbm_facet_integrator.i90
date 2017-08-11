@@ -37,9 +37,9 @@ subroutine cell_map_facet_restriction_create( this, quadrature, reference_fe_geo
   integer(ip)           :: facet_lid, subfacet_lid, cell_map_index, istat
 
   call this%free()
-  this%num_facets = reference_fe_geometry%get_number_facets()
+  this%num_facets = reference_fe_geometry%get_num_facets()
   this%num_subfacets = reference_fe_geometry%get_h_refinement_num_subfacets()
-  allocate(this%cell_map(this%num_facets*(this%number_subfacets+1)),stat = istat); check(istat == 0);
+  allocate(this%cell_map(this%num_facets*(this%num_subfacets+1)),stat = istat); check(istat == 0);
   do facet_lid = 1,this%num_facets
     do subfacet_lid = 0,this%num_subfacets
       cell_map_index = facet_lid + subfacet_lid*this%num_facets
