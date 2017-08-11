@@ -640,7 +640,7 @@ function fe_cell_iterator_is_strong_dirichlet_dof ( this, dof_lid )
   class(fe_cell_iterator_t)   , intent(in) :: this
   integer(ip)            , intent(in) :: dof_lid
   logical :: fe_cell_iterator_is_strong_dirichlet_dof
-  fe_cell_iterator_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%fe_space%get_num_strong_dirichlet_dofs() )
+  fe_cell_iterator_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%fe_space%get_num_fixed_dof_values() )
 end function fe_cell_iterator_is_strong_dirichlet_dof
 
 function fe_cell_iterator_is_fixed_dof ( this, dof_lid )

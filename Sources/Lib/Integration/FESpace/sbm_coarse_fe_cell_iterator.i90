@@ -199,7 +199,7 @@ function coarse_fe_cell_iterator_get_scan_sum_num_dofs (this, field_id)
   integer(ip) :: coarse_fe_cell_iterator_get_scan_sum_num_dofs
   integer(ip) ::  pos_ptr_dofs
   pos_ptr_dofs = (this%get_gid()-1)*this%coarse_fe_space%num_fields + field_id
-  coarse_fe_cell_iterator_get_scan_sum_num_dofs = this%coarse_fe_space%ptr_dofs_x_fe_and_field(pos_ptr_dofs)-1
+  coarse_fe_cell_iterator_get_scan_sum_num_dofs = this%coarse_fe_space%ptr_dofs_x_field_cell_and_field(pos_ptr_dofs)-1
 end function coarse_fe_cell_iterator_get_scan_sum_num_dofs
 
 function coarse_fe_cell_iterator_get_num_fe_spaces(this)
@@ -217,8 +217,8 @@ pure function coarse_fe_cell_iterator_get_num_dofs(this)
   integer(ip) :: epos
   spos = (this%get_gid()-1)*this%coarse_fe_space%num_fields+1
   epos = (this%get_gid())*this%coarse_fe_space%num_fields+1
-  coarse_fe_cell_iterator_get_num_dofs = this%coarse_fe_space%ptr_dofs_x_fe_and_field(epos)- &
-                                       this%coarse_fe_space%ptr_dofs_x_fe_and_field(spos)
+  coarse_fe_cell_iterator_get_num_dofs = this%coarse_fe_space%ptr_dofs_x_field_cell_and_field(epos)- &
+                                       this%coarse_fe_space%ptr_dofs_x_field_cell_and_field(spos)
 end function coarse_fe_cell_iterator_get_num_dofs
 
 subroutine coarse_fe_cell_iterator_get_fe_dofs( this, fe_dofs )
@@ -229,8 +229,8 @@ subroutine coarse_fe_cell_iterator_get_fe_dofs( this, fe_dofs )
   
   j = (this%get_gid()-1)*this%coarse_fe_space%num_fields+1
   do field_id = 1, this%coarse_fe_space%num_fields
-    spos = this%coarse_fe_space%ptr_dofs_x_fe_and_field(j)
-    epos = this%coarse_fe_space%ptr_dofs_x_fe_and_field(j+1)-1
+    spos = this%coarse_fe_space%ptr_dofs_x_field_cell_and_field(j)
+    epos = this%coarse_fe_space%ptr_dofs_x_field_cell_and_field(j+1)-1
     fe_dofs(field_id)%p => this%coarse_fe_space%lst_dofs_gids(spos:epos)
     j=j+1
   end do
@@ -243,8 +243,8 @@ subroutine coarse_fe_cell_iterator_get_field_fe_dofs( this, field_id, fe_dofs )
   integer(ip), pointer       , intent(inout) :: fe_dofs(:)
   integer(ip) :: j, spos, epos
   j = (this%get_gid()-1)*this%coarse_fe_space%num_fields+field_id
-  spos = this%coarse_fe_space%ptr_dofs_x_fe_and_field(j)
-  epos = this%coarse_fe_space%ptr_dofs_x_fe_and_field(j+1)-1
+  spos = this%coarse_fe_space%ptr_dofs_x_field_cell_and_field(j)
+  epos = this%coarse_fe_space%ptr_dofs_x_field_cell_and_field(j+1)-1
   fe_dofs => this%coarse_fe_space%lst_dofs_gids(spos:epos)
 end subroutine coarse_fe_cell_iterator_get_field_fe_dofs
 

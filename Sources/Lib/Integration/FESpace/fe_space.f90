@@ -410,7 +410,7 @@ module fe_space_names
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
-     integer(ip)                                 :: num_strong_dirichlet_dofs
+     integer(ip)                                 :: num_fixed_dof_values
      logical                       , allocatable :: at_strong_dirichlet_boundary_x_fe(:,:)
      logical                       , allocatable :: has_fixed_dofs_x_fe(:,:)
      
@@ -526,7 +526,7 @@ module fe_space_names
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      
-     procedure                           :: get_num_strong_dirichlet_dofs             => serial_fe_space_get_num_strong_dirichlet_dofs
+     procedure                           :: get_num_fixed_dof_values             => serial_fe_space_get_num_fixed_dof_values
      procedure                           :: get_num_fixed_dofs                        => serial_fe_space_get_num_fixed_dofs
      procedure                           :: get_num_blocks                            => serial_fe_space_get_num_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
@@ -689,7 +689,7 @@ module fe_space_names
    procedure        , non_overridable          :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
    procedure        , non_overridable, private :: transfer_num_fields                             => par_fe_space_transfer_num_fields
    procedure        , non_overridable, private :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
-   procedure        , non_overridable, private :: gather_ptr_dofs_x_fe_and_field                  => par_fe_space_gather_ptr_dofs_x_fe_and_field
+   procedure        , non_overridable, private :: gather_ptr_dofs_x_field_cell_and_field                  => par_fe_space_gather_ptr_dofs_x_field_cell_and_field
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids_rcv_counts_and_displs  => par_fe_space_gather_coarse_dofs_ggids_rcv_counts_and_displs
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids                        => par_fe_space_gather_coarse_dofs_ggids
    procedure        , non_overridable, private :: gather_vefs_ggids_dofs_objects                   => par_fe_space_gather_vefs_ggids_dofs_objects
@@ -821,7 +821,7 @@ module fe_space_names
     logical                       , allocatable :: blocks_coupling(:,:)
     integer(ip)                   , allocatable :: num_dofs_x_block(:)
     
-    integer(ip) , allocatable                   :: ptr_dofs_x_fe_and_field(:)
+    integer(ip) , allocatable                   :: ptr_dofs_x_field_cell_and_field(:)
     integer(ip) , allocatable                   :: lst_dofs_gids(:)
     type(list_t), allocatable                   :: own_dofs_vef_x_fe(:)
     	
@@ -852,8 +852,8 @@ module fe_space_names
     procedure, non_overridable, private         :: free_field_blocks_and_coupling                  => coarse_fe_space_free_field_blocks_and_coupling
     procedure, non_overridable, private         :: allocate_and_fill_fe_space_type_x_field         => coarse_fe_space_allocate_and_fill_fe_space_type
     procedure, non_overridable, private         :: free_fe_space_type_x_field                      => coarse_fe_space_free_fe_space_type
-    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_x_fe_and_field       => coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe_and_field
-    procedure, non_overridable, private         :: free_ptr_dofs_x_fe_and_field                    => coarse_fe_space_free_ptr_dofs_x_fe_and_field
+    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_x_field_cell_and_field       => coarse_fe_space_allocate_and_fill_ptr_dofs_x_field_cell_and_field
+    procedure, non_overridable, private         :: free_ptr_dofs_x_field_cell_and_field                    => coarse_fe_space_free_ptr_dofs_x_field_cell_and_field
     procedure, non_overridable, private         :: fetch_ghost_fes_data                            => coarse_fe_space_fetch_ghost_fes_data
     procedure, non_overridable, private         :: allocate_and_generate_own_dofs_vef_x_fe         => coarse_fe_space_allocate_and_generate_own_dofs_vef_x_fe
     procedure, non_overridable, private         :: generate_own_dofs_cell_x_fe_field               => coarse_fe_space_generate_own_dofs_cell_x_fe_field
@@ -879,7 +879,7 @@ module fe_space_names
     procedure, non_overridable, private         :: setup_coarse_fe_space                           => coarse_fe_space_setup_coarse_fe_space
     procedure, non_overridable, private         :: transfer_num_fields                          => coarse_fe_space_transfer_num_fields
     procedure, non_overridable, private         :: transfer_fe_space_type                          => coarse_fe_space_transfer_fe_space_type
-    procedure, non_overridable, private         :: gather_ptr_dofs_x_fe_and_field                => coarse_fe_space_gather_ptr_dofs_x_fe_and_field
+    procedure, non_overridable, private         :: gather_ptr_dofs_x_field_cell_and_field                => coarse_fe_space_gather_ptr_dofs_x_field_cell_and_field
     procedure, non_overridable, private         :: gather_coarse_dofs_gids_rcv_counts_and_displs   => coarse_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
     procedure, non_overridable, private         :: gather_coarse_dofs_gids                         => coarse_fe_space_gather_coarse_dofs_gids
     procedure, non_overridable, private         :: gather_vefs_gids_dofs_objects                   => coarse_fe_space_gather_vefs_gids_dofs_objects

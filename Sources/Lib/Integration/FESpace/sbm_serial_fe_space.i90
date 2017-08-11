@@ -201,13 +201,13 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids(this)
   this%lst_dofs_gids = 0
 end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
 
-subroutine serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out ( this, ptr_dofs_x_fe )
+subroutine serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out ( this, ptr_dofs_x_field_cell )
   implicit none
   class(serial_fe_space_t)             , intent(inout) :: this
-  integer(ip)             , allocatable, intent(inout) :: ptr_dofs_x_fe(:,:)
-  assert ( .not. allocated(ptr_dofs_x_fe) )
-  if ( allocated(this%ptr_dofs_x_fe) ) then
-     call move_alloc( to=ptr_dofs_x_fe, from=this%ptr_dofs_x_fe )
+  integer(ip)             , allocatable, intent(inout) :: ptr_dofs_x_field_cell(:,:)
+  assert ( .not. allocated(ptr_dofs_x_field_cell) )
+  if ( allocated(this%ptr_dofs_x_field_cell) ) then
+     call move_alloc( to=ptr_dofs_x_field_cell, from=this%ptr_dofs_x_field_cell )
   end if
 end subroutine serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out
 
@@ -2588,7 +2588,7 @@ function serial_fe_space_get_num_fixed_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
   integer(ip) :: serial_fe_space_get_num_fixed_dofs
-  serial_fe_space_get_num_fixed_dofs = this%num_strong_dirichlet_dofs
+  serial_fe_space_get_num_fixed_dofs = this%num_fixed_dof_values
 end function serial_fe_space_get_num_fixed_dofs
 
 function serial_fe_space_get_num_blocks( this)

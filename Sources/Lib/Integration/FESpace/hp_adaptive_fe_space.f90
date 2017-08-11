@@ -735,7 +735,7 @@ subroutine shpafs_set_up_strong_dirichlet_bcs( this )
   
   ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
   call this%ptr_constraint_dofs%resize(0)
-  this%num_fixed_dofs = this%get_num_strong_dirichlet_dofs()
+  this%num_fixed_dofs = this%get_num_fixed_dof_values()
   call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
   call this%constraint_dofs_dependencies%resize(this%num_fixed_dofs)
   call this%constraint_dofs_coefficients%resize(this%num_fixed_dofs)
@@ -850,7 +850,7 @@ subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering( this, bloc
   if ( perform_numbering ) then
     call this%set_block_layout(block_layout)
   
-    this%num_fixed_dofs = this%get_num_strong_dirichlet_dofs()
+    this%num_fixed_dofs = this%get_num_fixed_dof_values()
   
     ! Initialize number DoFs per field
     call this%allocate_num_dofs_x_field()
@@ -1038,7 +1038,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
   
   ! Transform header to length strong Dirichlet DoFs
-  do improper_dof_lid=1, this%get_num_strong_dirichlet_dofs()
+  do improper_dof_lid=1, this%get_num_fixed_dof_values()
     call this%ptr_constraint_dofs%set(improper_dof_lid+1, 1 )
   end do
 
@@ -1102,7 +1102,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%constraint_dofs_coefficients%resize(this%ptr_constraint_dofs%get(this%ptr_constraint_dofs%size())-1)
   
   
-  do improper_dof_lid=1, this%get_num_strong_dirichlet_dofs()
+  do improper_dof_lid=1, this%get_num_fixed_dof_values()
     call this%ptr_constraint_dofs%set(improper_dof_lid, this%ptr_constraint_dofs%get(improper_dof_lid+1) )
   end do
   
@@ -1221,7 +1221,7 @@ subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients(this,fe_func
   real(rp)                   , pointer :: fixed_dof_values_entries(:)
   fixed_dof_values         => fe_function%get_fixed_dof_values()
   fixed_dof_values_entries => fixed_dof_values%get_entries()
-  do improper_dof_lid=1, this%get_num_strong_dirichlet_dofs()
+  do improper_dof_lid=1, this%get_num_fixed_dof_values()
      call this%constraint_dofs_coefficients%set(improper_dof_lid, fixed_dof_values_entries(improper_dof_lid) )
   end do
 end subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients
@@ -1322,7 +1322,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   class(base_static_triangulation_t), pointer     :: triangulation
   type(fe_function_t)                             :: transformed_fe_function
   type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
-  integer(ip)                       , allocatable :: old_ptr_dofs_x_fe(:,:)
+  integer(ip)                       , allocatable :: old_ptr_dofs_x_field_cell(:,:)
   integer(ip)              , target , allocatable :: old_lst_dofs_lids(:)
   integer(ip)                       , pointer     :: old_field_fe_dofs(:)
   integer(ip)                                     :: num_children_x_cell
@@ -1348,9 +1348,9 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   
   old_num_cells = p4est_refinement_and_coarsening_flags%size()
   
-  call this%move_alloc_ptr_dofs_x_field_cell_out(old_ptr_dofs_x_fe)
+  call this%move_alloc_ptr_dofs_x_field_cell_out(old_ptr_dofs_x_field_cell)
   call this%move_alloc_lst_dofs_gids_out(old_lst_dofs_lids)
-  massert ( old_num_cells == (size(old_ptr_dofs_x_fe,2)-1), 'Incorrect size of p4est_refinement_and_coarsening_flags' )
+  massert ( old_num_cells == (size(old_ptr_dofs_x_field_cell,2)-1), 'Incorrect size of p4est_refinement_and_coarsening_flags' )
   
   call this%project_field_cell_to_ref_fes()
   !call this%check_cell_vs_fe_topology_consistency()
@@ -1465,7 +1465,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   call transformed_fe_function%free()
   call memfree(old_nodal_values,__FILE__,__LINE__)
   call memfree(new_nodal_values,__FILE__,__LINE__)
-  call memfree(old_ptr_dofs_x_fe,__FILE__,__LINE__)
+  call memfree(old_ptr_dofs_x_field_cell,__FILE__,__LINE__)
   call memfree(old_lst_dofs_lids,__FILE__,__LINE__)
   
 contains
@@ -1474,11 +1474,11 @@ contains
     implicit none
     integer(ip), pointer     :: get_field_fe_dofs(:)
     integer(ip)              :: spos, epos
-    spos = old_ptr_dofs_x_fe(field_id,current_old_cell_lid)
+    spos = old_ptr_dofs_x_field_cell(field_id,current_old_cell_lid)
     if ( field_id == this%get_num_fields() ) then
-      epos = old_ptr_dofs_x_fe(1,current_old_cell_lid+1)-1
+      epos = old_ptr_dofs_x_field_cell(1,current_old_cell_lid+1)-1
     else
-      epos = old_ptr_dofs_x_fe(field_id+1,current_old_cell_lid)-1
+      epos = old_ptr_dofs_x_field_cell(field_id+1,current_old_cell_lid)-1
     end if
     get_field_fe_dofs => old_lst_dofs_lids(spos:epos)    
   end function get_field_fe_dofs
