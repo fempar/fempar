@@ -41,7 +41,7 @@ subroutine sufs_create_same_reference_fes_on_all_cells(&
 end subroutine sufs_create_same_reference_fes_on_all_cells
 
 !========================================================================================
-subroutine sufs_space_create_different_between_cells(&
+subroutine sufs_space_create_different_ref_fes_between_cells(&
     this, &
     triangulation, &
     reference_fes, &
@@ -65,7 +65,7 @@ subroutine sufs_space_create_different_between_cells(&
   class default
     check(.false.)
   end select
-end subroutine sufs_space_create_different_between_cells
+end subroutine sufs_space_create_different_ref_fes_between_cells
 
 !========================================================================================
 subroutine sufs_free(this)
@@ -77,12 +77,12 @@ subroutine sufs_free(this)
 end subroutine sufs_free
 
 !========================================================================================
-subroutine sufs_create_fe_iterator(this, fe)
+subroutine sufs_create_fe_cell_iterator(this, fe)
   implicit none
   class(serial_unfitted_fe_space_t), intent(in)    :: this
-  class(fe_iterator_t), allocatable, intent(inout) :: fe
+  class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
   integer(ip) :: istat
-  call this%free_fe_iterator(fe)
-  allocate(unfitted_fe_iterator_t :: fe, stat=istat); check(istat==0)
+  call this%free_fe_cell_iterator(fe)
+  allocate(unfitted_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
-end subroutine sufs_create_fe_iterator
+end subroutine sufs_create_fe_cell_iterator

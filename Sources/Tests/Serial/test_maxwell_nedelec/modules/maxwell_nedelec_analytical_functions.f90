@@ -33,9 +33,9 @@ module maxwell_nedelec_analytical_functions_names
   private
  
  type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dimensions = -1  
+    integer(ip) :: num_dims = -1  
   contains
-    procedure :: set_num_dimensions    => base_vector_function_set_num_dimensions
+    procedure :: set_num_dims    => base_vector_function_set_num_dims
   end type base_vector_function_t
   
   type, extends(base_vector_function_t) :: source_term_t
@@ -50,7 +50,7 @@ module maxwell_nedelec_analytical_functions_names
   end type solution_t
   
     type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dimensions = -1  
+    integer(ip) :: num_dims = -1  
   contains
   end type base_scalar_function_t
   
@@ -81,7 +81,7 @@ module maxwell_nedelec_analytical_functions_names
 	 type(boundary_function_Hy_t)            :: boundary_function_Hy
 	 type(boundary_function_Hz_t)            :: boundary_function_Hz
    contains
-     procedure :: set_num_dimensions               => mn_set_num_dimensions
+     procedure :: set_num_dims               => mn_set_num_dims
      procedure :: get_source_term                  => mn_get_source_term
      procedure :: get_solution                     => mn_get_solution
 	 procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
@@ -94,12 +94,12 @@ module maxwell_nedelec_analytical_functions_names
 contains  
 
   !===============================================================================================
-  subroutine base_vector_function_set_num_dimensions ( this, num_dimensions )
+  subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine base_vector_function_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_vector_function_set_num_dims
 
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
@@ -107,11 +107,11 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 
     call result%set(1, -point%get(2) )
     call result%set(2,  point%get(1))
-    if ( this%num_dimensions == 3 ) then
+    if ( this%num_dims == 3 ) then
        call result%set(3, 0.0_rp) 
     end if
   end subroutine source_term_get_value_space
@@ -131,11 +131,11 @@ contains
     class(solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 
     call result%set(1, -point%get(2))
     call result%set(2,  point%get(1))  
-    if ( this%num_dimensions == 3 ) then
+    if ( this%num_dims == 3 ) then
        call result%set(3, 0.0_rp)
     end if
   end subroutine solution_get_value_space
@@ -178,13 +178,13 @@ contains
   end subroutine boundary_function_Hz_get_value_space
 
   !===============================================================================================
-  subroutine mn_set_num_dimensions ( this, num_dimensions )
+  subroutine mn_set_num_dims ( this, num_dims )
     implicit none
     class(maxwell_nedelec_analytical_functions_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    call this%source_term%set_num_dimensions(num_dimensions)
-    call this%solution%set_num_dimensions(num_dimensions)
-  end subroutine mn_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    call this%source_term%set_num_dims(num_dims)
+    call this%solution%set_num_dims(num_dims)
+  end subroutine mn_set_num_dims
 
   !===============================================================================================
   function mn_get_solution ( this )

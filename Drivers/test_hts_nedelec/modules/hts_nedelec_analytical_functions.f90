@@ -33,9 +33,9 @@ module hts_nedelec_analytical_functions_names
   private
 
   type, extends(vector_function_t) :: base_vector_function_t
-     integer(ip) :: num_dimensions = -1  
+     integer(ip) :: num_dims = -1  
    contains
-     procedure :: set_num_dimensions    => base_vector_function_set_num_dimensions
+     procedure :: set_num_dims    => base_vector_function_set_num_dims
   end type base_vector_function_t
 
   type, extends(base_vector_function_t) :: source_term_t
@@ -55,7 +55,7 @@ module hts_nedelec_analytical_functions_names
   end type solution_t
 
   type, extends(scalar_function_t) :: base_scalar_function_t
-     integer(ip) :: num_dimensions = -1  
+     integer(ip) :: num_dims = -1  
    contains
   end type base_scalar_function_t
 
@@ -111,7 +111,7 @@ module hts_nedelec_analytical_functions_names
      type(boundary_function_p_t)             :: boundary_function_p
      type(constraint_value_t)                :: constraint_value 
    contains
-     procedure :: set_num_dimensions               => mn_set_num_dimensions
+     procedure :: set_num_dims               => mn_set_num_dims
      procedure :: initialize                       => mn_initialize 
      procedure :: get_source_term                  => mn_get_source_term
      procedure :: get_solution                     => mn_get_solution
@@ -127,12 +127,12 @@ module hts_nedelec_analytical_functions_names
 contains  
 
   !===============================================================================================
-  subroutine base_vector_function_set_num_dimensions ( this, num_dimensions )
+  subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine base_vector_function_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_vector_function_set_num_dims
   
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
@@ -146,7 +146,7 @@ contains
     y = point%get(2) 
     n = 3.0_rp 
     
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     !call result%set(1, 0.0_rp) 
     !call result%set(2, -(n+1.0_rp)*((3.0_rp*x*x)**n)*6.0_rp*x + x*x*x )
     !call result%set(3, 0.0_rp) 
@@ -166,7 +166,7 @@ contains
     n = 3.0_rp 
     
     call result%init(0.0_rp) 
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     !call result%set(1, 0.0_rp ) 
     !call result%set(2, -(n+1.0_rp)*((time*3.0_rp*x*x)**n)*(time*6.0_rp*x) + x*x*x )
     !call result%set(3, 0.0_rp) 
@@ -192,7 +192,7 @@ contains
     real(rp)  :: x, y, z
     x = point%get(1)
     y = point%get(2) 
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     call result%set(1, 0.0_rp ) 
     call result%set(2,  x*x*x  ) 
     call result%set(3, 0.0_rp) 
@@ -210,7 +210,7 @@ contains
     real(rp)  :: x, y, z
     x = point%get(1)
     y = point%get(2) 
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     call result%set(1,  0.0_rp ) 
     call result%set(2,  time*x*x*x ) 
     call result%set(3, 0.0_rp) 
@@ -397,13 +397,13 @@ contains
   end subroutine constraint_value_get_constraint_value
   
   !===============================================================================================
-  subroutine mn_set_num_dimensions ( this, num_dimensions )
+  subroutine mn_set_num_dims ( this, num_dims )
     implicit none
     class(hts_nedelec_analytical_functions_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    call this%source_term%set_num_dimensions(num_dimensions)
-    call this%solution%set_num_dimensions(num_dimensions)
-  end subroutine mn_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    call this%source_term%set_num_dims(num_dims)
+    call this%solution%set_num_dims(num_dims)
+  end subroutine mn_set_num_dims
   
     !===============================================================================================
   subroutine mn_initialize ( this, H, wH, J, wJ )

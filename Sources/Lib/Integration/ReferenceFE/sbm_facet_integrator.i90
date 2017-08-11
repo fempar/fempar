@@ -1,0 +1,624 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! cell_map_facet_restriction_t type procedures
+subroutine cell_map_facet_restriction_create( this, quadrature, reference_fe_geometry )
+  implicit none
+  ! Parameters
+  class(cell_map_facet_restriction_t), intent(inout) :: this
+  type(quadrature_t)           , intent(in)    :: quadrature
+  class(lagrangian_reference_fe_t)           , intent(in)    :: reference_fe_geometry
+
+  integer(ip)           :: facet_lid, istat
+
+  call this%free()
+  this%num_facets = reference_fe_geometry%get_num_facets()
+  allocate(this%cell_map(this%num_facets),stat = istat)
+  check(istat == 0)
+  do facet_lid = 1,  this%num_facets
+     call this%cell_map(facet_lid)%restricted_to_facet(facet_lid,quadrature,reference_fe_geometry)
+  end do
+end subroutine cell_map_facet_restriction_create
+
+!==================================================================================================
+subroutine cell_map_facet_restriction_update( this, facet_lid, quadrature)
+  implicit none
+  ! Parameters
+  class(cell_map_facet_restriction_t), intent(inout) :: this
+  integer(ip)                     , intent(in)    :: facet_lid
+  type(quadrature_t)           , intent(in)    :: quadrature
+
+  this%active_facet_lid = facet_lid
+  call this%cell_map(facet_lid)%update(quadrature)
+
+end subroutine cell_map_facet_restriction_update
+
+!==================================================================================================
+subroutine cell_map_facet_restriction_free( this)
+  implicit none
+  ! Parameters
+  class(cell_map_facet_restriction_t), intent(inout) :: this
+  integer(ip) :: facet_lid , istat
+  do facet_lid = 1, this%num_facets
+     call this%cell_map(facet_lid)%free()
+  end do
+  if (allocated(this%cell_map)) then
+     deallocate(this%cell_map, stat = istat)
+     check(istat == 0)
+  end if
+  this%num_facets = 0
+  this%active_facet_lid = 0
+end subroutine cell_map_facet_restriction_free
+
+!==================================================================================================
+function cell_map_facet_restriction_get_coordinates(this,facet_lid)
+  implicit none
+  ! Parameters
+  class(cell_map_facet_restriction_t), intent(in) :: this
+  integer(ip)                     , intent(in) :: facet_lid
+  type(point_t), pointer :: cell_map_facet_restriction_get_coordinates(:)
+  cell_map_facet_restriction_get_coordinates => this%cell_map(facet_lid)%get_coordinates()
+end function cell_map_facet_restriction_get_coordinates
+
+!==================================================================================================
+function cell_map_facet_restriction_get_active_cell_map(this)
+  implicit none
+  ! Parameters
+  class(cell_map_facet_restriction_t), target, intent(in) :: this
+  type(cell_map_t), pointer :: cell_map_facet_restriction_get_active_cell_map
+  assert ( this%active_facet_lid >= 1 .and. this%active_facet_lid <= this%num_facets )
+  cell_map_facet_restriction_get_active_cell_map => this%cell_map(this%active_facet_lid)
+end function cell_map_facet_restriction_get_active_cell_map
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! facet_maps_t procedures
+subroutine facet_maps_create(this, quadrature, left_geo_reference_fe, right_geo_reference_fe )
+  implicit none
+  ! Parameters
+  class(facet_maps_t)             , intent(inout) :: this
+  class(lagrangian_reference_fe_t), pointer, intent(in)    :: left_geo_reference_fe, right_geo_reference_fe
+  type(quadrature_t)         , intent(in)    :: quadrature
+
+  call this%free()
+
+  this%is_at_boundary = (.not. associated(right_geo_reference_fe))
+
+  this%num_dims = left_geo_reference_fe%get_num_dims()
+  call this%facet_map%create(quadrature,left_geo_reference_fe)
+  call this%cell_maps(1)%create(quadrature,left_geo_reference_fe)
+  if (associated(right_geo_reference_fe)) then
+     call this%cell_maps(2)%create(quadrature,right_geo_reference_fe)
+  end if
+end subroutine facet_maps_create
+
+!==================================================================================================
+subroutine facet_maps_free(this)
+  implicit none
+  ! Parameters
+  class(facet_maps_t), intent(inout) :: this
+  integer(ip) :: i
+  call this%facet_map%free()
+  do i=1,2
+     call this%cell_maps(i)%free()
+  end do
+end subroutine facet_maps_free
+
+!==================================================================================================
+subroutine facet_maps_update(this,facet_lid,facet_quadrature,left_reference_fe_geo)
+  implicit none
+  ! Parameters
+  class(facet_maps_t)    , intent(inout) :: this
+  integer(ip)          , intent(in)    :: facet_lid(2)
+  type(quadrature_t), intent(in)    :: facet_quadrature
+  class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
+  real   (rp)             :: reorientation_factor
+
+  ! Update cell_maps
+  call this%cell_maps(1)%update(facet_lid(1),facet_quadrature)
+  if (.not. this%is_at_boundary) then
+     assert ( facet_lid(2) >= 1 )
+     call this%cell_maps(2)%update(facet_lid(2),facet_quadrature)
+  end if
+  
+  ! Compute normals reorientation factors from |J|'s original sign and face orientation
+  reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(facet_lid(1),this%cell_maps(1)%cell_map(facet_lid(1)))
+  ! Update facet_map
+  call this%facet_map%update(reorientation_factor,facet_quadrature)
+end subroutine facet_maps_update
+
+!==================================================================================================
+function facet_maps_compute_characteristic_length(this,qpoin)
+  implicit none
+  class(facet_maps_t), target, intent(in) :: this
+  integer(ip)              , intent(in) :: qpoin
+  real(rp) :: facet_maps_compute_characteristic_length
+
+  real(rp)    :: h
+  integer(ip) :: i
+  type(cell_map_t), pointer :: cell_map
+  
+  cell_map => this%cell_maps(1)%cell_map(this%cell_maps(1)%active_facet_lid)
+  facet_maps_compute_characteristic_length = cell_map%compute_h(qpoin)
+
+  if (.not. this%is_at_boundary) then
+     i = 2
+     cell_map => this%cell_maps(i)%cell_map(this%cell_maps(i)%active_facet_lid)
+     h = cell_map%compute_h(qpoin) 
+     facet_maps_compute_characteristic_length = min(facet_maps_compute_characteristic_length, h)
+  end if
+
+end function facet_maps_compute_characteristic_length
+
+!==================================================================================================
+function facet_maps_get_facet_coordinates(this)
+  implicit none
+  ! Parameters
+  class(facet_maps_t), target, intent(in) :: this
+  type(point_t), pointer :: facet_maps_get_facet_coordinates(:)
+  
+  facet_maps_get_facet_coordinates => this%facet_map%get_coordinates()
+end function facet_maps_get_facet_coordinates
+
+!==================================================================================================
+function facet_maps_get_quadrature_points_coordinates(this)
+  implicit none
+  ! Parameters
+  class(facet_maps_t), target, intent(in) :: this
+  type(point_t), pointer :: facet_maps_get_quadrature_points_coordinates(:)
+  
+  facet_maps_get_quadrature_points_coordinates => this%facet_map%get_quadrature_points_coordinates()
+end function facet_maps_get_quadrature_points_coordinates
+
+!==================================================================================================
+function facet_maps_get_coordinates_neighbour(this,neighbour_id,facet_lid)
+  implicit none
+  ! Parameters
+  class(facet_maps_t), target, intent(in) :: this
+  integer(ip)              , intent(in)    :: neighbour_id
+  integer(ip)              , intent(in)    :: facet_lid
+  type(point_t), pointer :: facet_maps_get_coordinates_neighbour(:)
+  assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_at_boundary)))
+  facet_maps_get_coordinates_neighbour => this%cell_maps(neighbour_id)%get_coordinates(facet_lid)
+end function facet_maps_get_coordinates_neighbour
+
+!==================================================================================================
+function facet_maps_get_neighbour_cell_map(this,neighbour_id)
+  implicit none
+  ! Parameters
+  class(facet_maps_t), target, intent(in) :: this
+  integer(ip)                           :: neighbour_id
+  type(cell_map_facet_restriction_t), pointer :: facet_maps_get_neighbour_cell_map
+
+  assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_at_boundary)))
+  facet_maps_get_neighbour_cell_map => this%cell_maps(neighbour_id)
+end function facet_maps_get_neighbour_cell_map
+
+!=================================================================================================
+subroutine facet_maps_get_normals (this, qpoint, normal)
+  implicit none
+  class(facet_maps_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: qpoint
+  type(vector_field_t)    , intent(out)   :: normal(2)
+
+  integer(ip) :: idime
+  call normal(1)%init(0.0_rp)
+  call normal(2)%init(0.0_rp)
+  do idime = 1, this%num_dims
+     call normal(1)%set(idime,this%facet_map%normals(idime,qpoint))
+     call normal(2)%set(idime,- this%facet_map%normals(idime,qpoint))
+  end do
+end subroutine facet_maps_get_normals
+
+!=================================================================================================
+function facet_maps_get_det_jacobian ( this, i )
+  implicit none
+  class(facet_maps_t), intent(in) :: this
+  integer(ip)    , intent(in) :: i
+  real(rp) :: facet_maps_get_det_jacobian
+  facet_maps_get_det_jacobian = this%facet_map%get_det_jacobian(i)
+end function facet_maps_get_det_jacobian
+
+function facet_maps_get_facet_map ( this )
+  implicit none
+  class(facet_maps_t), target, intent(in) :: this
+  type(facet_map_t), pointer :: facet_maps_get_facet_map
+  facet_maps_get_facet_map => this%facet_map
+end function facet_maps_get_facet_map
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!cell_integrator_facet_restriction_t type bound procedures
+subroutine cell_integrator_facet_restriction_create(this, quadrature, reference_fe)
+  implicit none
+  ! Parameters
+  class(cell_integrator_facet_restriction_t), intent(inout) :: this
+  type(quadrature_t)                         , intent(in)    :: quadrature
+  class(reference_fe_t)                      , intent(in)    :: reference_fe
+  integer(ip) :: facet_lid, istat
+  call this%free()
+  this%active_facet_lid = -1
+  this%num_facets = reference_fe%get_num_facets()
+  allocate(this%cell_integrator(this%num_facets), stat = istat); check(istat==0);
+  do facet_lid =1, this%num_facets
+     call this%cell_integrator(facet_lid)%restricted_to_facet(quadrature, reference_fe, facet_lid)
+  end do
+end subroutine cell_integrator_facet_restriction_create
+
+!==================================================================================================
+subroutine cell_integrator_facet_restriction_update(this, cell_map, facet_lid)
+  implicit none
+  class(cell_integrator_facet_restriction_t), intent(inout) :: this
+  type(cell_map_t)                             , intent(in)    :: cell_map
+  integer(ip)                                , intent(in)    :: facet_lid
+  this%active_facet_lid = facet_lid
+  call this%cell_integrator(facet_lid)%update(cell_map)
+end subroutine cell_integrator_facet_restriction_update
+
+!==================================================================================================
+subroutine cell_integrator_facet_restriction_free(this)
+  implicit none
+  ! Parameters
+  class(cell_integrator_facet_restriction_t), intent(inout) :: this
+  integer(ip) :: i, istat
+  if (allocated(this%cell_integrator)) then
+     do i = 1, this%num_facets
+       call this%cell_integrator(i)%free()
+     end do
+     deallocate(this%cell_integrator, stat = istat); check(istat==0);
+  end if
+  this%num_facets   = 0
+  this%active_facet_lid = 0
+end subroutine cell_integrator_facet_restriction_free
+
+function cell_integrator_facet_restriction_get_active_cell_integrator(this)
+  implicit none
+  ! Parameters
+  class(cell_integrator_facet_restriction_t), target, intent(in) :: this
+  type(cell_integrator_t), pointer :: cell_integrator_facet_restriction_get_active_cell_integrator
+  assert ( this%active_facet_lid >= 1 .and. this%active_facet_lid <= this%num_facets )
+  cell_integrator_facet_restriction_get_active_cell_integrator => this%cell_integrator(this%active_facet_lid)
+end function cell_integrator_facet_restriction_get_active_cell_integrator
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!facet_integrator_t type procedures
+subroutine facet_integrator_create(this,quadrature,left_reference_fe,right_reference_fe)
+  implicit none
+  ! Parameters
+  class(facet_integrator_t)      , intent(inout) :: this
+  type(quadrature_t)            , intent(in)    :: quadrature
+  class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
+  
+  call this%free()
+  
+  call this%set_is_at_boundary_and_active_cell_id(left_reference_fe,right_reference_fe)
+  
+  this%reference_fe(1)%p => left_reference_fe
+  this%reference_fe(2)%p => right_reference_fe
+  call this%cell_integrator_facet_restriction(this%active_cell_id(1))%create( &
+                        quadrature,this%reference_fe(this%active_cell_id(1))%p )
+  
+  if (.not. this%is_at_boundary) then
+     call this%cell_integrator_facet_restriction(2)%create(quadrature,this%reference_fe(2)%p)
+  end if
+  
+  this%current_qpoints_perm_cols = 1
+  
+  call this%reference_fe(this%active_cell_id(1))%p%fill_qpoints_permutations( quadrature, &
+                                                                              this%qpoints_perm )
+end subroutine facet_integrator_create
+
+!==================================================================================================
+subroutine facet_integrator_free(this)
+  implicit none
+  ! Parameters
+  class(facet_integrator_t)     , intent(inout) :: this
+  integer(ip) :: i
+  this%is_at_boundary = .false.
+  this%active_cell_id = 0
+  do i=1,2
+     this%reference_fe(i)%p => NULL()
+     call this%cell_integrator_facet_restriction(i)%free()
+  end do
+  call this%qpoints_perm%free()
+end subroutine facet_integrator_free
+
+!==================================================================================================
+subroutine facet_integrator_update(this,facet_lid,facet_map,permutation_index)
+  implicit none
+  ! Parameters
+  class(facet_integrator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: facet_lid(2)
+  integer(ip)              , intent(in)    :: permutation_index
+  type(facet_maps_t)       , intent(in)    :: facet_map
+  call this%cell_integrator_facet_restriction(this%active_cell_id(1))%update( &
+           facet_map%cell_maps(this%active_cell_id(1))%get_active_cell_map(), &
+           facet_lid(this%active_cell_id(1)) )
+  if (.not. this%is_at_boundary) then
+     this%current_qpoints_perm_cols(2) = permutation_index
+     call this%cell_integrator_facet_restriction(2)%update(facet_map%cell_maps(2)%get_active_cell_map(),facet_lid(2))
+  end if
+end subroutine facet_integrator_update
+
+!==================================================================================================
+subroutine facet_integrator_set_is_at_boundary_and_active_cell_id (this,left_reference_fe,right_reference_fe)
+  implicit none
+  class(facet_integrator_t)        , intent(inout) :: this
+  class(reference_fe_t)   , pointer, intent(in)    :: left_reference_fe, right_reference_fe
+  this%active_cell_id(1) = 1
+  this%is_at_boundary = (.not. associated(right_reference_fe))
+  if (.not. this%is_at_boundary) this%active_cell_id(2) = 2
+  select type (left_reference_fe)
+    class is (lagrangian_reference_fe_t)
+      select type (right_reference_fe)
+      class is (void_reference_fe_t)
+        this%is_at_boundary = .true.
+      class default
+      end select
+    class is (void_reference_fe_t)
+      select type (right_reference_fe)
+      class is (lagrangian_reference_fe_t)
+        this%is_at_boundary = .true.
+        this%active_cell_id(1) = 2
+        this%active_cell_id(2) = 1
+      class default
+      end select
+    class default
+    assert(.false.)
+  end select
+end subroutine facet_integrator_set_is_at_boundary_and_active_cell_id
+
+!==================================================================================================
+function facet_integrator_get_is_at_boundary (this)
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  logical                                  :: facet_integrator_get_is_at_boundary
+  facet_integrator_get_is_at_boundary = this%is_at_boundary
+end function facet_integrator_get_is_at_boundary
+
+!==================================================================================================
+function facet_integrator_get_active_cell_id (this,neighbour_id)
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  integer(ip)              , intent(in)    :: neighbour_id
+  integer(ip)                              :: facet_integrator_get_active_cell_id
+  facet_integrator_get_active_cell_id = this%active_cell_id(neighbour_id)
+end function facet_integrator_get_active_cell_id
+
+!==================================================================================================
+subroutine facet_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scalar_field)
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  integer(ip)              , intent(in)    :: ishape
+  integer(ip)              , intent(in)    :: qpoint
+  integer(ip)              , intent(in)    :: ineigh
+  real(rp)                 , intent(out)   :: scalar_field
+  integer(ip)                      :: actual_ineigh, actual_qpoint
+  type(cell_integrator_t), pointer :: cell_integrator
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_at_boundary)) )
+  actual_ineigh = this%active_cell_id(ineigh)
+  assert( this%reference_fe(actual_ineigh)%p%field_type == field_type_scalar )
+  cell_integrator => this%cell_integrator_facet_restriction(actual_ineigh)%get_active_cell_integrator()
+  actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(actual_ineigh))
+  call cell_integrator%get_value(ishape,actual_qpoint,scalar_field)
+end subroutine facet_integrator_get_value_scalar
+
+!==================================================================================================
+subroutine facet_integrator_get_value_vector (this, ishape, qpoint, ineigh, vector_field)
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  integer(ip)              , intent(in)    :: ishape
+  integer(ip)              , intent(in)    :: qpoint
+  integer(ip)              , intent(in)    :: ineigh
+  type(vector_field_t)     , intent(out)   :: vector_field
+  integer(ip)                      :: actual_ineigh, actual_qpoint
+  type(cell_integrator_t), pointer :: cell_integrator
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_at_boundary)) )
+  actual_ineigh = this%active_cell_id(ineigh)
+  assert( this%reference_fe(actual_ineigh)%p%field_type == field_type_vector )
+  cell_integrator => this%cell_integrator_facet_restriction(actual_ineigh)%get_active_cell_integrator()
+  actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(actual_ineigh))
+  call cell_integrator%get_value(ishape,actual_qpoint,vector_field)
+end subroutine facet_integrator_get_value_vector
+
+!==================================================================================================
+subroutine facet_integrator_get_values_scalar (this, ineigh, values)
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  integer(ip)              , intent(in)    :: ineigh
+  real(rp)   , allocatable , intent(inout) :: values(:,:)
+  integer(ip)                      :: actual_ineigh
+  type(cell_integrator_t), pointer :: cell_integrator
+  actual_ineigh = this%active_cell_id(ineigh)
+  assert( this%reference_fe(actual_ineigh)%p%field_type == field_type_scalar )
+  cell_integrator => this%cell_integrator_facet_restriction(actual_ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_values(values,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(actual_ineigh)))
+end subroutine facet_integrator_get_values_scalar
+
+!==================================================================================================
+subroutine facet_integrator_get_values_vector (this, ineigh, values)
+  implicit none
+  class(facet_integrator_t)        , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: ineigh
+  type(vector_field_t), allocatable, intent(inout) :: values(:,:)
+  integer(ip)                      :: actual_ineigh
+  type(cell_integrator_t), pointer :: cell_integrator
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_at_boundary)) )
+  actual_ineigh = this%active_cell_id(ineigh)
+  assert( this%reference_fe(actual_ineigh)%p%field_type == field_type_vector )
+  cell_integrator => this%cell_integrator_facet_restriction(actual_ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_values(values,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(actual_ineigh)))
+end subroutine facet_integrator_get_values_vector
+
+!=================================================================================================
+subroutine facet_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, vector_field)
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  integer(ip)              , intent(in)    :: ishape
+  integer(ip)              , intent(in)    :: qpoint
+  integer(ip)              , intent(in)    :: ineigh
+  type(vector_field_t)     , intent(out)   :: vector_field
+  integer(ip)                      :: actual_ineigh, actual_qpoint
+  type(cell_integrator_t), pointer :: cell_integrator
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_at_boundary)) )
+  actual_ineigh = this%active_cell_id(ineigh)
+  assert( this%reference_fe(actual_ineigh)%p%field_type == field_type_scalar )
+  actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(actual_ineigh))
+  cell_integrator => this%cell_integrator_facet_restriction(actual_ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_gradient(ishape,actual_qpoint,vector_field)
+end subroutine facet_integrator_get_gradient_scalar
+
+!=================================================================================================
+subroutine facet_integrator_get_gradients_scalar (this, ineigh, gradients)
+  implicit none
+  class(facet_integrator_t)        , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: ineigh
+  type(vector_field_t), allocatable, intent(inout) :: gradients(:,:)
+  integer(ip)                      :: actual_ineigh
+  type(cell_integrator_t), pointer :: cell_integrator
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_at_boundary)) )
+  actual_ineigh = this%active_cell_id(ineigh)
+  assert( this%reference_fe(actual_ineigh)%p%field_type == field_type_scalar )
+  cell_integrator => this%cell_integrator_facet_restriction(actual_ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_gradients(gradients,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(actual_ineigh)))
+end subroutine facet_integrator_get_gradients_scalar
+
+!=================================================================================================
+subroutine facet_integrator_get_curl_vector (this, ishape, qpoint, ineigh, vector_field)
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  integer(ip)              , intent(in)    :: ishape
+  integer(ip)              , intent(in)    :: qpoint
+  integer(ip)              , intent(in)    :: ineigh
+  type(vector_field_t)     , intent(out)   :: vector_field
+  integer(ip)                      :: actual_ineigh, actual_qpoint
+  type(cell_integrator_t), pointer :: cell_integrator
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_at_boundary)) )
+  actual_ineigh = this%active_cell_id(ineigh)
+  assert( this%reference_fe(actual_ineigh)%p%field_type == field_type_vector )
+  cell_integrator => this%cell_integrator_facet_restriction(actual_ineigh)%get_active_cell_integrator()
+  actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(actual_ineigh))
+  call cell_integrator%get_curl(ishape,actual_qpoint,vector_field)
+end subroutine facet_integrator_get_curl_vector
+
+!=================================================================================================
+subroutine facet_integrator_get_curls_vector (this, ineigh, curls)
+  implicit none
+  class(facet_integrator_t)        , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: ineigh
+  type(vector_field_t), allocatable, intent(inout) :: curls(:,:)
+  integer(ip)                      :: actual_ineigh
+  type(cell_integrator_t), pointer :: cell_integrator
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_at_boundary)))
+  actual_ineigh = this%active_cell_id(ineigh)
+  assert( this%reference_fe(actual_ineigh)%p%field_type == field_type_vector )
+  cell_integrator => this%cell_integrator_facet_restriction(actual_ineigh)%get_active_cell_integrator()
+  call cell_integrator%get_curls(curls,this%qpoints_perm%a(:,this%current_qpoints_perm_cols(actual_ineigh)))
+end subroutine facet_integrator_get_curls_vector
+
+!=================================================================================================
+function facet_integrator_get_current_qpoints_perm ( this, neighbour_id )
+  implicit none
+  class(facet_integrator_t), target, intent(in)    :: this
+  integer(ip)                     , intent(in)    :: neighbour_id
+  integer(ip), pointer :: facet_integrator_get_current_qpoints_perm(:)
+  facet_integrator_get_current_qpoints_perm => this%qpoints_perm%a(:,this%current_qpoints_perm_cols(neighbour_id))
+end function facet_integrator_get_current_qpoints_perm
+
+!=================================================================================================
+subroutine facet_integrator_evaluate_fe_function_scalar ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values )
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_facet_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
+end subroutine facet_integrator_evaluate_fe_function_scalar
+
+!=================================================================================================
+subroutine facet_integrator_evaluate_fe_function_vector ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values )
+  implicit none
+  class(facet_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: neighbour_id
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_facet_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
+end subroutine facet_integrator_evaluate_fe_function_vector
+
+!=================================================================================================
+subroutine facet_integrator_evaluate_fe_function_tensor ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values )
+  implicit none
+  class(facet_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: neighbour_id
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_facet_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
+end subroutine facet_integrator_evaluate_fe_function_tensor
+
+!=================================================================================================
+subroutine facet_integrator_evaluate_gradient_fe_function_scalar ( this,                     &
+                                                                  neighbour_id,             &
+                                                                  nodal_values,             &
+                                                                  quadrature_points_values )
+  implicit none
+  class(facet_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: neighbour_id
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_facet_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
+end subroutine facet_integrator_evaluate_gradient_fe_function_scalar
+
+!=================================================================================================
+subroutine facet_integrator_evaluate_gradient_fe_function_vector ( this,                     &
+                                                                  neighbour_id,             &
+                                                                  nodal_values,             &
+                                                                  quadrature_points_values )
+  implicit none
+  class(facet_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: neighbour_id
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%cell_integrator_facet_restriction(neighbour_id)%get_active_cell_integrator()
+  call cell_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
+end subroutine facet_integrator_evaluate_gradient_fe_function_vector

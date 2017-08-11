@@ -31,19 +31,19 @@
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine void_reference_fe_create ( this, topology, number_dimensions, order, field_type, & 
+subroutine void_reference_fe_create ( this, topology, num_dims, order, field_type, & 
      &  conformity, continuity )
   implicit none 
   class(void_reference_fe_t), intent(inout) :: this
   character(*)                    , intent(in)    :: topology
-  integer(ip)                     , intent(in)    :: number_dimensions
+  integer(ip)                     , intent(in)    :: num_dims
   integer(ip)                     , intent(in)    :: order
   character(*)                    , intent(in)    :: field_type
   logical                         , intent(in)    :: conformity
   logical              , optional , intent(in)    :: continuity
 
   call this%free()
-  call this%set_common_data(number_dimensions, &
+  call this%set_common_data(num_dims, &
                             -1, & ! DIRTY :: order is equal to -1 for void FEs independently of the value passed by the user
                             field_type, &
                             conformity, &
@@ -59,19 +59,19 @@ subroutine void_reference_fe_create_quadrature ( this, quadrature, degree )
   class(void_reference_fe_t), intent(in)       :: this  
   type(quadrature_t)        , intent(inout)    :: quadrature
   integer(ip)           , optional, intent(in) :: degree
-  call quadrature%create( this%number_dimensions, 0 )
+  call quadrature%create( this%num_dims, 0 )
 end subroutine void_reference_fe_create_quadrature
 
 !==================================================================================================
-subroutine void_reference_fe_create_face_quadrature ( this, quadrature, degree )
+subroutine void_reference_fe_create_facet_quadrature ( this, quadrature, degree )
   implicit none
   class(void_reference_fe_t)      , intent(in)    :: this
   type(quadrature_t)              , intent(inout) :: quadrature
   integer(ip)           , optional, intent(in)    :: degree
-  integer(ip) :: face_dimensions
-  face_dimensions = this%number_dimensions - 1
-  call quadrature%create( face_dimensions, 0 )
-end subroutine void_reference_fe_create_face_quadrature
+  integer(ip) :: facet_dims
+  facet_dims = this%num_dims - 1
+  call quadrature%create( facet_dims, 0 )
+end subroutine void_reference_fe_create_facet_quadrature
 
 !==================================================================================================
 subroutine void_reference_fe_create_interpolation ( this, quadrature, & 
@@ -85,13 +85,13 @@ subroutine void_reference_fe_create_interpolation ( this, quadrature, &
   integer(ip) :: ntens, i
 
   ntens = 0
-  do i = 1, this%number_dimensions
+  do i = 1, this%num_dims
      ntens = ntens + i
   end do
 
-  call interpolation%create( this%number_dimensions, &
-                             this%number_shape_functions, &
-                             quadrature%number_quadrature_points, &
+  call interpolation%create( this%num_dims, &
+                             this%num_shape_functions, &
+                             quadrature%num_quadrature_points, &
                              ntens, &
                              compute_hessian )
   !call this%fill_interpolation( quadrature, interpolation )
@@ -99,28 +99,28 @@ end subroutine void_reference_fe_create_interpolation
 
 !==================================================================================================
 ! This routine creates the interpolation corresponding to the evaluation of the shape functions on
-! integration points given by local_quadrature either on the face 'local_face_id' of the element or
+! integration points given by local_quadrature either on the face 'facet_lid' of the element or
 ! in all the faces of the element.
-subroutine void_reference_fe_create_face_interpolation( this,local_face_id, &
-     & local_quadrature,face_interpolation)
+subroutine void_reference_fe_create_interpolation_restricted_to_facet( this,facet_lid, &
+     & local_quadrature,facet_interpolation)
   implicit none 
   class(void_reference_fe_t), intent(in)    :: this 
-  integer(ip)                     , intent(in)    :: local_face_id
+  integer(ip)                     , intent(in)    :: facet_lid
   type(quadrature_t)              , intent(in)    :: local_quadrature
-  type(interpolation_t)           , intent(inout) :: face_interpolation
+  type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   ! Allocate the arrays of the interpolation
-  call face_interpolation%create(this%number_dimensions,this%node_array%number_nodes, &
-       & local_quadrature%number_quadrature_points, 0 )
+  call facet_interpolation%create(this%num_dims,this%node_array%num_nodes, &
+       & local_quadrature%num_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
-  !call this%fill_face_interpolation(local_quadrature,local_face_id,face_interpolation)
-end subroutine void_reference_fe_create_face_interpolation
+  !call this%fill_facet_interpolation(local_quadrature,facet_lid,facet_interpolation)
+end subroutine void_reference_fe_create_interpolation_restricted_to_facet
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine void_reference_fe_create_face_local_interpolation (this, quadrature, interpolation)
+subroutine void_reference_fe_create_facet_interpolation (this, quadrature, interpolation)
   implicit none
   class(void_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -130,19 +130,19 @@ subroutine void_reference_fe_create_face_local_interpolation (this, quadrature, 
 
   aux_reference_fe = make_reference_fe ( this%topology, &
                                          this%fe_type, &
-                                         this%number_dimensions-1, &
+                                         this%num_dims-1, &
                                          this%order, &
                                          this%field_type, &
                                          this%conformity )
   
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
-end subroutine void_reference_fe_create_face_local_interpolation
+end subroutine void_reference_fe_create_facet_interpolation
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine void_reference_fe_create_edge_local_interpolation (this, quadrature, interpolation)
+subroutine void_reference_fe_create_edget_interpolation (this, quadrature, interpolation)
   implicit none
   class(void_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -156,19 +156,19 @@ subroutine void_reference_fe_create_edge_local_interpolation (this, quadrature, 
                                          this%conformity )
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
-end subroutine void_reference_fe_create_edge_local_interpolation
+end subroutine void_reference_fe_create_edget_interpolation
 
 !==================================================================================================
-subroutine void_reference_fe_update_interpolation( this, fe_map,                 &
+subroutine void_reference_fe_apply_cell_map( this, cell_map,                 &
      & interpolation_reference_cell, &
      & interpolation_real_cell )
   implicit none 
   class(void_reference_fe_t), intent(in)    :: this 
-  type(fe_map_t)                  , intent(in)    :: fe_map
+  type(cell_map_t)                  , intent(in)    :: cell_map
   type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
   type(interpolation_t)           , intent(inout) :: interpolation_real_cell
-  !call this%apply_femap_to_interpolation(fe_map,interpolation_reference_cell,interpolation_real_cell)
-end subroutine void_reference_fe_update_interpolation
+  !call this%apply_cell_map_to_interpolation(cell_map,interpolation_reference_cell,interpolation_real_cell)
+end subroutine void_reference_fe_apply_cell_map
 
 !==================================================================================================
 function void_reference_fe_get_component_node( this, node )
@@ -233,14 +233,14 @@ subroutine void_reference_fe_get_values_scalar( this, actual_cell_interpolation,
   assert( this%field_type == field_type_scalar )
   
   reallocate = .false.
-  if (allocated(values)) reallocate = (size(values,1) < this%number_shape_functions) .or. &
-                                      (size(values,2) < actual_cell_interpolation%number_quadrature_points)                                          
+  if (allocated(values)) reallocate = (size(values,1) < this%num_shape_functions) .or. &
+                                      (size(values,2) < actual_cell_interpolation%num_quadrature_points)                                          
   if ((.not. allocated(values)) .or. reallocate) then
      if (allocated(values)) then 
         call memfree(values, __FILE__,__LINE__); 
      end if
-     call memalloc(this%number_shape_functions, &
-                   actual_cell_interpolation%number_quadrature_points, &
+     call memalloc(this%num_shape_functions, &
+                   actual_cell_interpolation%num_quadrature_points, &
                    values, __FILE__,__LINE__);
   end if
 end subroutine void_reference_fe_get_values_scalar
@@ -258,8 +258,8 @@ subroutine void_reference_fe_get_values_vector( this, actual_cell_interpolation,
   assert( this%field_type == field_type_vector )
 
   reallocate = .false.
-  if (allocated(values)) reallocate = (size(values,1) < this%number_shape_functions) .or. &
-                                      (size(values,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if (allocated(values)) reallocate = (size(values,1) < this%num_shape_functions) .or. &
+                                      (size(values,2) < actual_cell_interpolation%num_quadrature_points)                                  
   if ((.not. allocated(values)) .or. reallocate) then
      if (allocated(values)) then 
         deallocate(values, stat=istat); 
@@ -267,8 +267,8 @@ subroutine void_reference_fe_get_values_vector( this, actual_cell_interpolation,
      end if
      ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
      ! (i.e., no need to explicitly initialize)
-     allocate(values(this%number_shape_functions, &
-              actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);     
+     allocate(values(this%num_shape_functions, &
+              actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);     
   end if   
 end subroutine void_reference_fe_get_values_vector
 
@@ -308,8 +308,8 @@ subroutine void_reference_fe_get_gradients_scalar( this, actual_cell_interpolati
   assert( this%field_type == field_type_scalar )
   
   reallocate = .false.
-  if (allocated(gradients)) reallocate = (size(gradients,1) < this%number_shape_functions) .or. &
-                                         (size(gradients,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if (allocated(gradients)) reallocate = (size(gradients,1) < this%num_shape_functions) .or. &
+                                         (size(gradients,2) < actual_cell_interpolation%num_quadrature_points)                                  
   if ((.not. allocated(gradients)) .or. reallocate) then
      if (allocated(gradients)) then 
         deallocate(gradients, stat=istat); 
@@ -317,8 +317,8 @@ subroutine void_reference_fe_get_gradients_scalar( this, actual_cell_interpolati
      end if
      ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
      ! (i.e., no need to explicitly initialize)
-     allocate(gradients(this%number_shape_functions, &
-                        actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+     allocate(gradients(this%num_shape_functions, &
+                        actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
 end subroutine void_reference_fe_get_gradients_scalar
 
@@ -335,8 +335,8 @@ subroutine void_reference_fe_get_gradients_vector( this, actual_cell_interpolati
   assert( this%field_type == field_type_vector )
   
   reallocate = .false.
-  if (allocated(gradients)) reallocate = (size(gradients,1) < this%number_shape_functions) .or. &
-                                          (size(gradients,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if (allocated(gradients)) reallocate = (size(gradients,1) < this%num_shape_functions) .or. &
+                                          (size(gradients,2) < actual_cell_interpolation%num_quadrature_points)                                  
   if ((.not. allocated(gradients)) .or. reallocate) then
      if (allocated(gradients)) then 
         deallocate(gradients, stat=istat); 
@@ -344,8 +344,8 @@ subroutine void_reference_fe_get_gradients_vector( this, actual_cell_interpolati
      end if
      ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
      ! (i.e., no need to explicitly initialize)
-     allocate(gradients(this%number_shape_functions, &
-                        actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+     allocate(gradients(this%num_shape_functions, &
+                        actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
   
 end subroutine void_reference_fe_get_gradients_vector
@@ -404,12 +404,12 @@ subroutine void_reference_fe_evaluate_fe_function_scalar( this,                 
   real(rp), allocatable           , intent(inout) :: quadrature_points_values(:)
   
   if ( allocated(quadrature_points_values) ) then
-      if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
-         call memrealloc (actual_cell_interpolation%number_quadrature_points, & 
+      if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
+         call memrealloc (actual_cell_interpolation%num_quadrature_points, & 
                           quadrature_points_values, __FILE__, __LINE__)
       end if
   else
-    call memalloc (actual_cell_interpolation%number_quadrature_points, & 
+    call memalloc (actual_cell_interpolation%num_quadrature_points, & 
                    quadrature_points_values, __FILE__, __LINE__)
   end if
   ! Required by output_handler_t (visualization purposes)
@@ -428,12 +428,12 @@ subroutine void_reference_fe_evaluate_fe_function_vector( this,                 
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
   integer(ip) :: i, istat
   if ( allocated(quadrature_points_values) ) then
-    if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
       deallocate(quadrature_points_values, stat=istat); check(istat==0);
-      allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
     end if
   else
-    allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+    allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
   ! Required by output_handler_t (visualization purposes)
   do i=1, size(quadrature_points_values)
@@ -466,12 +466,12 @@ subroutine void_reference_fe_evaluate_gradient_fe_function_scalar( this,        
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
   integer(ip) :: i, istat
   if ( allocated(quadrature_points_values) ) then
-    if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
       deallocate(quadrature_points_values, stat=istat); check(istat==0);
-      allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
     end if
   else
-    allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+    allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
   ! Required by output_handler_t (visualization purposes)
   do i=1, size(quadrature_points_values)
@@ -491,12 +491,12 @@ subroutine void_reference_fe_evaluate_gradient_fe_function_vector( this,        
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
   integer(ip) :: i, istat
   if ( allocated(quadrature_points_values) ) then
-     if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+     if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
         deallocate(quadrature_points_values, stat=istat); check(istat==0);
-        allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+        allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
      end if
   else
-     allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+     allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
   ! Required by output_handler_t (visualization purposes)
   do i=1, size(quadrature_points_values)
@@ -529,12 +529,12 @@ end function void_reference_fe_get_characteristic_length
 
 
 !=================================================================================================
-subroutine void_reference_fe_fill_own_dof_permutations  ( this )
+subroutine void_reference_fe_generate_own_dofs_cell_permutations  ( this )
   implicit none 
   class(void_reference_fe_t), intent(inout) :: this 
   real(rp)  :: void_reference_fe_get_characteristic_length 
   check(.false.)
-end subroutine void_reference_fe_fill_own_dof_permutations 
+end subroutine void_reference_fe_generate_own_dofs_cell_permutations 
 
 !=================================================================================================
 subroutine void_reference_fe_fill_qpoints_permutations  ( this, quadrature, qpoints_perm )
@@ -542,9 +542,9 @@ subroutine void_reference_fe_fill_qpoints_permutations  ( this, quadrature, qpoi
   class(void_reference_fe_t)   , intent(in)    :: this 
   type(quadrature_t)           , intent(in)    :: quadrature
   type(allocatable_array_ip2_t), intent(inout) :: qpoints_perm
-  call this%node_array%fill_permutations( this%order,                         &
-                                          quadrature%get_number_dimensions(), &
-                                          this%polytope,                      &
+  call this%node_array%fill_permutations( this%order,                &
+                                          quadrature%get_num_dims(), &
+                                          this%polytope,             &
                                           qpoints_perm )
 end subroutine void_reference_fe_fill_qpoints_permutations 
 
@@ -579,27 +579,27 @@ subroutine void_reference_fe_fill (this)
   
   ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
   if ( this%topology == topology_hex) then
-     topology = 2**this%number_dimensions-1
+     topology = 2**this%num_dims-1
   elseif ( this%topology == topology_tet ) then
      topology = 0
   end if
-  call this%polytope%create( this%number_dimensions, topology )  
+  call this%polytope%create( this%num_dims, topology )  
   
   !call this%node_array%create( this%polytope, this%order_vector ) 
-  num_n_faces = this%polytope%get_number_n_faces()
+  num_n_faces = this%polytope%get_num_n_faces()
   ! Number nodes
-  this%number_shape_functions = 0 !this%node_array%get_number_nodes()
+  this%num_shape_functions = 0 !this%node_array%get_num_nodes()
   ! Number n-faces ( I don't like it, not volume included...)
-  this%number_n_faces = num_n_faces-1
-  ! number_n-faces_dimension
-  this%number_n_faces_per_dimension = 0
-  this%number_n_faces_per_dimension(1) = 1
+  this%num_n_faces = num_n_faces-1
+  ! num_n-faces_dim
+  this%ptr_n_faces_x_dim = 0
+  this%ptr_n_faces_x_dim(1) = 1
   do i = 1,num_n_faces
-     n_face_dim = this%polytope%get_n_face_dimension(i)
-     this%number_n_faces_per_dimension( n_face_dim+2 ) = this%number_n_faces_per_dimension( n_face_dim+2 ) + 1
+     n_face_dim = this%polytope%get_n_face_dim(i)
+     this%ptr_n_faces_x_dim( n_face_dim+2 ) = this%ptr_n_faces_x_dim( n_face_dim+2 ) + 1
   end do
-  do i = 1,this%number_dimensions+1
-     this%number_n_faces_per_dimension(i+1) = this%number_n_faces_per_dimension(i+1) + this%number_n_faces_per_dimension(i)
+  do i = 1,this%num_dims+1
+     this%ptr_n_faces_x_dim(i+1) = this%ptr_n_faces_x_dim(i+1) + this%ptr_n_faces_x_dim(i)
   end do
   
   ! own_dofs_n-face
@@ -636,18 +636,17 @@ subroutine void_reference_fe_fill (this)
         call list_iterator%next()
      end do
   end do
-  ! n-faces_n-face (NEW DEFINITION; now only n_faces of inferior dimension
-  call this%n_faces_n_face%create(num_n_faces)
+  call this%facets_n_face%create(num_n_faces)
   do i = 1,num_n_faces
      facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
      do while (.not. facet_iterator%has_finished() )
-        call this%n_faces_n_face%sum_to_pointer_index(i,1)
+        call this%facets_n_face%sum_to_pointer_index(i,1)
         call facet_iterator%next()
      end do
   end do
-  call this%n_faces_n_face%calculate_header()
-  call this%n_faces_n_face%allocate_list_from_pointer()
-  list_iterator = this%n_faces_n_face%create_iterator()
+  call this%facets_n_face%calculate_header()
+  call this%facets_n_face%allocate_list_from_pointer()
+  list_iterator = this%facets_n_face%create_iterator()
   do i = 1,num_n_faces
      facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
      do while (.not. facet_iterator%has_finished() )
@@ -660,15 +659,15 @@ subroutine void_reference_fe_fill (this)
   ! orientation
   call this%orientation%create(num_n_faces)
   do i = 1,num_n_faces
-     if ( n_face_dimension( this%polytope%get_n_face(i), this%number_dimensions ) == this%number_dimensions-1 ) then
-        this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%number_dimensions )
+     if ( compute_n_face_dim( this%polytope%get_n_face(i), this%num_dims ) == this%num_dims-1 ) then
+        this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%num_dims )
      end if
   end do
-  ! own_nodes_n-face and face_integration_coupling_nodes_n-face
+  ! own_nodes_n-face and facet_integration_coupling_nodes_n-face
   if ( this%conformity .and. this%continuity) then
   else ! conformity and not continuity .and. non conformity and continuity
      call this%own_dofs_n_face%create(n=num_n_faces )
-     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%number_shape_functions)
+     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%num_shape_functions)
      call this%own_dofs_n_face%calculate_header()
      call this%own_dofs_n_face%allocate_list_from_pointer()
      list_iterator = this%own_dofs_n_face%create_iterator()
@@ -681,11 +680,11 @@ subroutine void_reference_fe_fill (this)
   end if
 
   ! I (almost arbitrarily) decided NOT to allocate neither:
-  !  * number_rotations_per_dimension(:)
-  !  * number_orientations_per_dimension(:)
+  !  * num_rotations_x_dim(:)
+  !  * num_orientations_x_dim(:)
   !  * own_node_permutations(:)
   ! Up to my knowledge, they should never be queried on in case of void_reference_fe 
-  ! call memalloc (0, this%number_rotations_per_dimension,__FILE__,__LINE__)
-  ! call memalloc (0, this%number_orientations_per_dimension,__FILE__,__LINE__)
+  ! call memalloc (0, this%num_rotations_x_dim,__FILE__,__LINE__)
+  ! call memalloc (0, this%num_orientations_x_dim,__FILE__,__LINE__)
   ! allocate(this%own_node_permutations(0))
 end subroutine void_reference_fe_fill

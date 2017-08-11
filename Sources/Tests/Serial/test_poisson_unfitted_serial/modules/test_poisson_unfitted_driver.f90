@@ -42,7 +42,7 @@ module test_poisson_unfitted_driver_names
   use vector_poisson_unfitted_discrete_integration_names
   use vector_poisson_unfitted_conditions_names
   use vector_poisson_unfitted_analytical_functions_names
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
 
 # include "debug.i90"
 
@@ -130,9 +130,9 @@ contains
     class(level_set_function_t), pointer :: levset
 
     ! Get number of dimensions form input
-    assert( this%parameter_list%isPresent    (key = number_of_dimensions_key) )
-    assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
+    assert( this%parameter_list%isPresent    (key = num_dims_key) )
+    assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = num_dims_key, value=num_dime); check(istat==0)
 
     !TODO we assume it is a sphere
     select case ('sphere')
@@ -148,7 +148,7 @@ contains
 
 
     ! Set options of the base class
-    call this%level_set_function%set_num_dimensions(num_dime)
+    call this%level_set_function%set_num_dims(num_dime)
     call this%level_set_function%set_tolerance(1.0e-6)
 
     ! Set options of the derived classes
@@ -188,7 +188,7 @@ contains
       else
         set_id = SERIAL_UNF_POISSON_SET_ID_FULL
       end if
-      this%cell_set_ids(cell%get_lid()) = set_id
+      this%cell_set_ids(cell%get_gid()) = set_id
       call cell%next()
     end do
     call this%triangulation%fill_cells_set(this%cell_set_ids)
@@ -245,19 +245,19 @@ contains
 
     ! BEGIN Checking new polytope_tree_t
     !if ( reference_fe_geo%get_topology() == topology_hex ) then
-    ! topology = 2**this%triangulation%get_num_dimensions()-1
+    ! topology = 2**this%triangulation%get_num_dims()-1
     !elseif ( reference_fe_geo%get_topology() == topology_tet ) then
     ! topology = 0
     !end if
-    !call poly_old%create_old(this%triangulation%get_num_dimensions(), topology )
-    !call poly%create(this%triangulation%get_num_dimensions(), topology )
+    !call poly_old%create_old(this%triangulation%get_num_dims(), topology )
+    !call poly%create(this%triangulation%get_num_dims(), topology )
     !call poly_old%print()
     !call poly%print()
     ! END Checking ...
 
     this%reference_fes(SERIAL_UNF_POISSON_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
                                                  conformity = .true., &
@@ -265,7 +265,7 @@ contains
 
     this%reference_fes(SERIAL_UNF_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_void, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = -1, & ! this%test_params%get_reference_fe_order(), & 
                                                  field_type = field_type, &
                                                  conformity = .true., &
@@ -283,7 +283,7 @@ contains
     set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
 
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_unfitted_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
       call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
       call this%poisson_unfitted_analytical_functions%set_degree(this%test_params%get_reference_fe_order())
       call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
@@ -299,7 +299,7 @@ contains
       mcheck(.false.,'Test only runs for Scalar Problems')
     end if
 
-    call this%fe_space%initialize_fe_integration()
+    call this%fe_space%set_up_cell_integration()
 
   end subroutine setup_fe_space
 
@@ -561,7 +561,7 @@ contains
       call vtk_writer%write_to_vtk_file('out_mesh_boundary.vtu')
       call vtk_writer%free()
 
-      call vtk_writer%attach_boundary_quad_points(this%fe_space)
+      call vtk_writer%attach_boundary_quadrature_points(this%fe_space)
       call vtk_writer%write_to_vtk_file('out_mesh_boundary_normals.vtu')
       call vtk_writer%free()
 
@@ -620,16 +620,16 @@ subroutine compute_domain_volume( this )
     implicit none
     class(test_poisson_unfitted_driver_t), intent(in) :: this
 
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
     real(rp) :: volume, dV
     type(quadrature_t), pointer :: quadrature
-    type(fe_map_t),     pointer :: fe_map
+    type(cell_map_t),     pointer :: cell_map
     integer(ip) :: qpoint, num_quad_points
-    type(point_t), pointer :: quadrature_coordinates(:)
+    type(point_t), pointer :: quadrature_points_coordinates(:)
 
     write(*,*) "Computing domain volume ..."
 
-    call this%fe_space%create_fe_iterator(fe)
+    call this%fe_space%create_fe_cell_iterator(fe)
 
     volume = 0.0_rp
     do while ( .not. fe%has_finished() )
@@ -639,22 +639,22 @@ subroutine compute_domain_volume( this )
 
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_quadrature()
-       num_quad_points = quadrature%get_number_quadrature_points()
-       fe_map => fe%get_fe_map()
+       num_quad_points = quadrature%get_num_quadrature_points()
+       cell_map => fe%get_cell_map()
 
        ! Physical coordinates of the quadrature points
-       quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
 
        ! Integrate!
        do qpoint = 1, num_quad_points
-         dV = fe_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+         dV = cell_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
          volume = volume + dV
        end do
 
        call fe%next()
     end do
 
-    call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_cell_iterator(fe)
 
     write(*,*) "Computing domain volume ... OK"
     write(*,*) "Domain volume   = ", volume
@@ -666,20 +666,20 @@ subroutine compute_domain_surface( this )
     implicit none
     class(test_poisson_unfitted_driver_t), intent(in) :: this
 
-    class(unfitted_fe_iterator_t), pointer :: fe
-    class(fe_iterator_t), allocatable, target :: fe_std
+    class(unfitted_fe_cell_iterator_t), pointer :: fe
+    class(fe_cell_iterator_t), allocatable, target :: fe_std
     real(rp) :: surface, dS
     type(quadrature_t), pointer :: quadrature
-    type(piecewise_fe_map_t),     pointer :: fe_map
+    type(piecewise_cell_map_t),     pointer :: cell_map
     integer(ip) :: qpoint, num_quad_points
-    type(point_t), pointer :: quadrature_coordinates(:)
+    type(point_t), pointer :: quadrature_points_coordinates(:)
 
     write(*,*) "Computing domain surface..."
 
-    call this%fe_space%create_fe_iterator(fe_std)
+    call this%fe_space%create_fe_cell_iterator(fe_std)
     
     select type (fe_std)
-    class is (unfitted_fe_iterator_t)
+    class is (unfitted_fe_cell_iterator_t)
       fe => fe_std
     class default
       check(.false.)
@@ -693,22 +693,22 @@ subroutine compute_domain_surface( this )
 
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_boundary_quadrature()
-       num_quad_points = quadrature%get_number_quadrature_points()
-       fe_map => fe%get_boundary_piecewise_fe_map()
+       num_quad_points = quadrature%get_num_quadrature_points()
+       cell_map => fe%get_boundary_piecewise_cell_map()
 
        ! Physical coordinates of the quadrature points
-       quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
 
        ! Integrate!
        do qpoint = 1, num_quad_points
-         dS = fe_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-         surface = surface + dS !quadrature_coordinates(qpoint)%get(1)*quadrature_coordinates(qpoint)%get(2)*dS
+         dS = cell_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+         surface = surface + dS !quadrature_points_coordinates(qpoint)%get(1)*quadrature_points_coordinates(qpoint)%get(2)*dS
        end do
 
        call fe%next()
     end do
 
-    call this%fe_space%free_fe_iterator(fe_std)
+    call this%fe_space%free_fe_cell_iterator(fe_std)
 
     write(*,*) "Computing domain surface ... OK"
     write(*,*) "Domain surface = ", surface

@@ -50,11 +50,11 @@ module dof_import_names
      private
      
      integer(ip)              :: part_id        ! Part identifier
-     integer(ip)              :: number_parts   ! Number of parts
+     integer(ip)              :: num_parts   ! Number of parts
      
-     integer(ip)              :: number_dofs             ! Number of local dofs
-     integer(ip)              :: number_interior_dofs    ! Number of interior dofs
-     integer(ip)              :: number_interface_dofs   ! Number of interface dofs
+     integer(ip)              :: num_dofs             ! Number of local dofs
+     integer(ip)              :: num_interior_dofs    ! Number of interior dofs
+     integer(ip)              :: num_interface_dofs   ! Number of interface dofs
 
      real(rp)   , allocatable :: weight(:)      ! Weight operator for weighted dots, i.e., "<x,y> = y^t W x"
       
@@ -73,9 +73,9 @@ module dof_import_names
     procedure, non_overridable :: create                                 => dof_import_create
     procedure, non_overridable :: free                                   => dof_import_free
     procedure, non_overridable :: print                                  => dof_import_print
-    procedure, non_overridable :: get_number_dofs                        => dof_import_get_number_dofs
-    procedure, non_overridable :: get_number_interior_dofs               => dof_import_get_number_interior_dofs
-    procedure, non_overridable :: get_number_interface_dofs              => dof_import_get_number_interface_dofs
+    procedure, non_overridable :: get_num_dofs                        => dof_import_get_num_dofs
+    procedure, non_overridable :: get_num_interior_dofs               => dof_import_get_num_interior_dofs
+    procedure, non_overridable :: get_num_interface_dofs              => dof_import_get_num_interface_dofs
     procedure, non_overridable :: get_weight                             => dof_import_get_weight
     procedure, non_overridable :: get_num_rcv                            => dof_import_get_num_rcv
     procedure, non_overridable :: get_list_rcv                           => dof_import_get_list_rcv
@@ -85,7 +85,7 @@ module dof_import_names
     procedure, non_overridable :: get_list_snd                           => dof_import_get_list_snd
     procedure, non_overridable :: get_snd_ptrs                           => dof_import_get_snd_ptrs
     procedure, non_overridable :: get_pack_idx                           => dof_import_get_pack_idx 
-    procedure, non_overridable :: renumber_dofs                          => dof_import_renumber_dofs
+    procedure, non_overridable :: renum_dofs                          => dof_import_renum_dofs
     procedure, non_overridable :: fill_first_I_then_G_renumbering        => dof_import_fill_first_I_then_G_renumbering
   end type dof_import_t
 
@@ -99,12 +99,12 @@ module dof_import_names
 
 contains
   !=============================================================================
-  subroutine dof_import_create ( this, part_id, number_parts, number_dofs, num_itfc_couplings, dofs_lid, raw_interface_data )
+  subroutine dof_import_create ( this, part_id, num_parts, num_dofs, num_itfc_couplings, dofs_lid, raw_interface_data )
     implicit none
     class(dof_import_t), intent(inout)  :: this
     integer(ip)        , intent(in)     :: part_id
-    integer(ip)        , intent(in)     :: number_parts
-    integer(ip)        , intent(in)     :: number_dofs
+    integer(ip)        , intent(in)     :: num_parts
+    integer(ip)        , intent(in)     :: num_dofs
     integer(ip)        , intent(in)     :: num_itfc_couplings
     integer(ip)        , intent(in)     :: dofs_lid(num_itfc_couplings)
     integer(igp)       , intent(in)     :: raw_interface_data(num_rows_raw_interface_data, num_itfc_couplings)
@@ -115,21 +115,21 @@ contains
     integer(ip)              :: col, neighbor_part_id, i
 
     this%part_id      = part_id
-    this%number_parts = number_parts
-    this%number_dofs  = number_dofs
+    this%num_parts = num_parts
+    this%num_dofs  = num_dofs
     
-    call memalloc ( number_dofs, this%weight, __FILE__, __LINE__ )
+    call memalloc ( num_dofs, this%weight, __FILE__, __LINE__ )
     this%weight = 1.0_rp
     
-    call memalloc ( this%number_parts, parts_rcv_visited, __FILE__, __LINE__ )
+    call memalloc ( this%num_parts, parts_rcv_visited, __FILE__, __LINE__ )
     parts_rcv_visited = 0
-    call memalloc ( this%number_parts, parts_snd_visited, __FILE__, __LINE__ )
+    call memalloc ( this%num_parts, parts_snd_visited, __FILE__, __LINE__ )
     parts_snd_visited = 0
-    call memalloc ( this%number_parts, this%list_rcv, __FILE__, __LINE__ )
-    call memalloc ( this%number_parts, this%list_snd, __FILE__, __LINE__ )
-    call memalloc ( this%number_parts+1, this%snd_ptrs, __FILE__, __LINE__ )
+    call memalloc ( this%num_parts, this%list_rcv, __FILE__, __LINE__ )
+    call memalloc ( this%num_parts, this%list_snd, __FILE__, __LINE__ )
+    call memalloc ( this%num_parts+1, this%snd_ptrs, __FILE__, __LINE__ )
     this%snd_ptrs = 0
-    call memalloc ( this%number_parts+1, this%rcv_ptrs, __FILE__, __LINE__ )
+    call memalloc ( this%num_parts+1, this%rcv_ptrs, __FILE__, __LINE__ )
     this%rcv_ptrs = 0
     
     this%num_rcv = 0
@@ -170,9 +170,9 @@ contains
     
     call memalloc ( this%snd_ptrs(this%num_snd+1)-1, this%pack_idx, __FILE__, __LINE__ )
     call memalloc ( this%rcv_ptrs(this%num_rcv+1)-1, this%unpack_idx, __FILE__, __LINE__ )
-    call memalloc ( this%number_dofs, interface_dofs_visited, __FILE__, __LINE__ )
+    call memalloc ( this%num_dofs, interface_dofs_visited, __FILE__, __LINE__ )
     interface_dofs_visited = .false. 
-    this%number_interface_dofs = 0
+    this%num_interface_dofs = 0
     do col=1, num_itfc_couplings
        neighbor_part_id = raw_interface_data( neighbor_part_id_row, col)
        if ( raw_interface_data(owner_flag_row,col) == owner ) then
@@ -186,11 +186,11 @@ contains
        
        if ( .not. interface_dofs_visited(dofs_lid(col))) then
          interface_dofs_visited(dofs_lid(col)) = .true. 
-         this%number_interface_dofs = this%number_interface_dofs + 1
+         this%num_interface_dofs = this%num_interface_dofs + 1
        end if
     end do
 
-    this%number_interior_dofs = this%number_dofs - this%number_interface_dofs
+    this%num_interior_dofs = this%num_dofs - this%num_interface_dofs
     
     call memfree ( interface_dofs_visited, __FILE__, __LINE__ )
     call memfree ( parts_rcv_visited, __FILE__, __LINE__ )
@@ -215,8 +215,8 @@ contains
     implicit none
     class(dof_import_t), intent(inout)  :: this
     this%part_id  = -1
-    this%number_parts = -1
-    this%number_dofs = -1
+    this%num_parts = -1
+    this%num_dofs = -1
     this%num_rcv = -1
     this%num_snd = -1
     if (allocated(this%weight)) call memfree ( this%weight,__FILE__,__LINE__)
@@ -237,15 +237,15 @@ contains
     if(lu_out>0) then
        write(lu_out,'(a)') '*** begin dof_import_t data structure ***'
        write(lu_out,'(a,i10)') 'Number of parts:', &
-            &  this%number_parts
+            &  this%num_parts
        write(lu_out,'(a,i10)') 'Number of parts I have to receive from:', &
             &  this%num_rcv
        write(lu_out,'(a,i10)') 'Number dofs:', &
-            &  this%number_dofs
+            &  this%num_dofs
        write(lu_out,'(a,i10)') 'Number interior dofs:', &
-            &  this%number_interior_dofs
+            &  this%num_interior_dofs
        write(lu_out,'(a,i10)') 'Number interface dofs:', &
-            &  this%number_interface_dofs
+            &  this%num_interface_dofs
        write(lu_out,*) 'Weight:', &
             &  this%weight         
        write(lu_out,'(a)') 'List of parts I have to receive from:'
@@ -267,26 +267,26 @@ contains
     end if
   end subroutine dof_import_print
   
-  function dof_import_get_number_dofs(this)
+  function dof_import_get_num_dofs(this)
     implicit none
     class(dof_import_t), intent(in) :: this
-    integer(ip)                     :: dof_import_get_number_dofs
-    dof_import_get_number_dofs = this%number_dofs
-  end function dof_import_get_number_dofs
+    integer(ip)                     :: dof_import_get_num_dofs
+    dof_import_get_num_dofs = this%num_dofs
+  end function dof_import_get_num_dofs
   
-  function dof_import_get_number_interior_dofs(this)
+  function dof_import_get_num_interior_dofs(this)
     implicit none
     class(dof_import_t), intent(in) :: this
-    integer(ip) :: dof_import_get_number_interior_dofs
-    dof_import_get_number_interior_dofs = this%number_interior_dofs
-  end function dof_import_get_number_interior_dofs
+    integer(ip) :: dof_import_get_num_interior_dofs
+    dof_import_get_num_interior_dofs = this%num_interior_dofs
+  end function dof_import_get_num_interior_dofs
   
-  function dof_import_get_number_interface_dofs(this)
+  function dof_import_get_num_interface_dofs(this)
     implicit none
     class(dof_import_t), intent(in) :: this
-    integer(ip) :: dof_import_get_number_interface_dofs
-    dof_import_get_number_interface_dofs = this%number_interface_dofs 
-  end function dof_import_get_number_interface_dofs
+    integer(ip) :: dof_import_get_num_interface_dofs
+    dof_import_get_num_interface_dofs = this%num_interface_dofs 
+  end function dof_import_get_num_interface_dofs
   
   function dof_import_get_weight(this) 
     implicit none
@@ -360,10 +360,10 @@ contains
     dof_import_get_pack_idx => this%pack_idx
   end function dof_import_get_pack_idx
     
-  subroutine dof_import_renumber_dofs( this, perm_old2new )
+  subroutine dof_import_renum_dofs( this, perm_old2new )
     implicit none
     class(dof_import_t), intent(inout) :: this
-    integer(ip)        , intent(in)    :: perm_old2new(this%number_dofs)
+    integer(ip)        , intent(in)    :: perm_old2new(this%num_dofs)
     integer(ip)                        :: i
     real(rp)           , allocatable   :: weight(:)
     
@@ -375,25 +375,25 @@ contains
       this%unpack_idx(i) = perm_old2new(this%unpack_idx(i))
     end do
         
-    call memalloc (this%number_dofs, weight, __FILE__, __LINE__)
-    do i=1, this%number_dofs
+    call memalloc (this%num_dofs, weight, __FILE__, __LINE__)
+    do i=1, this%num_dofs
        weight(perm_old2new(i)) = this%weight(i)
     end do
     this%weight = weight
     call memfree (weight, __FILE__, __LINE__)
-  end subroutine dof_import_renumber_dofs
+  end subroutine dof_import_renum_dofs
   
   ! Generates a permutation of the DoF identifiers s.t. when applied via 
-  ! dof_import%renumber_dofs(perm_old2new), interior (I) DoFs are numbered
+  ! dof_import%renum_dofs(perm_old2new), interior (I) DoFs are numbered
   ! first, followed by DoFs on the interface \Gamma (G).
   subroutine dof_import_fill_first_I_then_G_renumbering (this, perm_old2new) 
     implicit none
     class(dof_import_t)     , intent(in)    :: this
-    integer(ip)             , intent(inout) :: perm_old2new(this%number_dofs)
+    integer(ip)             , intent(inout) :: perm_old2new(this%num_dofs)
     integer(ip)                             :: i, current_dof
     
     perm_old2new = -1    
-    current_dof = this%get_number_interior_dofs()+1
+    current_dof = this%get_num_interior_dofs()+1
     do i=1, this%snd_ptrs(this%num_snd+1)-1
       if ( perm_old2new(this%pack_idx(i)) == -1) then
           perm_old2new(this%pack_idx(i)) = current_dof
@@ -409,7 +409,7 @@ contains
     end do
     
     current_dof=1
-    do i=1, this%get_number_dofs()
+    do i=1, this%get_num_dofs()
       ! is current DoF i an interior DoF ?
       if ( perm_old2new(i) == -1 ) then
           perm_old2new(i) = current_dof    

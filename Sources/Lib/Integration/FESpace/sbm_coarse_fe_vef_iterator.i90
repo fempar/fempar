@@ -57,7 +57,7 @@ subroutine coarse_fe_vef_iterator_get_coarse_fe_around (this, icoarse_fe_around,
   implicit none
   class(coarse_fe_vef_iterator_t), intent(in)    :: this
   integer(ip)                    , intent(in)    :: icoarse_fe_around
-  type(coarse_fe_iterator_t)     , intent(inout) :: coarse_fe
+  type(coarse_fe_cell_iterator_t)     , intent(inout) :: coarse_fe
   assert(allocated(this%vef))
   assert(allocated(coarse_fe%cell))
   call this%vef%get_cell_around(icoarse_fe_around,coarse_fe%cell)

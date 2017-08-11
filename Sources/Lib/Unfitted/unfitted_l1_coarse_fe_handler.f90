@@ -56,9 +56,9 @@ module unfitted_l1_coarse_fe_handler_names
     class(par_fe_space_t),      pointer     :: par_fe_space   => null()
     class(parameterlist_t),     pointer     :: parameter_list => null()
 
-    type(list_t)                            :: object_lid_to_dof_lids
-    integer(ip),                allocatable :: dof_lid_to_cdof_id_in_object(:)
-    integer(ip),                allocatable :: object_lid_to_min_neigbour(:)
+    type(list_t)                            :: object_gid_to_dof_gids
+    integer(ip),                allocatable :: dof_gid_to_cdof_id_in_object(:)
+    integer(ip),                allocatable :: object_gid_to_min_neighbour(:)
 
   contains
 
@@ -73,8 +73,8 @@ module unfitted_l1_coarse_fe_handler_names
     procedure :: setup_constraint_matrix      => unfitted_l1_setup_constraint_matrix
 
     !! Private TBPs
-    procedure, private, non_overridable :: setup_object_lid_to_dof_lids       => unfitted_l1_setup_object_lid_to_dof_lids
-    procedure, private, non_overridable :: setup_dof_lid_to_cdof_id_in_object => unfitted_l1_setup_dof_lid_to_cdof_id_in_object
+    procedure, private, non_overridable :: setup_object_gid_to_dof_gids       => unfitted_l1_setup_object_gid_to_dof_gids
+    procedure, private, non_overridable :: setup_dof_gid_to_cdof_id_in_object => unfitted_l1_setup_dof_gid_to_cdof_id_in_object
     procedure, private, non_overridable :: identify_problematic_dofs          => unfitted_l1_identify_problematic_dofs
 
   end type unfitted_l1_coarse_fe_handler_t
@@ -113,8 +113,8 @@ subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
   assert (associated(par_environment))
 
   if (par_environment%am_i_l1_task()) then
-    call this%setup_object_lid_to_dof_lids()
-    call this%setup_dof_lid_to_cdof_id_in_object()
+    call this%setup_object_gid_to_dof_gids()
+    call this%setup_dof_gid_to_cdof_id_in_object()
   end if
 
 end subroutine unfitted_l1_create
@@ -134,9 +134,9 @@ subroutine unfitted_l1_free(this)
   call this%stiffness_weighting_l1_coarse_fe_handler_t%free()
   this%par_fe_space   => null()
   this%parameter_list => null()
-  if ( allocated(this%dof_lid_to_cdof_id_in_object) ) call memfree(this%dof_lid_to_cdof_id_in_object,__FILE__,__LINE__)
-  if ( allocated(this%object_lid_to_min_neigbour) ) call memfree(this%object_lid_to_min_neigbour,__FILE__,__LINE__)
-  call this%object_lid_to_dof_lids%free()
+  if ( allocated(this%dof_gid_to_cdof_id_in_object) ) call memfree(this%dof_gid_to_cdof_id_in_object,__FILE__,__LINE__)
+  if ( allocated(this%object_gid_to_min_neighbour) ) call memfree(this%object_gid_to_min_neighbour,__FILE__,__LINE__)
+  call this%object_gid_to_dof_gids%free()
 end subroutine unfitted_l1_free
 
 !========================================================================================
@@ -149,10 +149,10 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
 
   type(environment_t), pointer  :: par_environment
-  integer(ip)                   :: max_cdof_lid_in_object
-  logical, allocatable          :: visited_cdof_lids_in_object(:)
+  integer(ip)                   :: max_cdof_gid_in_object
+  logical, allocatable          :: visited_cdof_gids_in_object(:)
   type(list_iterator_t)         :: dofs_in_object_iterator
-  integer(ip)                   :: dof_lid
+  integer(ip)                   :: dof_gid
   type(fe_object_iterator_t)    :: object
 
   assert(field_id == 1)
@@ -160,11 +160,11 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_
   par_environment => this%par_fe_space%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
-  assert ( size(num_coarse_dofs) == this%par_fe_space%get_number_fe_objects() )
+  assert ( size(num_coarse_dofs) == this%par_fe_space%get_num_fe_objects() )
 
 
-  max_cdof_lid_in_object = maxval(this%dof_lid_to_cdof_id_in_object) + 1
-  call memalloc(max_cdof_lid_in_object,visited_cdof_lids_in_object,__FILE__,__LINE__)
+  max_cdof_gid_in_object = maxval(this%dof_gid_to_cdof_id_in_object) + 1
+  call memalloc(max_cdof_gid_in_object,visited_cdof_gids_in_object,__FILE__,__LINE__)
 
   ! Loop in objects
   call this%par_fe_space%create_fe_object_iterator(object)
@@ -172,19 +172,19 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_
 
     ! Count how many coarse dofs are on this object:
     ! i.e., loop on the local dofs of the object and count how many different numbers are found
-    visited_cdof_lids_in_object(:) = .false.
-    dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+    visited_cdof_gids_in_object(:) = .false.
+    dofs_in_object_iterator = this%object_gid_to_dof_gids%create_iterator(object%get_gid())
     do while (.not. dofs_in_object_iterator%is_upper_bound())
-      dof_lid = dofs_in_object_iterator%get_current()
-      visited_cdof_lids_in_object(this%dof_lid_to_cdof_id_in_object(dof_lid)+1) = .true.
+      dof_gid = dofs_in_object_iterator%get_current()
+      visited_cdof_gids_in_object(this%dof_gid_to_cdof_id_in_object(dof_gid)+1) = .true.
       call dofs_in_object_iterator%next()
     end do
-    num_coarse_dofs(object%get_lid()) =  count(visited_cdof_lids_in_object)
+    num_coarse_dofs(object%get_gid()) =  count(visited_cdof_gids_in_object)
 
     call object%next()
   end do
 
-  call memfree(visited_cdof_lids_in_object,__FILE__,__LINE__)
+  call memfree(visited_cdof_gids_in_object,__FILE__,__LINE__)
   call this%par_fe_space%free_fe_object_iterator(object)
 
 end subroutine unfitted_l1_get_num_coarse_dofs
@@ -202,11 +202,11 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
   integer(ip)                  :: block_id
   integer(ip),         pointer :: field_to_block(:)
   integer(ip)                  :: num_cols, num_rows
-  integer(ip)                  :: max_cdof_lid_in_object
+  integer(ip)                  :: max_cdof_gid_in_object
   type(list_iterator_t)        :: dofs_in_object_iterator
-  integer(ip)                  :: dof_lid, cdof_lid_in_object
+  integer(ip)                  :: dof_gid, cdof_gid_in_object
   integer(ip)                  :: num_fdofs_in_cdof
-  integer(ip)                  :: cdof_lid
+  integer(ip)                  :: cdof_gid
   type(fe_object_iterator_t)   :: object
 
   par_environment => this%par_fe_space%get_par_environment()
@@ -215,7 +215,7 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
 
   ! We assume a single field for the moment
   assert(field_id == 1)
-  assert(this%par_fe_space%get_number_fields() == 1)
+  assert(this%par_fe_space%get_num_fields() == 1)
 
   ! Free any dynamic memory that constraint_matrix may have inside
   call constraint_matrix%free()
@@ -223,29 +223,29 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
   ! Create constraint matrix (transposed)
   field_to_block => this%par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
-  num_cols = this%par_fe_space%get_block_number_dofs(block_id)
-  num_rows = this%par_fe_space%get_block_number_coarse_dofs(block_id)
+  num_cols = this%par_fe_space%get_block_num_dofs(block_id)
+  num_rows = this%par_fe_space%get_block_num_coarse_dofs(block_id)
   call constraint_matrix%create ( num_cols, num_rows )
 
-  cdof_lid = 0
-  max_cdof_lid_in_object = maxval(this%dof_lid_to_cdof_id_in_object) + 1
+  cdof_gid = 0
+  max_cdof_gid_in_object = maxval(this%dof_gid_to_cdof_id_in_object) + 1
 
   ! Loop in objects
   call this%par_fe_space%create_fe_object_iterator(object)
   do while ( .not. object%has_finished() )
 
-    ! Loop in all possible values of cdof_lid_in_object
+    ! Loop in all possible values of cdof_gid_in_object
     ! TODO Maybe these are too many loops
-    do cdof_lid_in_object = 0,max_cdof_lid_in_object
+    do cdof_gid_in_object = 0,max_cdof_gid_in_object
 
       ! Count how many fine dofs are on this c dof
       ! i.e., do a loop in the fine dofs on this object and count how many time the current
       ! coarse dof is found
       num_fdofs_in_cdof = 0
-      dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+      dofs_in_object_iterator = this%object_gid_to_dof_gids%create_iterator(object%get_gid())
       do while (.not. dofs_in_object_iterator%is_upper_bound())
-        dof_lid = dofs_in_object_iterator%get_current()
-        if ( cdof_lid_in_object == this%dof_lid_to_cdof_id_in_object(dof_lid) ) num_fdofs_in_cdof = num_fdofs_in_cdof + 1
+        dof_gid = dofs_in_object_iterator%get_current()
+        if ( cdof_gid_in_object == this%dof_gid_to_cdof_id_in_object(dof_gid) ) num_fdofs_in_cdof = num_fdofs_in_cdof + 1
         call dofs_in_object_iterator%next()
       end do
 
@@ -253,15 +253,15 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
       if (num_fdofs_in_cdof == 0) cycle
 
       ! Increment in 1 the current row
-      cdof_lid = cdof_lid + 1
+      cdof_gid = cdof_gid + 1
 
       ! Loop in all fine dofs of this object
-        ! If a fine dof is in the current cdof_lid_in_object add 1/num_fdofs_in_cdof in the constaint matrix
-      dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+        ! If a fine dof is in the current cdof_gid_in_object add 1/num_fdofs_in_cdof in the constaint matrix
+      dofs_in_object_iterator = this%object_gid_to_dof_gids%create_iterator(object%get_gid())
       do while (.not. dofs_in_object_iterator%is_upper_bound())
-        dof_lid = dofs_in_object_iterator%get_current()
-        if ( cdof_lid_in_object == this%dof_lid_to_cdof_id_in_object(dof_lid) ) then
-          call constraint_matrix%insert(dof_lid,cdof_lid, 1.0_rp/real(num_fdofs_in_cdof,rp))
+        dof_gid = dofs_in_object_iterator%get_current()
+        if ( cdof_gid_in_object == this%dof_gid_to_cdof_id_in_object(dof_gid) ) then
+          call constraint_matrix%insert(dof_gid,cdof_gid, 1.0_rp/real(num_fdofs_in_cdof,rp))
         end if
         call dofs_in_object_iterator%next()
       end do
@@ -279,50 +279,50 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
 end subroutine unfitted_l1_setup_constraint_matrix
 
 !========================================================================================
-subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
+subroutine unfitted_l1_setup_object_gid_to_dof_gids(this)
 
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
 
   integer(ip)                        :: num_objects
-  integer(ip), allocatable           :: object_lid_to_num_dofs_in_object(:)
+  integer(ip), allocatable           :: object_gid_to_num_dofs_in_object(:)
   integer(ip)                        :: icell_around
   integer(ip)                        :: ivef_within_cell
   integer(ip)                        :: ivef_within_object
-  integer(ip)                        :: idof, dof_lid
+  integer(ip)                        :: idof, dof_gid
   logical                            :: dofs_on_vef
   type(environment_t), pointer       :: par_environment
   type(fe_object_iterator_t)         :: object
   type(fe_vef_iterator_t)            :: vef
-  class(fe_iterator_t), allocatable  :: fe
+  class(fe_cell_iterator_t), allocatable  :: fe
   type(list_iterator_t)              :: own_dofs_on_vef_iterator
-  integer(ip), pointer               :: elem2dof(:)
+  integer(ip), pointer               :: fe_dofs(:)
   logical                            :: use_vertices, use_edges, use_faces
   logical, allocatable               :: visited_dofs(:)
   integer(ip)                        :: field_id, block_id
   integer(ip), pointer               :: field_to_block(:)
   integer(ip)                        :: num_dofs, num_dofs_in_object
-  integer(ip), allocatable           :: dof_lids(:)
+  integer(ip), allocatable           :: dof_gids(:)
   integer(ip)                        :: icount
   type(list_iterator_t)              :: dofs_in_object_iterator
 
   ! We assume a single field for the moment
   field_id = 1
-  assert(this%par_fe_space%get_number_fields() == 1)
+  assert(this%par_fe_space%get_num_fields() == 1)
 
   ! Auxiliary
   field_to_block => this%par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
-  num_dofs  = this%par_fe_space%get_block_number_dofs(block_id)
-  num_objects = this%par_fe_space%get_number_fe_objects()
+  num_dofs  = this%par_fe_space%get_block_num_dofs(block_id)
+  num_objects = this%par_fe_space%get_num_fe_objects()
   call memalloc(num_dofs,visited_dofs,__FILE__,__LINE__)
-  call memalloc(num_dofs,dof_lids,__FILE__,__LINE__)
-  call memalloc(num_objects,object_lid_to_num_dofs_in_object,__FILE__,__LINE__)
+  call memalloc(num_dofs,dof_gids,__FILE__,__LINE__)
+  call memalloc(num_objects,object_gid_to_num_dofs_in_object,__FILE__,__LINE__)
   icount = 0
 
   ! Allocate array of min neighbors and initialize with the biggest integer
-  call memalloc(num_objects,this%object_lid_to_min_neigbour,__FILE__,__LINE__)
-  this%object_lid_to_min_neigbour(:) = huge(num_objects)
+  call memalloc(num_objects,this%object_gid_to_min_neighbour,__FILE__,__LINE__)
+  this%object_gid_to_min_neighbour(:) = huge(num_objects)
 
   call this%get_coarse_space_use_vertices_edges_faces(this%parameter_list,& 
                                                       use_vertices, &
@@ -331,12 +331,12 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
 
   ! Fill the auxiliary data
   call this%par_fe_space%create_fe_object_iterator(object)
-  call this%par_fe_space%create_fe_iterator(fe)
+  call this%par_fe_space%create_fe_cell_iterator(fe)
   call this%par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
 
     ! Check if c, ce, or cef, and skip object accordingly
-    select case ( object%get_dimension() )
+    select case ( object%get_dim() )
     case (0)
       if (.not. use_vertices) then
         call object%next(); cycle
@@ -362,27 +362,27 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
         call vef%get_cell_around(icell_around,fe)
         if ( fe%is_ghost() ) then
 
-          call fe%get_field_elem2dof(field_id, elem2dof)
-          ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+          call fe%get_field_fe_dofs(field_id, fe_dofs)
+          ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
 
           ! Loop in own dofs in the vef as seen from the ghost element
           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
             idof    = own_dofs_on_vef_iterator%get_current()
-            dof_lid = elem2dof(idof)
-            if ( dof_lid > 0 ) then
-              if(.not. visited_dofs(dof_lid)) then
+            dof_gid = fe_dofs(idof)
+            if ( dof_gid > 0 ) then
+              if(.not. visited_dofs(dof_gid)) then
 
                 ! Store the minimum (active) neighbor part
-                if ( this%object_lid_to_min_neigbour(object%get_lid()) > fe%get_my_part() ) then
-                  this%object_lid_to_min_neigbour(object%get_lid()) = fe%get_my_part()
+                if ( this%object_gid_to_min_neighbour(object%get_gid()) > fe%get_my_part() ) then
+                  this%object_gid_to_min_neighbour(object%get_gid()) = fe%get_my_part()
                 end if
 
                 ! Store the dofs on this object
-                visited_dofs(dof_lid) = .true.
+                visited_dofs(dof_gid) = .true.
                 icount = icount + 1
                 num_dofs_in_object = num_dofs_in_object + 1
-                dof_lids(icount) = dof_lid
+                dof_gids(icount) = dof_gid
 
               end if
             end if
@@ -393,31 +393,31 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
       end do
 
     end do
-    object_lid_to_num_dofs_in_object(object%get_lid()) = num_dofs_in_object
+    object_gid_to_num_dofs_in_object(object%get_gid()) = num_dofs_in_object
     call object%next()
   end do
 
   ! Initialize the list
-  call this%object_lid_to_dof_lids%free()
-  call this%object_lid_to_dof_lids%create(this%par_fe_space%get_number_fe_objects())
+  call this%object_gid_to_dof_gids%free()
+  call this%object_gid_to_dof_gids%create(this%par_fe_space%get_num_fe_objects())
   call object%first()
   do while ( .not. object%has_finished() )
-    call this%object_lid_to_dof_lids%sum_to_pointer_index(&
-      object%get_lid(),object_lid_to_num_dofs_in_object(object%get_lid()))
+    call this%object_gid_to_dof_gids%sum_to_pointer_index(&
+      object%get_gid(),object_gid_to_num_dofs_in_object(object%get_gid()))
     call object%next()
   end do
-  call this%object_lid_to_dof_lids%calculate_header()
-  call this%object_lid_to_dof_lids%allocate_list_from_pointer()
+  call this%object_gid_to_dof_gids%calculate_header()
+  call this%object_gid_to_dof_gids%allocate_list_from_pointer()
 
   ! Fill the list
   icount = 0
   call object%first()
   do while ( .not. object%has_finished() )
 
-    dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+    dofs_in_object_iterator = this%object_gid_to_dof_gids%create_iterator(object%get_gid())
     do while (.not. dofs_in_object_iterator%is_upper_bound())
       icount = icount + 1
-      call dofs_in_object_iterator%set_current(dof_lids(icount))
+      call dofs_in_object_iterator%set_current(dof_gids(icount))
       call dofs_in_object_iterator%next()
     end do
 
@@ -425,17 +425,17 @@ subroutine unfitted_l1_setup_object_lid_to_dof_lids(this)
   end do
 
   ! Clean up
-  call memfree(object_lid_to_num_dofs_in_object,__FILE__,__LINE__)
-  call memfree(dof_lids,__FILE__,__LINE__)
+  call memfree(object_gid_to_num_dofs_in_object,__FILE__,__LINE__)
+  call memfree(dof_gids,__FILE__,__LINE__)
   call memfree(visited_dofs,__FILE__,__LINE__)
   call this%par_fe_space%free_fe_vef_iterator(vef)
-  call this%par_fe_space%free_fe_iterator(fe)
+  call this%par_fe_space%free_fe_cell_iterator(fe)
   call this%par_fe_space%free_fe_object_iterator(object)
 
-end subroutine unfitted_l1_setup_object_lid_to_dof_lids
+end subroutine unfitted_l1_setup_object_gid_to_dof_gids
 
 !========================================================================================
-subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
+subroutine unfitted_l1_setup_dof_gid_to_cdof_id_in_object(this)
 
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
@@ -443,7 +443,7 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   logical, allocatable                 :: is_problematic_dof(:)
   type(fe_object_iterator_t)           :: object
   type(list_iterator_t)                :: dofs_in_object_iterator
-  integer(ip)                          :: dof_lid
+  integer(ip)                          :: dof_gid
   integer(ip)                          :: field_id, block_id
   integer(ip), pointer                 :: field_to_block(:)
   integer(ip)                          :: num_dofs
@@ -457,7 +457,7 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
 
   ! We assume a single field for the moment
   field_id = 1
-  assert(this%par_fe_space%get_number_fields() == 1)
+  assert(this%par_fe_space%get_num_fields() == 1)
   
   ! Get my part id
   p_env => this%par_fe_space%get_par_environment()
@@ -466,9 +466,9 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   ! Allocate and initialize the member variable
   field_to_block => this%par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
-  num_dofs = this%par_fe_space%get_block_number_dofs(block_id)
-  call memalloc(num_dofs,this%dof_lid_to_cdof_id_in_object,__FILE__,__LINE__)
-  this%dof_lid_to_cdof_id_in_object(:) = 0
+  num_dofs = this%par_fe_space%get_block_num_dofs(block_id)
+  call memalloc(num_dofs,this%dof_gid_to_cdof_id_in_object,__FILE__,__LINE__)
+  this%dof_gid_to_cdof_id_in_object(:) = 0
 
   ! Identify which dofs are problematic
   call memalloc(num_dofs,is_problematic_dof,__FILE__,__LINE__)
@@ -479,25 +479,25 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   do while ( .not. object%has_finished() )
 
     ! Skip objects that are not edges
-    if (object%get_dimension() .ne. 1) then
+    if (object%get_dim() .ne. 1) then
       call object%next(); cycle
     end if
 
     ! Skip if we are not the part with minimum id
-    assert( this%object_lid_to_min_neigbour(object%get_lid()) .ne. my_part_id )
-    if ( this%object_lid_to_min_neigbour(object%get_lid()) < my_part_id ) then
+    assert( this%object_gid_to_min_neighbour(object%get_gid()) .ne. my_part_id )
+    if ( this%object_gid_to_min_neighbour(object%get_gid()) < my_part_id ) then
       call object%next(); cycle
     end if
 
     ! Loop in fine dofs on this object
       ! If the dof is problematic, mark it as a new corner
     new_corner_counter = 0
-    dofs_in_object_iterator = this%object_lid_to_dof_lids%create_iterator(object%get_lid())
+    dofs_in_object_iterator = this%object_gid_to_dof_gids%create_iterator(object%get_gid())
     do while (.not. dofs_in_object_iterator%is_upper_bound())
-      dof_lid = dofs_in_object_iterator%get_current()
-      if ( is_problematic_dof(dof_lid) ) then
+      dof_gid = dofs_in_object_iterator%get_current()
+      if ( is_problematic_dof(dof_gid) ) then
         new_corner_counter = new_corner_counter + 1
-        this%dof_lid_to_cdof_id_in_object(dof_lid) = new_corner_counter
+        this%dof_gid_to_cdof_id_in_object(dof_gid) = new_corner_counter
       end if
       call dofs_in_object_iterator%next()
     end do
@@ -511,14 +511,14 @@ subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object(this)
   call par_array%create_and_allocate(p_env, dof_import)
   serial_array   => par_array%get_serial_scalar_array()
   array_entries => serial_array%get_entries()
-  array_entries(:) = real(this%dof_lid_to_cdof_id_in_object(:),kind=rp)
+  array_entries(:) = real(this%dof_gid_to_cdof_id_in_object(:),kind=rp)
   call par_array%comm()
-  this%dof_lid_to_cdof_id_in_object(:) = nint(array_entries,kind=ip)
+  this%dof_gid_to_cdof_id_in_object(:) = nint(array_entries,kind=ip)
 
   call memfree(is_problematic_dof,__FILE__,__LINE__)
   call par_array%free()
 
-end subroutine unfitted_l1_setup_dof_lid_to_cdof_id_in_object
+end subroutine unfitted_l1_setup_dof_gid_to_cdof_id_in_object
 
 !========================================================================================
 subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
@@ -532,15 +532,15 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   class(par_fe_space_t), pointer :: par_fe_space
   class(par_unfitted_fe_space_t), pointer :: par_unf_fe_space
   class(base_static_triangulation_t), pointer :: triangulation
-  class(fe_iterator_t), allocatable  :: fe
+  class(fe_cell_iterator_t), allocatable  :: fe
   integer(ip) :: num_total_cells
   type(environment_t), pointer :: par_environment
   type(cell_import_t), pointer :: cell_import
-  integer(ip), pointer :: elem2dof(:)
+  integer(ip), pointer :: fe_dofs(:)
 
   ! We assume a single field for the moment
   field_id = 1
-  assert(this%par_fe_space%get_number_fields() == 1)
+  assert(this%par_fe_space%get_num_fields() == 1)
   
 
   ! Recover the unfitted par fe space
@@ -557,12 +557,12 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   num_total_cells = triangulation%get_num_local_cells() + triangulation%get_num_ghost_cells()
   call memalloc(num_total_cells,is_cut_cell,__FILE__,__LINE__)
   is_cut_cell(:) = 0
-  call par_unf_fe_space%create_fe_iterator(fe)
+  call par_unf_fe_space%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished() )
     if ( fe%is_ghost() ) then
       call fe%next(); cycle
     end if
-    if (fe%is_cut()) is_cut_cell(fe%get_lid()) = 1
+    if (fe%is_cut()) is_cut_cell(fe%get_gid()) = 1
     call fe%next()
   end do
 
@@ -572,11 +572,11 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   par_environment => triangulation%get_par_environment()
   cell_import => triangulation%get_cell_import()
   if(par_environment%get_l1_size()>1) &
-  call par_environment%l1_neighbours_exchange ( cell_import%get_number_neighbours(), &
+  call par_environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
                                                 cell_import%get_neighbours_ids(),    &
                                                 cell_import%get_rcv_ptrs(),          &
                                                 cell_import%get_rcv_leids(),         &
-                                                cell_import%get_number_neighbours(), &
+                                                cell_import%get_num_neighbours(), &
                                                 cell_import%get_neighbours_ids(),    &
                                                 cell_import%get_snd_ptrs(),          &
                                                 cell_import%get_snd_leids(),         &
@@ -586,15 +586,15 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   is_problematic_dof(:) = .false.
   call fe%first()
   do while ( .not. fe%has_finished() )
-    call fe%get_field_elem2dof(field_id, elem2dof)
-    if (is_cut_cell(fe%get_lid())==1) is_problematic_dof(pack(elem2dof,elem2dof>0)) = .true.
+    call fe%get_field_fe_dofs(field_id, fe_dofs)
+    if (is_cut_cell(fe%get_gid())==1) is_problematic_dof(pack(fe_dofs,fe_dofs>0)) = .true.
     call fe%next()
   end do
 
 
   ! Clean up
   call memfree(is_cut_cell,__FILE__,__LINE__)
-  call par_unf_fe_space%free_fe_iterator(fe)
+  call par_unf_fe_space%free_fe_cell_iterator(fe)
 
 end subroutine unfitted_l1_identify_problematic_dofs
 

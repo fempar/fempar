@@ -49,10 +49,10 @@ module level_set_functions_gallery_names
   type, extends(scalar_function_t) :: level_set_function_t
     private
     real(rp) :: tolerance = 1.0e-3_rp
-    integer(ip) :: num_dimensions = SPACE_DIM
+    integer(ip) :: num_dims = SPACE_DIM
   contains
     procedure, private :: get_level_set_value => level_set_function_get_level_set_value
-    procedure, non_overridable :: set_num_dimensions  => level_set_function_set_num_dimensions
+    procedure, non_overridable :: set_num_dims  => level_set_function_set_num_dims
     procedure :: get_value_space              => level_set_function_get_value_space
     procedure :: set_tolerance                => level_set_function_set_tolerance
     procedure :: get_tolerance                => level_set_function_get_tolerance
@@ -127,12 +127,12 @@ end subroutine level_set_function_factory_create
   end subroutine level_set_function_get_level_set_value
 
 !========================================================================================
-  subroutine level_set_function_set_num_dimensions( this, num_dime )
+  subroutine level_set_function_set_num_dims( this, num_dime )
     implicit none
     class(level_set_function_t), intent(inout) :: this
     integer(ip),                 intent(in)    :: num_dime
-    this%num_dimensions = num_dime
-  end subroutine level_set_function_set_num_dimensions
+    this%num_dims = num_dime
+  end subroutine level_set_function_set_num_dims
 
 !========================================================================================
   subroutine level_set_function_get_value_space( this, point, result )
@@ -146,8 +146,8 @@ end subroutine level_set_function_factory_create
 
     ! Restrict to the current dimensions
     point2 = point
-    if (this%num_dimensions < 3) call point2%set(3,0.0)
-    if (this%num_dimensions < 2) call point2%set(2,0.0)
+    if (this%num_dims < 3) call point2%set(3,0.0)
+    if (this%num_dims < 2) call point2%set(2,0.0)
 
     ! Call the actual level set function
     call this%get_level_set_value( point2, result )

@@ -44,7 +44,7 @@ module hts_theta_method_names
      integer(ip) :: save_solution_every_n_steps 
      integer(ip) :: current_step      
      real(rp)    :: next_time_to_be_printed  
-     integer(ip) :: number_of_steps
+     integer(ip) :: num_steps
    contains
      procedure, non_overridable :: create                    => theta_method_create
      procedure, non_overridable :: update_solutions          => theta_method_update_solutions
@@ -65,13 +65,13 @@ module hts_theta_method_names
 
 contains
   !===============================================================================================
-  subroutine theta_method_create(this, theta, initial_time, final_time, number_time_steps, max_time_step, min_time_step, save_every_n_steps )
+  subroutine theta_method_create(this, theta, initial_time, final_time, num_time_steps, max_time_step, min_time_step, save_every_n_steps )
     implicit none
     class(theta_method_t), intent(inout) :: this
     real(rp)             , intent(in)    :: theta
     real(rp)             , intent(in)    :: initial_time
     real(rp)             , intent(in)    :: final_time
-    integer(ip)          , intent(in)    :: number_time_steps
+    integer(ip)          , intent(in)    :: num_time_steps
     real(rp)             , intent(in)    :: max_time_step 
     real(rp)             , intent(in)    :: min_time_step 
     integer(ip)          , intent(in)    :: save_every_n_steps 
@@ -79,8 +79,8 @@ contains
     this%theta                       = theta
     this%initial_time                = initial_time
     this%final_time                  = final_time
-    this%number_of_steps             = number_time_steps
-    this%time_step                   = ( this%final_time - this%initial_time ) / real(this%number_of_steps,rp)
+    this%num_steps             = num_time_steps
+    this%time_step                   = ( this%final_time - this%initial_time ) / real(this%num_steps,rp)
     this%current_time                = this%time_step
     this%current_step                = 1
     this%max_time_step               = max_time_step 

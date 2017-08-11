@@ -90,17 +90,17 @@ contains
   this%source_term   => source_term 
   end subroutine hts_nedelec_discrete_integration_create
     
-  subroutine hts_nedelec_discrete_integration_integrate ( this, fe_space, matrix_array_assembler )
+  subroutine hts_nedelec_discrete_integration_integrate ( this, fe_space, assembler )
     implicit none
     class(hts_nedelec_discrete_integration_t)   , intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
+    class(assembler_t)             , intent(inout) :: assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
     
     ! FE integration-related data types
-    type(fe_map_t)           , pointer :: fe_map
+    type(cell_map_t)           , pointer :: cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int_H, cell_int_p
@@ -110,7 +110,7 @@ contains
     real(rp)                           :: p_shape_trial, p_shape_test
     type(vector_field_t)               :: H_value_current, H_value_previous
     type(vector_field_t) , allocatable :: H_current_curl_values(:)  
-    type(cell_fe_function_vector_t)    :: cell_fe_function_previous, cell_fe_function_current 
+    type(fe_cell_function_vector_t)    :: fe_cell_function_previous, fe_cell_function_current 
     
     ! Nonlinear parameters computed in the integrate 
     real(rp)   :: resistivity, tangent_resistivity
@@ -126,24 +126,24 @@ contains
     type(vector_field_t), allocatable :: source_term_values(:,:)
     real(rp), allocatable             :: current_time(:)
 
-    integer(ip), pointer :: num_dofs_per_field(:)
+    integer(ip), pointer :: num_dofs_x_field(:)
     
     assert ( associated(this%source_term) )
     assert ( associated(this%H_current) )
     assert ( associated(this%H_previous) )
     
-    call fe_space%initialize_fe_integration()
-    call cell_fe_function_previous%create(fe_space, 1) 
-    call cell_fe_function_current%create(fe_space,  1) 
+    call fe_space%set_up_cell_integration()
+    call fe_cell_function_previous%create(fe_space, 1) 
+    call fe_cell_function_current%create(fe_space,  1) 
 
-    call fe_space%create_fe_iterator(fe)
-    num_dofs = fe%get_number_dofs()
+    call fe_space%create_fe_cell_iterator(fe)
+    num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    num_dofs_per_field => fe%get_number_dofs_per_field()
+    num_dofs_x_field => fe%get_num_dofs_x_field()
     quad             => fe%get_quadrature()
-    num_quad_points  = quad%get_number_quadrature_points()
-    fe_map           => fe%get_fe_map()
+    num_quad_points  = quad%get_num_quadrature_points()
+    cell_map           => fe%get_cell_map()
     cell_int_H        => fe%get_cell_integrator(1)
     cell_int_p        => fe%get_cell_integrator(2) 
     
@@ -157,36 +157,36 @@ contains
        
        ! Update FE-integration related data structures
        call fe%update_integration()
-       call cell_fe_function_previous%update(fe, this%H_previous)
-       call cell_fe_function_current%update(fe, this%H_current)
+       call fe_cell_function_previous%update(fe, this%H_previous)
+       call fe_cell_function_current%update(fe, this%H_current)
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => fe_map%get_quadrature_coordinates()
+       quad_coords => cell_map%get_quadrature_points_coordinates()
        
        ! Evaluate pressure source term at quadrature points
        call this%source_term%get_values_set( quad_coords, current_time, source_term_values)
        
        ! Evaluate current curl values  
-       call cell_fe_function_current%compute_quadrature_points_curl_values(H_current_curl_values)
+       call fe_cell_function_current%compute_quadrature_points_curl_values(H_current_curl_values)
        
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
        do qpoint = 1, num_quad_points
-          factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! Compute nonlinear resistivity 
           resistivity  = this%compute_resistivity( H_current_curl_values(qpoint), fe%get_set_id() )
           permeability = this%air_permeability
           
           ! Previous solution to integrate RHS contribution 
-          call cell_fe_function_previous%get_value( qpoint, H_value_previous )
+          call fe_cell_function_previous%get_value( qpoint, H_value_previous )
           
           ! BLOCK [1,1] : mu_0 ( H,v ) + rho( curl(H), curl(v) )  
-          do idof=1, num_dofs_per_field(1)
+          do idof=1, num_dofs_x_field(1)
             call cell_int_H%get_value(idof, qpoint, H_shape_test)
             call cell_int_H%get_curl(idof, qpoint, curl_H_shape_test)
-            do jdof=1, num_dofs_per_field(1)
+            do jdof=1, num_dofs_x_field(1)
               call cell_int_H%get_value(jdof, qpoint, H_shape_trial)
               call cell_int_H%get_curl(jdof, qpoint, curl_H_shape_trial)     
               elmat(idof,jdof) = elmat(idof,jdof) + &
@@ -202,41 +202,41 @@ contains
           end do
        
            ! BLOCK [1,2] : - ( v, grad(p) )
-          do idof=1, num_dofs_per_field(1)
+          do idof=1, num_dofs_x_field(1)
             call cell_int_H%get_value(idof, qpoint, H_shape_test)
-            do jdof=1, num_dofs_per_field(2)
+            do jdof=1, num_dofs_x_field(2)
               call cell_int_p%get_gradient(jdof, qpoint, grad_p_shape_trial)   
-              elmat(idof,num_dofs_per_field(1)+jdof) = elmat(idof,num_dofs_per_field(1)+jdof)  &
+              elmat(idof,num_dofs_x_field(1)+jdof) = elmat(idof,num_dofs_x_field(1)+jdof)  &
                                                        - (H_shape_test*grad_p_shape_trial)*factor                  
             end do            
           end do
 
        ! BLOCK [2,1] :  ( H, grad(q) )
-          do idof=1, num_dofs_per_field(2)
+          do idof=1, num_dofs_x_field(2)
             call cell_int_p%get_gradient(idof, qpoint, grad_p_shape_test) 
-            do jdof=1, num_dofs_per_field(1)
+            do jdof=1, num_dofs_x_field(1)
               call cell_int_H%get_value(jdof, qpoint, H_shape_trial)
-              elmat(num_dofs_per_field(1)+idof,jdof) = elmat(num_dofs_per_field(1)+idof,jdof)  &
+              elmat(num_dofs_x_field(1)+idof,jdof) = elmat(num_dofs_x_field(1)+idof,jdof)  &
                                                        + (H_shape_trial*grad_p_shape_test)*factor                  
             end do            
           end do
           
            ! BLOCK [2,2] :  ( p,q )
-          do idof=1, num_dofs_per_field(2)
+          do idof=1, num_dofs_x_field(2)
             call cell_int_p%get_value(idof, qpoint, p_shape_test) 
-            do jdof=1, num_dofs_per_field(2)
+            do jdof=1, num_dofs_x_field(2)
               call cell_int_p%get_value(jdof, qpoint, p_shape_trial)
-              elmat(num_dofs_per_field(1)+idof,num_dofs_per_field(1)+jdof) = elmat(num_dofs_per_field(1)+idof,num_dofs_per_field(1)+jdof)  &
+              elmat(num_dofs_x_field(1)+idof,num_dofs_x_field(1)+jdof) = elmat(num_dofs_x_field(1)+idof,num_dofs_x_field(1)+jdof)  &
                                                        + 1.0_rp/permeability*p_shape_trial*p_shape_test*factor                  
             end do            
           end do
 
       end do ! Qpoint loop 
           
-       call fe%assembly( this%H_current, elmat, elvec, matrix_array_assembler )
+       call fe%assembly( this%H_current, elmat, elvec, assembler )
        call fe%next()
     end do
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
 
     deallocate (source_term_values, stat=istat); check(istat==0)
     deallocate (H_current_curl_values, stat=istat); check(istat==0)
