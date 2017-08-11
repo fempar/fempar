@@ -542,7 +542,10 @@ subroutine void_reference_fe_fill_qpoints_permutations  ( this, quadrature, qpoi
   class(void_reference_fe_t)   , intent(in)    :: this 
   type(quadrature_t)           , intent(in)    :: quadrature
   type(allocatable_array_ip2_t), intent(inout) :: qpoints_perm
-  call qpoints_perm%create(nd1=0, nd2=0)
+  call this%node_array%fill_permutations( this%order,                         &
+                                          quadrature%get_number_dimensions(), &
+                                          this%polytope,                      &
+                                          qpoints_perm )
 end subroutine void_reference_fe_fill_qpoints_permutations 
 
 !==================================================================================================
