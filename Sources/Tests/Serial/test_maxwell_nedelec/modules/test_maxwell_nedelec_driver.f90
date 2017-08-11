@@ -117,7 +117,7 @@ contains
 	
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
                                                  fe_type = fe_type_nedelec,                                   &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(),           &
                                                  field_type = field_type_vector,                              &
                                                  conformity = .true. ) 
@@ -143,18 +143,18 @@ contains
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
 
-    call this%maxwell_nedelec_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%maxwell_nedelec_conditions%set_num_dims(this%triangulation%get_num_dims())
     call this%fe_space%create( triangulation       = this%triangulation, &
          reference_fes       = this%reference_fes, &
          conditions          = this%maxwell_nedelec_conditions )
-    call this%fe_space%initialize_fe_integration()
-    call this%fe_space%initialize_fe_face_integration()
+    call this%fe_space%set_up_cell_integration()
+    call this%fe_space%set_up_facet_integration()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this 
-    call this%problem_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%maxwell_nedelec_integration%set_source_term(this%problem_functions%get_source_term())
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                           diagonal_blocks_symmetric_storage = [ .false.  ], &
@@ -165,7 +165,7 @@ contains
     call this%solution%create(this%fe_space) 
 	   call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
 	   call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
-	   if ( this%triangulation%get_num_dimensions() == 3) then 
+	   if ( this%triangulation%get_num_dims() == 3) then 
 	     call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	   end if 
     call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)

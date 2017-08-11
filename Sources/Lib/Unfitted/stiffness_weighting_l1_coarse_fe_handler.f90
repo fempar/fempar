@@ -118,7 +118,7 @@ subroutine stiffness_l1_setup_weighting_operator(this,field_id,par_fe_space,para
 
   ! We assume a single field for the moment
   assert(field_id == 1)
-  assert(par_fe_space%get_number_fields() == 1)
+  assert(par_fe_space%get_num_fields() == 1)
 
   ! Clean up
   if (allocated(weighting_operator) ) then
@@ -128,7 +128,7 @@ subroutine stiffness_l1_setup_weighting_operator(this,field_id,par_fe_space,para
   ! Allocate the weighting
   field_to_block => par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
-  num_dofs = par_fe_space%get_block_number_dofs(block_id)
+  num_dofs = par_fe_space%get_block_num_dofs(block_id)
   call memalloc(num_dofs,weighting_operator,__FILE__,__LINE__)
 
   ! Get the sub-assembled diagonal

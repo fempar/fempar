@@ -27,12 +27,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !==================================================================================================
-function raviart_thomas_get_number_subcells(this, num_refinements) result(num_subcells)
+function raviart_thomas_get_num_subcells(this, num_refinements) result(num_subcells)
   class(raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: num_refinements
   integer(ip)                                         :: num_subcells
   check(.false.)
-end function raviart_thomas_get_number_subcells
+end function raviart_thomas_get_num_subcells
 
 !==================================================================================================
 subroutine raviart_thomas_get_subcells_connectivity(this, num_refinements, connectivity)
@@ -58,12 +58,12 @@ subroutine raviart_thomas_create_interpolation ( this, quadrature, &
   integer(ip) :: ntens, i
 
   ntens = 0
-  do i = 1, this%number_dimensions
+  do i = 1, this%num_dims
      ntens = ntens + i
   end do
 
-  call interpolation%create( this%number_dimensions, this%number_shape_functions, &
-       quadrature%number_quadrature_points, ntens, compute_hessian )
+  call interpolation%create( this%num_dims, this%num_shape_functions, &
+       quadrature%num_quadrature_points, ntens, compute_hessian )
 
   call this%fill_interpolation( quadrature, interpolation )
 
@@ -71,30 +71,30 @@ end subroutine raviart_thomas_create_interpolation
 
 !==================================================================================================
 ! This routine creates the interpolation corresponding to the evaluation of the shape functions on
-! integration points given by local_quadrature either on the face 'local_face_id' of the element or
+! integration points given by local_quadrature either on the face 'facet_lid' of the element or
 ! in all the faces of the element.
-subroutine raviart_thomas_create_face_interpolation( this, local_face_id, &
-     & local_subface_id, local_quadrature, face_interpolation )
+subroutine rt_create_interpolation_restricted_to_facet( this, facet_lid, &
+     & subfacet_lid, local_quadrature, facet_interpolation)
   implicit none 
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
-  integer(ip)                         , intent(in)    :: local_face_id
-  integer(ip)                         , intent(in)    :: local_subface_id
-  type(quadrature_t)                  , intent(in)    :: local_quadrature
-  type(interpolation_t)               , intent(inout) :: face_interpolation
+  integer(ip)                     , intent(in)    :: facet_lid
+  integer(ip)                     , intent(in)    :: subfacet_lid
+  type(quadrature_t)              , intent(in)    :: local_quadrature
+  type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   ! Allocate the arrays of the interpolation
-  call face_interpolation%create(this%number_dimensions, &
-                                 this%number_shape_functions, &
-                                 local_quadrature%number_quadrature_points, &
+  call facet_interpolation%create(this%num_dims, &
+                                 this%num_shape_functions, &
+                                 local_quadrature%num_quadrature_points, &
                                  0 )
 
   ! Fill the values of the shape functions
-  call this%fill_face_interpolation( local_quadrature, &
-                                     local_face_id,    &
-                                     local_subface_id, &
-                                     face_interpolation )
+  call this%fill_facet_interpolation(local_quadrature, &
+                                    facet_lid, &
+                                    subfacet_lid, &
+                                    facet_interpolation)
 
-end subroutine raviart_thomas_create_face_interpolation
+end subroutine rt_create_interpolation_restricted_to_facet
 
 !==================================================================================================
 subroutine raviart_thomas_fill_nodal_quadrature ( this, quadrature ) 
@@ -108,12 +108,12 @@ subroutine raviart_thomas_fill_nodal_quadrature ( this, quadrature )
 end subroutine raviart_thomas_fill_nodal_quadrature
 
 !==================================================================================================
-subroutine raviart_thomas_create ( this, topology, number_dimensions, order, field_type, & 
+subroutine raviart_thomas_create ( this, topology, num_dims, order, field_type, & 
      &  conformity, continuity )
   implicit none 
   class(raviart_thomas_reference_fe_t), intent(inout) :: this
   character(*)                    , intent(in)    :: topology
-  integer(ip)                     , intent(in)    :: number_dimensions
+  integer(ip)                     , intent(in)    :: num_dims
   integer(ip)                     , intent(in)    :: order
   character(*)                    , intent(in)    :: field_type
   logical                         , intent(in)    :: conformity
@@ -122,7 +122,7 @@ subroutine raviart_thomas_create ( this, topology, number_dimensions, order, fie
   assert ( order >= 0 )
 
   call this%free()
-  call this%set_common_data(number_dimensions,order,field_type,conformity,continuity)
+  call this%set_common_data(num_dims,order,field_type,conformity,continuity)
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_raviart_thomas )
   call this%fill()
@@ -164,17 +164,17 @@ subroutine raviart_thomas_fill (this)
   this%order_vector(1) = this%order+1
   call this%fill_vector()
   
-  call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
+  call memalloc( this%num_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
   
-  call memalloc( this%node_array_vector(1)%number_nodes,     & 
-       &         this%number_field_components, & 
+  call memalloc( this%node_array_vector(1)%num_nodes,     & 
+       &         this%num_field_components, & 
        &         this%node_array_component,    & 
        &         __FILE__, __LINE__ )
 
   c = 1
-  do i = 1, this%number_field_components
-    assert(this%node_array_vector(i)%number_nodes == this%node_array_vector(1)%number_nodes)
-    do j = 1, this%node_array_vector(i)%number_nodes
+  do i = 1, this%num_field_components
+    assert(this%node_array_vector(i)%num_nodes == this%node_array_vector(1)%num_nodes)
+    do j = 1, this%node_array_vector(i)%num_nodes
         this%node_component_array(c,1) = j
         this%node_component_array(c,2) = i   
         this%node_array_component(j,i) = c
@@ -195,43 +195,43 @@ subroutine raviart_thomas_fill_vector (this)
 
   ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
   if ( this%topology == topology_hex) then
-     topology = 2**this%number_dimensions-1
+     topology = 2**this%num_dims-1
   elseif ( this%topology == topology_tet ) then
      topology = 0
   end if
 
-  call this%polytope%create( this%number_dimensions, topology )  
+  call this%polytope%create( this%num_dims, topology )  
 
-  this%number_shape_functions = 0
+  this%num_shape_functions = 0
   offset(1) = 0
-  do idime = 1,this%number_dimensions
+  do idime = 1,this%num_dims
      perm = [ (i, i=1,SPACE_DIM) ]
      perm(idime) = 1
      perm(1) = idime
      call this%node_array_vector(idime)%create( this%polytope, this%order_vector(perm) ) 
      ! Number nodes
-     this%number_shape_functions = this%number_shape_functions + this%node_array_vector(idime)%get_number_nodes()
-     offset(idime+1) = offset(idime) + this%node_array_vector(idime)%get_number_nodes()
+     this%num_shape_functions = this%num_shape_functions + this%node_array_vector(idime)%get_num_nodes()
+     offset(idime+1) = offset(idime) + this%node_array_vector(idime)%get_num_nodes()
   end do
 
-  num_n_faces = this%polytope%get_number_n_faces()
+  num_n_faces = this%polytope%get_num_n_faces()
   ! Number n-faces ( I don't like it, not volume included...)
-  this%number_n_faces = num_n_faces-1
-  ! number_n-faces_dimension
-  this%number_n_faces_per_dimension = 0
-  this%number_n_faces_per_dimension(1) = 1
+  this%num_n_faces = num_n_faces-1
+  ! num_n-faces_dim
+  this%ptr_n_faces_x_dim = 0
+  this%ptr_n_faces_x_dim(1) = 1
   do i = 1,num_n_faces
-     n_face_dim = this%polytope%get_n_face_dimension(i)
-     this%number_n_faces_per_dimension( n_face_dim+2 ) = this%number_n_faces_per_dimension( n_face_dim+2 ) + 1
+     n_face_dim = this%polytope%get_n_face_dim(i)
+     this%ptr_n_faces_x_dim( n_face_dim+2 ) = this%ptr_n_faces_x_dim( n_face_dim+2 ) + 1
   end do
-  do i = 1,this%number_dimensions+1
-     this%number_n_faces_per_dimension(i+1) = this%number_n_faces_per_dimension(i+1) + this%number_n_faces_per_dimension(i)
+  do i = 1,this%num_dims+1
+     this%ptr_n_faces_x_dim(i+1) = this%ptr_n_faces_x_dim(i+1) + this%ptr_n_faces_x_dim(i)
   end do
 
   ! interior_dofs_n-face  
   call this%own_dofs_n_face%create( num_n_faces )
   do i = 1,num_n_faces
-     do idime = 1, this%number_dimensions
+     do idime = 1, this%num_dims
         node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
         do while (.not. node_iterator%has_finished() )
            call this%own_dofs_n_face%sum_to_pointer_index(i,1)
@@ -243,7 +243,7 @@ subroutine raviart_thomas_fill_vector (this)
   call this%own_dofs_n_face%allocate_list_from_pointer()
   list_iterator = this%own_dofs_n_face%create_iterator()
   do i = 1,num_n_faces
-     do idime = 1, this%number_dimensions
+     do idime = 1, this%num_dims
         node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
         do while (.not. node_iterator%has_finished() )
            node = node_iterator%current() + offset(idime)
@@ -256,7 +256,7 @@ subroutine raviart_thomas_fill_vector (this)
   ! nodes_n-face
   call this%dofs_n_face%create(num_n_faces)
   do i = 1,num_n_faces
-     do idime = 1,this%number_dimensions
+     do idime = 1,this%num_dims
         node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
         do while (.not. node_iterator%has_finished() )
            call this%dofs_n_face%sum_to_pointer_index(i,1)
@@ -268,7 +268,7 @@ subroutine raviart_thomas_fill_vector (this)
   call this%dofs_n_face%allocate_list_from_pointer()  
   list_iterator = this%dofs_n_face%create_iterator()
   do i = 1,num_n_faces
-     do idime = 1,this%number_dimensions
+     do idime = 1,this%num_dims
         node_iterator = this%node_array_vector(idime)%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
         do while (.not. node_iterator%has_finished() )
            node = node_iterator%current() + offset(idime)
@@ -301,18 +301,17 @@ subroutine raviart_thomas_fill_vector (this)
         call list_iterator%next()
      end do
   end do
-  ! n-faces_n-face (NEW DEFINITION; now only n_faces of inferior dimension
-  call this%n_faces_n_face%create(num_n_faces)
+  call this%facets_n_face%create(num_n_faces)
   do i = 1,num_n_faces
      facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
      do while (.not. facet_iterator%has_finished() )
-        call this%n_faces_n_face%sum_to_pointer_index(i,1)
+        call this%facets_n_face%sum_to_pointer_index(i,1)
         call facet_iterator%next()
      end do
   end do
-  call this%n_faces_n_face%calculate_header()
-  call this%n_faces_n_face%allocate_list_from_pointer()
-  list_iterator = this%n_faces_n_face%create_iterator()
+  call this%facets_n_face%calculate_header()
+  call this%facets_n_face%allocate_list_from_pointer()
+  list_iterator = this%facets_n_face%create_iterator()
   do i = 1,num_n_faces
      facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
      do while (.not. facet_iterator%has_finished() )
@@ -325,15 +324,15 @@ subroutine raviart_thomas_fill_vector (this)
   ! orientation
   call this%orientation%create(num_n_faces)
   do i = 1,num_n_faces
-     if ( n_face_dimension( this%polytope%get_n_face(i), this%number_dimensions ) == this%number_dimensions-1 ) then
-        this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%number_dimensions )
+     if ( compute_n_face_dim( this%polytope%get_n_face(i), this%num_dims ) == this%num_dims-1 ) then
+        this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%num_dims )
      end if
   end do
-  ! own_nodes_n-face and face_integration_coupling_nodes_n-face
+  ! own_nodes_n-face and facet_integration_coupling_nodes_n-face
   if ( this%conformity .and. this%continuity ) then
   else
      call this%own_dofs_n_face%create(n=num_n_faces )
-     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%number_shape_functions)
+     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%num_shape_functions)
      call this%own_dofs_n_face%calculate_header()
      call this%own_dofs_n_face%allocate_list_from_pointer()
      list_iterator = this%own_dofs_n_face%create_iterator()
@@ -349,7 +348,7 @@ end subroutine raviart_thomas_fill_vector
 !==================================================================================================
 ! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine raviart_thomas_create_face_local_interpolation ( this, quadrature, &
+subroutine raviart_thomas_create_facet_interpolation ( this, quadrature, &
      & interpolation)
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this
@@ -359,7 +358,7 @@ subroutine raviart_thomas_create_face_local_interpolation ( this, quadrature, &
   write(*,*) 'Raviart-Thomas FEs cannot be used for geometry mapping'
   check(.false.)
 
-end subroutine raviart_thomas_create_face_local_interpolation
+end subroutine raviart_thomas_create_facet_interpolation
 
 function raviart_thomas_has_nodal_quadrature(this)
   implicit none
@@ -411,7 +410,7 @@ subroutine raviart_thomas_get_value_vector( this, actual_cell_interpolation, &
   integer(ip)                     , intent(in)    :: qpoint
   type(vector_field_t)            , intent(inout) :: vector_field
   assert( this%field_type == field_type_vector )
-  assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
+  assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
   call vector_field%init(actual_cell_interpolation%shape_functions(:,ishape,qpoint))
 end subroutine raviart_thomas_get_value_vector
@@ -428,8 +427,8 @@ subroutine raviart_thomas_get_values_vector( this, actual_cell_interpolation, va
   assert( this%field_type == field_type_vector )
   
   reallocate = .false.
-  if (allocated(values)) reallocate = (size(values,1) < this%number_shape_functions) .or. &
-                                      (size(values,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if (allocated(values)) reallocate = (size(values,1) < this%num_shape_functions) .or. &
+                                      (size(values,2) < actual_cell_interpolation%num_quadrature_points)                                  
   if ((.not. allocated(values)) .or. reallocate) then
      if (allocated(values)) then 
         deallocate(values, stat=istat); 
@@ -437,16 +436,16 @@ subroutine raviart_thomas_get_values_vector( this, actual_cell_interpolation, va
      end if
      ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
      ! (i.e., no need to explicitly initialize)
-     allocate(values(this%number_shape_functions, &
-              actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+     allocate(values(this%num_shape_functions, &
+              actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
-  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+  do qpoint=1, actual_cell_interpolation%num_quadrature_points
      if (present(qpoints_perm)) then
        actual_qpoint = qpoints_perm(qpoint)
      else
        actual_qpoint = qpoint
      end if
-     do ishape=1, this%number_shape_functions
+     do ishape=1, this%num_shape_functions
         call values(ishape,qpoint)%init(actual_cell_interpolation%shape_functions(:,ishape,actual_qpoint))
      end do
   end do  
@@ -490,10 +489,10 @@ subroutine raviart_thomas_get_gradient_vector( this, actual_cell_interpolation, 
   type(tensor_field_t)            , intent(inout) :: tensor_field
   integer(ip) :: i,j 
   assert( this%field_type == field_type_vector )
-  assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
+  assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  do i=1, this%number_dimensions
-    do j=1, this%number_dimensions
+  do i=1, this%num_dims
+    do j=1, this%num_dims
      call tensor_field%set(i,j,actual_cell_interpolation%shape_derivatives(j,i,ishape,qpoint))
     end do
   end do
@@ -512,8 +511,8 @@ subroutine raviart_thomas_get_gradients_vector( this, actual_cell_interpolation,
   assert( this%field_type == field_type_vector )
   
   reallocate = .false.
-  if (allocated(gradients)) reallocate = (size(gradients,1) < this%number_shape_functions) .or. &
-                                          (size(gradients,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if (allocated(gradients)) reallocate = (size(gradients,1) < this%num_shape_functions) .or. &
+                                          (size(gradients,2) < actual_cell_interpolation%num_quadrature_points)                                  
   if ((.not. allocated(gradients)) .or. reallocate) then
      if (allocated(gradients)) then 
         deallocate(gradients, stat=istat); 
@@ -521,18 +520,18 @@ subroutine raviart_thomas_get_gradients_vector( this, actual_cell_interpolation,
      end if
      ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
      ! (i.e., no need to explicitly initialize)
-     allocate(gradients(this%number_shape_functions, &
-                        actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);      
+     allocate(gradients(this%num_shape_functions, &
+                        actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);      
   end if
-  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+  do qpoint=1, actual_cell_interpolation%num_quadrature_points
      if (present(qpoints_perm)) then
        actual_qpoint = qpoints_perm(qpoint)
      else
        actual_qpoint = qpoint
      end if
-     do ishape=1, this%number_shape_functions
-        do i=1, this%number_dimensions
-          do j=1, this%number_dimensions
+     do ishape=1, this%num_shape_functions
+        do i=1, this%num_dims
+          do j=1, this%num_dims
             call gradients(ishape,qpoint)%set(i,j,actual_cell_interpolation%shape_derivatives(j,i,ishape,actual_qpoint))
           end do
         end do
@@ -552,10 +551,10 @@ subroutine raviart_thomas_get_divergence_vector( this, actual_cell_interpolation
   ! Locals 
   integer(ip) :: idime
   assert( this%field_type == field_type_vector )
-  assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
+  assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
   scalar_field = 0.0_rp
-  do idime = 1, this%number_dimensions
+  do idime = 1, this%num_dims
      scalar_field = scalar_field + actual_cell_interpolation%shape_derivatives(idime,idime,ishape,qpoint)
   end do
 end subroutine raviart_thomas_get_divergence_vector
@@ -572,26 +571,26 @@ subroutine raviart_thomas_get_divergences_vector( this, actual_cell_interpolatio
   assert( this%field_type == field_type_vector )
   
   reallocate = .false.
-  if (allocated(divergences)) reallocate = (size(divergences,1) < this%number_shape_functions) .or. &
-                                           (size(divergences,2) < actual_cell_interpolation%number_quadrature_points)
+  if (allocated(divergences)) reallocate = (size(divergences,1) < this%num_shape_functions) .or. &
+                                           (size(divergences,2) < actual_cell_interpolation%num_quadrature_points)
                                           
   if ((.not. allocated(divergences)) .or. reallocate) then
      if (allocated(divergences)) then 
         call memfree(divergences, __FILE__,__LINE__); 
      end if
-     call memalloc(this%number_shape_functions, &
-                   actual_cell_interpolation%number_quadrature_points, &
+     call memalloc(this%num_shape_functions, &
+                   actual_cell_interpolation%num_quadrature_points, &
                    divergences, __FILE__,__LINE__);
   end if
-  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+  do qpoint=1, actual_cell_interpolation%num_quadrature_points
      if (present(qpoints_perm)) then
        actual_qpoint = qpoints_perm(qpoint)
      else
        actual_qpoint = qpoint
      end if
-     do ishape=1, this%number_shape_functions
+     do ishape=1, this%num_shape_functions
         divergences(ishape,qpoint) = 0.0_rp
-        do idime = 1, this%number_dimensions
+        do idime = 1, this%num_dims
            divergences(ishape,qpoint) = divergences(ishape,qpoint) + actual_cell_interpolation%shape_derivatives(idime,idime,ishape,actual_qpoint)
         end do
      end do
@@ -609,15 +608,15 @@ subroutine raviart_thomas_get_curl_vector( this, actual_cell_interpolation, &
   type(vector_field_t)                , intent(inout) :: vector_field
 
   assert( this%field_type == field_type_vector )
-  assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
+  assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )  
   assert( SPACE_DIM == 3 )
   call vector_field%init(0.0_rp)
-  if (this%number_dimensions == 2) then 
+  if (this%num_dims == 2) then 
                              ! d_x u_y - d_y u_x
     call vector_field%set(3, actual_cell_interpolation%shape_derivatives(2,1,ishape,qpoint)- &
                              actual_cell_interpolation%shape_derivatives(1,2,ishape,qpoint) )
-  else if ( this%number_dimensions == 3) then
+  else if ( this%num_dims == 3) then
                              ! d_y u_z - d_z u_y
     call vector_field%set(1, actual_cell_interpolation%shape_derivatives(3,2,ishape,qpoint)- &
                              actual_cell_interpolation%shape_derivatives(2,3,ishape,qpoint) )
@@ -642,8 +641,8 @@ subroutine raviart_thomas_get_curls_vector( this, actual_cell_interpolation, cur
   integer(ip)   :: icomp, ishape_scalar 
   assert( this%field_type == field_type_vector )
   reallocate = .false.
-  if (allocated(curls)) reallocate = (size(curls,1) < this%number_shape_functions) .or. &
-                                      (size(curls,2) < actual_cell_interpolation%number_quadrature_points)                                  
+  if (allocated(curls)) reallocate = (size(curls,1) < this%num_shape_functions) .or. &
+                                      (size(curls,2) < actual_cell_interpolation%num_quadrature_points)                                  
   if ((.not. allocated(curls)) .or. reallocate) then
      if (allocated(curls)) then 
         deallocate(curls, stat=istat); 
@@ -651,22 +650,22 @@ subroutine raviart_thomas_get_curls_vector( this, actual_cell_interpolation, cur
      end if
      ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
      ! (i.e., no need to explicitly initialize)
-     allocate(curls(this%number_shape_functions, &
-                    actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+     allocate(curls(this%num_shape_functions, &
+                    actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
-  do qpoint=1, actual_cell_interpolation%number_quadrature_points
+  do qpoint=1, actual_cell_interpolation%num_quadrature_points
      if (present(qpoints_perm)) then
        actual_qpoint = qpoints_perm(qpoint)
      else
        actual_qpoint = qpoint
      end if
-     do ishape=1, this%number_shape_functions   
+     do ishape=1, this%num_shape_functions   
         call curls(ishape,qpoint)%init(0.0_rp)
-        if (this%number_dimensions == 2) then 
+        if (this%num_dims == 2) then 
            ! d_x u_y - d_y u_x
            call curls(ishape,qpoint)%set(3, actual_cell_interpolation%shape_derivatives(2,1,ishape,actual_qpoint)- &
                 actual_cell_interpolation%shape_derivatives(1,2,ishape,actual_qpoint) )
-        else if ( this%number_dimensions == 3) then
+        else if ( this%num_dims == 3) then
            ! d_y u_z - d_z u_y
            call curls(ishape,qpoint)%set(1, actual_cell_interpolation%shape_derivatives(3,2,ishape,actual_qpoint)- &
                 actual_cell_interpolation%shape_derivatives(2,3,ishape,actual_qpoint) )
@@ -712,18 +711,18 @@ subroutine raviart_thomas_evaluate_fe_function_vector( this,                    
   integer(ip) :: qpoint, inode, icomp, inode_scalar, istat
 
   if ( allocated(quadrature_points_values) ) then
-    if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
       deallocate(quadrature_points_values, stat=istat); check(istat==0);
-      allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
     end if
   else
-    allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+    allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
   
   
-  do qpoint = 1, actual_cell_interpolation%number_quadrature_points
+  do qpoint = 1, actual_cell_interpolation%num_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
-     do inode = 1, this%number_shape_functions
+     do inode = 1, this%num_shape_functions
         call quadrature_points_values(qpoint)%add( & 
              actual_cell_interpolation%shape_functions(:,inode,qpoint)*nodal_values(inode) )
      end do
@@ -777,10 +776,10 @@ end subroutine raviart_thomas_create_data_out_quadrature
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
+subroutine raviart_thomas_apply_cell_map_to_interpolation(this,map,ref,phy)
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
-  type(fe_map_t)                  , intent(in)    :: map
+  type(cell_map_t)                  , intent(in)    :: map
   type(interpolation_t)           , intent(in)    :: ref
   type(interpolation_t)           , intent(inout) :: phy
   real(rp), allocatable :: wmat1(:,:,:)
@@ -788,19 +787,19 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   integer(ip) :: ndime,nnode,nlocs,ntens
   integer(ip) :: ilocs,inode,idime,jdime,kdime,ldime
 
-  ndime = ref%number_dimensions
-  ntens = ref%number_entries_symmetric_tensor
-  nlocs = ref%number_quadrature_points
-  !nnode = ref%number_shape_functions
+  ndime = ref%num_dims
+  ntens = ref%num_entries_symmetric_tensor
+  nlocs = ref%num_quadrature_points
+  !nnode = ref%num_shape_functions
   nnode = size(ref%shape_functions,2)
   
   ! Piola map for shape functions
   ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J \phi(X_g)
   phy%shape_functions=0.0_rp
-  do ilocs=1,phy%number_quadrature_points
-     do inode=1,this%number_shape_functions
-        do idime=1,this%number_dimensions
-           do jdime=1,this%number_dimensions
+  do ilocs=1,phy%num_quadrature_points
+     do inode=1,this%num_shape_functions
+        do idime=1,this%num_dims
+           do jdime=1,this%num_dims
                phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
                     + map%jacobian(idime,jdime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
            end do
@@ -812,12 +811,12 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   ! Piola map for shape derivatives
   ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J grad(phi(X_g)) J^{-1}
   phy%shape_derivatives=0.0_rp
-  do ilocs=1,phy%number_quadrature_points
-     do inode=1,this%number_shape_functions
-        do idime=1,this%number_dimensions
-           do jdime=1,this%number_dimensions
-              do kdime=1,this%number_dimensions
-                 do ldime=1,this%number_dimensions
+  do ilocs=1,phy%num_quadrature_points
+     do inode=1,this%num_shape_functions
+        do idime=1,this%num_dims
+           do jdime=1,this%num_dims
+              do kdime=1,this%num_dims
+                 do ldime=1,this%num_dims
                     phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
                        + map%jacobian(idime,kdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(jdime,ldime,ilocs)
                  end do
@@ -830,11 +829,11 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   
   !! @sbadia: put Piola here
   !phy%shape_derivatives=0.0_rp
-  !do ilocs=1,phy%number_quadrature_points
-  !   do inode=1,this%number_shape_functions
-  !      do idime=1,this%number_dimensions
-  !         do jdime=1,this%number_dimensions
-  !           do kdime=1,this%number_dimensions
+  !do ilocs=1,phy%num_quadrature_points
+  !   do inode=1,this%num_shape_functions
+  !      do idime=1,this%num_dims
+  !         do jdime=1,this%num_dims
+  !           do kdime=1,this%num_dims
   !             phy%shape_derivatives(idime,jdime,inode,ilocs) = phy%shape_derivatives(idime,jdime,inode,ilocs) &
   !                  + map%inv_jacobian(kdime,jdime,ilocs)*ref%shape_derivatives(idime,kdime,inode,ilocs)
   !           end do
@@ -842,7 +841,7 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   !      end do
   !   end do
   !end do
-end subroutine raviart_thomas_apply_femap_to_interpolation
+end subroutine raviart_thomas_apply_cell_map_to_interpolation
 
 subroutine raviart_thomas_invert_change_basis_matrix(this)
   implicit none
@@ -853,40 +852,40 @@ subroutine raviart_thomas_invert_change_basis_matrix(this)
   integer(ip) :: i
   
   assert ( allocated(this%change_basis_matrix) )
-  assert ( size(this%change_basis_matrix,1) == this%number_shape_functions )
-  assert ( size(this%change_basis_matrix,2) == this%number_shape_functions )
+  assert ( size(this%change_basis_matrix,1) == this%num_shape_functions )
+  assert ( size(this%change_basis_matrix,2) == this%num_shape_functions )
   
   ! Solve linear system with several RHS
   ! Compute LU factorization of this%change_basis_matrix
 #ifdef ENABLE_LAPACK
-  call memalloc ( this%number_shape_functions, ipiv, __FILE__,__LINE__ )
+  call memalloc ( this%num_shape_functions, ipiv, __FILE__,__LINE__ )
    
-  call memalloc ( this%number_shape_functions, & 
-                  this%number_shape_functions, &
+  call memalloc ( this%num_shape_functions, & 
+                  this%num_shape_functions, &
                   inverse_change_basis_matrix, &
                    __FILE__,__LINE__ )
 
-  call DGETRF( this%number_shape_functions, & 
-               this%number_shape_functions, &
+  call DGETRF( this%num_shape_functions, & 
+               this%num_shape_functions, &
                this%change_basis_matrix, &
-               this%number_shape_functions, &
+               this%num_shape_functions, &
                ipiv, &
                error )
   check ( error == 0 )
   
   inverse_change_basis_matrix = 0.0_rp
-  do i=1, this%number_shape_functions
+  do i=1, this%num_shape_functions
     inverse_change_basis_matrix(i,i) = 1.0_rp
   end do  
  
   call DGETRS( 'N', & 
-               this%number_shape_functions, &
-               this%number_shape_functions, &
+               this%num_shape_functions, &
+               this%num_shape_functions, &
                this%change_basis_matrix, &
-               this%number_shape_functions, &
+               this%num_shape_functions, &
                ipiv, &
                inverse_change_basis_matrix, &
-               this%number_shape_functions, &
+               this%num_shape_functions, &
                error )
   check ( error == 0 )
   
@@ -913,17 +912,17 @@ subroutine rt_apply_change_basis_matrix_to_nodal_values ( this, nodal_values_rt,
   real(rp)                            , intent(out)   :: nodal_values_pre_basis(:)
 
   assert ( size(nodal_values_rt) == size(nodal_values_pre_basis) )
-  assert ( size(nodal_values_rt) == this%number_shape_functions )
+  assert ( size(nodal_values_rt) == this%num_shape_functions )
   
   nodal_values_pre_basis = 0.0_rp
   
 #ifdef ENABLE_BLAS
   call DGEMV( 'N', & 
-              this%number_shape_functions, &
-              this%number_shape_functions, &
+              this%num_shape_functions, &
+              this%num_shape_functions, &
               1.0_rp, &
               this%change_basis_matrix, &
-              this%number_shape_functions, &
+              this%num_shape_functions, &
               nodal_values_rt, &
               1, &
               0.0_rp, & 
@@ -951,10 +950,10 @@ subroutine rt_apply_change_basis_matrix_to_interpolation(this, interpolation_pre
   interpolation%shape_derivatives = 0.0_rp
   
   ! Compute shape functions
-  do qpoint = 1, interpolation%number_quadrature_points
-     do i=1, this%number_shape_functions
-        do j=1, this%number_shape_functions
-           do idime=1, this%number_dimensions
+  do qpoint = 1, interpolation%num_quadrature_points
+     do i=1, this%num_shape_functions
+        do j=1, this%num_shape_functions
+           do idime=1, this%num_dims
               interpolation%shape_functions(idime, i, qpoint) = interpolation%shape_functions(idime, i, qpoint) + &
                    this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
            end do
@@ -963,11 +962,11 @@ subroutine rt_apply_change_basis_matrix_to_interpolation(this, interpolation_pre
   end do
   
   ! Compute shape derivatives
-  do qpoint = 1, interpolation%number_quadrature_points
-     do i=1, this%number_shape_functions
-        do j=1, this%number_shape_functions
-           do idime=1, this%number_dimensions
-              do jdime=1, this%number_dimensions
+  do qpoint = 1, interpolation%num_quadrature_points
+     do i=1, this%num_shape_functions
+        do j=1, this%num_shape_functions
+           do idime=1, this%num_dims
+              do jdime=1, this%num_dims
                  interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
                       this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
               end do

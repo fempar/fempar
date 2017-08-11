@@ -44,7 +44,7 @@ module vector_names
      procedure (nrm2_interface), deferred     :: nrm2
      procedure (clone_interface), deferred    :: clone
      procedure (same_vector_space_interface), deferred :: same_vector_space
-     procedure (get_number_blocks_interface), deferred :: get_number_blocks
+     procedure (get_num_blocks_interface), deferred :: get_num_blocks
      procedure (vector_extract_subvector_interface), deferred :: extract_subvector 
      procedure (vector_insert_subvector_interface) , deferred :: insert_subvector 
      
@@ -136,12 +136,12 @@ module vector_names
        logical :: same_vector_space_interface
      end function
 					! Provide the number of blocks of the vector
-     function get_number_blocks_interface(this) result (res)
+     function get_num_blocks_interface(this) result (res)
        import :: vector_t, ip
        implicit none 
        class(vector_t), intent(in)   :: this
        integer(ip) :: res
-     end function get_number_blocks_interface
+     end function get_num_blocks_interface
      ! Extract subvector from a subset of indices of a vector
      subroutine vector_extract_subvector_interface( this, &
                                                   & iblock, &

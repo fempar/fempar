@@ -55,42 +55,42 @@ subroutine fe_object_iterator_get_fe_vef (this, ivef, fe_vef)
   call this%object%get_vef(ivef, fe_vef%vef)
 end subroutine fe_object_iterator_get_fe_vef
 
-subroutine fe_object_iterator_get_fe_face(this, face_lid, fe_face)
+subroutine fe_object_iterator_get_fe_face(this, facet_gid, fe_face)
   implicit none
   class(fe_object_iterator_t), intent(in)    :: this
-  integer(ip)                , intent(in)    :: face_lid
-  class(fe_face_iterator_t)  , intent(inout) :: fe_face
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  call fe_face%set_lid(face_lid)
+  integer(ip)                , intent(in)    :: facet_gid
+  class(fe_facet_iterator_t)  , intent(inout) :: fe_face
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  call fe_face%set_gid(facet_gid)
 end subroutine fe_object_iterator_get_fe_face
 
-function fe_object_iterator_get_num_faces(this)
+function fe_object_iterator_get_num_facets(this)
   implicit none
   class(fe_object_iterator_t), intent(in) :: this
-  integer(ip) :: fe_object_iterator_get_num_faces
-  assert ( this%get_lid() >= 1 .and. .not. this%has_finished() )
-  fe_object_iterator_get_num_faces = this%fe_space%faces_object%get_sublist_size(this%get_lid())
-end function fe_object_iterator_get_num_faces
+  integer(ip) :: fe_object_iterator_get_num_facets
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  fe_object_iterator_get_num_facets = this%fe_space%faces_object%get_sublist_size(this%get_gid())
+end function fe_object_iterator_get_num_facets
 
-function fe_object_iterator_get_number_coarse_dofs(this, field_id)
+function fe_object_iterator_get_num_coarse_dofs(this, field_id)
   implicit none
   class(fe_object_iterator_t), intent(in) :: this
   integer(ip)                , intent(in) :: field_id
-  integer(ip) :: fe_object_iterator_get_number_coarse_dofs
-  fe_object_iterator_get_number_coarse_dofs = this%fe_space%own_coarse_dofs_per_field(field_id)%get_sublist_size(this%get_lid())
-end function fe_object_iterator_get_number_coarse_dofs
+  integer(ip) :: fe_object_iterator_get_num_coarse_dofs
+  fe_object_iterator_get_num_coarse_dofs = this%fe_space%own_coarse_dofs_x_field(field_id)%get_sublist_size(this%get_gid())
+end function fe_object_iterator_get_num_coarse_dofs
 
 function fe_object_iterator_create_own_coarse_dofs_iterator(this, field_id) 
   implicit none
   class(fe_object_iterator_t), intent(in) :: this
   integer(ip)                , intent(in) :: field_id
   type(list_iterator_t) :: fe_object_iterator_create_own_coarse_dofs_iterator
-  fe_object_iterator_create_own_coarse_dofs_iterator = this%fe_space%own_coarse_dofs_per_field(field_id)%create_iterator(this%get_lid())
+  fe_object_iterator_create_own_coarse_dofs_iterator = this%fe_space%own_coarse_dofs_x_field(field_id)%create_iterator(this%get_gid())
 end function fe_object_iterator_create_own_coarse_dofs_iterator
 
 function fe_object_iterator_create_faces_object_iterator(this) 
   implicit none
   class(fe_object_iterator_t), intent(in) :: this
   type(list_iterator_t) :: fe_object_iterator_create_faces_object_iterator
-  fe_object_iterator_create_faces_object_iterator = this%fe_space%faces_object%create_iterator(this%get_lid())
+  fe_object_iterator_create_faces_object_iterator = this%fe_space%faces_object%create_iterator(this%get_gid())
 end function fe_object_iterator_create_faces_object_iterator

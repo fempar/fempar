@@ -51,13 +51,13 @@ subroutine evaluate_monomials(points,monomials,degree)
   integer(ip) :: imo, px, py, pz
 
   assert(allocated(monomials))
-  assert(size(monomials,1)==points%get_number_quadrature_points())
+  assert(size(monomials,1)==points%get_num_quadrature_points())
 
   quad_coords => points%get_coordinates()
-  select case(points%get_number_dimensions())
+  select case(points%get_num_dims())
     case(1)
       assert(size(monomials,2)==(degree+1))
-      do q_point = 1, points%get_number_quadrature_points()
+      do q_point = 1, points%get_num_quadrature_points()
         imo = 1
         do px = 0, degree
           monomials(q_point,imo) = quad_coords(1,q_point)**px
@@ -66,7 +66,7 @@ subroutine evaluate_monomials(points,monomials,degree)
       end do
     case(2)
       assert( size(monomials,2)== ((degree+1)**2) )
-      do q_point = 1, points%get_number_quadrature_points()
+      do q_point = 1, points%get_num_quadrature_points()
         imo = 1
         do px = 0, degree
           do py = 0, degree
@@ -78,7 +78,7 @@ subroutine evaluate_monomials(points,monomials,degree)
       end do
     case(3)
       assert(size(monomials,2)==((degree+1)**3))
-      do q_point = 1, points%get_number_quadrature_points()
+      do q_point = 1, points%get_num_quadrature_points()
         imo = 1
         do px = 0, degree
           do py = 0, degree

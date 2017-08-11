@@ -61,16 +61,16 @@ module unfitted_triangulations_names
     procedure :: get_mc_case   => unfitted_cell_iterator_get_mc_case
     
     ! Getters related with the subcells
-    procedure :: get_number_of_subcells      => unfitted_cell_iterator_get_number_of_subcells
-    procedure :: get_number_of_subcell_nodes => unfitted_cell_iterator_get_number_of_subcell_nodes
+    procedure :: get_num_subcells      => unfitted_cell_iterator_get_num_subcells
+    procedure :: get_num_subcell_nodes => unfitted_cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => unfitted_cell_iterator_get_phys_coords_of_subcell
     procedure :: get_ref_coords_of_subcell   => unfitted_cell_iterator_get_ref_coords_of_subcell
     
-    ! Getters related with the subfaces
-    procedure :: get_number_of_subfaces      => unfitted_cell_iterator_get_number_of_subfaces
-    procedure :: get_number_of_subface_nodes => unfitted_cell_iterator_get_number_of_subface_nodes
-    procedure :: get_phys_coords_of_subface  => unfitted_cell_iterator_get_phys_coords_of_subface
-    procedure :: get_ref_coords_of_subface   => unfitted_cell_iterator_get_ref_coords_of_subface
+    ! Getters related with the subfacets
+    procedure :: get_num_subfacets      => unfitted_cell_iterator_get_num_subfacets
+    procedure :: get_num_subfacet_nodes => unfitted_cell_iterator_get_num_subfacet_nodes
+    procedure :: get_phys_coords_of_subfacet  => unfitted_cell_iterator_get_phys_coords_of_subfacet
+    procedure :: get_ref_coords_of_subfacet   => unfitted_cell_iterator_get_ref_coords_of_subfacet
     
     ! Checkers
     procedure :: is_cut      => unfitted_cell_iterator_is_cut
@@ -80,9 +80,9 @@ module unfitted_triangulations_names
     procedure :: is_exterior_subcell => unfitted_cell_iterator_is_exterior_subcell
 
     ! Private TBPs
-    procedure, non_overridable, private :: get_number_of_subnodes         => unfitted_cell_iterator_get_number_of_subnodes
+    procedure, non_overridable, private :: get_num_subnodes         => unfitted_cell_iterator_get_num_subnodes
     procedure, non_overridable, private :: subcell_has_been_reoriented    => unfitted_cell_iterator_subcell_has_been_reoriented
-    procedure, non_overridable, private :: subface_touches_interior_reoriented_subcell => unfitted_cell_iterator_subface_touches_reoriented_subcell
+    procedure, non_overridable, private :: subfacet_touches_interior_reoriented_subcell => unfitted_cell_iterator_subfacet_touches_reoriented_subcell
 
     
   end type unfitted_cell_iterator_t
@@ -98,7 +98,7 @@ module unfitted_triangulations_names
   ! We need this to create a fe space in marching_cubes_t to hold a discrete levelset function
   type, extends(conditions_t) :: mc_dummy_conditions_t
     contains
-      procedure :: get_number_components  => mc_dummy_conditions_get_number_components
+      procedure :: get_num_components  => mc_dummy_conditions_get_num_components
       procedure :: get_components_code    => mc_dummy_conditions_get_components_code
       procedure :: get_function           => mc_dummy_conditions_get_function
   end type mc_dummy_conditions_t
@@ -127,20 +127,20 @@ module unfitted_triangulations_names
     ! Look up-tables (precomputed off-line, for each cell type)
     integer(ip)                :: mc_table_num_cases
     integer(ip)                :: mc_table_max_num_subcells
-    integer(ip)                :: mc_table_max_num_subfaces
+    integer(ip)                :: mc_table_max_num_subfacets
     integer(ip)                :: mc_table_max_num_cut_edges
     integer(ip)                :: mc_table_num_nodes_subcell
-    integer(ip)                :: mc_table_num_nodes_subface
-    integer(ip),   allocatable :: mc_table_num_subcells_per_case(:)
-    integer(ip),   allocatable :: mc_table_num_subfaces_per_case(:)
-    integer(ip),   allocatable :: mc_table_num_cut_edges_per_case(:)
-    integer(ip),   allocatable :: mc_table_inout_subcells_per_case(:,:)
-    integer(ip),   allocatable :: mc_table_subcell_node_ids_per_case(:,:,:)
-    integer(ip),   allocatable :: mc_table_subface_node_ids_per_case(:,:,:)
+    integer(ip)                :: mc_table_num_nodes_subfacet
+    integer(ip),   allocatable :: mc_table_num_subcells_x_case(:)
+    integer(ip),   allocatable :: mc_table_num_subfacets_x_case(:)
+    integer(ip),   allocatable :: mc_table_num_cut_edges_x_case(:)
+    integer(ip),   allocatable :: mc_table_inout_subcells_x_case(:,:)
+    integer(ip),   allocatable :: mc_table_subcell_node_ids_x_case(:,:,:)
+    integer(ip),   allocatable :: mc_table_subfacet_node_ids_x_case(:,:,:)
     logical :: mc_tables_init = .false.
 
     ! Info related to cut cells on this triangulation (this is computed at runtime)
-    integer(ip),   allocatable :: mc_case_per_cell(:)
+    integer(ip),   allocatable :: mc_case_x_cell(:)
     integer(ip),   allocatable :: mc_ptr_to_intersections(:)
     type(point_t), allocatable :: mc_intersection_points(:)
     logical :: mc_runtime_init = .false.
@@ -149,13 +149,13 @@ module unfitted_triangulations_names
     ! When located on a cell, and the sub-triangulation is updated,
     ! these memeber variables contain info about the current sub-tessalation
     integer(ip),        allocatable :: subcells_nodal_connectivities(:,:)
-    integer(ip),        allocatable :: subfaces_nodal_connectivities(:,:)
+    integer(ip),        allocatable :: subfacets_nodal_connectivities(:,:)
     type(point_t),      allocatable :: subnodes_ref_coords(:)
     logical,            allocatable :: subcell_has_been_reoriented(:)
     
     ! Auxiliary work data
     type(quadrature_t), allocatable :: subnodes_nodal_quadratures(:)
-    type(fe_map_t),     allocatable :: subnodes_fe_maps(:)
+    type(cell_map_t),     allocatable :: subnodes_cell_maps(:)
 
   contains
 
@@ -169,17 +169,17 @@ module unfitted_triangulations_names
     procedure, non_overridable :: get_num_exterior_cells        => marching_cubes_get_num_exterior_cells
     procedure, non_overridable :: get_max_num_subcells_in_cell  => marching_cubes_get_max_num_subcells_in_cell
     procedure, non_overridable :: get_max_num_nodes_in_subcell  => marching_cubes_get_max_num_nodes_in_subcell
-    procedure, non_overridable :: get_total_num_of_subcells     => marching_cubes_get_total_num_of_subcells
-    procedure, non_overridable :: get_max_num_subfaces_in_cell  => marching_cubes_get_max_num_subfaces_in_cell
-    procedure, non_overridable :: get_max_num_nodes_in_subface  => marching_cubes_get_max_num_nodes_in_subface
-    procedure, non_overridable :: get_total_num_of_subfaces     => marching_cubes_get_total_num_of_subfaces
+    procedure, non_overridable :: get_total_num_subcells     => marching_cubes_get_total_num_subcells
+    procedure, non_overridable :: get_max_num_subfacets_in_cell  => marching_cubes_get_max_num_subfacets_in_cell
+    procedure, non_overridable :: get_max_num_nodes_in_subfacet  => marching_cubes_get_max_num_nodes_in_subfacet
+    procedure, non_overridable :: get_total_num_subfacets     => marching_cubes_get_total_num_subfacets
     procedure, non_overridable :: get_max_num_subnodes_in_cell  => marching_cubes_get_max_num_subnodes_in_cell
-    procedure, non_overridable :: get_num_dimensions            => marching_cubes_get_num_dimensions
+    procedure, non_overridable :: get_num_dims            => marching_cubes_get_num_dims
     
     ! Getters related with the mc algorithm
     procedure, non_overridable :: get_num_mc_cases              => marching_cubes_get_num_mc_cases
     procedure, non_overridable :: get_num_subcells_mc_case      => marching_cubes_get_num_subcells_mc_case
-    procedure, non_overridable :: get_num_subfaces_mc_case      => marching_cubes_get_num_subfaces_mc_case
+    procedure, non_overridable :: get_num_subfacets_mc_case      => marching_cubes_get_num_subfacets_mc_case
     
     ! Printers
     procedure :: print                     => marching_cubes_print
@@ -221,10 +221,10 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_num_exterior_cells        => sut_get_num_exterior_cells
       procedure, non_overridable :: get_max_num_subcells_in_cell  => sut_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => sut_get_max_num_nodes_in_subcell
-      procedure, non_overridable :: get_total_num_of_subcells     => sut_get_total_num_of_subcells
-      procedure, non_overridable :: get_max_num_subfaces_in_cell  => sut_get_max_num_subfaces_in_cell
-      procedure, non_overridable :: get_max_num_nodes_in_subface  => sut_get_max_num_nodes_in_subface
-      procedure, non_overridable :: get_total_num_of_subfaces     => sut_get_total_num_of_subfaces
+      procedure, non_overridable :: get_total_num_subcells     => sut_get_total_num_subcells
+      procedure, non_overridable :: get_max_num_subfacets_in_cell  => sut_get_max_num_subfacets_in_cell
+      procedure, non_overridable :: get_max_num_nodes_in_subfacet  => sut_get_max_num_nodes_in_subfacet
+      procedure, non_overridable :: get_total_num_subfacets     => sut_get_total_num_subfacets
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => sut_get_max_num_subnodes_in_cell
 
       ! TODO this getters should be removed in the future
@@ -232,7 +232,7 @@ module unfitted_triangulations_names
       ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
       procedure, non_overridable :: get_num_mc_cases              => sut_get_num_mc_cases
       procedure, non_overridable :: get_num_subcells_mc_case      => sut_get_num_subcells_mc_case
-      procedure, non_overridable :: get_num_subfaces_mc_case      => sut_get_num_subfaces_mc_case
+      procedure, non_overridable :: get_num_subfacets_mc_case      => sut_get_num_subfacets_mc_case
 
       ! Printers
       procedure :: print                     => sut_print
@@ -260,10 +260,10 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_num_exterior_cells        => put_get_num_exterior_cells
       procedure, non_overridable :: get_max_num_subcells_in_cell  => put_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => put_get_max_num_nodes_in_subcell
-      procedure, non_overridable :: get_total_num_of_subcells     => put_get_total_num_of_subcells
-      procedure, non_overridable :: get_max_num_subfaces_in_cell  => put_get_max_num_subfaces_in_cell
-      procedure, non_overridable :: get_max_num_nodes_in_subface  => put_get_max_num_nodes_in_subface
-      procedure, non_overridable :: get_total_num_of_subfaces     => put_get_total_num_of_subfaces
+      procedure, non_overridable :: get_total_num_subcells     => put_get_total_num_subcells
+      procedure, non_overridable :: get_max_num_subfacets_in_cell  => put_get_max_num_subfacets_in_cell
+      procedure, non_overridable :: get_max_num_nodes_in_subfacet  => put_get_max_num_nodes_in_subfacet
+      procedure, non_overridable :: get_total_num_subfacets     => put_get_total_num_subfacets
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => put_get_max_num_subnodes_in_cell
 
       ! TODO this getters should be removed in the future
@@ -271,7 +271,7 @@ module unfitted_triangulations_names
       ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
       procedure, non_overridable :: get_num_mc_cases              => put_get_num_mc_cases
       procedure, non_overridable :: get_num_subcells_mc_case      => put_get_num_subcells_mc_case
-      procedure, non_overridable :: get_num_subfaces_mc_case      => put_get_num_subfaces_mc_case
+      procedure, non_overridable :: get_num_subfacets_mc_case      => put_get_num_subfacets_mc_case
 
       ! Printers
       procedure :: print                     => put_print

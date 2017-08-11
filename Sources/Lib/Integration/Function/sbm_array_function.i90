@@ -25,18 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine array_set_number_components( this, number_components )
+subroutine array_set_num_components( this, num_components )
   class(array_function_t), intent(inout) :: this
-  integer(ip), intent(in)          :: number_components
-  this%number_components = number_components
-end subroutine array_set_number_components
+  integer(ip), intent(in)          :: num_components
+  this%num_components = num_components
+end subroutine array_set_num_components
 
-function array_function_get_number_components( this )
+function array_function_get_num_components( this )
   class(array_function_t), intent(in) :: this
-  integer(ip) :: array_function_get_number_components
-  assert ( this%number_components >= 1  )
-  array_function_get_number_components = this%number_components
-end function array_function_get_number_components
+  integer(ip) :: array_function_get_num_components
+  assert ( this%num_components >= 1  )
+  array_function_get_num_components = this%num_components
+end function array_function_get_num_components
 
 subroutine array_function_get_component_value_space( this, point, component, result )
   class(array_function_t), intent(in) :: this
@@ -90,7 +90,7 @@ subroutine array_function_get_value_space( this, result, point )
   type(point_t), intent(in)          :: point
   real(rp), intent(inout)             :: result(:)
   integer(ip) :: i
-  do i = 1, this%number_components
+  do i = 1, this%num_components
      call this%get_component_value_space( point, i, result(i) )
   end do
 end subroutine array_function_get_value_space
@@ -101,7 +101,7 @@ subroutine array_function_get_value_space_time( this, point, time, result )
   real(rp), intent(in)                :: time
   real(rp), intent(inout)             :: result(:)
   integer(ip) :: i
-  do i = 1, this%number_components
+  do i = 1, this%num_components
      call this%get_component_value_space_time( point, time, i, result(i) )
   end do
 end subroutine array_function_get_value_space_time
@@ -111,7 +111,7 @@ subroutine array_function_get_values_set_space( this, point, result )
   type(point_t), intent(in)          :: point(:)
   real(rp), intent(inout)             :: result(:,:)
   integer(ip) :: i
-  do i = 1, this%number_components
+  do i = 1, this%num_components
      call this%get_component_values_set_space( point, i, result(i,:) )
   end do
 end subroutine array_function_get_values_set_space
@@ -122,7 +122,7 @@ subroutine array_function_get_values_set_space_time( this, point, time, result )
   real(rp), intent(in)                :: time(:)
   real(rp), intent(inout)             :: result(:,:,:)
   integer(ip) :: i
-  do i = 1, this%number_components
+  do i = 1, this%num_components
      call this%get_component_values_set_space_time( point, time, i, result(i,:,:) )
   end do
 end subroutine array_function_get_values_set_space_time

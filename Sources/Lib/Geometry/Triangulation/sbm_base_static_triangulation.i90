@@ -52,12 +52,12 @@ function bst_get_coarse_triangulation ( this )
   bst_get_coarse_triangulation => this%coarse_triangulation
 end function bst_get_coarse_triangulation  
 
-function bst_get_num_dimensions(this)
+function bst_get_num_dims(this)
   implicit none
   class(base_static_triangulation_t), intent(in) :: this
-  integer(ip) :: bst_get_num_dimensions
-  bst_get_num_dimensions = this%num_dimensions
-end function bst_get_num_dimensions
+  integer(ip) :: bst_get_num_dims
+  bst_get_num_dims = this%num_dims
+end function bst_get_num_dims
 
 function bst_get_num_vefs(this)
   implicit none
@@ -66,12 +66,12 @@ function bst_get_num_vefs(this)
   bst_get_num_vefs = this%num_vefs
 end function bst_get_num_vefs
 
-function bst_get_num_faces(this)
+function bst_get_num_facets(this)
   implicit none
   class(base_static_triangulation_t), intent(in) :: this
-  integer(ip) :: bst_get_num_faces
-  bst_get_num_faces = this%num_faces
-end function bst_get_num_faces
+  integer(ip) :: bst_get_num_facets
+  bst_get_num_facets = this%num_faces
+end function bst_get_num_facets
 
 function bst_get_num_cells(this)
   implicit none
@@ -94,59 +94,59 @@ function bst_get_num_ghost_cells(this)
   bst_get_num_ghost_cells = this%num_ghost_cells
 end function bst_get_num_ghost_cells
 
-function bst_get_number_objects(this)
+function bst_get_num_objects(this)
     implicit none
     class(base_static_triangulation_t), intent(in) :: this
-    integer(ip)                                        :: bst_get_number_objects
-    bst_get_number_objects = this%number_objects
-  end function bst_get_number_objects
+    integer(ip)                                        :: bst_get_num_objects
+    bst_get_num_objects = this%num_objects
+  end function bst_get_num_objects
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Private methods for creating cell-related data
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine bst_allocate_and_fill_ptr_vefs_per_cell (this, ptr_vefs_per_cell)
+subroutine bst_allocate_and_fill_ptr_vefs_x_cell (this, ptr_vefs_x_cell)
     implicit none
     class(base_static_triangulation_t), intent(inout) :: this
-    integer(ip)                  , intent(in)    :: ptr_vefs_per_cell(this%num_local_cells+1)
+    integer(ip)                  , intent(in)    :: ptr_vefs_x_cell(this%num_local_cells+1)
     integer(ip) :: icell
     
     assert ( associated ( this%p_env ) )
     assert ( this%p_env%am_i_l1_task() )
     
     call memalloc ( this%num_local_cells+this%num_ghost_cells+1, &
-                    this%ptr_vefs_per_cell, &
+                    this%ptr_vefs_x_cell, &
                     __FILE__, __LINE__ )
     
-    this%ptr_vefs_per_cell = 0
+    this%ptr_vefs_x_cell = 0
     do icell = 1, this%num_local_cells
-      this%ptr_vefs_per_cell(icell+1) = ptr_vefs_per_cell(icell+1) - ptr_vefs_per_cell(icell)
+      this%ptr_vefs_x_cell(icell+1) = ptr_vefs_x_cell(icell+1) - ptr_vefs_x_cell(icell)
     end do
    
-    ! write(*,*) this%element_import%get_number_neighbours()
+    ! write(*,*) this%element_import%get_num_neighbours()
     ! write(*,*) this%element_import%get_neighbours_ids()
     ! write(*,*) this%element_import%get_rcv_ptrs()
     ! write(*,*) this%element_import%get_rcv_leids()
-    ! write(*,*) this%element_import%get_number_neighbours()
+    ! write(*,*) this%element_import%get_num_neighbours()
     ! write(*,*) this%element_import%get_neighbours_ids()
     ! write(*,*) this%element_import%get_snd_ptrs()
     ! write(*,*) this%element_import%get_snd_leids()
 
-    call this%p_env%l1_neighbours_exchange ( this%cell_import%get_number_neighbours(), &
+    call this%p_env%l1_neighbours_exchange ( this%cell_import%get_num_neighbours(), &
                                              this%cell_import%get_neighbours_ids(),&
                                              this%cell_import%get_rcv_ptrs(),&
                                              this%cell_import%get_rcv_leids(),&
-                                             this%cell_import%get_number_neighbours(), &
+                                             this%cell_import%get_num_neighbours(), &
                                              this%cell_import%get_neighbours_ids(),&
                                              this%cell_import%get_snd_ptrs(),&
                                              this%cell_import%get_snd_leids(),&
-                                             this%ptr_vefs_per_cell(2:) )
-    this%ptr_vefs_per_cell(1) = 1
+                                             this%ptr_vefs_x_cell(2:) )
+    this%ptr_vefs_x_cell(1) = 1
     do icell = 1, this%num_local_cells+this%num_ghost_cells
-      this%ptr_vefs_per_cell(icell+1) = this%ptr_vefs_per_cell(icell+1) + this%ptr_vefs_per_cell(icell)
+      this%ptr_vefs_x_cell(icell+1) = this%ptr_vefs_x_cell(icell+1) + this%ptr_vefs_x_cell(icell)
     end do
-  end subroutine bst_allocate_and_fill_ptr_vefs_per_cell
+  end subroutine bst_allocate_and_fill_ptr_vefs_x_cell
   
 subroutine bst_allocate_cells_gid (this)
   implicit none
@@ -210,28 +210,28 @@ subroutine bst_fill_cells_set (this, cells_set)
   assert ( size(cells_set) == this%num_local_cells )
   this%cells_set(1:this%num_local_cells) = cells_set
   if(this%p_env%get_l1_size()>1) &
-    call this%p_env%l1_neighbours_exchange ( this%cell_import%get_number_neighbours(), &
+    call this%p_env%l1_neighbours_exchange ( this%cell_import%get_num_neighbours(), &
                                              this%cell_import%get_neighbours_ids(),    &
                                              this%cell_import%get_rcv_ptrs(),          &
                                              this%cell_import%get_rcv_leids(),         &
-                                             this%cell_import%get_number_neighbours(), &
+                                             this%cell_import%get_num_neighbours(), &
                                              this%cell_import%get_neighbours_ids(),    &
                                              this%cell_import%get_snd_ptrs(),          &
                                              this%cell_import%get_snd_leids(),         &
                                              this%cells_set )
 end subroutine bst_fill_cells_set
 
-subroutine bst_free_ptr_vefs_per_cell (this)
+subroutine bst_free_ptr_vefs_x_cell (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
-  if (allocated (this%ptr_vefs_per_cell)) call memfree ( this%ptr_vefs_per_cell, __FILE__, __LINE__ )
-end subroutine bst_free_ptr_vefs_per_cell
+  if (allocated (this%ptr_vefs_x_cell)) call memfree ( this%ptr_vefs_x_cell, __FILE__, __LINE__ )
+end subroutine bst_free_ptr_vefs_x_cell
 
-subroutine bst_free_lst_vefs_lids ( this )
+subroutine bst_free_lst_vefs_gids ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
-  if ( allocated(this%lst_vefs_lids) ) call memfree( this%lst_vefs_lids, __FILE__, __LINE__ )
-end subroutine bst_free_lst_vefs_lids
+  if ( allocated(this%lst_vefs_gids) ) call memfree( this%lst_vefs_gids, __FILE__, __LINE__ )
+end subroutine bst_free_lst_vefs_gids
 
 subroutine bst_free_cells_gid (this)
   implicit none
@@ -259,20 +259,20 @@ subroutine bst_orient_tet_mesh(this,lst_vefs_gids_ghost_extended)
   integer(igp), allocatable :: gids(:)
   integer(ip) , allocatable :: perm(:)
   
-  nnode = this%ptr_vefs_per_cell(2) - this%ptr_vefs_per_cell(1)
+  nnode = this%ptr_vefs_x_cell(2) - this%ptr_vefs_x_cell(1)
   call memalloc(nnode, gids,__FILE__,__LINE__)
   call memalloc(nnode, perm,__FILE__,__LINE__)
   
   do icell = 1, this%num_local_cells + this%num_ghost_cells
-     spos = this%ptr_vefs_per_cell(icell)
-     epos = this%ptr_vefs_per_cell(icell+1)-1
+     spos = this%ptr_vefs_x_cell(icell)
+     epos = this%ptr_vefs_x_cell(icell+1)-1
      if ( present(lst_vefs_gids_ghost_extended) ) then
        gids = lst_vefs_gids_ghost_extended(spos:epos)
        perm = (/(i, i=1,nnode, 1)/)
        call sort(nnode, gids, index=perm)
-       this%lst_vefs_lids(spos:epos) = this%lst_vefs_lids(spos+perm(1:nnode)-1)
+       this%lst_vefs_gids(spos:epos) = this%lst_vefs_gids(spos+perm(1:nnode)-1)
      else
-       call sort(nnode, this%lst_vefs_lids(spos:epos))
+       call sort(nnode, this%lst_vefs_gids(spos:epos))
      end if
   end do
   
@@ -288,16 +288,16 @@ end subroutine bst_orient_tet_mesh
   subroutine bst_fetch_ghost_cells_data(this, &
                                                          lst_vefs_gids, &
                                                          lst_vefs_gids_ghost_extended, &
-                                                         lst_vefs_dimension, &
-                                                         lst_vefs_dimension_ghost_extended, &
+                                                         lst_vefs_dim, &
+                                                         lst_vefs_dim_ghost_extended, &
                                                          coordinates, &
                                                          coordinates_ghost_extended)
     implicit none
     class(base_static_triangulation_t) , intent(in)    :: this
     integer(igp)                       , intent(in)    :: lst_vefs_gids(*)
     integer(igp), allocatable          , intent(inout) :: lst_vefs_gids_ghost_extended(:)
-    integer(ip) , optional             , intent(in)    :: lst_vefs_dimension(*)
-    integer(ip) , optional, allocatable, intent(inout) :: lst_vefs_dimension_ghost_extended(:)
+    integer(ip) , optional             , intent(in)    :: lst_vefs_dim(*)
+    integer(ip) , optional, allocatable, intent(inout) :: lst_vefs_dim_ghost_extended(:)
     real(rp)    , optional             , intent(in)    :: coordinates(:,:)
     real(rp)    , optional, allocatable, intent(inout) :: coordinates_ghost_extended(:,:)
     
@@ -311,35 +311,35 @@ end subroutine bst_orient_tet_mesh
     integer(ip)  , pointer     :: rcv_ptrs(:)
     integer(ip)  , pointer     :: rcv_leids(:)
     class(cell_iterator_t), allocatable :: cell
-    integer(ip)                :: icell, first, last, extra_data_size_per_vef
-    integer(ip)                :: start_buf, end_buf, current, i, j, number_neighbours
+    integer(ip)                :: icell, first, last, extra_data_size_x_vef
+    integer(ip)                :: start_buf, end_buf, current, i, j, num_neighbours
     
     assert ( associated ( this%p_env ) )
     assert ( this%p_env%am_i_l1_task() )
-    assert ( .not.(present(lst_vefs_dimension).and.present(coordinates))) ! Not present both at the same time
+    assert ( .not.(present(lst_vefs_dim).and.present(coordinates))) ! Not present both at the same time
 
     if ( allocated (lst_vefs_gids_ghost_extended) ) &
       call memfree( lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
-    call memalloc ( this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
+    call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
                     lst_vefs_gids_ghost_extended, &
                     __FILE__, &
                     __LINE__ )
 
-    first  = this%ptr_vefs_per_cell(1)
-    last   = this%ptr_vefs_per_cell(this%num_local_cells+1)-1
+    first  = this%ptr_vefs_x_cell(1)
+    last   = this%ptr_vefs_x_cell(this%num_local_cells+1)-1
     lst_vefs_gids_ghost_extended(first:last) = lst_vefs_gids(first:last)
-    extra_data_size_per_vef = 0
+    extra_data_size_x_vef = 0
 
-    if(present(lst_vefs_dimension)) then
-       assert(present(lst_vefs_dimension_ghost_extended))
-       if ( allocated (lst_vefs_dimension_ghost_extended) )  &
-            call memfree( lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)
-       call memalloc ( this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
-                       lst_vefs_dimension_ghost_extended, &
+    if(present(lst_vefs_dim)) then
+       assert(present(lst_vefs_dim_ghost_extended))
+       if ( allocated (lst_vefs_dim_ghost_extended) )  &
+            call memfree( lst_vefs_dim_ghost_extended, __FILE__, __LINE__)
+       call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
+                       lst_vefs_dim_ghost_extended, &
                        __FILE__, &
                        __LINE__ )
-       lst_vefs_dimension_ghost_extended(first:last) = lst_vefs_dimension(first:last)  
-       extra_data_size_per_vef = size_of_ip
+       lst_vefs_dim_ghost_extended(first:last) = lst_vefs_dim(first:last)  
+       extra_data_size_x_vef = size_of_ip
     end if
 
     ! We assume that coordinates are exchanged when the triangulation only contains vertices
@@ -347,12 +347,12 @@ end subroutine bst_orient_tet_mesh
        assert(present(coordinates_ghost_extended))
        if ( allocated (coordinates_ghost_extended) )  &
             call memfree( coordinates_ghost_extended, __FILE__, __LINE__)
-            call memalloc ( SPACE_DIM, this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
+            call memalloc ( SPACE_DIM, this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, &
                             coordinates_ghost_extended, &
                             __FILE__, &
                             __LINE__ )
        coordinates_ghost_extended(:,first:last) = coordinates(:,first:last)  
-       extra_data_size_per_vef = size_of_rp*SPACE_DIM
+       extra_data_size_x_vef = size_of_rp*SPACE_DIM
     end if
 
 
@@ -361,77 +361,77 @@ end subroutine bst_orient_tet_mesh
                     __FILE__, &
                     __LINE__ )
       
-    number_neighbours = this%cell_import%get_number_neighbours()
+    num_neighbours = this%cell_import%get_num_neighbours()
     snd_ptrs => this%cell_import%get_snd_ptrs()
     rcv_ptrs => this%cell_import%get_rcv_ptrs()
     snd_leids => this%cell_import%get_snd_leids()
     rcv_leids => this%cell_import%get_rcv_leids()
     
-    call memalloc ( number_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
-    call memalloc ( number_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
+    call memalloc ( num_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
+    call memalloc ( num_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
     
     call this%create_cell_iterator(cell)    
     
     snd_ptrs_buf = 0
-    do i=1, number_neighbours
+    do i=1, num_neighbours
      do j=snd_ptrs(i),snd_ptrs(i+1)-1
        icell = snd_leids(j)
-       call cell%set_lid(icell)
-       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_per_vef*(cell%get_num_vefs())
+       call cell%set_gid(icell)
+       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_x_vef*(cell%get_num_vefs())
        snd_ptrs_buf(i+1) = snd_ptrs_buf(i+1) + cell_sizes(icell)
      end do
     end do
     
      snd_ptrs_buf(1) = 1
-     do i=1, number_neighbours
+     do i=1, num_neighbours
        snd_ptrs_buf(i+1) = snd_ptrs_buf(i) + snd_ptrs_buf(i+1)
      end do
     
      rcv_ptrs_buf = 0
-     do i=1, number_neighbours
+     do i=1, num_neighbours
       do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
        icell = rcv_leids(j)
-       call cell%set_lid(icell)
-       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_per_vef*(cell%get_num_vefs())
+       call cell%set_gid(icell)
+       cell_sizes(icell) = this%cell_size(cell) + extra_data_size_x_vef*(cell%get_num_vefs())
        rcv_ptrs_buf(i+1) = rcv_ptrs_buf(i+1) + cell_sizes(icell)
       end do
      end do
      
      rcv_ptrs_buf(1) = 1
-     do i=1, number_neighbours
+     do i=1, num_neighbours
        rcv_ptrs_buf(i+1) = rcv_ptrs_buf(i) + rcv_ptrs_buf(i+1)
      end do
     
-     call memalloc (snd_ptrs_buf(number_neighbours+1)-1, snd_buf, __FILE__,__LINE__)
-     call memalloc (rcv_ptrs_buf(number_neighbours+1)-1, rcv_buf, __FILE__,__LINE__)
+     call memalloc (snd_ptrs_buf(num_neighbours+1)-1, snd_buf, __FILE__,__LINE__)
+     call memalloc (rcv_ptrs_buf(num_neighbours+1)-1, rcv_buf, __FILE__,__LINE__)
       
      ! Pack data items into send buffer
      current = 1
-     if(present(lst_vefs_dimension)) then ! vef_dimensions and coordinates are not present together
-         do i=1, number_neighbours
+     if(present(lst_vefs_dim)) then ! vef_dims and coordinates are not present together
+         do i=1, num_neighbours
             current = snd_ptrs_buf(i)
             do j=snd_ptrs(i),snd_ptrs(i+1)-1
               icell = snd_leids(j)
-              call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last      = this%ptr_vefs_per_cell(icell+1)-1
+              call cell%set_gid(icell)
+              first     = this%ptr_vefs_x_cell(icell)
+              last      = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_pack ( cell = cell, &
                                     buffer = snd_buf(start_buf:end_buf), &
                                     vef_gids = lst_vefs_gids_ghost_extended(first:last), &
-                                    vef_dimensions = lst_vefs_dimension_ghost_extended(first:last) )
+                                    vef_dims = lst_vefs_dim_ghost_extended(first:last) )
               current = current + cell_sizes(icell)
             end do
          end do
      else if(present(coordinates)) then
-         do i=1, number_neighbours
+         do i=1, num_neighbours
             current = snd_ptrs_buf(i)
             do j=snd_ptrs(i),snd_ptrs(i+1)-1
               icell = snd_leids(j)
-              call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last      = this%ptr_vefs_per_cell(icell+1)-1
+              call cell%set_gid(icell)
+              first     = this%ptr_vefs_x_cell(icell)
+              last      = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_pack ( cell = cell, &
@@ -442,13 +442,13 @@ end subroutine bst_orient_tet_mesh
             end do
          end do
      else
-         do i=1, number_neighbours
+         do i=1, num_neighbours
             current = snd_ptrs_buf(i)
             do j=snd_ptrs(i),snd_ptrs(i+1)-1
               icell = snd_leids(j)
-              call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last      = this%ptr_vefs_per_cell(icell+1)-1
+              call cell%set_gid(icell)
+              first     = this%ptr_vefs_x_cell(icell)
+              last      = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_pack ( cell = cell, &
@@ -460,7 +460,7 @@ end subroutine bst_orient_tet_mesh
      endif
      
      ! Exchange data with nearest neighbours
-     call this%p_env%l1_neighbours_exchange ( number_neighbours,&
+     call this%p_env%l1_neighbours_exchange ( num_neighbours,&
                                               this%cell_import%get_neighbours_ids(),&
                                               snd_ptrs_buf,&
                                               snd_buf,&
@@ -469,29 +469,29 @@ end subroutine bst_orient_tet_mesh
           
      ! Unpack data items from recv buffer
      current = rcv_ptrs_buf(1)
-     if(present(lst_vefs_dimension)) then
-         do i=1, number_neighbours
+     if(present(lst_vefs_dim)) then
+         do i=1, num_neighbours
             do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
               icell = rcv_leids(j)
-              call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last       = this%ptr_vefs_per_cell(icell+1)-1
+              call cell%set_gid(icell)
+              first     = this%ptr_vefs_x_cell(icell)
+              last       = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_unpack ( cell = cell, &
                                       buffer = rcv_buf(start_buf:end_buf), &
                                       vef_gids = lst_vefs_gids_ghost_extended(first:last), &
-                                      vef_dimensions = lst_vefs_dimension_ghost_extended(first:last) )
+                                      vef_dims = lst_vefs_dim_ghost_extended(first:last) )
               current = current + cell_sizes(icell)
             end do
          end do
      else if(present(coordinates)) then
-         do i=1, number_neighbours
+         do i=1, num_neighbours
             do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
               icell = rcv_leids(j)
-              call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last       = this%ptr_vefs_per_cell(icell+1)-1
+              call cell%set_gid(icell)
+              first     = this%ptr_vefs_x_cell(icell)
+              last       = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_unpack ( cell = cell, &
@@ -502,12 +502,12 @@ end subroutine bst_orient_tet_mesh
             end do
          end do
      else
-         do i=1, number_neighbours
+         do i=1, num_neighbours
             do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
               icell = rcv_leids(j)
-              call cell%set_lid(icell)
-              first     = this%ptr_vefs_per_cell(icell)
-              last       = this%ptr_vefs_per_cell(icell+1)-1
+              call cell%set_gid(icell)
+              first     = this%ptr_vefs_x_cell(icell)
+              last       = this%ptr_vefs_x_cell(icell+1)-1
               start_buf = current
               end_buf   = current + cell_sizes(icell)-1
               call this%cell_unpack ( cell = cell, &
@@ -543,7 +543,7 @@ end subroutine bst_orient_tet_mesh
         
     first = 1
     last   = first + size_of_igp -1
-    buffer(first:last) = transfer(cell%get_gid(),buffer(first:last))
+    buffer(first:last) = transfer(cell%get_ggid(),buffer(first:last))
     first = last + 1
     last   = first + size_of_ip -1
     buffer(first:last) = transfer(cell%get_my_part(),buffer(first:last))
@@ -555,20 +555,20 @@ end subroutine bst_orient_tet_mesh
   end subroutine bst_cell_pack_vef_gids
 
 
-  subroutine bst_cell_pack_vef_gids_and_dimension (cell, buffer, vef_gids, vef_dimensions)
+  subroutine bst_cell_pack_vef_gids_and_dim (cell, buffer, vef_gids, vef_dims)
     implicit none
     class(cell_iterator_t), intent(in)  :: cell
     integer(igp)          , intent(in)  :: vef_gids(:)
-    integer(ip)           , intent(in)  :: vef_dimensions(:)
+    integer(ip)           , intent(in)  :: vef_dims(:)
     integer(ieep)         , intent(out) :: buffer(:)
     integer(ip)                        :: first, last
         
     call bst_cell_pack_vef_gids(cell,buffer,vef_gids, buffer_offset=last)
     first = last + 1
     last  = first + cell%get_num_vefs()*size_of_ip - 1
-    buffer(first:last) = transfer(vef_dimensions,buffer(first:last))
+    buffer(first:last) = transfer(vef_dims,buffer(first:last))
 
-  end subroutine bst_cell_pack_vef_gids_and_dimension
+  end subroutine bst_cell_pack_vef_gids_and_dim
 
 
   subroutine bst_cell_pack_vef_gids_and_coordinates (cell, buffer, vef_gids, coordinates)
@@ -601,7 +601,7 @@ end subroutine bst_orient_tet_mesh
     first = 1
     last = first + size_of_igp -1
     gid = transfer(buffer(first:last), gid) 
-    call cell%set_gid(gid)
+    call cell%set_ggid(gid)
     
     first = last + 1
     last = first + size_of_ip - 1
@@ -617,20 +617,20 @@ end subroutine bst_orient_tet_mesh
   end subroutine bst_cell_unpack_vef_gids
 
 
-  subroutine bst_cell_unpack_vef_gids_and_dimension (cell, buffer, vef_gids, vef_dimensions)
+  subroutine bst_cell_unpack_vef_gids_and_dim (cell, buffer, vef_gids, vef_dims)
     implicit none
     class(cell_iterator_t), intent(inout) :: cell
     integer(ieep)         , intent(in)    :: buffer(:)
     integer(igp)          , intent(out)   :: vef_gids(:)
-    integer(ip)           , intent(out)   :: vef_dimensions(:)
+    integer(ip)           , intent(out)   :: vef_dims(:)
     integer(ip)                           :: first, last, ivef
     
     call bst_cell_unpack_vef_gids(cell, buffer, vef_gids, buffer_offset=last)
     first = last + 1
     last = first + cell%get_num_vefs()*size_of_ip - 1
-    vef_dimensions = transfer(buffer(first:last), vef_dimensions)
+    vef_dims = transfer(buffer(first:last), vef_dims)
     
-  end subroutine bst_cell_unpack_vef_gids_and_dimension
+  end subroutine bst_cell_unpack_vef_gids_and_dim
 
 
   subroutine bst_cell_unpack_vef_gids_and_coordinates (cell, buffer, vef_gids, coordinates)
@@ -667,7 +667,7 @@ subroutine bst_compute_num_vefs ( this )
   call this%create_cell_iterator(cell)
   do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid(ivef)
+        vef_lid = cell%get_vef_gid(ivef)
         call visited_vefs%put(key=vef_lid, val=1, stat=istat)
         if (istat == now_stored) this%num_vefs = this%num_vefs + 1
      end do
@@ -695,7 +695,7 @@ subroutine bst_allocate_and_fill_vefs_gid ( this, lst_vefs_gid )
   current = 1
   do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid(ivef)
+        vef_lid = cell%get_vef_gid(ivef)
         vef_gid = lst_vefs_gid(current)
         this%vefs_gid(vef_lid) = vef_gid
         current = current + 1 
@@ -731,7 +731,7 @@ subroutine bst_allocate_and_fill_cells_around ( this )
   call this%create_cell_iterator(cell)
   do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid(ivef)
+        vef_lid = cell%get_vef_gid(ivef)
         this%ptrs_cells_around(vef_lid +1) = this%ptrs_cells_around(vef_lid+1) + 1
      end do
      call cell%next()
@@ -747,8 +747,8 @@ subroutine bst_allocate_and_fill_cells_around ( this )
   call cell%first()
   do while ( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
-        vef_lid = cell%get_vef_lid(ivef)
-        this%lst_cells_around(this%ptrs_cells_around(vef_lid)) = cell%get_lid()
+        vef_lid = cell%get_vef_gid(ivef)
+        this%lst_cells_around(this%ptrs_cells_around(vef_lid)) = cell%get_gid()
         this%ptrs_cells_around(vef_lid) = this%ptrs_cells_around(vef_lid) + 1
      end do
      call cell%next()
@@ -814,7 +814,7 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
   call vef%first()
   do while ( .not. vef%has_finished() )
      if(vef%is_at_interface()) then
-        ivef = vef%get_lid()
+        ivef = vef%get_gid()
         this%num_itfc_vefs = this%num_itfc_vefs + 1
         this%lst_itfc_vefs(this%num_itfc_vefs) = ivef
      end if
@@ -856,10 +856,10 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
     mypart_id = this%p_env%get_l1_rank() + 1 
    
-    num_neighbours = this%cell_import%get_number_neighbours()    
+    num_neighbours = this%cell_import%get_num_neighbours()    
     call memalloc ( num_neighbours, touched_neighbours, __FILE__, __LINE__ )
     
-    ! The two extra rows in parts_per_itfc_vef are required in order to: (1) hold the number of parts around an interface vef
+    ! The two extra rows in parts_x_itfc_vef are required in order to: (1) hold the number of parts around an interface vef
     !                                                                    (2) to hold mypart_id, which should be also listed among 
     !                                                                        the parts around each vef
     num_rows_parts_itfc_vefs = num_neighbours + 2
@@ -959,7 +959,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end do
     
     num_subparts = cur_subpart_lid-1
-    this%number_subparts = num_subparts
+    this%num_subparts = num_subparts
    
     call memalloc ( num_subparts, touched_subparts, __FILE__, __LINE__ )
     
@@ -1030,13 +1030,13 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
     mypart_id = this%p_env%get_l1_rank() + 1
     
-    call this%parts_object%create(this%number_objects)
+    call this%parts_object%create(this%num_objects)
     
-    num_neighbours = this%cell_import%get_number_neighbours()    
+    num_neighbours = this%cell_import%get_num_neighbours()    
     call memalloc ( num_neighbours, touched_neighbours, __FILE__, __LINE__ )
     
     ! Count how many parts are around each object
-    do iobj =1, this%number_objects
+    do iobj =1, this%num_objects
       touched_neighbours = .false.
       num_parts = 1 
       subparts_iterator = this%subparts_object%create_iterator(iobj)
@@ -1060,7 +1060,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memalloc ( num_neighbours+1, parts_around, __FILE__, __LINE__ )
     
     ! List parts which are around each object
-    do iobj =1, this%number_objects
+    do iobj =1, this%num_objects
       touched_neighbours = .false.
       num_parts = 1
       parts_around(1) = mypart_id
@@ -1097,15 +1097,15 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     integer(ip) :: bst_compute_part_id_from_subpart_gid
     assert ( this%p_env%am_i_l1_task() )
     assert ( subpart_gid >= 1 )
-    bst_compute_part_id_from_subpart_gid = mod(subpart_gid-1, this%cell_import%get_number_parts())+1
+    bst_compute_part_id_from_subpart_gid = mod(subpart_gid-1, this%cell_import%get_num_parts())+1
   end function bst_compute_part_id_from_subpart_gid
 
-  function bst_get_number_subparts(this)
+  function bst_get_num_subparts(this)
     implicit none
     class(base_static_triangulation_t), intent(in) :: this
-    integer(ip) :: bst_get_number_subparts
-    bst_get_number_subparts = this%number_subparts
-  end function bst_get_number_subparts
+    integer(ip) :: bst_get_num_subparts
+    bst_get_num_subparts = this%num_subparts
+  end function bst_get_num_subparts
   
   function bst_get_subpart_lid(this, subpart_gid)
     implicit none
@@ -1162,9 +1162,9 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
     num_rows_parts_itfc_vefs = size(parts_itfc_vefs,1)
     
-    ! Count number_objects
+    ! Count num_objects
     ivef_itfc = 1
-    this%number_objects = 0
+    this%num_objects = 0
     do while ( ivef_itfc <= this%num_itfc_vefs ) 
       if ( ivef_itfc < this%num_itfc_vefs ) then
         do while (all(parts_itfc_vefs(:,ivef_itfc)==parts_itfc_vefs(:,ivef_itfc+1)))
@@ -1172,15 +1172,15 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
           if ( ivef_itfc == this%num_itfc_vefs  ) exit
         end do
       end if  
-      this%number_objects = this%number_objects + 1
+      this%num_objects = this%num_objects + 1
       ivef_itfc = ivef_itfc + 1
     end do
         
-    ! Count number_vefs_per_object and number_parts_per_object
-    call vefs_object%create(n=this%number_objects)
-    call parts_object%create(n=this%number_objects)
+    ! Count num_vefs_x_object and num_parts_x_object
+    call vefs_object%create(n=this%num_objects)
+    call parts_object%create(n=this%num_objects)
     ivef_itfc = 1
-    this%number_objects = 0
+    this%num_objects = 0
     do while ( ivef_itfc <= this%num_itfc_vefs ) 
       init_vef = ivef_itfc
       if ( ivef_itfc < this%num_itfc_vefs ) then
@@ -1191,9 +1191,9 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       end if  
       end_vef = ivef_itfc
       nparts_around = parts_itfc_vefs(1,end_vef)
-      this%number_objects = this%number_objects + 1
-      call parts_object%sum_to_pointer_index(this%number_objects, nparts_around)
-      call vefs_object%sum_to_pointer_index(this%number_objects, end_vef-init_vef+1 )
+      this%num_objects = this%num_objects + 1
+      call parts_object%sum_to_pointer_index(this%num_objects, nparts_around)
+      call vefs_object%sum_to_pointer_index(this%num_objects, end_vef-init_vef+1 )
       ivef_itfc = ivef_itfc + 1
     end do
     
@@ -1202,7 +1202,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call vefs_object%allocate_list_from_pointer()
     call parts_object%allocate_list_from_pointer()
     
-    ! List number_vefs_per_object and number_parts_per_object
+    ! List num_vefs_x_object and num_parts_x_object
     ivef_itfc=1
     do iobj=1, vefs_object%get_num_pointers()
        vefs_object_iterator = vefs_object%create_iterator(iobj)
@@ -1222,28 +1222,28 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end do
   end subroutine bst_compute_vefs_and_parts_object_body
   
-  subroutine bst_compute_objects_dimension(this)
+  subroutine bst_compute_objects_dim(this)
     implicit none
     class(base_static_triangulation_t), intent(inout) :: this
     integer(ip)                                  :: iobj, vef_lid
     type(list_iterator_t)                        :: vefs_object_iterator
     class(vef_iterator_t), allocatable  :: vef
     
-    call memalloc ( this%number_objects, this%objects_dimension, __FILE__, __LINE__ )
+    call memalloc ( this%num_objects, this%objects_dim, __FILE__, __LINE__ )
     call this%create_vef_iterator(vef)
-    do iobj=1, this%number_objects
+    do iobj=1, this%num_objects
       vefs_object_iterator = this%vefs_object%create_iterator(iobj)
-      this%objects_dimension(iobj) = 0
+      this%objects_dim(iobj) = 0
       do while(.not. vefs_object_iterator%is_upper_bound())
         vef_lid = vefs_object_iterator%get_current()
-        !this%objects_dimension(iobj) = max ( this%objects_dimension(iobj), this%vefs_dimension(vef_lid) )  
-        call vef%set_lid(vef_lid)
-        this%objects_dimension(iobj) = max ( this%objects_dimension(iobj), vef%get_dimension() )  
+        !this%objects_dim(iobj) = max ( this%objects_dim(iobj), this%vefs_dim(vef_lid) )  
+        call vef%set_gid(vef_lid)
+        this%objects_dim(iobj) = max ( this%objects_dim(iobj), vef%get_dim() )  
         call vefs_object_iterator%next()
        end do
     end do
     call this%free_vef_iterator(vef)
-  end subroutine bst_compute_objects_dimension
+  end subroutine bst_compute_objects_dim
   
   subroutine bst_compute_objects_neighbours_exchange_data ( this, &
                                                                           num_rcv,&
@@ -1284,7 +1284,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     if (allocated(pack_idx)) call memfree(pack_idx,__FILE__,__LINE__)
     
     my_part_id     = this%p_env%get_l1_rank() + 1
-    num_neighbours = this%cell_import%get_number_neighbours()  
+    num_neighbours = this%cell_import%get_num_neighbours()  
     
     call position_parts_rcv%init(num_neighbours)
     call position_parts_snd%init(num_neighbours)
@@ -1298,7 +1298,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
     num_rcv = 0
     num_snd = 0
-    do iobj=1, this%number_objects
+    do iobj=1, this%num_objects
        parts_object_iterator = this%parts_object%create_iterator(iobj)
        part_id = parts_object_iterator%get_current()
        if ( my_part_id == part_id ) then
@@ -1344,7 +1344,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memalloc ( snd_ptrs(num_snd+1)-1, pack_idx, __FILE__, __LINE__ )
     call memalloc ( rcv_ptrs(num_rcv+1)-1, unpack_idx, __FILE__, __LINE__ )
     
-    do iobj=1, this%number_objects
+    do iobj=1, this%num_objects
        parts_object_iterator = this%parts_object%create_iterator(iobj)
        part_id = parts_object_iterator%get_current()
        if ( my_part_id == part_id ) then
@@ -1393,48 +1393,48 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     integer(ip), allocatable  :: snd_ptrs(:)
     integer(ip), allocatable  :: pack_idx(:)
    
-    integer(ip)               :: number_local_objects_with_gid
+    integer(ip)               :: num_local_objects_with_gid
     integer(ip), allocatable  :: local_objects_with_gid(:)
     integer(ip), allocatable  :: per_rank_objects_with_gid(:)
     integer(ip)               :: start_object_gid
     type(list_iterator_t)     :: parts_object_iterator
-    integer(ip)               :: my_part_id, number_parts
+    integer(ip)               :: my_part_id, num_parts
     integer(ip)               :: i, iobj
     
     integer(ip)               :: dummy_integer_array(1)
 
     assert ( this%p_env%am_i_l1_task() )
     my_part_id   = this%p_env%get_l1_rank()  + 1 
-    number_parts = this%p_env%get_l1_size()
+    num_parts = this%p_env%get_l1_size()
     
     ! 1. Count/list how many local objects I am responsible to assign a global ID
-    call memalloc ( this%number_objects, local_objects_with_gid, __FILE__, __LINE__ )
-    number_local_objects_with_gid = 0
-    do iobj=1, this%number_objects
+    call memalloc ( this%num_objects, local_objects_with_gid, __FILE__, __LINE__ )
+    num_local_objects_with_gid = 0
+    do iobj=1, this%num_objects
       parts_object_iterator = this%parts_object%create_iterator(iobj)
       if ( my_part_id == parts_object_iterator%get_current() ) then
-        number_local_objects_with_gid = number_local_objects_with_gid + 1
-        local_objects_with_gid (number_local_objects_with_gid) = iobj
+        num_local_objects_with_gid = num_local_objects_with_gid + 1
+        local_objects_with_gid (num_local_objects_with_gid) = iobj
       end if
     end do
     
     ! 2. Gather + Scatter
     if ( this%p_env%am_i_l1_root() ) then
-      call memalloc( number_parts+1, per_rank_objects_with_gid, __FILE__,__LINE__ )
-      call this%p_env%l1_gather (input_data=number_local_objects_with_gid, &
+      call memalloc( num_parts+1, per_rank_objects_with_gid, __FILE__,__LINE__ )
+      call this%p_env%l1_gather (input_data=num_local_objects_with_gid, &
                                  output_data=per_rank_objects_with_gid(2:) ) 
        ! Transform length to header
        per_rank_objects_with_gid(1)=1 
-       do i=1, number_parts
+       do i=1, num_parts
           per_rank_objects_with_gid(i+1) = per_rank_objects_with_gid(i) + per_rank_objects_with_gid(i+1) 
        end do
-       this%number_global_objects = per_rank_objects_with_gid(number_parts+1)-1 
+       this%num_global_objects = per_rank_objects_with_gid(num_parts+1)-1 
     else
-      call this%p_env%l1_gather (input_data=number_local_objects_with_gid, &
+      call this%p_env%l1_gather (input_data=num_local_objects_with_gid, &
                                  output_data=dummy_integer_array ) 
     end if
     
-    call this%p_env%l1_bcast (data = this%number_global_objects )
+    call this%p_env%l1_bcast (data = this%num_global_objects )
     
     if ( this%p_env%am_i_l1_root() ) then
       call this%p_env%l1_scatter (input_data=per_rank_objects_with_gid, &
@@ -1446,8 +1446,8 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end if
     
     
-    call memalloc (this%number_objects, this%objects_gids)
-    do i=1, number_local_objects_with_gid
+    call memalloc (this%num_objects, this%objects_gids)
+    do i=1, num_local_objects_with_gid
       this%objects_gids ( local_objects_with_gid(i) ) = start_object_gid
       start_object_gid = start_object_gid + 1 
     end do
@@ -1487,7 +1487,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none
     class(base_static_triangulation_t), intent(inout) :: this
      if(allocated(this%objects_gids))      call memfree(this%objects_gids, __FILE__, __LINE__ )
-     if(allocated(this%objects_dimension)) call memfree(this%objects_dimension, __FILE__, __LINE__ )
+     if(allocated(this%objects_dim)) call memfree(this%objects_dim, __FILE__, __LINE__ )
 
   end subroutine bst_free_objects_gids_and_dim
   
@@ -1504,7 +1504,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     integer(ip)               , allocatable   :: coarse_vefs_recv_counts(:)
     integer(ip)               , allocatable   :: coarse_vefs_displs(:)
     integer(igp)              , allocatable   :: lst_coarse_vef_gids(:)
-    integer(ip)               , allocatable   :: lst_coarse_vef_dimension(:)
+    integer(ip)               , allocatable   :: lst_coarse_vef_dim(:)
     integer(ip)               , allocatable   :: l2_part_id_neighbours(:)
     integer(ip)               , allocatable   :: coarse_dgraph_recv_counts(:)
     integer(ip)               , allocatable   :: coarse_dgraph_displs(:)
@@ -1512,15 +1512,15 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     integer(ip)               , allocatable   :: lextp(:)
     
     integer(ip)                      :: i, istat
-    integer(ip)                      :: num_dimensions
+    integer(ip)                      :: num_dims
     integer(ip)                      :: num_local_coarse_cells
     integer(ip)                      :: num_itfc_coarse_cells
     
     
     if ( this%p_env%am_i_l1_task() ) then
       call this%compute_vefs_and_parts_object()
-      call this%compute_objects_dimension()
-      call this%compute_number_global_objects_and_their_gids()
+      call this%compute_objects_dim()
+      call this%compute_num_global_objects_and_their_gids()
     end if  
     
     ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
@@ -1535,7 +1535,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memalloc (0, coarse_vefs_recv_counts, __FILE__, __LINE__)
     call memalloc (0, coarse_vefs_displs, __FILE__, __LINE__)
     call memalloc (0, lst_coarse_vef_gids, __FILE__, __LINE__)
-    call memalloc (0, lst_coarse_vef_dimension, __FILE__, __LINE__)
+    call memalloc (0, lst_coarse_vef_dim, __FILE__, __LINE__)
     call memalloc (0, l2_part_id_neighbours, __FILE__, __LINE__)
     call memalloc (0, coarse_dgraph_recv_counts, __FILE__, __LINE__)
     call memalloc (0, coarse_dgraph_displs, __FILE__, __LINE__)
@@ -1544,11 +1544,11 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
         
     ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
     if ( this%p_env%am_i_l1_to_l2_task() ) then
-      call this%p_env%l1_to_l2_transfer ( this%num_dimensions, num_dimensions ) 
+      call this%p_env%l1_to_l2_transfer ( this%num_dims, num_dims ) 
       call this%gather_coarse_cell_gids (coarse_cells_gid)
       call this%gather_coarse_vefs_rcv_counts_and_displs (coarse_vefs_recv_counts, coarse_vefs_displs)
       call this%gather_coarse_vefs_gids (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_gids)
-      call this%gather_coarse_vefs_dimension (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_dimension)
+      call this%gather_coarse_vefs_dim (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_dim)
       call this%fetch_l2_part_id_neighbours(l2_part_id_neighbours)
       call this%gather_coarse_dgraph_rcv_counts_and_displs ( l2_part_id_neighbours, &
                                                              coarse_dgraph_recv_counts, &
@@ -1574,15 +1574,15 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       allocate  ( this%coarse_triangulation, stat = istat )
       check( istat == 0 )
       call this%coarse_triangulation%create ( par_environment              = this%p_env%get_next_level(), &
-                                              num_dimensions               = num_dimensions, &
+                                              num_dims               = num_dims, &
                                               num_local_cells              = num_local_coarse_cells, &
                                               cells_gid                    = coarse_cells_gid, &
-                                              ptr_vefs_per_cell            = coarse_vefs_displs, &
+                                              ptr_vefs_x_cell            = coarse_vefs_displs, &
                                               lst_vefs_gids                = lst_coarse_vef_gids, &
-                                              lst_vefs_dimension           = lst_coarse_vef_dimension, &
+                                              lst_vefs_dim           = lst_coarse_vef_dim, &
                                               num_itfc_cells               = num_itfc_coarse_cells, &
                                               lst_itfc_cells               = coarse_dgraph_recv_counts, &
-                                              ptr_ext_neighs_per_itfc_cell = coarse_dgraph_displs, &
+                                              ptr_ext_neighs_x_itfc_cell = coarse_dgraph_displs, &
                                               lst_ext_neighs_gids          = lextn, &
                                               lst_ext_neighs_part_ids      = lextp )
     else
@@ -1595,7 +1595,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree (coarse_vefs_recv_counts, __FILE__, __LINE__)
     call memfree (coarse_vefs_displs, __FILE__, __LINE__)
     call memfree (lst_coarse_vef_gids, __FILE__, __LINE__)
-    call memfree (lst_coarse_vef_dimension, __FILE__, __LINE__)
+    call memfree (lst_coarse_vef_dim, __FILE__, __LINE__)
     call memfree (l2_part_id_neighbours, __FILE__, __LINE__)
     call memfree (coarse_dgraph_recv_counts, __FILE__, __LINE__)
     call memfree (coarse_dgraph_displs, __FILE__, __LINE__)
@@ -1648,7 +1648,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
         displs(i) = displs(i-1) + recv_counts(i-1)
       end do
     else
-      call this%p_env%l2_from_l1_gather( input_data  = this%number_objects, &
+      call this%p_env%l2_from_l1_gather( input_data  = this%num_objects, &
                                          output_data = dummy_integer_array ) 
     end if
   end subroutine bst_gather_coarse_vefs_rcv_counts_and_displs
@@ -1674,7 +1674,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
                                          displs          = displs, &
                                          output_data     = lst_gids )
     else
-      call this%p_env%l2_from_l1_gather( input_data_size = this%number_objects, &
+      call this%p_env%l2_from_l1_gather( input_data_size = this%num_objects, &
                                          input_data      = this%objects_gids, &
                                          recv_counts     = dummy_integer_array_ip, &
                                          displs          = dummy_integer_array_ip, &
@@ -1682,33 +1682,33 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end if    
   end subroutine bst_gather_coarse_vefs_gids
   
-  subroutine bst_gather_coarse_vefs_dimension ( this, recv_counts, displs, lst_vefs_dimension )
+  subroutine bst_gather_coarse_vefs_dim ( this, recv_counts, displs, lst_vefs_dim )
     implicit none
     class(base_static_triangulation_t), intent(in)    :: this
     integer(ip)                  , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size())
     integer(ip)                  , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
-    integer(ip), allocatable     , intent(inout) :: lst_vefs_dimension(:)
+    integer(ip), allocatable     , intent(inout) :: lst_vefs_dim(:)
     integer(ip)                                  :: l1_to_l2_size
     integer(ip)                                  :: dummy_integer_array(0)
     
     assert ( this%p_env%am_i_l1_to_l2_task() )
     if ( this%p_env%am_i_l1_to_l2_root() ) then
       l1_to_l2_size = this%p_env%get_l1_to_l2_size()
-      if (allocated(lst_vefs_dimension)) call memfree ( lst_vefs_dimension, __FILE__, __LINE__ )
-      call memalloc (displs(l1_to_l2_size), lst_vefs_dimension, __FILE__, __LINE__ )
+      if (allocated(lst_vefs_dim)) call memfree ( lst_vefs_dim, __FILE__, __LINE__ )
+      call memalloc (displs(l1_to_l2_size), lst_vefs_dim, __FILE__, __LINE__ )
       call this%p_env%l2_from_l1_gather( input_data_size = 0, &
                                          input_data      = dummy_integer_array, &
                                          recv_counts     = recv_counts, &
                                          displs          = displs, &
-                                         output_data     = lst_vefs_dimension )
+                                         output_data     = lst_vefs_dim )
     else
-      call this%p_env%l2_from_l1_gather( input_data_size = this%number_objects, &
-                                         input_data      = this%objects_dimension, &
+      call this%p_env%l2_from_l1_gather( input_data_size = this%num_objects, &
+                                         input_data      = this%objects_dim, &
                                          recv_counts     = dummy_integer_array, &
                                          displs          = dummy_integer_array, &
                                          output_data     = dummy_integer_array )
     end if    
-  end subroutine bst_gather_coarse_vefs_dimension
+  end subroutine bst_gather_coarse_vefs_dim
   
   subroutine bst_fetch_l2_part_id_neighbours ( this, l2_part_id_neighbours )    
     implicit none
@@ -1718,7 +1718,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     integer(ip) :: num_neighbours
     assert ( this%p_env%am_i_l1_to_l2_task() )
     if (this%p_env%am_i_l1_task()) then
-      num_neighbours = this%cell_import%get_number_neighbours()
+      num_neighbours = this%cell_import%get_num_neighbours()
       my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
       if (allocated(l2_part_id_neighbours)) call memfree ( l2_part_id_neighbours, __FILE__, __LINE__ )
       call memalloc ( num_neighbours, l2_part_id_neighbours, __FILE__, __LINE__ )
@@ -1735,7 +1735,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
                                                                             displs )
     implicit none
     class(base_static_triangulation_t), intent(in)    :: this
-    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%cell_import%get_number_neighbours())
+    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%cell_import%get_num_neighbours())
     integer(ip) , allocatable , intent(inout) :: recv_counts(:) 
     integer(ip) , allocatable , intent(inout) :: displs(:)
     integer(ip) :: i
@@ -1760,7 +1760,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       end do
     else
       assert ( this%p_env%am_i_l1_task() )
-      num_neighbours = this%cell_import%get_number_neighbours()
+      num_neighbours = this%cell_import%get_num_neighbours()
       my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
       num_external_l2_elements = 0
       do i = 1, num_neighbours
@@ -1781,7 +1781,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
                                                                      lextp)
     implicit none
     class(base_static_triangulation_t), intent(in)    :: this
-    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%cell_import%get_number_neighbours())
+    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%cell_import%get_num_neighbours())
     integer(ip)               , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size()) 
     integer(ip)               , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
     integer(ip), allocatable  , intent(inout) :: lextn(:)
@@ -1818,7 +1818,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
                                          output_data     = lextp )
     else
       assert ( this%p_env%am_i_l1_task() )
-      num_neighbours =  this%cell_import%get_number_neighbours()
+      num_neighbours =  this%cell_import%get_num_neighbours()
       neighbours_ids => this%cell_import%get_neighbours_ids()
       my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
       num_external_l2_elements = 0
@@ -1875,7 +1875,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
         coarse_vefs_displs(i)=coarse_vefs_displs(i)+1
       end do
    
-      ! Re-use coarse_dgraph_displs as ptr_ext_neighs_per_itfc_cell
+      ! Re-use coarse_dgraph_displs as ptr_ext_neighs_x_itfc_cell
       num_itfc_coarse_cells = 0
       coarse_dgraph_displs(1) = 1 
       do i=1, size(coarse_dgraph_recv_counts)
@@ -1992,7 +1992,7 @@ subroutine bst_print ( this )
    integer(ip) :: vef_lid
 
    write (*,'(a)') '****print type(static_triangulation_t)****'
-   write (*,'(a,i10)') 'num_dimensions:' , this%num_dimensions
+   write (*,'(a,i10)') 'num_dims:' , this%num_dims
    write (*,'(a,i10)') 'num_local_cells:', this%num_local_cells
    write (*,'(a,i10)') 'num_ghost_cells:', this%num_ghost_cells
    write (*,'(a,i10)') 'num_itfc_vefs:  ', this%num_itfc_vefs
@@ -2001,7 +2001,7 @@ subroutine bst_print ( this )
    call this%create_cell_iterator(cell)
    write (*,'(a)') '       id      is_local   is_ghost  num_vefs    vef        vef  ....'
    do while ( .not. cell%has_finished() )
-       write(*,'(i10,2l10,10(2x,i10))') cell%get_lid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_lid(ivef),ivef=1,cell%get_num_vefs())
+       write(*,'(i10,2l10,10(2x,i10))') cell%get_gid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_gid(ivef),ivef=1,cell%get_num_vefs())
        call cell%next()
    end do
 
@@ -2015,7 +2015,7 @@ subroutine bst_print ( this )
        if(cell%is_local()) then
           call memrealloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
           call cell%get_coordinates (cell_coordinates)
-          write (*,'(i10,20(2x,e15.7))'  ) cell%get_lid(), (cell_coordinates(inode)%get_value(),inode=1,cell%get_num_nodes())
+          write (*,'(i10,20(2x,e15.7))'  ) cell%get_gid(), (cell_coordinates(inode)%get_value(),inode=1,cell%get_num_nodes())
        end if
        call cell%next()
     end do
@@ -2025,8 +2025,8 @@ subroutine bst_print ( this )
     write (*,'(a)') '        id          dim    is_local    is_at_interface  is_ghost   is_at_bound       set        geom '
     call this%create_vef_iterator(vef)
     do while ( .not. vef%has_finished() )
-       vef_lid = vef%get_lid()
-       write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dimension(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary(), vef%get_set_id(),this%vefs_geometry(vef_lid)
+       vef_lid = vef%get_gid()
+       write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dim(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary(), vef%get_set_id(),this%vefs_geometry(vef_lid)
        call vef%next()
     end do
     call this%free_vef_iterator(vef)
@@ -2042,11 +2042,11 @@ subroutine bst_print ( this )
     integer(ip)                                       :: icell, ivef, istat
     if ( associated(this%p_env) ) then
     if ( this%p_env%am_i_l1_task() ) then
-        this%num_dimensions = -1 
+        this%num_dims = -1 
       
         ! Free cell-related data
-        call this%free_ptr_vefs_per_cell()
-        call this%free_lst_vefs_lids()
+        call this%free_ptr_vefs_x_cell()
+        call this%free_lst_vefs_gids()
         call this%free_cells_gid()
         call this%free_cells_mypart() 
         call this%free_cells_set()
@@ -2068,6 +2068,7 @@ subroutine bst_print ( this )
         call this%parts_object%free()
         call this%subparts_object%free()
         call this%g2l_subparts%free()
+<<<<<<< HEAD
         this%number_objects = -1
         this%number_global_objects = -1
        else ! I am lgt1_task
@@ -2089,28 +2090,47 @@ subroutine bst_print ( this )
      end if
      nullify(this%p_env)
    end subroutine  bst_environment_free_or_nullify 
+=======
+        this%num_objects = -1
+        this%num_global_objects = -1
 
-   function bst_get_number_reference_fes_geo ( this ) 
+      else ! I am lgt1_task
+         call this%coarse_triangulation%free()
+         deallocate ( this%coarse_triangulation, stat=istat)
+         check(istat == 0)
+      end if
+
+      if(associated(this%p_env,this%par_environment)) then
+         ! The environment has been created by the triangulation
+         call this%par_environment%free()
+      end if
+      nullify(this%p_env)
+      end if
+      call this%geometry%free()
+   end subroutine bst_free
+>>>>>>> 819537693844795c7cdee77675691293bfca635e
+
+   function bst_get_num_reference_fes_geo ( this ) 
      implicit none
      class(base_static_triangulation_t), intent(in) :: this
-     integer(ip) :: bst_get_number_reference_fes_geo
-     bst_get_number_reference_fes_geo = max_num_reference_fes_geo
-   end function bst_get_number_reference_fes_geo
+     integer(ip) :: bst_get_num_reference_fes_geo
+     bst_get_num_reference_fes_geo = max_num_reference_fes_geo
+   end function bst_get_num_reference_fes_geo
    
-   function bst_get_max_number_shape_functions ( this ) 
+   function bst_get_max_num_shape_functions ( this ) 
      implicit none
      class(base_static_triangulation_t), intent(in) :: this
-     integer(ip) :: bst_get_max_number_shape_functions
+     integer(ip) :: bst_get_max_num_shape_functions
      integer(ip) :: reference_fe_geo_id
-     bst_get_max_number_shape_functions = -1
+     bst_get_max_num_shape_functions = -1
      do reference_fe_geo_id=1, max_num_reference_fes_geo
        if(associated(this%reference_fe_geo_list(reference_fe_geo_id)%p)) then
-         bst_get_max_number_shape_functions = &
-             max(bst_get_max_number_shape_functions, &
-             this%reference_fe_geo_list(reference_fe_geo_id)%p%get_number_shape_functions())
+         bst_get_max_num_shape_functions = &
+             max(bst_get_max_num_shape_functions, &
+             this%reference_fe_geo_list(reference_fe_geo_id)%p%get_num_shape_functions())
        endif
      enddo
-   end function bst_get_max_number_shape_functions
+   end function bst_get_max_num_shape_functions
 
    function bst_is_tet_mesh ( this ) 
      implicit none
@@ -2119,7 +2139,7 @@ subroutine bst_print ( this )
      logical :: bst_is_tet_mesh
      
      bst_is_tet_mesh = .false.
-     if (this%num_dimensions == 2) then
+     if (this%num_dims == 2) then
         call this%reference_fe_geo_index%get(key=6,val=dum,stat=istat)
         if (istat == key_found) then
            bst_is_tet_mesh = .true.
@@ -2129,7 +2149,7 @@ subroutine bst_print ( this )
         end if
         call this%reference_fe_geo_index%get(key=8,val=dum,stat=istat)
         if (istat == key_found) bst_is_tet_mesh = .false.
-     elseif (this%num_dimensions == 3) then
+     elseif (this%num_dims == 3) then
         call this%reference_fe_geo_index%get(key=14,val=dum,stat=istat)
         if (istat == key_found) then
            bst_is_tet_mesh = .true.
@@ -2158,7 +2178,7 @@ subroutine bst_print ( this )
      logical :: bst_is_hex_mesh     
      
      bst_is_hex_mesh = .false.
-     if (this%num_dimensions == 2) then
+     if (this%num_dims == 2) then
         call this%reference_fe_geo_index%get(key=8,val=dum,stat=istat)
         if (istat == key_found) then
            bst_is_hex_mesh = .true.
@@ -2168,7 +2188,7 @@ subroutine bst_print ( this )
         end if
         call this%reference_fe_geo_index%get(key=6,val=dum,stat=istat)
         if (istat == key_found) bst_is_hex_mesh = .false.
-     elseif (this%num_dimensions == 3) then
+     elseif (this%num_dims == 3) then
         call this%reference_fe_geo_index%get(key=26,val=dum,stat=istat)
         if (istat == key_found) then
            bst_is_hex_mesh = .true.
@@ -2197,12 +2217,12 @@ subroutine bst_print ( this )
      logical :: bst_is_mix_mesh
      
      ntypes = 0
-     if (this%num_dimensions == 2) then
+     if (this%num_dims == 2) then
         call this%reference_fe_geo_index%get(key=8,val=dum,stat=istat)
         if (istat == key_found) ntypes = ntypes + 1
         call this%reference_fe_geo_index%get(key=6,val=dum,stat=istat)
         if (istat == key_found) ntypes = ntypes + 1
-     elseif (this%num_dimensions == 3) then
+     elseif (this%num_dims == 3) then
         call this%reference_fe_geo_index%get(key=26,val=dum,stat=istat)
         if (istat == key_found) ntypes = ntypes + 1
         call this%reference_fe_geo_index%get(key=20,val=dum,stat=istat)
