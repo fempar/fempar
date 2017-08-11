@@ -87,7 +87,7 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadratu
   call reference_fe_geometry%create_interpolation_restricted_to_facet( facet_lid,    &
                                                         subfacet_lid, &
                                                         quadrature,       &
-                                                        this%interpolation_geometry )
+                                                        this%interpolation )
 
   call memalloc(this%num_dims, &
                 this%num_dims, &

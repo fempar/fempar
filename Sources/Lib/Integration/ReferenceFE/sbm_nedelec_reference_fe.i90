@@ -99,6 +99,7 @@ subroutine nedelec_create_interpolation_restricted_to_facet( this, facet_lid, &
   implicit none 
   class(nedelec_reference_fe_t)   , intent(in)    :: this 
   integer(ip)                     , intent(in)    :: facet_lid
+  integer(ip)                     , intent(in)    :: subfacet_lid
   type(quadrature_t)              , intent(in)    :: local_quadrature
   type(interpolation_t)           , intent(inout) :: facet_interpolation
 
@@ -113,7 +114,6 @@ subroutine nedelec_create_interpolation_restricted_to_facet( this, facet_lid, &
                                     facet_lid, &
                                     subfacet_lid, &
                                     facet_interpolation)
->>>>>>> 819537693844795c7cdee77675691293bfca635e
 
 end subroutine nedelec_create_interpolation_restricted_to_facet
 

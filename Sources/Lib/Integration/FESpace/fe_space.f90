@@ -147,8 +147,8 @@ module fe_space_names
     procedure, non_overridable           :: get_vef_gid             => base_fe_cell_iterator_get_vef_gid
     procedure, non_overridable           :: get_vef_gids            => base_fe_cell_iterator_get_vef_gids
     procedure, non_overridable           :: get_vef_ggid            => base_fe_cell_iterator_get_vef_ggid
-    procedure, non_overridable           :: get_vef_lid_from_gid    => base_fe_cell_iterator_get_vef_lid_from_gid
-    procedure, non_overridable           :: get_vef_lid_from_ggid   => base_fe_cell_iterator_get_vef_lid_from_ggid
+    procedure, non_overridable           :: get_vef_gid_from_gid    => base_fe_cell_iterator_get_vef_gid_from_gid
+    procedure, non_overridable           :: get_vef_gid_from_ggid   => base_fe_cell_iterator_get_vef_gid_from_ggid
     procedure, non_overridable           :: is_local                => base_fe_cell_iterator_is_local
     procedure, non_overridable           :: is_ghost                => base_fe_cell_iterator_is_ghost
     procedure, non_overridable           :: scan_sum_num_vefs       => base_fe_cell_iterator_get_scan_sum_num_vefs
@@ -223,9 +223,9 @@ module fe_space_names
     procedure, non_overridable          :: has_fixed_dofs                             => fe_cell_iterator_has_fixed_dofs
     procedure, non_overridable          :: fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field
     procedure, non_overridable          :: fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
-    generic                             :: determine_at_strong_dirichlet_boundary     => fe_cell_iterator_determine_at_strong_dirichlet_boundary_single_field, &
-                                                                                         fe_cell_iterator_determine_at_strong_dirichlet_boundary_all_fields
-    procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_determine_has_fixed_dofs                                                                                     
+    generic                             :: determine_at_strong_dirichlet_boundary     => fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field, &
+                                                                                         fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
+    procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs                                                                                     
     procedure, non_overridable          :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
     procedure, non_overridable          :: compute_volume                             => fe_cell_iterator_compute_volume
@@ -522,7 +522,7 @@ module fe_space_names
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
-     procedure, non_overridable          :: get_vef_lids_of_fe_faces                     => serial_fe_space_get_vef_lids_of_fe_faces
+     procedure, non_overridable          :: get_vef_gids_of_fe_faces                     => serial_fe_space_get_vef_gids_of_fe_faces
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      

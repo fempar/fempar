@@ -363,7 +363,7 @@ subroutine unfitted_l1_setup_object_gid_to_dof_gids(this)
         if ( fe%is_ghost() ) then
 
           call fe%get_field_fe_dofs(field_id, fe_dofs)
-          ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+          ivef_within_cell = fe%get_vef_gid_from_gid(vef%get_gid())
 
           ! Loop in own dofs in the vef as seen from the ghost element
           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)

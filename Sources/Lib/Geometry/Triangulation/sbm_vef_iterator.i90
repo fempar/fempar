@@ -99,7 +99,7 @@ subroutine vef_iterator_get_coordinates (this, vef_coordinates)
   call cell%create(this%base_static_triangulation)
   call this%get_cell_around(1, cell)
   reference_fe_geo => cell%get_reference_fe_geo()
-  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_gid_from_gid(this%get_gid()))
   inode_within_vef = 1
   do while (.not. dofs_on_vef_iterator%is_upper_bound())     
     inode_within_cell = dofs_on_vef_iterator%get_current()
@@ -338,7 +338,7 @@ end function vef_iterator_get_improper_cell_around_subvef
 !  type(list_iterator_t) :: vertices_iterator
 
 !  call this%get_cell_around (1, cell) ! there is always one element around
-!  ivef = cell%find_lpos_vef_gid(this%get_gid())
+!  ivef = cell%get_vef_gid_from_ggid(this%get_gid())
 !  cell_num_vefs = cell%get_num_vefs()
 !  call this%base_static_triangulation%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
 !  assert(istat==key_found)

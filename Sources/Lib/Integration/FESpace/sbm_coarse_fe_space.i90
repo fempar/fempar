@@ -515,7 +515,7 @@ subroutine coarse_fe_space_generate_own_dofs_cell_x_fe_field(this, &
           ! Retrieve vef gid
           vef_gid = lst_vefs_gids_dofs_objects_ghost_extended(j)
           ! Retrieve position of vef_gid in current cell
-          ivef = coarse_fe%get_vef_lid_from_ggid(vef_gid)
+          ivef = coarse_fe%get_vef_gid_from_ggid(vef_gid)
           assert (ivef /= -1)
           ! Associate dof to vef
           call this%own_dofs_vef_x_fe(field_id)%sum_to_pointer_index(base_pointer+ivef-1, 1)
@@ -570,7 +570,7 @@ subroutine coarse_fe_space_generate_own_dofs_cell_x_fe_field(this, &
           vef_gid = lst_vefs_gids_dofs_objects_ghost_extended(j)
           
           ! Retrieve position of vef_gid in current cell
-          ivef    = coarse_fe%get_vef_lid_from_ggid(vef_gid)
+          ivef    = coarse_fe%get_vef_gid_from_ggid(vef_gid)
           vef_lid = coarse_fe%get_vef_gid(ivef)
           assert ( ivef /= -1 )
           ! Associate dof to vef
@@ -729,7 +729,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_gids_field ( this, field_
                  call vef%get_cell_around(ielem,source_fe)
                  if ( source_fe%is_local() ) then
 
-                    source_ivef = source_fe%get_vef_lid_from_gid(vef%get_gid())
+                    source_ivef = source_fe%get_vef_gid_from_gid(vef%get_gid())
                     own_dofs_on_vef_iterator_source = source_fe%create_own_dofs_on_vef_iterator(source_ivef,field_id)
 
                     ! Check that the source fe has at least one dof on this vef
@@ -975,7 +975,7 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
           local_part_id = cell_import%get_local_neighbour_id(coarse_fe%get_my_part())
           if (.not. touched_neighbours (local_part_id)) then
              touched_neighbours (local_part_id) = .true.
-             ivef = coarse_fe%get_vef_lid_from_gid(coarse_fe_vef%get_gid())
+             ivef = coarse_fe%get_vef_gid_from_gid(coarse_fe_vef%get_gid())
              assert (ivef /= -1)
              own_dofs_on_vef_iterator = coarse_fe%create_own_dofs_on_vef_iterator(ivef,field_id)
              result = result + own_dofs_on_vef_iterator%get_size()
@@ -1071,7 +1071,7 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
      end do  
      
      call coarse_fe_vef%get_cell_around(1,coarse_fe)
-     ivef = coarse_fe%get_vef_lid_from_gid(coarse_fe_vef%get_gid())
+     ivef = coarse_fe%get_vef_gid_from_gid(coarse_fe_vef%get_gid())
      base_pos_lst_dofs = coarse_fe%get_scan_sum_num_dofs(field_id)
      own_dofs_on_vef_iterator = coarse_fe%create_own_dofs_on_vef_iterator(ivef,field_id)
      init_col = current_col
@@ -1343,7 +1343,7 @@ subroutine coarse_fe_space_setup_num_coarse_dofs ( this, num_coarse_dofs )
         call object%get_vef(ivef_within_object,vef)
         call vef%get_cell_around(1,fe)
         call fe%get_field_fe_dofs(field_id, fe_dofs)
-        ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+        ivef_within_cell = fe%get_vef_gid_from_gid(vef%get_gid())
         own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
         dofs_on_vef = (own_dofs_on_vef_iterator%get_size() > 0)
         if ( dofs_on_vef ) then
@@ -1411,7 +1411,7 @@ subroutine coarse_fe_space_setup_constraint_matrix ( this, &
           call object%get_vef(ivef_within_object,vef)
           call vef%get_cell_around(1,fe)
           call fe%get_field_fe_dofs(field_id, fe_dofs)
-          ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+          ivef = fe%get_vef_gid_from_gid(vef%get_gid())
           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
           num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + own_dofs_on_vef_iterator%get_size()
           !do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
@@ -1428,7 +1428,7 @@ subroutine coarse_fe_space_setup_constraint_matrix ( this, &
           call object%get_vef(ivef_within_object,vef)
           call vef%get_cell_around(1,fe)
           call fe%get_field_fe_dofs(field_id, fe_dofs)
-          ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+          ivef = fe%get_vef_gid_from_gid(vef%get_gid())
           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
              idof    = own_dofs_on_vef_iterator%get_current()

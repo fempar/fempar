@@ -122,13 +122,12 @@ module base_static_triangulation_names
     procedure                            :: get_level               => cell_iterator_get_level
     procedure                            :: get_num_vefs            => cell_iterator_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
-<<<<<<< HEAD
-    procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid
-    procedure                            :: get_vef_lid             => cell_iterator_get_vef_lid
-    procedure                            :: get_vef_lids            => cell_iterator_get_vef_lids
-    procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
-    procedure                            :: find_lpos_vef_lid       => cell_iterator_find_lpos_vef_lid
-    procedure, non_overridable           :: find_lpos_vef_gid       => cell_iterator_find_lpos_vef_gid
+    procedure, non_overridable           :: get_node_gid            => cell_iterator_get_node_gid
+    procedure                            :: get_vef_gid             => cell_iterator_get_vef_gid
+    procedure                            :: get_vef_gids            => cell_iterator_get_vef_gids
+    procedure, non_overridable           :: get_vef_ggid             => cell_iterator_get_vef_ggid
+    procedure                            :: get_vef_gid_from_gid       => cell_iterator_get_vef_gid_from_gid
+    procedure, non_overridable           :: get_vef_gid_from_ggid       => cell_iterator_get_vef_gid_from_ggid
     procedure                            :: get_vef                 => cell_iterator_get_vef
     procedure                            :: is_local                => cell_iterator_is_local
     procedure                            :: is_ghost                => cell_iterator_is_ghost
@@ -143,18 +142,6 @@ module base_static_triangulation_names
     
     
     procedure, non_overridable           :: scan_sum_num_vefs    => cell_iterator_get_scan_sum_num_vefs
-=======
-    procedure, non_overridable           :: get_node_gid            => cell_iterator_get_node_gid
-    procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
-    procedure, non_overridable           :: get_vef_gids  => cell_iterator_get_vef_gids
-    procedure, non_overridable           :: get_vef_ggid            => cell_iterator_get_vef_ggid
-    procedure, non_overridable           :: get_vef_lid_from_gid    => cell_iterator_get_vef_lid_from_gid
-    procedure, non_overridable           :: get_vef_lid_from_ggid   => cell_iterator_get_vef_lid_from_ggid
-    procedure, non_overridable           :: get_vef                 => cell_iterator_get_vef
-    procedure, non_overridable           :: is_local                => cell_iterator_is_local
-    procedure, non_overridable           :: is_ghost                => cell_iterator_is_ghost
-    procedure, non_overridable           :: scan_sum_num_vefs    => cell_iterator_get_scan_sum_num_vefs
->>>>>>> 819537693844795c7cdee77675691293bfca635e
 
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
     procedure :: update_sub_triangulation    => cell_iterator_update_sub_triangulation
@@ -181,11 +168,7 @@ module base_static_triangulation_names
   
   type vef_iterator_t
     private
-<<<<<<< HEAD
-    integer(ip)                                 :: lid = 0
-=======
     integer(ip)                                 :: gid = -1
->>>>>>> 819537693844795c7cdee77675691293bfca635e
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
      procedure                           :: create                    => vef_iterator_create
@@ -211,19 +194,11 @@ module base_static_triangulation_names
      procedure, non_overridable          :: set_it_as_ghost           => vef_iterator_set_it_as_ghost
      procedure, non_overridable          :: set_it_at_interface       => vef_iterator_set_it_at_interface
 
-<<<<<<< HEAD
      procedure                           :: get_dim             => vef_iterator_get_dim
      procedure                           :: is_at_boundary            => vef_iterator_is_at_boundary
      procedure                           :: is_local                  => vef_iterator_is_local
      procedure                           :: is_ghost                  => vef_iterator_is_ghost
      procedure                           :: is_at_interface           => vef_iterator_is_at_interface
-=======
-     procedure, non_overridable          :: get_dim             => vef_iterator_get_dim
-     procedure, non_overridable          :: is_at_boundary            => vef_iterator_is_at_boundary
-     procedure, non_overridable          :: is_local                  => vef_iterator_is_local
-     procedure, non_overridable          :: is_ghost                  => vef_iterator_is_ghost
-     procedure, non_overridable          :: is_at_interface           => vef_iterator_is_at_interface
->>>>>>> 819537693844795c7cdee77675691293bfca635e
      procedure, non_overridable          :: is_face                   => vef_iterator_is_face
      procedure                           :: is_within_valid_range     => vef_iterator_is_within_valid_range
      
@@ -368,17 +343,10 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_par_environment                 => bst_get_par_environment
      procedure, non_overridable          :: get_cell_import                     => bst_get_cell_import
      procedure, non_overridable          :: get_coarse_triangulation            => bst_get_coarse_triangulation
-<<<<<<< HEAD
      procedure                           :: get_num_dims                  => bst_get_num_dims
      procedure                           :: get_num_vefs                        => bst_get_num_vefs 
-     procedure, non_overridable          :: get_num_faces                       => bst_get_num_faces
-     procedure                           :: get_num_cells                       => bst_get_num_cells
-=======
-     procedure, non_overridable          :: get_num_dims                  => bst_get_num_dims
-     procedure, non_overridable          :: get_num_vefs                        => bst_get_num_vefs 
      procedure, non_overridable          :: get_num_facets                       => bst_get_num_facets
-     procedure, non_overridable          :: get_num_cells                       => bst_get_num_cells
->>>>>>> 819537693844795c7cdee77675691293bfca635e
+     procedure                           :: get_num_cells                       => bst_get_num_cells
      procedure, non_overridable          :: get_num_local_cells                 => bst_get_num_local_cells
      procedure, non_overridable          :: get_num_ghost_cells                 => bst_get_num_ghost_cells
      procedure, non_overridable          :: get_num_objects                  => bst_get_num_objects
@@ -418,15 +386,9 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: allocate_cells_mypart               => bst_allocate_cells_mypart
      procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
-<<<<<<< HEAD
      procedure                           :: fill_cells_set                      => bst_fill_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_x_cell              => bst_free_ptr_vefs_x_cell
-     procedure,                  private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
-=======
-     procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
-     procedure, non_overridable, private :: free_ptr_vefs_x_cell              => bst_free_ptr_vefs_x_cell
-     procedure, non_overridable, private :: free_lst_vefs_gids                  => bst_free_lst_vefs_gids 
->>>>>>> 819537693844795c7cdee77675691293bfca635e
+     procedure,                  private :: free_lst_vefs_gids                  => bst_free_lst_vefs_gids 
      procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
      procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set

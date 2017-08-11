@@ -1267,7 +1267,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
              quadrature             = facet_quadrature ) 
 
         call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_facet_id()+1, &
-             facet_quadrature,                           &
+             -1, facet_quadrature,                           &
              facet_interpolation )
 
         ! Integrate face boundary moments int_Face(u^n q), q \in P_{k-2,k-2} P_{k-2,k-2}

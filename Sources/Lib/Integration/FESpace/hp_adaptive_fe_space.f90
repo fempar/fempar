@@ -635,7 +635,7 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   call this%fill_field_cell_to_ref_fes_same_on_all_cells()
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
-  vef_lids_of_fe_faces => this%get_vef_lids_of_fe_faces()
+  vef_lids_of_fe_faces => this%get_vef_gids_of_fe_faces()
   call vef_lids_of_fe_faces%resize(triangulation%get_num_vefs())
   call this%fill_vef_lids_of_fe_faces()
   call this%allocate_and_init_ptr_lst_dofs_gids()
@@ -677,7 +677,7 @@ subroutine shpafs_create_different_between_cells( this,          &
   call this%fill_field_cell_to_ref_fes_different_ref_fes_between_cells(set_ids_to_reference_fes)
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
-  vef_lids_of_fe_faces => this%get_vef_lids_of_fe_faces()
+  vef_lids_of_fe_faces => this%get_vef_gids_of_fe_faces()
   call vef_lids_of_fe_faces%resize(triangulation%get_num_vefs())
   call this%fill_vef_lids_of_fe_faces()
   call this%allocate_and_init_ptr_lst_dofs_gids()
@@ -807,7 +807,7 @@ subroutine shpafs_fill_vef_lids_of_fe_faces ( this )
   integer(ip)                                     :: facet_lid
   facet_lid = 0
   triangulation => this%get_triangulation()
-  vef_lids_of_fe_faces => this%get_vef_lids_of_fe_faces()
+  vef_lids_of_fe_faces => this%get_vef_gids_of_fe_faces()
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
     if ( is_fe_face() ) then
@@ -931,7 +931,7 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
               
               if ( vef%is_proper() .or. all_improper_cells_around_void ) then
 
-                 vef_lid = abs(fe%get_vef_lid(ivef))
+                 vef_lid = abs(fe%get_vef_gid(ivef))
                  is_owner = .false.
                  if ( vef%is_proper()) then
                    is_owner = ( visited_proper_vef_to_cell_map   ( 1, vef_lid ) == -1 )
@@ -963,8 +963,8 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
                     call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
                  end if
               else 
-                 assert ( fe%get_vef_lid(ivef) < 0 )
-                 vef_lid = abs(fe%get_vef_lid(ivef))
+                 assert ( fe%get_vef_gid(ivef) < 0 )
+                 vef_lid = abs(fe%get_vef_gid(ivef))
                  if ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 ) then
                     previous_fixed_dof = current_fixed_dof
                     call fe%fill_own_dofs_on_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
@@ -1065,7 +1065,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      ! and one of the cells that owns it
      call fe_vef%set_lid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
-     improper_vef_ivef = fe%find_lpos_vef_lid(fe_vef%get_lid())
+     improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_lid())
      call fe%get_fe_dofs(fe_dofs)
 
      ! Retrieve all data related to the first improper cell around current improper vef
@@ -1113,7 +1113,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      ! and one of the cells that owns it
      call fe_vef%set_lid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
-     improper_vef_ivef = fe%find_lpos_vef_lid(fe_vef%get_lid())
+     improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_lid())
      call fe%get_fe_dofs(fe_dofs)
 
      mcheck( this%p4est_triangulation%get_num_dims()==2 , 'The following code only valid for 2d cases' )
