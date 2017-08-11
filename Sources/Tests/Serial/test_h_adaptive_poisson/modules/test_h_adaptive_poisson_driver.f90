@@ -379,8 +379,8 @@ contains
     select type( reference_fe => this%reference_fes(1)%p )
     type is (hex_lagrangian_reference_fe_t)
        h_refinement_interpolation       => reference_fe%get_h_refinement_interpolation()
-       h_refinement_subface_permutation => reference_fe%get_h_refinement_subface_permutation()
-       h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedge_permutation()
+       h_refinement_subface_permutation => reference_fe%get_h_refinement_subfacet_permutation()
+       h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedget_permutation()
     class default
       assert(.false.)
     end select

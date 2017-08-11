@@ -228,17 +228,11 @@ module reference_fe_names
 
   type cell_map_facet_restriction_t
      private
-<<<<<<< HEAD
      integer(ip)                 :: num_facets = 0
      integer(ip)                 :: num_subfacets = 0
      integer(ip)                 :: active_facet_lid
      integer(ip)                 :: active_subfacet_lid
      type(cell_map_t), allocatable :: cell_map(:)
-=======
-     integer(ip)                 :: num_facets = 0
-     integer(ip)                 :: active_facet_lid
-     type(cell_map_t), allocatable :: cell_map(:)
->>>>>>> 819537693844795c7cdee77675691293bfca635e
    contains
      procedure, non_overridable :: create            => cell_map_facet_restriction_create
      procedure, non_overridable :: update            => cell_map_facet_restriction_update
@@ -284,7 +278,6 @@ module reference_fe_names
      integer(ip), allocatable       :: ijk_to_index(:)
      integer(ip), allocatable       :: coordinates(:,:)
    contains
-<<<<<<< HEAD
      procedure                  :: create                            => node_array_create
      procedure                  :: print                             => node_array_print
      procedure                  :: free                              => node_array_free
@@ -296,16 +289,6 @@ module reference_fe_names
      procedure        , private :: fill                              => node_array_fill
      procedure, nopass, private :: fill_permutations                 => node_array_fill_permutations
      procedure, nopass, private :: compute_num_rot_and_perm          => node_array_compute_num_rot_and_perm
-=======
-     procedure                  :: create                   => node_array_create
-     procedure                  :: print                    => node_array_print
-     procedure                  :: free                     => node_array_free
-     procedure                  :: create_node_iterator     => node_array_create_node_iterator
-     procedure                  :: get_num_nodes         => node_array_get_num_nodes
-     procedure        , private :: fill                     => node_array_fill
-     procedure, nopass, private :: fill_permutations        => node_array_fill_permutations
-     procedure, nopass, private :: compute_num_rot_and_perm => node_array_compute_num_rot_and_perm
->>>>>>> 819537693844795c7cdee77675691293bfca635e
   end type node_array_t
 
   public :: node_array_t
@@ -591,22 +574,13 @@ module reference_fe_names
        logical    , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
 
-<<<<<<< HEAD
-     subroutine create_face_interpolation_interface ( this, local_face_id , local_subface_id, &
-                                                      local_quadrature, face_interpolation )
-       import :: reference_fe_t, ip, quadrature_t, interpolation_t
-       implicit none 
-       class(reference_fe_t), intent(in)    :: this
-       integer(ip)          , intent(in)    :: local_face_id
-       integer(ip)          , intent(in)    :: local_subface_id
-=======
-     subroutine create_interpolation_restricted_to_facet_interface ( this, facet_lid , local_quadrature,       &
-          &                                           facet_interpolation)
+     subroutine create_interpolation_restricted_to_facet_interface ( this, facet_lid , subfacet_lid, &
+                                                      local_quadrature, facet_interpolation )
        import :: reference_fe_t, ip, quadrature_t, interpolation_t
        implicit none 
        class(reference_fe_t), intent(in)    :: this
        integer(ip)          , intent(in)    :: facet_lid
->>>>>>> 819537693844795c7cdee77675691293bfca635e
+       integer(ip)          , intent(in)    :: subfacet_lid
        type(quadrature_t)   , intent(in)    :: local_quadrature
        type(interpolation_t), intent(inout) :: facet_interpolation
      end subroutine create_interpolation_restricted_to_facet_interface
@@ -1035,32 +1009,19 @@ abstract interface
     integer(ip)           , optional, intent(in)    :: order_vector(SPACE_DIM)
   end subroutine fill_interpolation_interface
 
-<<<<<<< HEAD
-  subroutine fill_face_interpolation_interface ( this,             &
+  subroutine fill_facet_interpolation_interface ( this,             &
                                                  local_quadrature, &
-                                                 local_face_id,    &
-                                                 local_subface_id, &
-                                                 face_interpolation )
-=======
-  subroutine fill_facet_interpolation_interface ( this,               &
-       local_quadrature, &
-       facet_lid,   &
-       facet_interpolation )
->>>>>>> 819537693844795c7cdee77675691293bfca635e
+                                                 facet_lid,    &
+                                                 subfacet_lid, &
+                                                 facet_interpolation )
     import :: lagrangian_reference_fe_t, interpolation_t, quadrature_t, ip
     implicit none 
     class(lagrangian_reference_fe_t), intent(in)    :: this
     type(quadrature_t)              , intent(in)    :: local_quadrature
-<<<<<<< HEAD
-    integer(ip)                     , intent(in)    :: local_face_id
-    integer(ip)                     , intent(in)    :: local_subface_id
-    type(interpolation_t)           , intent(inout) :: face_interpolation
-  end subroutine fill_face_interpolation_interface
-=======
     integer(ip)                     , intent(in)    :: facet_lid
+    integer(ip)                     , intent(in)    :: subfacet_lid
     type(interpolation_t)           , intent(inout) :: facet_interpolation
   end subroutine fill_facet_interpolation_interface
->>>>>>> 819537693844795c7cdee77675691293bfca635e
 
   function compute_num_quadrature_points_interface ( this, degree, dimension )
     import :: lagrangian_reference_fe_t, ip, SPACE_DIM
@@ -1373,9 +1334,8 @@ procedure, private :: fill_nodal_quadrature                              &
 & => hex_lagrangian_reference_fe_fill_nodal_quadrature
 procedure, private :: fill_interpolation                                 &
 & => hex_lagrangian_reference_fe_fill_interpolation
-<<<<<<< HEAD
-procedure, private :: fill_face_interpolation                            &
-& => hex_lagrangian_reference_fe_fill_face_interpolation
+procedure, private :: fill_facet_interpolation                            &
+& => hex_lagrangian_reference_fe_fill_facet_interpolation
 ! Overwriten TBPs from lagrangian_reference_fe_t
 procedure :: free                                                        &
 & => hex_lagrangian_reference_fe_free
@@ -1394,18 +1354,12 @@ procedure          :: get_h_refinement_coefficient                       &
 & => hex_lagrangian_reference_fe_get_h_refinement_coefficient
 procedure          :: get_h_refinement_interpolation                     &
 & => hex_lagrangian_reference_fe_get_h_refinement_interpolation
-procedure          :: get_h_refinement_subedge_permutation               &
+procedure          :: get_h_refinement_subedget_permutation               &
 & => hex_lagrangian_reference_fe_get_h_refinement_subedge_perm
-procedure          :: get_h_refinement_subface_permutation               &
+procedure          :: get_h_refinement_subfacet_permutation               &
 & => hex_lagrangian_reference_fe_get_h_refinement_subface_perm
-procedure, private :: compute_number_quadrature_points                   &
-& => hex_lagrangian_reference_fe_compute_number_quadrature_points
-=======
-procedure, private :: fill_facet_interpolation                            &
-& => hex_lagrangian_reference_fe_fill_facet_interpolation
-procedure, private :: compute_num_quadrature_points                       &
+procedure, private :: compute_num_quadrature_points                   &
 & => hex_lagrangian_reference_fe_compute_num_quadrature_points
->>>>>>> 819537693844795c7cdee77675691293bfca635e
 procedure :: fill_qpoints_permutations                                   &
 & => hex_lagrangian_reference_fe_fill_qpoints_permutations
 procedure, private :: get_h_refinement_num_subfacets &
@@ -1667,15 +1621,10 @@ public :: cell_integrator_t, p_cell_integrator_t
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type cell_integrator_facet_restriction_t
      private
-<<<<<<< HEAD
      integer(ip)                          :: num_facets
      integer(ip)                          :: num_subfacets
      integer(ip)                          :: active_facet_lid
      integer(ip)                          :: active_subfacet_lid
-=======
-     integer(ip)                            :: num_facets
-     integer(ip)                            :: active_facet_lid
->>>>>>> 819537693844795c7cdee77675691293bfca635e
      type(cell_integrator_t), allocatable :: cell_integrator(:) 
    contains
      procedure, non_overridable :: create  => cell_integrator_facet_restriction_create
@@ -1715,19 +1664,11 @@ public :: facet_maps_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type facet_integrator_t
   private
-<<<<<<< HEAD
-  logical                                  :: is_boundary
+  logical                                  :: is_at_boundary
   type(cell_integrator_facet_restriction_t) :: cell_integrator_facet_restriction(2)
   type(p_reference_fe_t)                   :: reference_fe(2)
   integer(ip)                              :: current_qpoints_perm_cols(2)
   type(allocatable_array_ip2_t)            :: qpoints_perm
-=======
-  logical                                    :: is_at_boundary
-  type(cell_integrator_facet_restriction_t) :: cell_integrator_facet_restriction(2)
-  type(p_reference_fe_t)                     :: reference_fe(2)
-  integer(ip)                                :: current_qpoints_perm_cols(2)
-  type(allocatable_array_ip2_t)              :: qpoints_perm
->>>>>>> 819537693844795c7cdee77675691293bfca635e
 contains
   procedure, non_overridable :: create            => facet_integrator_create
   procedure, non_overridable :: update            => facet_integrator_update

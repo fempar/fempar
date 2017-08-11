@@ -68,22 +68,13 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry )
 end subroutine cell_map_create
 
 !==================================================================================================
-<<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_cell_map.i90
-subroutine cell_map_create_on_face( this, local_face_id, local_subface_id, quadrature, reference_fe_geometry )
+subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
   class(cell_map_t)                 , intent(inout) :: this
-  integer(ip)                     , intent(in)    :: local_face_id
-  integer(ip)                     , intent(in)    :: local_subface_id
+  integer(ip)                     , intent(in)    :: facet_lid
+  integer(ip)                     , intent(in)    :: subfacet_lid
   type(quadrature_t)              , intent(in)    :: quadrature
-=======
-subroutine cell_map_restricted_to_facet( this, facet_lid, quadrature, reference_fe_geometry )
-  implicit none
-  ! Parameters
-  class(cell_map_t)      , intent(inout) :: this
-  integer(ip)          , intent(in)    :: facet_lid
-  type(quadrature_t), intent(in)    :: quadrature
->>>>>>> 819537693844795c7cdee77675691293bfca635e:Sources/Lib/Integration/ReferenceFE/sbm_cell_map.i90
   class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: num_nodes
@@ -93,15 +84,10 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, quadrature, reference_
   this%num_dims        = reference_fe_geometry%num_dims
   this%num_quadrature_points = quadrature%num_quadrature_points
 
-<<<<<<< HEAD:Sources/Lib/Integration/ReferenceFE/sbm_cell_map.i90
-  call reference_fe_geometry%create_face_interpolation( local_face_id,    &
-                                                        local_subface_id, &
+  call reference_fe_geometry%create_interpolation_restricted_to_facet( facet_lid,    &
+                                                        subfacet_lid, &
                                                         quadrature,       &
                                                         this%interpolation_geometry )
-=======
-  call reference_fe_geometry%create_interpolation_restricted_to_facet( facet_lid, quadrature,                &
-       &                                                this%interpolation )
->>>>>>> 819537693844795c7cdee77675691293bfca635e:Sources/Lib/Integration/ReferenceFE/sbm_cell_map.i90
 
   call memalloc(this%num_dims, &
                 this%num_dims, &

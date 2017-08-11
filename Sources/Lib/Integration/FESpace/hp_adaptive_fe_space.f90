@@ -1135,8 +1135,8 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         
         select type(coarser_reference_fe)
         type is (hex_lagrangian_reference_fe_t)
-           h_refinement_subedge_permutation => coarser_reference_fe%get_h_refinement_subedge_permutation()
-           h_refinement_subface_permutation => coarser_reference_fe%get_h_refinement_subface_permutation()
+           h_refinement_subedge_permutation => coarser_reference_fe%get_h_refinement_subedget_permutation()
+           h_refinement_subface_permutation => coarser_reference_fe%get_h_refinement_subfacet_permutation()
         class default
           assert(.false.)
         end select

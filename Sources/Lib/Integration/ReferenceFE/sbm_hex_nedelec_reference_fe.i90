@@ -963,8 +963,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
                           quadrature             = facet_quadrature ) 
      
 <<<<<<< HEAD
-     call this%create_face_interpolation ( facet_id - d_fe_geo%get_first_face_id()+1, &
-                                           -1, face_quadrature, face_interpolation )
+     call this%create_interpolation_restricted_to_facet ( facet_id - d_fe_geo%get_first_face_id()+1, &
+                                           -1, facet_quadrature, facet_interpolation )
 =======
      call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_facet_id()+1, &
                                           facet_quadrature, &

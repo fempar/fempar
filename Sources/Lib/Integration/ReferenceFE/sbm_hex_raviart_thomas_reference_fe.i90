@@ -854,8 +854,8 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
                                    quadrature             = d_1_quadrature ) 
      
 <<<<<<< HEAD
-     call this%create_face_interpolation ( facet_id - d_fe_geo%get_first_face_id()+1, &
-                                           -1, d_1_quadrature, face_interpolation )
+     call this%create_interpolation_restricted_to_facet ( facet_id - d_fe_geo%get_first_face_id()+1, &
+                                           -1, d_1_quadrature, facet_interpolation )
 =======
      call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_facet_id()+1, &
                                           d_1_quadrature, &

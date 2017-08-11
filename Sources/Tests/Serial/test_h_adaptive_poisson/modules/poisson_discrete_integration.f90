@@ -103,7 +103,7 @@ contains
           
        ! Very important: this has to be inside the loop, as different FEs can be present!
        quad            => fe%get_quadrature()
-       num_quad_points = quad%get_number_quadrature_points()
+       num_quad_points = quad%get_num_quadrature_points()
        cell_map          => fe%get_cell_map()
        cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_number_dofs()

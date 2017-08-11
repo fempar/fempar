@@ -209,7 +209,7 @@ module fe_space_names
     procedure, non_overridable          :: fill_own_dofs_on_vef                       => fe_iterator_fill_own_dofs_on_vef
     procedure, non_overridable          :: fill_own_dofs_on_vef_component_wise        => fe_iterator_fill_own_dofs_on_vef_component_wise
     procedure, non_overridable          :: fill_own_dofs_on_vef_from_source_fe        => fe_iterator_fill_own_dofs_on_vef_from_source_fe
-    procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_iterator_fill_dofs_face_integration_coupling
+    procedure, non_overridable, private :: fill_dofs_facet_integration_coupling        => fe_iterator_fill_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_iterator_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_iterator_renumber_dofs_field
     procedure, non_overridable          :: update_number_dofs_per_field               => fe_iterator_update_number_dofs_per_field
@@ -411,8 +411,8 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature_degree          => fe_facet_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree          => fe_facet_iterator_set_quadrature_degree
     procedure, non_overridable          :: get_quadrature                 => fe_facet_iterator_get_quadrature
-    procedure, non_overridable          :: get_face_maps                  => fe_facet_iterator_get_face_map
-    procedure, non_overridable          :: get_face_integrator            => fe_facet_iterator_get_face_integrator
+    procedure, non_overridable          :: get_facet_maps                  => fe_facet_iterator_get_facet_map
+    procedure, non_overridable          :: get_facet_integrator            => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface                => fe_facet_iterator_compute_surface
     procedure                 , private :: compute_face_permutation_index => fe_facet_iterator_compute_face_permutation_index
     procedure                           :: get_lpos_within_cell_around    => fe_facet_iterator_get_lpos_within_cell_around
