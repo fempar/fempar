@@ -1,0 +1,549 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine bst_cell_iterator_create ( this, base_static_triangulation )
+  implicit none
+  class(bst_cell_iterator_t)                    , intent(inout) :: this
+  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
+  call this%free()
+  this%base_static_triangulation => base_static_triangulation
+  call this%first()
+end subroutine bst_cell_iterator_create
+
+subroutine bst_cell_iterator_free ( this)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout) :: this
+  this%gid = -1
+  nullify ( this%base_static_triangulation )
+end subroutine bst_cell_iterator_free
+
+subroutine bst_cell_iterator_free_final(this)
+  implicit none
+  type(bst_cell_iterator_t), intent(inout) :: this
+  assert(this%gid == -1)
+  assert(.not. associated(this%base_static_triangulation ))
+end subroutine bst_cell_iterator_free_final
+
+subroutine bst_cell_iterator_set_ggid(this, gid)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout) :: this
+  integer(igp)          , intent(in)    :: gid
+  this%base_static_triangulation%cells_gid(this%gid) = gid
+end subroutine bst_cell_iterator_set_ggid
+
+subroutine bst_cell_iterator_set_mypart(this, mypart)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: mypart
+  this%base_static_triangulation%cells_mypart(this%gid) = mypart
+end subroutine bst_cell_iterator_set_mypart
+
+function bst_cell_iterator_get_triangulation(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  class(base_static_triangulation_t), pointer :: bst_cell_iterator_get_triangulation
+  bst_cell_iterator_get_triangulation => this%base_static_triangulation
+end function bst_cell_iterator_get_triangulation
+
+function bst_cell_iterator_get_reference_fe_geo (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  class(lagrangian_reference_fe_t), pointer     :: bst_cell_iterator_get_reference_fe_geo
+  integer(ip) :: cell_type, istat
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  call this%base_static_triangulation%reference_fe_geo_index%get(key=this%get_num_vefs(),val=cell_type,stat=istat)
+  assert(istat==key_found)
+  bst_cell_iterator_get_reference_fe_geo => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p
+end function bst_cell_iterator_get_reference_fe_geo
+
+function bst_cell_iterator_get_reference_fe_geo_id (this) 
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: bst_cell_iterator_get_reference_fe_geo_id
+  integer(ip) :: istat
+  call this%base_static_triangulation%reference_fe_geo_index%get(key=this%get_num_vefs(), &
+                                                                 val=bst_cell_iterator_get_reference_fe_geo_id, &
+                                                                 stat=istat)
+end function bst_cell_iterator_get_reference_fe_geo_id
+
+subroutine bst_cell_iterator_get_coordinates (this, cell_coordinates)
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  type(point_t)        ,  intent(inout) :: cell_coordinates(:)
+  integer(ip)                    :: inode
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  assert ( allocated ( this%base_static_triangulation%coordinates ) )
+  reference_fe_geo => this%get_reference_fe_geo()
+  if ( this%is_local() ) then
+    do inode=1, reference_fe_geo%get_num_shape_functions()
+      cell_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_gid(inode))
+    end do
+ else
+    do inode=1, reference_fe_geo%get_num_shape_functions()
+      cell_coordinates(inode) = 0.0_rp
+    end do
+ end if
+end subroutine bst_cell_iterator_get_coordinates
+
+subroutine bst_cell_iterator_set_coordinates (this, cell_coordinates)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout) :: this
+  type(point_t)        ,  intent(in)    :: cell_coordinates(:)
+  integer(ip)                    :: inode
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  assert ( allocated ( this%base_static_triangulation%coordinates ) )
+  
+   reference_fe_geo => this%get_reference_fe_geo()
+   do inode=1, reference_fe_geo%get_num_shape_functions()
+     this%base_static_triangulation%coordinates(this%get_node_gid(inode)) = cell_coordinates(inode)
+   end do
+  
+end subroutine bst_cell_iterator_set_coordinates
+
+subroutine bst_cell_iterator_get_coordinates_ref_space (this, cell_coordinates)
+
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  type(point_t),          intent(inout) :: cell_coordinates(:)
+
+  integer(ip)                               :: inode
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(quadrature_t),               pointer :: nodal_quadrature
+
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  reference_fe_geo => this%get_reference_fe_geo()
+  nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
+  assert( size(cell_coordinates) == nodal_quadrature%get_num_quadrature_points() )
+  
+  call nodal_quadrature%get_coordinates_as_points( cell_coordinates ) 
+
+ end subroutine bst_cell_iterator_get_coordinates_ref_space
+
+pure function bst_cell_iterator_get_gid (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: bst_cell_iterator_get_gid
+  bst_cell_iterator_get_gid = this%gid
+end function bst_cell_iterator_get_gid
+
+function bst_cell_iterator_get_ggid (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(igp) :: bst_cell_iterator_get_ggid
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_ggid = this%base_static_triangulation%cells_gid(this%gid)
+end function bst_cell_iterator_get_ggid
+
+pure function bst_cell_iterator_get_mypart (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: bst_cell_iterator_get_mypart
+  !assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_mypart = this%base_static_triangulation%cells_mypart(this%gid)
+end function bst_cell_iterator_get_mypart
+
+! get_set_id() let's the user to get the cell set ID assigned to
+! a cell. Note that the counterpart, set_set_id(), does not exist, as we do not let 
+! the user to set "set cell IDs" on a individual basis (but instead all in one shot via the 
+! fill_cells_set member TBP of class(base_static_triangulation_t)).
+function bst_cell_iterator_get_set_id(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: bst_cell_iterator_get_set_id
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_set_id = this%base_static_triangulation%cells_set(this%gid)
+end function bst_cell_iterator_get_set_id
+
+pure function bst_cell_iterator_get_num_vefs (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: bst_cell_iterator_get_num_vefs
+  !assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_num_vefs = this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1) - &
+       this%base_static_triangulation%ptr_vefs_x_cell(this%gid)
+end function bst_cell_iterator_get_num_vefs
+
+pure function bst_cell_iterator_get_num_nodes (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: bst_cell_iterator_get_num_nodes
+  !assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_num_nodes = this%base_static_triangulation%ptr_nodes_x_cell(this%gid+1) - &
+       this%base_static_triangulation%ptr_nodes_x_cell(this%gid)
+end function bst_cell_iterator_get_num_nodes
+
+function bst_cell_iterator_get_node_gid (this, inode)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: inode
+  integer(ip)                        :: bst_cell_iterator_get_node_gid
+  class(reference_fe_t), pointer     :: reference_fe_geo
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  
+  !reference_fe_geo => this%get_reference_fe_geo()
+  !if ( reference_fe_geo%get_order() == 1 ) then
+  !  assert ( inode >=1 .and. inode <= reference_fe_geo%get_num_vertices() )
+  !  bst_cell_iterator_get_node_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid)+inode-1)
+  !else
+  !  assert ( inode >=1 .and. inode <= reference_fe_geo%get_num_nodes() )
+    bst_cell_iterator_get_node_gid = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+inode-1)
+  !end if
+  
+end function bst_cell_iterator_get_node_gid
+
+function bst_cell_iterator_get_vef_gid (this, ivef)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(ip)                        :: bst_cell_iterator_get_vef_gid
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_vef_gid = this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid)+ivef-1)
+end function bst_cell_iterator_get_vef_gid
+
+function bst_cell_iterator_get_vef_gids (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(ip), pointer               :: bst_cell_iterator_get_vef_gids(:)
+  bst_cell_iterator_get_vef_gids => this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
+                                                                             this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1)-1)
+end function bst_cell_iterator_get_vef_gids
+
+function bst_cell_iterator_get_vef_ggid (this, ivef)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(igp)                       :: bst_cell_iterator_get_vef_ggid
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_vef_ggid = this%base_static_triangulation%vefs_gid(this%get_vef_gid(ivef))
+end function bst_cell_iterator_get_vef_ggid
+
+function bst_cell_iterator_get_vef_lid_from_gid (this, vef_lid)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: vef_lid
+  integer(ip)                        :: bst_cell_iterator_get_vef_lid_from_gid
+  integer(ip)                        :: ivef
+  bst_cell_iterator_get_vef_lid_from_gid = -1
+  ! Find position of vef_lid in local element
+  do ivef = 1, this%get_num_vefs()
+    if ( this%get_vef_gid(ivef) == vef_lid ) then
+      bst_cell_iterator_get_vef_lid_from_gid = ivef
+      return 
+    end if
+  end do
+end function bst_cell_iterator_get_vef_lid_from_gid
+
+function bst_cell_iterator_get_vef_lid_from_ggid (this, vef_gid)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(igp)                       :: vef_gid
+  integer(ip)                        :: bst_cell_iterator_get_vef_lid_from_ggid
+  integer(ip)                        :: ivef
+  bst_cell_iterator_get_vef_lid_from_ggid = -1
+  ! Find position of vef_lid in local element
+  do ivef = 1, this%get_num_vefs()
+    if ( this%get_vef_ggid(ivef) == vef_gid ) then
+      bst_cell_iterator_get_vef_lid_from_ggid = ivef
+      return 
+    end if
+  end do
+end function bst_cell_iterator_get_vef_lid_from_ggid
+
+subroutine bst_cell_iterator_get_vef (this, ivef, vef)
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  integer(ip),            intent(in)    :: ivef
+  type(vef_iterator_t),   intent(inout) :: vef
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  call vef%set_gid(this%get_vef_gid(ivef))
+end subroutine bst_cell_iterator_get_vef
+
+function bst_cell_iterator_is_local (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  logical                            :: bst_cell_iterator_is_local
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_is_local = (this%gid <= this%base_static_triangulation%num_local_cells)
+end function bst_cell_iterator_is_local
+
+function bst_cell_iterator_is_ghost (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  logical                            :: bst_cell_iterator_is_ghost
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_is_ghost = (this%gid > this%base_static_triangulation%num_local_cells)
+end function bst_cell_iterator_is_ghost
+
+! Returns the sum of num_vefs over all cells up-to the present one (exclusive, i.e.,
+! without considering the present one), with the cells being ordered consistently 
+! with the iterator sequential traversal over all cells. At the moment of writing this
+! comment (commit 0907e7b9d07e122ba69e02e0d72bac46546acc04), type(coarse_fe_space_t) needs 
+! this TBP to efficiently locate a vef in the global type(list_t) data type which associates 
+! DoFs to vefs. 
+function bst_cell_iterator_get_scan_sum_num_vefs(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: bst_cell_iterator_get_scan_sum_num_vefs
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_scan_sum_num_vefs = this%base_static_triangulation%ptr_vefs_x_cell(this%gid)-1
+end function bst_cell_iterator_get_scan_sum_num_vefs
+
+!function bst_cell_iterator_get_num_vertices (this)
+!  implicit none
+!  class(bst_cell_iterator_t), intent(in) :: this
+!  integer(ip) :: bst_cell_iterator_get_num_vertices
+!  class(lagrangian_reference_fe_t) , pointer       :: reference_fe
+!  reference_fe => this%get_reference_fe_geo()
+!  bst_cell_iterator_get_num_vertices = reference_fe%get_num_n_faces_of_dim(0)
+!end function bst_cell_iterator_get_num_vertices
+
+subroutine bst_cell_iterator_update_sub_triangulation( this )
+  implicit none
+  class(bst_cell_iterator_t), intent(inout) :: this
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine bst_cell_iterator_update_sub_triangulation
+
+function bst_cell_iterator_get_mc_case( this ) result ( mc_case )
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: mc_case
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_get_mc_case
+
+function bst_cell_iterator_get_num_subcells( this ) result ( num_subcells )
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: num_subcells
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_get_num_subcells
+
+function bst_cell_iterator_get_num_subcell_nodes( this ) result ( num_nodes_subcell )
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: num_nodes_subcell
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_get_num_subcell_nodes
+
+subroutine bst_cell_iterator_get_phys_coords_of_subcell( this, subcell, points)
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine bst_cell_iterator_get_phys_coords_of_subcell
+
+subroutine bst_cell_iterator_get_ref_coords_of_subcell( this, subcell, points)
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine bst_cell_iterator_get_ref_coords_of_subcell
+
+function bst_cell_iterator_get_num_subfacets( this ) result ( num_subfacets )
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: num_subfacets
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_get_num_subfacets
+
+function bst_cell_iterator_get_num_subfacet_nodes( this ) result ( num_nodes_subfacet )
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: num_nodes_subfacet
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_get_num_subfacet_nodes
+
+subroutine bst_cell_iterator_get_phys_coords_of_subfacet( this, subfacet, points )
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subfacet
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine bst_cell_iterator_get_phys_coords_of_subfacet
+
+subroutine bst_cell_iterator_get_ref_coords_of_subfacet( this, subfacet, points )
+  implicit none
+  class(bst_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subfacet
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine bst_cell_iterator_get_ref_coords_of_subfacet
+ 
+function bst_cell_iterator_is_cut(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  logical :: bst_cell_iterator_is_cut
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_is_cut
+
+function bst_cell_iterator_is_interior(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  logical :: bst_cell_iterator_is_interior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_is_interior
+
+function bst_cell_iterator_is_exterior(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  logical :: bst_cell_iterator_is_exterior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_is_exterior
+
+function bst_cell_iterator_is_interior_subcell( this, subcell ) result ( is_in )
+  implicit none
+  class(bst_cell_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_in
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_is_interior_subcell
+
+function bst_cell_iterator_is_exterior_subcell( this, subcell ) result ( is_out )
+  implicit none
+  class(bst_cell_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_out
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_cell_iterator_is_exterior_subcell
+
+subroutine bst_cell_iterator_fill_nodes_on_vertices (this)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: ivef, inode, lnode
+  class(lagrangian_reference_fe_t) , pointer       :: reference_fe
+
+  reference_fe => this%get_reference_fe_geo()
+  do ivef=1,reference_fe%get_num_n_faces_of_dim(0)
+     assert(reference_fe%get_num_own_dofs_n_face(ivef)==1)
+     inode = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(1,ivef)
+     lnode = this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid) + ivef - 1 )
+     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid) + inode - 1 ) = lnode
+  end do
+
+end subroutine bst_cell_iterator_fill_nodes_on_vertices
+
+subroutine bst_cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: ivef
+  integer(ip)           , intent(inout) :: node_count
+  integer(ip) :: ivef_pos_in_cell, inode, l_node
+  class(lagrangian_reference_fe_t) , pointer       :: reference_fe
+
+  reference_fe => this%get_reference_fe_geo()
+  ivef_pos_in_cell = this%get_vef_lid_from_gid(ivef)
+
+  do inode = 1,reference_fe%get_num_own_dofs_n_face(ivef_pos_in_cell)
+    l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef_pos_in_cell)
+    assert(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)<=0)
+    if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)==0) then
+       node_count = node_count + 1
+       this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)=node_count
+    end	if
+  end do
+  
+end subroutine bst_cell_iterator_fill_nodes_on_vef_new
+
+subroutine bst_cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: ivef
+  class(bst_cell_iterator_t), intent(inout) :: cell
+
+  class(lagrangian_reference_fe_t) , pointer  :: source_ref_fe, target_ref_fe
+  integer(ip)          :: source_vef_lid, target_vef_lid
+  integer(ip), pointer :: source_vefs(:), target_vefs(:), source_node_list(:), target_node_list(:)
+  integer(ip) :: source_node_LID_vef, l_node, own_nnode, source_node_LID_cell
+  integer(ip) :: permutation_index, target_vef_dim, target_node_LID_cell, target_node_LID_vef
+
+  source_ref_fe => this%get_reference_fe_geo()
+  source_vef_lid = this%get_vef_lid_from_gid(ivef)
+
+  target_ref_fe => cell%get_reference_fe_geo()
+  target_vef_lid = cell%get_vef_lid_from_gid(ivef)
+  target_vef_dim = target_ref_fe%get_n_face_dim(target_vef_lid)
+ 
+  source_vefs => this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
+                                                          &   this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1)-1)
+  target_vefs => cell%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(cell%gid): &
+                                                          &   this%base_static_triangulation%ptr_vefs_x_cell(cell%gid+1)-1)
+  
+  source_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid): &
+                                                          &    this%base_static_triangulation%ptr_nodes_x_cell(this%gid+1)-1)
+  target_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(cell%gid): &
+                                                          &    this%base_static_triangulation%ptr_nodes_x_cell(cell%gid+1)-1)
+
+  assert(size(source_vefs)==source_ref_fe%get_num_n_faces())
+  assert(size(target_vefs)==target_ref_fe%get_num_n_faces())
+
+  own_nnode = source_ref_fe%get_num_own_dofs_n_face(source_vef_lid)
+
+  if ( own_nnode > 0 ) then
+     check (target_ref_fe%check_compatibility_of_n_faces(source_ref_fe,source_vef_lid,target_vef_lid))
+     permutation_index = source_ref_fe%compute_permutation_index( target_ref_fe, &
+          &                                                       source_vef_lid, &
+          &                                                       target_vef_lid, &
+          &                                                       source_vefs,    &
+          &                                                       target_vefs)
+     
+     do source_node_LID_vef = 1, own_nnode
+        source_node_LID_cell = source_ref_fe%translate_dof_lid_n_face_to_dof_lid_cell(source_node_LID_vef,source_vef_lid)
+        target_node_LID_vef = target_ref_fe%permute_dof_LID_n_face(source_node_LID_vef,target_vef_dim, permutation_index)
+        target_node_LID_cell = target_ref_fe%translate_dof_lid_n_face_to_dof_lid_cell(target_node_LID_vef, target_vef_lid)
+        assert ( target_node_list(target_node_LID_cell) <= 0 )
+        if ( target_node_list(target_node_LID_cell) == 0 ) then
+          target_node_list(target_node_LID_cell) = source_node_list(source_node_LID_cell)
+        end if
+    end do 
+ end if
+  
+end subroutine bst_cell_iterator_fill_nodes_on_vef_from_source
+
+subroutine bst_cell_iterator_fill_internal_nodes_new(this,node_count)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout) :: this
+  integer(ip)           , intent(inout) :: node_count
+  class(lagrangian_reference_fe_t) , pointer       :: reference_fe
+  integer(ip) :: inode, l_node, ivef
+
+  reference_fe => this%get_reference_fe_geo()  
+  
+  ivef = reference_fe%get_num_n_faces()+1 ! volume
+  do inode = 1, reference_fe%get_num_own_dofs_n_face(ivef)
+     l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef)
+     node_count = node_count +1
+     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)-1+l_node) = node_count
+  end do
+
+end subroutine bst_cell_iterator_fill_internal_nodes_new
+
+
