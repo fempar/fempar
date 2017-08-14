@@ -132,12 +132,12 @@
   end subroutine fe_function_copy
   
  !===============================================================================================
- function fe_function_get_dof_values ( this )
+ function fe_function_get_free_dof_values ( this )
     implicit none
     class(fe_function_t), target, intent(in) :: this 
-    class(vector_t), pointer :: fe_function_get_dof_values
-    fe_function_get_dof_values => this%free_dof_values
- end function fe_function_get_dof_values
+    class(vector_t), pointer :: fe_function_get_free_dof_values
+    fe_function_get_free_dof_values => this%free_dof_values
+ end function fe_function_get_free_dof_values
  
  !===============================================================================================
  function fe_function_get_fixed_dof_values ( this )
