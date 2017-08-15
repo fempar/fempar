@@ -48,18 +48,24 @@ subroutine bst_vef_iterator_free_final ( this)
   assert (.not. associated(this%base_static_triangulation))
 end subroutine bst_vef_iterator_free_final
 
-function bst_vef_iterator_get_triangulation(this)
+function bst_vef_iterator_get_num_nodes(this)
   implicit none
   class(bst_vef_iterator_t), intent(in) :: this
-  class(base_static_triangulation_t), pointer :: bst_vef_iterator_get_triangulation
-  bst_vef_iterator_get_triangulation => this%base_static_triangulation
-end function bst_vef_iterator_get_triangulation
+  integer(ip) :: bst_vef_iterator_get_num_nodes
+  type(bst_cell_iterator_t) :: cell
+  class(lagrangian_reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t) :: dofs_on_bst_vef_iterator
+  call this%get_cell_around(1, cell)
+  reference_fe => cell%get_reference_fe()
+  dofs_on_bst_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  bst_vef_iterator_get_num_nodes = dofs_on_bst_vef_iterator%get_size()
+end function bst_vef_iterator_get_num_nodes
 
-subroutine bst_vef_iterator_get_coordinates (this, vef_coordinates)
+subroutine bst_vef_iterator_get_nodes_coordinates (this, vef_coordinates)
   implicit none
   class(bst_vef_iterator_t), intent(inout) :: this
-  type(point_t)        , intent(inout) :: vef_coordinates(:)
-  type(cell_iterator_t)                         :: cell
+  type(point_t)            , intent(inout) :: vef_coordinates(:)
+  type(bst_cell_iterator_t)                     :: cell
   integer(ip)                                   :: inode_within_cell
   integer(ip)                                   :: inode_within_vef
   class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
@@ -70,7 +76,7 @@ subroutine bst_vef_iterator_get_coordinates (this, vef_coordinates)
   
   call cell%create(this%base_static_triangulation)
   call this%get_cell_around(1, cell)
-  reference_fe_geo => cell%get_reference_fe_geo()
+  reference_fe_geo => cell%get_reference_fe()
   dofs_on_bst_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
   inode_within_vef = 1
   do while (.not. dofs_on_bst_vef_iterator%is_upper_bound())     
@@ -80,7 +86,7 @@ subroutine bst_vef_iterator_get_coordinates (this, vef_coordinates)
     inode_within_vef = inode_within_vef + 1
   end do
   call cell%free()
-end subroutine bst_vef_iterator_get_coordinates
+end subroutine bst_vef_iterator_get_nodes_coordinates
 
 function bst_vef_iterator_get_gid (this)
   implicit none
@@ -94,7 +100,7 @@ function bst_vef_iterator_get_ggid (this)
   class(bst_vef_iterator_t), intent(in) :: this
   integer(igp) :: bst_vef_iterator_get_ggid
   assert (this%gid >= 1 .and. .not. this%has_finished())
-  bst_vef_iterator_get_ggid = this%base_static_triangulation%vefs_gid(this%gid)
+  bst_vef_iterator_get_ggid = this%base_static_triangulation%vefs_ggid(this%gid)
 end function bst_vef_iterator_get_ggid
 
 subroutine bst_vef_iterator_set_set_id(this,set_id)
@@ -181,6 +187,14 @@ function bst_vef_iterator_get_dim(this)
   bst_vef_iterator_get_dim  = mod(this%base_static_triangulation%vefs_type(this%gid),10)
 end function bst_vef_iterator_get_dim
 
+function bst_vef_iterator_is_at_interior (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  logical :: bst_vef_iterator_is_at_interior 
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_vef_iterator_is_at_interior  = .not. this%is_at_boundary()
+end function bst_vef_iterator_is_at_interior
+
 function bst_vef_iterator_is_at_boundary (this)
   implicit none
   class(bst_vef_iterator_t), intent(in) :: this
@@ -204,14 +218,6 @@ function bst_vef_iterator_is_at_interface (this)
   assert ( this%gid >= 1 .and. .not. this%has_finished() )
   bst_vef_iterator_is_at_interface  = (this%base_static_triangulation%vefs_type(this%gid)/100==1)
 end function bst_vef_iterator_is_at_interface
-
-function bst_vef_iterator_is_facet (this)
-  implicit none
-  class(bst_vef_iterator_t), intent(in) :: this
-  logical :: bst_vef_iterator_is_facet
-  assert ( this%gid >= 1 .and. .not. this%has_finished() )
-  bst_vef_iterator_is_facet  = (this%base_static_triangulation%get_num_dims()-1 == this%get_dim())
-end function bst_vef_iterator_is_facet
 
 function bst_vef_iterator_is_ghost (this)
   implicit none

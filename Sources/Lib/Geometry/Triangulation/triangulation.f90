@@ -76,30 +76,30 @@ module triangulation_names
     procedure, non_overridable           :: get_my_subpart_lid      => cell_iterator_get_mysubpart_lid
         
     ! Cell-data related TBPs
-    procedure(get_ggid_interface)              , deferred :: get_ggid
+    procedure(cell_get_ggid_interface)         , deferred :: get_ggid
     procedure(get_my_part_interface)           , deferred :: get_my_part
-    procedure(is_local_interface)              , deferred :: is_local
-    procedure(is_ghost_interface)              , deferred :: is_ghost
+    procedure(cell_is_local_interface)         , deferred :: is_local
+    procedure(cell_is_ghost_interface)         , deferred :: is_ghost
 
     ! Topology-data related TBPs 
     procedure(get_num_vefs_interface)          , deferred :: get_num_vefs
     procedure(get_vef_interface)               , deferred :: get_vef
     procedure(get_vef_gid_interface)           , deferred :: get_vef_gid
     procedure(get_vefs_gid_interface)          , deferred :: get_vefs_gid
-    procedure(get_vef_lid_from_gid_interface)  , degerred :: get_vef_lid_from_gid
-    procedure(get_vef_lid_from_ggid_interface) , degerred :: get_vef_lid_from_ggid
+    procedure(get_vef_lid_from_gid_interface)  , deferred :: get_vef_lid_from_gid
+    procedure(get_vef_lid_from_ggid_interface) , deferred :: get_vef_lid_from_ggid
     
     ! Transformation among n-face-wise node local numberings
     procedure(get_permutation_index_interface), deferred :: get_permutation_index
     
     ! Geometry-related data
-    procedure(get_reference_fe_interface)     , deferred :: get_reference_fe
-    procedure(get_num_nodes_interface)        , deferred :: get_num_nodes
-    procedure(get_nodes_coordinates_interface), deferred :: get_nodes_coordinates
+    procedure(get_reference_fe_interface)          , deferred :: get_reference_fe
+    procedure(cell_get_num_nodes_interface)        , deferred :: get_num_nodes
+    procedure(cell_get_nodes_coordinates_interface), deferred :: get_nodes_coordinates
     
     ! Set IDs-related TBPs
-    procedure(get_set_id_interface) , deferred :: get_set_id
-    procedure(set_set_id_interface) , deferred :: set_set_id
+    procedure(cell_get_set_id_interface)      , deferred :: get_set_id
+    procedure(cell_set_set_id_interface)      , deferred :: set_set_id
     
  
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
@@ -119,7 +119,7 @@ module triangulation_names
     !procedure :: is_interior_subcell         => cell_iterator_is_interior_subcell
     !procedure :: is_exterior_subcell         => cell_iterator_is_exterior_subcell
   end type cell_iterator_t
-  
+ 
   type, abstract :: vef_iterator_t
     private
     integer(ip)                     :: gid = -1
@@ -127,33 +127,32 @@ module triangulation_names
   contains
      procedure                           :: create                    => vef_iterator_create
      procedure                           :: free                      => vef_iterator_free
-     final                               ::                              vef_iterator_free_final
      procedure                           :: first                     => vef_iterator_first
      procedure                           :: next                      => vef_iterator_next
      procedure                           :: has_finished              => vef_iterator_has_finished
-     procedure, non_overridable          :: set_gid                   => vef_iterator_set_gid
      procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
-     !procedure, non_overridable          :: get_coordinates           => vef_iterator_get_coordinates
-     !procedure, non_overridable          :: get_triangulation         => vef_iterator_get_triangulation
-     !procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
-     !procedure, non_overridable          :: set_geom_id               => vef_iterator_set_geom_id
-     !procedure, non_overridable          :: set_set_id                => vef_iterator_set_set_id
-     !procedure, non_overridable          :: get_geom_id               => vef_iterator_get_geom_id
-     !procedure, non_overridable          :: get_set_id                => vef_iterator_get_set_id
-     !procedure, non_overridable          :: set_dimension             => vef_iterator_set_dimension
-     !procedure, non_overridable          :: set_it_at_boundary        => vef_iterator_set_it_at_boundary
-     !procedure, non_overridable          :: set_it_as_local           => vef_iterator_set_it_as_local
-     !procedure, non_overridable          :: set_it_as_ghost           => vef_iterator_set_it_as_ghost
-     !procedure, non_overridable          :: set_it_at_interface       => vef_iterator_set_it_at_interface
-     !procedure, non_overridable          :: get_dimension             => vef_iterator_get_dimension
-     !procedure, non_overridable          :: is_at_boundary            => vef_iterator_is_at_boundary
-     !procedure, non_overridable          :: is_local                  => vef_iterator_is_local
-     !procedure, non_overridable          :: is_ghost                  => vef_iterator_is_ghost
-     !procedure, non_overridable          :: is_at_interface           => vef_iterator_is_at_interface
-     !procedure, non_overridable          :: is_facet                   => vef_iterator_is_facet
-     !procedure, non_overridable          :: get_num_cells_around      => vef_iterator_get_num_cells_around
-     !procedure, non_overridable          :: vef_iterator_get_cell_around
-     !generic                             :: get_cell_around           => vef_iterator_get_cell_around
+     procedure, non_overridable          :: set_gid                   => vef_iterator_set_gid
+     procedure, non_overridable          :: get_triangulation         => vef_iterator_get_triangulation
+     procedure, non_overridable          :: is_facet                  => vef_iterator_is_facet
+     
+     ! Topology-data related TBPs
+     procedure(get_num_cells_around_interface), deferred :: get_num_cells_around
+     procedure(get_cell_around_interface)     , deferred :: get_cell_around
+     
+     ! Geometry related-data TBPs
+     procedure(get_num_nodes_interface)        , deferred :: get_num_nodes
+     procedure(get_nodes_coordinates_interface), deferred :: get_nodes_coordinates
+     
+     ! Misc TBPs
+     procedure(get_ggid_interface)            , deferred :: get_ggid
+     procedure(is_at_interior_interface)      , deferred :: is_at_interior
+     procedure(is_at_boundary_interface)      , deferred :: is_at_boundary
+     procedure(get_dim_interface)             , deferred :: get_dim
+     procedure(get_set_id_interface)          , deferred :: get_set_id
+     procedure(set_set_id_interface)          , deferred :: set_set_id
+     procedure(is_ghost_interface)            , deferred :: is_ghost
+     procedure(is_local_interface)            , deferred :: is_local 
+     procedure(is_at_interface_interface)     , deferred :: is_at_interface
   end type vef_iterator_t
 
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
@@ -168,6 +167,192 @@ module triangulation_names
      !procedure          :: has_finished   => itfc_vef_iterator_has_finished
   end type itfc_vef_iterator_t
 
+  abstract interface
+     function cell_get_ggid_interface ( this )
+       import :: cell_iterator_t, igp
+       class(cell_iterator_t), intent(in) :: this
+       integer(igp) :: cell_get_ggid_interface 
+     end function cell_get_ggid_interface 
+
+     function get_my_part_interface ( this )
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(in) :: this
+       integer(ip) :: get_my_part_interface
+     end function get_my_part_interface
+
+     function cell_is_local_interface ( this )
+       import :: cell_iterator_t
+       class(cell_iterator_t), intent(in) :: this
+       logical :: cell_is_local_interface
+     end function cell_is_local_interface
+
+     function cell_is_ghost_interface ( this )
+       import :: cell_iterator_t
+       class(cell_iterator_t), intent(in) :: this
+       logical :: cell_is_ghost_interface
+     end function cell_is_ghost_interface
+     
+     function get_num_vefs_interface ( this )
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(in) :: this
+       integer(ip) :: get_num_vefs_interface
+     end function get_num_vefs_interface
+     
+     subroutine get_vef_interface ( this, vef_lid, vef)
+       import :: cell_iterator_t, vef_iterator_t, ip
+       class(cell_iterator_t), intent(in)    :: this
+       integer(ip)           , intent(in)    :: vef_lid
+       class(vef_iterator_t) , intent(inout) :: vef
+     end subroutine get_vef_interface
+     
+     function get_vef_gid_interface ( this, vef_lid )
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(in)    :: this
+       integer(ip)           , intent(in)    :: vef_lid
+       integer(ip) :: get_vef_gid_interface
+     end function get_vef_gid_interface
+     
+     subroutine get_vefs_gid_interface ( this, vefs_gid )
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(in)    :: this
+       integer(ip), pointer  , intent(in)    :: vefs_gid(:)
+       integer(ip) :: get_vef_gid_interface
+     end subroutine get_vefs_gid_interface
+     
+     function get_vef_lid_from_gid_interface ( this, vef_gid )
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(in)    :: this
+       integer(ip)           , intent(in)    :: vef_gid
+       integer(ip) :: get_vef_lid_from_gid_interface 
+     end function get_vef_lid_from_gid_interface
+     
+     function get_vef_lid_from_ggid_interface ( this, vef_ggid )
+       import :: cell_iterator_t, ip, igp
+       class(cell_iterator_t), intent(in)    :: this
+       integer(ip)           , intent(in)    :: vef_ggid
+       integer(ip) :: get_vef_lid_from_ggid_interface 
+     end function get_vef_lid_from_ggid_interface
+     
+     function get_permutation_index_interface(this, target_cell, source_vef_lid, target_vef_lid )
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(in) :: this
+       class(cell_iterator_t), intent(in) :: target_cell
+       integer(ip)           , intent(in) :: source_vef_lid
+       integer(ip)           , intent(in) :: target_vef_lid
+       integer(ip) :: get_permutation_index_interface
+     end function get_permutation_index_interface
+     
+     function get_reference_fe_interface ( this )
+       import :: cell_iterator_t, reference_fe_t 
+       class(cell_iterator_t), intent(in) :: this 
+       class(reference_fe_t), pointer :: get_reference_fe_interface
+     end function get_reference_fe_interface 
+     
+     function cell_get_num_nodes_interface ( this )
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(in) :: this
+       integer(ip) :: cell_get_num_nodes_interface
+     end function cell_get_num_nodes_interface
+     
+     subroutine cell_get_nodes_coordinates_interface( this, nodes_coordinates )
+       import :: cell_iterator_t, point_t
+       class(cell_iterator_t), intent(in)    :: this
+       type(point_t)         , intent(inout) :: nodes_coordinates(:)
+     end subroutine cell_get_nodes_coordinates_interface
+       
+     function cell_get_set_id_interface ( this )
+       import :: cell_iterator_t, ip 
+       class(cell_iterator_t), intent(in)    :: this
+       integer(ip) :: get_set_id_interface
+     end function cell_get_set_id_interface 
+     
+     subroutine cell_set_set_id_interface ( this, set_id )
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(in)  :: this
+       integer(ip)           , intent(in)  :: set_id
+     end subroutine cell_set_set_id_interface
+  end interface
+  
+   abstract interface
+     function get_num_cells_around_interface ( this )
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t), intent(in) :: this
+       integer(ip) :: get_num_cells_around_interface
+     end function get_num_cells_around_interface
+
+     function get_cell_around_interface ( this, icell_around, cell )
+       import :: vef_iterator_t, cell_iterator_t, ip
+       class(vef_iterator_t) , intent(in)    :: this
+       integer(ip)           , intent(in)    :: icell_around
+       class(cell_iterator_t), intent(inout) :: cell 
+     end function get_cell_around_interface
+
+     function get_num_nodes_interface ( this )
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t), intent(in) :: this
+       integer(ip) :: get_num_nodes_interface
+     end function get_num_nodes_interface
+
+     subroutine get_nodes_coordinates_interface ( this, nodes_coordinates )
+       import :: vef_iterator_t, point_t
+       class(vef_iterator_t), intent(in)    :: this
+       type(point_t)        , intent(inout) :: nodes_coordinates(:)
+     end subroutine get_nodes_coordinates_interface
+     
+     function get_ggid_interface ( this )
+       import :: vef_iterator_t, igp
+       class(vef_iterator_t), intent(in) :: this
+       integer(igp) :: get_ggid_interface
+     end function get_ggid_interface
+     
+     function is_at_interior_interface ( this )
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t), intent(in) :: this
+       integer(ip) :: get_num_vefs_interface
+     end function is_at_interior_interface
+     
+     subroutine is_at_boundary_interface ( this )
+       import :: vef_iterator_t
+       class(vef_iterator_t), intent(in) :: this
+     end subroutine is_at_boundary_interface
+     
+     function get_dim_interface ( this )
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t), intent(in) :: this
+       integer(ip) :: get_dim_interface
+     end function get_dim_interface
+     
+     function get_set_id_interface ( this )
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t), intent(in)    :: this
+       integer(ip) :: get_set_id_interface
+     end function get_set_id_interface
+     
+     subroutine set_set_id_interface ( this, set_id )
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t), intent(in)    :: this
+       integer(ip)          , intent(in)    :: set_id
+     end subroutine set_set_id_interface
+     
+     function is_ghost_interface ( this )
+       import :: vef_iterator_t, ip, igp
+       class(vef_iterator_t), intent(in)    :: this
+       logical :: is_ghost_interface 
+     end function is_ghost_interface
+     
+     function is_local_interface(this)
+       import :: vef_iterator_t
+       class(vef_iterator_t), intent(in) :: this
+       logical :: is_local_interface
+     end function is_local_interface
+     
+     function is_at_interface_interface ( this )
+       import :: vef_iterator_t
+       class(vef_iterator_t), intent(in) :: this 
+       logical :: is_at_interface_interface 
+     end function is_at_interface_interface 
+  end interface
+  
   type object_iterator_t
     private
     integer(ip)                     :: gid = -1
@@ -184,9 +369,9 @@ module triangulation_names
     procedure                           :: has_finished                    => object_iterator_has_finished
     procedure, non_overridable          :: get_gid                         => object_iterator_get_gid
     procedure, non_overridable          :: get_ggid                        => object_iterator_get_ggid
-    procedure, non_overridable          :: get_dimension                   => object_iterator_get_dimension
-    procedure, non_overridable          :: get_num_parts_around         => object_iterator_get_num_parts_around
-    procedure, non_overridable          :: get_num_subparts_around      => object_iterator_get_num_subparts_around
+    procedure, non_overridable          :: get_dim                         => object_iterator_get_dim
+    procedure, non_overridable          :: get_num_parts_around            => object_iterator_get_num_parts_around
+    procedure, non_overridable          :: get_num_subparts_around         => object_iterator_get_num_subparts_around
     procedure, non_overridable          :: create_parts_around_iterator    => object_iterator_create_parts_around_iterator
     procedure, non_overridable          :: create_subparts_around_iterator => object_iterator_create_subparts_around_iterator
     procedure, non_overridable          :: get_num_vefs                    => object_iterator_get_num_vefs
@@ -239,6 +424,11 @@ module triangulation_names
      procedure, non_overridable :: get_coarse_triangulation => triangulation_get_coarse_triangulation
      procedure, non_overridable :: get_num_itfc_vefs        => triangulation_get_num_itfc_vefs
      
+     procedure, non_overridable :: set_environment          => triangulation_set_environment
+     procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
+     procedure, non_overridable :: free_environment         => triangulation_free_environment
+     
+     procedure                  :: free                     => triangulation_free
      
      ! Cell traversals-related TBPs
      procedure(create_cell_iterator_interface), deferred :: create_cell_iterator
@@ -254,8 +444,8 @@ module triangulation_names
      procedure, non_overridable :: free_object_iterator    => triangulation_free_object_iterator
      
      ! Set up TBPs of lst_itfc_vefs
-     procedure, non_overridable :: allocate_and_fill_lst_itfc_vefs => triangulation_allocate_and_fill_lst_itfc_vefs
-     procedure, non_overridable :: free_lst_itfc_vefs              => triangulation_free_lst_itfc_vefs
+     procedure, non_overridable :: set_up_lst_itfc_vefs    => triangulation_set_up_lst_itfc_vefs
+     procedure, non_overridable :: free_lst_itfc_vefs      => triangulation_free_lst_itfc_vefs
 
      ! Private methods to compute objects
      procedure, non_overridable          :: get_num_subparts                           => triangulation_get_num_subparts
@@ -277,7 +467,7 @@ module triangulation_names
      procedure, non_overridable, private :: gather_coarse_cell_gids                    => triangulation_gather_coarse_cell_gids
      procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs   => triangulation_gather_coarse_vefs_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_vefs_gids                    => triangulation_gather_coarse_vefs_gids
-     procedure, non_overridable, private :: gather_coarse_vefs_dimension               => triangulation_gather_coarse_vefs_dimension
+     procedure, non_overridable, private :: gather_coarse_vefs_dim                     => triangulation_gather_coarse_vefs_dim
      procedure, non_overridable, private :: fetch_l2_part_id_neighbours                => triangulation_fetch_l2_part_id_neighbours
      procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs => triangulation_gather_coarse_dgraph_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp       => triangulation_gather_coarse_dgraph_lextn_and_lextp
@@ -285,29 +475,29 @@ module triangulation_names
   end type triangulation_t
   
   abstract interface
-     subroutine triangulation_create_cell_iterator ( this, cell )
+     subroutine create_cell_iterator_interface ( this, cell )
        import :: triangulation_t, cell_iterator_t
        class(triangulation_t) , intent(in) :: this
        class(cell_iterator_t), allocatable, intent(inout) :: cell
-     end subroutine triangulation_create_cell_iterator
+     end subroutine create_cell_iterator_interface
 
-     subroutine triangulation_free_cell_iterator ( this, cell )
+     subroutine free_cell_iterator_interface ( this, cell )
        import :: triangulation_t, cell_iterator_t
        class(triangulation_t) , intent(in) :: this
        class(cell_iterator_t), allocatable, intent(inout) :: cell
-     end subroutine triangulation_free_cell_iterator
+     end subroutine free_cell_iterator_interface
 
-     subroutine triangulation_create_vef_iterator ( this, vef )
+     subroutine create_vef_iterator_interface ( this, vef )
        import :: triangulation_t, vef_iterator_t
        class(triangulation_t) , intent(in) :: this
        class(vef_iterator_t) , allocatable,  intent(inout) :: vef
-     end subroutine triangulation_create_vef_iterator
+     end subroutine create_vef_iterator_interface
 
-     subroutine triangulation_free_vef_iterator ( this, vef )
+     subroutine free_vef_iterator_interface ( this, vef )
        import :: triangulation_t, vef_iterator_t
        class(triangulation_t) , intent(in) :: this
        class(vef_iterator_t), allocatable, intent(inout) :: vef
-     end subroutine triangulation_free_vef_iterator
+     end subroutine free_vef_iterator_interface
   end interface
   
   ! Parameters to define vef_type. Observe that
@@ -352,11 +542,11 @@ module triangulation_names
     procedure, non_overridable, private  :: set_ggid                => bst_cell_iterator_set_ggid
     procedure, non_overridable, private  :: set_mypart              => bst_cell_iterator_set_mypart
     procedure, non_overridable, private  :: bst_cell_iterator_get_vef
-    procedure, non_overridable           :: get_reference_fe_geo    => bst_cell_iterator_get_reference_fe_geo
-    procedure, non_overridable           :: get_reference_fe_geo_id => bst_cell_iterator_get_reference_fe_geo_id
-    procedure, non_overridable           :: get_coordinates         => bst_cell_iterator_get_coordinates
-    procedure, non_overridable           :: set_coordinates         => bst_cell_iterator_set_coordinates
-    procedure, non_overridable           :: get_coordinates_ref_space => bst_cell_iterator_get_coordinates_ref_space
+    procedure, non_overridable           :: get_reference_fe        => bst_cell_iterator_get_reference_fe
+    procedure, non_overridable           :: get_reference_fe_id     => bst_cell_iterator_get_reference_fe_id
+    procedure, non_overridable           :: get_nodes_coordinates   => bst_cell_iterator_get_nodes_coordinates
+    procedure, non_overridable           :: set_nodes_coordinates   => bst_cell_iterator_set_nodes_coordinates
+    procedure, non_overridable           :: get_nodes_coordinates_ref_space => bst_cell_iterator_get_nodes_coordinates_ref_space
     procedure, non_overridable           :: get_gid                 => bst_cell_iterator_get_gid
     procedure, non_overridable           :: get_ggid                 => bst_cell_iterator_get_ggid
     procedure, non_overridable           :: get_my_part             => bst_cell_iterator_get_mypart
@@ -365,7 +555,7 @@ module triangulation_names
     procedure, non_overridable           :: get_num_nodes           => bst_cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_gid            => bst_cell_iterator_get_node_gid
     procedure, non_overridable           :: get_vef_gid             => bst_cell_iterator_get_vef_gid
-    procedure, non_overridable           :: get_vef_gids            => bst_cell_iterator_get_vef_gids
+    procedure, non_overridable           :: get_vefs_gid            => bst_cell_iterator_get_vefs_gid
     procedure, non_overridable           :: get_vef_ggid            => bst_cell_iterator_get_vef_ggid
     procedure, non_overridable           :: get_vef_lid_from_gid    => bst_cell_iterator_get_vef_lid_from_gid
     procedure, non_overridable           :: get_vef_lid_from_ggid   => bst_cell_iterator_get_vef_lid_from_ggid
@@ -373,6 +563,7 @@ module triangulation_names
     procedure, non_overridable           :: is_local                => bst_cell_iterator_is_local
     procedure, non_overridable           :: is_ghost                => bst_cell_iterator_is_ghost
     procedure, non_overridable           :: scan_sum_num_vefs       => bst_cell_iterator_get_scan_sum_num_vefs
+    procedure                            :: get_permutation_index   => bst_cell_iterator_get_permutation_index
 
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
     procedure :: update_sub_triangulation    => bst_cell_iterator_update_sub_triangulation
@@ -404,12 +595,8 @@ module triangulation_names
      procedure                           :: create                    => bst_vef_iterator_create
      procedure                           :: free                      => bst_vef_iterator_free
      final                               ::                              bst_vef_iterator_free_final
-     procedure                           :: first                     => bst_vef_iterator_first
-     procedure                           :: next                      => bst_vef_iterator_next
-     procedure, non_overridable          :: set_gid                   => bst_vef_iterator_set_gid
-     procedure                           :: has_finished              => bst_vef_iterator_has_finished
-     procedure, non_overridable          :: get_coordinates           => bst_vef_iterator_get_coordinates
-     procedure, non_overridable          :: get_triangulation         => bst_vef_iterator_get_triangulation
+     procedure, non_overridable          :: get_num_nodes             => bst_vef_iterator_get_num_nodes
+     procedure, non_overridable          :: get_nodes_coordinates     => bst_vef_iterator_get_nodes_coordinates
      procedure, non_overridable          :: get_gid                   => bst_vef_iterator_get_gid
      procedure, non_overridable          :: get_ggid                  => bst_vef_iterator_get_ggid
 
@@ -424,16 +611,15 @@ module triangulation_names
      procedure, non_overridable          :: set_it_as_ghost           => bst_vef_iterator_set_it_as_ghost
      procedure, non_overridable          :: set_it_at_interface       => bst_vef_iterator_set_it_at_interface
 
-     procedure, non_overridable          :: get_dim             => bst_vef_iterator_get_dim
+     procedure, non_overridable          :: get_dim                   => bst_vef_iterator_get_dim
+     procedure, non_overridable          :: is_at_interior            => bst_vef_iterator_is_at_interior
      procedure, non_overridable          :: is_at_boundary            => bst_vef_iterator_is_at_boundary
      procedure, non_overridable          :: is_local                  => bst_vef_iterator_is_local
      procedure, non_overridable          :: is_ghost                  => bst_vef_iterator_is_ghost
      procedure, non_overridable          :: is_at_interface           => bst_vef_iterator_is_at_interface
-     procedure, non_overridable          :: is_facet                   => bst_vef_iterator_is_facet
      
      procedure, non_overridable          :: get_num_cells_around      => bst_vef_iterator_get_num_cells_around
-     procedure, non_overridable          :: bst_vef_iterator_get_cell_around
-     generic                             :: get_cell_around           => bst_vef_iterator_get_cell_around
+     procedure, non_overridable          :: get_cell_around           => bst_vef_iterator_get_cell_around
   end type bst_vef_iterator_t
       
   integer(ip), parameter      :: max_num_reference_fes_geo = 3
@@ -441,7 +627,9 @@ module triangulation_names
   type, extends(triangulation_t) :: base_static_triangulation_t ! Base class for coarse_triangulation_t and fine_triangulation_t
      private
     
-     integer(igp), allocatable             :: cells_gid(:)        ! Num local cells + num ghost cells
+     integer(ip)                           :: num_vertices
+     
+     integer(igp), allocatable             :: cells_ggid(:)       ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_mypart(:)     ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_set(:)        ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: ptr_vefs_x_cell(:)  ! Num local cells + num ghost cells + 1
@@ -449,7 +637,7 @@ module triangulation_names
  
      
      ! Data structures to store vef related information
-     integer(igp), allocatable             :: vefs_gid(:)          ! num_vefs
+     integer(igp), allocatable             :: vefs_ggid(:)         ! num_vefs
      integer(ip) , allocatable             :: vefs_set(:)          ! num_vefs
      integer(ip) , allocatable             :: vefs_geometry(:)     ! num_vefs
      integer(ip) , allocatable             :: vefs_type(:)         ! num_vefs
@@ -463,12 +651,10 @@ module triangulation_names
      
      ! Geometry interpolation
      integer(ip)                           :: num_nodes
-     integer(ip) , allocatable             :: ptr_nodes_x_cell(:)       ! Num local cells + num ghost cells + 1
-     integer(ip) , allocatable             :: lst_nodes(:)
+     integer(ip)  , allocatable            :: ptr_nodes_x_cell(:)       ! Num local cells + num ghost cells + 1
+     integer(ip)  , allocatable            :: lst_nodes(:)
      type(point_t), allocatable            :: coordinates(:)
-     
  contains  
-
      ! Cell traversals-related TBPs
      procedure                           :: create_cell_iterator             => bst_create_cell_iterator
      procedure                           :: free_cell_iterator               => bst_free_cell_iterator
@@ -488,73 +674,44 @@ module triangulation_names
      procedure                           :: is_hex_mesh                      => bst_is_hex_mesh
      procedure                           :: is_mix_mesh                      => bst_is_mix_mesh
    
-
      ! Private methods for creating cell-related data
-     procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_x_cell => bst_allocate_and_fill_ptr_vefs_x_cell
-     procedure, non_overridable, private :: allocate_cells_gid                  => bst_allocate_cells_gid
-     procedure, non_overridable, private :: fill_local_cells_gid                => bst_fill_local_cells_gid
+     procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_x_cell   => bst_allocate_and_fill_ptr_vefs_x_cell
+     procedure, non_overridable, private :: allocate_cells_ggid                 => bst_allocate_cells_ggid
+     procedure, non_overridable, private :: fill_local_cells_ggid               => bst_fill_local_cells_ggid
      procedure, non_overridable, private :: allocate_cells_mypart               => bst_allocate_cells_mypart
      procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
-     procedure, non_overridable, private :: free_ptr_vefs_x_cell              => bst_free_ptr_vefs_x_cell
+     procedure, non_overridable, private :: free_ptr_vefs_x_cell                => bst_free_ptr_vefs_x_cell
      procedure, non_overridable, private :: free_lst_vefs_gids                  => bst_free_lst_vefs_gids 
-     procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid
+     procedure, non_overridable, private :: free_cells_ggid                     => bst_free_cells_ggid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
      procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set
      procedure, non_overridable, private :: orient_tet_mesh                     => bst_orient_tet_mesh
 
      ! Private methods to perform nearest neighbor exchange
-     procedure, non_overridable, nopass, private :: bst_cell_pack_vef_gids
-     procedure, non_overridable, nopass, private :: bst_cell_pack_vef_gids_and_dim
-     procedure, non_overridable, nopass, private :: bst_cell_pack_vef_gids_and_coordinates
-     procedure, non_overridable, nopass, private :: bst_cell_unpack_vef_gids
-     procedure, non_overridable, nopass, private :: bst_cell_unpack_vef_gids_and_dim
-     procedure, non_overridable, nopass, private :: bst_cell_unpack_vef_gids_and_coordinates
+     procedure, non_overridable, nopass, private :: bst_cell_pack_vef_ggids
+     procedure, non_overridable, nopass, private :: bst_cell_pack_vef_ggids_and_dim
+     procedure, non_overridable, nopass, private :: bst_cell_pack_vef_ggids_and_coordinates
+     procedure, non_overridable, nopass, private :: bst_cell_unpack_vef_ggids
+     procedure, non_overridable, nopass, private :: bst_cell_unpack_vef_ggids_and_dim
+     procedure, non_overridable, nopass, private :: bst_cell_unpack_vef_ggids_and_coordinates
      procedure, non_overridable, private :: fetch_ghost_cells_data         => bst_fetch_ghost_cells_data
      procedure, non_overridable, nopass, private :: cell_size              => bst_cell_size
-     generic,                            private :: cell_pack              => bst_cell_pack_vef_gids, &
-                                                                              bst_cell_pack_vef_gids_and_dim, &
-                                                                              bst_cell_pack_vef_gids_and_coordinates
-     generic,                            private :: cell_unpack            => bst_cell_unpack_vef_gids, &
-                                                                              bst_cell_unpack_vef_gids_and_dim, &
-                                                                              bst_cell_unpack_vef_gids_and_coordinates
+     generic,                            private :: cell_pack              => bst_cell_pack_vef_ggids, &
+                                                                              bst_cell_pack_vef_ggids_and_dim, &
+                                                                              bst_cell_pack_vef_ggids_and_coordinates
+     generic,                            private :: cell_unpack            => bst_cell_unpack_vef_ggids, &
+                                                                              bst_cell_unpack_vef_ggids_and_dim, &
+                                                                              bst_cell_unpack_vef_ggids_and_coordinates
 
      ! Private methods for creating vef-related data
      procedure, non_overridable, private :: compute_num_vefs                    => bst_compute_num_vefs
-     procedure, non_overridable, private :: allocate_and_fill_vefs_gid          => bst_allocate_and_fill_vefs_gid
-     procedure, non_overridable, private :: free_vefs_gid                       => bst_free_vefs_gid
+     procedure, non_overridable, private :: allocate_and_fill_vefs_ggid         => bst_allocate_and_fill_vefs_ggid
+     procedure, non_overridable, private :: free_vefs_ggid                      => bst_free_vefs_ggid
      procedure, non_overridable, private :: free_vefs_type                      => bst_triangulation_free_vefs_type
      procedure, non_overridable, private :: allocate_and_fill_cells_around      => bst_allocate_and_fill_cells_around
      procedure, non_overridable, private :: free_cells_around                   => bst_free_cells_around
-     procedure, non_overridable, private :: find_and_list_vefs_at_interfaces    => bst_find_and_list_vefs_at_interfaces
-     procedure, non_overridable, private :: free_lst_itfc_vefs                  => bst_free_lst_itfc_vefs
-
-     ! Private methods to compute objects
-     procedure, non_overridable          :: get_num_subparts                            => bst_get_num_subparts
-     procedure, non_overridable          :: get_subpart_lid                                => bst_get_subpart_lid
-     procedure, non_overridable, private :: compute_vefs_and_parts_object                  => bst_compute_vefs_and_parts_object
-     procedure, non_overridable, private :: compute_vefs_and_parts_object_body             => bst_compute_vefs_and_parts_object_body
-     procedure, non_overridable, private :: compute_parts_itfc_vefs                        => bst_compute_parts_itfc_vefs
-     procedure, non_overridable, private :: compute_subparts_itfc_vefs                     => bst_compute_subparts_itfc_vefs
-     procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => bst_compute_parts_object_from_subparts_object
-     procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => bst_compute_part_id_from_subpart_gid
-     procedure, non_overridable, private :: compute_objects_dim                      => bst_compute_objects_dim
-     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
-     procedure, non_overridable, private :: compute_num_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids
-     procedure, non_overridable, private :: free_objects_gids_and_dim                      => bst_free_objects_gids_and_dim
-
-     ! Private methods for coarser triangulation set-up
-     procedure, non_overridable          :: setup_coarse_triangulation                     => bst_setup_coarse_triangulation
-     procedure, non_overridable, private :: gather_coarse_cell_gids                        => bst_gather_coarse_cell_gids
-     procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => bst_gather_coarse_vefs_rcv_counts_and_displs
-     procedure, non_overridable, private :: gather_coarse_vefs_gids                        => bst_gather_coarse_vefs_gids
-     procedure, non_overridable, private :: gather_coarse_vefs_dim                   => bst_gather_coarse_vefs_dim
-     procedure, non_overridable, private :: fetch_l2_part_id_neighbours                    => bst_fetch_l2_part_id_neighbours
-     procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => bst_gather_coarse_dgraph_rcv_counts_and_displs
-     procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => bst_gather_coarse_dgraph_lextn_and_lextp
-     procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => bst_adapt_coarse_raw_arrays
-     
   end type base_static_triangulation_t
   
   type, extends(base_static_triangulation_t) :: fine_triangulation_t
@@ -611,9 +768,9 @@ module triangulation_names
   
 contains
 
-#include "sbm_cell_iterator_new.i90"
-#include "sbm_vef_iterator_new.i90"
-#include "sbm_object_iterator_new.i90"
+#include "sbm_cell_iterator.i90"
+#include "sbm_vef_iterator.i90"
+#include "sbm_object_iterator.i90"
 #include "sbm_triangulation.i90"
 
 #include "sbm_bst_cell_iterator.i90"

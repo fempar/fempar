@@ -72,16 +72,16 @@ subroutine bst_allocate_and_fill_ptr_vefs_x_cell (this, ptr_vefs_x_cell)
     end do
   end subroutine bst_allocate_and_fill_ptr_vefs_x_cell
   
-subroutine bst_allocate_cells_gid (this)
+subroutine bst_allocate_cells_ggid (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   assert ( associated ( this%environment ) )
   assert ( this%environment%am_i_l1_task() )
-  call this%free_cells_gid()
-  call memalloc ( this%num_local_cells + this%num_ghost_cells, this%cells_gid, __FILE__, __LINE__ )
-end subroutine bst_allocate_cells_gid
+  call this%free_cells_ggid()
+  call memalloc ( this%num_local_cells + this%num_ghost_cells, this%cells_ggid, __FILE__, __LINE__ )
+end subroutine bst_allocate_cells_ggid
   
-subroutine bst_fill_local_cells_gid (this, cells_gid)
+subroutine bst_fill_local_cells_ggid (this, cells_gid)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   integer(igp)                 , intent(in)    :: cells_gid(this%num_local_cells)
@@ -90,14 +90,14 @@ subroutine bst_fill_local_cells_gid (this, cells_gid)
   assert ( this%environment%am_i_l1_task() )
   if(this%environment%get_l1_size()>1) then
      do icell=1, this%num_local_cells
-       this%cells_gid(icell) = cells_gid(icell)
+       this%cells_ggid(icell) = cells_gid(icell)
      end do
   else
      do icell=1, this%num_local_cells
-       this%cells_gid(icell) = icell
+       this%cells_ggid(icell) = icell
      end do  
   end if
-end subroutine bst_fill_local_cells_gid
+end subroutine bst_fill_local_cells_ggid
  
 subroutine bst_allocate_cells_mypart (this)
   implicit none
@@ -157,11 +157,11 @@ subroutine bst_free_lst_vefs_gids ( this )
   if ( allocated(this%lst_vefs_gids) ) call memfree( this%lst_vefs_gids, __FILE__, __LINE__ )
 end subroutine bst_free_lst_vefs_gids
 
-subroutine bst_free_cells_gid (this)
+subroutine bst_free_cells_ggid (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
-  if (allocated (this%cells_gid)) call memfree ( this%cells_gid, __FILE__, __LINE__ )
-end subroutine bst_free_cells_gid
+  if (allocated (this%cells_ggid)) call memfree ( this%cells_ggid, __FILE__, __LINE__ )
+end subroutine bst_free_cells_ggid
 
 subroutine bst_free_cells_mypart (this)
   implicit none
@@ -234,7 +234,7 @@ end subroutine bst_orient_tet_mesh
     integer(ip)  , pointer     :: snd_leids(:)
     integer(ip)  , pointer     :: rcv_ptrs(:)
     integer(ip)  , pointer     :: rcv_leids(:)
-    class(cell_iterator_t), allocatable :: cell
+    type(bst_cell_iterator_t) :: cell
     integer(ip)                :: icell, first, last, extra_data_size_x_vef
     integer(ip)                :: start_buf, end_buf, current, i, j, num_neighbours
     
@@ -451,15 +451,15 @@ end subroutine bst_orient_tet_mesh
   
   function bst_cell_size ( cell )
     implicit none
-    class(cell_iterator_t) , intent(in)  :: cell
+    class(bst_cell_iterator_t) , intent(in)  :: cell
     integer(ip) :: bst_cell_size
     bst_cell_size = size_of_ip + size_of_igp + &
                                      size_of_igp*(cell%get_num_vefs()) ! + size_of_ip*(cell%get_num_vefs())
   end function bst_cell_size
   
-  subroutine bst_cell_pack_vef_gids (cell, buffer, vef_gids, buffer_offset)
+  subroutine bst_cell_pack_vef_ggids (cell, buffer, vef_gids, buffer_offset)
     implicit none
-    class(cell_iterator_t), intent(in)  :: cell
+    class(bst_cell_iterator_t), intent(in)  :: cell
     integer(igp)          , intent(in)  :: vef_gids(:)
     integer(ieep)         , intent(out) :: buffer(:)
     integer(ip), optional , intent(out) :: buffer_offset
@@ -476,45 +476,45 @@ end subroutine bst_orient_tet_mesh
     buffer(first:last) = transfer(vef_gids,buffer(first:last))
     if(present(buffer_offset)) buffer_offset = last
 
-  end subroutine bst_cell_pack_vef_gids
+  end subroutine bst_cell_pack_vef_ggids
 
 
-  subroutine bst_cell_pack_vef_gids_and_dim (cell, buffer, vef_gids, vef_dims)
+  subroutine bst_cell_pack_vef_ggids_and_dim (cell, buffer, vef_gids, vef_dims)
     implicit none
-    class(cell_iterator_t), intent(in)  :: cell
+    class(bst_cell_iterator_t), intent(in)  :: cell
     integer(igp)          , intent(in)  :: vef_gids(:)
     integer(ip)           , intent(in)  :: vef_dims(:)
     integer(ieep)         , intent(out) :: buffer(:)
     integer(ip)                        :: first, last
         
-    call bst_cell_pack_vef_gids(cell,buffer,vef_gids, buffer_offset=last)
+    call bst_cell_pack_vef_ggids(cell,buffer,vef_gids, buffer_offset=last)
     first = last + 1
     last  = first + cell%get_num_vefs()*size_of_ip - 1
     buffer(first:last) = transfer(vef_dims,buffer(first:last))
 
-  end subroutine bst_cell_pack_vef_gids_and_dim
+  end subroutine bst_cell_pack_vef_ggids_and_dim
 
 
-  subroutine bst_cell_pack_vef_gids_and_coordinates (cell, buffer, vef_gids, coordinates)
+  subroutine bst_cell_pack_vef_ggids_and_coordinates (cell, buffer, vef_gids, coordinates)
     implicit none
-    class(cell_iterator_t), intent(in)  :: cell
+    class(bst_cell_iterator_t), intent(in)  :: cell
     integer(igp)          , intent(in)  :: vef_gids(:)
     real(rp)              , intent(in)  :: coordinates(:,:)
     integer(ieep)         , intent(out) :: buffer(:)
     integer(ip)                        :: first, last, ivef
         
-    call bst_cell_pack_vef_gids(cell,buffer,vef_gids, buffer_offset=last)
+    call bst_cell_pack_vef_ggids(cell,buffer,vef_gids, buffer_offset=last)
     do ivef=1,cell%get_num_vefs()
        first = last + 1
        last  = first + SPACE_DIM*size_of_rp - 1
        buffer(first:last) = transfer(coordinates(:,ivef),buffer(first:last))
     end do
 
-  end subroutine bst_cell_pack_vef_gids_and_coordinates
+  end subroutine bst_cell_pack_vef_ggids_and_coordinates
   
-  subroutine bst_cell_unpack_vef_gids (cell, buffer, vef_gids, buffer_offset)
+  subroutine bst_cell_unpack_vef_ggids (cell, buffer, vef_gids, buffer_offset)
     implicit none
-    class(cell_iterator_t), intent(inout) :: cell
+    class(bst_cell_iterator_t), intent(inout) :: cell
     integer(ieep)         , intent(in)    :: buffer(:)
     integer(igp)          , intent(out)   :: vef_gids(:)
     integer(ip), optional , intent(out)   :: buffer_offset
@@ -538,40 +538,40 @@ end subroutine bst_orient_tet_mesh
 
     if(present(buffer_offset)) buffer_offset = last
             
-  end subroutine bst_cell_unpack_vef_gids
+  end subroutine bst_cell_unpack_vef_ggids
 
 
-  subroutine bst_cell_unpack_vef_gids_and_dim (cell, buffer, vef_gids, vef_dims)
+  subroutine bst_cell_unpack_vef_ggids_and_dim (cell, buffer, vef_gids, vef_dims)
     implicit none
-    class(cell_iterator_t), intent(inout) :: cell
+    class(bst_cell_iterator_t), intent(inout) :: cell
     integer(ieep)         , intent(in)    :: buffer(:)
     integer(igp)          , intent(out)   :: vef_gids(:)
     integer(ip)           , intent(out)   :: vef_dims(:)
     integer(ip)                           :: first, last, ivef
     
-    call bst_cell_unpack_vef_gids(cell, buffer, vef_gids, buffer_offset=last)
+    call bst_cell_unpack_vef_ggids(cell, buffer, vef_gids, buffer_offset=last)
     first = last + 1
     last = first + cell%get_num_vefs()*size_of_ip - 1
     vef_dims = transfer(buffer(first:last), vef_dims)
     
-  end subroutine bst_cell_unpack_vef_gids_and_dim
+  end subroutine bst_cell_unpack_vef_ggids_and_dim
 
 
-  subroutine bst_cell_unpack_vef_gids_and_coordinates (cell, buffer, vef_gids, coordinates)
+  subroutine bst_cell_unpack_vef_ggids_and_coordinates (cell, buffer, vef_gids, coordinates)
     implicit none
-    class(cell_iterator_t), intent(inout) :: cell
+    class(bst_cell_iterator_t), intent(inout) :: cell
     integer(ieep)         , intent(in)    :: buffer(:)
     integer(igp)          , intent(out)   :: vef_gids(:)
     real(rp)              , intent(out)   :: coordinates(:,:)
     integer(ip)                           :: first, last, ivef
     
-    call bst_cell_unpack_vef_gids(cell, buffer, vef_gids, buffer_offset=last)
+    call bst_cell_unpack_vef_ggids(cell, buffer, vef_gids, buffer_offset=last)
     do ivef=1,cell%get_num_vefs()
        first = last + 1
        last = first +SPACE_DIM*size_of_rp - 1
        coordinates(:,ivef) = transfer(buffer(first:last), coordinates(:,ivef))
     end do
-  end subroutine bst_cell_unpack_vef_gids_and_coordinates
+  end subroutine bst_cell_unpack_vef_ggids_and_coordinates
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -584,11 +584,11 @@ subroutine bst_compute_num_vefs ( this )
   class(base_static_triangulation_t), intent(inout) :: this
   type(hash_table_ip_ip_t) :: visited_vefs
   integer(ip) :: icell, ivef, vef_lid, istat
-  class(cell_iterator_t), allocatable :: cell
+  type(bst_cell_iterator_t) :: cell
   
   call visited_vefs%init(max(5,int(real(this%num_local_cells,rp)*0.2_rp,ip))) 
   this%num_vefs = 0
-  call this%create_cell_iterator(cell)
+  call cell%create(this)
   do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_gid(ivef)
@@ -598,42 +598,41 @@ subroutine bst_compute_num_vefs ( this )
      call cell%next()
   end do
   call visited_vefs%free()
-  call this%free_cell_iterator(cell)
+  call cell%free()
 end subroutine bst_compute_num_vefs
 
-subroutine bst_allocate_and_fill_vefs_gid ( this, lst_vefs_gid )
+subroutine bst_allocate_and_fill_vefs_ggid ( this, lst_vefs_gid )
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   integer(igp)                                      :: lst_vefs_gid(*)
   integer(ip)                                       :: icell, ivef, vef_lid, current
   integer(igp)                                      :: vef_gid
-
-  class(cell_iterator_t), allocatable       :: cell
+  type(bst_cell_iterator_t) :: cell
 
   assert ( this%num_vefs >= 0 ) 
 
-  call this%free_vefs_gid()
-  call memalloc(this%num_vefs, this%vefs_gid,__FILE__,__LINE__)
+  call this%free_vefs_ggid()
+  call memalloc(this%num_vefs, this%vefs_ggid,__FILE__,__LINE__)
 
-  call this%create_cell_iterator(cell)
+  call cell%create(this)
   current = 1
   do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_gid(ivef)
         vef_gid = lst_vefs_gid(current)
-        this%vefs_gid(vef_lid) = vef_gid
+        this%vefs_ggid(vef_lid) = vef_gid
         current = current + 1 
      end do
      call cell%next()
   end do
-  call this%free_cell_iterator(cell)
-end subroutine bst_allocate_and_fill_vefs_gid
+  call cell%free()
+end subroutine bst_allocate_and_fill_vefs_ggid
 
-subroutine bst_free_vefs_gid( this )
+subroutine bst_free_vefs_ggid( this )
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
-  if (allocated(this%vefs_gid)) call memfree(this%vefs_gid,__FILE__,__LINE__)
-end subroutine bst_free_vefs_gid
+  if (allocated(this%vefs_ggid)) call memfree(this%vefs_ggid,__FILE__,__LINE__)
+end subroutine bst_free_vefs_ggid
 
 subroutine bst_triangulation_free_vefs_type( this )
   implicit none
@@ -645,7 +644,7 @@ subroutine bst_allocate_and_fill_cells_around ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout)  :: this
   integer(ip)                                        :: ivef, vef_lid
-  class(cell_iterator_t), allocatable       :: cell
+  type(bst_cell_iterator_t) :: cell
 
   call this%free_cells_around()
 
@@ -698,8 +697,8 @@ subroutine bst_find_local_ghost_vefs (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   integer(ip)           :: ivef,icell
-  class(cell_iterator_t), allocatable :: cell
-  type(vef_iterator_t)  :: vef
+  type(bst_cell_iterator_t) :: cell
+  type(bst_vef_iterator_t)  :: vef
   logical               :: vef_is_local, vef_is_ghost
 
   assert ( this%num_vefs >= 0 )
@@ -762,10 +761,8 @@ subroutine bst_create_vef_iterator ( this, vef )
   class(vef_iterator_t), allocatable , intent(inout) :: vef
   integer(ip) :: istat
   call this%free_vef_iterator(vef)
-  if(allocated(vef)) then
-     call vef%free()
-     deallocate(vef, stat=istat); check(istat==0)
-  end if
+  allocate(bst_vef_iterator_t :: vef, stat=istat); check(istat==0)
+  call vef%create(this)
 end subroutine bst_create_vef_iterator
 
 subroutine bst_free_vef_iterator ( this, vef )
@@ -788,8 +785,8 @@ end subroutine bst_free_vef_iterator
 subroutine bst_print ( this )
    class(base_static_triangulation_t), intent(in) :: this
    integer(ip) :: ivef,inode
-   type(vef_iterator_t)  :: vef
-   class(cell_iterator_t), allocatable       :: cell
+   type(bst_vef_iterator_t)  :: vef
+   type(bst_cell_iterator_t) :: cell 
    type(point_t), allocatable :: cell_coordinates(:)
    integer(ip) :: vef_lid
 
@@ -797,10 +794,10 @@ subroutine bst_print ( this )
    write (*,'(a,i10)') 'num_dims:' , this%num_dims
    write (*,'(a,i10)') 'num_local_cells:', this%num_local_cells
    write (*,'(a,i10)') 'num_ghost_cells:', this%num_ghost_cells
-   write (*,'(a,i10)') 'num_itfc_vefs:  ', this%num_itfc_vefs
+   write (*,'(a,i10)') 'num_itfc_vefs:  ', this%get_num_itfc_vefs()
    write (*,'(a)') '**** Cells ****'
 
-   call this%create_cell_iterator(cell)
+   call cell%create(this)
    write (*,'(a)') '       id      is_local   is_ghost  num_vefs    vef        vef  ....'
    do while ( .not. cell%has_finished() )
        write(*,'(i10,2l10,10(2x,i10))') cell%get_gid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_gid(ivef),ivef=1,cell%get_num_vefs())
@@ -816,7 +813,7 @@ subroutine bst_print ( this )
        !write(*,*) 'Printing cell:',cell%get_lid(),cell%is_local()
        if(cell%is_local()) then
           call memrealloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
-          call cell%get_coordinates (cell_coordinates)
+          call cell%get_nodes_coordinates (cell_coordinates)
           write (*,'(i10,20(2x,e15.7))'  ) cell%get_gid(), (cell_coordinates(inode)%get_value(),inode=1,cell%get_num_nodes())
        end if
        call cell%next()
@@ -825,68 +822,40 @@ subroutine bst_print ( this )
 
     write (*,'(a)') '**** Vefs ****'
     write (*,'(a)') '        id          dim    is_local    is_at_interface  is_ghost   is_at_bound       set        geom '
-    call this%create_vef_iterator(vef)
+    call vef%create(this)
     do while ( .not. vef%has_finished() )
        vef_lid = vef%get_gid()
        write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dim(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary(), vef%get_set_id(),this%vefs_geometry(vef_lid)
        call vef%next()
     end do
-    call this%free_vef_iterator(vef)
-    
+    call vef%free()
     call memfree(cell_coordinates,__FILE__,__LINE__)
-    call this%free_cell_iterator(cell)
+    call cell%free()
   end subroutine bst_print
 
 
   recursive subroutine bst_free ( this )
     implicit none
     class(base_static_triangulation_t), target, intent(inout) :: this
-    integer(ip)                                       :: icell, ivef, istat
-    
+    integer(ip) :: icell, ivef, istat
     if ( associated(this%environment) ) then
-    if ( this%environment%am_i_l1_task() ) then
-        this%num_dims = -1 
-      
+      if ( this%environment%am_i_l1_task() ) then
         ! Free cell-related data
         call this%free_ptr_vefs_x_cell()
         call this%free_lst_vefs_gids()
-        call this%free_cells_gid()
+        call this%free_cells_ggid()
         call this%free_cells_mypart() 
         call this%free_cells_set()
-        
-        call this%cell_import%free()
-        this%num_local_cells = -1
-        this%num_ghost_cells = -1
      
         ! Free vef-related data
-        call this%free_vefs_gid()
+        call this%free_vefs_ggid()
         call this%free_vefs_type()
         call this%free_cells_around()
         call this%free_lst_itfc_vefs()
-        this%num_itfc_vefs = -1
-        
-        ! Free coarse objects-related data
-        call this%free_objects_gids_and_dim()
-        call this%vefs_object%free()
-        call this%parts_object%free()
-        call this%subparts_object%free()
-        call this%g2l_subparts%free()
-        this%num_objects = -1
-        this%num_global_objects = -1
-
-      else ! I am lgt1_task
-         call this%coarse_triangulation%free()
-         deallocate ( this%coarse_triangulation, stat=istat)
-         check(istat == 0)
-      end if
-
-      if(associated(this%environment,this%par_environment)) then
-         ! The environment has been created by the triangulation
-         call this%par_environment%free()
-      end if
-      nullify(this%environment)
       end if
       call this%geometry%free()
+    end if
+    call this%triangulation_t%free()
    end subroutine bst_free
 
    function bst_get_num_reference_fes_geo ( this ) 

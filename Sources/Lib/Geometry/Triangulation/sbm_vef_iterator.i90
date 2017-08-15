@@ -41,13 +41,6 @@ subroutine vef_iterator_free ( this)
   nullify ( this%triangulation )
 end subroutine vef_iterator_free
 
-subroutine vef_iterator_free_final(this)
-  implicit none
-  type(vef_iterator_t), intent(inout) :: this
-  assert(this%gid == -1)
-  assert(.not. associated(this%triangulation ))
-end subroutine vef_iterator_free_final
-
 subroutine vef_iterator_first(this)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
@@ -88,3 +81,12 @@ function vef_iterator_get_triangulation(this)
   class(triangulation_t), pointer :: vef_iterator_get_triangulation
   vef_iterator_get_triangulation => this%triangulation
 end function vef_iterator_get_triangulation
+
+function vef_iterator_is_facet(this)
+  implicit none
+  class(vef_iterator_t), intent(in) :: this
+  logical :: vef_iterator_is_facet
+  vef_iterator_is_facet = (this%get_dim() == (this%triangulation%get_num_dims()-1))
+end function vef_iterator_is_facet
+
+

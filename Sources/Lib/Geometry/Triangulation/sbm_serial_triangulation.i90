@@ -33,17 +33,19 @@ subroutine serial_triangulation_create ( this, parameters)
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
-  type(mesh_t)              :: mesh
-  type(list_t), pointer     :: given_vefs
-  integer(ip) , pointer     :: lst_vefs_geo(:), lst_vefs_set(:)
-  real(rp)    , allocatable :: coordinates(:,:)
-  integer(ip)               :: triangulation_generate
-  integer(ip)               :: execution_context
-  integer(ip)               :: istat
-  integer(ip)               :: geometry_interpolation_order
-  type(p_reference_fe_t)    :: reference_fe_geo_list(1)
-  integer(ip)               :: ivef 
-  integer(ip), allocatable  :: cells_set(:)
+  type(mesh_t)                 :: mesh
+  type(list_t), pointer        :: given_vefs
+  integer(ip) , pointer        :: lst_vefs_geo(:), lst_vefs_set(:)
+  real(rp)    , allocatable    :: coordinates(:,:)
+  integer(ip)                  :: triangulation_generate
+  integer(ip)                  :: execution_context
+  integer(ip)                  :: istat
+  integer(ip)                  :: geometry_interpolation_order
+  type(p_reference_fe_t)       :: reference_fe_geo_list(1)
+  integer(ip)                  :: ivef 
+  integer(ip), allocatable     :: cells_set(:)
+  type(environment_t), pointer :: environment
+  integer(ip)                  :: max_vefs_x_cell, num_edges, num_faces
 
   ! Optional parameters
   if( parameters%isPresent(triangulation_generate_key) ) then
@@ -73,8 +75,10 @@ subroutine serial_triangulation_create ( this, parameters)
   else
      istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
   end if
-  call this%par_environment%create (parameters)
-  this%p_env => this%par_environment
+  
+  call this%allocate_environment()
+  environment => this%get_environment()
+  call environment%create(parameters)
 
   if(geometry_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
@@ -82,7 +86,7 @@ subroutine serial_triangulation_create ( this, parameters)
      call mesh%read(parameters)
 
      ! Extract data from mesh
-     call mesh%get_sizes(this%num_dims,this%num_vertices,this%max_vefs_x_cell,this%num_local_cells)
+     call mesh%get_sizes(this%num_dims,this%num_vertices,max_vefs_x_cell,this%num_local_cells)
      this%num_vefs=this%num_vertices
      this%num_ghost_cells=0
      call mesh%move_cells(this%ptr_vefs_x_cell,this%lst_vefs_gids, cells_set)
@@ -112,8 +116,8 @@ subroutine serial_triangulation_create ( this, parameters)
      call uniform_hex_mesh%generate_connectivities(this%num_local_cells,   &
           &                                        this%num_vefs,          & ! All n_faces
           &                                        this%num_vertices,      & ! All dim 0 n_faces
-          &                                        this%num_edges,         & ! All faces with 0<dim<n-1
-          &                                        this%num_faces,         & ! All dim n-1 n_faces
+          &                                        num_edges,         & ! All faces with 0<dim<n-1
+          &                                        num_faces,         & ! All dim n-1 n_faces
           &                                        this%ptr_vefs_x_cell, &
           &                                        this%lst_vefs_gids,     &
           &                                        this%vefs_set,          &
@@ -153,7 +157,7 @@ subroutine serial_triangulation_create ( this, parameters)
   call this%allocate_and_fill_cells_around()
   call this%compute_vefs_dim()
   call this%find_vefs_at_boundary()
-  call this%find_and_list_vefs_at_interfaces()
+  call this%set_up_lst_itfc_vefs()
   call this%allocate_and_fill_nodes()
   call this%allocate_and_fill_coordinates(coordinates)
   call memfree(cells_set, __FILE__, __LINE__)

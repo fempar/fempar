@@ -101,6 +101,40 @@ function triangulation_get_num_itfc_vefs ( this )
   triangulation_get_num_itfc_vefs = this%lst_itfc_vefs%size()
 end function triangulation_get_num_itfc_vefs
 
+subroutine triangulation_set_environment ( this, environment )
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  class(environment_t), target, intent(in)    :: environment
+  integer(ip) :: istat
+  call this%free_environment()
+  this%environment => environment
+  this%environment_allocated = .false.
+end subroutine triangulation_set_environment 
+
+subroutine triangulation_allocate_environment ( this )
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(ip) :: istat
+  call this%free_environment()
+  allocate(this%environment, stat=istat); check(istat == 0)
+  this%environment_allocated = .true.
+end subroutine triangulation_allocate_environment
+
+subroutine triangulation_free_environment ( this )
+  implicit none
+  class(triangulation_t)      , intent(inout) :: this
+  integer(ip) :: istat
+  if ( this%environment_allocated ) then
+    call this%environment%free()
+    deallocate(this%environment, stat=istat)
+    check(istat == 0)
+  end if
+  nullify(this%environment)
+  this%environment_allocated = .false.
+end subroutine triangulation_free_environment 
+
+
+
 subroutine triangulation_set_up_lst_itfc_vefs (this)
   implicit none
   class(triangulation_t), intent(inout) :: this
@@ -141,7 +175,7 @@ subroutine triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_i
   logical, allocatable                      :: touched_neighbours(:)
   integer(ip)                               :: nparts_around, mypart_id, part_id, local_part_id
   integer(ip)                               :: ivef_itfc, icell, vef_lid
-  class(cell_iterator_t), allocatable       :: cell 
+  type(bst_cell_iterator_t)                 :: cell 
   integer(ip)                               :: num_rows_parts_itfc_vefs
   integer(ip), allocatable                  :: work1(:), work2(:)
   type(itfc_vef_iterator_t)                 :: itfc_vef
@@ -163,8 +197,8 @@ subroutine triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_i
   call memalloc ( num_rows_parts_itfc_vefs, this%get_num_itfc_vefs(), parts_itfc_vefs, __FILE__, __LINE__ )
   parts_itfc_vefs = 0
 
-  call this%create_cell_iterator(cell) 
-  call this%create_itfc_vef_iterator(itfc_vef)
+  call cell%create(this)
+  call itfc_vef%create(this)
   ivef_itfc = 1
   do while(.not. itfc_vef%has_finished() )
 
@@ -212,8 +246,8 @@ subroutine triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_i
   call memfree ( work2, __FILE__,__LINE__ )
   call memfree ( work1, __FILE__,__LINE__ )
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
-  call this%free_vef_iterator(itfc_vef)
-  call this%free_cell_iterator(cell)
+  call itfc_vef%free()
+  call cell%free()
 end subroutine triangulation_compute_parts_itfc_vefs
 
 subroutine triangulation_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, perm_itfc_vefs )
@@ -523,11 +557,11 @@ subroutine triangulation_compute_objects_dim(this)
   implicit none
   class(triangulation_t), intent(inout) :: this
   integer(ip)                                  :: iobj, vef_lid
-  type(list_iterator_t)                        :: vefs_object_iterator
-  type(vef_iterator_t) :: vef
+  type(list_iterator_t) :: vefs_object_iterator
+  type(bst_vef_iterator_t) :: vef
 
   call memalloc ( this%num_objects, this%objects_dim, __FILE__, __LINE__ )
-  call this%create_vef_iterator(vef)
+  call vef%create(this)
   do iobj=1, this%num_objects
      vefs_object_iterator = this%vefs_object%create_iterator(iobj)
      this%objects_dim(iobj) = 0
@@ -539,7 +573,7 @@ subroutine triangulation_compute_objects_dim(this)
         call vefs_object_iterator%next()
      end do
   end do
-  call this%free_vef_iterator(vef)
+  call vef%free()
 end subroutine triangulation_compute_objects_dim
 
 subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
@@ -870,7 +904,7 @@ subroutine triangulation_setup_coarse_triangulation ( this )
      ! lgt1 MPI tasks (recursively) build coarse triangulation
      allocate  ( this%coarse_triangulation, stat = istat )
      check( istat == 0 )
-     call this%coarse_triangulation%create ( par_environment              = this%environment%get_next_level(), &
+     call this%coarse_triangulation%create ( environment              = this%environment%get_next_level(), &
           num_dims               = num_dims, &
           num_local_cells              = num_local_coarse_cells, &
           cells_gid                    = coarse_cells_gid, &
@@ -1205,10 +1239,10 @@ end function triangulation_adapt_coarse_raw_arrays
 
 subroutine triangulation_create_itfc_vef_iterator ( this, itfc_vef )
   implicit none
-  class(triangulation_t) , intent(in)    :: this
-  class(vef_iterator_t), allocatable     : itfc_vef
+  class(triangulation_t)            , intent(in)    :: this
+  class(vef_iterator_t), allocatable, intent(inout) :: itfc_vef
   call this%free_vef_iterator(itfc_vef)
-  allocate ( itfc_vef_iterator_t :: iftc_vef )
+  allocate ( itfc_vef_iterator_t :: itfc_vef )
   call itfc_vef%create(this)
 end subroutine triangulation_create_itfc_vef_iterator
 
@@ -1260,13 +1294,7 @@ recursive subroutine triangulation_free ( this )
         deallocate ( this%coarse_triangulation, stat=istat)
         check(istat == 0)
      end if
-     
-     if ( this%environment_allocated ) then
-        call this%environment%free()
-        deallocate(this%environment, stat=istat); check(istat==0)
-     end if
-     nullify(this%environment)
-     this%environment_allocated = .false.
+     call this%free_environment()  
   end if
 end subroutine triangulation_free
 

@@ -89,24 +89,24 @@ function cell_iterator_get_triangulation(this)
   cell_iterator_get_triangulation => this%triangulation
 end function cell_iterator_get_triangulation
 
-function bst_cell_iterator_get_mysubpart ( this )
+function cell_iterator_get_mysubpart ( this )
   implicit none
-  class(bst_cell_iterator_t), intent(in) :: this
-  integer(ip) :: bst_cell_iterator_get_mysubpart
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip) :: cell_iterator_get_mysubpart
   assert ( this%get_set_id() >= 0 )
-  bst_cell_iterator_get_mysubpart = (this%get_set_id())*this%base_static_triangulation%cell_import%get_num_parts() + this%get_my_part()
-end function bst_cell_iterator_get_mysubpart
+  cell_iterator_get_mysubpart = (this%get_set_id())*this%triangulation%cell_import%get_num_parts() + this%get_my_part()
+end function cell_iterator_get_mysubpart
 
-function bst_cell_iterator_get_mysubpart_lid ( this )
+function cell_iterator_get_mysubpart_lid ( this )
   implicit none
-  class(bst_cell_iterator_t), intent(in) :: this
-  integer(ip) :: bst_cell_iterator_get_mysubpart_lid
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip) :: cell_iterator_get_mysubpart_lid
   integer(ip) :: istat
-  call this%base_static_triangulation%g2l_subparts%get(key=this%get_my_subpart(), &
-                                                       val=bst_cell_iterator_get_mysubpart_lid, &
+  call this%triangulation%g2l_subparts%get(key=this%get_my_subpart(), &
+                                                       val=cell_iterator_get_mysubpart_lid, &
                                                        stat=istat)
   assert ( istat == key_found )
-end function bst_cell_iterator_get_mysubpart_lid
+end function cell_iterator_get_mysubpart_lid
 
 
 

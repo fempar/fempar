@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine par_triangulation_create ( this, parameters, par_environment)
+subroutine par_triangulation_create ( this, parameters, environment)
   !$ use omp_lib
   implicit none
   class(par_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)             , intent(inout) :: parameters
-  type(environment_t), optional, target, intent(in) :: par_environment
+  type(environment_t), optional, target, intent(in) :: environment
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
@@ -69,6 +69,9 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   integer(ip)                     :: geometry_interpolation_order
   integer(ip)                     :: lunio
   integer(ip)                     :: istat
+  type(environment_t), pointer    :: env
+  integer(ip) :: max_vefs_x_cell
+  integer(ip) :: num_edges, num_faces
 
     ! Mandatory parameters
     assert(parameters%isAssignable(dir_path_key, 'string'))
@@ -100,8 +103,8 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
   call this%free()
 
   ! Create or point the environment
-  if(present(par_environment)) then
-     this%p_env => par_environment
+  if(present(environment)) then
+     call this%set_environment(environment)
   else
      if(triangulation_generate==triangulation_generate_from_mesh) then
         istat = parameters%set(key = environment_type_key, value = unstructured) ; check(istat==0)
@@ -111,12 +114,13 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
      if( .not. parameters%isPresent(key = execution_context_key) ) then
         istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
      end if
-     call this%par_environment%create (parameters)
-     this%p_env => this%par_environment
+     call this%allocate_environment()
+     env => this%get_environment()
+     call env%create (parameters)
   end if
 
 
-  if(this%p_env%am_i_l1_task()) then
+  if(this%environment%am_i_l1_task()) then
 
      ! Generate triangulation
      if(triangulation_generate==triangulation_generate_from_mesh) then
@@ -125,23 +129,23 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         ! Read mesh
         call mesh%compose_name ( prefix, name )
-        if(this%p_env%get_l1_size()>1) &
-             &  call par_filename( this%p_env%get_l1_rank()+1, this%p_env%get_l1_size(), name )
+        if(this%environment%get_l1_size()>1) &
+             &  call par_filename( this%environment%get_l1_rank()+1, this%environment%get_l1_size(), name )
         lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
         call mesh%read (lunio) 
         call io_close(lunio)
 
         ! Extract data from mesh
-        call mesh%get_sizes(this%num_dims,this%num_vertices,this%max_vefs_x_cell,this%num_local_cells)
+        call mesh%get_sizes(this%num_dims,this%num_vertices,max_vefs_x_cell,this%num_local_cells)
         this%num_vefs=this%num_vertices
         call mesh%move_cells(ptr_vefs_x_cell,lst_vefs_lids, cells_set)
         call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
         call mesh%move_coordinates(coordinates)
 
         ! Read mesh distribution 
-        if(this%p_env%get_l1_size()>1) then
+        if(this%environment%get_l1_size()>1) then
            call mesh_distribution_compose_name ( prefix, name )
-           call par_filename( this%p_env%get_l1_rank()+1, this%p_env%get_l1_size(), name )
+           call par_filename( this%environment%get_l1_rank()+1, this%environment%get_l1_size(), name )
            lunio = io_open (trim(dir_path) // '/' // trim(name)); check(lunio>0)
            call mesh_distribution%read_file(lunio)
            call io_close(lunio)
@@ -161,7 +165,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         ! Build cell-wise vefs_gid and vefs_dim (we only have vertices here)
         call memalloc(ptr_vefs_x_cell(this%num_local_cells+1)-1,lst_vefs_gids,__FILE__,__LINE__)
         call memalloc(SPACE_DIM,ptr_vefs_x_cell(this%num_local_cells+1)-1,cell_coordinates,__FILE__,__LINE__)
-        if(this%p_env%get_l1_size()>1) then
+        if(this%environment%get_l1_size()>1) then
            do i=1,ptr_vefs_x_cell(this%num_local_cells+1)-1
               lst_vefs_gids(i) = vertx_gid(lst_vefs_lids(i))
               cell_coordinates(:,i) = coordinates(:,lst_vefs_lids(i))
@@ -171,8 +175,8 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         ! in order to determine the number of ghost elements. This
         ! in turn is required as a precondition for the allocate_cell_array
         ! TBP below.
-        call this%cell_import%create  ( this%p_env%get_l1_rank()+1, &
-             this%p_env%get_l1_size(), &
+        call this%cell_import%create  ( this%environment%get_l1_rank()+1, &
+             this%environment%get_l1_size(), &
              this%num_local_cells, &
              num_itfc_cells, &
              lst_itfc_cells, &
@@ -183,8 +187,8 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         ! Allocate + fill cells-related data
         call this%allocate_and_fill_ptr_vefs_x_cell(ptr_vefs_x_cell)
-        call this%allocate_cells_gid()
-        call this%fill_local_cells_gid(cells_gid)
+        call this%allocate_cells_ggid()
+        call this%fill_local_cells_ggid(cells_gid)
         call this%allocate_cells_mypart()
         call this%fill_local_cells_mypart()
         call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended, &
@@ -196,7 +200,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         ! Realloc coordinates to hold ghost vertices and fill them
         call memrealloc (SPACE_DIM,this%num_vertices, coordinates, __FILE__, __LINE__ )
-        if(this%p_env%get_l1_size()>1) then
+        if(this%environment%get_l1_size()>1) then
            do i=1,this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1
               coordinates(:,this%lst_vefs_gids(i)) = cell_coordinates_ghost_extended(:,i)
            end do
@@ -212,7 +216,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         call this%generate_vefs(geometry_interpolation_order)
         call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
 
-        if(this%p_env%get_l1_size()>1) then
+        if(this%environment%get_l1_size()>1) then
            call memfree (cells_gid,                    __FILE__, __LINE__)
            call memfree (vertx_gid,                    __FILE__, __LINE__)
         end if
@@ -233,30 +237,30 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
         call uniform_hex_mesh%generate_connectivities(this%num_local_cells,   &
              &                                        this%num_vefs,          & ! All n_faces
              &                                        this%num_vertices,      & ! All dim 0 n_faces
-             &                                        this%num_edges,         & ! All faces with 0<dim<n-1
-             &                                        this%num_faces,         & ! All dim n-1 n_faces
+             &                                        num_edges,         & ! All faces with 0<dim<n-1
+             &                                        num_faces,         & ! All dim n-1 n_faces
              &                                        this%ptr_vefs_x_cell, &
              &                                        lst_vefs_lids,     &
              &                                        this%vefs_set,          &
              &                                        coordinates,            &
              &                                        this%num_ghost_cells,   &
-             &                                        this%cells_gid,         &
+             &                                        this%cells_ggid,         &
              &                                        this%cells_mypart,      &
-             &                                        this%vefs_gid,          &
+             &                                        this%vefs_ggid,          &
              &                                        num_itfc_cells,         &
              &                                        lst_itfc_cells,         &
              &                                        ptr_ext_neighs_x_itfc_cell, &
              &                                        lst_ext_neighs_gids,          &
              &                                        lst_ext_neighs_part_ids,      &
-             &                                        this%p_env%get_l1_rank()+1)
+             &                                        this%environment%get_l1_rank()+1)
 
         ! Allocate and fill to default values cells_set==0 local variable
         call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
         cells_set = 0
 
         ! Generate import
-        call this%cell_import%create  ( this%p_env%get_l1_rank()+1, &
-             this%p_env%get_l1_size(), &
+        call this%cell_import%create  ( this%environment%get_l1_rank()+1, &
+             this%environment%get_l1_size(), &
              this%num_local_cells, &
              num_itfc_cells, &
              lst_itfc_cells, & ! I was forced to provide l/u bounds to let gfortran 5.3.0 compile
@@ -267,15 +271,15 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
 
         ! Build cell-wise vefs_gid and vefs_dim
         call memalloc(this%ptr_vefs_x_cell(this%num_local_cells+1)-1,lst_vefs_gids,__FILE__,__LINE__)
-        if(this%p_env%get_l1_size()>1) then
+        if(this%environment%get_l1_size()>1) then
            do i=1,this%ptr_vefs_x_cell(this%num_local_cells+1)-1 
-              lst_vefs_gids(i) = this%vefs_gid(lst_vefs_lids(i))
+              lst_vefs_gids(i) = this%vefs_ggid(lst_vefs_lids(i))
            end do
         else
            lst_vefs_gids = lst_vefs_lids
         end if
         call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended)
-        call this%allocate_and_fill_lst_vefs_gids(lst_vefs_lids,lst_vefs_gids_ghost_extended, this%vefs_gid)
+        call this%allocate_and_fill_lst_vefs_gids(lst_vefs_lids,lst_vefs_gids_ghost_extended, this%vefs_ggid)
 
         ! Generate reference fe
         call this%reference_fe_geo_index%init(1)
@@ -307,7 +311,7 @@ subroutine par_triangulation_create ( this, parameters, par_environment)
      call this%allocate_and_fill_cells_around()
      call this%compute_vefs_dim()
      call this%find_vefs_at_boundary()
-     call this%find_and_list_vefs_at_interfaces()
+     call this%set_up_lst_itfc_vefs()
      call this%allocate_and_fill_nodes()
      call this%allocate_and_fill_coordinates(coordinates)     
 
@@ -337,8 +341,8 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_gids ( this, lst_vefs_li
   type(hash_table_igp_ip_t) :: next_vef_lid_avail
   integer(ip)               :: icell, istat, j, init_pos, end_pos, current, ivef           
 
-  !assert ( associated ( this%p_env ) )
-  assert ( this%p_env%am_i_l1_task() )
+  !assert ( associated ( this%environment ) )
+  assert ( this%environment%am_i_l1_task() )
   assert ( this%num_local_cells + this%num_ghost_cells >=0 )
 
   call this%free_lst_vefs_gids()
